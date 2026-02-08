@@ -26,7 +26,7 @@
   - https://github.com/crytic/echidna
 
 - Foundry invariant testing runs randomized call sequences and asserts invariants after each call.
-  - https://learnblockchain.cn/docs/foundry/i18n/en/forge/invariant-testing.html
+  - https://book.getfoundry.sh/forge/invariant-testing
 
 ## Implications for Dumb Contracts
 
