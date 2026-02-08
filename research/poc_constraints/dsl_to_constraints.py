@@ -8,11 +8,13 @@ contract Loan
 spec update(address user, uint256 newCollateral, uint256 newDebt):
   ensure: debt[user] == 0 || collateral[user] * 1e18 >= debt[user] * minHealthFactor
 
-Optional:
-  constructor(<params>)
-  require: <expr>
-  ensure: <expr> (may appear multiple times)
-  invariant Name: <expr>
+  Optional:
+    constructor(<params>)
+    require: <expr>
+    ensure: <expr> (may appear multiple times)
+    hint: <text>
+    invariant Name: <expr>
+    forall <witness>: <pre> => <post>
   old(<expr>) in ensure/require/invariant for pre-state values.
 
 Notes:
@@ -20,6 +22,7 @@ Notes:
 - `require:` is optional and can appear multiple times.
 - `old(<expr>)` is limited to uint256 expressions for now.
 - The spec name must match the implementation function name.
+- `forall` compiles into a witness-based require/ensure pair (quantifier intent).
 """
 
 from __future__ import annotations
@@ -37,8 +40,10 @@ class Spec:
     params: str
     ensures: list[str]
     requires: list[str]
+    hints: list[str]
     ctor_params: str
     invariants: list[tuple[str, str]]
+    foralls: list[tuple[str, str, str]]
     spec_path: str
 
 
@@ -47,8 +52,12 @@ CTOR_RE = re.compile(r"^constructor\((?P<params>.*)\)\s*$")
 SPEC_RE = re.compile(r"^spec\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<params>.*)\):\s*$")
 ENSURE_RE = re.compile(r"^ensure:\s*(?P<expr>.+)$")
 REQUIRE_RE = re.compile(r"^require:\s*(?P<expr>.+)$")
+HINT_RE = re.compile(r"^hint:\s*(?P<text>.+)$")
 INVARIANT_RE = re.compile(
     r"^invariant\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<expr>.+)$"
+)
+FORALL_RE = re.compile(
+    r"^forall\s+(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<pre>.+?)\s*=>\s*(?P<post>.+)$"
 )
 
 
@@ -58,8 +67,10 @@ def parse_spec(text: str, spec_path: str) -> Spec:
     params = None
     ensures: list[str] = []
     requires: list[str] = []
+    hints: list[str] = []
     ctor_params = ""
     invariants: list[tuple[str, str]] = []
+    foralls: list[tuple[str, str, str]] = []
 
     for raw in text.splitlines():
         line = raw.strip()
@@ -85,9 +96,21 @@ def parse_spec(text: str, spec_path: str) -> Spec:
         match = REQUIRE_RE.match(line)
         if match:
             requires.append(match.group("expr").strip())
+        match = HINT_RE.match(line)
+        if match:
+            hints.append(match.group("text").strip())
         match = INVARIANT_RE.match(line)
         if match:
             invariants.append((match.group("name"), match.group("expr").strip()))
+        match = FORALL_RE.match(line)
+        if match:
+            foralls.append(
+                (
+                    match.group("var"),
+                    match.group("pre").strip(),
+                    match.group("post").strip(),
+                )
+            )
 
     missing = []
     if contract is None:
@@ -96,7 +119,7 @@ def parse_spec(text: str, spec_path: str) -> Spec:
         missing.append("spec")
     if missing:
         raise ValueError(f"Missing required fields: {', '.join(missing)}")
-    if not ensures and not invariants:
+    if not ensures and not invariants and not foralls:
         raise ValueError("Missing required fields: ensure or invariant")
 
     return Spec(
@@ -105,20 +128,34 @@ def parse_spec(text: str, spec_path: str) -> Spec:
         params=params or "",
         ensures=ensures,
         requires=requires,
+        hints=hints,
         ctor_params=ctor_params,
         invariants=invariants,
+        foralls=foralls,
         spec_path=spec_path,
     )
 
 
 def render(spec: Spec) -> str:
     harness = f"{spec.contract}SpecHarness"
-    all_exprs = spec.requires + spec.ensures + [expr for _, expr in spec.invariants]
+    forall_requires = [pre for _, pre, _ in spec.foralls]
+    forall_ensures = [post for _, _, post in spec.foralls]
+    forall_hints = [
+        f"forall witness {var}: {pre} => {post}" for var, pre, post in spec.foralls
+    ]
+    all_exprs = (
+        spec.requires
+        + spec.ensures
+        + forall_requires
+        + forall_ensures
+        + [expr for _, expr in spec.invariants]
+    )
     old_map = _old_map(all_exprs)
-    requires = [_sub_old(req, old_map) for req in spec.requires]
-    ensures = [_sub_old(expr, old_map) for expr in spec.ensures]
+    requires = [_sub_old(req, old_map) for req in spec.requires + forall_requires]
+    ensures = [_sub_old(expr, old_map) for expr in spec.ensures + forall_ensures]
     invariants = [(name, _sub_old(expr, old_map)) for name, expr in spec.invariants]
     old_decls = _render_old_decls(old_map)
+    hints = _render_hints(spec.hints + forall_hints)
     ctor_args = ", ".join(_param_names(spec.ctor_params))
     return f"""// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -131,9 +168,9 @@ contract {harness} is {spec.contract} {{
     constructor({spec.ctor_params}) {spec.contract}({ctor_args}) {{}}
 
     function {spec.func_name}_spec({spec.params}) external {{
-{old_decls}{_render_requires(requires)}
+ {old_decls}{_render_requires(requires)}{hints}
         super.{spec.func_name}({', '.join(_param_names(spec.params))});
-{_render_asserts(ensures, invariants)}
+ {_render_asserts(ensures, invariants)}
     }}
 }}
 """
@@ -192,6 +229,13 @@ def _render_requires(requires: list[str]) -> str:
     if not requires:
         return ""
     lines = [f"        require({expr});" for expr in requires]
+    return "\n".join(lines) + "\n"
+
+
+def _render_hints(hints: list[str]) -> str:
+    if not hints:
+        return ""
+    lines = [f"        // hint: {text}" for text in hints]
     return "\n".join(lines) + "\n"
 
 

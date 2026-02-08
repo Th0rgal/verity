@@ -1,0 +1,14 @@
+# Dumb Contract Spec: SimpleToken witness-based "forall"
+
+contract SimpleTokenWitness
+
+constructor(address owner, uint256 supply)
+
+spec transferWitness(address to, uint256 amount, address other):
+  require: to != address(0)
+  require: balance[msg.sender] >= amount
+  hint: treat `other` as a witness for the "all other accounts unchanged" obligation
+  forall other: other != msg.sender && other != to => balance[other] == old(balance[other])
+  ensure: balance[msg.sender] == old(balance[msg.sender]) - amount
+  ensure: balance[to] == old(balance[to]) + amount
+  ensure: totalSupply == old(totalSupply)

@@ -22,3 +22,57 @@ This log captures decisions, questions, and short summaries as we progress.
 - Regenerated spec harnesses for `SimpleToken` and `Loan` with multi-assert output.
 - Added `MintableToken` scenario + spec harness + unit tests to cover access-control constraints.
 - Refreshed the tooling landscape with updated references (SMTChecker, Scribble, Certora, KEVM, Echidna, Foundry invariants).
+
+## 2026-02-08 (Later)
+
+- Added a capped-mint scenario (`CappedToken`) with a cap invariant and preconditions.
+- Generated `CappedTokenSpecHarness` and added unit tests covering happy path, non-owner, and cap-exceeded cases.
+- Extended SMTChecker script to include Mintable + Capped harnesses.
+- Refreshed the landscape summary with current source links.
+
+## 2026-02-08 (Current)
+
+- Added a negative proof case with a deliberately broken transfer implementation.
+- Added `BrokenSimpleToken` + `BrokenSimpleTokenSpecHarness` and a unit test that expects assertion failure.
+- Added a new goal scenario for the negative proof case.
+- Updated the DSL generator script to include the new spec harness.
+- Began refreshing the research landscape with current documentation sources.
+
+## 2026-02-08 (Later)
+
+- Added a second negative proof case for cap invariants.
+- Added `BrokenCappedToken` + `BrokenCappedTokenSpecHarness` and a unit test expecting assertion failure.
+- Installed Docker tooling; daemon startup fails in this VM due to missing devices cgroup.
+- Added clearer SMTChecker script messaging when the Docker daemon is unavailable.
+- Installed Foundry toolchain and ran the full test suite.
+
+## 2026-02-08 (Current)
+
+- Added `hint:` metadata support in the DSL and emitted it as harness comments.
+- Introduced a spec manifest (`specs/manifest.txt`) and updated the generator to consume it.
+- Updated the proof pipeline and scenarios documentation for the new metadata/manifest flow.
+- Refreshed the landscape summary with current documentation links.
+
+## 2026-02-08 (Later)
+
+- Added a witness-based transfer scenario to approximate "forall other accounts" without quantifiers.
+- Added `SimpleTokenWitness` + spec harness + unit tests for the witness constraint.
+- Updated the manifest and proof pipeline notes for the witness approach.
+
+## 2026-02-08 (Later)
+
+- Added a `forall` witness line to the DSL that expands into a `require` + `assert` pair in the harness.
+- Updated `SimpleTokenWitness` spec to use the `forall` syntax and regenerated the harness.
+- Updated docs to reflect the witness-based quantifier intent feature.
+
+## 2026-02-08 (Current)
+
+- Sketched a Lean-backed Spec IR path in `research/spec_ir_lean/` (minimal semantics + checker interface).
+- Updated the proof pipeline to include the Lean-backed Spec IR track as the next formal step.
+- Refreshed the tooling landscape with Act and Kontrol references.
+- Added `docs/formal-approach.md` with a Spec IR + Lean + EVM-bridge plan.
+
+## 2026-02-08 (Later)
+
+- Expanded the Lean-only prototype in `research/lean_only_proto/` with a mint example.
+- Added `mintSpec` + `mint_sound` proof to show a second, DSL-free spec/implementation proof.

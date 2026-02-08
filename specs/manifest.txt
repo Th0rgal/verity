@@ -1,0 +1,8 @@
+# spec_path output_path
+specs/loan.dc src/LoanSpecHarness.sol
+specs/simple_token.dc src/SimpleTokenSpecHarness.sol
+specs/simple_token_witness.dc src/SimpleTokenWitnessSpecHarness.sol
+specs/mintable_token.dc src/MintableTokenSpecHarness.sol
+specs/capped_token.dc src/CappedTokenSpecHarness.sol
+specs/broken_simple_token.dc src/BrokenSimpleTokenSpecHarness.sol
+specs/broken_capped_token.dc src/BrokenCappedTokenSpecHarness.sol

@@ -1,13 +1,12 @@
-# Dumb Contract Spec: SimpleToken
+# Dumb Contract Spec: BrokenSimpleToken (negative example)
 
-contract SimpleToken
+contract BrokenSimpleToken
 
 constructor(address owner, uint256 supply)
 
 spec transfer(address to, uint256 amount):
   require: to != address(0)
   require: balance[msg.sender] >= amount
-  hint: update sender balance then receiver balance, emit Transfer
   ensure: balance[msg.sender] == old(balance[msg.sender]) - amount
   ensure: balance[to] == old(balance[to]) + amount
   ensure: totalSupply == old(totalSupply)

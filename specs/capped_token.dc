@@ -1,0 +1,12 @@
+# Dumb Contract Spec: CappedToken
+
+contract CappedToken
+
+constructor(address owner, uint256 supply, uint256 maxSupply)
+
+spec mint(uint256 amount):
+  require: msg.sender == owner
+  require: totalSupply + amount <= maxSupply
+  ensure: totalSupply == old(totalSupply) + amount
+  ensure: balance[owner] == old(balance[owner]) + amount
+  invariant CapNotExceeded: totalSupply <= maxSupply

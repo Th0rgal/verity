@@ -9,12 +9,12 @@ contract MintableTokenSpecHarness is MintableToken {
     constructor(address owner, uint256 supply) MintableToken(owner, supply) {}
 
     function mint_spec(uint256 amount) external {
-        uint256 old_totalSupply = totalSupply;
+         uint256 old_totalSupply = totalSupply;
         uint256 old_balance_owner = balance[owner];
         require(msg.sender == owner);
 
         super.mint(amount);
-        assert(totalSupply == old_totalSupply + amount);
+         assert(totalSupply == old_totalSupply + amount);
         assert(balance[owner] == old_balance_owner + amount);
 
     }
