@@ -1,0 +1,15 @@
+# Dumb Contract Spec: Token
+
+invariant NonNegativeBalances:
+  forall account: balance[account] >= 0
+
+invariant SupplyConservation:
+  sum(balance) == totalSupply
+
+spec Transfer(from, to, amount):
+  require: to != address(0)
+  ensure:
+    balance[from] == old(balance[from]) - amount
+    balance[to] == old(balance[to]) + amount
+    forall addr != from && addr != to:
+      balance[addr] == old(balance[addr])
