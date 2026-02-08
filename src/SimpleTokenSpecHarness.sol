@@ -16,6 +16,9 @@ contract SimpleTokenSpecHarness is SimpleToken {
         require(balance[msg.sender] >= amount);
 
         super.transfer(to, amount);
-        assert(balance[msg.sender] == old_balance_msg_sender - amount && balance[to] == old_balance_to + amount && totalSupply == old_totalSupply);
+        assert(balance[msg.sender] == old_balance_msg_sender - amount);
+        assert(balance[to] == old_balance_to + amount);
+        assert(totalSupply == old_totalSupply);
+
     }
 }

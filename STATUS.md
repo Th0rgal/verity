@@ -13,6 +13,7 @@ Last updated: 2026-02-08
 - Expand the tooling landscape with up-to-date references and gaps.
 - Establish a proof pipeline: DSL -> constraint harness -> SMTChecker.
 - Add bounded scenarios that avoid quantifiers but still exercise `old(...)` and preconditions.
+- Extend the DSL compiler to support multiple `ensure:` lines and named invariants.
 
 ## Completed
 
@@ -24,6 +25,7 @@ Last updated: 2026-02-08
 - SMTChecker-based proof step in CI using a Solidity spec harness.
 - `Loan` implementation + `LoanSpecHarness` and unit tests.
 - `SimpleToken` + `SimpleTokenSpecHarness` with `old(...)` capture and preconditions.
+- DSL compiler now supports multiple `ensure:` lines and named `invariant` assertions.
 
 ## Next
 

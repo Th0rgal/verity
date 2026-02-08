@@ -2,12 +2,12 @@
 
 ## Specification & Runtime Verification
 
-- Scribble is a runtime verification tool that transforms spec annotations into concrete assertions in Solidity; it is designed to work with testing, fuzzing, or symbolic execution rather than replace implementations.
-- Scribble properties are expressed as structured docstrings (e.g., `if_succeeds`), and the tool instruments the contract to enforce them at runtime.
+- Scribble is a runtime verification tool that transforms spec annotations into concrete assertions in Solidity.
+- It is explicitly positioned to work with testing, fuzzing, or symbolic execution rather than replace implementations.
 
 ## Formal Verification (Contract-Level)
 
-- Certora Prover verifies contracts against rules written in CVL (Certora Verification Language), which supports invariants, rules, and hooks.
+- Certora Prover verifies contracts against rules written in CVL, which supports rules and invariants.
 - Solidity SMTChecker provides bounded model checking (BMC) and CHC-based reasoning via compiler options and can check `assert` targets.
 - VeriSol is a Microsoft Research verifier for Solidity, but the repository notes it is no longer actively maintained.
 

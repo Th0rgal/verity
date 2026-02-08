@@ -18,3 +18,5 @@ This log captures decisions, questions, and short summaries as we progress.
 - Added `Loan` implementation + `LoanSpecHarness` and unit tests.
 - Extended the DSL compiler with `constructor(...)`, `require:`, and `old(...)` support.
 - Added `SimpleToken` + `SimpleTokenSpecHarness` with unit tests for pre/post constraints.
+- Extended the DSL compiler to accept multiple `ensure:` lines and named `invariant` assertions.
+- Regenerated spec harnesses for `SimpleToken` and `Loan` with multi-assert output.

@@ -12,5 +12,8 @@ contract LoanSpecHarness is Loan {
 
         super.update(user, newCollateral, newDebt);
         assert(debt[user] == 0 || collateral[user] * 1e18 >= debt[user] * minHealthFactor);
+        // invariant MinHealthFactorPositive
+        assert(minHealthFactor > 0);
+
     }
 }

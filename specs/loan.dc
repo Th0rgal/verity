@@ -6,3 +6,4 @@ constructor(uint256 minHealthFactor_)
 
 spec update(address user, uint256 newCollateral, uint256 newDebt):
   ensure: debt[user] == 0 || collateral[user] * 1e18 >= debt[user] * minHealthFactor
+  invariant MinHealthFactorPositive: minHealthFactor > 0

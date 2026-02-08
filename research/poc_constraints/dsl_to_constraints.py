@@ -11,10 +11,12 @@ spec update(address user, uint256 newCollateral, uint256 newDebt):
 Optional:
   constructor(<params>)
   require: <expr>
-  old(<expr>) in ensure/require for pre-state values.
+  ensure: <expr> (may appear multiple times)
+  invariant Name: <expr>
+  old(<expr>) in ensure/require/invariant for pre-state values.
 
 Notes:
-- Only `ensure:` with a single expression is supported.
+- Multiple `ensure:` and `invariant` lines are supported.
 - `require:` is optional and can appear multiple times.
 - `old(<expr>)` is limited to uint256 expressions for now.
 - The spec name must match the implementation function name.
@@ -33,9 +35,10 @@ class Spec:
     contract: str
     func_name: str
     params: str
-    ensure: str
+    ensures: list[str]
     requires: list[str]
     ctor_params: str
+    invariants: list[tuple[str, str]]
     spec_path: str
 
 
@@ -44,15 +47,19 @@ CTOR_RE = re.compile(r"^constructor\((?P<params>.*)\)\s*$")
 SPEC_RE = re.compile(r"^spec\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<params>.*)\):\s*$")
 ENSURE_RE = re.compile(r"^ensure:\s*(?P<expr>.+)$")
 REQUIRE_RE = re.compile(r"^require:\s*(?P<expr>.+)$")
+INVARIANT_RE = re.compile(
+    r"^invariant\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<expr>.+)$"
+)
 
 
 def parse_spec(text: str, spec_path: str) -> Spec:
     contract = None
     func_name = None
     params = None
-    ensure = None
+    ensures: list[str] = []
     requires: list[str] = []
     ctor_params = ""
+    invariants: list[tuple[str, str]] = []
 
     for raw in text.splitlines():
         line = raw.strip()
@@ -74,39 +81,43 @@ def parse_spec(text: str, spec_path: str) -> Spec:
             continue
         match = ENSURE_RE.match(line)
         if match:
-            ensure = match.group("expr").strip()
+            ensures.append(match.group("expr").strip())
         match = REQUIRE_RE.match(line)
         if match:
             requires.append(match.group("expr").strip())
+        match = INVARIANT_RE.match(line)
+        if match:
+            invariants.append((match.group("name"), match.group("expr").strip()))
 
-    missing = [
-        name
-        for name, value in (
-            ("contract", contract),
-            ("spec", func_name),
-            ("ensure", ensure),
-        )
-        if value is None
-    ]
+    missing = []
+    if contract is None:
+        missing.append("contract")
+    if func_name is None:
+        missing.append("spec")
     if missing:
         raise ValueError(f"Missing required fields: {', '.join(missing)}")
+    if not ensures and not invariants:
+        raise ValueError("Missing required fields: ensure or invariant")
 
     return Spec(
         contract=contract,
         func_name=func_name,
         params=params or "",
-        ensure=ensure,
+        ensures=ensures,
         requires=requires,
         ctor_params=ctor_params,
+        invariants=invariants,
         spec_path=spec_path,
     )
 
 
 def render(spec: Spec) -> str:
     harness = f"{spec.contract}SpecHarness"
-    old_map = _old_map(spec.requires + [spec.ensure])
+    all_exprs = spec.requires + spec.ensures + [expr for _, expr in spec.invariants]
+    old_map = _old_map(all_exprs)
     requires = [_sub_old(req, old_map) for req in spec.requires]
-    ensure = _sub_old(spec.ensure, old_map)
+    ensures = [_sub_old(expr, old_map) for expr in spec.ensures]
+    invariants = [(name, _sub_old(expr, old_map)) for name, expr in spec.invariants]
     old_decls = _render_old_decls(old_map)
     ctor_args = ", ".join(_param_names(spec.ctor_params))
     return f"""// SPDX-License-Identifier: MIT
@@ -122,7 +133,7 @@ contract {harness} is {spec.contract} {{
     function {spec.func_name}_spec({spec.params}) external {{
 {old_decls}{_render_requires(requires)}
         super.{spec.func_name}({', '.join(_param_names(spec.params))});
-        assert({ensure});
+{_render_asserts(ensures, invariants)}
     }}
 }}
 """
@@ -182,6 +193,16 @@ def _render_requires(requires: list[str]) -> str:
         return ""
     lines = [f"        require({expr});" for expr in requires]
     return "\n".join(lines) + "\n"
+
+
+def _render_asserts(ensures: list[str], invariants: list[tuple[str, str]]) -> str:
+    lines = []
+    for expr in ensures:
+        lines.append(f"        assert({expr});")
+    for name, expr in invariants:
+        lines.append(f"        // invariant {name}")
+        lines.append(f"        assert({expr});")
+    return "\n".join(lines) + ("\n" if lines else "")
 
 
 def main() -> int:
