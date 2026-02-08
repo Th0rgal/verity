@@ -11,6 +11,8 @@ This repo explores a spec-first model for Ethereum smart contracts where state t
 ## Quick Start
 
 ```bash
+./script/generate_constraints.sh
+./script/smtcheck.sh
 forge build
 forge test
 ```
@@ -18,3 +20,7 @@ forge test
 ## Foundry Notes
 
 Foundry is used for unit testing the POCs. If you don’t have it installed, see https://book.getfoundry.sh/.
+
+## SMTChecker Notes
+
+`./script/smtcheck.sh` runs `solc`'s SMTChecker via the official Docker image.

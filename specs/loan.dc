@@ -1,0 +1,6 @@
+# Dumb Contract Spec: Loan
+
+contract Loan
+
+spec update(address user, uint256 newCollateral, uint256 newDebt):
+  ensure: debt[user] == 0 || collateral[user] * 1e18 >= debt[user] * minHealthFactor

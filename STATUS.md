@@ -4,22 +4,23 @@ Last updated: 2026-02-08
 
 ## Current Focus
 
-- Keep the POCs minimal and auditable while validating real-world invariants.
+- Keep the DSL compiler minimal while emitting constraints we can formally prove.
 - Maintain reliable unit tests for each "goal scenario" and run them in CI.
 
 ## In Progress
 
 - Expand the tooling landscape with up-to-date references and gaps.
-- Iterate on a state-diff validator pattern that matches the DSL intent.
+- Establish a proof pipeline: DSL -> constraint harness -> SMTChecker.
 
 ## Completed
 
 - Repository scaffolding and initial draft capture.
 - DSL-to-Solidity skeleton for a token transfer spec.
 - POC contracts and tests for two goal scenarios (token transfer, health factor).
+  - Note: diff validation is no longer the focus for the next phase.
 
 ## Next
 
-- Add a tiny DSL -> verifier compilation path for Scenario A.
-- Explore off-chain proof obligations for quantified invariants.
-- Prototype a minimal transition verifier interface for state diffs.
+- Expand the DSL compiler to cover Scenario A without quantifiers.
+- Add SMTChecker coverage for additional scenarios and edge cases.
+- Explore quantified invariants as off-chain proof obligations.

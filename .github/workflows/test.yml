@@ -34,5 +34,11 @@ jobs:
       - name: Run Forge build
         run: forge build --sizes
 
+      - name: Generate Spec Harness
+        run: ./script/generate_constraints.sh
+
+      - name: Run SMTChecker
+        run: ./script/smtcheck.sh
+
       - name: Run Forge tests
         run: forge test -vvv

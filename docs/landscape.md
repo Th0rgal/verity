@@ -4,15 +4,18 @@
 
 - Scribble (ConsenSys Diligence) provides a spec language that annotates Solidity and instruments contracts with runtime assertions. It is meant to work with fuzzers and other analysis tools rather than replacing them.
   - https://docs.scribble.codes/
-  - https://diligence.security/scribble/
+  - https://diligence.consensys.io/tools/scribble
 
 ## Formal Verification (Contract-Level)
 
-- Certora Prover uses CVL (Certora Verification Language) to express rules, invariants, and method behaviors that are proven against contract implementations.
+- Certora Prover uses CVL (Certora Verification Language) to express rules, invariants, and method behaviors that are proven against contract implementations (commercial).
   - https://docs.certora.com/
 
-- Solidity SMTChecker (in `solc`) provides bounded model checking and CHC-based reasoning, tied to Solidity semantics and supported constructs.
+- Solidity SMTChecker (in `solc`) provides bounded model checking (BMC) and CHC-based reasoning, tied to Solidity semantics and supported constructs.
   - https://docs.solidity.org/en/latest/smtchecker.html
+
+- VeriSol (Microsoft) verifies Solidity against specifications using formal methods (academic/industrial research tooling).
+  - https://github.com/microsoft/verisol
 
 ## Semantics-Based Verification
 
