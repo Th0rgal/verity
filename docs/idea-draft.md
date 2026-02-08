@@ -1,5 +1,8 @@
 # Ethereum Dumb Contracts (Draft Notes)
 
+Note: This is the historical idea draft. The active plan is Lean-only and
+documented in `docs/roadmap.md` and `docs/formal-approach.md`.
+
 ## Context
 
 Smart contracts are too smart for their own good. Implementation detail often diverges from the intended rules, creating entire classes of bugs.

@@ -4,23 +4,17 @@ Last updated: 2026-02-08
 
 ## Current Focus
 
-- Keep the DSL compiler minimal while emitting constraints we can formally prove.
-- Maintain reliable unit tests for each "goal scenario" and run them in CI.
-- Prioritize spec-to-constraints and formal proof (diff validation is out of scope for now).
-- Define a Spec IR and a Lean-backed proof track for a sound checker.
-- Build out a Lean-only prototype to validate a DSL-free proof path, centered on
-  a smart-contract lending rule (health factor).
+- Lean-only specs + implementations + proofs as the primary workflow.
+- A minimal smart-contract state model tailored to Ethereum semantics.
+- A compiler path from Lean implementation -> Yul (or EVM bytecode).
+- A correctness story for the compiler (semantic preservation proofs).
 
 ## In Progress
 
-- Establish a proof pipeline: DSL -> constraint harness -> SMTChecker.
-- Add bounded scenarios that avoid quantifiers but still exercise `old(...)` and preconditions.
-- Prototype a failure case that demonstrates SMTChecker catching a violated constraint.
-- Explore quantified invariants as off-chain proof obligations.
-- Preserve implementation hints as metadata while keeping constraints minimal.
-- Extend the DSL with a quantifier-intent syntax that compiles into witness-based constraints.
-- Define a Spec IR and formal semantics as a Lean sketch (prove checker soundness).
-- Lean-only lending example: Euler-style health factor invariant + borrow/repay/withdraw specs.
+- Refactor documentation to remove DSL-first framing and focus on Lean-only.
+- Expand the Lean-only prototype into a reusable spec/impl/proof library.
+- Formalize a small-step semantics for the Lean contract model.
+- Add a minimal ABI/dispatch strategy for Yul output.
 
 ## Completed
 
@@ -54,10 +48,13 @@ Last updated: 2026-02-08
 - Expanded the Lean-only prototype with a mint spec + proof.
 - Added a Lean-only lending model with a health factor invariant and proofs that
   borrow/repay/withdraw preserve it.
+- Implemented a Lean contract core module with storage, balances, logs, and `Spec`.
+- Added a Lean AST subset and a compiler to a minimal Yul AST.
+- Added a Yul pretty-printer and a Lean executable that emits `out/example.yul`.
+- Added scripts to generate Yul and run `solc --strict-assembly` checks.
 
 ## Next
 
-- Expand the DSL compiler to cover Scenario A without quantifiers (forall accounts as an off-chain obligation).
-- Add SMTChecker coverage for additional scenarios and edge cases.
-- Keep adding minimal failure cases to validate proof tooling behavior.
-- Prototype a Spec IR -> checker generator (Solidity or another DSL) that can be proved sound in Lean.
+- Add ABI encoding and dispatch helpers in Lean -> Yul.
+- Prove a first semantic preservation lemma for a tiny arithmetic subset.
+- Build a Yul round-trip POC via `solc --strict-assembly` to validate emitted Yul.

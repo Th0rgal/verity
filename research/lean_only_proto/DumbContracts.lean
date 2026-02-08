@@ -1,6 +1,6 @@
-namespace DumbContracts
+import DumbContracts.Core
 
-abbrev Address := Nat
+namespace DumbContracts
 
 structure State where
   balance : Address -> Int
@@ -8,22 +8,6 @@ structure State where
 
 abbrev Pred := State -> Prop
 abbrev Rel := State -> State -> Prop
-
-structure Spec where
-  requires : Pred
-  ensures : Rel
-
--- Function update (finite map style) for Address-indexed maps.
-def update {α : Type} (f : Address -> α) (k : Address) (v : α) : Address -> α :=
-  fun a => if a = k then v else f a
-
-lemma update_eq {α : Type} (f : Address -> α) (k : Address) (v : α) :
-  update f k v k = v := by
-  simp [update]
-
-lemma update_ne {α : Type} (f : Address -> α) (k : Address) (v : α) (a : Address)
-    (h : a ≠ k) : update f k v a = f a := by
-  simp [update, h]
 
 -- Transfer precondition.
 def preTransfer (from to : Address) (amount : Int) (s : State) : Prop :=
@@ -35,7 +19,7 @@ def transfer (from to : Address) (amount : Int) (s : State) : State :=
     totalSupply := s.totalSupply }
 
 -- Transfer spec in Lean (no DSL).
-def transferSpec (from to : Address) (amount : Int) : Spec :=
+def transferSpec (from to : Address) (amount : Int) : Spec State :=
   { requires := preTransfer from to amount
     ensures := fun s s' =>
       s'.balance from = s.balance from - amount ∧
@@ -79,7 +63,7 @@ def mint (to : Address) (amount : Int) (s : State) : State :=
     totalSupply := s.totalSupply + amount }
 
 -- Mint spec in Lean (no DSL).
-def mintSpec (to : Address) (amount : Int) : Spec :=
+def mintSpec (to : Address) (amount : Int) : Spec State :=
   { requires := preMint to amount
     ensures := fun s s' =>
       s'.balance to = s.balance to + amount ∧
@@ -126,6 +110,7 @@ structure Spec where
   requires : Pred
   ensures : Rel
 
+-- Health factor invariant.
 def hfOk (s : LState) (a : Address) : Prop :=
   s.collateral a >= s.debt a * s.minHealthFactor
 
@@ -142,6 +127,7 @@ def borrow (borrower : Address) (amount : Nat) (s : LState) : LState :=
     debt := DumbContracts.update s.debt borrower (s.debt borrower + amount)
     minHealthFactor := s.minHealthFactor }
 
+-- Borrow spec.
 def borrowSpec (borrower : Address) (amount : Nat) : Spec :=
   { requires := preBorrow borrower amount
     ensures := fun s s' =>
@@ -150,6 +136,7 @@ def borrowSpec (borrower : Address) (amount : Nat) : Spec :=
       (forall a, s'.collateral a = s.collateral a) ∧
       s'.minHealthFactor = s.minHealthFactor }
 
+-- Borrow proof.
 theorem borrow_sound (s : LState) (borrower : Address) (amount : Nat) :
     preBorrow borrower amount s ->
     (borrowSpec borrower amount).ensures s (borrow borrower amount s) := by
@@ -164,6 +151,7 @@ theorem borrow_sound (s : LState) (borrower : Address) (amount : Nat) :
     simp [borrow]
   · simp [borrow]
 
+-- Borrow preserves health factor.
 theorem borrow_preserves_hf (s : LState) (borrower : Address) (amount : Nat) :
     globalHF s ->
     preBorrow borrower amount s ->
@@ -183,11 +171,13 @@ theorem borrow_preserves_hf (s : LState) (borrower : Address) (amount : Nat) :
 def preRepay (borrower : Address) (amount : Nat) (s : LState) : Prop :=
   s.debt borrower >= amount
 
+-- Repay implementation.
 def repay (borrower : Address) (amount : Nat) (s : LState) : LState :=
   { collateral := s.collateral
     debt := DumbContracts.update s.debt borrower (s.debt borrower - amount)
     minHealthFactor := s.minHealthFactor }
 
+-- Repay spec.
 def repaySpec (borrower : Address) (amount : Nat) : Spec :=
   { requires := preRepay borrower amount
     ensures := fun s s' =>
@@ -196,6 +186,7 @@ def repaySpec (borrower : Address) (amount : Nat) : Spec :=
       (forall a, s'.collateral a = s.collateral a) ∧
       s'.minHealthFactor = s.minHealthFactor }
 
+-- Repay proof.
 theorem repay_sound (s : LState) (borrower : Address) (amount : Nat) :
     preRepay borrower amount s ->
     (repaySpec borrower amount).ensures s (repay borrower amount s) := by
@@ -210,6 +201,7 @@ theorem repay_sound (s : LState) (borrower : Address) (amount : Nat) :
     simp [repay]
   · simp [repay]
 
+-- Repay preserves health factor.
 theorem repay_preserves_hf (s : LState) (borrower : Address) (amount : Nat) :
     globalHF s ->
     preRepay borrower amount s ->
@@ -219,7 +211,6 @@ theorem repay_preserves_hf (s : LState) (borrower : Address) (amount : Nat) :
   · subst h
     dsimp [hfOk, repay]
     simp [DumbContracts.update]
-    -- debt decreased, so health factor still holds.
     have hprev := hglobal borrower
     have hmono : (s.debt borrower - amount) * s.minHealthFactor <=
         s.debt borrower * s.minHealthFactor := by
@@ -235,11 +226,13 @@ def preWithdraw (borrower : Address) (amount : Nat) (s : LState) : Prop :=
   s.collateral borrower >= amount ∧
   s.collateral borrower - amount >= s.debt borrower * s.minHealthFactor
 
+-- Withdraw implementation.
 def withdraw (borrower : Address) (amount : Nat) (s : LState) : LState :=
   { collateral := DumbContracts.update s.collateral borrower (s.collateral borrower - amount)
     debt := s.debt
     minHealthFactor := s.minHealthFactor }
 
+-- Withdraw spec.
 def withdrawSpec (borrower : Address) (amount : Nat) : Spec :=
   { requires := preWithdraw borrower amount
     ensures := fun s s' =>
@@ -248,6 +241,7 @@ def withdrawSpec (borrower : Address) (amount : Nat) : Spec :=
       (forall a, s'.debt a = s.debt a) ∧
       s'.minHealthFactor = s.minHealthFactor }
 
+-- Withdraw proof.
 theorem withdraw_sound (s : LState) (borrower : Address) (amount : Nat) :
     preWithdraw borrower amount s ->
     (withdrawSpec borrower amount).ensures s (withdraw borrower amount s) := by
@@ -262,6 +256,7 @@ theorem withdraw_sound (s : LState) (borrower : Address) (amount : Nat) :
     simp [withdraw]
   · simp [withdraw]
 
+-- Withdraw preserves health factor.
 theorem withdraw_preserves_hf (s : LState) (borrower : Address) (amount : Nat) :
     globalHF s ->
     preWithdraw borrower amount s ->

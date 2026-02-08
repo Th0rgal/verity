@@ -1,25 +1,25 @@
-# Research Agenda
+# Research Agenda (Lean-Only)
 
-## Phase 1: Problem & Landscape
+## Phase 1: Lean Spec + Impl + Proof
 
-- Clarify the intent vs. implementation gap with concrete historical bugs.
-- Survey existing spec languages (e.g., Why3, K, Dafny, Coq, Scribble, Certora, Solidity SMTChecker) and their limitations.
-- Identify the minimal DSL features that preserve auditability and avoid Turing-complete complexity.
+- Define a minimal contract state model aligned with Ethereum concepts.
+- Build a tiny spec library (requires/ensures/invariants) and proof combinators.
+- Prove simple token and lending examples (transfer, mint, health factor).
 
-## Phase 2: DSL Sketch & Semantics
+## Phase 2: Lean Contract Core
 
-- Define core primitives: state variables, invariants, pre/postconditions, and "hints".
-- Decide execution model: state-diff proofs vs. transition proofs.
-- Define safety constraints and decision procedures.
+- Add storage maps, events/logs, and msg context to the model.
+- Define a small-step operational semantics for the contract core.
+- Provide re-usable lemmas for frame conditions and invariants.
 
-## Phase 3: Compilation & Proofs
+## Phase 3: Lean -> Yul Compiler
 
-- Determine compilation target: Solidity subset vs. direct EVM.
-- Explore proof generation: proof obligations, SMT, or equivalence checking.
-- Prototype a tiny end-to-end example (token transfer).
+- Define a Lean AST subset for implementations.
+- Implement a Yul AST and pretty-printer.
+- Generate Yul text for the Lean implementation subset.
+- Validate output by compiling Yul with `solc --strict-assembly`.
 
-## Phase 4: Prototype MVP
+## Phase 4: Semantic Preservation
 
-- Create a reference DSL syntax and parser.
-- Compile to a restricted Solidity implementation.
-- Generate proof artifacts and document the pipeline.
+- Prove a compiler correctness theorem for the core subset.
+- Extend the subset until it covers the prototype examples.

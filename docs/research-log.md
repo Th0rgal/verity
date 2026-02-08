@@ -82,3 +82,17 @@ This log captures decisions, questions, and short summaries as we progress.
 - Added a Lean-only lending state model (`LState`) with collateral, debt, and `minHealthFactor`.
 - Implemented Euler-style health factor invariant (`collateral >= debt * minHealthFactor`).
 - Added Lean specs and proofs for `borrow`, `repay`, and `withdraw` and showed each preserves the invariant.
+
+## 2026-02-08 (Lean-Only Focus)
+
+- Refocused the repo on a Lean-first spec/impl/proof workflow.
+- Updated the formal approach, proof pipeline, and agenda to remove DSL-first framing.
+- Added a Lean-first roadmap with a compiler path to Yul/EVM as the end goal.
+- Marked the DSL/SMT POCs as legacy while keeping them for reference.
+
+## 2026-02-08 (Lean-Only Compiler)
+
+- Added a Lean contract core module with storage, balances, logs, and generic `Spec`.
+- Added a tiny Lean AST subset and a compiler to a minimal Yul AST.
+- Implemented a Yul pretty-printer and a Lean executable that emits `out/example.yul`.
+- Added scripts to generate Yul and run `solc --strict-assembly` checks.

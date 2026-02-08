@@ -1,26 +1,26 @@
-# Dumb Contracts Research
+# Dumb Contracts Research (Lean-Only)
 
-This repo explores a spec-first model for Ethereum smart contracts where state transitions are validated against simple rules (“dumb contracts”). The focus is on minimal, auditable constraints and testable POCs.
+This repo now focuses on a Lean-first workflow for “dumb contracts”: write a
+very small spec in Lean, write the implementation in Lean, and prove the
+implementation satisfies the spec. The long-term goal is to compile the Lean
+implementation to Yul (or EVM bytecode) while preserving the proof.
 
 ## What’s Here
 
-- `docs/idea-draft.md` captures the original framing and goals.
-- `docs/landscape.md` tracks the current tooling landscape.
-- `src/` and `test/` contain small Solidity POCs with unit tests.
+- `research/lean_only_proto/` is the canonical prototype (specs, impls, proofs).
+- `docs/roadmap.md` defines the Lean-first roadmap, including codegen to Yul/EVM.
+- `docs/landscape.md` tracks relevant formal-methods tooling and semantics work.
+- `STATUS.md` is the current project status and near-term plan.
+- `docs/research-log.md` is the running research journal.
 
-## Quick Start
+Legacy DSL/SMT POCs still live in `specs/`, `src/`, `test/`, and `script/`, but
+they are no longer the active path.
+
+## Quick Start (Lean)
 
 ```bash
-./script/generate_constraints.sh
-./script/smtcheck.sh
-forge build
-forge test
+cd /workspaces/mission-a7986e44/dumbcontracts/research/lean_only_proto
+PATH=/opt/lean-4.27.0/bin:$PATH lake build
 ```
 
-## Foundry Notes
-
-Foundry is used for unit testing the POCs. If you don’t have it installed, see https://book.getfoundry.sh/.
-
-## SMTChecker Notes
-
-`./script/smtcheck.sh` runs `solc`'s SMTChecker via the official Docker image.
+This builds the Lean-only prototype and checks the proofs.

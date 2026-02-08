@@ -1,38 +1,39 @@
-# Formal Approach Sketch
+# Formal Approach (Lean-Only)
 
-This document proposes a stronger proof path for the dumb-contracts DSL.
-The key idea is to separate a small Spec IR from the DSL surface syntax and
-prove that a checker for the IR is sound.
+This repository is now centered on a Lean-only specification workflow.
+The DSL-to-checker track is no longer the primary plan. Instead, we
+write specs and implementations directly in Lean, prove correctness
+in Lean, and compile the implementation to Yul (or EVM bytecode).
 
 ## Proposed Architecture
 
-1. DSL -> Spec IR
-   - Parse into a minimal IR: requires, ensures, modifies, invariants.
-   - Remove all syntax sugar and hints before proof.
+1. Lean Spec + Impl + Proof
+   - Specs are Lean predicates on pre/post state.
+   - Implementations are Lean functions over state.
+   - Proofs connect each implementation to its spec.
 
-2. Spec IR Semantics (Lean)
-   - Define a formal semantics for transitions on a contract state.
-   - Use Lean to state and prove properties about the IR.
+2. Lean Contract Core
+   - A minimal state model with storage maps, events, and msg context.
+   - A small-step semantics for the Lean contract core.
+   - Re-usable lemmas for frame conditions and invariants.
 
-3. Verified Checker
-   - Implement a checker that decides whether a (pre, post) state pair
-     satisfies the IR.
-   - Prove in Lean: if checker accepts, the IR semantics hold.
+3. Lean -> Yul Compiler
+   - Define a Lean AST subset for implementations.
+   - Compile to a Yul AST and then to Yul source.
+   - Use `solc --strict-assembly` to validate Yul output.
 
-4. Bridging to Solidity
-   - The current bridge is a generated Solidity harness with asserts.
-   - A stronger future bridge is to generate proof obligations for a
-     semantics-level EVM tool (KEVM/K or Act/hevm).
+4. Semantic Preservation
+   - Prove that the Yul code preserves the Lean semantics for the subset.
+   - Expand the subset iteratively until it covers target examples.
 
 ## Why This Is Better
 
-- The DSL can evolve without expanding the proof surface.
-- We get a formal guarantee for the IR checker, independent of the compiler.
-- We can use multiple backends (SMTChecker, Kontrol, hevm, KEVM) to
-  validate or prove transitions.
+- Specs and proofs are written in the same language as the implementation.
+- The proof surface is small and explicit; there is no DSL-to-proof mismatch.
+- The compiler can be verified incrementally as the subset grows.
 
 ## Next POC Targets
 
-- Implement a Spec IR encoder (JSON) and emit it from the DSL compiler.
-- Add a minimal Lean model (see research/spec_ir_lean/SpecIR.lean).
-- Add a toy checker in Solidity or Python and connect it to the IR.
+- Add a Lean "contract core" module and port the token + lending examples.
+- Define the initial Lean AST subset and a Yul printer.
+- Prove the first end-to-end lemma for arithmetic + map updates.
