@@ -20,3 +20,5 @@ This log captures decisions, questions, and short summaries as we progress.
 - Added `SimpleToken` + `SimpleTokenSpecHarness` with unit tests for pre/post constraints.
 - Extended the DSL compiler to accept multiple `ensure:` lines and named `invariant` assertions.
 - Regenerated spec harnesses for `SimpleToken` and `Loan` with multi-assert output.
+- Added `MintableToken` scenario + spec harness + unit tests to cover access-control constraints.
+- Refreshed the tooling landscape with updated references (SMTChecker, Scribble, Certora, KEVM, Echidna, Foundry invariants).

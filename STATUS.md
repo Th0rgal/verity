@@ -14,6 +14,7 @@ Last updated: 2026-02-08
 - Establish a proof pipeline: DSL -> constraint harness -> SMTChecker.
 - Add bounded scenarios that avoid quantifiers but still exercise `old(...)` and preconditions.
 - Extend the DSL compiler to support multiple `ensure:` lines and named invariants.
+ - Prototype a failure case that demonstrates SMTChecker catching a violated constraint.
 
 ## Completed
 
@@ -26,6 +27,8 @@ Last updated: 2026-02-08
 - `Loan` implementation + `LoanSpecHarness` and unit tests.
 - `SimpleToken` + `SimpleTokenSpecHarness` with `old(...)` capture and preconditions.
 - DSL compiler now supports multiple `ensure:` lines and named `invariant` assertions.
+- `MintableToken` + `MintableTokenSpecHarness` with owner-only mint constraints and unit tests.
+- Refreshed the tooling landscape and cited current sources.
 
 ## Next
 

@@ -18,3 +18,12 @@ These scenarios are the “golden paths” we want the DSL compiler and proof to
 - Invariant: `collateralValue >= debt * minHealthFactor`.
 - Transition: `Update(user, newCollateral, newDebt)`.
 - Proof model: DSL compiles to a spec harness with `assert` statements; SMTChecker proves the property.
+
+## Scenario C: Mintable Token (Owner-Only Mint)
+
+- State variables: `balance[owner]`, `totalSupply`, `owner`.
+- Transition: `mint(amount)` restricted to `owner`.
+- Postconditions:
+  - `totalSupply` increases by `amount`.
+  - `balance[owner]` increases by `amount`.
+- Proof model: DSL compiles to a spec harness using `old(...)` capture and `assert` checks.

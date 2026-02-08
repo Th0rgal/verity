@@ -1,0 +1,10 @@
+# Dumb Contract Spec: MintableToken
+
+contract MintableToken
+
+constructor(address owner, uint256 supply)
+
+spec mint(uint256 amount):
+  require: msg.sender == owner
+  ensure: totalSupply == old(totalSupply) + amount
+  ensure: balance[owner] == old(balance[owner]) + amount
