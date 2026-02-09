@@ -1,6 +1,5 @@
 {
-  "installCommand": "cd docs-site && npm install",
   "buildCommand": "cd docs-site && npm run build",
-  "devCommand": "cd docs-site && npm run dev",
-  "outputDirectory": "docs-site/.next"
+  "outputDirectory": "docs-site/.next",
+  "devCommand": "cd docs-site && npm run dev"
 }
