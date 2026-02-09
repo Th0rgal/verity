@@ -9,36 +9,95 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  EVM_VERSION: shanghai
 
 jobs:
-  check:
-    name: Foundry project
+  foundry-generated:
+    name: Foundry generated contract tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
           submodules: recursive
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        working-directory: research/lean_only_proto
+        run: ./scripts/install_foundry.sh
 
-      - name: Show Forge version
-        run: forge --version
+      - name: Install solc
+        working-directory: research/lean_only_proto
+        run: ./scripts/install_solc.sh
 
-      - name: Run Forge fmt
-        run: forge fmt --check
+      - name: Verify toolchain
+        working-directory: research/lean_only_proto
+        run: ./scripts/verify_toolchain.sh --require-foundry
 
-      - name: Run Forge build
-        run: forge build --sizes
+      - name: Build Yul + bytecode artifacts
+        working-directory: research/lean_only_proto
+        run: ./scripts/end_to_end.sh
 
-      - name: Generate Spec Harness
-        run: ./script/generate_constraints.sh
+      - name: Run Foundry tests for generated contracts
+        working-directory: research/lean_only_proto
+        run: ./scripts/foundry_test_generated.sh
 
-      - name: Run SMTChecker
-        run: ./script/smtcheck.sh
+  lean-proofs:
+    name: Lean proofs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
 
-      - name: Run Forge tests
-        run: forge test -vvv
+      - name: Install elan (Lean toolchain)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Show Lean version
+        run: lean --version
+
+      - name: Build Lean proofs
+        working-directory: research/lean_only_proto
+        run: lake build
+
+  lean-smoke:
+    name: Lean deploy smoke test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        working-directory: research/lean_only_proto
+        run: ./scripts/install_foundry.sh
+
+      - name: Install solc
+        working-directory: research/lean_only_proto
+        run: ./scripts/install_solc.sh
+
+      - name: Verify toolchain
+        working-directory: research/lean_only_proto
+        run: ./scripts/verify_toolchain.sh --require-foundry
+
+      - name: Build Yul + bytecode artifacts
+        working-directory: research/lean_only_proto
+        run: ./scripts/end_to_end.sh
+
+      - name: Start Anvil
+        run: nohup anvil --silent > /tmp/anvil.log 2>&1 &
+
+      - name: Deploy and call example
+        working-directory: research/lean_only_proto
+        env:
+          RPC_URL: http://127.0.0.1:8545
+        run: ./scripts/deploy_example.sh
