@@ -40,7 +40,8 @@ cd /workspaces/mission-a7986e44/dumbcontracts/research/lean_only_proto
 ```
 
 Notes
-- The Yul example is a minimal entry point (`getSlot`) meant to exercise the pipeline.
+- The Yul example now exposes two entry points (`getSlot`, `setSlot`) behind a
+  selector-based dispatcher, exercising multi-entry codegen.
 - A minimal ABI dispatcher stub is included (selector + calldata loads), but no
   complex ABI encoding is modeled yet. Return values are encoded as a single
   32-byte word at offset 0, and the Lean semantics model return data as a list

@@ -48,14 +48,15 @@ structure EntryPoint where
   args : List String
   body : Lang.Stmt
   selector : Nat
+  returns : Bool
   deriving Repr
 
--- Wrap a simple entry block into a Yul object with a dispatcher.
-def compileEntry (e : EntryPoint) : Yul.Program :=
-  let funBody := match compileStmt e.body with
-    | Yul.Stmt.block ss => Yul.Stmt.block ss
-    | s => Yul.Stmt.block [s]
-  let funStmt := Yul.Stmt.func e.name e.args [] funBody
+def compileProgram (entries : List EntryPoint) : Yul.Program :=
+  let mkFun (e : EntryPoint) : Yul.Stmt :=
+    let funBody := match compileStmt e.body with
+      | Yul.Stmt.block ss => Yul.Stmt.block ss
+      | s => Yul.Stmt.block [s]
+    Yul.Stmt.func e.name e.args [] funBody
   let selector :=
     Yul.Expr.call "shr" [
       Yul.Expr.lit 224,
@@ -63,13 +64,21 @@ def compileEntry (e : EntryPoint) : Yul.Program :=
     ]
   let mkArg (i : Nat) : Yul.Expr :=
     Yul.Expr.call "calldataload" [Yul.Expr.lit (4 + 32 * i)]
-  let args := (List.range e.args.length).map mkArg
-  let callEntry := Yul.Stmt.expr (Yul.Expr.call e.name args)
-  let okCase := Yul.Stmt.block [callEntry, Yul.Stmt.expr (Yul.Expr.call "stop" [])]
+  let mkCase (e : EntryPoint) : Nat × Yul.Stmt :=
+    let args := (List.range e.args.length).map mkArg
+    let callEntry := Yul.Stmt.expr (Yul.Expr.call e.name args)
+    let stop := Yul.Stmt.expr (Yul.Expr.call "stop" [])
+    let okCase := if e.returns then Yul.Stmt.block [callEntry] else Yul.Stmt.block [callEntry, stop]
+    (e.selector, okCase)
+  let cases := entries.map mkCase
   let badCase := Yul.Stmt.block [Yul.Stmt.expr (Yul.Expr.call "revert" [Yul.Expr.lit 0, Yul.Expr.lit 0])]
-  let dispatcher := Yul.Stmt.switch selector [(e.selector, okCase)] badCase
-  let code := Yul.Stmt.block [funStmt, dispatcher]
+  let dispatcher := Yul.Stmt.switch selector cases badCase
+  let code := Yul.Stmt.block ((entries.map mkFun) ++ [dispatcher])
   { obj := { name := "DumbContract", code := code } }
+
+-- Wrap a simple entry block into a Yul object with a dispatcher.
+def compileEntry (e : EntryPoint) : Yul.Program :=
+  compileProgram [e]
 
 -- Example: a minimal storage update entry.
 def exampleEntry : EntryPoint :=
@@ -77,6 +86,15 @@ def exampleEntry : EntryPoint :=
     args := ["slot"]
     body := Lang.Stmt.return_ (Lang.Expr.sload (Lang.Expr.var "slot"))
     -- getSlot(uint256) -> 0x7eba7ba6
-    selector := 0x7eba7ba6 }
+    selector := 0x7eba7ba6
+    returns := true }
+
+def exampleEntry2 : EntryPoint :=
+  { name := "setSlot"
+    args := ["slot", "value"]
+    body := Lang.Stmt.sstore (Lang.Expr.var "slot") (Lang.Expr.var "value")
+    -- setSlot(uint256,uint256) -> 0xf2c298be
+    selector := 0xf2c298be
+    returns := false }
 
 end DumbContracts.Compiler

@@ -118,3 +118,9 @@ This log captures decisions, questions, and short summaries as we progress.
 - Extended the Lean AST semantics to model calldata and return data.
 - Added `calldataload` to the Lean AST and compiler surface.
 - Added a small executable semantics example showing `getSlot` returns the storage word.
+
+## 2026-02-09 (Multi-Entry Codegen)
+
+- Added multi-entry codegen with a selector table for `getSlot` + `setSlot`.
+- Added a `setSlot` semantics example and proof.
+- Confirmed the generated Yul compiles under `solc --strict-assembly`.

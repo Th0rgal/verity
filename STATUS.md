@@ -12,8 +12,8 @@ Last updated: 2026-02-09
 ## In Progress
 
 - Prove a first semantic preservation lemma for arithmetic + storage updates.
-- Extend the compiler to multiple entry points + a minimal selector table.
 - Add a tiny end-to-end example that compiles Lean -> Yul -> bytecode.
+- Extend the Yul output with a small ABI return stub for non-`return` paths.
 
 ## Completed
 
@@ -60,9 +60,11 @@ Last updated: 2026-02-09
 - Switched the Yul example entry point to `getSlot` returning a storage word.
 - Added calldata + return-data modeling to the Lean semantics.
 - Added a tiny executable semantics example (`getSlot`) to validate the return path.
+- Added multi-entry codegen with a selector table (`getSlot`, `setSlot`).
+- Added a `setSlot` semantics example and proof.
 
 ## Next
 
-- Add minimal calldata/return-data modeling to the Lean semantics.
 - Prove the first compiler correctness lemma for the arithmetic subset.
 - Add an end-to-end example that compiles a Lean implementation and checks Yul with solc.
+- Add a second storage-mutating entry to stress selector collisions and slot updates.
