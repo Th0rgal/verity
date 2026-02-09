@@ -8,10 +8,13 @@ PATH=/opt/lean-4.27.0/bin:$PATH lake build
 ```
 
 Write a contract:
-1. Add a `Fun` in `DumbContracts/Examples.lean`.
+1. Add a `Fun` under `DumbContracts/Examples/` (e.g. `StoreOps.lean`).
 2. Add a `Spec` or `SpecR` + proof next to it.
 3. Wire the selector in `DumbContracts/Compiler.lean`.
 4. Re-run `./scripts/end_to_end.sh`.
+
+Convenience helpers:
+- Small EDSL helpers live in `DumbContracts/Stdlib.lean` (`require`, `unless`, `assert`, slot helpers).
 
 Minimal spec pattern:
 ```

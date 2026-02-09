@@ -16,6 +16,11 @@
 - Added a self-transfer counterexample lemma showing `transferSpecR` cannot hold for `from = to` when `amount > 0`.
 - Proved sequential transfer spec is equivalent to old-state spec when `from ≠ to`.
 - Added a guarded transfer spec (`transferSpecRNoSelf`) and proof it meets execution when `from ≠ to`.
+- Added a small counterexample lemma showing list-based supply accounting breaks with duplicates (motivation for sets/dedup).
+- Split `Examples.lean` into multiple focused example modules.
+- Added a minimal EDSL stdlib with common helpers (`require`, `unless`, `assert`, slot helpers, var/lit helpers).
+- Added `sloadVar`/`sstoreVar` stdlib helpers for variable slot access.
+- Added a tiny `maxStore` example (store max(a,b) into a slot) plus selector + Foundry test.
 - Refreshed external landscape notes (Act, Scribble, Certora, SMTChecker, KEVM, Kontrol).
 - Added selector map artifact (fixed + ABI keccak).
 - Fixed Foundry selectors and moved to Shanghai EVM.
