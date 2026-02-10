@@ -190,9 +190,24 @@ def exampleEntry10 : EntryPoint :=
     selector := 0x7e5acdb6
     returns := false }
 
+def exampleEntry11 : EntryPoint :=
+  { name := "setIfBetween"
+    args := ["slot", "value", "min", "max"]
+    body :=
+      Lang.Stmt.if_
+        (Lang.Expr.gt (Lang.Expr.var "value") (Lang.Expr.var "min"))
+        (Lang.Stmt.if_
+          (Lang.Expr.lt (Lang.Expr.var "value") (Lang.Expr.var "max"))
+          (Lang.Stmt.sstore (Lang.Expr.var "slot") (Lang.Expr.var "value"))
+          Lang.Stmt.revert)
+        Lang.Stmt.revert
+    -- setIfBetween(uint256,uint256,uint256,uint256) -> 0x5ebc58db
+    selector := 0x5ebc58db
+    returns := false }
+
 def exampleEntries : List EntryPoint :=
   [exampleEntry, exampleEntry2, exampleEntry3, exampleEntry4, exampleEntry5, exampleEntry6, exampleEntry7,
-    exampleEntry8, exampleEntry9, exampleEntry10]
+    exampleEntry8, exampleEntry9, exampleEntry10, exampleEntry11]
 
 def healthEntrySet : EntryPoint :=
   { name := "setRisk"

@@ -1,6 +1,11 @@
 # Research Log
 
 ## 2026-02-10
+- Added `requireLt` stdlib helper to mirror `requireGt` for less-than guards.
+- Refactored `setIfLess` to use `requireLt` instead of a manual `revertIf`.
+- Added `setIfBetween` example (guarded store on `min < value < max`) with SpecR + proofs.
+- Added Foundry test for `setIfBetween`.
+- Updated compiler entries + direct EVM asm for `setIfBetween`.
 - Added `revertIf` stdlib helper for guard-style reverts.
 - Refactored `checkHealth` to use `revertIf`.
 - Added `setIfLess` example (guarded store on `value < max`) with SpecR + proofs.

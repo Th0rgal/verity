@@ -14,9 +14,7 @@ open DumbContracts.Std
 def setIfLessFun : Fun :=
   { name := "setIfLess"
     args := ["slot", "value", "max"]
-    body :=
-      revertIf (Expr.not (Expr.lt (v "value") (v "max"))) ;;
-      sstoreVar "slot" (v "value")
+    body := requireLt (v "value") (v "max") (sstoreVar "slot" (v "value"))
     ret := none }
 
 def setIfLessSpecR (slot value max : Nat) : SpecR Store :=
@@ -31,8 +29,8 @@ theorem setIfLess_meets_specR_ok (s : Store) (slot value max : Nat) :
       | _ => False) := by
   intro hreq
   have hlt : value < max := by exact hreq
-  simp [setIfLessSpecR, setIfLessFun, revertIf, sstoreVar, v, execFun, execStmt, evalExpr,
-    bindArgs, emptyEnv, updateEnv, updateStore, hlt]
+  simp [setIfLessSpecR, setIfLessFun, requireLt, require, sstoreVar, v, execFun, execStmt,
+    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hlt]
 
 theorem setIfLess_meets_specR_reverts (s : Store) (slot value max : Nat) :
     (setIfLessSpecR slot value max).reverts s ->
@@ -40,7 +38,7 @@ theorem setIfLess_meets_specR_reverts (s : Store) (slot value max : Nat) :
   intro hrev
   have hnot : ¬ value < max := by
     exact Nat.not_lt.mpr hrev
-  simp [setIfLessSpecR, setIfLessFun, revertIf, sstoreVar, v, execFun, execStmt, evalExpr,
-    bindArgs, emptyEnv, updateEnv, updateStore, hnot]
+  simp [setIfLessSpecR, setIfLessFun, requireLt, require, sstoreVar, v, execFun, execStmt,
+    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hnot]
 
 end DumbContracts.Examples

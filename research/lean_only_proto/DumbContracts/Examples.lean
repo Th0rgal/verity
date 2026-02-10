@@ -8,4 +8,5 @@ import DumbContracts.Examples.NonZeroStore
 import DumbContracts.Examples.CompareAndSwap
 import DumbContracts.Examples.SetIfGreater
 import DumbContracts.Examples.SetIfLess
+import DumbContracts.Examples.SetIfBetween
 import DumbContracts.Examples.BumpSlot

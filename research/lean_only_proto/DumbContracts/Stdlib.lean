@@ -37,6 +37,9 @@ def requireNeq (lhs rhs : Expr) (body : Stmt) : Stmt :=
 def requireGt (lhs rhs : Expr) (body : Stmt) : Stmt :=
   require (Expr.gt lhs rhs) body
 
+def requireLt (lhs rhs : Expr) (body : Stmt) : Stmt :=
+  require (Expr.lt lhs rhs) body
+
 def requireNonZero (value : Expr) (body : Stmt) : Stmt :=
   requireNeq value (Expr.lit 0) body
 
