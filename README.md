@@ -57,12 +57,19 @@ lake build  # Type-checks all 252 proofs
 ## Project structure
 
 ```
-DumbContracts/
-├── Core.lean           # 212 lines: ContractResult, storage ops, require, simp lemmas
-├── Stdlib/Math.lean    # Safe arithmetic (safeAdd, safeSub, safeMul, safeDiv)
-├── Examples/           # 7 contract implementations
-├── Specs/              # Formal specifications per contract (Spec.lean, Invariants.lean)
-└── Proofs/             # Machine-checked proofs per contract (Basic.lean, Correctness.lean, ...)
+edsl/
+└── DumbContracts/
+    ├── Core.lean           # 212 lines: ContractResult, storage ops, require, simp lemmas
+    └── Stdlib/Math.lean    # Safe arithmetic (safeAdd, safeSub, safeMul, safeDiv)
+
+examples/lean/
+└── DumbContracts/
+    ├── Examples/           # 7 contract implementations
+    ├── Specs/              # Formal specifications per contract (Spec.lean, Invariants.lean)
+    └── Proofs/             # Machine-checked proofs per contract (Basic.lean, Correctness.lean, ...)
+
+examples/solidity/          # Solidity reference contracts
+compiler/                   # Lean-to-Yul compiler work area
 ```
 
 ## Core API
@@ -98,9 +105,9 @@ lake build
 ```
 
 To write a verified contract, add files in three places:
-1. `DumbContracts/Examples/` for the implementation
-2. `DumbContracts/Specs/` for the specification
-3. `DumbContracts/Proofs/` for the proofs
+1. `examples/lean/DumbContracts/Examples/` for the implementation
+2. `examples/lean/DumbContracts/Specs/` for the specification
+3. `examples/lean/DumbContracts/Proofs/` for the proofs
 
 ## Known limitations
 

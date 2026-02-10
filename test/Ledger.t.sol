@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "../contracts/Ledger.sol";
+import "../examples/solidity/Ledger.sol";
 
 contract LedgerTest is Test {
     Ledger public ledger;

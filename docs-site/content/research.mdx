@@ -3,7 +3,7 @@
 ## Iteration 1: Bootstrap (2026-02-09)
 
 ### What I Added
-1. **Minimal Lean EDSL Core** (DumbContracts/Core.lean:1-58)
+1. **Minimal Lean EDSL Core** (edsl/DumbContracts/Core.lean:1-58)
    - Basic Ethereum types: Address, Uint256, Bool', Bytes
    - StorageSlot abstraction for type-safe storage access
    - ContractState structure with storage map, sender, and contract address
@@ -12,7 +12,7 @@
    - Context accessors: msgSender, contractAddress
    - Require guard for validation
 
-2. **SimpleStorage Example** (DumbContracts/Examples/SimpleStorage.lean:1-38)
+2. **SimpleStorage Example** (examples/lean/DumbContracts/Examples/SimpleStorage.lean:1-38)
    - Demonstrates basic storage pattern
    - Two functions: store and retrieve
    - Includes executable example that evaluates to 42
@@ -98,10 +98,10 @@
 - Should we create a standard library module?
 
 ### Files Modified This Iteration
-- Created: DumbContracts/Core.lean
-- Created: DumbContracts/Examples/SimpleStorage.lean
-- Created: DumbContracts.lean
-- Created: contracts/SimpleStorage.sol
+- Created: edsl/DumbContracts/Core.lean
+- Created: examples/lean/DumbContracts/Examples/SimpleStorage.lean
+- Created: edsl/DumbContracts.lean
+- Created: examples/solidity/SimpleStorage.sol
 - Created: test/SimpleStorage.t.sol
 - Created: lean-toolchain
 - Created: lakefile.lean
@@ -115,14 +115,14 @@
 ## Iteration 2: Counter Pattern (2026-02-09)
 
 ### What I Added
-1. **Counter Example Contract** (DumbContracts/Examples/Counter.lean:1-50)
+1. **Counter Example Contract** (examples/lean/DumbContracts/Examples/Counter.lean:1-50)
    - Demonstrates arithmetic operations (addition, subtraction)
    - Three functions: increment, decrement, getCount
    - Uses separate namespace (DumbContracts.Examples.Counter) to avoid name conflicts
    - Includes executable example that evaluates to 1 (increment twice, decrement once)
    - Clean syntax showing stateful updates
 
-2. **Solidity Reference Implementation** (contracts/Counter.sol:1-23)
+2. **Solidity Reference Implementation** (examples/solidity/Counter.sol:1-23)
    - Parallel implementation in Solidity
    - Uses Solidity 0.8+ with built-in overflow protection
    - Identical semantics to Lean version
@@ -233,10 +233,10 @@ The Counter example reveals an important semantic question:
    - Observable state changes
 
 ### Files Modified This Iteration
-- Created: DumbContracts/Examples/Counter.lean
-- Created: contracts/Counter.sol
+- Created: examples/lean/DumbContracts/Examples/Counter.lean
+- Created: examples/solidity/Counter.sol
 - Created: test/Counter.t.sol
-- Modified: DumbContracts.lean (added Counter import)
+- Modified: examples/lean/DumbContracts/All.lean (added Counter import)
 - Modified: STATUS.md (updated for iteration 2)
 - Modified: RESEARCH.md (this file)
 
@@ -245,7 +245,7 @@ The Counter example reveals an important semantic question:
 ## Iteration 3: Ownership Pattern (2026-02-09)
 
 ### What I Added
-1. **Owned Example Contract** (DumbContracts/Examples/Owned.lean:1-59)
+1. **Owned Example Contract** (examples/lean/DumbContracts/Examples/Owned.lean:1-59)
    - Demonstrates ownership pattern and access control
    - Storage for owner address
    - Helper function `isOwner` to check caller identity
@@ -255,13 +255,13 @@ The Counter example reveals an important semantic question:
    - `getOwner` getter function
    - Includes executable example that evaluates to "0xBob" (after transfer)
 
-2. **Core Enhancement: Address Storage** (DumbContracts/Core.lean:23-52)
+2. **Core Enhancement: Address Storage** (edsl/DumbContracts/Core.lean:23-52)
    - Added `storageAddr` field to ContractState
    - Added `getStorageAddr` and `setStorageAddr` functions
    - Parallel to existing Uint256 storage operations
    - Minimal change driven by real example need
 
-3. **Solidity Reference Implementation** (contracts/Owned.sol:1-30)
+3. **Solidity Reference Implementation** (examples/solidity/Owned.sol:1-30)
    - Clean ownership pattern with constructor
    - Custom error `NotOwner` for gas efficiency
    - `onlyOwner` modifier
@@ -430,13 +430,13 @@ A: No. Helper functions called in sequence work perfectly.
 A: Regular functions work fine. Just call a `constructor` function.
 
 ### Files Modified This Iteration
-- Created: DumbContracts/Examples/Owned.lean
-- Created: contracts/Owned.sol
+- Created: examples/lean/DumbContracts/Examples/Owned.lean
+- Created: examples/solidity/Owned.sol
 - Created: test/Owned.t.sol
-- Modified: DumbContracts/Core.lean (added Address storage)
-- Modified: DumbContracts.lean (added Owned import)
-- Modified: DumbContracts/Examples/SimpleStorage.lean (added storageAddr field)
-- Modified: DumbContracts/Examples/Counter.lean (added storageAddr field)
+- Modified: edsl/DumbContracts/Core.lean (added Address storage)
+- Modified: examples/lean/DumbContracts/All.lean (added Owned import)
+- Modified: examples/lean/DumbContracts/Examples/SimpleStorage.lean (added storageAddr field)
+- Modified: examples/lean/DumbContracts/Examples/Counter.lean (added storageAddr field)
 - Modified: STATUS.md (updated for iteration 3)
 - Modified: RESEARCH.md (this file)
 
@@ -445,7 +445,7 @@ A: Regular functions work fine. Just call a `constructor` function.
 ## Iteration 4: Pattern Composition - OwnedCounter (2026-02-09)
 
 ### What I Added
-1. **OwnedCounter Example Contract** (DumbContracts/Examples/OwnedCounter.lean:1-80)
+1. **OwnedCounter Example Contract** (examples/lean/DumbContracts/Examples/OwnedCounter.lean:1-80)
    - Combines Owned and Counter patterns seamlessly
    - Storage: owner (Address) at slot 0, count (Uint256) at slot 1
    - Owner-only operations: increment, decrement, transferOwnership
@@ -453,7 +453,7 @@ A: Regular functions work fine. Just call a `constructor` function.
    - Helper functions reused from Owned pattern (isOwner, onlyOwner)
    - Evaluates to (2, "0xBob") - count of 2 after 2 increments, owner transferred to Bob
 
-2. **Solidity Reference Implementation** (contracts/OwnedCounter.sol:1-43)
+2. **Solidity Reference Implementation** (examples/solidity/OwnedCounter.sol:1-43)
    - Clean combination of ownership and counter patterns
    - Uses modifier syntax for access control
    - Identical semantics to Lean version
@@ -691,10 +691,10 @@ A: ✅ YES! OwnedCounter demonstrates this clearly.
 A: No. Core is sufficient - composition is free.
 
 ### Files Modified This Iteration
-- Created: DumbContracts/Examples/OwnedCounter.lean
-- Created: contracts/OwnedCounter.sol
+- Created: examples/lean/DumbContracts/Examples/OwnedCounter.lean
+- Created: examples/solidity/OwnedCounter.sol
 - Created: test/OwnedCounter.t.sol
-- Modified: DumbContracts.lean (added OwnedCounter import)
+- Modified: examples/lean/DumbContracts/All.lean (added OwnedCounter import)
 - Modified: STATUS.md (updated for iteration 4)
 - Modified: RESEARCH.md (this file)
 
@@ -703,7 +703,7 @@ A: No. Core is sufficient - composition is free.
 ## Iteration 5: Math Safety Stdlib (2026-02-09)
 
 ### What I Added
-1. **Math Safety Stdlib Module** (DumbContracts/Stdlib/Math.lean:1-63)
+1. **Math Safety Stdlib Module** (edsl/DumbContracts/Stdlib/Math.lean:1-63)
    - safeAdd: Checked addition with overflow protection
    - safeSub: Checked subtraction with underflow protection
    - safeMul: Checked multiplication with overflow protection
@@ -712,14 +712,14 @@ A: No. Core is sufficient - composition is free.
    - requireSomeUint: Helper to convert Option to Contract with error message
    - MAX_UINT256 constant defined as 2^256 - 1
 
-2. **SafeCounter Example** (DumbContracts/Examples/SafeCounter.lean:1-50)
+2. **SafeCounter Example** (examples/lean/DumbContracts/Examples/SafeCounter.lean:1-50)
    - Demonstrates stdlib usage pattern
    - Uses safeAdd/safeSub instead of bare +/-
    - Handles Option results with requireSomeUint
    - Same behavior as Counter but with explicit safety
    - Evaluates to 1 (increment twice, decrement once)
 
-3. **Solidity Reference** (contracts/SafeCounter.sol:1-29)
+3. **Solidity Reference** (examples/solidity/SafeCounter.sol:1-29)
    - Solidity 0.8+ has built-in overflow protection
    - Naturally matches Lean safe semantics
    - Reverts on overflow/underflow automatically
@@ -833,7 +833,7 @@ These tests wouldn't make sense for unsafe Counter (it would wrap).
 
 Established pattern for stdlib modules:
 ```
-DumbContracts/
+edsl/DumbContracts/
 ├── Core.lean (primitives)
 └── Stdlib/
     └── Math.lean (checked arithmetic)
@@ -908,11 +908,11 @@ Future stdlib modules can follow this pattern:
 **A: ✅ YES!** Core unchanged at 72 lines, stdlib works perfectly.
 
 ### Files Modified This Iteration
-- Created: DumbContracts/Stdlib/Math.lean
-- Created: DumbContracts/Examples/SafeCounter.lean
-- Created: contracts/SafeCounter.sol
+- Created: edsl/DumbContracts/Stdlib/Math.lean
+- Created: examples/lean/DumbContracts/Examples/SafeCounter.lean
+- Created: examples/solidity/SafeCounter.sol
 - Created: test/SafeCounter.t.sol
-- Modified: DumbContracts.lean (added Stdlib.Math and SafeCounter imports)
+- Modified: examples/lean/DumbContracts/All.lean (added Stdlib.Math and SafeCounter imports)
 - Modified: STATUS.md (updated for iteration 5)
 - Modified: RESEARCH.md (this file)
 
@@ -921,21 +921,21 @@ Future stdlib modules can follow this pattern:
 ## Iteration 6: Mapping Support (2026-02-10)
 
 ### What I Added
-1. **Mapping Storage in Core** (DumbContracts/Core.lean:25, 52-62)
+1. **Mapping Storage in Core** (edsl/DumbContracts/Core.lean:25, 52-62)
    - Added storageMap field to ContractState: `Nat → Address → Uint256`
    - Added getMapping: read from mapping by slot and key
    - Added setMapping: write to mapping by slot and key
    - Total core increase: +12 lines (69 → 81 lines)
    - First core extension in 3 iterations!
 
-2. **Ledger Example Contract** (DumbContracts/Examples/Ledger.lean:1-70)
+2. **Ledger Example Contract** (examples/lean/DumbContracts/Examples/Ledger.lean:1-70)
    - Demonstrates mapping usage pattern (Address → Uint256)
    - Storage: balances mapping at slot 0
    - Functions: deposit, withdraw, transfer, getBalance
    - Shows key-value storage for balance tracking
    - Evaluates to (20, 50) - Alice: 20, Bob: 50 after example operations
 
-3. **Solidity Reference** (contracts/Ledger.sol:1-46)
+3. **Solidity Reference** (examples/solidity/Ledger.sol:1-46)
    - Uses native mapping(address => uint256) for balances
    - Clean implementation with custom errors
    - Identical semantics to Lean version
@@ -1163,11 +1163,11 @@ This represents a major milestone in the EDSL's practical utility.
 **A:** Not relevant - this is an EDSL for semantic modeling, not runtime execution.
 
 ### Files Modified This Iteration
-- Modified: DumbContracts/Core.lean (added mapping storage +12 lines)
-- Created: DumbContracts/Examples/Ledger.lean
-- Created: contracts/Ledger.sol
+- Modified: edsl/DumbContracts/Core.lean (added mapping storage +12 lines)
+- Created: examples/lean/DumbContracts/Examples/Ledger.lean
+- Created: examples/solidity/Ledger.sol
 - Created: test/Ledger.t.sol
-- Modified: DumbContracts.lean (added Ledger import)
+- Modified: examples/lean/DumbContracts/All.lean (added Ledger import)
 - Modified: All 5 previous examples (added storageMap field)
 - Modified: STATUS.md (updated for iteration 6)
 - Modified: RESEARCH.md (this file)
@@ -1177,7 +1177,7 @@ This represents a major milestone in the EDSL's practical utility.
 ## Iteration 7: Simple Token Contract (2026-02-10)
 
 ### What I Added
-1. **SimpleToken Example Contract** (DumbContracts/Examples/SimpleToken.lean:1-96)
+1. **SimpleToken Example Contract** (examples/lean/DumbContracts/Examples/SimpleToken.lean:1-96)
    - Combines Owned (access control) + Ledger (balances mapping) patterns
    - Storage: owner (slot 0), balances mapping (slot 1), totalSupply (slot 2)
    - Owner-controlled minting: `mint` function (owner-only)
@@ -1185,7 +1185,7 @@ This represents a major milestone in the EDSL's practical utility.
    - Query functions: `balanceOf`, `getTotalSupply`, `getOwner`
    - Evaluates to (700, 300, 1000) - Alice: 700, Bob: 300, supply: 1000
 
-2. **Solidity Reference** (contracts/SimpleToken.sol:1-59)
+2. **Solidity Reference** (examples/solidity/SimpleToken.sol:1-59)
    - Clean token implementation with constructor
    - onlyOwner modifier for access control
    - Custom errors (NotOwner, InsufficientBalance)
@@ -1400,9 +1400,9 @@ This is a significant milestone - the EDSL can now express contracts that people
 **A: Not for basic tokens.** Only allowances (nested mappings) would need core support.
 
 ### Files Modified This Iteration
-- Created: DumbContracts/Examples/SimpleToken.lean
-- Created: contracts/SimpleToken.sol
+- Created: examples/lean/DumbContracts/Examples/SimpleToken.lean
+- Created: examples/solidity/SimpleToken.sol
 - Created: test/SimpleToken.t.sol
-- Modified: DumbContracts.lean (added SimpleToken import)
+- Modified: examples/lean/DumbContracts/All.lean (added SimpleToken import)
 - Modified: STATUS.md (updated for iteration 7)
 - Modified: RESEARCH.md (this file)

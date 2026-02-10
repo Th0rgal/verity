@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "../contracts/SimpleStorage.sol";
+import "../examples/solidity/SimpleStorage.sol";
 
 /**
  * @title SimpleStorageTest

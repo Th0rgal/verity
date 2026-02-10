@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "../contracts/Owned.sol";
+import "../examples/solidity/Owned.sol";
 
 /**
  * @title OwnedTest

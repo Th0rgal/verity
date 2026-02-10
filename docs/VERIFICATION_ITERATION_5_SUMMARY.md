@@ -14,7 +14,7 @@ This iteration implemented **Priority 1: Guard Modeling** from the EDSL Extensio
 
 ### 1. Core EDSL Extension ✅
 
-**File**: `DumbContracts/Core.lean`
+**File**: `edsl/DumbContracts/Core.lean`
 
 Redesigned the Contract monad to explicitly model success and failure:
 
@@ -185,16 +185,16 @@ $ lake build 2>&1 | grep -c "sorry"
 ## Files Modified
 
 ### Core Infrastructure
-- `DumbContracts/Core.lean` — Complete rewrite with ContractResult, zero sorry
+- `edsl/DumbContracts/Core.lean` — Complete rewrite with ContractResult, zero sorry
 
 ### Examples (7 files)
-- `DumbContracts/Examples/{SimpleStorage,Counter,SafeCounter,Owned,OwnedCounter,Ledger,SimpleToken}.lean`
+- `examples/lean/DumbContracts/Examples/{SimpleStorage,Counter,SafeCounter,Owned,OwnedCounter,Ledger,SimpleToken}.lean`
 
 ### Proofs (4 files)
-- `DumbContracts/Proofs/SimpleStorage/Basic.lean` — 12/12 proven
-- `DumbContracts/Proofs/Counter/Basic.lean` — 19/19 proven
-- `DumbContracts/Proofs/Owned/Basic.lean` — 18/18 proven, zero axioms
-- `DumbContracts/Proofs/SimpleToken/Basic.lean` — 33/33 proven, zero axioms
+- `examples/lean/DumbContracts/Proofs/SimpleStorage/Basic.lean` — 12/12 proven
+- `examples/lean/DumbContracts/Proofs/Counter/Basic.lean` — 19/19 proven
+- `examples/lean/DumbContracts/Proofs/Owned/Basic.lean` — 18/18 proven, zero axioms
+- `examples/lean/DumbContracts/Proofs/SimpleToken/Basic.lean` — 33/33 proven, zero axioms
 
 ## Lessons Learned
 

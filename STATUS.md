@@ -91,23 +91,27 @@ Additional:
 ### Proof Architecture
 
 ```
-DumbContracts/
-├── Core.lean (212 lines — ContractResult, require, simp lemmas)
-├── Stdlib/Math.lean — Safe arithmetic (safeAdd, safeSub, safeMul, safeDiv, MAX_UINT256)
-├── Examples/ — 7 contract implementations
-├── Specs/
-│   ├── SimpleStorage/ (Spec.lean, Invariants.lean)
-│   ├── Counter/ (Spec.lean, Invariants.lean)
-│   ├── Owned/ (Spec.lean, Invariants.lean)
-│   ├── SimpleToken/ (Spec.lean, Invariants.lean)
-│   ├── OwnedCounter/ (Spec.lean, Invariants.lean)
-│   ├── Ledger/ (Spec.lean, Invariants.lean)
-│   └── SafeCounter/ (Spec.lean, Invariants.lean)
-└── Proofs/
-    ├── Stdlib/Math.lean (25 theorems — safeAdd/safeSub/safeMul/safeDiv correctness)
-    ├── SimpleStorage/Basic.lean (12), Correctness.lean (7)
-    ├── Counter/Basic.lean (19), Correctness.lean (10)
-    ├── Owned/Basic.lean (18), Correctness.lean (4)
+edsl/
+└── DumbContracts/
+    ├── Core.lean (212 lines — ContractResult, require, simp lemmas)
+    └── Stdlib/Math.lean — Safe arithmetic (safeAdd, safeSub, safeMul, safeDiv, MAX_UINT256)
+
+examples/lean/
+└── DumbContracts/
+    ├── Examples/ — 7 contract implementations
+    ├── Specs/
+    │   ├── SimpleStorage/ (Spec.lean, Invariants.lean)
+    │   ├── Counter/ (Spec.lean, Invariants.lean)
+    │   ├── Owned/ (Spec.lean, Invariants.lean)
+    │   ├── SimpleToken/ (Spec.lean, Invariants.lean)
+    │   ├── OwnedCounter/ (Spec.lean, Invariants.lean)
+    │   ├── Ledger/ (Spec.lean, Invariants.lean)
+    │   └── SafeCounter/ (Spec.lean, Invariants.lean)
+    └── Proofs/
+        ├── Stdlib/Math.lean (25 theorems — safeAdd/safeSub/safeMul/safeDiv correctness)
+        ├── SimpleStorage/Basic.lean (12), Correctness.lean (7)
+        ├── Counter/Basic.lean (19), Correctness.lean (10)
+        ├── Owned/Basic.lean (18), Correctness.lean (4)
     ├── SimpleToken/Basic.lean (36), Correctness.lean (10), Supply.lean (9), Isolation.lean (9)
     ├── OwnedCounter/Basic.lean (29), Correctness.lean (5), Isolation.lean (14)
     ├── Ledger/Basic.lean (21), Correctness.lean (6), Conservation.lean (13)
