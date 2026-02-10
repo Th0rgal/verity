@@ -15,7 +15,7 @@ def compareAndSwapFun : Fun :=
   { name := "compareAndSwap"
     args := ["slot", "expected", "value"]
     body :=
-      Stmt.let_ "current" (sloadVar "slot")
+      letSload "current" (v "slot")
         (requireEq (v "current") (v "expected") (sstoreVar "slot" (v "value")))
     ret := none }
 
@@ -32,13 +32,13 @@ theorem compareAndSwap_meets_specR_ok (s : Store) (slot expected value : Nat) :
   intro hreq
   have hmatch : s slot = expected := by exact hreq
   simp [compareAndSwapSpecR, compareAndSwapFun, requireEq, eq, require, execFun, execStmt,
-    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hmatch]
+    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, letSload, hmatch]
 
 theorem compareAndSwap_meets_specR_reverts (s : Store) (slot expected value : Nat) :
     (compareAndSwapSpecR slot expected value).reverts s ->
     execFun compareAndSwapFun [slot, expected, value] s [] = ExecResult.reverted := by
   intro hrev
   simp [compareAndSwapSpecR, compareAndSwapFun, requireEq, eq, require, execFun, execStmt,
-    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hrev]
+    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, letSload, hrev]
 
 end DumbContracts.Examples

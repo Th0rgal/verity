@@ -1,6 +1,11 @@
 # Research Log
 
 ## 2026-02-10
+- Added `letSload` stdlib helper for caching a slot read via `let_`.
+- Refactored `compareAndSwap` to use `letSload`.
+- Added `initOnce` example (only initialize a zero slot) with SpecR + proofs.
+- Added Foundry test for `initOnce`.
+- Updated compiler entries + direct EVM asm for `initOnce`.
 - Added `requireLt` stdlib helper to mirror `requireGt` for less-than guards.
 - Refactored `setIfLess` to use `requireLt` instead of a manual `revertIf`.
 - Added `setIfBetween` example (guarded store on `min < value < max`) with SpecR + proofs.

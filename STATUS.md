@@ -19,7 +19,7 @@ Last updated: 2026-02-10
 - Decide whether to guard old-state specs with `from ≠ to` or adopt sequential reads by default.
 - Supply accounting abstraction (list vs set/dedup semantics).
 - EDSL ergonomics: add helpers, notations, and a minimal stdlib for common patterns.
-- Iteration: add `requireLt` guard helper and a range-check example (`setIfBetween`) to reduce boilerplate for bounded updates.
+- Iteration: add `letSload` helper and an `initOnce` example to make cached-slot guards less noisy.
 
 ## Recently Done
 - Lean -> Yul pipeline with runtime + creation bytecode artifacts.

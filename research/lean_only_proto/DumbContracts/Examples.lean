@@ -6,6 +6,7 @@ import DumbContracts.Examples.TokenTransfer
 import DumbContracts.Examples.MaxStore
 import DumbContracts.Examples.NonZeroStore
 import DumbContracts.Examples.CompareAndSwap
+import DumbContracts.Examples.InitOnce
 import DumbContracts.Examples.SetIfGreater
 import DumbContracts.Examples.SetIfLess
 import DumbContracts.Examples.SetIfBetween
