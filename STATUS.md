@@ -19,7 +19,7 @@ Last updated: 2026-02-10
 - Decide whether to guard old-state specs with `from ≠ to` or adopt sequential reads by default.
 - Supply accounting abstraction (list vs set/dedup semantics).
 - EDSL ergonomics: add helpers, notations, and a minimal stdlib for common patterns.
-- Iteration: add `sstoreSub` helper and a tiny `subIfEnough` example + Foundry test.
+- Iteration: add `requireGte` helper and a tiny `setIfAtLeast` example + Foundry test.
 
 ## Recently Done
 - Lean -> Yul pipeline with runtime + creation bytecode artifacts.

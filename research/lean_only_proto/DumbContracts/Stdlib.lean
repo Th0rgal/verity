@@ -43,6 +43,9 @@ def requireGt (lhs rhs : Expr) (body : Stmt) : Stmt :=
 def requireLt (lhs rhs : Expr) (body : Stmt) : Stmt :=
   require (Expr.lt lhs rhs) body
 
+def requireGte (lhs rhs : Expr) (body : Stmt) : Stmt :=
+  require (Expr.not (Expr.lt lhs rhs)) body
+
 def requireBetween (value lo hi : Expr) (body : Stmt) : Stmt :=
   requireAnd (Expr.gt value lo) (Expr.lt value hi) body
 

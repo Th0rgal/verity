@@ -15,8 +15,9 @@ def subIfEnoughFun : Fun :=
   { name := "subIfEnough"
     args := ["slot", "delta"]
     body := letSload "current" (v "slot")
-      (require
-        (Expr.not (Expr.lt (v "current") (v "delta")))
+      (requireGte
+        (v "current")
+        (v "delta")
         (Stmt.sstore (v "slot") (Expr.sub (v "current") (v "delta"))))
     ret := none }
 
@@ -34,15 +35,15 @@ theorem subIfEnough_meets_specR_ok (s : Store) (slot delta : Nat) :
   have hge : s slot >= delta := by exact hreq
   have hnot : ¬ s slot < delta := by
     exact not_lt_of_ge hge
-  simp [subIfEnoughSpecR, subIfEnoughFun, letSload, require, v, execFun, execStmt, evalExpr,
-    bindArgs, emptyEnv, updateEnv, updateStore, hnot]
+  simp [subIfEnoughSpecR, subIfEnoughFun, letSload, requireGte, require, v, execFun, execStmt,
+    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hnot]
 
 theorem subIfEnough_meets_specR_reverts (s : Store) (slot delta : Nat) :
     (subIfEnoughSpecR slot delta).reverts s ->
     execFun subIfEnoughFun [slot, delta] s [] = ExecResult.reverted := by
   intro hrev
   have hlt : s slot < delta := by exact hrev
-  simp [subIfEnoughSpecR, subIfEnoughFun, letSload, require, v, execFun, execStmt, evalExpr,
-    bindArgs, emptyEnv, updateEnv, updateStore, hlt]
+  simp [subIfEnoughSpecR, subIfEnoughFun, letSload, requireGte, require, v, execFun, execStmt,
+    evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hlt]
 
 end DumbContracts.Examples

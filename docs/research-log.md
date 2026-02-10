@@ -1,6 +1,11 @@
 # Research Log
 
 ## 2026-02-10
+- Added `requireGte` stdlib helper for `>=` guards (via `not lt`).
+- Refactored `subIfEnough` to use `requireGte`.
+- Added `setIfAtLeast` example (guarded store on `value >= min`) with SpecR + proofs.
+- Added Foundry test for `setIfAtLeast`.
+- Updated compiler entries + direct EVM asm for `setIfAtLeast`.
 - Added `sstoreSub` stdlib helper for slot decrements.
 - Refactored `transfer` to use `sstoreSub` for balance subtraction.
 - Added `subIfEnough` example (guarded decrement when slot >= delta) with SpecR + proofs.
