@@ -16,3 +16,7 @@ import DumbContracts.Proofs.SimpleStorage.Basic
 import DumbContracts.Specs.Counter.Spec
 import DumbContracts.Specs.Counter.Invariants
 import DumbContracts.Proofs.Counter.Basic
+
+import DumbContracts.Specs.Owned.Spec
+import DumbContracts.Specs.Owned.Invariants
+import DumbContracts.Proofs.Owned.Basic
