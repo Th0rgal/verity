@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'DumbContracts/**'
+      - 'DumbContracts.lean'
       - 'examples/solidity/**'
       - 'lakefile.lean'
       - 'lean-toolchain'
   pull_request:
     paths:
       - 'DumbContracts/**'
+      - 'DumbContracts.lean'
       - 'examples/solidity/**'
       - 'lakefile.lean'
       - 'lean-toolchain'
