@@ -1,5 +1,13 @@
 # Research Log
 
+## 2026-02-10
+- Added `eq`/`neq` plus `requireEq`/`requireNeq` stdlib helpers.
+- Added `compareAndSwap` example (guarded store on expected value match) with SpecR and proofs.
+- Avoided double `sload` in `compareAndSwap` by caching the slot value with `let_` (prevents false reverts).
+- Refactored `setNonZero` to use the new `requireNeq` helper.
+- Updated compiler entries + direct EVM asm for `compareAndSwap`.
+- Added Foundry test for `compareAndSwap`.
+
 ## 2026-02-09
 - Added spec-style wrappers for storage and risk examples.
 - Added `SpecR` (specs with explicit revert predicates) and proofs.

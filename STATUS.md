@@ -45,6 +45,7 @@ Last updated: 2026-02-10
 - Added a `maxStore` example (stores max(a,b) into a slot) plus selector + Foundry test.
 - Added a `requireNonZero` helper and a tiny `setNonZero` example + Foundry test.
 - Aligned direct EVM asm with solc for `setNonZero` (label pushes use `PUSH2`).
+- Added `requireEq`/`requireNeq` helpers plus a `compareAndSwap` example + Foundry test.
 - Minimal docs frontend and compressed docs.
 - Further docs tightening (shorter guide + text).
 - External landscape scan (spec languages, model checkers, prover stacks).

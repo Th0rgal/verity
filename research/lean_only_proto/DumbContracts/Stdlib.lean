@@ -19,8 +19,20 @@ def unless (cond : Expr) (body : Stmt) : Stmt :=
 def assert (cond : Expr) : Stmt :=
   Stmt.if_ cond Stmt.skip Stmt.revert
 
+def eq (lhs rhs : Expr) : Expr :=
+  Expr.eq lhs rhs
+
+def neq (lhs rhs : Expr) : Expr :=
+  Expr.not (Expr.eq lhs rhs)
+
+def requireEq (lhs rhs : Expr) (body : Stmt) : Stmt :=
+  require (eq lhs rhs) body
+
+def requireNeq (lhs rhs : Expr) (body : Stmt) : Stmt :=
+  require (neq lhs rhs) body
+
 def requireNonZero (value : Expr) (body : Stmt) : Stmt :=
-  require (Expr.not (Expr.eq value (Expr.lit 0))) body
+  requireNeq value (Expr.lit 0) body
 
 /-- Shorthand for loading/storing fixed slots. -/
 

@@ -142,8 +142,21 @@ def exampleEntry6 : EntryPoint :=
     selector := 0xac1f1f67
     returns := false }
 
+def exampleEntry7 : EntryPoint :=
+  { name := "compareAndSwap"
+    args := ["slot", "expected", "value"]
+    body :=
+      Lang.Stmt.let_ "current" (Lang.Expr.sload (Lang.Expr.var "slot"))
+        (Lang.Stmt.if_
+          (Lang.Expr.eq (Lang.Expr.var "current") (Lang.Expr.var "expected"))
+          (Lang.Stmt.sstore (Lang.Expr.var "slot") (Lang.Expr.var "value"))
+          Lang.Stmt.revert)
+    -- compareAndSwap(uint256,uint256,uint256) -> 0xc74962fa
+    selector := 0xc74962fa
+    returns := false }
+
 def exampleEntries : List EntryPoint :=
-  [exampleEntry, exampleEntry2, exampleEntry3, exampleEntry4, exampleEntry5, exampleEntry6]
+  [exampleEntry, exampleEntry2, exampleEntry3, exampleEntry4, exampleEntry5, exampleEntry6, exampleEntry7]
 
 def healthEntrySet : EntryPoint :=
   { name := "setRisk"

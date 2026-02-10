@@ -14,7 +14,7 @@ open DumbContracts.Std
 def setNonZeroFun : Fun :=
   { name := "setNonZero"
     args := ["slot", "value"]
-    body := requireNonZero (v "value") (sstoreVar "slot" (v "value"))
+    body := requireNeq (v "value") (n 0) (sstoreVar "slot" (v "value"))
     ret := none }
 
 def setNonZeroSpecR (slot value : Nat) : SpecR Store :=
@@ -29,14 +29,14 @@ theorem setNonZero_meets_specR_ok (s : Store) (slot value : Nat) :
       | _ => False) := by
   intro hreq
   have hnonzero : value != 0 := by exact hreq
-  simp [setNonZeroSpecR, setNonZeroFun, requireNonZero, require, execFun, execStmt, evalExpr,
+  simp [setNonZeroSpecR, setNonZeroFun, requireNeq, neq, eq, require, execFun, execStmt, evalExpr,
     bindArgs, emptyEnv, updateEnv, updateStore, hnonzero]
 
 theorem setNonZero_meets_specR_reverts (s : Store) (slot value : Nat) :
     (setNonZeroSpecR slot value).reverts s ->
     execFun setNonZeroFun [slot, value] s [] = ExecResult.reverted := by
   intro hrev
-  simp [setNonZeroSpecR, setNonZeroFun, requireNonZero, require, execFun, execStmt, evalExpr,
+  simp [setNonZeroSpecR, setNonZeroFun, requireNeq, neq, eq, require, execFun, execStmt, evalExpr,
     bindArgs, emptyEnv, updateEnv, updateStore, hrev]
 
 end DumbContracts.Examples

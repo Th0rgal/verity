@@ -5,3 +5,4 @@ import DumbContracts.Examples.Supply
 import DumbContracts.Examples.TokenTransfer
 import DumbContracts.Examples.MaxStore
 import DumbContracts.Examples.NonZeroStore
+import DumbContracts.Examples.CompareAndSwap
