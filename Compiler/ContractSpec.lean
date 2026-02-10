@@ -134,11 +134,11 @@ private def compileExpr (fields : List Field) : Expr → YulExpr
   | Expr.storage field =>
     match findFieldSlot fields field with
     | some slot => YulExpr.call "sload" [YulExpr.lit slot]
-    | none => YulExpr.lit 0  -- Error case
+    | none => panic! s!"Compilation error: unknown storage field '{field}'"
   | Expr.mapping field key =>
     match findFieldSlot fields field with
     | some slot => YulExpr.call "sload" [YulExpr.call "mappingSlot" [YulExpr.lit slot, compileExpr fields key]]
-    | none => YulExpr.lit 0
+    | none => panic! s!"Compilation error: unknown mapping field '{field}'"
   | Expr.caller => YulExpr.call "caller" []
   | Expr.localVar name => YulExpr.ident name
   | Expr.add a b => YulExpr.call "add" [compileExpr fields a, compileExpr fields b]
@@ -157,7 +157,7 @@ private def compileStmt (fields : List Field) : Stmt → List YulStmt
   | Stmt.setStorage field value =>
     match findFieldSlot fields field with
     | some slot => [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, compileExpr fields value])]
-    | none => []
+    | none => panic! s!"Compilation error: unknown storage field '{field}' in setStorage"
   | Stmt.setMapping field key value =>
     match findFieldSlot fields field with
     | some slot =>
@@ -166,7 +166,7 @@ private def compileStmt (fields : List Field) : Stmt → List YulStmt
           compileExpr fields value
         ])
       ]
-    | none => []
+    | none => panic! s!"Compilation error: unknown mapping field '{field}' in setMapping"
   | Stmt.require cond message =>
     [ YulStmt.if_ (YulExpr.call "iszero" [compileExpr fields cond]) [
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
@@ -239,13 +239,21 @@ private def compileConstructor (fields : List Field) (ctor : Option ConstructorS
     argLoads ++ body
 
 -- Main compilation function
--- SAFETY: selectors.length must equal spec.functions.length (checked at compile time in Specs.lean)
+-- SAFETY REQUIREMENTS (enforced by #guard in Specs.lean):
+--   1. selectors.length == spec.functions.length
+--   2. selectors[i] matches the Solidity signature of spec.functions[i]
+-- WARNING: Order matters! If selector list is reordered but function list isn't,
+--          functions will be mapped to wrong selectors with no runtime error.
 def compile (spec : ContractSpec) (selectors : List Nat) : IRContract :=
-  { name := spec.name
-    deploy := compileConstructor spec.fields spec.constructor
-    functions := spec.functions.zip selectors |>.map fun (fnSpec, sel) =>
-      compileFunctionSpec spec.fields sel fnSpec
-    usesMapping := usesMapping spec.fields
-  }
+  -- Validate selector count matches function count
+  if spec.functions.length != selectors.length then
+    panic! s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {spec.functions.length} functions"
+  else
+    { name := spec.name
+      deploy := compileConstructor spec.fields spec.constructor
+      functions := spec.functions.zip selectors |>.map fun (fnSpec, sel) =>
+        compileFunctionSpec spec.fields sel fnSpec
+      usesMapping := usesMapping spec.fields
+    }
 
 end Compiler.ContractSpec

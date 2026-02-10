@@ -98,6 +98,15 @@ contract DifferentialSimpleStorage is YulTestBase {
 
         // Parse EDSL result
         bool edslSuccess = contains(edslResult, "\"success\":true");
+
+        // Validate JSON structure
+        if (!contains(edslResult, "\"returnValue\":")) {
+            console2.log("ERROR: Malformed JSON - missing returnValue field");
+            console2.log("  JSON:", edslResult);
+            testsFailed++;
+            return false;
+        }
+
         uint256 edslReturnValue = _extractReturnValue(edslResult);
 
         // Validate: Success flags must match

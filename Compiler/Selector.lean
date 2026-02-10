@@ -56,14 +56,18 @@ private def knownSelectors : List (String × Nat) := [
 def lookupSelector (sig : String) : Option Nat :=
   knownSelectors.find? (fun (s, _) => s == sig) |>.map (·.2)
 
--- Get selector for a function (with fallback to simple hash)
+-- Get selector for a function (PANICS if not in lookup table)
 def getSelector (name : String) (params : List IRParam) : Nat :=
   let sig := functionSignature name params
   match lookupSelector sig with
   | some sel => sel
-  | none =>
-    -- Fallback: use simple hash (not Solidity-compatible!)
-    -- This will trigger a warning in production
-    sig.hash % (2^32)
+  | none => panic! s!"Selector not found for '{sig}'. Add to knownSelectors table or integrate keccak256."
+
+-- Validate that provided selector matches expected signature
+def validateSelector (name : String) (params : List IRParam) (providedSelector : Nat) : Bool :=
+  let sig := functionSignature name params
+  match lookupSelector sig with
+  | some expectedSel => expectedSel == providedSelector
+  | none => false  -- Unknown signature, can't validate
 
 end Compiler.Selector

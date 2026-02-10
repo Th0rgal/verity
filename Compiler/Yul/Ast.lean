@@ -6,7 +6,7 @@ inductive YulExpr
   | str (s : String)
   | ident (name : String)
   | call (func : String) (args : List YulExpr)
-  deriving Repr
+  deriving Repr, Inhabited
 
 inductive YulStmt
   | comment (text : String)
