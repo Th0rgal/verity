@@ -30,7 +30,6 @@ structure Transaction where
   sender : Address
   functionName : String
   args : List Nat  -- Simplified: all args as uint256 for now
-  deriving Repr
 
 /-!
 ## Execution Result
@@ -43,7 +42,7 @@ structure ExecutionResult where
   returnValue : Option Nat    -- Return value for successful calls
   revertReason : Option String  -- Revert message if failed
   storageChanges : List (Nat × Nat)  -- Changed slots: (slot, newValue)
-  deriving Repr, BEq
+  deriving BEq
 
 /-!
 ## EDSL Interpreter
@@ -166,7 +165,6 @@ inductive ContractType
   | ownedCounter
   | simpleToken
   | safeCounter
-  deriving Repr
 
 def interpret (contractType : ContractType) (tx : Transaction) (state : ContractState) : ExecutionResult :=
   match contractType with
