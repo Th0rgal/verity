@@ -5,13 +5,15 @@ description: Minimal Lean 4 EDSL for writing and formally verifying smart contra
 
 # Dumb Contracts
 
-A minimal Lean 4 embedded DSL for writing and formally verifying smart contracts.
+> **Are you an AI?** Check [/llms.txt](/llms.txt) or add `.md` to any page URL to get raw markdown and save tokens.
 
-The core is 212 lines of Lean. It models contract state, storage operations, and `require` guards using an explicit success/revert result type (`ContractResult`). 7 example contracts are implemented and verified with 252 machine-checked proofs. No `sorry`, no axioms.
+**212-line Lean 4 EDSL for smart contracts. 252 theorems proven. Zero sorry, zero axioms.**
 
-## How it works
+The core models contract state, storage operations, and `require` guards using an explicit success/revert result type (`ContractResult`). Seven example contracts are implemented and verified with machine-checked proofs covering correctness, conservation laws, and storage isolation.
 
-Contracts are Lean functions from `ContractState` to `ContractResult`. The `ContractResult` type has two constructors: `success` (with a value and updated state) and `revert` (with an error message and unchanged state). A custom `bind` short-circuits on revert, so do-notation works like Solidity.
+## How it Works
+
+Contracts are functions from `ContractState` to `ContractResult`. The result type has two constructors: `success` (value + new state) and `revert` (error message + old state). Custom `bind` short-circuits on revert, so do-notation works like Solidity's early returns.
 
 ```lean
 -- A contract that mints tokens, guarded by onlyOwner
@@ -44,19 +46,10 @@ theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint
 
 ## Documentation
 
-- **[Verification](/verification)** - All 252 proven theorems, listed per contract
-- **[Examples](/examples)** - The 7 contracts and what they demonstrate
-- **[Core Architecture](/core)** - How the 212-line core works
-- **[Research Log](/research)** - Design history across 7 implementation iterations
-- **[Iteration Summaries](/iterations)** - Detailed notes per iteration
-
-## For AI agents
-
-This documentation is available in machine-readable form:
-- Request any page with `.md` extension or `?format=md`
-- All docs concatenated at `/api/docs/_all`
-- Document index at `/api/docs/_index`
-- AI user agents automatically get markdown
+- **[Verification](/verification)** — All 252 proven theorems
+- **[Examples](/examples)** — The 7 contracts
+- **[Core](/core)** — How the 212-line core works
+- **[Research](/research)** — Design iterations and evolution
 
 ## Links
 

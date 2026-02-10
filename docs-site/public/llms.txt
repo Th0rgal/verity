@@ -1,70 +1,83 @@
-# Dumb Contracts Documentation
+# Dumb Contracts
 
-> Minimal Lean 4 EDSL for Smart Contracts with Formal Verification
+> **For AI agents:** This file provides a complete overview. Add `.md` to any docs page URL to get raw markdown.
 
-## About
+## Project Overview
 
-Dumb Contracts combines minimalism with mathematical rigor: an 82-line Lean 4 core that handles realistic smart contracts, backed by machine-checked formal proofs of correctness.
+212-line Lean 4 EDSL for smart contracts. 252 machine-checked proofs. Zero sorry, zero axioms.
 
-**From runtime testing to mathematical proof**
+**Core**: Models contract state, storage operations, and `require` guards using explicit success/revert result type (`ContractResult`).
 
-## Quick Access
+**Contracts**: 7 examples with full formal verification covering correctness, conservation laws, and storage isolation.
 
-- Complete documentation: /api/docs/_all
-- Documentation index: /api/docs/_index
-- Formal verification: /verification.md
-- Research log: /research.md
-- Examples: /examples.md
-- Core architecture: /core.md
+## Quick Facts
 
-## Key Stats
+- **Language**: Lean 4.15.0
+- **Core Size**: 212 lines
+- **Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter
+- **Theorems**: 252 proven (100% coverage, no sorry, no axioms)
+- **Build**: `lake build` verifies all proofs
+- **Repository**: https://github.com/Th0rgal/dumbcontracts
 
-- Core: 82 lines
-- Examples: 7 contracts
-- Runtime tests: 62 (100% passing)
-- Fuzz runs: 2,816
-- **Proven theorems: 11 (SimpleStorage)**
+## Key Design
 
-## Documentation Format
+```lean
+-- Contracts are functions: ContractState -> ContractResult
+inductive ContractResult (α : Type) where
+  | success : α → ContractState → ContractResult α
+  | revert : String → ContractState → ContractResult α
 
-All pages support:
-- HTML rendering (browser)
-- Raw markdown (add .md extension or ?format=md)
-- Auto-detection for AI user agents
+-- Custom bind short-circuits on revert
+def bind (x : Contract α) (f : α → Contract β) : Contract β :=
+  fun s => match x.run s with
+    | ContractResult.success a s' => (f a).run s'
+    | ContractResult.revert msg s' => ContractResult.revert msg s'
+```
 
-Example:
-- HTML: https://dumbcontracts.com/research
-- Markdown: https://dumbcontracts.com/research.md
+## Theorem Breakdown
 
-## API Routes
+| Contract | Theorems | Key Properties |
+|----------|----------|----------------|
+| SimpleStorage | 19 | Store/retrieve roundtrip, state isolation |
+| Counter | 29 | Arithmetic, composition, decrement-at-zero |
+| Owned | 22 | Access control, ownership transfer |
+| SimpleToken | 64 | Mint/transfer, supply conservation, storage isolation |
+| OwnedCounter | 34 | Cross-pattern composition, lockout proofs |
+| Ledger | 40 | Deposit/withdraw/transfer, balance conservation |
+| SafeCounter | 30 | Overflow/underflow revert proofs |
+| Stdlib/Math | 14 | safeMul/safeDiv correctness |
 
-GET /api/docs/_index     - List all documents (JSON)
-GET /api/docs/_all       - All docs concatenated (Markdown)
-GET /api/docs/[page]     - Single document (Markdown)
+## Proof Techniques
 
-## Design Principles
+**Full unfolding**: Unfold entire operation chain with `simp only`, then apply guard conditions.
 
-1. Minimalism - 82-line core, only essentials
-2. Rigor - Separation of specs, implementations, and proofs
-3. Incremental Verification - Start simple, build up complexity
-4. Type Safety First - Catch errors at compile-time
-5. Practicality - Real contracts with both runtime tests and formal proofs
+**Private helpers**: Pre-compute exact result states when guards pass.
 
-## Contracts & Verification Status
+**Conservation**: Use `List.countOcc` to account for duplicate addresses in exact sum equations.
 
-1. **SimpleStorage** - Basic state management (✅ 11 theorems proven)
-2. **Counter** - Fast arithmetic (🔄 Verification next)
-3. **SafeCounter** - Checked arithmetic
-4. **Owned** - Access control (🔜 Verification planned)
-5. **OwnedCounter** - Pattern composition
-6. **Ledger** - Mapping storage
-7. **SimpleToken** - Token contract (🔜 Complex invariants planned)
+**No Mathlib**: Manual `Nat.*` lemma chains replace `omega`, `ring`, `linarith`.
 
-## Links
+## Documentation URLs
 
-- Repository: https://github.com/Th0rgal/dumbcontracts
-- PR #3: https://github.com/Th0rgal/dumbcontracts/pull/3
+- Main: https://dumbcontracts.thomasm.ar/
+- Verification: https://dumbcontracts.thomasm.ar/verification
+- Research: https://dumbcontracts.thomasm.ar/research
+- Examples: https://dumbcontracts.thomasm.ar/examples
+- Core: https://dumbcontracts.thomasm.ar/core
 
----
+Add `.md` to any URL for raw markdown (saves tokens).
 
-For AI agents: This site automatically serves markdown to known AI user agents. All pages are accessible with .md extension for explicit markdown requests.
+## Known Limitations
+
+- Self-transfer requires `sender != to` (implementation ordering)
+- Supply = sum(balances) requires finite address model
+- No events, no gas modeling
+- No nested mappings (can't express ERC-20 allowances)
+
+## What's Next
+
+1. Self-transfer handling
+2. Finite address set for full supply = sum(balances)
+3. ERC-20 allowances (nested mapping support)
+4. Gas consumption tracking
+5. Cross-contract call modeling

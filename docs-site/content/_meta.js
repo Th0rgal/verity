@@ -1,8 +1,7 @@
 export default {
   index: 'Home',
   verification: 'Formal Verification',
-  research: 'Research Log',
-  iterations: 'Iteration Summaries',
+  research: 'Research',
   examples: 'Example Contracts',
   core: 'Core Architecture',
 };
