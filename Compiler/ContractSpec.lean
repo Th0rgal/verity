@@ -150,6 +150,12 @@ private def compileExpr (fields : List Field) : Expr → YulExpr
   | Expr.le a b => YulExpr.call "iszero" [YulExpr.call "gt" [compileExpr fields a, compileExpr fields b]]
 termination_by e => sizeOf e
 
+-- Compile require condition to a "failure" predicate to avoid double-negation.
+private def compileRequireFailCond (fields : List Field) : Expr → YulExpr
+  | Expr.ge a b => YulExpr.call "lt" [compileExpr fields a, compileExpr fields b]
+  | Expr.le a b => YulExpr.call "gt" [compileExpr fields a, compileExpr fields b]
+  | cond => YulExpr.call "iszero" [compileExpr fields cond]
+
 -- Compile statement to Yul
 private def compileStmt (fields : List Field) : Stmt → List YulStmt
   | Stmt.letVar name value =>
@@ -168,7 +174,7 @@ private def compileStmt (fields : List Field) : Stmt → List YulStmt
       ]
     | none => panic! s!"Compilation error: unknown mapping field '{field}' in setMapping"
   | Stmt.require cond message =>
-    [ YulStmt.if_ (YulExpr.call "iszero" [compileExpr fields cond]) [
+    [ YulStmt.if_ (compileRequireFailCond fields cond) [
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
       ]
     ]

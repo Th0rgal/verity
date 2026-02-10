@@ -18,7 +18,7 @@ object "SafeCounter" {
             case 0x2baeceb7 {
                 /* decrement() */
                 let count := sload(0)
-                if iszero(iszero(lt(count, 1))) {
+                if lt(count, 1) {
                     revert(0, 0)
                 }
                 sstore(0, sub(count, 1))

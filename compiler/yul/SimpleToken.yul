@@ -35,7 +35,7 @@ object "SimpleToken" {
                 let amount := calldataload(36)
                 let senderBal := sload(mappingSlot(1, caller()))
                 let recipientBal := sload(mappingSlot(1, to))
-                if iszero(iszero(lt(senderBal, amount))) {
+                if lt(senderBal, amount) {
                     revert(0, 0)
                 }
                 sstore(mappingSlot(1, caller()), sub(senderBal, amount))

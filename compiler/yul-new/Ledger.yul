@@ -22,7 +22,7 @@ object "Ledger" {
                 /* withdraw() */
                 let amount := calldataload(4)
                 let senderBal := sload(mappingSlot(0, caller()))
-                if iszero(iszero(lt(senderBal, amount))) {
+                if lt(senderBal, amount) {
                     revert(0, 0)
                 }
                 sstore(mappingSlot(0, caller()), sub(senderBal, amount))
@@ -34,7 +34,7 @@ object "Ledger" {
                 let amount := calldataload(36)
                 let senderBal := sload(mappingSlot(0, caller()))
                 let recipientBal := sload(mappingSlot(0, to))
-                if iszero(iszero(lt(senderBal, amount))) {
+                if lt(senderBal, amount) {
                     revert(0, 0)
                 }
                 sstore(mappingSlot(0, caller()), sub(senderBal, amount))

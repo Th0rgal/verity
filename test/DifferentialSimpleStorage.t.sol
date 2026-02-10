@@ -72,7 +72,7 @@ contract DifferentialSimpleStorage is YulTestBase {
         inputs[0] = "bash";
         inputs[1] = "-c";
         inputs[2] = string.concat(
-            "export PATH=\"$HOME/.elan/bin:$PATH\" && lake exe difftest-interpreter SimpleStorage ",
+            "cd \"$(git rev-parse --show-toplevel)\" && export PATH=\"$HOME/.elan/bin:$PATH\" && lake exe difftest-interpreter SimpleStorage ",
             functionName,
             " ",
             vm.toString(sender),
@@ -352,18 +352,18 @@ contract DifferentialSimpleStorage is YulTestBase {
 
         uint256 prng = seed;
         for (uint256 i = 0; i < count; i++) {
-            // Simple PRNG matching Lean's LCG
+            // Simple PRNG matching Lean's LCG + generation order
             prng = (1103515245 * prng + 12345) % (2**31);
 
-            // Determine function (50% store, 50% retrieve)
-            bool isStore = (prng % 2) == 0;
-
-            // Generate address
-            prng = (1103515245 * prng + 12345) % (2**31);
+            // Generate address (Lean: genAddress)
             address sender = _indexToAddress(prng % 5);
 
+            // Determine function (Lean: genBool)
+            prng = (1103515245 * prng + 12345) % (2**31);
+            bool isStore = (prng % 2) == 0;
+
             if (isStore) {
-                // Generate value
+                // Generate value (Lean: genUint256)
                 prng = (1103515245 * prng + 12345) % (2**31);
                 uint256 value = prng % 1000000;
 
