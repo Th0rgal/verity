@@ -1,15 +1,18 @@
 # Dumb Contracts Documentation
 
-> Minimal Lean EDSL for Smart Contracts
+> Minimal Lean 4 EDSL for Smart Contracts with Formal Verification
 
 ## About
 
-Dumb Contracts is a research project exploring minimalism in smart contract language design. The result is an 82-line Lean 4 core that handles realistic token contracts through pattern composition.
+Dumb Contracts combines minimalism with mathematical rigor: an 82-line Lean 4 core that handles realistic smart contracts, backed by machine-checked formal proofs of correctness.
+
+**From runtime testing to mathematical proof**
 
 ## Quick Access
 
 - Complete documentation: /api/docs/_all
 - Documentation index: /api/docs/_index
+- Formal verification: /verification.md
 - Research log: /research.md
 - Examples: /examples.md
 - Core architecture: /core.md
@@ -18,8 +21,9 @@ Dumb Contracts is a research project exploring minimalism in smart contract lang
 
 - Core: 82 lines
 - Examples: 7 contracts
-- Tests: 62 (100% passing)
+- Runtime tests: 62 (100% passing)
 - Fuzz runs: 2,816
+- **Proven theorems: 11 (SimpleStorage)**
 
 ## Documentation Format
 
@@ -40,21 +44,21 @@ GET /api/docs/[page]     - Single document (Markdown)
 
 ## Design Principles
 
-1. Example-Driven Development - Only add what examples need
-2. Composition Over Complexity - Patterns compose naturally
-3. Type Safety First - Catch errors at compile-time
-4. Minimal Core - Extensions through stdlib, not core
-5. Semantic Alignment - Match Solidity behavior
+1. Minimalism - 82-line core, only essentials
+2. Rigor - Separation of specs, implementations, and proofs
+3. Incremental Verification - Start simple, build up complexity
+4. Type Safety First - Catch errors at compile-time
+5. Practicality - Real contracts with both runtime tests and formal proofs
 
-## Pattern Library
+## Contracts & Verification Status
 
-1. SimpleStorage - Basic state management
-2. Counter - Fast arithmetic
-3. SafeCounter - Checked arithmetic
-4. Owned - Access control
-5. OwnedCounter - Pattern composition
-6. Ledger - Mapping storage
-7. SimpleToken - Token contract
+1. **SimpleStorage** - Basic state management (✅ 11 theorems proven)
+2. **Counter** - Fast arithmetic (🔄 Verification next)
+3. **SafeCounter** - Checked arithmetic
+4. **Owned** - Access control (🔜 Verification planned)
+5. **OwnedCounter** - Pattern composition
+6. **Ledger** - Mapping storage
+7. **SimpleToken** - Token contract (🔜 Complex invariants planned)
 
 ## Links
 

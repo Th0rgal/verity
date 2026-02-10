@@ -1,21 +1,47 @@
 ---
 title: Dumb Contracts
-description: Minimal Lean EDSL for Smart Contracts
+description: Minimal Lean 4 EDSL for Smart Contracts with Formal Verification
 ---
 
 # Dumb Contracts
 
-**A minimal, elegant Lean 4 EDSL for smart contract development**
+**Minimal Lean 4 EDSL for Smart Contracts with Formal Verification**
 
-Dumb Contracts is a research project exploring how far we can go with minimalism in smart contract language design. The result: an **82-line core** that handles realistic token contracts through pattern composition.
+> *From runtime testing to mathematical proof*
 
-## 🎯 Key Features
+Dumb Contracts combines minimalism with mathematical rigor: an **82-line core** that handles realistic contracts, backed by **machine-checked formal proofs** of correctness.
 
-- **Minimal Core**: 82 lines of Lean code
-- **Composable Patterns**: Build complex contracts from simple patterns
-- **Type Safe**: StorageSlot prevents mixing types at compile-time
-- **Well Tested**: 62 tests, 100% passing (2,816 fuzz runs)
-- **Semantic Alignment**: Matches Solidity behavior
+## 🎯 What Makes This Different?
+
+- **Minimal Core**: Just 82 lines of Lean code
+- **Proven Correct**: Machine-checked formal proofs, not just tests
+- **Research-Driven**: 7 iterations documenting every design decision
+- **Composable**: Patterns naturally combine without special support
+- **Well-Tested**: 62 runtime tests + 11 formal proofs
+
+## 💡 The Value Proposition
+
+### Before: Runtime Testing Only
+```lean
+def store (value : Uint256) : Contract Unit := ...
+def retrieve : Contract Uint256 := ...
+```
+✅ 4 Foundry tests pass
+✅ 256 fuzz runs
+❓ *"Is it correct?"* → **High confidence**
+
+### Now: Testing + Formal Verification
+```lean
+theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
+  let s' := (store value).run s |>.2
+  let result := retrieve.run s' |>.1
+  result = value := by
+  -- Machine-checked proof
+```
+✅ 4 Foundry tests pass
+✅ 256 fuzz runs
+✅ **11 theorems proven**
+❓ *"Is it correct?"* → **Mathematical certainty**
 
 ## 📊 Project Stats
 
@@ -24,28 +50,42 @@ Dumb Contracts is a research project exploring how far we can go with minimalism
 | Core lines | 82 |
 | Stdlib lines | 63 (Math.lean) |
 | Example contracts | 7 |
-| Total tests | 62 (100% passing) |
+| Runtime tests | 62 (100% passing) |
 | Fuzz tests | 11 |
+| **Proven theorems** | **11 (SimpleStorage)** |
 
 ## 🚀 Quick Example
 
 ```lean
--- SimpleToken: Combining Owned + Ledger patterns
-def owner : StorageSlot Address := ⟨0⟩
-def balances : StorageSlot (Address → Uint256) := ⟨1⟩
-def totalSupply : StorageSlot Uint256 := ⟨2⟩
+-- SimpleStorage contract with formal verification
+def storedData : StorageSlot Uint256 := ⟨0⟩
 
--- Owner-only minting
-def mint (to : Address) (amount : Uint256) : Contract Unit := do
-  onlyOwner
-  let currentBalance ← getMapping balances to
-  setMapping balances to (currentBalance + amount)
-  let currentSupply ← getStorage totalSupply
-  setStorage totalSupply (currentSupply + amount)
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+def retrieve : Contract Uint256 := do
+  getStorage storedData
+
+-- PROVEN: After storing v, retrieve returns v
+theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
+  let s' := (store value).run s |>.2
+  let result := retrieve.run s' |>.1
+  result = value := by
+  -- Machine-checked proof validates correctness
 ```
+
+## ✅ Proven Properties (SimpleStorage)
+
+- **Basic Correctness**: store→retrieve roundtrip works
+- **Isolation**: Storage operations don't interfere between slots
+- **State Preservation**: Operations maintain well-formed state
+- **Specification Compliance**: Implementation meets formal spec
+
+[See complete list of 11 theorems](/verification)
 
 ## 📚 Documentation
 
+- **[Verification Guide](/verification)** - Formal proofs and theorems
 - **[Research Log](/research)** - Complete findings from 7 iterations
 - **[Iteration Summaries](/iterations)** - Detailed summary of each iteration
 - **[Examples](/examples)** - 7 contracts demonstrating patterns
@@ -63,31 +103,38 @@ Example: `curl https://dumbcontracts.com/research.md`
 
 ## ✨ Design Principles
 
-1. **Example-Driven Development** - Only add what examples need
-2. **Composition Over Complexity** - Patterns compose naturally
-3. **Type Safety First** - Catch errors at compile-time
-4. **Minimal Core** - Extensions through stdlib, not core
-5. **Semantic Alignment** - Match Solidity behavior
+1. **Minimalism** - 82-line core, only essentials
+2. **Rigor** - Separation of specs, implementations, and proofs
+3. **Incremental Verification** - Start simple, build up complexity
+4. **Type Safety First** - Catch errors at compile-time
+5. **Practicality** - Real contracts with both runtime tests and formal proofs
 
 ## 🔬 Research Journey
 
-The project evolved through 7 focused iterations:
+The project evolved through **7 implementation iterations** + **verification**:
 
+**Implementation (Iterations 1-7):**
 1. **Bootstrap** - 58-line minimal core
 2. **Counter** - Arithmetic operations
 3. **Owned** - Access control (+14 lines)
-4. **OwnedCounter** - Pattern composition
-5. **Math Safety Stdlib** - Extensibility
+4. **OwnedCounter** - Pattern composition (0 core changes)
+5. **Math Safety Stdlib** - Extensibility (0 core changes)
 6. **Mapping Support** - Key-value storage (+13 lines)
-7. **SimpleToken** - Realistic token contract
+7. **SimpleToken** - Realistic token contract (0 core changes)
 
-**Key Insight**: 4 out of 7 iterations required zero core changes, validating the composability approach.
+**Verification (Ongoing):**
+- ✅ **SimpleStorage** - 11 theorems proven
+- 🔄 **Counter** - Next
+- 🔜 **Owned, SimpleToken** - Future
+
+**Key Insight**: 4 out of 7 implementation iterations required zero core changes, validating the composability approach. Now adding mathematical proofs without changing implementations.
 
 ## 📖 Getting Started
 
 Explore the documentation:
 
-- Start with the [Research Log](/research) to understand the design decisions
+- Start with the [Verification Guide](/verification) to see proven theorems
+- Read the [Research Log](/research) to understand the design decisions
 - Check out the [Examples](/examples) to see the EDSL in action
 - Read the [Iteration Summaries](/iterations) for detailed evolution
 
@@ -98,6 +145,6 @@ Explore the documentation:
 
 ---
 
-**Status**: Production-ready for token contracts
-**Core Size**: 82 lines (stable across 4 iterations)
-**Tests**: 62/62 passing (100%)
+**Built with ❤️ using Lean 4**
+
+*From runtime confidence to mathematical certainty*

@@ -1,0 +1,384 @@
+---
+title: Formal Verification
+description: Machine-checked proofs of correctness
+---
+
+# Formal Verification
+
+**From runtime confidence to mathematical certainty**
+
+This project adds formal verification to the Dumb Contracts EDSL, proving mathematical properties about smart contracts using Lean 4's theorem prover.
+
+## The Value Proposition
+
+### Traditional Approach: Testing Only
+
+```lean
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+def retrieve : Contract Uint256 := do
+  getStorage storedData
+```
+
+**Validation:**
+- ✅ Unit tests pass
+- ✅ Fuzz testing (256 runs)
+- ❓ **Confidence level**: High, but not absolute
+
+**Question**: *"Does retrieve always return what store stored?"*
+**Answer**: *"Probably, based on tests"*
+
+### Our Approach: Testing + Formal Proofs
+
+```lean
+-- Same implementation
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+def retrieve : Contract Uint256 := do
+  getStorage storedData
+
+-- Plus machine-checked proof
+theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
+  let s' := (store value).run s |>.2
+  let result := retrieve.run s' |>.1
+  result = value := by
+  -- Proof here
+```
+
+**Validation:**
+- ✅ Unit tests pass
+- ✅ Fuzz testing (256 runs)
+- ✅ **Formal proof verified by Lean**
+- ✅ **Confidence level**: Mathematical certainty
+
+**Question**: *"Does retrieve always return what store stored?"*
+**Answer**: *"Yes, mathematically proven for ALL possible inputs"*
+
+## Architecture: Three Layers
+
+Clean separation of concerns:
+
+```
+DumbContracts/
+├── Examples/           # 🔧 Implementations
+│   ├── SimpleStorage   # Basic state management
+│   ├── Counter         # Arithmetic operations
+│   ├── Owned           # Access control
+│   └── SimpleToken     # Full token contract
+│
+├── Specs/             # 📐 Formal specifications
+│   └── SimpleStorage/
+│       ├── Spec.lean        # What it should do
+│       └── Invariants.lean  # What must always hold
+│
+└── Proofs/            # ✓ Machine-checked proofs
+    └── SimpleStorage/
+        └── Basic.lean       # Proven theorems
+```
+
+**Key principle**: Implementation, specification, and proofs never mix.
+
+## Proven Contracts
+
+### SimpleStorage (11 theorems ✓)
+
+The simplest contract with complete formal verification.
+
+#### Basic Correctness (3 theorems)
+
+1. **`store_retrieve_correct`** ⭐
+   **The key property**: After storing value `v`, retrieve returns `v`
+   ```lean
+   theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
+     let s' := (store value).run s |>.2
+     let result := retrieve.run s' |>.1
+     result = value
+   ```
+
+2. **`store_meets_spec`**
+   Store operation satisfies its formal specification
+   ```lean
+   theorem store_meets_spec (s : ContractState) (value : Uint256) :
+     let s' := (store value).run s |>.2
+     store_spec value s s'
+   ```
+
+3. **`retrieve_meets_spec`**
+   Retrieve operation satisfies its formal specification
+   ```lean
+   theorem retrieve_meets_spec (s : ContractState) :
+     let result := retrieve.run s |>.1
+     retrieve_spec result s
+   ```
+
+#### Storage Isolation (4 theorems)
+
+4. **`setStorage_updates_slot`**
+   setStorage updates the correct storage slot
+
+5. **`setStorage_preserves_other_slots`**
+   setStorage doesn't affect other slots
+
+6. **`setStorage_preserves_addr_storage`**
+   Type isolation: Uint256 operations don't touch Address storage
+
+7. **`setStorage_preserves_map_storage`**
+   Type isolation: Uint256 operations don't touch Mapping storage
+
+#### Context Preservation (2 theorems)
+
+8. **`setStorage_preserves_sender`**
+   Operations preserve msg.sender
+
+9. **`setStorage_preserves_address`**
+   Operations preserve contract address
+
+#### State Well-Formedness (2 theorems)
+
+10. **`store_preserves_wellformedness`**
+    Well-formed state remains well-formed after store
+
+11. **`retrieve_preserves_state`**
+    Read operations don't modify state
+
+### Counter (Coming Next)
+
+Planned theorems:
+- Increment increases count by 1
+- Decrement decreases count by 1
+- Multiple operations compose correctly
+- State updates preserve well-formedness
+
+### Owned (Future)
+
+Planned theorems:
+- Only owner can call restricted functions
+- Owner transfers work correctly
+- Non-owners are rejected
+
+### SimpleToken (Future)
+
+Planned complex invariants:
+- Total supply equals sum of all balances
+- Transfer preserves total supply
+- Balances are non-negative
+- Owner-only operations enforced
+
+## Specifications
+
+### What is a Specification?
+
+A **specification** defines what a function *should* do, independent of its implementation.
+
+Example from SimpleStorage:
+
+```lean
+-- Specification: What store SHOULD do
+def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
+  s'.storage 0 = value ∧                                    -- Updates slot 0
+  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧  -- Other slots unchanged
+  s'.sender = s.sender ∧                                    -- Context preserved
+  s'.thisAddress = s.thisAddress ∧
+  s'.storageAddr = s.storageAddr ∧                         -- Other storage types unchanged
+  s'.storageMap = s.storageMap
+
+-- Specification: What retrieve SHOULD do
+def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
+  result = s.storage 0                                      -- Returns value at slot 0
+```
+
+Then we **prove** the implementation meets the spec:
+
+```lean
+theorem store_meets_spec (s : ContractState) (value : Uint256) :
+  let s' := (store value).run s |>.2
+  store_spec value s s'
+```
+
+## Invariants
+
+**Invariants** are properties that should always hold, regardless of operations.
+
+Example from SimpleStorage:
+
+```lean
+-- Well-formedness: Basic state validity
+structure WellFormedState (s : ContractState) : Prop where
+  sender_nonempty : s.sender ≠ ""
+  contract_nonempty : s.thisAddress ≠ ""
+
+-- Storage isolation: Operations on one slot don't affect others
+def storage_isolated (s s' : ContractState) (slot : Nat) : Prop :=
+  slot ≠ 0 → s'.storage slot = s.storage slot
+
+-- Type isolation: Address storage unchanged by Uint256 operations
+def addr_storage_unchanged (s s' : ContractState) : Prop :=
+  s'.storageAddr = s.storageAddr
+
+-- Context preservation: Operations don't change context
+def context_preserved (s s' : ContractState) : Prop :=
+  s'.sender = s.sender ∧ s'.thisAddress = s.thisAddress
+```
+
+Then we prove operations preserve invariants:
+
+```lean
+theorem store_preserves_wellformedness (s : ContractState) (value : Uint256)
+  (h : WellFormedState s) :
+  let s' := (store value).run s |>.2
+  WellFormedState s'
+```
+
+## Proof Strategy
+
+### Incremental Approach
+
+1. **Start Simple**: Begin with the simplest contract (SimpleStorage)
+2. **Build Lemmas**: Prove basic properties about primitive operations
+3. **Compose**: Use lemmas to prove higher-level theorems
+4. **Reuse**: Apply patterns to more complex contracts
+
+### Automation
+
+Lean's `simp` tactic handles most straightforward proofs:
+
+```lean
+theorem setStorage_updates_slot (s : ContractState) (value : Uint256) :
+  let slot : StorageSlot Uint256 := ⟨0⟩
+  let s' := (setStorage slot value).run s |>.2
+  s'.storage 0 = value := by
+  simp [setStorage]  -- Proof complete!
+```
+
+For complex proofs, compose from simpler lemmas:
+
+```lean
+theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
+  let s' := (store value).run s |>.2
+  let result := retrieve.run s' |>.1
+  result = value := by
+  have h_store := store_meets_spec s value
+  have h_retrieve := retrieve_meets_spec ((store value).run s |>.2)
+  simp [store_spec] at h_store
+  simp [retrieve_spec] at h_retrieve
+  simp only [h_retrieve, h_store.1]
+```
+
+## Verification Workflow
+
+### 1. Write Implementation
+
+```lean
+-- DumbContracts/Examples/SimpleStorage.lean
+def storedData : StorageSlot Uint256 := ⟨0⟩
+
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+def retrieve : Contract Uint256 := do
+  getStorage storedData
+```
+
+### 2. Write Specification
+
+```lean
+-- DumbContracts/Specs/SimpleStorage/Spec.lean
+def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
+  s'.storage 0 = value ∧
+  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧
+  -- ... other conditions
+```
+
+### 3. Define Invariants
+
+```lean
+-- DumbContracts/Specs/SimpleStorage/Invariants.lean
+structure WellFormedState (s : ContractState) : Prop where
+  sender_nonempty : s.sender ≠ ""
+  contract_nonempty : s.thisAddress ≠ ""
+```
+
+### 4. Write Proofs
+
+```lean
+-- DumbContracts/Proofs/SimpleStorage/Basic.lean
+theorem store_meets_spec (s : ContractState) (value : Uint256) :
+  let s' := (store value).run s |>.2
+  store_spec value s s' := by
+  -- Proof here
+```
+
+### 5. Verify
+
+```bash
+lake build  # Type-checks and verifies all proofs
+```
+
+If all proofs type-check, correctness is **mathematically guaranteed**.
+
+## Metrics
+
+### SimpleStorage Verification
+
+- **Specifications**: 2 files, ~60 lines
+- **Proofs**: 1 file, ~150 lines
+- **Theorems proven**: 11
+- **Proof complexity**: Low (mostly `simp`)
+- **Build time**: ~2 seconds
+- **Confidence**: Mathematical certainty
+
+## Limitations & Assumptions
+
+### Current Limitations
+
+1. **No arithmetic overflow proofs**: Uint256 is modeled as `Nat` (unbounded)
+2. **`require` behavior assumed**: Guard semantics not yet proven
+3. **Simple invariants only**: No complex inter-contract dependencies yet
+4. **Single contract focus**: No multi-contract interaction proofs
+
+### Assumptions
+
+- StateM semantics are correct (trusted computing base)
+- Storage functions are deterministic
+- No concurrency/reentrancy concerns (single-threaded model)
+
+These limitations are intentional for the initial iteration. Future work will address them incrementally.
+
+## What This Proves
+
+The verified theorems provide **mathematical guarantees**:
+
+✅ **Correctness**: Store/retrieve works for ALL possible values
+✅ **Isolation**: Storage operations NEVER interfere across slots
+✅ **Preservation**: Operations ALWAYS maintain well-formed state
+✅ **Compliance**: Implementation EXACTLY matches specification
+
+Not just "high confidence from testing" — **mathematical certainty**.
+
+## Next Steps
+
+### Verification Roadmap
+
+- [x] **SimpleStorage** - 11 theorems proven
+- [ ] **Counter** - Arithmetic correctness
+- [ ] **Owned** - Access control guarantees
+- [ ] **SimpleToken** - Complex invariants (supply = Σ balances)
+
+### Getting Started with Verification
+
+1. Read the [VERIFICATION_ITERATION_1_SUMMARY.md](https://github.com/Th0rgal/dumbcontracts/blob/main/VERIFICATION_ITERATION_1_SUMMARY.md)
+2. Study the SimpleStorage proofs in `DumbContracts/Proofs/SimpleStorage/Basic.lean`
+3. Try proving properties about Counter
+4. Share your findings!
+
+## Key Achievement
+
+**We have machine-checked proofs that SimpleStorage works correctly!**
+
+This is not just tested — it's **mathematically proven**. The Lean type-checker guarantees that if the proofs compile, the properties hold for ALL possible inputs.
+
+---
+
+**From runtime confidence to mathematical certainty**
