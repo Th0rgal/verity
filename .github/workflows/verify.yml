@@ -4,20 +4,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'edsl/**'
-      - 'examples/lean/**'
+      - 'DumbContracts/**'
       - 'examples/solidity/**'
-      - 'edsl/DumbContracts.lean'
-      - 'examples/lean/DumbContracts/All.lean'
       - 'lakefile.lean'
       - 'lean-toolchain'
   pull_request:
     paths:
-      - 'edsl/**'
-      - 'examples/lean/**'
+      - 'DumbContracts/**'
       - 'examples/solidity/**'
-      - 'edsl/DumbContracts.lean'
-      - 'examples/lean/DumbContracts/All.lean'
       - 'lakefile.lean'
       - 'lean-toolchain'
   workflow_dispatch:
@@ -47,7 +41,7 @@ jobs:
 
       - name: Check for sorry
         run: |
-          if grep -r "sorry" examples/lean/DumbContracts/Proofs/ --include="*.lean" | grep -v "^--" | grep -v "zero sorry" | grep -v "Summary"; then
+          if grep -r "sorry" DumbContracts/Proofs/ --include="*.lean" | grep -v "^--" | grep -v "zero sorry" | grep -v "Summary"; then
             echo "ERROR: Found 'sorry' in proof files"
             exit 1
           fi
