@@ -1,6 +1,6 @@
-import { useConfig, type DocsThemeConfig } from "nextra-theme-docs";
+import { useConfig } from "nextra-theme-docs";
 
-const config: DocsThemeConfig = {
+const config = {
   logo: <strong>Dumb Contracts</strong>,
   project: {
     link: "https://github.com/Th0rgal/dumbcontracts",
