@@ -244,6 +244,23 @@ def exampleEntry11 : EntryPoint :=
     selector := 0x5ebc58db
     returns := false }
 
+def exampleEntry17 : EntryPoint :=
+  { name := "addIfBetween"
+    args := ["slot", "delta", "min", "max"]
+    body :=
+      Lang.Stmt.if_
+        (Lang.Expr.gt (Lang.Expr.var "delta") (Lang.Expr.var "min"))
+        (Lang.Stmt.if_
+          (Lang.Expr.lt (Lang.Expr.var "delta") (Lang.Expr.var "max"))
+          (Lang.Stmt.sstore
+            (Lang.Expr.var "slot")
+            (Lang.Expr.add (Lang.Expr.sload (Lang.Expr.var "slot")) (Lang.Expr.var "delta")))
+          Lang.Stmt.revert)
+        Lang.Stmt.revert
+    -- addIfBetween(uint256,uint256,uint256,uint256) -> 0xbc0fcb79
+    selector := 0xbc0fcb79
+    returns := false }
+
 def exampleEntry13 : EntryPoint :=
   { name := "setIfNonZeroAndLess"
     args := ["slot", "value", "max"]
@@ -276,7 +293,7 @@ def exampleEntry14 : EntryPoint :=
 def exampleEntries : List EntryPoint :=
   [exampleEntry, exampleEntry2, exampleEntry3, exampleEntry4, exampleEntry5, exampleEntry15,
     exampleEntry16, exampleEntry6, exampleEntry7, exampleEntry12, exampleEntry8, exampleEntry9,
-    exampleEntry10, exampleEntry11, exampleEntry13, exampleEntry14]
+    exampleEntry10, exampleEntry11, exampleEntry17, exampleEntry13, exampleEntry14]
 
 def healthEntrySet : EntryPoint :=
   { name := "setRisk"

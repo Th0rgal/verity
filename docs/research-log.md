@@ -1,6 +1,11 @@
 # Research Log
 
 ## 2026-02-10
+- Added `requireBetween` stdlib helper for strict range guards.
+- Refactored `setIfBetween` to use `requireBetween`.
+- Added `addIfBetween` example (guarded add on `min < delta < max`) with SpecR + proofs.
+- Added Foundry test for `addIfBetween`.
+- Updated compiler entries + direct EVM asm for `addIfBetween`.
 - Added `sstoreMin` stdlib helper to mirror `sstoreMax` for min updates.
 - Added `updateMin` example (monotonic min update against a stored slot) with Spec + proof.
 - Added Foundry test for `updateMin`.
