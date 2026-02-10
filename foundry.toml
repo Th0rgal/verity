@@ -4,5 +4,7 @@ out = "out"
 libs = ["lib"]
 test = "test"
 cache_path = "cache"
+ffi = true
+solc_version = "0.8.33"
 
 [rpc_endpoints]

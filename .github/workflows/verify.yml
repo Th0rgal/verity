@@ -50,3 +50,42 @@ jobs:
             exit 1
           fi
           echo "No sorry found — all proofs are complete"
+
+  foundry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Cache Lake packages
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}
+          restore-keys: lake-${{ hashFiles('lean-toolchain') }}-
+
+      - name: Build compiler
+        run: lake build
+
+      - name: Generate Yul
+        run: ./.lake/build/bin/dumbcontracts-compiler
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.0
+
+      - name: Install solc
+        run: |
+          curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          chmod +x /usr/local/bin/solc
+          solc --version
+
+      - name: Run Foundry tests
+        run: forge test
