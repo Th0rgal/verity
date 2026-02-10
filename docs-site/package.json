@@ -6,11 +6,13 @@
   "description": "Dumb Contracts documentation website - Minimal Lean EDSL for smart contracts",
   "scripts": {
     "dev": "next dev -p 3003",
-    "build": "next build --webpack && pagefind --site .next/server/app --output-path public/_pagefind",
+    "build": "next build && pagefind --site .next/server/app --output-path public/_pagefind",
     "start": "next start -p 3003",
     "lint": "eslint app components"
   },
   "dependencies": {
+    "@mdx-js/loader": "^3.1.1",
+    "@mdx-js/react": "^3.1.1",
     "@remixicon/react": "^4.7.0",
     "@tailwindcss/postcss": "^4.1.0",
     "clsx": "^2.1.1",
