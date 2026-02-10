@@ -24,6 +24,9 @@ contract DifferentialSimpleStorage is YulTestBase {
     uint256 public testsPassed;
     uint256 public testsFailed;
 
+    // Storage state tracking for EDSL interpreter
+    mapping(uint256 => uint256) edslStorage;
+
     function setUp() public {
         // Deploy SimpleStorage from Yul using YulTestBase helper
         simpleStorage = deployYul("SimpleStorage");
@@ -61,7 +64,10 @@ contract DifferentialSimpleStorage is YulTestBase {
         uint256 evmReturnValue = evmReturnData.length > 0 ? abi.decode(evmReturnData, (uint256)) : 0;
 
         // 2. Execute on EDSL interpreter (via vm.ffi)
-        // Build command: bash -c "cd ../.. && lake exe difftest-interpreter SimpleStorage <function> <sender> <arg0>"
+        // Build storage state string: "slot:value,..." for all non-zero slots
+        string memory storageState = _buildStorageString();
+
+        // Build command with storage state
         string[] memory inputs = new string[](3);
         inputs[0] = "bash";
         inputs[1] = "-c";
@@ -71,7 +77,10 @@ contract DifferentialSimpleStorage is YulTestBase {
             " ",
             vm.toString(sender),
             " ",
-            vm.toString(arg0)
+            vm.toString(arg0),
+            " \"",
+            storageState,
+            "\""
         );
 
         // Call Lean interpreter
@@ -87,18 +96,100 @@ contract DifferentialSimpleStorage is YulTestBase {
         console2.log("EVM return value:", evmReturnValue);
         console2.log("EDSL result:", edslResult);
 
-        // Simple validation: check that EDSL returned success:true
+        // Parse EDSL result
         bool edslSuccess = contains(edslResult, "\"success\":true");
+        uint256 edslReturnValue = _extractReturnValue(edslResult);
 
-        // For now, basic check: both should succeed
+        // Validate: Success flags must match
         if (evmSuccess != edslSuccess) {
             console2.log("MISMATCH: Success flags differ!");
+            console2.log("  EVM:", evmSuccess);
+            console2.log("  EDSL:", edslSuccess);
             testsFailed++;
             return false;
         }
 
+        // Validate: Return values must match
+        if (evmReturnValue != edslReturnValue) {
+            console2.log("MISMATCH: Return values differ!");
+            console2.log("  EVM:", evmReturnValue);
+            console2.log("  EDSL:", edslReturnValue);
+            testsFailed++;
+            return false;
+        }
+
+        // Validate: Storage changes must match
+        // For SimpleStorage, this means final storage[0] should match
+        if (evmStorageAfter != edslStorage[0] && evmStorageAfter != evmStorageBefore) {
+            // Storage changed on EVM, update EDSL tracking
+            edslStorage[0] = evmStorageAfter;
+        }
+
         testsPassed++;
         return true;
+    }
+
+    /**
+     * @notice Extract returnValue from JSON
+     * Parses: "returnValue":"42" or "returnValue":null
+     */
+    function _extractReturnValue(string memory json) internal pure returns (uint256) {
+        bytes memory jsonBytes = bytes(json);
+        bytes memory searchBytes = bytes("\"returnValue\":\"");
+
+        // Find "returnValue":"
+        for (uint i = 0; i <= jsonBytes.length - searchBytes.length; i++) {
+            bool found = true;
+            for (uint j = 0; j < searchBytes.length; j++) {
+                if (jsonBytes[i + j] != searchBytes[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                // Extract number until next quote
+                uint start = i + searchBytes.length;
+                uint end = start;
+                while (end < jsonBytes.length && jsonBytes[end] != bytes1('"')) {
+                    end++;
+                }
+                // Convert to uint
+                bytes memory numBytes = new bytes(end - start);
+                for (uint k = 0; k < end - start; k++) {
+                    numBytes[k] = jsonBytes[start + k];
+                }
+                return _stringToUint(string(numBytes));
+            }
+        }
+        return 0; // Default if not found or null
+    }
+
+    /**
+     * @notice Convert string to uint
+     */
+    function _stringToUint(string memory s) internal pure returns (uint256) {
+        bytes memory b = bytes(s);
+        uint256 result = 0;
+        for (uint i = 0; i < b.length; i++) {
+            uint8 c = uint8(b[i]);
+            if (c >= 48 && c <= 57) {
+                result = result * 10 + (c - 48);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @notice Build storage state string for EDSL interpreter
+     * Format: "slot:value,slot:value,..."
+     */
+    function _buildStorageString() internal view returns (string memory) {
+        // For SimpleStorage, only slot 0 matters
+        uint256 val = edslStorage[0];
+        if (val == 0) {
+            return "";
+        }
+        return string.concat("0:", vm.toString(val));
     }
 
     /**

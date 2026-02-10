@@ -206,16 +206,35 @@ For use via `lake exe difftest-interpreter`
 open Compiler.Interpreter
 open DumbContracts
 
+-- Parse storage state from command line args
+-- Format: "slot0:value0,slot1:value1,..."
+def parseStorage (storageStr : String) : Nat → Nat :=
+  let pairs := storageStr.splitOn ","
+  let storageMap := pairs.foldl (fun acc pair =>
+    match pair.splitOn ":" with
+    | [slotStr, valStr] =>
+      match slotStr.toNat?, valStr.toNat? with
+      | some slot, some val => acc ++ [(slot, val)]
+      | _, _ => acc
+    | _ => acc
+  ) []
+  fun slot => (storageMap.find? (fun (s, _) => s == slot)).map Prod.snd |>.getD 0
+
 def main (args : List String) : IO Unit := do
   match args with
-  | [contractType, functionName, senderAddr, arg0] =>
+  | contractType :: functionName :: senderAddr :: arg0 :: storageArgs =>
     let tx : Transaction := {
       sender := senderAddr
       functionName := functionName
       args := [arg0.toNat!]
     }
+    -- Parse storage from remaining args (format: "slot:value,...")
+    let storageState := match storageArgs with
+      | [s] => parseStorage s
+      | _ => fun _ => 0  -- Default: empty storage
+
     let initialState : ContractState := {
-      storage := fun _ => 0
+      storage := storageState
       storageAddr := fun _ => ""
       storageMap := fun _ _ => 0
       sender := senderAddr
@@ -228,5 +247,6 @@ def main (args : List String) : IO Unit := do
     let result := interpret contractTypeEnum tx initialState
     IO.println result.toJSON
   | _ =>
-    IO.println "Usage: difftest-interpreter <contract> <function> <sender> <arg0>"
+    IO.println "Usage: difftest-interpreter <contract> <function> <sender> <arg0> [storage]"
     IO.println "Example: difftest-interpreter SimpleStorage store 0xAlice 42"
+    IO.println "With storage: difftest-interpreter SimpleStorage retrieve 0xAlice 0 \"0:42\""
