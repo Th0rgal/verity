@@ -1,134 +1,63 @@
 ---
 title: Dumb Contracts
-description: Minimal Lean 4 EDSL for Smart Contracts with Formal Verification
+description: Minimal Lean 4 EDSL for writing and formally verifying smart contracts
 ---
 
 # Dumb Contracts
 
-**Minimal Lean 4 EDSL for Smart Contracts with Formal Verification**
+A minimal Lean 4 embedded DSL for writing and formally verifying smart contracts.
 
-> *From runtime testing to mathematical proof*
+The core is 212 lines of Lean. It models contract state, storage operations, and `require` guards using an explicit success/revert result type (`ContractResult`). 7 example contracts are implemented and verified with 252 machine-checked proofs. No `sorry`, no axioms.
 
-Dumb Contracts combines minimalism with mathematical rigor: a **212-line core** that handles realistic contracts, backed by **230 machine-checked formal proofs** of correctness — **100% verified, zero sorry, zero axioms**.
+## How it works
 
-## What Makes This Different?
-
-- **Minimal Core**: 212 lines of Lean code with explicit success/failure modeling
-- **100% Proven**: 230 theorems verified across 7 contracts + stdlib — zero sorry, zero axioms
-- **Guard Modeling**: `require` guards modeled as first-class operations with explicit revert semantics
-- **Supply Conservation**: Exact sum equations proven for mint and transfer operations
-- **Research-Driven**: 7 implementation iterations + verification phases, every design decision documented
-- **Composable**: Patterns naturally combine without special support
-
-## The Value Proposition
-
-### Before: Runtime Testing Only
-```lean
-def store (value : Uint256) : Contract Unit := do
-  setStorage storedData value
-```
-- 62 runtime tests pass
-- 256 fuzz runs
-- *"Is it correct?"* — **High confidence**
-
-### Now: Testing + Formal Verification
-```lean
-theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
-  let s' := ((store value).run s).snd
-  let result := (retrieve.run s').fst
-  result = value := by
-  -- Machine-checked proof
-```
-- 62 runtime tests pass
-- **230 theorems proven**
-- *"Is it correct?"* — **Mathematical certainty**
-
-## Project Stats
-
-| Metric | Value |
-|--------|-------|
-| Core lines | 212 (ContractResult monad) |
-| Example contracts | 7 (all formally verified) |
-| Runtime tests | 62 (100% passing) |
-| **Proven theorems** | **230 (100% verified)** |
-| Sorry count | **0** |
-| Axiom count | **0** |
-
-## Verified Contracts
-
-| Contract | Theorems | What's Proven |
-|----------|----------|---------------|
-| SimpleStorage | 19 | Store/retrieve roundtrip, state isolation, correctness specs |
-| Counter | 29 | Arithmetic ops, composition, decrement-at-zero edge case |
-| Owned | 22 | Access control, guard-protected ownership transfer |
-| SimpleToken | 52 | Mint/transfer, supply conservation, revert proofs |
-| OwnedCounter | 31 | Cross-pattern composition, ownership transfer isolation |
-| Ledger | 24 | Mapping deposit/withdraw/transfer, balance guards |
-| SafeCounter | 24 | Checked arithmetic, overflow/underflow revert proofs |
-| Stdlib/Math | 14 | safeMul/safeDiv correctness, bounds, commutativity |
-
-## Quick Example
+Contracts are Lean functions from `ContractState` to `ContractResult`. The `ContractResult` type has two constructors: `success` (with a value and updated state) and `revert` (with an error message and unchanged state). A custom `bind` short-circuits on revert, so do-notation works like Solidity.
 
 ```lean
--- ContractResult models explicit success/failure
-inductive ContractResult (α : Type) where
-  | success : α → ContractState → ContractResult α
-  | revert : String → ContractState → ContractResult α
+-- A contract that mints tokens, guarded by onlyOwner
+def mint (to : Address) (amount : Uint256) : Contract Unit := do
+  onlyOwner
+  let currentBalance ← getMapping balances to
+  setMapping balances to (currentBalance + amount)
+  let currentSupply ← getStorage totalSupply
+  setStorage totalSupply (currentSupply + amount)
 
--- require guards produce explicit revert on failure
-def require (condition : Bool) (message : String) : Contract Unit :=
-  fun s => if condition
-           then ContractResult.success () s
-           else ContractResult.revert message s
-
--- PROVEN: mint correctly updates balance when called by owner
+-- Proven: mint increases the recipient's balance by the minted amount
 theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0) :
   let s' := ((mint to amount).run s).snd
-  s'.storageMap 1 to = s.storageMap 1 to + amount := by
-  -- Machine-checked proof
+  s'.storageMap 1 to = s.storageMap 1 to + amount
 ```
+
+## Contracts
+
+| Contract | Theorems | What's verified |
+|----------|----------|-----------------|
+| SimpleStorage | 19 | Store/retrieve roundtrip, state isolation |
+| Counter | 29 | Arithmetic, composition, decrement-at-zero |
+| Owned | 22 | Access control, ownership transfer |
+| SimpleToken | 64 | Mint/transfer, supply conservation, storage isolation |
+| OwnedCounter | 34 | Cross-pattern composition, ownership transfer lockout |
+| Ledger | 40 | Deposit/withdraw/transfer, balance conservation |
+| SafeCounter | 30 | Overflow/underflow revert proofs |
+| Stdlib/Math | 14 | safeMul/safeDiv correctness |
 
 ## Documentation
 
-- **[Verification Guide](/verification)** — All 230 proven theorems across 7 contracts + stdlib
-- **[Research Log](/research)** — Complete findings from all iterations
-- **[Iteration Summaries](/iterations)** — Detailed summary of each iteration
-- **[Examples](/examples)** — 7 contracts demonstrating patterns
-- **[Core Architecture](/core)** — Understanding the 212-line core with ContractResult
+- **[Verification](/verification)** - All 252 proven theorems, listed per contract
+- **[Examples](/examples)** - The 7 contracts and what they demonstrate
+- **[Core Architecture](/core)** - How the 212-line core works
+- **[Research Log](/research)** - Design history across 7 implementation iterations
+- **[Iteration Summaries](/iterations)** - Detailed notes per iteration
 
-## For AI Agents
+## For AI agents
 
-This documentation is AI-friendly:
-- **Raw Markdown**: Request any page with `.md` extension or `?format=md`
-- **Complete Docs**: Get all docs concatenated at `/api/docs/_all`
-- **Document Index**: JSON list of all docs at `/api/docs/_index`
-- **Auto-Detection**: AI user agents automatically get markdown
-
-## Research Journey
-
-**Implementation (Iterations 1-7):**
-1. **Bootstrap** — 58-line minimal core
-2. **Counter** — Arithmetic operations
-3. **Owned** — Access control (+14 lines)
-4. **OwnedCounter** — Pattern composition (0 core changes)
-5. **Math Safety Stdlib** — Extensibility (0 core changes)
-6. **Mapping Support** — Key-value storage (+13 lines)
-7. **SimpleToken** — Realistic token contract (0 core changes)
-
-**Verification Phases:**
-1. **Guard Modeling** — ContractResult type, explicit success/failure
-2. **Basic Proofs** — Storage, arithmetic, access control (all 7 contracts)
-3. **Correctness Proofs** — Spec-level correctness, revert proofs, composition
-4. **Supply Conservation** — Exact sum equations for mint/transfer
-5. **Safe Arithmetic** — safeMul/safeDiv correctness proofs
-
-**Key Insight**: 4 out of 7 implementation iterations required zero core changes, validating the composability approach.
+This documentation is available in machine-readable form:
+- Request any page with `.md` extension or `?format=md`
+- All docs concatenated at `/api/docs/_all`
+- Document index at `/api/docs/_index`
+- AI user agents automatically get markdown
 
 ## Links
 
 - [GitHub Repository](https://github.com/Th0rgal/dumbcontracts)
-
----
-
-*From runtime confidence to mathematical certainty*

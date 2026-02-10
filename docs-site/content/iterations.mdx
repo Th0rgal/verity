@@ -1,159 +1,71 @@
 ---
 title: Iteration Summaries
-description: Detailed summaries of each development iteration
+description: Development history across 7 iterations
 ---
 
 # Iteration Summaries
 
-This page provides detailed summaries of each iteration in the Dumb Contracts development process.
+The project was built in 7 iterations. Each added a contract and, when needed, extended the core.
 
-## Iteration 7: Simple Token Contract
+## Iteration 7: SimpleToken
 
-[Full Summary →](/iterations/iteration-7)
+Combined Owned and Ledger patterns into a token contract with owner-controlled minting, public transfers, and supply tracking. No core changes needed.
 
-**Goal**: Create a realistic token contract combining Owned and Ledger patterns
-
-**Key Achievement**: Pattern composition with mappings validated
-
-- Combined Owned (access control) + Ledger (balances mapping)
-- Owner-controlled minting, public transfers
-- **Zero core changes needed** (uses existing primitives)
-- 12 new tests, all passing (62 total)
-
-**Metrics**:
 - Core: 82 lines (unchanged)
 - SimpleToken: ~100 lines
-- Tests: 62/62 passing
-
----
 
 ## Iteration 6: Mapping Support
 
-[Full Summary →](/iterations/iteration-6)
+Added `storageMap` field to `ContractState` for key-value storage (`Address -> Uint256`). Ledger example demonstrates deposit, withdraw, and transfer with balance guards.
 
-**Goal**: Add mapping support (Address → Uint256) for key-value storage
-
-**Key Achievement**: First core extension in 3 iterations
-
-- Added `storageMap` field to ContractState
-- Ledger example demonstrating balances mapping
-- Core grew from 69 → 82 lines (+19%)
-- 11 new tests, all passing (50 total)
-
-**Why This Extension**:
-- Enables entire class of token contracts
-- No alternative approach
-- Minimal addition (13 lines)
-
----
+- Core: 69 -> 82 lines (+13)
 
 ## Iteration 5: Math Safety Stdlib
 
-[Full Summary →](/iterations/iteration-5)
+Added `Stdlib/Math.lean` with `safeAdd`, `safeSub`, `safeMul`, `safeDiv`. SafeCounter example uses checked arithmetic instead of bare `+`/`-`. Core unchanged.
 
-**Goal**: Add checked arithmetic operations via stdlib
-
-**Key Achievement**: Extensibility validated
-
-- Created Math.lean stdlib (63 lines)
-- safeAdd, safeSub, safeMul, safeDiv
-- **Core unchanged** (69 lines)
-- 9 new tests, all passing (39 total)
-
-**Pattern Established**: Stdlib extends without core changes
-
----
+- Core: 69 lines (unchanged)
+- Stdlib/Math: 63 lines
 
 ## Iteration 4: OwnedCounter
 
-[Full Summary →](/iterations/iteration-4)
+Combined Owned and Counter patterns. Increment/decrement require ownership. No core changes needed.
 
-**Goal**: Validate pattern composition
+- Core: 72 lines (unchanged)
 
-**Key Achievement**: Composability proven
+## Iteration 3: Owned
 
-- Combined Owned + Counter patterns
-- **Core unchanged** (72 lines)
-- 11 new tests, all passing (30 total)
+Added `storageAddr` field to `ContractState` for Address storage. Owned example implements `onlyOwner` guard and `transferOwnership`.
 
-**Insight**: Patterns compose without special support
-
----
-
-## Iteration 3: Owned Pattern
-
-[Full Summary →](/iterations/iteration-3)
-
-**Goal**: Add access control and ownership
-
-**Key Achievement**: Address storage added
-
-- Owner-controlled operations
-- onlyOwner modifier pattern
-- Core grew from 58 → 72 lines (+24%)
-- 8 new tests, all passing (19 total)
-
-**Why This Extension**:
-- Concrete need for access control
-- Type-safe Address storage
-
----
+- Core: 58 -> 72 lines (+14)
 
 ## Iteration 2: Counter
 
-[Full Summary →](/iterations/iteration-2)
+Increment/decrement with read-modify-write pattern. No core changes needed. Raised the question of arithmetic safety (Lean `Nat` subtraction saturates at 0, Solidity 0.8+ reverts).
 
-**Goal**: Validate arithmetic operations
-
-**Key Achievement**: Namespace strategy established
-
-- Increment/decrement operations
-- **Core unchanged** (58 lines)
-- 7 new tests, all passing (11 total)
-
-**Decision**: Keep core minimal, defer safety to stdlib
-
----
+- Core: 58 lines (unchanged)
 
 ## Iteration 1: Bootstrap
 
-[Full Summary →](/iterations/iteration-1)
+Initial core with `ContractState`, `StorageSlot`, `getStorage`/`setStorage`, `msgSender`, `require`. SimpleStorage example.
 
-**Goal**: Establish minimal core
+- Core: 58 lines
 
-**Key Achievement**: 58-line functional EDSL
+## Core growth
 
-- Basic Ethereum types
-- StorageSlot abstraction
-- StateM monad for contracts
-- SimpleStorage example
-- 4 tests, all passing
+| Iteration | Lines | Change | What was added |
+|-----------|-------|--------|----------------|
+| 1 (Bootstrap) | 58 | +58 | Initial core |
+| 2 (Counter) | 58 | 0 | Nothing needed |
+| 3 (Owned) | 72 | +14 | Address storage |
+| 4 (OwnedCounter) | 72 | 0 | Nothing needed |
+| 5 (SafeCounter) | 69 | -3 | Cleanup |
+| 6 (Ledger) | 82 | +13 | Mapping storage |
+| 7 (SimpleToken) | 82 | 0 | Nothing needed |
+| 8 (Verification) | 212 | +130 | ContractResult, bind, simp lemmas |
 
-**Foundation**: Type-safe storage with minimal primitives
+4 out of 7 implementation iterations needed no core changes. The jump from 82 to 212 was for verification infrastructure (the `ContractResult` type, custom `bind`, and `@[simp]` lemmas), not new contract primitives.
 
----
+## Source
 
-## Core Growth Analysis
-
-| Iteration | Core Lines | Change | Reason |
-|-----------|------------|--------|--------|
-| 1 | 58 | +58 | Bootstrap |
-| 2 | 58 | +0 | No change needed |
-| 3 | 72 | +14 | Address storage |
-| 4 | 72 | +0 | Composition works |
-| 5 | 69 | -3 | Cleanup |
-| 6 | 82 | +13 | Mapping storage |
-| 7 | 82 | +0 | Composition works |
-
-**Key Insight**: 4 out of 7 iterations with zero core changes validates the composability approach.
-
-## Files by Iteration
-
-Each iteration includes:
-- **ITERATION_N_SUMMARY.md** - Complete iteration summary
-- **Example contract** (DumbContracts/Examples/*.lean)
-- **Solidity reference** (contracts/*.sol)
-- **Test suite** (test/*.t.sol)
-- **Research findings** (documented in RESEARCH.md)
-
-See the [Research Log](/research) for complete details on all iterations.
+See the [Research Log](/research) for detailed notes on each iteration, including failed approaches and design decisions.

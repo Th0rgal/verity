@@ -1,44 +1,25 @@
 ---
 title: Core Architecture
-description: Understanding the 212-line core with ContractResult monad
+description: How the 212-line core works
 ---
 
 # Core Architecture
 
-The Dumb Contracts core is **212 lines** of Lean 4 code that provides all primitives needed for smart contract development, including explicit success/failure modeling via the `ContractResult` type.
+The core is 212 lines of Lean 4. It provides types for contract state, storage operations, a `require` guard, and `@[simp]` lemmas for proof automation.
 
-## Design Philosophy
-
-1. **Minimal** — Only essential primitives
-2. **Type-safe** — Catch errors at compile-time
-3. **Composable** — Patterns combine naturally
-4. **Verifiable** — Explicit semantics enable formal proofs
-5. **Extensible** — Stdlib adds functionality without core changes
-
-## Core Components
-
-### 1. Basic Types
+## Types
 
 ```lean
 abbrev Address := String
 abbrev Uint256 := Nat
-abbrev Bool' := Bool
-abbrev Bytes := List Nat
-```
 
-Simple type aliases for Ethereum primitives.
-
-### 2. StorageSlot
-
-```lean
 structure StorageSlot (α : Type) where
   slot : Nat
-  deriving Repr
 ```
 
-Type-safe storage abstraction that prevents mixing types at compile-time.
+`StorageSlot` is parameterized by type, so `StorageSlot Uint256`, `StorageSlot Address`, and `StorageSlot (Address -> Uint256)` are all distinct. This prevents mixing storage types at compile time.
 
-### 3. ContractState
+## ContractState
 
 ```lean
 structure ContractState where
@@ -49,26 +30,25 @@ structure ContractState where
   thisAddress : Address
 ```
 
-State structure holding all contract storage and context.
+Three independent storage spaces: Uint256 slots, Address slots, and Mapping slots. Each is indexed by a natural number (the slot). The state also carries the sender address and the contract's own address.
 
-### 4. ContractResult — The Key Innovation
+## ContractResult
 
 ```lean
 inductive ContractResult (α : Type) where
   | success : α → ContractState → ContractResult α
   | revert : String → ContractState → ContractResult α
-  deriving Repr
 ```
 
-Explicit success/failure representation. Every contract operation returns either `success` with a value and updated state, or `revert` with an error message and unchanged state.
+Every contract operation returns either `success` with a value and updated state, or `revert` with an error message and unchanged state. This makes `require` failures part of the type, so proofs can reason about both paths.
 
-### 5. Contract Monad
+## Contract monad
 
 ```lean
 abbrev Contract (α : Type) := ContractState → ContractResult α
 ```
 
-The contract type is a function from state to result. Custom `bind` short-circuits on `revert`:
+A contract is a function from state to result. The custom `bind` short-circuits on revert:
 
 ```lean
 def bind (ma : Contract α) (f : α → Contract β) : Contract β :=
@@ -77,11 +57,10 @@ def bind (ma : Contract α) (f : α → Contract β) : Contract β :=
   | ContractResult.revert msg s' => ContractResult.revert msg s'
 ```
 
-This gives us do-notation with automatic failure propagation — just like Solidity's `require` reverts.
+This gives do-notation with automatic failure propagation. A failed `require` stops the whole chain.
 
-### 6. Storage Operations
+## Storage operations
 
-**Uint256 Storage:**
 ```lean
 def getStorage (s : StorageSlot Uint256) : Contract Uint256 :=
   fun state => ContractResult.success (state.storage s.slot) state
@@ -92,9 +71,9 @@ def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
         if slot == s.slot then value else state.storage slot }
 ```
 
-**Address Storage** and **Mapping Storage** follow the same pattern with their respective state fields.
+Address storage (`getStorageAddr`/`setStorageAddr`) and mapping storage (`getMapping`/`setMapping`) follow the same pattern with their respective state fields.
 
-### 7. Require Guard
+## Require guard
 
 ```lean
 def require (condition : Bool) (message : String) : Contract Unit :=
@@ -103,87 +82,64 @@ def require (condition : Bool) (message : String) : Contract Unit :=
            else ContractResult.revert message s
 ```
 
-The `require` guard returns `success` when the condition holds, `revert` with the error message when it doesn't. This enables formal reasoning about guard-protected operations.
+Returns `success` when the condition holds, `revert` with the message when it doesn't.
 
-**Simp lemmas** for proof automation:
+## Simp lemmas
+
+The core includes `@[simp]` lemmas for every storage operation:
+
 ```lean
 @[simp] theorem require_true (msg : String) (s : ContractState) :
   (require true msg).run s = ContractResult.success () s := by rfl
 
 @[simp] theorem require_false (msg : String) (s : ContractState) :
   (require false msg).run s = ContractResult.revert msg s := by rfl
-```
 
-## Proof Infrastructure
-
-The core includes `@[simp]` lemmas for every storage operation, enabling automated proof of simple properties:
-
-```lean
 @[simp] theorem getStorage_run_fst (slot : StorageSlot Uint256) (s : ContractState) :
   (getStorage slot).run s |>.fst = s.storage slot.slot := by rfl
-
-@[simp] theorem setStorage_run_snd (slot : StorageSlot Uint256) (value : Uint256)
-  (s : ContractState) :
-  ((setStorage slot value).run s).snd.storage slot.slot = value := by ...
 ```
 
-These lemmas power the 230 proven theorems across 7 contracts + stdlib.
+These power the proofs. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
 
-## Core Growth History
+## Why ContractResult instead of StateM
 
-| Iteration | Lines | Change | Reason |
-|-----------|-------|--------|--------|
+The original core used `StateM ContractState α`. This was simpler but couldn't model `require` failures. Proofs had to assume guards passed (using axioms).
+
+`ContractResult` makes success/failure explicit. Proofs can reason about both paths, and no axioms are needed. The cost is ~130 lines of extra infrastructure (the ContractResult type, custom bind, and simp lemmas).
+
+## Core growth
+
+| Iteration | Lines | Change | What was added |
+|-----------|-------|--------|----------------|
 | 1 (Bootstrap) | 58 | +58 | Initial core |
-| 2 (Counter) | 58 | 0 | No change needed |
+| 2 (Counter) | 58 | 0 | Nothing needed |
 | 3 (Owned) | 72 | +14 | Address storage |
-| 4 (OwnedCounter) | 72 | 0 | Composition works |
+| 4 (OwnedCounter) | 72 | 0 | Nothing needed |
 | 5 (SafeCounter) | 69 | -3 | Cleanup |
 | 6 (Ledger) | 82 | +13 | Mapping storage |
-| 7 (SimpleToken) | 82 | 0 | Composition works |
-| 8 (Guard Modeling) | 212 | +130 | ContractResult, bind, simp lemmas |
+| 7 (SimpleToken) | 82 | 0 | Nothing needed |
+| 8 (Verification) | 212 | +130 | ContractResult, bind, simp lemmas |
 
-**Key Insight**: The jump from 82 to 212 lines was for verification infrastructure (ContractResult type, custom bind, simp lemmas). The contract primitives themselves remain minimal.
+4 out of 7 implementation iterations needed no core changes. The jump from 82 to 212 lines was for verification infrastructure, not contract primitives.
 
-## Type Safety
+## Type safety
 
-The `StorageSlot α` type parameter ensures type safety:
+The `StorageSlot α` type parameter prevents mixing storage types:
 
 ```lean
 def owner : StorageSlot Address := ⟨0⟩
 def count : StorageSlot Uint256 := ⟨1⟩
 def balances : StorageSlot (Address → Uint256) := ⟨2⟩
 
--- This compiles:
+-- These compile:
 let value ← getStorage count              -- Uint256
 let addr ← getStorageAddr owner           -- Address
 let bal ← getMapping balances "0xAlice"   -- Uint256
 
--- This won't compile:
-let wrong ← getStorage owner  -- Type error! owner is Address, not Uint256
+-- This doesn't:
+let wrong ← getStorage owner  -- Type error: owner is Address, not Uint256
 ```
 
-Type errors are caught at compile-time, preventing entire classes of bugs.
+## Source
 
-## Storage Model
-
-Three independent storage types:
-
-1. **Uint256 Storage** — `Nat → Uint256` (slot → value)
-2. **Address Storage** — `Nat → Address` (slot → address)
-3. **Mapping Storage** — `Nat → Address → Uint256` (slot → key → value)
-
-All three coexist independently with no interference — proven by isolation theorems.
-
-## Why ContractResult Over StateM
-
-The original core used `StateM ContractState α`. This was simple but couldn't model `require` failures — proofs had to assume guards passed (using axioms).
-
-`ContractResult` makes success/failure explicit:
-- **Proofs can reason about both paths** (success and revert)
-- **No axioms needed** — guard behavior is derived from the definition
-- **Short-circuiting bind** — failures propagate automatically through do-notation
-- **230 theorems proven** without any sorry or axioms
-
-## Core Source
-
-View the complete core at: [`DumbContracts/Core.lean`](https://github.com/Th0rgal/dumbcontracts/blob/main/DumbContracts/Core.lean)
+[`DumbContracts/Core.lean`](https://github.com/Th0rgal/dumbcontracts/blob/main/DumbContracts/Core.lean)

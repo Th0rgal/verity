@@ -1,15 +1,15 @@
 ---
 title: Example Contracts
-description: 7 contracts demonstrating composable patterns
+description: 7 contracts covering storage, arithmetic, access control, mappings, and composition
 ---
 
 # Example Contracts
 
-The Dumb Contracts EDSL includes 7 example contracts that demonstrate various patterns and their composition.
+7 contracts, each introducing a new pattern. They build on each other: SimpleStorage uses one slot, Counter adds arithmetic, Owned adds access control, and SimpleToken combines all three.
 
-## 1. SimpleStorage
+## SimpleStorage
 
-**Pattern**: Basic state management
+Single storage slot with get/set.
 
 ```lean
 def storedData : StorageSlot Uint256 := ⟨0⟩
@@ -21,18 +21,11 @@ def retrieve : Contract Uint256 := do
   getStorage storedData
 ```
 
-**Demonstrates**:
-- Single storage slot
-- Basic get/set operations
-- Minimal contract structure
+19 theorems (12 Basic + 7 Correctness). Proves store/retrieve roundtrip and state isolation.
 
-**Tests**: 4 (all passing) | **Proofs**: 19 theorems (12 Basic + 7 Correctness)
+## Counter
 
----
-
-## 2. Counter
-
-**Pattern**: Fast arithmetic operations
+Read-modify-write with increment and decrement.
 
 ```lean
 def count : StorageSlot Uint256 := ⟨0⟩
@@ -46,18 +39,11 @@ def decrement : Contract Unit := do
   setStorage count (current - 1)
 ```
 
-**Demonstrates**:
-- Read-modify-write pattern
-- Arithmetic operations
-- State updates
+29 theorems (19 Basic + 10 Correctness). Proves arithmetic, composition (two increments add 2), and decrement-at-zero behavior.
 
-**Tests**: 7 (all passing) | **Proofs**: 29 theorems (19 Basic + 10 Correctness)
+## SafeCounter
 
----
-
-## 3. SafeCounter
-
-**Pattern**: Checked arithmetic with overflow protection
+Same as Counter but uses checked arithmetic from `Stdlib/Math`.
 
 ```lean
 def increment : Contract Unit := do
@@ -66,18 +52,11 @@ def increment : Contract Unit := do
   setStorage count newCount
 ```
 
-**Demonstrates**:
-- Math stdlib usage
-- Safe arithmetic operations
-- Error handling with requireSomeUint
+30 theorems (22 Basic + 8 Correctness). Proves overflow/underflow revert and bounds preservation.
 
-**Tests**: 9 (all passing) | **Proofs**: 24 theorems (16 Basic + 8 Correctness)
+## Owned
 
----
-
-## 4. Owned
-
-**Pattern**: Access control and ownership
+Access control with an owner address and a `require` guard.
 
 ```lean
 def owner : StorageSlot Address := ⟨0⟩
@@ -92,43 +71,27 @@ def onlyOwner : Contract Unit := do
   require ownerCheck "Caller is not the owner"
 ```
 
-**Demonstrates**:
-- Address storage
-- Access control patterns
-- Modifier-like functions
-- msgSender usage
+22 theorems (18 Basic + 4 Correctness). Proves access control enforcement and ownership transfer.
 
-**Tests**: 8 (all passing) | **Proofs**: 22 theorems (18 Basic + 4 Correctness)
+## OwnedCounter
 
----
-
-## 5. OwnedCounter
-
-**Pattern**: Composition of ownership + arithmetic
+Composes Owned and Counter. Increment/decrement require ownership.
 
 ```lean
 def owner : StorageSlot Address := ⟨0⟩
 def count : StorageSlot Uint256 := ⟨1⟩
 
 def increment : Contract Unit := do
-  onlyOwner  -- Access control
+  onlyOwner
   let current ← getStorage count
   setStorage count (current + 1)
 ```
 
-**Demonstrates**:
-- Pattern composition
-- Multiple storage types (Address + Uint256)
-- Zero interference between patterns
-- Manual slot allocation
+34 theorems (29 Basic + 5 Correctness). Proves cross-pattern composition, ownership transfer locking out old owner, and counter value surviving ownership transfer.
 
-**Tests**: 11 (all passing) | **Proofs**: 31 theorems (26 Basic + 5 Correctness)
+## Ledger
 
----
-
-## 6. Ledger
-
-**Pattern**: Mapping storage (Address → Uint256)
+Mapping storage for per-address balances with deposit, withdraw, and transfer.
 
 ```lean
 def balances : StorageSlot (Address → Uint256) := ⟨0⟩
@@ -147,19 +110,11 @@ def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   setMapping balances to (recipientBalance + amount)
 ```
 
-**Demonstrates**:
-- Mapping storage pattern
-- Balance tracking
-- Atomic multi-mapping updates
-- Transfer pattern
+40 theorems (21 Basic + 6 Correctness + 13 Conservation). Proves balance guards, deposit/withdraw/transfer sum equations, and deposit-withdraw cancellation.
 
-**Tests**: 11 (all passing) | **Proofs**: 24 theorems (18 Basic + 6 Correctness)
+## SimpleToken
 
----
-
-## 7. SimpleToken
-
-**Pattern**: Token contract (Owned + Ledger composition)
+Composes Owned and Ledger. Adds owner-controlled minting and supply tracking.
 
 ```lean
 def owner : StorageSlot Address := ⟨0⟩
@@ -182,54 +137,18 @@ def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   setMapping balances to (recipientBalance + amount)
 ```
 
-**Demonstrates**:
-- Pattern composition (Owned + Ledger)
-- Multiple storage types working together
-- Owner-controlled minting
-- Public transfers
-- Supply tracking
-- Realistic, deployable contract
+64 theorems (36 Basic + 10 Correctness + 9 Supply conservation + 9 Isolation). Proves mint/transfer correctness, supply conservation equations, and storage isolation across all three slot types.
 
-**Tests**: 12 (all passing) | **Proofs**: 52 theorems (33 Basic + 10 Correctness + 9 Supply)
+## Pattern progression
 
----
+1. **SimpleStorage**: single slot
+2. **Counter**: arithmetic
+3. **SafeCounter**: stdlib integration
+4. **Owned**: access control
+5. **OwnedCounter**: composition (Owned + Counter)
+6. **Ledger**: mapping storage
+7. **SimpleToken**: full composition (Owned + Ledger + supply tracking)
 
-## Coverage Summary
+## Source
 
-| Contract | Tests | Fuzz Tests | Proven Theorems |
-|----------|-------|------------|----------------|
-| SimpleStorage | 4 | 1 | 19 |
-| Counter | 7 | 1 | 29 |
-| SafeCounter | 9 | 1 | 24 |
-| Owned | 8 | 2 | 22 |
-| OwnedCounter | 11 | 2 | 31 |
-| Ledger | 11 | 2 | 24 |
-| SimpleToken | 12 | 2 | 52 |
-| Stdlib/Math | — | — | 14 |
-| **Total** | **62** | **11** | **230** (incl. 15 private helpers) |
-
-All 62 tests pass. All 230 theorems proven with zero sorry, zero axioms.
-
-## Pattern Progression
-
-The examples demonstrate a progression:
-
-1. **SimpleStorage** → Basic state
-2. **Counter** → Arithmetic
-3. **SafeCounter** → Stdlib integration
-4. **Owned** → Access control
-5. **OwnedCounter** → Pattern composition (Owned + Counter)
-6. **Ledger** → Mapping storage
-7. **SimpleToken** → Full composition (Owned + Ledger)
-
-Each builds on previous concepts while introducing new patterns.
-
-## Source Code
-
-All example contracts are in the `DumbContracts/Examples/` directory:
-
-- Lean implementations: `DumbContracts/Examples/*.lean`
-- Solidity references: `contracts/*.sol`
-- Foundry tests: `test/*.t.sol`
-
-See the [GitHub repository](https://github.com/Th0rgal/dumbcontracts) for complete source code.
+All contracts are in [`DumbContracts/Examples/`](https://github.com/Th0rgal/dumbcontracts/tree/main/DumbContracts/Examples). Specs in `DumbContracts/Specs/`, proofs in `DumbContracts/Proofs/`.

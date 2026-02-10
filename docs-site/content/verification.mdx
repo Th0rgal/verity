@@ -1,46 +1,33 @@
 ---
 title: Formal Verification
-description: 230 machine-checked proofs of correctness — 100% verified
+description: 252 proven theorems across 7 contracts and stdlib
 ---
 
 # Formal Verification
 
-**230 theorems proven — zero sorry, zero axioms**
+252 theorems proven across 7 contracts and a math stdlib. No `sorry`, no axioms. All proofs are checked by `lake build`.
 
-All 7 contracts achieve 100% proof coverage using Lean 4's theorem prover with the `ContractResult` monad for explicit success/failure modeling. Supply conservation proofs and safe arithmetic correctness extend verification to deeper properties.
+## Structure
 
-## Architecture: Three Layers
+Each contract has three layers of files:
 
 ```
 DumbContracts/
-├── Examples/              # Implementations (7 contracts)
-│   ├── SimpleStorage      # Basic state management
-│   ├── Counter            # Arithmetic operations
-│   ├── SafeCounter        # Checked arithmetic
-│   ├── Owned              # Access control
-│   ├── OwnedCounter       # Pattern composition
-│   ├── Ledger             # Mapping storage
-│   └── SimpleToken        # Full token contract
-│
-├── Specs/                 # Formal specifications
-│   └── {Contract}/
-│       ├── Spec.lean
-│       └── Invariants.lean
-│
-└── Proofs/                # Machine-checked proofs
-    ├── Stdlib/Math.lean          # 14 theorems (safeMul/safeDiv)
-    ├── SimpleStorage/            # 19 theorems (12 Basic + 7 Correctness)
-    ├── Counter/                  # 29 theorems (19 Basic + 10 Correctness)
-    ├── Owned/                    # 22 theorems (18 Basic + 4 Correctness)
-    ├── SimpleToken/              # 52 theorems (33 Basic + 10 Correctness + 9 Supply)
-    ├── OwnedCounter/             # 31 theorems (26 Basic + 5 Correctness)
-    ├── Ledger/                   # 24 theorems (18 Basic + 6 Correctness)
-    └── SafeCounter/              # 24 theorems (16 Basic + 8 Correctness)
+├── Examples/{Contract}.lean      # Implementation
+├── Specs/{Contract}/
+│   ├── Spec.lean                 # What each operation should do
+│   └── Invariants.lean           # Properties that should always hold
+└── Proofs/{Contract}/
+    ├── Basic.lean                # Core proofs (specs met, state preserved)
+    ├── Correctness.lean          # Deeper proofs (composition, revert behavior)
+    ├── Conservation.lean         # Sum conservation laws (Ledger)
+    ├── Supply.lean               # Supply conservation (SimpleToken)
+    └── Isolation.lean            # Storage isolation (SimpleToken)
 ```
 
-## Guard Modeling: The Key Innovation
+## Guard modeling
 
-The `ContractResult` type models Solidity's `require` semantics explicitly:
+The `ContractResult` type models Solidity's `require` explicitly:
 
 ```lean
 inductive ContractResult (α : Type) where
@@ -53,17 +40,9 @@ def require (condition : Bool) (message : String) : Contract Unit :=
            else ContractResult.revert message s
 ```
 
-This enables proving properties about guard-protected operations like `onlyOwner` modifiers:
+This lets proofs reason about both the success path and the revert path of guard-protected operations.
 
-```lean
--- Proven: transferOwnership works when called by owner
-theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : Address)
-  (h_is_owner : s.sender = s.storageAddr 0) :
-  let s' := ((transferOwnership newOwner).run s).snd
-  transferOwnership_spec newOwner s s'
-```
-
-## Proven Contracts
+## Theorems by contract
 
 ### SimpleStorage (19 theorems: 12 Basic + 7 Correctness)
 
@@ -126,11 +105,11 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `increment_state_preserved_except_count` | State preserved except count |
-| 2 | `decrement_state_preserved_except_count` | State preserved except count |
+| 1 | `increment_state_preserved_except_count` | Only count slot changes |
+| 2 | `decrement_state_preserved_except_count` | Only count slot changes |
 | 3 | `getCount_state_preserved` | Read-only preserves state |
-| 4 | `increment_getCount_meets_spec` | Increment then getCount composition |
-| 5 | `decrement_getCount_meets_spec` | Decrement then getCount composition |
+| 4 | `increment_getCount_meets_spec` | Increment then getCount |
+| 5 | `decrement_getCount_meets_spec` | Decrement then getCount |
 | 6 | `two_increments_meets_spec` | Two increments composition |
 | 7 | `increment_decrement_meets_cancel` | Cancellation property |
 | 8 | `getCount_preserves_wellformedness` | Read-only well-formedness |
@@ -162,14 +141,14 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `transferOwnership_reverts_when_not_owner` | Core access control security |
+| 1 | `transferOwnership_reverts_when_not_owner` | Access control enforced |
 | 2 | `transferOwnership_preserves_wellformedness` | Well-formedness with non-empty owner |
 | 3 | `constructor_transferOwnership_getOwner` | Full lifecycle: create, transfer, read |
-| 4 | `transferred_owner_cannot_act` | Ownership truly transferred, not copied |
+| 4 | `transferred_owner_cannot_act` | Old owner is actually locked out |
 
-### SimpleToken (52 theorems: 33 Basic + 10 Correctness + 9 Supply)
+### SimpleToken (64 theorems: 36 Basic + 10 Correctness + 9 Supply + 9 Isolation)
 
-**Basic (33 theorems):**
+**Basic (36 theorems):**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -187,20 +166,20 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 27 | `transfer_preserves_supply_when_sufficient` | Transfer doesn't change supply |
 | 28 | `transfer_decreases_sender_balance` | Sender balance decreases |
 | 29 | `transfer_increases_recipient_balance` | Recipient balance increases |
-| 30-33 | Transfer preservation | Transfer preserves sender, address, other state |
+| 30-36 | Transfer preservation | Transfer preserves sender, address, other state |
 
 **Correctness (10 theorems):**
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `mint_reverts_when_not_owner` | Non-owners cannot create tokens |
-| 2 | `transfer_reverts_insufficient_balance` | No overdrafts possible |
+| 1 | `mint_reverts_when_not_owner` | Non-owners cannot mint |
+| 2 | `transfer_reverts_insufficient_balance` | No overdrafts |
 | 3 | `mint_preserves_wellformedness` | WellFormedState survives mint |
 | 4 | `transfer_preserves_wellformedness` | WellFormedState survives transfer |
 | 5 | `mint_preserves_owner` | Mint doesn't change owner |
 | 6 | `transfer_preserves_owner` | Transfer doesn't change owner |
-| 7 | `mint_then_balanceOf_correct` | After mint, balanceOf returns increased balance |
-| 8 | `mint_then_getTotalSupply_correct` | After mint, getTotalSupply returns increased supply |
+| 7 | `mint_then_balanceOf_correct` | After mint, balanceOf returns updated balance |
+| 8 | `mint_then_getTotalSupply_correct` | After mint, getTotalSupply returns updated supply |
 | 9 | `transfer_then_balanceOf_sender_correct` | After transfer, sender balance decreased |
 | 10 | `transfer_then_balanceOf_recipient_correct` | After transfer, recipient balance increased |
 
@@ -212,13 +191,27 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 2 | `mint_sum_equation` | new_sum = old_sum + count(to) * amount |
 | 3 | `transfer_sum_equation` | new_sum + count(sender)*amt = old_sum + count(to)*amt |
 | 4 | `transfer_sum_bounded` | new_sum <= old_sum + count(to) * amount |
-| 5-9 | Private helper lemmas | countOcc, map_sum_point_update, map_sum_transfer_eq |
+| 5-9 | Helper lemmas | countOcc, map_sum_point_update, map_sum_transfer_eq |
 
-**Note**: Transfer theorems require `sender != to` precondition because the implementation writes recipient balance last, overwriting the sender deduction on self-transfer. Supply conservation uses exact sum equations rather than the `supply_bounds_balances` invariant, which cannot be preserved for lists with duplicate addresses.
+Transfer proofs require `sender != to` because the implementation writes the recipient balance last, overwriting the sender deduction on self-transfer. Supply conservation uses exact sum equations rather than the `supply_bounds_balances` invariant, which cannot be preserved for lists with duplicate addresses.
 
-### OwnedCounter (31 theorems: 26 Basic + 5 Correctness)
+**Isolation (9 theorems):**
 
-**Basic (26 theorems):**
+| # | Theorem | Property |
+|---|---------|----------|
+| 1 | `constructor_supply_storage_isolated` | Constructor only writes Uint256 slot 2 |
+| 2 | `constructor_balance_mapping_isolated` | Constructor doesn't write any mapping slot |
+| 3 | `constructor_owner_addr_isolated` | Constructor only writes Address slot 0 |
+| 4 | `mint_supply_storage_isolated` | Mint only writes Uint256 slot 2 |
+| 5 | `mint_balance_mapping_isolated` | Mint only writes Mapping slot 1 |
+| 6 | `mint_owner_addr_isolated` | Mint doesn't write any Address slot |
+| 7 | `transfer_supply_storage_isolated` | Transfer doesn't write any Uint256 slot |
+| 8 | `transfer_balance_mapping_isolated` | Transfer only writes Mapping slot 1 |
+| 9 | `transfer_owner_addr_isolated` | Transfer doesn't write any Address slot |
+
+### OwnedCounter (34 theorems: 29 Basic + 5 Correctness)
+
+**Basic (29 theorems):**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -228,7 +221,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 15-18 | Decrement (owner-guarded) | Spec, subtracts one, reverts for non-owner |
 | 19-22 | TransferOwnership (owner-guarded) | Spec, changes owner, reverts for non-owner |
 | 23-25 | Isolation | increment/decrement preserve owner, transfer preserves count |
-| 26 | Composition | constructor then increment then getCount |
+| 26-29 | Composition/preservation | constructor then increment, well-formedness |
 
 **Correctness (5 theorems):**
 
@@ -240,9 +233,9 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 4 | `transferOwnership_preserves_wellformedness` | Well-formedness preservation |
 | 5 | `increment_survives_transfer` | Counter value survives ownership transfer |
 
-### Ledger (24 theorems: 18 Basic + 6 Correctness)
+### Ledger (40 theorems: 21 Basic + 6 Correctness + 13 Conservation)
 
-**Basic (18 theorems):**
+**Basic (21 theorems):**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -250,7 +243,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 4-7 | Deposit | Spec, increases balance, preserves others |
 | 8-11 | Withdraw | Spec, decreases balance, reverts insufficient |
 | 12-16 | Transfer | Spec, decreases sender, increases recipient, reverts insufficient |
-| 17-18 | Preservation | Non-mapping storage, well-formedness |
+| 17-21 | Preservation | Non-mapping storage, well-formedness, deposit-getBalance composition |
 
 **Correctness (6 theorems):**
 
@@ -263,9 +256,23 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 5 | `transfer_getBalance_recipient_correct` | After transfer, recipient balance increased |
 | 6 | `deposit_withdraw_cancel` | Deposit then withdraw cancellation |
 
-### SafeCounter (24 theorems: 16 Basic + 8 Correctness)
+**Conservation (13 theorems):**
 
-**Basic (16 theorems):**
+| # | Theorem | Property |
+|---|---------|----------|
+| 1 | `deposit_sum_equation` | new_sum = old_sum + count(sender) * amount |
+| 2 | `deposit_sum_singleton_sender` | For unique sender: new_sum = old_sum + amount |
+| 3 | `withdraw_sum_equation` | new_sum + count(sender) * amount = old_sum |
+| 4 | `withdraw_sum_singleton_sender` | For unique sender: new_sum + amount = old_sum |
+| 5 | `transfer_sum_equation` | new_sum + count(sender)*amt = old_sum + count(to)*amt |
+| 6 | `transfer_sum_preserved_unique` | For unique sender & to: new_sum = old_sum |
+| 7 | `transfer_sum_bounded` | new_sum <= old_sum + count(to) * amount |
+| 8 | `deposit_withdraw_sum_cancel` | Deposit then withdraw preserves total sum |
+| 9-13 | Helper lemmas | countOcc, map_sum_point_update/decrease, map_sum_transfer_eq |
+
+### SafeCounter (30 theorems: 22 Basic + 8 Correctness)
+
+**Basic (22 theorems):**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -274,7 +281,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 8-11 | Decrement | Spec, subtracts one, preserves slots, reverts underflow |
 | 12-13 | Well-formedness | Increment/decrement preserve well-formedness |
 | 14-15 | Bounds | Increment/decrement preserve count bounds |
-| 16 | Composition | increment then getCount correct |
+| 16-22 | Composition/preservation | increment then getCount, various preservation |
 
 **Correctness (8 theorems):**
 
@@ -305,80 +312,23 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
 | 13 | `safeDiv_self` | a / a = 1 (when a > 0) |
 | 14 | `safeDiv_result_le_numerator` | Result never exceeds numerator |
 
-## Proof Techniques
+## Proof techniques
 
-### 1. Full Unfolding
-For guarded operations, unfold the entire do-notation chain:
-```lean
-simp only [transferOwnership, onlyOwner, isOwner, owner,
-  msgSender, getStorageAddr, setStorageAddr,
-  DumbContracts.require, DumbContracts.bind, Bind.bind, Pure.pure,
-  Contract.run, ContractResult.snd]
-simp [h_is_owner]
-```
+**Full unfolding**: For guarded operations, unfold the entire do-notation chain through bind/pure/Contract.run/ContractResult.snd, then `simp [h_guard]` to resolve the guard condition.
 
-### 2. Private Unfold Helpers
-For complex operations, pre-compute the exact result state:
-```lean
-private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256)
-  (h_owner : s.sender = s.storageAddr 0) :
-  (mint to amount).run s = ContractResult.success () { ...exact state... } := by
-  simp only [...]; simp [h_owner]
-```
+**Private unfold helpers**: For complex operations, a private theorem pre-computes the exact result state when guards pass. Main proofs then `rw [op_unfold]` to get the concrete state.
 
-### 3. Boolean Equality Conversion
-Convert between `BEq` and propositional equality:
-```lean
-have h_ne' : (s.sender == to) = false := by
-  simp [beq_iff_eq]; exact h_ne
-```
+**Boolean equality conversion**: `beq_iff_eq` converts between `(x == y) = true` and `x = y`.
 
-### 4. Slot Preservation
-For "other slots unchanged" goals:
-```lean
-intro slot h_neq h_eq; exact absurd h_eq h_neq
-```
+**List sum reasoning**: `omega` cannot handle `List.sum` or nonlinear multiplication, so conservation proofs use explicit `Nat.add_assoc`/`Nat.add_comm`/`Nat.add_left_comm` rewrite chains.
 
-### 5. List Sum Reasoning
-`omega` cannot handle `List.sum` or variable*variable multiplication. Use explicit `Nat.add_assoc`/`Nat.add_comm`/`Nat.add_left_comm` chains:
-```lean
-rw [Nat.add_assoc (f target) delta]
-rw [Nat.add_comm delta (List.map f rest).sum]
-rw [← Nat.add_assoc (f target)]
-```
+**countOcc helpers**: `simp [countOcc, if_pos rfl]` produces `if True then 1 else 0` which doesn't reduce. Pre-proven `countOcc_cons_eq`/`countOcc_cons_ne` helpers avoid this.
 
-### 6. countOcc Helpers
-Pre-proven helpers avoid `if True then 1 else 0` issues:
-```lean
-private theorem countOcc_cons_eq (target : Address) (rest : List Address) :
-  countOcc target (target :: rest) = 1 + countOcc target rest := by simp [countOcc]
-```
+## Known limitations
 
-## Verification Summary
-
-| Metric | Value |
-|--------|-------|
-| Total theorems | 230 |
-| Fully proven | 230 (100%) |
-| Using sorry | 0 |
-| Using axioms | 0 |
-| Build errors | 0 |
-| Contracts verified | 7/7 |
-
-```bash
-$ lake build 2>&1 | grep -c "sorry"
-0
-```
-
-## Known Limitations
-
-1. **Self-transfer**: Transfer spec requires `sender != to` (implementation write ordering)
-2. **Unbounded arithmetic**: Uint256 modeled as `Nat` (no overflow for basic ops)
-3. **Single contract**: No multi-contract interaction proofs
-4. **No reentrancy**: Single-threaded execution model
-5. **Supply invariant**: `supply_bounds_balances` not preserved for lists with duplicates — exact sum equations proven instead
-6. **No Mathlib**: `set`, `ring`, `linarith` unavailable — proofs use explicit `Nat.*` lemma chains
-
----
-
-*Mathematical certainty for all possible inputs*
+1. Transfer proofs require `sender != to` (implementation write ordering)
+2. Uint256 modeled as `Nat` (no overflow for basic arithmetic)
+3. No multi-contract interaction
+4. No reentrancy modeling
+5. `supply_bounds_balances` not preserved for lists with duplicates; exact sum equations are proven instead
+6. No Mathlib: `set`, `ring`, `linarith` unavailable
