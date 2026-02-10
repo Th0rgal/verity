@@ -1,6 +1,11 @@
 # Research Log
 
 ## 2026-02-10
+- Added `requireZero` stdlib helper for zero guards.
+- Refactored `initOnce` to use `requireZero`.
+- Added `initToOne` example (initialize slot to `1` when empty) with SpecR + proofs.
+- Added Foundry test for `initToOne`.
+- Updated compiler entries + direct EVM asm for `initToOne`.
 - Added `requireGte` stdlib helper for `>=` guards (via `not lt`).
 - Refactored `subIfEnough` to use `requireGte`.
 - Added `setIfAtLeast` example (guarded store on `value >= min`) with SpecR + proofs.

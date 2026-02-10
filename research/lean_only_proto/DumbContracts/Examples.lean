@@ -9,6 +9,7 @@ import DumbContracts.Examples.UpdateMin
 import DumbContracts.Examples.NonZeroStore
 import DumbContracts.Examples.CompareAndSwap
 import DumbContracts.Examples.InitOnce
+import DumbContracts.Examples.InitToOne
 import DumbContracts.Examples.SetIfGreater
 import DumbContracts.Examples.SetIfAtLeast
 import DumbContracts.Examples.SetIfLess

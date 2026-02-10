@@ -19,9 +19,10 @@ Last updated: 2026-02-10
 - Decide whether to guard old-state specs with `from ≠ to` or adopt sequential reads by default.
 - Supply accounting abstraction (list vs set/dedup semantics).
 - EDSL ergonomics: add helpers, notations, and a minimal stdlib for common patterns.
-- Iteration: add `requireGte` helper and a tiny `setIfAtLeast` example + Foundry test.
+- Iteration: add `requireZero` helper and a tiny `initToOne` example + Foundry test.
 
 ## Recently Done
+- Added `requireZero` helper and an `initToOne` example + Foundry test.
 - Lean -> Yul pipeline with runtime + creation bytecode artifacts.
 - Selector map (fixed + ABI keccak) and Foundry tests.
 - Spec-style wrappers for storage and Euler-style risk examples.

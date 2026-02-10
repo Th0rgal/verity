@@ -52,6 +52,9 @@ def requireBetween (value lo hi : Expr) (body : Stmt) : Stmt :=
 def requireNonZero (value : Expr) (body : Stmt) : Stmt :=
   requireNeq value (Expr.lit 0) body
 
+def requireZero (value : Expr) (body : Stmt) : Stmt :=
+  requireEq value (Expr.lit 0) body
+
 /-- Shorthand for loading/storing fixed slots. -/
 
 def letSload (name : String) (slot : Expr) (body : Stmt) : Stmt :=
