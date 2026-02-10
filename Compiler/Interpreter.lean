@@ -336,13 +336,22 @@ def main (args : List String) : IO Unit := do
       sender := senderAddr
       thisAddress := "0xContract"
     }
-    let contractTypeEnum := match contractType with
-      | "SimpleStorage" => ContractType.simpleStorage
-      | "Counter" => ContractType.counter
-      | "SafeCounter" => ContractType.safeCounter
-      | _ => ContractType.simpleStorage  -- Default
-    let result := interpret contractTypeEnum tx initialState
-    IO.println result.toJSON
+    let contractTypeEnum? : Option ContractType := match contractType with
+      | "SimpleStorage" => some ContractType.simpleStorage
+      | "Counter" => some ContractType.counter
+      | "Owned" => some ContractType.owned
+      | "Ledger" => some ContractType.ledger
+      | "OwnedCounter" => some ContractType.ownedCounter
+      | "SimpleToken" => some ContractType.simpleToken
+      | "SafeCounter" => some ContractType.safeCounter
+      | _ => none
+    match contractTypeEnum? with
+    | some contractTypeEnum =>
+      let result := interpret contractTypeEnum tx initialState
+      IO.println result.toJSON
+    | none =>
+      throw <| IO.userError
+        s!"Unknown contract type: {contractType}. Supported: SimpleStorage, Counter, Owned, Ledger, OwnedCounter, SimpleToken, SafeCounter"
   | _ =>
     IO.println "Usage: difftest-interpreter <contract> <function> <sender> <arg0> [storage]"
     IO.println "Example: difftest-interpreter SimpleStorage store 0xAlice 42"

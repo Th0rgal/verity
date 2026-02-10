@@ -72,7 +72,7 @@ contract DifferentialSimpleStorage is YulTestBase {
         inputs[0] = "bash";
         inputs[1] = "-c";
         inputs[2] = string.concat(
-            "cd \"$(git rev-parse --show-toplevel)\" && export PATH=\"$HOME/.elan/bin:$PATH\" && lake exe difftest-interpreter SimpleStorage ",
+            "cd \"$(git rev-parse --show-toplevel)\" && export PATH=\"$HOME/.elan/bin:$PATH\" && mkdir -p .lake/build/bin && lake build difftest-interpreter >/dev/null && ./.lake/build/bin/difftest-interpreter SimpleStorage ",
             functionName,
             " ",
             vm.toString(sender),
