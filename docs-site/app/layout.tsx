@@ -1,4 +1,4 @@
-import { Footer, Layout, Navbar } from 'nextra-theme-docs'
+import { Layout, Navbar } from 'nextra-theme-docs'
 import { Banner, Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
 import 'nextra-theme-docs/style.css'
@@ -24,20 +24,6 @@ const navbar = (
   />
 )
 
-const footer = (
-  <Footer>
-    MIT {new Date().getFullYear()} ©{' '}
-    <a href="https://github.com/Th0rgal" target="_blank" rel="noopener noreferrer">
-      Th0rgal
-    </a>
-    . Built with{' '}
-    <a href="https://nextra.site" target="_blank" rel="noopener noreferrer">
-      Nextra
-    </a>
-    .
-  </Footer>
-)
-
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
@@ -48,7 +34,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           navbar={navbar}
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/Th0rgal/dumbcontracts/tree/main/docs-site"
-          footer={footer}
           sidebar={{ defaultMenuCollapseLevel: 1 }}
           toc={{ backToTop: true }}
         >
