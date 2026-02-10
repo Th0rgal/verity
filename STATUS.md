@@ -1,44 +1,48 @@
 # Dumb Contracts Research Status
 
-## Current Iteration: Pattern Composition - OwnedCounter (2026-02-09)
+## Current Iteration: Math Safety Stdlib (2026-02-09)
 
 ### Goal
-Demonstrate pattern composition by creating an OwnedCounter that combines the ownership and counter patterns, validating that simple patterns compose cleanly to build more complex contracts.
+Add a standard library module with checked arithmetic operations to address the arithmetic safety question raised in iteration 2, and demonstrate how to extend the EDSL with stdlib helpers without bloating the core.
 
 ### What I'm About to Do
-1. Create an OwnedCounter example contract that:
-   - Combines Owned and Counter patterns
-   - Stores both owner (Address) and count (Uint256)
-   - Makes increment/decrement owner-only operations
-   - Demonstrates that patterns don't interfere with each other
-   - Shows how to compose access control with state updates
+1. Create DumbContracts/Stdlib/Math.lean module with:
+   - safeAdd: checked addition that prevents overflow
+   - safeSub: checked subtraction that prevents underflow
+   - safeMul: checked multiplication (optional, if time permits)
+   - safeDiv: checked division (optional, if time permits)
+   - Operations return Option type on overflow/underflow
 
-2. Create Solidity reference implementation and Foundry tests
+2. Refactor Counter example to use safe arithmetic:
+   - Replace bare + and - with safeAdd/safeSub
+   - Handle Option results appropriately
+   - Demonstrate stdlib usage pattern
 
-3. Validate that pattern composition works seamlessly
+3. Ensure all tests still pass
 
 ### Why This Approach
-Pattern composition is the critical next step because:
-- Tests that simple patterns can be combined
-- Validates the composability of the EDSL design
-- Shows how to build complex contracts from simple building blocks
-- Demonstrates real-world pattern (many contracts combine ownership + state)
-- No new primitives needed - uses existing Owned and Counter patterns
-- Natural progression from individual patterns to composition
+Math safety stdlib is the right next step because:
+- Have multiple examples doing arithmetic (Counter, OwnedCounter)
+- Addresses the semantic difference question from iteration 2 (Lean Nat vs Solidity Uint256)
+- Shows how to extend EDSL through stdlib, not core changes
+- Demonstrates optional safety (examples can choose safe or unsafe)
+- Pattern for future stdlib additions
+- No core changes needed - validates extensibility
 
 ### Current State
-- Previous: Owned iteration complete (3 examples working)
-- Now: Starting pattern composition iteration
-- Have: SimpleStorage, Counter, Owned patterns
-- Ready to combine patterns
+- Previous: OwnedCounter iteration complete (4 examples, 30 tests passing)
+- Core: 72 lines, unchanged since iteration 3
+- Pattern library: SimpleStorage, Counter, Owned, OwnedCounter
+- Ready to add first stdlib module
 
 ### Expected Outcomes
-- OwnedCounter contract working correctly
-- Validation that patterns compose without interference
-- Demonstration of building complex from simple
-- Confidence in EDSL composability
+- DumbContracts.Stdlib.Math module with checked arithmetic
+- Counter refactored to use safe operations
+- All tests still passing
+- Demonstration of stdlib pattern
+- Documentation of safety semantics
 
 ### Next Steps After This Iteration
-- Add math safety stdlib (with multiple examples to refactor)
 - Add mapping support for more complex data structures
 - Consider events for observability
+- Potentially add more stdlib helpers based on example needs
