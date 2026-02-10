@@ -1,0 +1,33 @@
+{
+  "name": "dumbcontracts-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dumb Contracts documentation website - Minimal Lean EDSL for smart contracts",
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build --webpack && pagefind --site .next/server/app --output-path public/_pagefind",
+    "start": "next start -p 3003",
+    "lint": "eslint app components"
+  },
+  "dependencies": {
+    "@remixicon/react": "^4.7.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "clsx": "^2.1.1",
+    "next": "^16.0.7",
+    "next-themes": "^0.4.6",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "pagefind": "^1.4.0",
+    "typescript": "^5.9.3"
+  }
+}

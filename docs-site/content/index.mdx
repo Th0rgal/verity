@@ -1,0 +1,103 @@
+---
+title: Dumb Contracts
+description: Minimal Lean EDSL for Smart Contracts
+---
+
+# Dumb Contracts
+
+**A minimal, elegant Lean 4 EDSL for smart contract development**
+
+Dumb Contracts is a research project exploring how far we can go with minimalism in smart contract language design. The result: an **82-line core** that handles realistic token contracts through pattern composition.
+
+## 🎯 Key Features
+
+- **Minimal Core**: 82 lines of Lean code
+- **Composable Patterns**: Build complex contracts from simple patterns
+- **Type Safe**: StorageSlot prevents mixing types at compile-time
+- **Well Tested**: 62 tests, 100% passing (2,816 fuzz runs)
+- **Semantic Alignment**: Matches Solidity behavior
+
+## 📊 Project Stats
+
+| Metric | Value |
+|--------|-------|
+| Core lines | 82 |
+| Stdlib lines | 63 (Math.lean) |
+| Example contracts | 7 |
+| Total tests | 62 (100% passing) |
+| Fuzz tests | 11 |
+
+## 🚀 Quick Example
+
+```lean
+-- SimpleToken: Combining Owned + Ledger patterns
+def owner : StorageSlot Address := ⟨0⟩
+def balances : StorageSlot (Address → Uint256) := ⟨1⟩
+def totalSupply : StorageSlot Uint256 := ⟨2⟩
+
+-- Owner-only minting
+def mint (to : Address) (amount : Uint256) : Contract Unit := do
+  onlyOwner
+  let currentBalance ← getMapping balances to
+  setMapping balances to (currentBalance + amount)
+  let currentSupply ← getStorage totalSupply
+  setStorage totalSupply (currentSupply + amount)
+```
+
+## 📚 Documentation
+
+- **[Research Log](/research)** - Complete findings from 7 iterations
+- **[Iteration Summaries](/iterations)** - Detailed summary of each iteration
+- **[Examples](/examples)** - 7 contracts demonstrating patterns
+- **[Core Architecture](/core)** - Understanding the 82-line core
+
+## 🤖 For AI Agents
+
+This documentation is AI-friendly:
+- **Raw Markdown**: Request any page with `.md` extension or `?format=md`
+- **Complete Docs**: Get all docs concatenated at `/api/docs/_all`
+- **Document Index**: JSON list of all docs at `/api/docs/_index`
+- **Auto-Detection**: AI user agents automatically get markdown
+
+Example: `curl https://dumbcontracts.com/research.md`
+
+## ✨ Design Principles
+
+1. **Example-Driven Development** - Only add what examples need
+2. **Composition Over Complexity** - Patterns compose naturally
+3. **Type Safety First** - Catch errors at compile-time
+4. **Minimal Core** - Extensions through stdlib, not core
+5. **Semantic Alignment** - Match Solidity behavior
+
+## 🔬 Research Journey
+
+The project evolved through 7 focused iterations:
+
+1. **Bootstrap** - 58-line minimal core
+2. **Counter** - Arithmetic operations
+3. **Owned** - Access control (+14 lines)
+4. **OwnedCounter** - Pattern composition
+5. **Math Safety Stdlib** - Extensibility
+6. **Mapping Support** - Key-value storage (+13 lines)
+7. **SimpleToken** - Realistic token contract
+
+**Key Insight**: 4 out of 7 iterations required zero core changes, validating the composability approach.
+
+## 📖 Getting Started
+
+Explore the documentation:
+
+- Start with the [Research Log](/research) to understand the design decisions
+- Check out the [Examples](/examples) to see the EDSL in action
+- Read the [Iteration Summaries](/iterations) for detailed evolution
+
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/Th0rgal/dumbcontracts)
+- [Pull Request #3](https://github.com/Th0rgal/dumbcontracts/pull/3) - Complete iteration work
+
+---
+
+**Status**: Production-ready for token contracts
+**Core Size**: 82 lines (stable across 4 iterations)
+**Tests**: 62/62 passing (100%)

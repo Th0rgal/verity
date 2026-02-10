@@ -1,0 +1,66 @@
+# Dumb Contracts Documentation
+
+> Minimal Lean EDSL for Smart Contracts
+
+## About
+
+Dumb Contracts is a research project exploring minimalism in smart contract language design. The result is an 82-line Lean 4 core that handles realistic token contracts through pattern composition.
+
+## Quick Access
+
+- Complete documentation: /api/docs/_all
+- Documentation index: /api/docs/_index
+- Research log: /research.md
+- Examples: /examples.md
+- Core architecture: /core.md
+
+## Key Stats
+
+- Core: 82 lines
+- Examples: 7 contracts
+- Tests: 62 (100% passing)
+- Fuzz runs: 2,816
+
+## Documentation Format
+
+All pages support:
+- HTML rendering (browser)
+- Raw markdown (add .md extension or ?format=md)
+- Auto-detection for AI user agents
+
+Example:
+- HTML: https://dumbcontracts.com/research
+- Markdown: https://dumbcontracts.com/research.md
+
+## API Routes
+
+GET /api/docs/_index     - List all documents (JSON)
+GET /api/docs/_all       - All docs concatenated (Markdown)
+GET /api/docs/[page]     - Single document (Markdown)
+
+## Design Principles
+
+1. Example-Driven Development - Only add what examples need
+2. Composition Over Complexity - Patterns compose naturally
+3. Type Safety First - Catch errors at compile-time
+4. Minimal Core - Extensions through stdlib, not core
+5. Semantic Alignment - Match Solidity behavior
+
+## Pattern Library
+
+1. SimpleStorage - Basic state management
+2. Counter - Fast arithmetic
+3. SafeCounter - Checked arithmetic
+4. Owned - Access control
+5. OwnedCounter - Pattern composition
+6. Ledger - Mapping storage
+7. SimpleToken - Token contract
+
+## Links
+
+- Repository: https://github.com/Th0rgal/dumbcontracts
+- PR #3: https://github.com/Th0rgal/dumbcontracts/pull/3
+
+---
+
+For AI agents: This site automatically serves markdown to known AI user agents. All pages are accessible with .md extension for explicit markdown requests.

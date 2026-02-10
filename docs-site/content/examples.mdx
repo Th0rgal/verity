@@ -1,0 +1,234 @@
+---
+title: Example Contracts
+description: 7 contracts demonstrating composable patterns
+---
+
+# Example Contracts
+
+The Dumb Contracts EDSL includes 7 example contracts that demonstrate various patterns and their composition.
+
+## 1. SimpleStorage
+
+**Pattern**: Basic state management
+
+```lean
+def storedData : StorageSlot Uint256 := ⟨0⟩
+
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+def retrieve : Contract Uint256 := do
+  getStorage storedData
+```
+
+**Demonstrates**:
+- Single storage slot
+- Basic get/set operations
+- Minimal contract structure
+
+**Tests**: 4 (all passing)
+
+---
+
+## 2. Counter
+
+**Pattern**: Fast arithmetic operations
+
+```lean
+def count : StorageSlot Uint256 := ⟨0⟩
+
+def increment : Contract Unit := do
+  let current ← getStorage count
+  setStorage count (current + 1)
+
+def decrement : Contract Unit := do
+  let current ← getStorage count
+  setStorage count (current - 1)
+```
+
+**Demonstrates**:
+- Read-modify-write pattern
+- Arithmetic operations
+- State updates
+
+**Tests**: 7 (all passing)
+
+---
+
+## 3. SafeCounter
+
+**Pattern**: Checked arithmetic with overflow protection
+
+```lean
+def increment : Contract Unit := do
+  let current ← getStorage count
+  let newCount ← requireSomeUint (safeAdd current 1) "Overflow"
+  setStorage count newCount
+```
+
+**Demonstrates**:
+- Math stdlib usage
+- Safe arithmetic operations
+- Error handling with requireSomeUint
+
+**Tests**: 9 (all passing)
+
+---
+
+## 4. Owned
+
+**Pattern**: Access control and ownership
+
+```lean
+def owner : StorageSlot Address := ⟨0⟩
+
+def isOwner : Contract Bool := do
+  let sender ← msgSender
+  let currentOwner ← getStorageAddr owner
+  return sender == currentOwner
+
+def onlyOwner : Contract Unit := do
+  let ownerCheck ← isOwner
+  require ownerCheck "Caller is not the owner"
+```
+
+**Demonstrates**:
+- Address storage
+- Access control patterns
+- Modifier-like functions
+- msgSender usage
+
+**Tests**: 8 (all passing)
+
+---
+
+## 5. OwnedCounter
+
+**Pattern**: Composition of ownership + arithmetic
+
+```lean
+def owner : StorageSlot Address := ⟨0⟩
+def count : StorageSlot Uint256 := ⟨1⟩
+
+def increment : Contract Unit := do
+  onlyOwner  -- Access control
+  let current ← getStorage count
+  setStorage count (current + 1)
+```
+
+**Demonstrates**:
+- Pattern composition
+- Multiple storage types (Address + Uint256)
+- Zero interference between patterns
+- Manual slot allocation
+
+**Tests**: 11 (all passing)
+
+---
+
+## 6. Ledger
+
+**Pattern**: Mapping storage (Address → Uint256)
+
+```lean
+def balances : StorageSlot (Address → Uint256) := ⟨0⟩
+
+def deposit (amount : Uint256) : Contract Unit := do
+  let sender ← msgSender
+  let currentBalance ← getMapping balances sender
+  setMapping balances sender (currentBalance + amount)
+
+def transfer (to : Address) (amount : Uint256) : Contract Unit := do
+  let sender ← msgSender
+  let senderBalance ← getMapping balances sender
+  require (senderBalance >= amount) "Insufficient balance"
+  let recipientBalance ← getMapping balances to
+  setMapping balances sender (senderBalance - amount)
+  setMapping balances to (recipientBalance + amount)
+```
+
+**Demonstrates**:
+- Mapping storage pattern
+- Balance tracking
+- Atomic multi-mapping updates
+- Transfer pattern
+
+**Tests**: 11 (all passing)
+
+---
+
+## 7. SimpleToken
+
+**Pattern**: Token contract (Owned + Ledger composition)
+
+```lean
+def owner : StorageSlot Address := ⟨0⟩
+def balances : StorageSlot (Address → Uint256) := ⟨1⟩
+def totalSupply : StorageSlot Uint256 := ⟨2⟩
+
+def mint (to : Address) (amount : Uint256) : Contract Unit := do
+  onlyOwner
+  let currentBalance ← getMapping balances to
+  setMapping balances to (currentBalance + amount)
+  let currentSupply ← getStorage totalSupply
+  setStorage totalSupply (currentSupply + amount)
+
+def transfer (to : Address) (amount : Uint256) : Contract Unit := do
+  let sender ← msgSender
+  let senderBalance ← getMapping balances sender
+  require (senderBalance >= amount) "Insufficient balance"
+  let recipientBalance ← getMapping balances to
+  setMapping balances sender (senderBalance - amount)
+  setMapping balances to (recipientBalance + amount)
+```
+
+**Demonstrates**:
+- Pattern composition (Owned + Ledger)
+- Multiple storage types working together
+- Owner-controlled minting
+- Public transfers
+- Supply tracking
+- Realistic, deployable contract
+
+**Tests**: 12 (all passing)
+
+---
+
+## Test Coverage Summary
+
+| Contract | Tests | Fuzz Tests | Lines of Code |
+|----------|-------|------------|---------------|
+| SimpleStorage | 4 | 1 | 38 |
+| Counter | 7 | 1 | 50 |
+| SafeCounter | 9 | 1 | 50 |
+| Owned | 8 | 2 | 59 |
+| OwnedCounter | 11 | 2 | 80 |
+| Ledger | 11 | 2 | 70 |
+| SimpleToken | 12 | 2 | 96 |
+| **Total** | **62** | **11** | **443** |
+
+All tests pass with 2,816 fuzz runs total.
+
+## Pattern Progression
+
+The examples demonstrate a progression:
+
+1. **SimpleStorage** → Basic state
+2. **Counter** → Arithmetic
+3. **SafeCounter** → Stdlib integration
+4. **Owned** → Access control
+5. **OwnedCounter** → Pattern composition (Owned + Counter)
+6. **Ledger** → Mapping storage
+7. **SimpleToken** → Full composition (Owned + Ledger)
+
+Each builds on previous concepts while introducing new patterns.
+
+## Source Code
+
+All example contracts are in the `DumbContracts/Examples/` directory:
+
+- Lean implementations: `DumbContracts/Examples/*.lean`
+- Solidity references: `contracts/*.sol`
+- Foundry tests: `test/*.t.sol`
+
+See the [GitHub repository](https://github.com/Th0rgal/dumbcontracts) for complete source code.

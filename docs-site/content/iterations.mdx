@@ -1,0 +1,159 @@
+---
+title: Iteration Summaries
+description: Detailed summaries of each development iteration
+---
+
+# Iteration Summaries
+
+This page provides detailed summaries of each iteration in the Dumb Contracts development process.
+
+## Iteration 7: Simple Token Contract
+
+[Full Summary →](/iterations/iteration-7)
+
+**Goal**: Create a realistic token contract combining Owned and Ledger patterns
+
+**Key Achievement**: Pattern composition with mappings validated
+
+- Combined Owned (access control) + Ledger (balances mapping)
+- Owner-controlled minting, public transfers
+- **Zero core changes needed** (uses existing primitives)
+- 12 new tests, all passing (62 total)
+
+**Metrics**:
+- Core: 82 lines (unchanged)
+- SimpleToken: ~100 lines
+- Tests: 62/62 passing
+
+---
+
+## Iteration 6: Mapping Support
+
+[Full Summary →](/iterations/iteration-6)
+
+**Goal**: Add mapping support (Address → Uint256) for key-value storage
+
+**Key Achievement**: First core extension in 3 iterations
+
+- Added `storageMap` field to ContractState
+- Ledger example demonstrating balances mapping
+- Core grew from 69 → 82 lines (+19%)
+- 11 new tests, all passing (50 total)
+
+**Why This Extension**:
+- Enables entire class of token contracts
+- No alternative approach
+- Minimal addition (13 lines)
+
+---
+
+## Iteration 5: Math Safety Stdlib
+
+[Full Summary →](/iterations/iteration-5)
+
+**Goal**: Add checked arithmetic operations via stdlib
+
+**Key Achievement**: Extensibility validated
+
+- Created Math.lean stdlib (63 lines)
+- safeAdd, safeSub, safeMul, safeDiv
+- **Core unchanged** (69 lines)
+- 9 new tests, all passing (39 total)
+
+**Pattern Established**: Stdlib extends without core changes
+
+---
+
+## Iteration 4: OwnedCounter
+
+[Full Summary →](/iterations/iteration-4)
+
+**Goal**: Validate pattern composition
+
+**Key Achievement**: Composability proven
+
+- Combined Owned + Counter patterns
+- **Core unchanged** (72 lines)
+- 11 new tests, all passing (30 total)
+
+**Insight**: Patterns compose without special support
+
+---
+
+## Iteration 3: Owned Pattern
+
+[Full Summary →](/iterations/iteration-3)
+
+**Goal**: Add access control and ownership
+
+**Key Achievement**: Address storage added
+
+- Owner-controlled operations
+- onlyOwner modifier pattern
+- Core grew from 58 → 72 lines (+24%)
+- 8 new tests, all passing (19 total)
+
+**Why This Extension**:
+- Concrete need for access control
+- Type-safe Address storage
+
+---
+
+## Iteration 2: Counter
+
+[Full Summary →](/iterations/iteration-2)
+
+**Goal**: Validate arithmetic operations
+
+**Key Achievement**: Namespace strategy established
+
+- Increment/decrement operations
+- **Core unchanged** (58 lines)
+- 7 new tests, all passing (11 total)
+
+**Decision**: Keep core minimal, defer safety to stdlib
+
+---
+
+## Iteration 1: Bootstrap
+
+[Full Summary →](/iterations/iteration-1)
+
+**Goal**: Establish minimal core
+
+**Key Achievement**: 58-line functional EDSL
+
+- Basic Ethereum types
+- StorageSlot abstraction
+- StateM monad for contracts
+- SimpleStorage example
+- 4 tests, all passing
+
+**Foundation**: Type-safe storage with minimal primitives
+
+---
+
+## Core Growth Analysis
+
+| Iteration | Core Lines | Change | Reason |
+|-----------|------------|--------|--------|
+| 1 | 58 | +58 | Bootstrap |
+| 2 | 58 | +0 | No change needed |
+| 3 | 72 | +14 | Address storage |
+| 4 | 72 | +0 | Composition works |
+| 5 | 69 | -3 | Cleanup |
+| 6 | 82 | +13 | Mapping storage |
+| 7 | 82 | +0 | Composition works |
+
+**Key Insight**: 4 out of 7 iterations with zero core changes validates the composability approach.
+
+## Files by Iteration
+
+Each iteration includes:
+- **ITERATION_N_SUMMARY.md** - Complete iteration summary
+- **Example contract** (DumbContracts/Examples/*.lean)
+- **Solidity reference** (contracts/*.sol)
+- **Test suite** (test/*.t.sol)
+- **Research findings** (documented in RESEARCH.md)
+
+See the [Research Log](/research) for complete details on all iterations.
