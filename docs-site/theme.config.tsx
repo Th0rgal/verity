@@ -1,5 +1,3 @@
-import { useConfig } from "nextra-theme-docs";
-
 const config = {
   logo: <strong>Dumb Contracts</strong>,
   project: {
@@ -20,30 +18,6 @@ const config = {
         .
       </span>
     ),
-  },
-  head: () => {
-    const { frontMatter } = useConfig();
-    const title = frontMatter.title
-      ? `${frontMatter.title} – Dumb Contracts`
-      : "Dumb Contracts";
-    const description =
-      frontMatter.description || "Minimal Lean EDSL for Smart Contracts";
-
-    return (
-      <>
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <meta name="og:title" content={title} />
-        <meta name="og:description" content={description} />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" href="/favicon.ico" />
-      </>
-    );
-  },
-  useNextSeoProps() {
-    return {
-      titleTemplate: "%s – Dumb Contracts",
-    };
   },
   banner: {
     key: "ai-friendly",
