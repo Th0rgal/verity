@@ -1,10 +1,14 @@
 import Std
-import Compiler.Translate
+import Compiler.Specs
+import Compiler.ContractSpec
+import Compiler.Selector
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 
 open Compiler
 open Compiler.Yul
+open Compiler.ContractSpec
+open Compiler.Selector
 
 private def writeContract (outDir : String) (contract : IRContract) : IO Unit := do
   let yulObj := emitYul contract
@@ -15,5 +19,7 @@ private def writeContract (outDir : String) (contract : IRContract) : IO Unit :=
 def main : IO Unit := do
   let outDir := "compiler/yul"
   IO.FS.createDirAll outDir
-  for contract in Translate.allContracts do
+  for spec in Specs.allSpecs do
+    let selectors ← computeSelectors spec
+    let contract := compile spec selectors
     writeContract outDir contract

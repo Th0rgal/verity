@@ -6,15 +6,16 @@
 -/
 
 import Std
-import Compiler.Translate  -- Old system (for comparison)
 import Compiler.Specs      -- New system
 import Compiler.ContractSpec
+import Compiler.Selector
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 
 open Compiler
 open Compiler.Yul
 open Compiler.ContractSpec
+open Compiler.Selector
 
 private def writeContract (outDir : String) (contract : IRContract) : IO Unit := do
   let yulObj := emitYul contract
@@ -27,7 +28,8 @@ def main : IO Unit := do
   IO.FS.createDirAll outDir
 
   -- Compile contracts from new spec system
-  for (spec, selectors) in Specs.allSpecs do
+  for spec in Specs.allSpecs do
+    let selectors ← computeSelectors spec
     let contract := compile spec selectors
     writeContract outDir contract
     IO.println s!"✓ Compiled {contract.name} (new system)"

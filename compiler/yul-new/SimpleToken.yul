@@ -23,8 +23,10 @@ object "SimpleToken" {
                 if iszero(eq(caller(), sload(0))) {
                     revert(0, 0)
                 }
-                sstore(mappingSlot(1, to), add(sload(mappingSlot(1, to)), amount))
-                sstore(2, add(sload(2), amount))
+                let recipientBal := sload(mappingSlot(1, to))
+                let supply := sload(2)
+                sstore(mappingSlot(1, to), add(recipientBal, amount))
+                sstore(2, add(supply, amount))
                 stop()
             }
             case 0xa9059cbb {

@@ -8,18 +8,20 @@ object "SafeCounter" {
             switch shr(224, calldataload(0))
             case 0xd09de08a {
                 /* increment() */
-                if iszero(gt(add(sload(0), 1), sload(0))) {
+                let count := sload(0)
+                if iszero(gt(add(count, 1), count)) {
                     revert(0, 0)
                 }
-                sstore(0, add(sload(0), 1))
+                sstore(0, add(count, 1))
                 stop()
             }
             case 0x2baeceb7 {
                 /* decrement() */
-                if iszero(iszero(lt(sload(0), 1))) {
+                let count := sload(0)
+                if iszero(iszero(lt(count, 1))) {
                     revert(0, 0)
                 }
-                sstore(0, sub(sload(0), 1))
+                sstore(0, sub(count, 1))
                 stop()
             }
             case 0xa87d942c {

@@ -42,7 +42,6 @@ def simpleStorageSpec : ContractSpec := {
   ]
 }
 
-def simpleStorageSelectors : List Nat := [0x6057361d, 0x2e64cec1]
 
 /-!
 ## Counter Specification
@@ -81,7 +80,6 @@ def counterSpec : ContractSpec := {
   ]
 }
 
-def counterSelectors : List Nat := [0xd09de08a, 0x2baeceb7, 0xa87d942c]
 
 /-!
 ## Owned Specification
@@ -118,7 +116,6 @@ def ownedSpec : ContractSpec := {
   ]
 }
 
-def ownedSelectors : List Nat := [0xf2fde38b, 0x893d20e8]
 
 /-!
 ## Ledger Specification
@@ -135,8 +132,9 @@ def ledgerSpec : ContractSpec := {
       params := [{ name := "amount", ty := ParamType.uint256 }]
       returnType := none
       body := [
+        Stmt.letVar "senderBal" (Expr.mapping "balances" Expr.caller),
         Stmt.setMapping "balances" Expr.caller
-          (Expr.add (Expr.mapping "balances" Expr.caller) (Expr.param "amount")),
+          (Expr.add (Expr.localVar "senderBal") (Expr.param "amount")),
         Stmt.stop
       ]
     },
@@ -144,11 +142,12 @@ def ledgerSpec : ContractSpec := {
       params := [{ name := "amount", ty := ParamType.uint256 }]
       returnType := none
       body := [
+        Stmt.letVar "senderBal" (Expr.mapping "balances" Expr.caller),
         Stmt.require
-          (Expr.ge (Expr.mapping "balances" Expr.caller) (Expr.param "amount"))
+          (Expr.ge (Expr.localVar "senderBal") (Expr.param "amount"))
           "Insufficient balance",
         Stmt.setMapping "balances" Expr.caller
-          (Expr.sub (Expr.mapping "balances" Expr.caller) (Expr.param "amount")),
+          (Expr.sub (Expr.localVar "senderBal") (Expr.param "amount")),
         Stmt.stop
       ]
     },
@@ -182,7 +181,6 @@ def ledgerSpec : ContractSpec := {
   ]
 }
 
-def ledgerSelectors : List Nat := [0xb6b55f25, 0x2e1a7d4d, 0xa9059cbb, 0xf8b2cb4f]
 
 /-!
 ## OwnedCounter Specification (Combines Owned + Counter)
@@ -245,7 +243,6 @@ def ownedCounterSpec : ContractSpec := {
   ]
 }
 
-def ownedCounterSelectors : List Nat := [0xd09de08a, 0x2baeceb7, 0xa87d942c, 0x893d20e8, 0xf2fde38b]
 
 /-!
 ## SimpleToken Specification (Owned + Balances + Supply)
@@ -274,10 +271,12 @@ def simpleTokenSpec : ContractSpec := {
       returnType := none
       body := [
         Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        Stmt.letVar "recipientBal" (Expr.mapping "balances" (Expr.param "to")),
+        Stmt.letVar "supply" (Expr.storage "totalSupply"),
         Stmt.setMapping "balances" (Expr.param "to")
-          (Expr.add (Expr.mapping "balances" (Expr.param "to")) (Expr.param "amount")),
+          (Expr.add (Expr.localVar "recipientBal") (Expr.param "amount")),
         Stmt.setStorage "totalSupply"
-          (Expr.add (Expr.storage "totalSupply") (Expr.param "amount")),
+          (Expr.add (Expr.localVar "supply") (Expr.param "amount")),
         Stmt.stop
       ]
     },
@@ -325,7 +324,6 @@ def simpleTokenSpec : ContractSpec := {
   ]
 }
 
-def simpleTokenSelectors : List Nat := [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
 
 /-!
 ## SafeCounter Specification (Counter with overflow/underflow checks)
@@ -346,8 +344,9 @@ def safeCounterSpec : ContractSpec := {
       body := [
         -- Overflow check: require (count + 1 > count)
         -- On overflow, MAX_UINT + 1 = 0, which is NOT > MAX_UINT, so this will revert
-        Stmt.require (Expr.gt (Expr.add (Expr.storage "count") (Expr.literal 1)) (Expr.storage "count")) "Overflow",
-        Stmt.setStorage "count" (Expr.add (Expr.storage "count") (Expr.literal 1)),
+        Stmt.letVar "count" (Expr.storage "count"),
+        Stmt.require (Expr.gt (Expr.add (Expr.localVar "count") (Expr.literal 1)) (Expr.localVar "count")) "Overflow",
+        Stmt.setStorage "count" (Expr.add (Expr.localVar "count") (Expr.literal 1)),
         Stmt.stop
       ]
     },
@@ -355,8 +354,9 @@ def safeCounterSpec : ContractSpec := {
       params := []
       returnType := none
       body := [
-        Stmt.require (Expr.ge (Expr.storage "count") (Expr.literal 1)) "Underflow",
-        Stmt.setStorage "count" (Expr.sub (Expr.storage "count") (Expr.literal 1)),
+        Stmt.letVar "count" (Expr.storage "count"),
+        Stmt.require (Expr.ge (Expr.localVar "count") (Expr.literal 1)) "Underflow",
+        Stmt.setStorage "count" (Expr.sub (Expr.localVar "count") (Expr.literal 1)),
         Stmt.stop
       ]
     },
@@ -370,40 +370,19 @@ def safeCounterSpec : ContractSpec := {
   ]
 }
 
-def safeCounterSelectors : List Nat := [0xd09de08a, 0x2baeceb7, 0xa87d942c]
 
 /-!
 ## Generate All Contracts
 -/
 
-def allSpecs : List (ContractSpec × List Nat) := [
-  (simpleStorageSpec, simpleStorageSelectors),
-  (counterSpec, counterSelectors),
-  (ownedSpec, ownedSelectors),
-  (ledgerSpec, ledgerSelectors),
-  (ownedCounterSpec, ownedCounterSelectors),
-  (simpleTokenSpec, simpleTokenSelectors),
-  (safeCounterSpec, safeCounterSelectors)
+def allSpecs : List ContractSpec := [
+  simpleStorageSpec,
+  counterSpec,
+  ownedSpec,
+  ledgerSpec,
+  ownedCounterSpec,
+  simpleTokenSpec,
+  safeCounterSpec
 ]
-
-/-!
-## Compile-Time Validation
-
-Ensure each spec has exactly the right number of selectors.
-These checks run at compile time and will fail the build if mismatched.
--/
-
--- Validate selector counts match function counts
-private def validateSpec (name : String) (spec : ContractSpec) (selectors : List Nat) : Bool :=
-  spec.functions.length == selectors.length
-
--- Compile-time assertions (evaluated during type-checking)
-#guard validateSpec "SimpleStorage" simpleStorageSpec simpleStorageSelectors
-#guard validateSpec "Counter" counterSpec counterSelectors
-#guard validateSpec "Owned" ownedSpec ownedSelectors
-#guard validateSpec "Ledger" ledgerSpec ledgerSelectors
-#guard validateSpec "OwnedCounter" ownedCounterSpec ownedCounterSelectors
-#guard validateSpec "SimpleToken" simpleTokenSpec simpleTokenSelectors
-#guard validateSpec "SafeCounter" safeCounterSpec safeCounterSelectors
 
 end Compiler.Specs
