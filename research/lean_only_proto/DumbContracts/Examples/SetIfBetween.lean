@@ -15,9 +15,10 @@ def setIfBetweenFun : Fun :=
   { name := "setIfBetween"
     args := ["slot", "value", "min", "max"]
     body :=
-      requireGt (v "value") (v "min")
-        (requireLt (v "value") (v "max")
-          (sstoreVar "slot" (v "value")))
+      requireAnd
+        (Expr.gt (v "value") (v "min"))
+        (Expr.lt (v "value") (v "max"))
+        (sstoreVar "slot" (v "value"))
     ret := none }
 
 def setIfBetweenSpecR (slot value min max : Nat) : SpecR Store :=
@@ -32,7 +33,7 @@ theorem setIfBetween_meets_specR_ok (s : Store) (slot value min max : Nat) :
       | _ => False) := by
   intro hreq
   rcases hreq with ⟨hgt, hlt⟩
-  simp [setIfBetweenSpecR, setIfBetweenFun, requireGt, requireLt, require, sstoreVar, v, execFun,
+  simp [setIfBetweenSpecR, setIfBetweenFun, requireAnd, require, sstoreVar, v, execFun,
     execStmt, evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hgt, hlt]
 
 theorem setIfBetween_meets_specR_reverts (s : Store) (slot value min max : Nat) :
@@ -42,16 +43,16 @@ theorem setIfBetween_meets_specR_reverts (s : Store) (slot value min max : Nat) 
   rcases hrev with hle | hge
   · have hnot : ¬ value > min := by
       exact Nat.not_lt.mpr hle
-    simp [setIfBetweenSpecR, setIfBetweenFun, requireGt, requireLt, require, sstoreVar, v, execFun,
+    simp [setIfBetweenSpecR, setIfBetweenFun, requireAnd, require, sstoreVar, v, execFun,
       execStmt, evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hnot]
   · by_cases hgt : value > min
     · have hnotlt : ¬ value < max := by
         exact Nat.not_lt.mpr hge
-      simp [setIfBetweenSpecR, setIfBetweenFun, requireGt, requireLt, require, sstoreVar, v,
+      simp [setIfBetweenSpecR, setIfBetweenFun, requireAnd, require, sstoreVar, v,
         execFun, execStmt, evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hgt, hnotlt]
     · have hnot : ¬ value > min := by
         exact hgt
-      simp [setIfBetweenSpecR, setIfBetweenFun, requireGt, requireLt, require, sstoreVar, v,
+      simp [setIfBetweenSpecR, setIfBetweenFun, requireAnd, require, sstoreVar, v,
         execFun, execStmt, evalExpr, bindArgs, emptyEnv, updateEnv, updateStore, hnot]
 
 end DumbContracts.Examples

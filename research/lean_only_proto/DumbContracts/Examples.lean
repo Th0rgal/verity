@@ -10,4 +10,5 @@ import DumbContracts.Examples.InitOnce
 import DumbContracts.Examples.SetIfGreater
 import DumbContracts.Examples.SetIfLess
 import DumbContracts.Examples.SetIfBetween
+import DumbContracts.Examples.SetIfNonZeroAndLess
 import DumbContracts.Examples.BumpSlot

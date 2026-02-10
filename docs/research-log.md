@@ -1,6 +1,11 @@
 # Research Log
 
 ## 2026-02-10
+- Added `requireAnd` stdlib helper to combine guard conditions cleanly.
+- Refactored `setIfBetween` to use `requireAnd` instead of nested guards.
+- Added `setIfNonZeroAndLess` example (nonzero + max guard) with SpecR + proofs.
+- Added Foundry test for `setIfNonZeroAndLess`.
+- Updated compiler entries + direct EVM asm for `setIfNonZeroAndLess`.
 - Added `letSload` stdlib helper for caching a slot read via `let_`.
 - Refactored `compareAndSwap` to use `letSload`.
 - Added `initOnce` example (only initialize a zero slot) with SpecR + proofs.
