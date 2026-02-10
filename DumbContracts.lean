@@ -24,3 +24,15 @@ import DumbContracts.Proofs.Owned.Basic
 import DumbContracts.Specs.SimpleToken.Spec
 import DumbContracts.Specs.SimpleToken.Invariants
 import DumbContracts.Proofs.SimpleToken.Basic
+
+import DumbContracts.Specs.OwnedCounter.Spec
+import DumbContracts.Specs.OwnedCounter.Invariants
+import DumbContracts.Proofs.OwnedCounter.Basic
+
+import DumbContracts.Specs.Ledger.Spec
+import DumbContracts.Specs.Ledger.Invariants
+import DumbContracts.Proofs.Ledger.Basic
+
+import DumbContracts.Specs.SafeCounter.Spec
+import DumbContracts.Specs.SafeCounter.Invariants
+import DumbContracts.Proofs.SafeCounter.Basic
