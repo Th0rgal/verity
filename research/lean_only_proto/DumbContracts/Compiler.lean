@@ -155,8 +155,21 @@ def exampleEntry7 : EntryPoint :=
     selector := 0xc74962fa
     returns := false }
 
+def exampleEntry8 : EntryPoint :=
+  { name := "setIfGreater"
+    args := ["slot", "value", "min"]
+    body :=
+      Lang.Stmt.if_
+        (Lang.Expr.gt (Lang.Expr.var "value") (Lang.Expr.var "min"))
+        (Lang.Stmt.sstore (Lang.Expr.var "slot") (Lang.Expr.var "value"))
+        Lang.Stmt.revert
+    -- setIfGreater(uint256,uint256,uint256) -> 0x2dbeb1ba
+    selector := 0x2dbeb1ba
+    returns := false }
+
 def exampleEntries : List EntryPoint :=
-  [exampleEntry, exampleEntry2, exampleEntry3, exampleEntry4, exampleEntry5, exampleEntry6, exampleEntry7]
+  [exampleEntry, exampleEntry2, exampleEntry3, exampleEntry4, exampleEntry5, exampleEntry6, exampleEntry7,
+    exampleEntry8]
 
 def healthEntrySet : EntryPoint :=
   { name := "setRisk"

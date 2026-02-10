@@ -1,6 +1,10 @@
 # Research Log
 
 ## 2026-02-10
+- Added `requireGt` stdlib helper to reduce guard boilerplate.
+- Added `setIfGreater` example (guarded store on `value > min`) with SpecR + proofs.
+- Refactored `guardedAddSlot` to use `requireGt`.
+- Added Foundry test for `setIfGreater`.
 - Added `eq`/`neq` plus `requireEq`/`requireNeq` stdlib helpers.
 - Added `compareAndSwap` example (guarded store on expected value match) with SpecR and proofs.
 - Avoided double `sload` in `compareAndSwap` by caching the slot value with `let_` (prevents false reverts).
