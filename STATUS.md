@@ -1,23 +1,23 @@
 # Dumb Contracts Research Status
 
-## Current State: 252 Theorems, 7/7 Contracts Verified (2026-02-10)
+## Current State: 277 Theorems, 7/7 Contracts Verified (2026-02-10)
 
 ### Summary
-**Full Verification Achieved**: All 252 theorems proven with zero `sorry`, zero axioms, zero errors. Guard modeling via `ContractResult` type enables complete verification of `require`-guarded operations. Every contract now has both Basic.lean and Correctness.lean proof files. Supply conservation proofs, balance conservation proofs, storage isolation proofs, and safe arithmetic correctness proofs extend verification depth.
+**Full Verification Achieved**: All 277 theorems proven with zero `sorry`, zero axioms, zero errors. Guard modeling via `ContractResult` type enables complete verification of `require`-guarded operations. Every contract now has both Basic.lean and Correctness.lean proof files. Supply conservation proofs, balance conservation proofs, storage isolation proofs, and safe arithmetic correctness proofs extend verification depth.
 
 All 7 contract patterns verified at 100%:
 - SimpleStorage (19 theorems: 12 basic + 7 correctness) — 100% proven
 - Counter (29 theorems: 19 basic + 10 correctness) — 100% proven
 - Owned (22 theorems: 18 basic + 4 correctness) — 100% proven
 - SimpleToken (64 theorems: 36 basic + 10 correctness + 9 supply conservation + 9 isolation) — 100% proven
-- OwnedCounter (34 theorems: 29 basic + 5 correctness) — 100% proven
+- OwnedCounter (48 theorems: 29 basic + 5 correctness + 14 isolation) — 100% proven
 - Ledger (40 theorems: 21 basic + 6 correctness + 13 conservation) — 100% proven
 - SafeCounter (30 theorems: 22 basic + 8 correctness) — 100% proven
 
 Additional:
-- Stdlib/Math (14 theorems: safeMul + safeDiv correctness) — 100% proven
+- Stdlib/Math (25 theorems: safeAdd + safeSub + safeMul + safeDiv correctness) — 100% proven
 
-**Total: 252/252 theorems fully proven (100%) — zero sorry, zero axioms**
+**Total: 277/277 theorems fully proven (100%) — zero sorry, zero axioms**
 
 ### Verification Tiers Achieved
 
@@ -26,14 +26,14 @@ Additional:
 - Access control respected (mint reverts when not owner)
 - No overdrafts (transfer reverts with insufficient balance)
 - Overflow/underflow protection (SafeCounter revert proofs)
-- Safe arithmetic bounds (safeMul result bounded, safeDiv result bounded)
+- Safe arithmetic bounds (safeAdd/safeSub/safeMul/safeDiv result bounds)
 
 **Tier 2: Functional Correctness**
 - Transfer moves exact amount (sender decreases, recipient increases)
 - Mint increases supply correctly
 - All state transitions match specifications
 - Constructor initializes correctly
-- safeMul/safeDiv return correct results or none on overflow/div-by-zero
+- safeAdd/safeSub/safeMul/safeDiv return correct results or none on overflow/underflow/div-by-zero
 - Decrement at zero saturates to zero (Counter edge case)
 
 **Tier 3: Invariants**
@@ -41,6 +41,7 @@ Additional:
 - Owner stability (mint and transfer don't change owner)
 - Storage isolation proven standalone for all contracts (SimpleStorage, Counter, SafeCounter)
 - **Storage isolation proven for SimpleToken** (supply_storage_isolated, balance_mapping_isolated, owner_addr_isolated for constructor/mint/transfer)
+- **Storage isolation proven for OwnedCounter** (count_preserves_owner, owner_preserves_count, context_preserved, mapping isolation for constructor/increment/decrement/transferOwnership)
 - Context preservation (sender, thisAddress) proven standalone for all contracts
 - Address/mapping storage isolation proven standalone (SimpleStorage, Counter)
 - state_preserved_except_count invariant proven (Counter)
@@ -80,12 +81,12 @@ Additional:
 - **Counter**: Arithmetic operations, composition (increment_twice_adds_two), decrement-at-zero edge case
 - **Owned**: Access control, ownership management, guard-protected transferOwnership
 - **SimpleToken**: Constructor, mint (owner-guarded), transfer (balance-guarded), all reads, invariant preservation, revert proofs, end-to-end composition, supply conservation equations, **storage isolation (3 types × 3 operations)**
-- **OwnedCounter**: Composed ownership + counter patterns, storage isolation
+- **OwnedCounter**: Composed ownership + counter patterns, storage isolation (count_preserves_owner, owner_preserves_count, context_preserved, mapping isolation for all 4 operations)
 - **Ledger**: Mapping-based deposit/withdraw/transfer, balance guards, **balance conservation laws (deposit/withdraw/transfer sum equations)**
 - **SafeCounter**: Checked arithmetic with safeAdd/safeSub, overflow/underflow reverts, bounds preservation
-- **Stdlib/Math**: safeMul/safeDiv correctness (14 theorems: overflow detection, identity elements, commutativity, result bounds)
+- **Stdlib/Math**: All 4 safe arithmetic operations (25 theorems: safeAdd/safeSub/safeMul/safeDiv with overflow/underflow/div-by-zero detection, identity elements, commutativity, result bounds)
 - **Guard Modeling**: `ContractResult` type with explicit success/revert
-- **Zero Sorry**: All 252 proofs machine-checked, no axioms
+- **Zero Sorry**: All 277 proofs machine-checked, no axioms
 
 ### Proof Architecture
 
@@ -103,12 +104,12 @@ DumbContracts/
 │   ├── Ledger/ (Spec.lean, Invariants.lean)
 │   └── SafeCounter/ (Spec.lean, Invariants.lean)
 └── Proofs/
-    ├── Stdlib/Math.lean (14 theorems — safeMul/safeDiv correctness)
+    ├── Stdlib/Math.lean (25 theorems — safeAdd/safeSub/safeMul/safeDiv correctness)
     ├── SimpleStorage/Basic.lean (12), Correctness.lean (7)
     ├── Counter/Basic.lean (19), Correctness.lean (10)
     ├── Owned/Basic.lean (18), Correctness.lean (4)
     ├── SimpleToken/Basic.lean (36), Correctness.lean (10), Supply.lean (9), Isolation.lean (9)
-    ├── OwnedCounter/Basic.lean (29), Correctness.lean (5)
+    ├── OwnedCounter/Basic.lean (29), Correctness.lean (5), Isolation.lean (14)
     ├── Ledger/Basic.lean (21), Correctness.lean (6), Conservation.lean (13)
     ├── SafeCounter/Basic.lean (22), Correctness.lean (8)
 ```

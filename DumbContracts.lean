@@ -36,6 +36,7 @@ import DumbContracts.Specs.OwnedCounter.Spec
 import DumbContracts.Specs.OwnedCounter.Invariants
 import DumbContracts.Proofs.OwnedCounter.Basic
 import DumbContracts.Proofs.OwnedCounter.Correctness
+import DumbContracts.Proofs.OwnedCounter.Isolation
 
 import DumbContracts.Specs.Ledger.Spec
 import DumbContracts.Specs.Ledger.Invariants
