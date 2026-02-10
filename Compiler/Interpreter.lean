@@ -42,7 +42,6 @@ structure ExecutionResult where
   returnValue : Option Nat    -- Return value for successful calls
   revertReason : Option String  -- Revert message if failed
   storageChanges : List (Nat × Nat)  -- Changed slots: (slot, newValue)
-  deriving BEq
 
 /-!
 ## EDSL Interpreter
