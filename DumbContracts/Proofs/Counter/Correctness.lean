@@ -110,6 +110,16 @@ theorem decrement_getCount_correct (s : ContractState) :
   simp only [h_dec] at h_get
   exact h_get
 
+/-! ## Edge Cases -/
+
+/-- Decrementing at zero stays at zero (Nat subtraction truncation).
+    Unlike SafeCounter which reverts, Counter silently saturates to 0. -/
+theorem decrement_at_zero_stays_zero (s : ContractState) (h : s.storage 0 = 0) :
+  let s' := ((decrement).run s).snd
+  s'.storage 0 = 0 := by
+  show ((decrement).run s).snd.storage 0 = 0
+  rw [decrement_subtracts_one s, h]
+
 /-! ## Summary
 
 All 10 theorems fully proven with zero sorry:

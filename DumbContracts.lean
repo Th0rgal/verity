@@ -1,5 +1,6 @@
 import DumbContracts.Core
 import DumbContracts.Stdlib.Math
+import DumbContracts.Proofs.Stdlib.Math
 import DumbContracts.Examples.SimpleStorage
 import DumbContracts.Examples.Counter
 import DumbContracts.Examples.SafeCounter
@@ -28,6 +29,7 @@ import DumbContracts.Specs.SimpleToken.Spec
 import DumbContracts.Specs.SimpleToken.Invariants
 import DumbContracts.Proofs.SimpleToken.Basic
 import DumbContracts.Proofs.SimpleToken.Correctness
+import DumbContracts.Proofs.SimpleToken.Supply
 
 import DumbContracts.Specs.OwnedCounter.Spec
 import DumbContracts.Specs.OwnedCounter.Invariants
