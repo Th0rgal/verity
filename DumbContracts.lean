@@ -20,3 +20,7 @@ import DumbContracts.Proofs.Counter.Basic
 import DumbContracts.Specs.Owned.Spec
 import DumbContracts.Specs.Owned.Invariants
 import DumbContracts.Proofs.Owned.Basic
+
+import DumbContracts.Specs.SimpleToken.Spec
+import DumbContracts.Specs.SimpleToken.Invariants
+import DumbContracts.Proofs.SimpleToken.Basic
