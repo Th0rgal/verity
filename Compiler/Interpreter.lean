@@ -14,22 +14,13 @@
 import DumbContracts.Core
 import DumbContracts.Examples.SimpleStorage
 import DumbContracts.Examples.Counter
+import Compiler.DiffTestTypes
 
 namespace Compiler.Interpreter
 
 open DumbContracts
 open DumbContracts.Examples
-
-/-!
-## Transaction Model
-
-Represents a transaction that can be executed on both EDSL and compiled EVM.
--/
-
-structure Transaction where
-  sender : Address
-  functionName : String
-  args : List Nat  -- Simplified: all args as uint256 for now
+open Compiler.DiffTestTypes
 
 /-!
 ## Execution Result
@@ -156,15 +147,6 @@ def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResul
 For use by the differential testing harness.
 -/
 
-inductive ContractType
-  | simpleStorage
-  | counter
-  | owned
-  | ledger
-  | ownedCounter
-  | simpleToken
-  | safeCounter
-
 def interpret (contractType : ContractType) (tx : Transaction) (state : ContractState) : ExecutionResult :=
   match contractType with
   | ContractType.simpleStorage => interpretSimpleStorage tx state
@@ -201,6 +183,7 @@ For use via `lake exe difftest-interpreter`
 -/
 
 open Compiler.Interpreter
+open Compiler.DiffTestTypes
 open DumbContracts
 
 -- Parse storage state from command line args

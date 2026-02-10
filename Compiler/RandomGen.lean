@@ -6,20 +6,12 @@
 -/
 
 import DumbContracts.Core
+import Compiler.DiffTestTypes
 
 namespace Compiler.RandomGen
 
 open DumbContracts
-
--- Re-define types to avoid importing Interpreter (which has conflicting main)
-structure Transaction where
-  sender : Address
-  functionName : String
-  args : List Nat
-
-inductive ContractType
-  | simpleStorage
-  | counter
+open Compiler.DiffTestTypes
 
 /-!
 ## Simple PRNG
@@ -88,6 +80,11 @@ def genTransaction (contractType : ContractType) (rng : RNG) : RNG × Transactio
   match contractType with
   | ContractType.simpleStorage => genSimpleStorageTx rng
   | ContractType.counter => genCounterTx rng
+  | ContractType.owned => genCounterTx rng  -- TODO: implement
+  | ContractType.ledger => genCounterTx rng  -- TODO: implement
+  | ContractType.ownedCounter => genCounterTx rng  -- TODO: implement
+  | ContractType.simpleToken => genCounterTx rng  -- TODO: implement
+  | ContractType.safeCounter => genCounterTx rng  -- TODO: implement
 
 /-!
 ## Generate Test Sequence
@@ -114,6 +111,7 @@ For generating test sequences from command line.
 -/
 
 open Compiler.RandomGen
+open Compiler.DiffTestTypes
 
 def main (args : List String) : IO Unit := do
   match args with
