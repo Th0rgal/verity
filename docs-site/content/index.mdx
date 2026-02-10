@@ -1,6 +1,6 @@
 ---
 title: Dumb Contracts
-description: Minimal Lean 4 EDSL for writing and formally verifying smart contracts
+description: A Lean 4 EDSL for writing human-readable specs and formally verified smart contract implementations
 ---
 
 import { Callout } from 'nextra/components'
@@ -11,50 +11,115 @@ import { Callout } from 'nextra/components'
 **Are you an AI?** Check [/llms.txt](/llms.txt) or add `.md` to any page URL to get raw markdown and save tokens.
 </Callout>
 
-**212-line Lean 4 EDSL for smart contracts. 252 theorems proven. Zero sorry, zero axioms.**
+## Vision
 
-The core models contract state, storage operations, and `require` guards using an explicit success/revert result type (`ContractResult`). Seven example contracts are implemented and verified with machine-checked proofs covering correctness, conservation laws, and storage isolation.
+Write smart contracts three times:
 
-## How it Works
+1. **Human-readable specification** — What should the contract do?
+2. **Implementation in Lean** — Code that matches the spec
+3. **Formal proof** — Machine-checked verification that implementation meets specification
 
-Contracts are functions from `ContractState` to `ContractResult`. The result type has two constructors: `success` (value + new state) and `revert` (error message + old state). Custom `bind` short-circuits on revert, so do-notation works like Solidity's early returns.
+Eventually, compile the Lean implementation to EVM bytecode. For now, this project demonstrates the specification and verification part of that vision.
 
+## Why Lean?
+
+[Lean 4](https://lean-lang.org/) is a programming language and theorem prover. Code and proofs live in the same file, checked by the same compiler. Unlike traditional testing (which checks specific inputs), formal proofs verify all possible inputs.
+
+This project uses Lean to:
+- Define what smart contracts should do (specifications)
+- Implement the contracts (executable code)
+- Prove the implementations satisfy the specifications (theorems)
+
+**Current status**: 212 lines of EDSL core, 7 example contracts, 252 machine-checked proofs. Zero `sorry` (unproven claims), zero axioms (no trusted assumptions).
+
+## The Three-Layer Structure
+
+Each contract has three files:
+
+**1. Specification** (`Specs/SimpleToken/Spec.lean`)
 ```lean
--- A contract that mints tokens, guarded by onlyOwner
+-- What should mint do?
+def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
+  s'.storageMap 1 to = s.storageMap 1 to + amount ∧  -- balance increases
+  s'.storage 2 = s.storage 2 + amount                 -- supply increases
+```
+
+**2. Implementation** (`Examples/SimpleToken.lean`)
+```lean
+-- How to implement mint
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
   onlyOwner
   let currentBalance ← getMapping balances to
   setMapping balances to (currentBalance + amount)
   let currentSupply ← getStorage totalSupply
   setStorage totalSupply (currentSupply + amount)
-
--- Proven: mint increases the recipient's balance by the minted amount
-theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint256)
-  (h_owner : s.sender = s.storageAddr 0) :
-  let s' := ((mint to amount).run s).snd
-  s'.storageMap 1 to = s.storageMap 1 to + amount
 ```
 
-## Contracts
+**3. Proof** (`Proofs/SimpleToken/Basic.lean`)
+```lean
+-- Proof that implementation satisfies specification
+theorem mint_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
+  (h_owner : s.sender = s.storageAddr 0) :
+  let s' := ((mint to amount).run s).snd
+  mint_spec to amount s s' := by
+  simp only [mint, onlyOwner, getMapping, setMapping, ...]
+  simp [h_owner]
+```
 
-| Contract | Theorems | What's verified |
-|----------|----------|-----------------|
-| SimpleStorage | 19 | Store/retrieve roundtrip, state isolation |
-| Counter | 29 | Arithmetic, composition, decrement-at-zero |
-| Owned | 22 | Access control, ownership transfer |
-| SimpleToken | 64 | Mint/transfer, supply conservation, storage isolation |
-| OwnedCounter | 34 | Cross-pattern composition, ownership transfer lockout |
-| Ledger | 40 | Deposit/withdraw/transfer, balance conservation |
-| SafeCounter | 30 | Overflow/underflow revert proofs |
-| Stdlib/Math | 14 | safeMul/safeDiv correctness |
+The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
+
+## Example Contracts
+
+Seven contracts are implemented and verified:
+
+| Contract | Theorems | Demonstrates |
+|----------|----------|--------------|
+| SimpleStorage | 19 | Basic storage read/write, state isolation |
+| Counter | 29 | Arithmetic operations, composition |
+| Owned | 22 | Access control patterns, ownership transfer |
+| SimpleToken | 64 | Token minting/transfer, supply conservation, storage isolation |
+| OwnedCounter | 34 | Combining patterns (owned + counter) |
+| Ledger | 40 | Balance tracking, deposit/withdraw/transfer, conservation laws |
+| SafeCounter | 30 | Overflow/underflow prevention with checked arithmetic |
+
+Plus a math standard library with 14 theorems about safe arithmetic (`safeMul`, `safeDiv`, etc.).
+
+**Total**: 252 proven theorems. See [/verification](/verification) for the complete list.
+
+## Introduction to Formal Verification
+
+**What's a theorem?** A mathematical statement that's been proven true. In this project, theorems are statements about smart contract behavior.
+
+**What's a proof?** A step-by-step logical argument that shows why a theorem must be true. Lean checks every step.
+
+**What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project has zero `sorry` — every claim is proven.
+
+**What are axioms?** Statements assumed true without proof. This project uses zero axioms — every theorem builds from first principles.
+
+Example proof technique (simplified):
+```lean
+-- Claim: After storing 42, retrieving gives 42
+theorem store_retrieve : store 42 >> retrieve = pure 42 := by
+  unfold store retrieve  -- Expand definitions
+  simp                   -- Simplify with built-in rules
+  -- Proof complete
+```
 
 ## Documentation
 
-- **[Verification](/verification)** — All 252 proven theorems
-- **[Examples](/examples)** — The 7 contracts
-- **[Core](/core)** — How the 212-line core works
-- **[Research](/research)** — Design iterations and evolution
+- **[Verification](/verification)** — All 252 theorems listed by contract
+- **[Examples](/examples)** — The 7 contracts and what they demonstrate
+- **[Core](/core)** — How the 212-line EDSL works
+- **[Research](/research)** — Design decisions and proof techniques
 
-## Links
+## Learning Resources
 
-- [GitHub Repository](https://github.com/Th0rgal/dumbcontracts)
+- [Lean 4 Manual](https://lean-lang.org/lean4/doc/) — Official documentation
+- [Theorem Proving in Lean 4](https://lean-lang.org/theorem_proving_in_lean4/) — Introductory book
+- [Lean Zulip Chat](https://leanprover.zulipchat.com/) — Community forum
+- [Lean GitHub](https://github.com/leanprover/lean4) — Source code and examples
+
+## Project Links
+
+- [GitHub Repository](https://github.com/Th0rgal/dumbcontracts) — Source code
+- [Build Status](https://github.com/Th0rgal/dumbcontracts/actions) — CI verification runs
