@@ -70,6 +70,13 @@ def extractMappingChanges (before after : ContractState) (keys : List (Nat × Ad
     let newVal := after.storageMap slot key
     if oldVal ≠ newVal then some (slot, key, newVal) else none
 
+-- EVM revert data for Error(string) uses selector 0x08c379a0 in the first 32 bytes.
+private def revertSelectorWord : Nat :=
+  3963877391197344453575983046348115674221700746820753546331534351508065746944
+
+private def revertReturnValue (msg : String) : Nat :=
+  if msg.isEmpty then 0 else revertSelectorWord
+
 -- Helper: Normalize address to lowercase for consistent comparison
 private def normalizeAddress (addr : Address) : Address :=
   addr.map Char.toLower
@@ -110,12 +117,20 @@ def resultToExecutionResult
     }
   | ContractResult.revert msg finalState =>
     { success := false
-      returnValue := none
+      returnValue := some (revertReturnValue msg)
       revertReason := some msg
       storageChanges := []  -- No changes on revert
       storageAddrChanges := []
       mappingChanges := []
     }
+
+-- Helper: Convert ContractResult Uint256 to ContractResult Nat
+private def resultToNat (result : ContractResult Uint256) : ContractResult Nat :=
+  match result with
+  | ContractResult.success returnVal finalState =>
+    ContractResult.success returnVal.val finalState
+  | ContractResult.revert msg finalState =>
+    ContractResult.revert msg finalState
 
 /-!
 ## Example: SimpleStorage Interpreter
@@ -127,7 +142,7 @@ Demonstrate how to wrap EDSL contract for differential testing.
 private def exampleSimpleStorageStore (value : Nat) : Contract Unit :=
   store value
 
-private def exampleSimpleStorageRetrieve : Contract Nat :=
+private def exampleSimpleStorageRetrieve : Contract Uint256 :=
   retrieve
 
 -- Interpret SimpleStorage transactions
@@ -152,7 +167,7 @@ def interpretSimpleStorage (tx : Transaction) (state : ContractState) : Executio
       }
   | "retrieve" =>
     let result := exampleSimpleStorageRetrieve.run state
-    resultToExecutionResult result state [0] [] []
+    resultToExecutionResult (resultToNat result) state [0] [] []
   | _ =>
     { success := false
       returnValue := none
@@ -172,7 +187,7 @@ private def exampleCounterIncrement : Contract Unit :=
 private def exampleCounterDecrement : Contract Unit :=
   Counter.decrement
 
-private def exampleCounterGetCount : Contract Nat :=
+private def exampleCounterGetCount : Contract Uint256 :=
   Counter.getCount
 
 def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
@@ -191,7 +206,7 @@ def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResul
     resultToExecutionResult natResult state [0] [] []
   | "getCount" =>
     let result := exampleCounterGetCount.run state
-    resultToExecutionResult result state [0] [] []
+    resultToExecutionResult (resultToNat result) state [0] [] []
   | _ =>
     { success := false
       returnValue := none
@@ -211,7 +226,7 @@ private def exampleSafeCounterIncrement : Contract Unit :=
 private def exampleSafeCounterDecrement : Contract Unit :=
   SafeCounter.decrement
 
-private def exampleSafeCounterGetCount : Contract Nat :=
+private def exampleSafeCounterGetCount : Contract Uint256 :=
   SafeCounter.getCount
 
 def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
@@ -230,7 +245,7 @@ def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionR
     resultToExecutionResult natResult state [0] [] []
   | "getCount" =>
     let result := exampleSafeCounterGetCount.run state
-    resultToExecutionResult result state [0] [] []
+    resultToExecutionResult (resultToNat result) state [0] [] []
   | _ =>
     { success := false
       returnValue := none
@@ -299,7 +314,7 @@ private def exampleLedgerWithdraw (amount : Nat) : Contract Unit :=
 private def exampleLedgerTransfer (to : Address) (amount : Nat) : Contract Unit :=
   Ledger.transfer to amount
 
-private def exampleLedgerGetBalance (addr : Address) : Contract Nat :=
+private def exampleLedgerGetBalance (addr : Address) : Contract Uint256 :=
   Ledger.getBalance addr
 
 def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult :=
@@ -369,7 +384,7 @@ def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult
       let result := exampleLedgerGetBalance addr |>.run state
       -- Track mapping for the queried address
       let addrKey := (0, addr)
-      resultToExecutionResult result state [] [] [addrKey]
+      resultToExecutionResult (resultToNat result) state [] [] [addrKey]
     | _ =>
       { success := false
         returnValue := none
@@ -397,7 +412,7 @@ private def exampleOwnedCounterIncrement : Contract Unit :=
 private def exampleOwnedCounterDecrement : Contract Unit :=
   OwnedCounter.decrement
 
-private def exampleOwnedCounterGetCount : Contract Nat :=
+private def exampleOwnedCounterGetCount : Contract Uint256 :=
   OwnedCounter.getCount
 
 private def exampleOwnedCounterGetOwner : Contract Address :=
@@ -446,7 +461,7 @@ def interpretOwnedCounter (tx : Transaction) (state : ContractState) : Execution
     match tx.args with
     | [] =>
       let result := exampleOwnedCounterGetCount |>.run state
-      resultToExecutionResult result state [1] [] []
+      resultToExecutionResult (resultToNat result) state [1] [] []
     | _ =>
       { success := false
         returnValue := none
@@ -511,10 +526,10 @@ private def exampleSimpleTokenMint (to : Address) (amount : Nat) : Contract Unit
 private def exampleSimpleTokenTransfer (to : Address) (amount : Nat) : Contract Unit :=
   SimpleToken.transfer to amount
 
-private def exampleSimpleTokenBalanceOf (addr : Address) : Contract Nat :=
+private def exampleSimpleTokenBalanceOf (addr : Address) : Contract Uint256 :=
   SimpleToken.balanceOf addr
 
-private def exampleSimpleTokenGetTotalSupply : Contract Nat :=
+private def exampleSimpleTokenGetTotalSupply : Contract Uint256 :=
   SimpleToken.getTotalSupply
 
 private def exampleSimpleTokenGetOwner : Contract Address :=
@@ -571,7 +586,7 @@ def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionR
       let result := exampleSimpleTokenBalanceOf addr |>.run state
       -- Track mapping for the queried address
       let addrKey := (1, addr)
-      resultToExecutionResult result state [] [] [addrKey]
+      resultToExecutionResult (resultToNat result) state [] [] [addrKey]
     | _ =>
       { success := false
         returnValue := none
@@ -584,7 +599,7 @@ def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionR
     match tx.args with
     | [] =>
       let result := exampleSimpleTokenGetTotalSupply |>.run state
-      resultToExecutionResult result state [2] [] []
+      resultToExecutionResult (resultToNat result) state [2] [] []
     | _ =>
       { success := false
         returnValue := none
@@ -593,7 +608,7 @@ def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionR
         storageAddrChanges := []
         mappingChanges := []
       }
-  | "getOwner" =>
+  | "owner" =>
     match tx.args with
     | [] =>
       let result := exampleSimpleTokenGetOwner |>.run state
@@ -720,7 +735,7 @@ private def parseArgNat? (s : String) : Option Nat :=
 
 -- Parse storage state from command line args
 -- Format: "slot0:value0,slot1:value1,..."
-def parseStorage (storageStr : String) : Nat → Nat :=
+def parseStorage (storageStr : String) : Nat → Uint256 :=
   let pairs := storageStr.splitOn ","
   let storageMap := pairs.foldl (fun acc pair =>
     if pair.isEmpty then
@@ -729,7 +744,9 @@ def parseStorage (storageStr : String) : Nat → Nat :=
       match pair.splitOn ":" with
       | [slotStr, valStr] =>
         match parseArgNat? slotStr, parseArgNat? valStr with
-        | some slot, some val => acc ++ [(slot, val)]
+        | some slot, some val =>
+          let valU : Uint256 := val
+          acc ++ [(slot, valU)]
         | _, _ => acc
       | _ => acc
   ) []
@@ -781,7 +798,7 @@ def parseStorageAddr (storageStr : String) : Nat → String :=
 
 -- Parse mapping storage from command line args
 -- Format: "slot0:key0:val0,slot1:key1=val1,..."
-def parseStorageMap (storageStr : String) : Nat → String → Nat :=
+def parseStorageMap (storageStr : String) : Nat → Address → Uint256 :=
   let entries := storageStr.splitOn ","
   let mapping := entries.foldl (fun acc entry =>
     if entry.isEmpty then
@@ -790,13 +807,17 @@ def parseStorageMap (storageStr : String) : Nat → String → Nat :=
       match entry.splitOn ":" with
       | [slotStr, key, valStr] =>
         match parseArgNat? slotStr, parseArgNat? valStr with
-        | some slot, some val => acc ++ [(slot, normalizeAddress key, val)]
+        | some slot, some val =>
+          let valU : Uint256 := val
+          acc ++ [(slot, normalizeAddress key, valU)]
         | _, _ => acc
       | [slotStr, rest] =>
         match rest.splitOn "=" with
         | [key, valStr] =>
           match parseArgNat? slotStr, parseArgNat? valStr with
-          | some slot, some val => acc ++ [(slot, normalizeAddress key, val)]
+          | some slot, some val =>
+            let valU : Uint256 := val
+            acc ++ [(slot, normalizeAddress key, valU)]
           | _, _ => acc
         | _ => acc
       | _ => acc

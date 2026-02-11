@@ -32,7 +32,7 @@ matching the Invariants.lean definitions.
 
 /-- increment preserves context (sender, thisAddress). -/
 theorem increment_preserves_context (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   context_preserved s s' := by
   have h := increment_meets_spec s h_no_overflow
@@ -50,7 +50,7 @@ theorem decrement_preserves_context (s : ContractState)
 
 /-- increment preserves storage isolation. -/
 theorem increment_preserves_storage_isolated (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   storage_isolated s s' := by
   simp [storage_isolated]
@@ -86,7 +86,7 @@ theorem getCount_preserves_wellformedness (s : ContractState) (h : WellFormedSta
 /-- Increment then decrement returns to original count value.
     Requires no overflow on increment. -/
 theorem increment_decrement_cancel (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   let s'' := ((decrement).run s').snd
   s''.storage 0 = s.storage 0 := by
@@ -95,14 +95,33 @@ theorem increment_decrement_cancel (s : ContractState)
     exact evm_add_eq_of_no_overflow (s.storage 0) 1 h_no_overflow
   -- After increment, s'.storage 0 = s.storage 0 + 1 ≥ 1
   have h_ge : ((increment).run s).snd.storage 0 ≥ 1 := by
-    rw [h_inc, h_add]; simp_arith
+    rw [h_inc, h_add]
+    have h_max_lt : MAX_UINT256 < DumbContracts.Core.Uint256.modulus := by
+      have h_succ : MAX_UINT256 < MAX_UINT256 + 1 := Nat.lt_succ_self _
+      have h_eq : MAX_UINT256 + 1 = DumbContracts.Core.Uint256.modulus :=
+        DumbContracts.Core.Uint256.max_uint256_succ_eq_modulus
+      simpa [h_eq] using h_succ
+    have h_sum_lt :
+        (s.storage 0 : Nat) + 1 < DumbContracts.Core.Uint256.modulus := by
+      exact Nat.lt_of_le_of_lt h_no_overflow h_max_lt
+    have h_val :
+        ((s.storage 0 + 1 : Uint256) : Nat) = (s.storage 0 : Nat) + 1 := by
+      exact DumbContracts.Core.Uint256.add_eq_of_lt h_sum_lt
+    have h_ge_val : (1 : Nat) ≤ (s.storage 0 : Nat) + 1 := Nat.le_add_left _ _
+    have h_goal : (1 : Nat) ≤ (s.storage 0 + 1 : Uint256).val := by
+      rw [h_val]
+      exact h_ge_val
+    have h_ge_val' : (1 : Uint256).val ≤ (s.storage 0 + 1 : Uint256).val := by
+      simpa [DumbContracts.Core.Uint256.val_one] using h_goal
+    simpa [DumbContracts.Core.Uint256.le_def] using h_ge_val'
   have h_dec := decrement_subtracts_one ((increment).run s).snd h_ge
   calc ((decrement).run ((increment).run s).snd).snd.storage 0
       = sub (((increment).run s).snd.storage 0) 1 := h_dec
     _ = ((increment).run s).snd.storage 0 - 1 := by
-      simpa using (DumbContracts.EVM.Uint256.sub_eq_of_le h_ge)
+      rfl
     _ = (s.storage 0 + 1) - 1 := by rw [h_inc, h_add]
-    _ = s.storage 0 := by simp_arith
+    _ = s.storage 0 := by
+      simpa using (DumbContracts.Core.Uint256.sub_add_cancel (s.storage 0) 1)
 
 /-! ## Composition: decrement → getCount -/
 

@@ -492,6 +492,7 @@ contract DifferentialLedger is YulTestBase {
         // Seed: current block timestamp for reproducibility
         uint256 seed = block.timestamp;
 
+        vm.pauseGasMetering();
         for (uint256 i = 0; i < 1000; i++) {
             // Generate random transaction
             (string memory funcName, address sender, address recipient, uint256 amount) =
@@ -500,6 +501,7 @@ contract DifferentialLedger is YulTestBase {
             bool success = executeDifferentialTest(funcName, sender, recipient, amount);
             assertTrue(success, string.concat("Random test ", vm.toString(i), " failed"));
         }
+        vm.resumeGasMetering();
 
         console2.log("Random tests passed:", testsPassed);
         console2.log("Random tests failed:", testsFailed);

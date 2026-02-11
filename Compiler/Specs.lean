@@ -314,7 +314,7 @@ def simpleTokenSpec : ContractSpec := {
         Stmt.return (Expr.storage "totalSupply")
       ]
     },
-    { name := "getOwner"
+    { name := "owner"
       params := []
       returnType := some FieldType.address
       body := [

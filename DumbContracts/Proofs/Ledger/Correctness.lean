@@ -85,9 +85,7 @@ returns to the original balance. This proves operations are inverses.
     Requires that the intermediate balance (original + amount) is sufficient
     for withdrawal, which is trivially true. -/
 theorem deposit_withdraw_cancel (s : ContractState) (amount : Uint256)
-  (h_balance : amount ≤ EVM.Uint256.add (s.storageMap 0 s.sender) amount)
-  (h_range : s.storageMap 0 s.sender < 2^256)
-  (h_amount : amount < 2^256) :
+  (h_balance : amount ≤ EVM.Uint256.add (s.storageMap 0 s.sender) amount) :
   let s1 := ((deposit amount).run s).snd
   let s2 := ((withdraw amount).run s1).snd
   s2.storageMap 0 s.sender = s.storageMap 0 s.sender := by
@@ -107,7 +105,7 @@ theorem deposit_withdraw_cancel (s : ContractState) (amount : Uint256)
   have h_cancel :
       EVM.Uint256.sub (EVM.Uint256.add (s.storageMap 0 s.sender) amount) amount =
       s.storageMap 0 s.sender := by
-    simpa using (EVM.Uint256.sub_add_cancel_of_lt h_range h_amount)
+    simpa using (EVM.Uint256.sub_add_cancel (s.storageMap 0 s.sender) amount)
   simpa [s1, h_cancel] using h_wd'
 
 /-! ## Summary

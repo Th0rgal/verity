@@ -61,6 +61,10 @@ instance : Coe Nat Uint256 := ⟨ofNat⟩
   change (ofNat 0).val = 0
   simp [ofNat]
 
+@[simp] theorem ofNat_zero : ofNat 0 = (0 : Uint256) := rfl
+
+@[simp] theorem ofNat_one : ofNat 1 = (1 : Uint256) := rfl
+
 @[simp] theorem val_one : (1 : Uint256).val = 1 := by
   change (ofNat 1).val = 1
   have hlt : (1 : Nat) < modulus := by
@@ -177,6 +181,10 @@ theorem sub_val_of_gt {a b : Uint256} (h : b.val > a.val) :
       cases this
       rfl
 
+@[simp] theorem ofNat_add (a b : Nat) : ofNat (a + b) = (ofNat a) + (ofNat b) := by
+  apply ext
+  simpa [HAdd.hAdd, add, ofNat] using (Nat.add_mod a b modulus)
+
 @[simp] theorem zero_add (a : Uint256) : (0 : Uint256) + a = a := by
   apply ext
   have hlt : a.val < modulus := a.isLt
@@ -208,6 +216,38 @@ theorem sub_val_of_gt {a b : Uint256} (h : b.val > a.val) :
       simp [Nat.add_comm]
     _ = (b + a).val := by
       simp [HAdd.hAdd, add, ofNat]
+
+@[simp] theorem add_assoc (a b c : Uint256) : (a + b) + c = a + (b + c) := by
+  apply ext
+  let m : Nat := modulus
+  have hmod_c : c.val % m = c.val := Nat.mod_eq_of_lt (by simpa [m] using c.isLt)
+  have hmod_a : a.val % m = a.val := Nat.mod_eq_of_lt (by simpa [m] using a.isLt)
+  calc
+    ((a + b) + c).val
+        = (((a.val + b.val) % m) + c.val) % m := by
+            simp [HAdd.hAdd, add, ofNat, m]
+    _ = ((a.val + b.val) + c.val) % m := by
+            -- Normalize through add_mod
+            have := (Nat.add_mod (a.val + b.val) c.val m).symm
+            simpa [hmod_c] using this
+    _ = (a.val + b.val + c.val) % m := by
+            simp [Nat.add_assoc]
+    _ = (a.val + (b.val + c.val)) % m := by
+            simp [Nat.add_assoc]
+    _ = ((a.val % m) + ((b.val + c.val) % m)) % m := by
+            -- Reverse add_mod
+            exact (Nat.add_mod a.val (b.val + c.val) m)
+    _ = (a.val + ((b.val + c.val) % m)) % m := by
+            simp [hmod_a]
+    _ = (a + (b + c)).val := by
+            simp [HAdd.hAdd, add, ofNat, m]
+
+@[simp] theorem add_left_comm (a b c : Uint256) : a + b + c = b + a + c := by
+  calc
+    a + b + c = (a + b) + c := rfl
+    _ = (b + a) + c := by simp [add_comm]
+    _ = b + a + c := rfl
+
 
 @[simp] theorem sub_zero (a : Uint256) : a - (0 : Uint256) = a := by
   apply ext
@@ -272,6 +312,74 @@ theorem sub_val_of_gt {a b : Uint256} (h : b.val > a.val) :
       simp [Nat.mul_comm]
     _ = (b * a).val := by
       simp [HMul.hMul, mul, ofNat]
+
+@[simp] theorem add_mul (a b c : Uint256) : (a + b) * c = a * c + b * c := by
+  apply ext
+  let m : Nat := modulus
+  have hmod_c : c.val % m = c.val := Nat.mod_eq_of_lt (by simpa [m] using c.isLt)
+  calc
+    ((a + b) * c).val
+        = (((a.val + b.val) % m) * c.val) % m := by
+            simp [HMul.hMul, HAdd.hAdd, add, mul, ofNat, m]
+    _ = ((a.val + b.val) * c.val) % m := by
+            -- drop the inner mod on the left factor
+            simpa [m] using (Nat.mod_mul_mod (a.val + b.val) c.val m)
+    _ = (a.val * c.val + b.val * c.val) % m := by
+            simp [Nat.add_mul, Nat.add_assoc]
+    _ = (((a.val * c.val) % m) + ((b.val * c.val) % m)) % m := by
+            -- expand with add_mod
+            exact (Nat.add_mod (a.val * c.val) (b.val * c.val) m)
+    _ = (a * c + b * c).val := by
+            simp [HMul.hMul, HAdd.hAdd, add, mul, ofNat, m]
+
+@[simp] theorem sub_add_cancel_left (a b : Uint256) : (a - b) + b = a := by
+  apply ext
+  let m : Nat := modulus
+  by_cases h : b.val ≤ a.val
+  · have hlt : a.val - b.val < m := by
+      exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt
+    have hle : a.val - b.val ≤ m := Nat.le_of_lt hlt
+    calc
+      ((a - b) + b).val
+          = (((a.val - b.val) % m) + b.val) % m := by
+              simp [HAdd.hAdd, HSub.hSub, sub, h, add, ofNat, m]
+      _ = ((a.val - b.val) + b.val) % m := by
+              simp [Nat.mod_eq_of_lt hlt]
+      _ = a.val % m := by
+              simp [Nat.sub_add_cancel h]
+      _ = a.val := by
+              exact Nat.mod_eq_of_lt (by simpa [m] using a.isLt)
+  · have hgt : b.val > a.val := Nat.lt_of_not_ge h
+    let d : Nat := b.val - a.val
+    have hba : d < m := by
+      exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) b.isLt
+    have hsum : m - d + b.val = m + a.val := by
+      -- b = a + (b - a)
+      have hba_eq : b.val = a.val + d := by
+        have h' : b.val = d + a.val := by
+          symm
+          exact Nat.sub_add_cancel (Nat.le_of_lt hgt)
+        simpa [Nat.add_comm] using h'
+      calc
+        m - d + b.val
+            = m - d + (a.val + d) := by simpa [hba_eq]
+        _ = (m - d + d) + a.val := by
+            simp [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        _ = m + a.val := by
+            have hle : d ≤ m := Nat.le_of_lt hba
+            simp [Nat.sub_add_cancel hle, Nat.add_assoc]
+    calc
+      ((a - b) + b).val
+          = (((m - d) % m) + b.val) % m := by
+              simp [HAdd.hAdd, HSub.hSub, sub, add, ofNat, m, h, d]
+      _ = ((m - d) + b.val) % m := by
+              simp [Nat.mod_eq_of_lt hba]
+      _ = (m + a.val) % m := by
+              simpa [hsum]
+      _ = a.val % m := by
+              simp [Nat.add_mod_left, Nat.add_comm]
+      _ = a.val := by
+              exact Nat.mod_eq_of_lt (by simpa [m] using a.isLt)
 
 @[simp] theorem div_one (a : Uint256) : a / (1 : Uint256) = a := by
   apply ext
@@ -385,6 +493,15 @@ theorem sub_add_cancel_of_lt {a b : Uint256} (ha : a.val < modulus) (hb : b.val 
 
 theorem sub_add_cancel (a b : Uint256) : (a + b - b) = a :=
   sub_add_cancel_of_lt a.isLt b.isLt
+
+theorem add_right_cancel {a b c : Uint256} (h : a + c = b + c) : a = b := by
+  calc
+    a = a + c - c := by
+          symm
+          simpa using (sub_add_cancel a c)
+    _ = b + c - c := by simpa [h]
+    _ = b := by
+          simpa using (sub_add_cancel b c)
 
 end Uint256
 

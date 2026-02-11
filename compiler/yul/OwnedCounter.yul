@@ -13,7 +13,11 @@ object "OwnedCounter" {
             case 0xd09de08a {
                 /* increment() */
                 if iszero(eq(caller(), sload(0))) {
-                    revert(0, 0)
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 9)
+                    mstore(68, 0x4e6f74206f776e65720000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
                 sstore(1, add(sload(1), 1))
                 stop()
@@ -21,7 +25,11 @@ object "OwnedCounter" {
             case 0x2baeceb7 {
                 /* decrement() */
                 if iszero(eq(caller(), sload(0))) {
-                    revert(0, 0)
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 9)
+                    mstore(68, 0x4e6f74206f776e65720000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
                 sstore(1, sub(sload(1), 1))
                 stop()
@@ -40,7 +48,11 @@ object "OwnedCounter" {
                 /* transferOwnership() */
                 let newOwner := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                 if iszero(eq(caller(), sload(0))) {
-                    revert(0, 0)
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 9)
+                    mstore(68, 0x4e6f74206f776e65720000000000000000000000000000000000000000000000)
+                    revert(0, 100)
                 }
                 sstore(0, newOwner)
                 stop()

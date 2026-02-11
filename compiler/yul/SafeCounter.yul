@@ -10,7 +10,11 @@ object "SafeCounter" {
                 /* increment() */
                 let count := sload(0)
                 if iszero(gt(add(count, 1), count)) {
-                    revert(0, 0)
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 21)
+                    mstore(68, 0x4f766572666c6f7720696e20696e6372656d656e740000000000000000000000)
+                    revert(0, 100)
                 }
                 sstore(0, add(count, 1))
                 stop()
@@ -19,7 +23,11 @@ object "SafeCounter" {
                 /* decrement() */
                 let count := sload(0)
                 if lt(count, 1) {
-                    revert(0, 0)
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 22)
+                    mstore(68, 0x556e646572666c6f7720696e2064656372656d656e7400000000000000000000)
+                    revert(0, 100)
                 }
                 sstore(0, sub(count, 1))
                 stop()

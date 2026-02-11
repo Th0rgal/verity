@@ -30,6 +30,6 @@ def storage_isolated (s s' : ContractState) : Prop :=
 
 /-- Bounds invariant: count is within safe range -/
 def count_in_bounds (s : ContractState) : Prop :=
-  s.storage 0 ≤ MAX_UINT256
+  (s.storage 0 : Nat) ≤ MAX_UINT256
 
 end DumbContracts.Specs.SafeCounter

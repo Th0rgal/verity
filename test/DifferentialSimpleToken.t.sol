@@ -81,9 +81,9 @@ contract DifferentialSimpleToken is YulTestBase {
             (evmSuccess, evmReturnData) = simpleToken.call(
                 abi.encodeWithSignature("totalSupply()")
             );
-        } else if (functionSig == keccak256(bytes("getOwner"))) {
+        } else if (functionSig == keccak256(bytes("owner"))) {
             (evmSuccess, evmReturnData) = simpleToken.call(
-                abi.encodeWithSignature("getOwner()")
+                abi.encodeWithSignature("owner()")
             );
         } else {
             revert("Unknown function");
@@ -93,7 +93,7 @@ contract DifferentialSimpleToken is YulTestBase {
         address evmReturnAddress = address(0);
 
         if (evmReturnData.length > 0) {
-            if (functionSig == keccak256(bytes("getOwner"))) {
+            if (functionSig == keccak256(bytes("owner"))) {
                 evmReturnAddress = abi.decode(evmReturnData, (address));
             } else {
                 evmReturnValue = abi.decode(evmReturnData, (uint256));
@@ -157,7 +157,7 @@ contract DifferentialSimpleToken is YulTestBase {
                 testsFailed++;
                 return false;
             }
-        } else if (functionSig == keccak256(bytes("getOwner"))) {
+        } else if (functionSig == keccak256(bytes("owner"))) {
             if (uint256(uint160(evmReturnAddress)) != edslReturnValue) {
                 console2.log("MISMATCH: Owner addresses differ!");
                 console2.log("  EVM:", evmReturnAddress);
@@ -258,7 +258,7 @@ contract DifferentialSimpleToken is YulTestBase {
                 bytes(storageState).length > 0 ? string.concat(" ", storageState) : ""
             );
         } else {
-            // No args (totalSupply, getOwner)
+            // No args (totalSupply, owner)
             argsStr = bytes(storageState).length > 0 ? storageState : "";
         }
 
@@ -742,6 +742,7 @@ contract DifferentialSimpleToken is YulTestBase {
         // Seed: current block timestamp for reproducibility
         uint256 seed = block.timestamp;
 
+        vm.pauseGasMetering();
         for (uint256 i = 0; i < 1000; i++) {
             // Generate random transaction
             (string memory funcName, address sender, address recipient, uint256 amount) =
@@ -750,6 +751,7 @@ contract DifferentialSimpleToken is YulTestBase {
             bool success = executeDifferentialTest(funcName, sender, recipient, amount);
             assertTrue(success, string.concat("Random test ", vm.toString(i), " failed"));
         }
+        vm.resumeGasMetering();
 
         console2.log("Random tests passed:", testsPassed);
         console2.log("Random tests failed:", testsFailed);
@@ -767,7 +769,7 @@ contract DifferentialSimpleToken is YulTestBase {
         uint256 rand3 = (rand2 * 1103515245 + 12345) % (2**31);
         uint256 rand4 = (rand3 * 1103515245 + 12345) % (2**31);
 
-        // Choose function (30% mint, 30% transfer, 20% balanceOf, 10% totalSupply, 10% getOwner)
+        // Choose function (30% mint, 30% transfer, 20% balanceOf, 10% totalSupply, 10% owner)
         uint256 funcChoice = rand1 % 100;
         if (funcChoice < 30) {
             funcName = "mint";
@@ -778,7 +780,7 @@ contract DifferentialSimpleToken is YulTestBase {
         } else if (funcChoice < 90) {
             funcName = "totalSupply";
         } else {
-            funcName = "getOwner";
+            funcName = "owner";
         }
 
         // Choose sender (60% owner, 40% random actor)

@@ -41,43 +41,39 @@ theorem getCount_preserves_state (s : ContractState) :
 /-! ## Increment Correctness -/
 
 /-- Helper: relate EVM modular add to Nat addition when bounded. -/
-theorem evm_add_eq_of_no_overflow (a b : Uint256) (h : a + b ≤ MAX_UINT256) :
+theorem evm_add_eq_of_no_overflow (a b : Uint256) (h : (a : Nat) + (b : Nat) ≤ MAX_UINT256) :
   add a b = a + b := by
-  have h_le : a + b ≤ (2^256 - 1) := by
-    simpa [DumbContracts.Core.MAX_UINT256] using h
-  have h_lt : a + b < 2^256 := by
-    exact Nat.lt_of_le_of_lt h_le (by simp_arith)
-  simpa using (DumbContracts.EVM.Uint256.add_eq_of_lt h_lt)
+  rfl
 
 /-- Helper: safeAdd succeeds when no overflow -/
-private theorem safeAdd_some (a b : Uint256) (h : a + b ≤ MAX_UINT256) :
+private theorem safeAdd_some (a b : Uint256) (h : (a : Nat) + (b : Nat) ≤ MAX_UINT256) :
   safeAdd a b = some (a + b) := by
   simp only [safeAdd]
-  have h_not : ¬(a + b > MAX_UINT256) := Nat.not_lt.mpr h
+  have h_not : ¬((a : Nat) + (b : Nat) > MAX_UINT256) := Nat.not_lt.mpr h
   simp [h_not]
 
 /-- Helper: safeAdd fails on overflow -/
-private theorem safeAdd_none (a b : Uint256) (h : a + b > MAX_UINT256) :
+private theorem safeAdd_none (a b : Uint256) (h : (a : Nat) + (b : Nat) > MAX_UINT256) :
   safeAdd a b = none := by
   simp only [safeAdd]
   simp [h]
 
 /-- Helper: safeSub succeeds when no underflow -/
-private theorem safeSub_some (a b : Uint256) (h : a ≥ b) :
+private theorem safeSub_some (a b : Uint256) (h : (a : Nat) ≥ (b : Nat)) :
   safeSub a b = some (a - b) := by
   simp only [safeSub]
-  have h_not : ¬(b > a) := Nat.not_lt.mpr h
+  have h_not : ¬((b : Nat) > (a : Nat)) := Nat.not_lt.mpr h
   simp [h_not]
 
 /-- Helper: safeSub fails on underflow -/
-private theorem safeSub_none (a b : Uint256) (h : b > a) :
+private theorem safeSub_none (a b : Uint256) (h : (b : Nat) > (a : Nat)) :
   safeSub a b = none := by
   simp only [safeSub]
   simp [h]
 
 /-- Helper: unfold increment when no overflow -/
 private theorem increment_unfold (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   (increment).run s = ContractResult.success ()
     { storage := fun slot => if (slot == 0) = true then s.storage 0 + 1 else s.storage slot,
       storageAddr := s.storageAddr,
@@ -93,7 +89,7 @@ private theorem increment_unfold (s : ContractState)
     h_safe]
 
 theorem increment_meets_spec (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   increment_spec s s' := by
   rw [increment_unfold s h_no_overflow]
@@ -105,14 +101,14 @@ theorem increment_meets_spec (s : ContractState)
   intro h_eq; exact absurd h_eq h_ne
 
 theorem increment_adds_one (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   s'.storage 0 = add (s.storage 0) 1 := by
   rw [increment_unfold s h_no_overflow]
   simp [ContractResult.snd, evm_add_eq_of_no_overflow (s.storage 0) 1 h_no_overflow]
 
 theorem increment_preserves_other_slots (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256)
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256)
   (slot : Nat) (h_ne : slot ≠ 0) :
   let s' := ((increment).run s).snd
   s'.storage slot = s.storage slot := by
@@ -121,7 +117,7 @@ theorem increment_preserves_other_slots (s : ContractState)
   intro h_eq; exact absurd h_eq h_ne
 
 theorem increment_reverts_overflow (s : ContractState)
-  (h_overflow : s.storage 0 + 1 > MAX_UINT256) :
+  (h_overflow : (s.storage 0 : Nat) + 1 > MAX_UINT256) :
   ∃ msg, (increment).run s = ContractResult.revert msg s := by
   have h_none := safeAdd_none (s.storage 0) 1 h_overflow
   simp [increment, getStorage, setStorage, count, requireSomeUint,
@@ -133,7 +129,7 @@ theorem increment_reverts_overflow (s : ContractState)
 
 /-- Helper: unfold decrement when no underflow -/
 private theorem decrement_unfold (s : ContractState)
-  (h_no_underflow : s.storage 0 ≥ 1) :
+  (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
   (decrement).run s = ContractResult.success ()
     { storage := fun slot => if (slot == 0) = true then s.storage 0 - 1 else s.storage slot,
       storageAddr := s.storageAddr,
@@ -149,26 +145,26 @@ private theorem decrement_unfold (s : ContractState)
     h_safe]
 
 theorem decrement_meets_spec (s : ContractState)
-  (h_no_underflow : s.storage 0 ≥ 1) :
+  (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
   let s' := ((decrement).run s).snd
   decrement_spec s s' := by
   rw [decrement_unfold s h_no_underflow]
   simp only [ContractResult.snd, decrement_spec]
   refine ⟨?_, ?_, trivial, trivial, trivial, trivial⟩
-  · simpa [DumbContracts.EVM.Uint256.sub_eq_of_le h_no_underflow]
+  · simp [HSub.hSub, sub]
   intro slot h_ne
   simp [beq_iff_eq]
   intro h_eq; exact absurd h_eq h_ne
 
 theorem decrement_subtracts_one (s : ContractState)
-  (h_no_underflow : s.storage 0 ≥ 1) :
+  (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
   let s' := ((decrement).run s).snd
   s'.storage 0 = sub (s.storage 0) 1 := by
   rw [decrement_unfold s h_no_underflow]
-  simp [ContractResult.snd, DumbContracts.EVM.Uint256.sub_eq_of_le h_no_underflow]
+  simp [ContractResult.snd, HSub.hSub, sub]
 
 theorem decrement_preserves_other_slots (s : ContractState)
-  (h_no_underflow : s.storage 0 ≥ 1)
+  (h_no_underflow : (s.storage 0 : Nat) ≥ 1)
   (slot : Nat) (h_ne : slot ≠ 0) :
   let s' := ((decrement).run s).snd
   s'.storage slot = s.storage slot := by
@@ -179,7 +175,9 @@ theorem decrement_preserves_other_slots (s : ContractState)
 theorem decrement_reverts_underflow (s : ContractState)
   (h_underflow : s.storage 0 = 0) :
   ∃ msg, (decrement).run s = ContractResult.revert msg s := by
-  have h_gt : 1 > s.storage 0 := by rw [h_underflow]; decide
+  have h_gt : (1 : Nat) > (s.storage 0 : Nat) := by
+    rw [h_underflow]
+    decide
   have h_none := safeSub_none (s.storage 0) 1 h_gt
   simp [decrement, getStorage, setStorage, count, requireSomeUint,
     DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
@@ -189,7 +187,7 @@ theorem decrement_reverts_underflow (s : ContractState)
 /-! ## State Preservation -/
 
 theorem increment_preserves_wellformedness (s : ContractState)
-  (h : WellFormedState s) (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h : WellFormedState s) (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   WellFormedState s' := by
   rw [increment_unfold s h_no_overflow]
@@ -197,7 +195,7 @@ theorem increment_preserves_wellformedness (s : ContractState)
   exact ⟨h.sender_nonempty, h.contract_nonempty⟩
 
 theorem decrement_preserves_wellformedness (s : ContractState)
-  (h : WellFormedState s) (h_no_underflow : s.storage 0 ≥ 1) :
+  (h : WellFormedState s) (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
   let s' := ((decrement).run s).snd
   WellFormedState s' := by
   rw [decrement_unfold s h_no_underflow]
@@ -207,27 +205,26 @@ theorem decrement_preserves_wellformedness (s : ContractState)
 /-! ## Bounds Preservation -/
 
 theorem increment_preserves_bounds (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   count_in_bounds s' := by
   rw [increment_unfold s h_no_overflow]
   simp [ContractResult.snd, count_in_bounds]
-  exact h_no_overflow
+  simpa using (DumbContracts.Core.Uint256.val_le_max (s.storage 0 + 1))
 
 theorem decrement_preserves_bounds (s : ContractState)
   (h_bounds : count_in_bounds s)
-  (h_no_underflow : s.storage 0 ≥ 1) :
+  (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
   let s' := ((decrement).run s).snd
   count_in_bounds s' := by
   rw [decrement_unfold s h_no_underflow]
-  simp only [ContractResult.snd, count_in_bounds]
-  simp only [count_in_bounds] at h_bounds
-  exact Nat.le_trans (Nat.sub_le (s.storage 0) 1) h_bounds
+  simp [ContractResult.snd, count_in_bounds]
+  simpa using (DumbContracts.Core.Uint256.val_le_max (s.storage 0 - 1))
 
 /-! ## Composition: increment → getCount -/
 
 theorem increment_getCount_correct (s : ContractState)
-  (h_no_overflow : s.storage 0 + 1 ≤ MAX_UINT256) :
+  (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   let s' := ((increment).run s).snd
   ((getCount).run s').fst = add (s.storage 0) 1 := by
   rw [increment_unfold s h_no_overflow]

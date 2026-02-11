@@ -88,8 +88,7 @@ theorem increment_decrement_meets_cancel (s : ContractState) :
   let s'' := ((decrement).run s').snd
   Specs.Counter.increment_decrement_cancel s s'' := by
   simp [Specs.Counter.increment_decrement_cancel]
-  intro h_range
-  exact Proofs.Counter.increment_decrement_cancel s h_range
+  exact Proofs.Counter.increment_decrement_cancel s
 
 /-! ## Read-Only Well-Formedness -/
 
@@ -121,7 +120,8 @@ theorem decrement_at_zero_wraps_max (s : ContractState) (h : s.storage 0 = 0) :
   show ((decrement).run s).snd.storage 0 = EVM.MAX_UINT256
   rw [decrement_subtracts_one s, h]
   simp [EVM.MAX_UINT256, EVM.Uint256.sub, DumbContracts.Core.MAX_UINT256,
-    DumbContracts.Core.Uint256.sub, DumbContracts.Core.Uint256.modulus]
+    DumbContracts.Core.Uint256.sub, DumbContracts.Core.Uint256.modulus,
+    DumbContracts.Core.UINT256_MODULUS]
 
 /-! ## Summary
 
