@@ -120,7 +120,7 @@ theorem decrement_at_zero_wraps_max (s : ContractState) (h : s.storage 0 = 0) :
   s'.storage 0 = EVM.MAX_UINT256 := by
   show ((decrement).run s).snd.storage 0 = EVM.MAX_UINT256
   rw [decrement_subtracts_one s, h]
-  simp [EVM.MAX_UINT256, EVM.Uint256.sub]
+  simp [EVM.MAX_UINT256, EVM.Uint256.sub, DumbContracts.Core.MAX_UINT256, DumbContracts.Core.Uint256.sub]
 
 /-! ## Summary
 
