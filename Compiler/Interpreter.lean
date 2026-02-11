@@ -409,7 +409,9 @@ def main (args : List String) : IO Unit := do
     if argStrs.any looksLikeStorage then
       throw <| IO.userError
         "Invalid args: storage string must be last, and only one storage arg is allowed"
-    let argsNat ← match parseArgs argStrs with
+    -- Filter out empty strings from args (can happen when storage is empty)
+    let nonEmptyArgStrs := argStrs.filter (fun s => !s.isEmpty)
+    let argsNat ← match parseArgs nonEmptyArgStrs with
       | Except.ok vals => pure vals
       | Except.error msg => throw <| IO.userError msg
     let tx : Transaction := {

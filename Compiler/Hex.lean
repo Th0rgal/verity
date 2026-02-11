@@ -13,15 +13,18 @@ def hexCharToNat? (c : Char) : Option Nat :=
     none
 
 def parseHexNat? (s : String) : Option Nat :=
-  let s := if s.startsWith "0x" then s.drop 2 else s
-  if s.isEmpty then
-    none
+  if s.startsWith "0x" then
+    let hexPart := s.drop 2
+    if hexPart.isEmpty then
+      none
+    else
+      hexPart.data.foldl (fun acc c =>
+        match acc, hexCharToNat? c with
+        | some n, some d => some (n * 16 + d)
+        | _, _ => none
+      ) (some 0)
   else
-    s.data.foldl (fun acc c =>
-      match acc, hexCharToNat? c with
-      | some n, some d => some (n * 16 + d)
-      | _, _ => none
-    ) (some 0)
+    none  -- Only parse as hex if it has "0x" prefix
 
 def stringToNat (s : String) : Nat :=
   s.data.foldl (fun acc c => acc * 256 + c.toNat) 0
