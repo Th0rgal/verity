@@ -50,7 +50,14 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
-  sorry
+  -- Constructor sets owner to initialOwner in both EDSL and spec
+  unfold DumbContracts.Examples.Owned.constructor Contract.run ownedSpec interpretSpec
+  simp [setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind, DumbContracts.pure]
+  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
+  simp [ContractResult.isSuccess, ContractResult.getState]
+  -- Show: addressToNat initialOwner % modulus = addressToNat initialOwner
+  -- This is true because addressToNat returns a value < modulus
+  sorry -- Need lemma about addressToNat being bounded
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
 theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
@@ -92,7 +99,9 @@ theorem getOwner_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some (addressToNat edslAddr) := by
-  sorry
+  -- Same pattern as Counter.getCount_correct and SafeCounter.getCount_correct
+  unfold DumbContracts.Examples.Owned.getOwner Contract.runValue ownedSpec interpretSpec ownedEdslToSpecStorage
+  simp [getStorageAddr, DumbContracts.Examples.Owned.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
 
 /- Helper Properties -/
 
