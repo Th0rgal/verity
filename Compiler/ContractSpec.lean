@@ -204,6 +204,12 @@ private def chunkBytes32 (bs : List UInt8) : List (List UInt8) :=
   else
     let chunk := bs.take 32
     chunk :: chunkBytes32 (bs.drop 32)
+termination_by bs.length
+decreasing_by
+  simp_wf
+  cases bs with
+  | nil => simp at *
+  | cons head tail => simp [List.length_drop]; omega
 
 private def wordFromBytes (bs : List UInt8) : Nat :=
   let padded := bs ++ List.replicate (32 - bs.length) (0 : UInt8)
@@ -290,7 +296,7 @@ private def compileFunctionSpec (fields : List Field) (selector : Nat) (spec : F
     Except String IRFunction := do
   let paramLoads := genParamLoads spec.params
   let bodyChunks ← spec.body.mapM (compileStmt fields)
-  let allStmts := paramLoads ++ bodyChunks.join
+  let allStmts := paramLoads ++ bodyChunks.flatten
   return {
     name := spec.name
     selector := selector
@@ -333,7 +339,7 @@ private def compileConstructor (fields : List Field) (ctor : Option ConstructorS
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
     let bodyChunks ← spec.body.mapM (compileStmt fields)
-    return argLoads ++ bodyChunks.join
+    return argLoads ++ bodyChunks.flatten
 
 -- Main compilation function
 -- SAFETY REQUIREMENTS (enforced by #guard in Specs.lean):
