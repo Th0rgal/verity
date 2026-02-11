@@ -1,9 +1,11 @@
 import Std
 import Compiler.ContractSpec
+import Compiler.Hex
 
 namespace Compiler.Selector
 
 open Compiler.ContractSpec
+open Compiler.Hex
 
 private def paramTypeToSol : ParamType -> String
   | ParamType.uint256 => "uint256"
@@ -14,30 +16,9 @@ private def functionSignature (fn : FunctionSpec) : String :=
   let paramStr := String.intercalate "," params
   s!"{fn.name}({paramStr})"
 
-private def parseHexChar? (c : Char) : Option Nat :=
-  if c >= '0' && c <= '9' then
-    some (c.toNat - '0'.toNat)
-  else if c >= 'a' && c <= 'f' then
-    some (10 + (c.toNat - 'a'.toNat))
-  else if c >= 'A' && c <= 'F' then
-    some (10 + (c.toNat - 'A'.toNat))
-  else
-    none
-
-private def hexToNat? (s : String) : Option Nat :=
-  if s.isEmpty then
-    none
-  else
-    s.foldl (fun acc c =>
-      match acc, parseHexChar? c with
-      | some n, some v => some (n * 16 + v)
-      | _, _ => none
-    ) (some 0)
-
 private def parseSelectorLine (line : String) : Option Nat :=
   let trimmed := line.trim
-  let hex := if trimmed.startsWith "0x" then trimmed.drop 2 else trimmed
-  hexToNat? hex
+  parseHexNat? trimmed
 
 private def runKeccak (sigs : List String) : IO (List Nat) := do
   if sigs.isEmpty then

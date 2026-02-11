@@ -7,11 +7,13 @@
 
 import DumbContracts.Core
 import Compiler.DiffTestTypes
+import Compiler.Hex
 
 namespace Compiler.RandomGen
 
 open DumbContracts
 open Compiler.DiffTestTypes
+open Compiler.Hex
 
 /-!
 ## Simple PRNG
@@ -53,34 +55,6 @@ def genBool (rng : RNG) : RNG × Bool :=
   (rng', n % 2 == 0)
 
 -- Convert Address to Nat for calldata args (keeps parity with Interpreter)
-private def hexCharToNat? (c : Char) : Option Nat :=
-  if ('0' ≤ c ∧ c ≤ '9') then
-    some (c.toNat - '0'.toNat)
-  else if ('a' ≤ c ∧ c ≤ 'f') then
-    some (10 + c.toNat - 'a'.toNat)
-  else if ('A' ≤ c ∧ c ≤ 'F') then
-    some (10 + c.toNat - 'A'.toNat)
-  else
-    none
-
-private def parseHexNat? (s : String) : Option Nat :=
-  let s := if s.startsWith "0x" then s.drop 2 else s
-  if s.isEmpty then
-    none
-  else
-  s.data.foldl (fun acc c =>
-    match acc, hexCharToNat? c with
-    | some n, some d => some (n * 16 + d)
-    | _, _ => none
-  ) (some 0)
-
-private def stringToNat (s : String) : Nat :=
-  s.data.foldl (fun acc c => acc * 256 + c.toNat) 0
-
-private def addressToNat (addr : Address) : Nat :=
-  match parseHexNat? addr with
-  | some n => n
-  | none => stringToNat addr % (2^160)
 
 /-!
 ## Contract-Specific Transaction Generation

@@ -16,12 +16,14 @@ import DumbContracts.Examples.SimpleStorage
 import DumbContracts.Examples.Counter
 import DumbContracts.Examples.SafeCounter
 import Compiler.DiffTestTypes
+import Compiler.Hex
 
 namespace Compiler.Interpreter
 
 open DumbContracts
 open DumbContracts.Examples
 open Compiler.DiffTestTypes
+open Compiler.Hex
 
 /-!
 ## Execution Result
@@ -65,35 +67,6 @@ def extractMappingChanges (before after : ContractState) (keys : List (Nat × Ad
     if oldVal ≠ newVal then some (slot, key, newVal) else none
 
 -- Convert a hex address string (0x...) to Nat for JSON output
-private def hexCharToNat? (c : Char) : Option Nat :=
-  if c.isDigit then
-    some (c.toNat - '0'.toNat)
-  else if ('a' ≤ c ∧ c ≤ 'f') then
-    some (10 + c.toNat - 'a'.toNat)
-  else if ('A' ≤ c ∧ c ≤ 'F') then
-    some (10 + c.toNat - 'A'.toNat)
-  else
-    none
-
-private def parseHexNat? (s : String) : Option Nat :=
-  let s := if s.startsWith "0x" then s.drop 2 else s
-  if s.isEmpty then
-    none
-  else
-  s.data.foldl (fun acc c =>
-    match acc, hexCharToNat? c with
-    | some n, some d => some (n * 16 + d)
-    | _, _ => none
-  ) (some 0)
-
-private def stringToNat (s : String) : Nat :=
-  s.data.foldl (fun acc c => acc * 256 + c.toNat) 0
-
-private def addressToNat (addr : Address) : Nat :=
-  match parseHexNat? addr with
-  | some n => n
-  | none => stringToNat addr % (2^160)
-
 -- Helper: Convert ContractResult to ExecutionResult
 def resultToExecutionResult
     (result : ContractResult Nat)
@@ -270,13 +243,42 @@ For communication with Foundry via vm.ffi.
 -/
 
 -- Simple JSON serialization (could be improved with proper JSON library)
+private def hexDigit (n : Nat) : Char :=
+  if n < 10 then
+    Char.ofNat ('0'.toNat + n)
+  else
+    Char.ofNat ('a'.toNat + (n - 10))
+
+private def toHex2 (n : Nat) : String :=
+  let hi := (n / 16) % 16
+  let lo := n % 16
+  String.mk [hexDigit hi, hexDigit lo]
+
+private def escapeJsonChar (c : Char) : String :=
+  match c with
+  | '\"' => "\\\""
+  | '\\' => "\\\\"
+  | '\n' => "\\n"
+  | '\r' => "\\r"
+  | '\t' => "\\t"
+  | '\u0008' => "\\b"
+  | '\u000c' => "\\f"
+  | _ =>
+      if c.toNat < 0x20 then
+        "\\u00" ++ toHex2 c.toNat
+      else
+        String.singleton c
+
+private def escapeJsonString (s : String) : String :=
+  s.data.foldl (fun acc c => acc ++ escapeJsonChar c) ""
+
 def ExecutionResult.toJSON (r : ExecutionResult) : String :=
   let successStr := if r.success then "true" else "false"
   let returnStr := match r.returnValue with
     | some v => "\"" ++ toString v ++ "\""
     | none => "null"
   let revertStr := match r.revertReason with
-    | some msg => "\"" ++ msg ++ "\""
+    | some msg => "\"" ++ escapeJsonString msg ++ "\""
     | none => "null"
   let changesStr := r.storageChanges.foldl (fun acc (slot, val) =>
     acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"value\":" ++ toString val ++ "}"
@@ -287,7 +289,7 @@ def ExecutionResult.toJSON (r : ExecutionResult) : String :=
   ) "["
   let addrChangesStr := addrChangesStr ++ "]"
   let mappingChangesStr := r.mappingChanges.foldl (fun acc (slot, key, val) =>
-    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"key\":\"" ++ key ++ "\",\"value\":" ++ toString val ++ "}"
+    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"key\":\"" ++ escapeJsonString key ++ "\",\"value\":" ++ toString val ++ "}"
   ) "["
   let mappingChangesStr := mappingChangesStr ++ "]"
   "{\"success\":" ++ successStr
@@ -324,18 +326,35 @@ def parseStorage (storageStr : String) : Nat → Nat :=
   ) []
   fun slot => (storageMap.find? (fun (s, _) => s == slot)).map Prod.snd |>.getD 0
 
+private def looksLikeStorage (s : String) : Bool :=
+  s.data.any (fun c => c == ':' || c == ',')
+
 def main (args : List String) : IO Unit := do
   match args with
-  | contractType :: functionName :: senderAddr :: arg0 :: storageArgs =>
+  | contractType :: functionName :: senderAddr :: rest =>
+    let (arg0Opt, storageArgs) : Option String × List String :=
+      match rest with
+      | [] => (none, [])
+      | [one] =>
+          if looksLikeStorage one then
+            (none, [one])
+          else
+            (some one, [])
+      | arg0 :: more => (some arg0, more)
     let tx : Transaction := {
       sender := senderAddr
       functionName := functionName
-      args := [arg0.toNat!]
+      args := match arg0Opt with
+        | some arg0 => [arg0.toNat!]
+        | none => []
     }
     -- Parse storage from remaining args (format: "slot:value,...")
     let storageState := match storageArgs with
       | [s] => parseStorage s
-      | _ => fun _ => 0  -- Default: empty storage
+      | [] => fun _ => 0  -- Default: empty storage
+      | _ =>
+          throw <| IO.userError
+            s!"Invalid storage args: expected a single \"slot:value,...\" string, got {storageArgs.length}"
 
     let initialState : ContractState := {
       storage := storageState
@@ -361,6 +380,7 @@ def main (args : List String) : IO Unit := do
       throw <| IO.userError
         s!"Unknown contract type: {contractType}. Supported: SimpleStorage, Counter, Owned, Ledger, OwnedCounter, SimpleToken, SafeCounter"
   | _ =>
-    IO.println "Usage: difftest-interpreter <contract> <function> <sender> <arg0> [storage]"
+    IO.println "Usage: difftest-interpreter <contract> <function> <sender> [arg0] [storage]"
     IO.println "Example: difftest-interpreter SimpleStorage store 0xAlice 42"
-    IO.println "With storage: difftest-interpreter SimpleStorage retrieve 0xAlice 0 \"0:42\""
+    IO.println "No-arg example: difftest-interpreter SimpleStorage retrieve 0xAlice"
+    IO.println "With storage: difftest-interpreter SimpleStorage retrieve 0xAlice \"0:42\""
