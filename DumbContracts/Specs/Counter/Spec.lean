@@ -67,7 +67,7 @@ def decrement_getCount_spec (s : ContractState) (result : Uint256) : Prop :=
 
 /-- Increment then decrement returns to original value -/
 def increment_decrement_cancel (s s' : ContractState) : Prop :=
-  s.storage 0 < 2^256 → s'.storage 0 = s.storage 0
+  s'.storage 0 = s.storage 0
 
 /-- Two increments add 2 to the count -/
 def two_increments_spec (s s' : ContractState) : Prop :=
