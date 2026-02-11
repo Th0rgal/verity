@@ -211,7 +211,8 @@ theorem increment_preserves_bounds (s : ContractState)
   rw [increment_unfold s h_no_overflow]
   simp [ContractResult.snd, count_in_bounds]
   have h_bound := DumbContracts.Core.Uint256.val_le_max (s.storage 0 + 1)
-  simpa [DumbContracts.Core.Uint256.add_comm] using h_bound
+  simp [DumbContracts.Core.Uint256.add_comm] at h_bound
+  exact h_bound
 
 theorem decrement_preserves_bounds (s : ContractState)
   (_h_bounds : count_in_bounds s)
