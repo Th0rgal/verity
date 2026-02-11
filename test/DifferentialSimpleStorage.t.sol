@@ -328,10 +328,10 @@ contract DifferentialSimpleStorage is YulTestBase {
     }
 
     /**
-     * @notice Run 1000 random differential tests (slow)
+     * @notice Run 10000 random differential tests (slow)
      */
-    function testDifferential_Random1000() public {
-        _runRandomDifferentialTests(1000, 42);
+    function testDifferential_Random10000() public {
+        _runRandomDifferentialTests(10000, 42);
     }
 
     /**
@@ -361,6 +361,7 @@ contract DifferentialSimpleStorage is YulTestBase {
         // This avoids complex JSON parsing in Solidity
 
         uint256 prng = seed;
+        vm.pauseGasMetering();
         for (uint256 i = 0; i < count; i++) {
             // Simple PRNG matching Lean's LCG + generation order
             prng = (1103515245 * prng + 12345) % (2**31);
@@ -384,6 +385,8 @@ contract DifferentialSimpleStorage is YulTestBase {
                 assertTrue(success, "Random retrieve test failed");
             }
         }
+
+        vm.resumeGasMetering();
 
         console2.log("Random differential tests completed:", testsPassed);
         console2.log("Failed:", testsFailed);

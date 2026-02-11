@@ -339,10 +339,10 @@ contract DifferentialSafeCounter is YulTestBase {
     }
 
     /**
-     * @notice Run 1000 random differential tests
+     * @notice Run 10000 random differential tests
      */
-    function testDifferential_Random1000() public {
-        _runRandomDifferentialTests(1000, 42);
+    function testDifferential_Random10000() public {
+        _runRandomDifferentialTests(10000, 42);
     }
 
     /**
@@ -352,6 +352,7 @@ contract DifferentialSafeCounter is YulTestBase {
         console2.log("Generated", count, "random transactions");
 
         uint256 prng = seed;
+        vm.pauseGasMetering();
         for (uint256 i = 0; i < count; i++) {
             // Simple PRNG
             prng = (1103515245 * prng + 12345) % (2**31);
@@ -375,6 +376,8 @@ contract DifferentialSafeCounter is YulTestBase {
             bool success = executeDifferentialTest(functionName, sender, 0);
             assertTrue(success, string.concat("Random ", functionName, " test failed"));
         }
+
+        vm.resumeGasMetering();
 
         console2.log("Random differential tests completed:", testsPassed);
         console2.log("Failed:", testsFailed);

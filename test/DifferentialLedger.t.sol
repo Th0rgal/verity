@@ -485,7 +485,7 @@ contract DifferentialLedger is YulTestBase {
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 
-    function testDifferential_Random1000() public {
+    function testDifferential_Random10000() public {
         address[] memory actors = new address[](3);
         actors[0] = address(0xA11CE);
         actors[1] = address(0xB0B);

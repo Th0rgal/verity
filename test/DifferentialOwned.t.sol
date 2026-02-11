@@ -464,7 +464,7 @@ contract DifferentialOwned is YulTestBase {
     /**
      * @notice Test: Random transactions (1000+)
      */
-    function testDifferential_Random1000() public {
+    function testDifferential_Random10000() public {
         // Deterministic PRNG seed for reproducibility
         uint256 seed = 12345;
         uint256 numTransactions = 1000;
