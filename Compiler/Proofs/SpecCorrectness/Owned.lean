@@ -150,6 +150,7 @@ theorem transferOwnership_updates_owner (state : ContractState) (newOwner : Addr
     let finalState := (transferOwnership newOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = newOwner := by
   -- When sender is owner, onlyOwner passes and transferOwnership succeeds
-  sorry -- Monadic unfolding needs automation
+  -- This is provable but requires careful handling of the beq_iff_eq pattern
+  sorry -- Similar to constructor_sets_owner but with authorization check
 
 end Compiler.Proofs.SpecCorrectness
