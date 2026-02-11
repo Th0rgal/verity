@@ -195,8 +195,8 @@ Generated code is more concise and optimized than manual translations.
 
 ### Build and run new compiler
 ```bash
-lake build compile-new
-lake exe compile-new
+lake build dumbcontracts-compiler
+lake exe dumbcontracts-compiler
 ```
 
 ### Compare output with manual system

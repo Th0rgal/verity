@@ -189,7 +189,7 @@ def ownedSpec : ContractSpec := {
 
 ✅ **CI enforces: proofs verify, compilation succeeds, all tests pass**
 - `lake build` ✓
-- `lake exe compile-new` ✓
+- `lake exe dumbcontracts-compiler` ✓
 - `forge test` ✓
 
 ---
@@ -200,8 +200,8 @@ def ownedSpec : ContractSpec := {
 ```bash
 cd /workspaces/mission-482e3014/dumbcontracts
 export PATH="$HOME/.elan/bin:$PATH"
-lake build compile-new
-lake exe compile-new
+lake build dumbcontracts-compiler
+lake exe dumbcontracts-compiler
 ```
 
 ### Run Tests

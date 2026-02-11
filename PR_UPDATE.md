@@ -175,7 +175,7 @@ forge test --match-test testDifferential_Random100 --ffi
 lake build
 
 # All contracts compile
-lake exe compile-new
+lake exe dumbcontracts-compiler
 
 # All Foundry tests pass
 forge test

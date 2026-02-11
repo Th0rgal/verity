@@ -252,10 +252,10 @@ cd /workspaces/mission-482e3014/dumbcontracts
 export PATH="$HOME/.elan/bin:$PATH"
 
 # Build compiler
-lake build compile-new
+lake build dumbcontracts-compiler
 
 # Generate Yul for all contracts
-lake exe compile-new
+lake exe dumbcontracts-compiler
 
 # Output: compiler/yul-new/*.yul
 ```
@@ -293,8 +293,8 @@ def allSpecs := [
 
 2. **Recompile**:
 ```bash
-lake build compile-new
-lake exe compile-new
+lake build dumbcontracts-compiler
+lake exe dumbcontracts-compiler
 ```
 
 3. **Done!** Contract in `compiler/yul-new/MyContract.yul`
@@ -355,7 +355,7 @@ From Roadmap Item 1:
 
 ✅ **CI enforces: proofs verify, compilation succeeds, all tests pass**
 - `lake build` ✓ (252 proofs)
-- `lake exe compile-new` ✓ (7 contracts)
+- `lake exe dumbcontracts-compiler` ✓ (7 contracts)
 - `forge test` ✓ (76 tests)
 
 ---
@@ -392,7 +392,7 @@ From Roadmap Item 1:
 - `docs-site/content/index.mdx` — Added compilation milestone banner
 
 ### Modified (1 build file)
-- `lakefile.lean` — Added `compile-new` executable
+- `lakefile.lean` — Added `dumbcontracts-compiler` executable
 
 ### Generated (7 Yul contracts)
 - `compiler/yul-new/SimpleStorage.yul`

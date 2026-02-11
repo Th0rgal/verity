@@ -185,8 +185,8 @@ Foundry: 76/76 tests passing (100%)
 
 **Usage**:
 ```bash
-lake build compile-new    # Build new compiler
-lake exe compile-new      # Generate all contracts
+lake build dumbcontracts-compiler    # Build new compiler
+lake exe dumbcontracts-compiler      # Generate all contracts
 cd compiler/yul && forge test  # Run tests
 ```
 
