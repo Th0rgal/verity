@@ -84,6 +84,9 @@ Properties that follow from the spec being correct.
 theorem retrieve_preserves_state (state : ContractState) (sender : Address) :
     let result := retrieve.runState { state with sender := sender }
     result.storage = state.storage := by
+  -- This follows from getStorage not modifying storage
+  -- Proof requires: unfold retrieve, getStorage, Contract.runState
+  -- and case analysis on ContractResult
   sorry
 
 -- Store-retrieve roundtrip
@@ -91,6 +94,11 @@ theorem store_retrieve_roundtrip (value : Nat) (sender : Address) (state : Contr
     let state1 := (store (ofNat value)).runState { state with sender := sender }
     let retrieved := retrieve.runValue { state1 with sender := sender }
     retrieved.val = value % modulus := by
+  -- This follows from:
+  -- 1. store sets slot 0 to (ofNat value)
+  -- 2. retrieve reads slot 0
+  -- 3. (ofNat value).val = value % modulus
+  -- Proof requires additional automation lemmas for runState/runValue
   sorry
 
 end Compiler.Proofs.SpecCorrectness
