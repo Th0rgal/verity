@@ -55,8 +55,14 @@ private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address)
       []
       ((Expr.storage "count").sub (Expr.literal 1)) =
     (sub (state.storage 0) 1).val := by
-  -- This requires careful case splitting on the conditional in both evalExpr and sub
-  -- Defer proof for now as it's technical but straightforward
+  -- This requires proving that both evalExpr and sub compute the same conditional:
+  -- if val >= 1 then val - 1 else modulus - (1 - val)
+  -- The proof requires careful case splitting and showing that:
+  -- 1. Both use the same condition (1 ≤ val)
+  -- 2. In each branch, the computations are equal modulo UINT256_MODULUS
+  -- 3. The modular arithmetic properties match
+  -- This is straightforward but requires more sophisticated automation for
+  -- matching conditional structures across different representations (List.lookup vs Uint256.sub)
   sorry
 
 /- Correctness Theorems -/
@@ -151,6 +157,14 @@ theorem decrement_increment_roundtrip (state : ContractState) (sender : Address)
   -- This is exactly sub_add_cancel_left in infix notation: (a - b) + b = a
   exact DumbContracts.Core.Uint256.sub_add_cancel_left (state.storage 0) 1
 
+/-- Helper: Single increment adds 1 to storage (mod modulus) -/
+private theorem increment_adds_one (state : ContractState) (sender : Address) :
+    (increment.runState { state with sender := sender }).storage 0 =
+    add (state.storage 0) 1 := by
+  unfold increment Contract.runState getStorage setStorage count
+  simp [DumbContracts.bind]
+  rfl
+
 /-- Multiple increments accumulate correctly (modulo 2^256) -/
 theorem multiple_increments (state : ContractState) (sender : Address) (n : Nat) :
     let rec applyN : Nat → ContractState → ContractState
@@ -159,11 +173,14 @@ theorem multiple_increments (state : ContractState) (sender : Address) (n : Nat)
     let finalState := applyN n state
     (finalState.storage 0).val = ((state.storage 0).val + n) % modulus := by
   -- This theorem requires careful induction on the recursive applyN function
-  -- The proof is technical but follows from:
+  -- The proof follows from:
   -- 1. Base case: 0 increments leaves state unchanged
   -- 2. Inductive case: each increment adds 1 (mod modulus)
-  -- 3. Modular arithmetic: (a + 1) % m + n ≡ a + n + 1 (mod m)
-  -- Defer full proof as it requires more automation infrastructure
+  -- 3. Modular arithmetic: ((a + n) % m + 1) % m = (a + n + 1) % m
+  -- The technical challenge is that applyN is a local recursive function
+  -- and Lean's induction tactic doesn't handle it directly.
+  -- A full proof would require extracting applyN as a top-level definition
+  -- or using functional induction on the recursion structure.
   sorry
 
 end Compiler.Proofs.SpecCorrectness
