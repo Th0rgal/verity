@@ -9,14 +9,15 @@ object "SafeCounter" {
             case 0xd09de08a {
                 /* increment() */
                 let count := sload(0)
-                if iszero(gt(add(count, 1), count)) {
+                let newCount := add(count, 1)
+                if iszero(gt(newCount, count)) {
                     mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
                     mstore(4, 32)
                     mstore(36, 21)
                     mstore(68, 0x4f766572666c6f7720696e20696e6372656d656e740000000000000000000000)
                     revert(0, 100)
                 }
-                sstore(0, add(count, 1))
+                sstore(0, newCount)
                 stop()
             }
             case 0x2baeceb7 {
