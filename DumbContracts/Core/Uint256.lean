@@ -37,7 +37,8 @@ theorem max_uint256_succ_eq_modulus : MAX_UINT256 + 1 = modulus := by
   have h2 : (0 : Nat) < (2 : Nat) := by decide
   have hle : 1 ≤ (2 ^ 256) := by
     exact Nat.succ_le_of_lt (Nat.pow_pos (a := 2) (n := 256) h2)
-  simpa [MAX_UINT256, modulus, UINT256_MODULUS] using (Nat.sub_add_cancel hle)
+  have h : (2 ^ 256 - 1) + 1 = 2 ^ 256 := Nat.sub_add_cancel hle
+  simp [MAX_UINT256, modulus, UINT256_MODULUS, h]
 
 theorem val_le_max (a : Uint256) : a.val ≤ MAX_UINT256 := by
   have hlt : a.val < modulus := a.isLt
@@ -228,8 +229,8 @@ theorem sub_val_of_gt {a b : Uint256} (h : b.val > a.val) :
             simp [HAdd.hAdd, add, ofNat, m]
     _ = ((a.val + b.val) + c.val) % m := by
             -- Normalize through add_mod
-            have := (Nat.add_mod (a.val + b.val) c.val m).symm
-            simpa [hmod_c] using this
+            have h := (Nat.add_mod (a.val + b.val) c.val m).symm
+            simpa [hmod_c] using h
     _ = (a.val + b.val + c.val) % m := by
             simp [Nat.add_assoc]
     _ = (a.val + (b.val + c.val)) % m := by
