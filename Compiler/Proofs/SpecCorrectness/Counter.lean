@@ -14,6 +14,7 @@
 
 import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
+import Compiler.Proofs.Automation
 import DumbContracts.Examples.Counter
 import DumbContracts.Core.Uint256
 
@@ -22,9 +23,11 @@ namespace Compiler.Proofs.SpecCorrectness
 open Compiler.ContractSpec
 open Compiler.Specs
 open Compiler.Proofs
+open Compiler.Proofs.Automation
 open DumbContracts
 open DumbContracts.Examples.Counter
-open DumbContracts.EVM.Uint256
+open DumbContracts.EVM.Uint256 (add sub)
+open DumbContracts.Core.Uint256 (modulus val_ofNat ofNat)
 
 /- State Conversion -/
 
@@ -46,7 +49,11 @@ theorem increment_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslFinal.storage 0).val := by
-  sorry
+  -- Follow SimpleStorage pattern exactly and try rfl
+  unfold increment counterSpec interpretSpec counterEdslToSpecStorage Contract.runState
+  simp [getStorage, setStorage, add, count, execFunction, execStmts, execStmt, evalExpr,
+        SpecStorage.setSlot, SpecStorage.getSlot, modulus, val_ofNat]
+  rfl
 
 /-- The `decrement` function correctly decrements the counter with modular arithmetic -/
 theorem decrement_correct (state : ContractState) (sender : Address) :
@@ -59,7 +66,11 @@ theorem decrement_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslFinal.storage 0).val := by
-  sorry
+  -- Decrement has conditional logic in sub, need more aggressive simplification
+  unfold decrement counterSpec interpretSpec counterEdslToSpecStorage Contract.runState
+  unfold getStorage setStorage sub count
+  simp [execFunction, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, modulus, val_ofNat, ofNat,
+        getStorage_runState, setStorage_runState, getStorage_runValue]
 
 /-- The `getCount` function correctly retrieves the counter value -/
 theorem getCount_correct (state : ContractState) (sender : Address) :
@@ -72,7 +83,9 @@ theorem getCount_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
-  sorry
+  -- Same pattern as SimpleStorage.retrieve_correct
+  unfold getCount Contract.runValue counterSpec interpretSpec counterEdslToSpecStorage
+  simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
 
 /- Helper Properties -/
 
@@ -80,7 +93,9 @@ theorem getCount_correct (state : ContractState) (sender : Address) :
 theorem getCount_preserves_state (state : ContractState) (sender : Address) :
     let finalState := getCount.runState { state with sender := sender }
     finalState.storage 0 = state.storage 0 := by
-  sorry
+  -- getCount just reads storage, doesn't modify it
+  unfold getCount Contract.runState
+  simp [getStorage, count]
 
 /-- Incrementing then decrementing returns to original value (when not wrapping) -/
 theorem increment_decrement_roundtrip (state : ContractState) (sender : Address)
