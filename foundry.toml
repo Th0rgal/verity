@@ -6,5 +6,8 @@ test = "test"
 cache_path = "cache"
 ffi = true
 solc_version = "0.8.33"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
 
 [rpc_endpoints]

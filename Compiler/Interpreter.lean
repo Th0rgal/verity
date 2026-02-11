@@ -16,6 +16,7 @@ import DumbContracts.Examples.SimpleStorage
 import DumbContracts.Examples.Counter
 import DumbContracts.Examples.SafeCounter
 import DumbContracts.Examples.Owned
+import DumbContracts.Examples.Ledger
 import Compiler.DiffTestTypes
 import Compiler.Hex
 
@@ -66,6 +67,23 @@ def extractMappingChanges (before after : ContractState) (keys : List (Nat × Ad
     let oldVal := before.storageMap slot key
     let newVal := after.storageMap slot key
     if oldVal ≠ newVal then some (slot, key, newVal) else none
+
+-- Helper: Normalize address to lowercase for consistent comparison
+private def normalizeAddress (addr : Address) : Address :=
+  let lowerChars := addr.data.map fun c =>
+    if c >= 'A' && c <= 'F' then
+      Char.ofNat (c.toNat + 32)  -- Convert A-F to a-f
+    else
+      c
+  String.mk lowerChars
+
+-- Helper: Convert Nat to properly formatted address (0x + 40 hex digits, lowercase)
+private def natToAddress (n : Nat) : Address :=
+  let hexDigits := Nat.toDigits 16 n
+  let hexStr := hexDigits.asString
+  -- Pad to 40 characters (20 bytes = 40 hex digits)
+  let padded := String.mk (List.replicate (40 - hexStr.length) '0') ++ hexStr
+  normalizeAddress ("0x" ++ padded)
 
 -- Convert a hex address string (0x...) to Nat for JSON output
 -- Helper: Convert ContractResult to ExecutionResult
@@ -232,8 +250,8 @@ def interpretOwned (tx : Transaction) (state : ContractState) : ExecutionResult 
   | "transferOwnership" =>
     match tx.args with
     | [newOwnerNat] =>
-      -- Convert Nat to Address (hex string)
-      let newOwnerAddr := "0x" ++ (Nat.toDigits 16 newOwnerNat).asString
+      -- Convert Nat to Address (properly formatted 40-digit hex string)
+      let newOwnerAddr := natToAddress newOwnerNat
       let result := exampleOwnedTransferOwnership newOwnerAddr |>.run state
       let natResult : ContractResult Nat := match result with
         | ContractResult.success _ s => ContractResult.success 0 s
@@ -264,6 +282,107 @@ def interpretOwned (tx : Transaction) (state : ContractState) : ExecutionResult 
     }
 
 /-!
+## Ledger Interpreter
+-/
+
+private def exampleLedgerDeposit (amount : Nat) : Contract Unit :=
+  Ledger.deposit amount
+
+private def exampleLedgerWithdraw (amount : Nat) : Contract Unit :=
+  Ledger.withdraw amount
+
+private def exampleLedgerTransfer (to : Address) (amount : Nat) : Contract Unit :=
+  Ledger.transfer to amount
+
+private def exampleLedgerGetBalance (addr : Address) : Contract Nat :=
+  Ledger.getBalance addr
+
+def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult :=
+  match tx.functionName with
+  | "deposit" =>
+    match tx.args with
+    | [amount] =>
+      let result := exampleLedgerDeposit amount |>.run state
+      let natResult : ContractResult Nat := match result with
+        | ContractResult.success _ s => ContractResult.success 0 s
+        | ContractResult.revert msg s => ContractResult.revert msg s
+      -- Track mapping changes for sender's balance
+      let senderKey := (0, tx.sender)
+      resultToExecutionResult natResult state [] [] [senderKey]
+    | _ =>
+      { success := false
+        returnValue := none
+        revertReason := some "Invalid args"
+        storageChanges := []
+        storageAddrChanges := []
+        mappingChanges := []
+      }
+  | "withdraw" =>
+    match tx.args with
+    | [amount] =>
+      let result := exampleLedgerWithdraw amount |>.run state
+      let natResult : ContractResult Nat := match result with
+        | ContractResult.success _ s => ContractResult.success 0 s
+        | ContractResult.revert msg s => ContractResult.revert msg s
+      -- Track mapping changes for sender's balance
+      let senderKey := (0, tx.sender)
+      resultToExecutionResult natResult state [] [] [senderKey]
+    | _ =>
+      { success := false
+        returnValue := none
+        revertReason := some "Invalid args"
+        storageChanges := []
+        storageAddrChanges := []
+        mappingChanges := []
+      }
+  | "transfer" =>
+    match tx.args with
+    | [toNat, amount] =>
+      -- Convert Nat to Address (properly formatted 40-digit hex string)
+      let toAddr := natToAddress toNat
+      let result := exampleLedgerTransfer toAddr amount |>.run state
+      let natResult : ContractResult Nat := match result with
+        | ContractResult.success _ s => ContractResult.success 0 s
+        | ContractResult.revert msg s => ContractResult.revert msg s
+      -- Track mapping changes for both sender and recipient
+      let senderKey := (0, tx.sender)
+      let recipientKey := (0, toAddr)
+      resultToExecutionResult natResult state [] [] [senderKey, recipientKey]
+    | _ =>
+      { success := false
+        returnValue := none
+        revertReason := some "Invalid args"
+        storageChanges := []
+        storageAddrChanges := []
+        mappingChanges := []
+      }
+  | "getBalance" =>
+    match tx.args with
+    | [addrNat] =>
+      -- Convert Nat to Address (properly formatted 40-digit hex string)
+      let addr := natToAddress addrNat
+      let result := exampleLedgerGetBalance addr |>.run state
+      -- Track mapping for the queried address
+      let addrKey := (0, addr)
+      resultToExecutionResult result state [] [] [addrKey]
+    | _ =>
+      { success := false
+        returnValue := none
+        revertReason := some "Invalid args"
+        storageChanges := []
+        storageAddrChanges := []
+        mappingChanges := []
+      }
+  | _ =>
+    { success := false
+      returnValue := none
+      revertReason := some "Unknown function"
+      storageChanges := []
+      storageAddrChanges := []
+      mappingChanges := []
+    }
+
+/-!
 ## Generic Interpreter Interface
 
 For use by the differential testing harness.
@@ -275,7 +394,7 @@ def interpret (contractType : ContractType) (tx : Transaction) (state : Contract
   | ContractType.counter => interpretCounter tx state
   | ContractType.safeCounter => interpretSafeCounter tx state
   | ContractType.owned => interpretOwned tx state
-  | ContractType.ledger
+  | ContractType.ledger => interpretLedger tx state
   | ContractType.ownedCounter
   | ContractType.simpleToken =>
     { success := false
@@ -363,6 +482,11 @@ open Compiler.DiffTestTypes
 open Compiler.Hex
 open DumbContracts
 
+private def parseArgNat? (s : String) : Option Nat :=
+  match parseHexNat? s with
+  | some n => some n
+  | none => s.toNat?
+
 -- Parse storage state from command line args
 -- Format: "slot0:value0,slot1:value1,..."
 def parseStorage (storageStr : String) : Nat → Nat :=
@@ -385,8 +509,8 @@ private def looksLikeStorage (s : String) : Bool :=
 
 private def storageConfigPrefix (s : String) : Option (String × String) :=
   match s.splitOn "=" with
-  | [prefix, value] =>
-      let normalized := prefix.toLower
+  | [pfx, value] =>
+      let normalized := pfx.toLower
       if normalized == "storage" then
         some ("storage", value)
       else if normalized == "addr" || normalized == "address" || normalized == "storageaddr" then
@@ -448,11 +572,6 @@ def parseStorageMap (storageStr : String) : Nat → String → Nat :=
   ) []
   fun slot key =>
     (mapping.find? (fun (s, k, _) => s == slot && k == key)).map (fun (_, _, v) => v) |>.getD 0
-
-private def parseArgNat? (s : String) : Option Nat :=
-  match parseHexNat? s with
-  | some n => some n
-  | none => s.toNat?
 
 private def parseArgs (args : List String) : Except String (List Nat) :=
   let parsed := args.foldl (fun acc s =>
@@ -524,7 +643,7 @@ def main (args : List String) : IO Unit := do
       | Except.ok vals => pure vals
       | Except.error msg => throw <| IO.userError msg
     let tx : Transaction := {
-      sender := senderAddr
+      sender := normalizeAddress senderAddr
       functionName := functionName
       args := argsNat
     }
@@ -543,7 +662,7 @@ def main (args : List String) : IO Unit := do
       storage := storageState
       storageAddr := storageAddrState
       storageMap := storageMapState
-      sender := senderAddr
+      sender := normalizeAddress senderAddr
       thisAddress := "0xContract"
     }
     let contractTypeEnum? : Option ContractType := match contractType with
