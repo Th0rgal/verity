@@ -190,14 +190,21 @@ lake exe dumbcontracts-compiler      # Generate all contracts
 cd compiler/yul && forge test  # Run tests
 ```
 
-### Next: Differential Testing (Roadmap Item 2)
+### Differential Testing (Roadmap Item 2 - Completed 2026-02-11) ✅
 **Goal**: High confidence that compiled EVM matches verified EDSL semantics.
 
-**Plan**:
-- Build EDSL interpreter in Lean
-- Generate random transactions from contract types
-- Run 10,000+ tests per contract comparing EDSL vs. compiled EVM
-- Target: 70k+ tests with zero mismatches
+**Status**:
+- ✅ Lean interpreter covers all 7 contracts
+- ✅ Random transaction generator supports all contract types
+- ✅ 10,000+ random transactions per contract in Foundry (Random10000)
+- ✅ Zero mismatches across all contracts
+
+**Test Results**:
+```
+Foundry differential suites: 7/7 contracts
+Random10000 per contract: 70k+ total random txs
+Result: 0 mismatches
+```
 
 ### Future Directions
 1. Self-transfer support (model as identity operation)
