@@ -107,7 +107,7 @@ theorem deposit_withdraw_cancel (s : ContractState) (amount : Uint256)
   have h_cancel :
       EVM.Uint256.sub (EVM.Uint256.add (s.storageMap 0 s.sender) amount) amount =
       s.storageMap 0 s.sender := by
-    simpa using (EVM.Uint256.sub_add_cancel (s.storageMap 0 s.sender) amount)
+    exact (EVM.Uint256.sub_add_cancel (s.storageMap 0 s.sender) amount)
   simpa [s1, h_cancel] using h_wd'
 
 /-! ## Summary

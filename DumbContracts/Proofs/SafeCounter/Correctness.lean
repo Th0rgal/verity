@@ -121,7 +121,7 @@ theorem increment_decrement_cancel (s : ContractState)
       rfl
     _ = (s.storage 0 + 1) - 1 := by rw [h_inc, h_add]
     _ = s.storage 0 := by
-      simpa using (DumbContracts.Core.Uint256.sub_add_cancel (s.storage 0) 1)
+      exact (DumbContracts.Core.Uint256.sub_add_cancel (s.storage 0) 1)
 
 /-! ## Composition: decrement → getCount -/
 

@@ -160,7 +160,7 @@ theorem increment_decrement_cancel (s : ContractState) :
       = EVM.Uint256.sub (((increment).run s).snd.storage 0) 1 := h2
     _ = EVM.Uint256.sub (EVM.Uint256.add (s.storage 0) 1) 1 := by rw [h1]
     _ = s.storage 0 := by
-      simpa using (EVM.Uint256.sub_add_cancel (s.storage 0) 1)
+      exact (EVM.Uint256.sub_add_cancel (s.storage 0) 1)
 
 /-! ## State Preservation -/
 
