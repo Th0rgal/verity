@@ -199,9 +199,9 @@ private def withNoArgs (tx : Transaction) (f : Unit → ExecutionResult) : Execu
   | [] => f ()
   | _ => invalidArgsResult
 
-private def case0 (name : String) (tx : Transaction) (body : ExecutionResult) :
+private def case0 (name : String) (tx : Transaction) (body : Unit → ExecutionResult) :
     (String × (Unit → ExecutionResult)) :=
-  (name, fun _ => withNoArgs tx (fun _ => body))
+  (name, fun _ => withNoArgs tx body)
 
 private def case1 (name : String) (tx : Transaction) (f : Nat → ExecutionResult) : (String × (Unit → ExecutionResult)) :=
   (name, fun _ => withArgs1 tx f)
@@ -247,7 +247,7 @@ def interpretSimpleStorage (tx : Transaction) (state : ContractState) : Executio
     case1 "store" tx (fun value =>
       runUnit (exampleSimpleStorageStore value) state [0] [] []  -- Check slot 0
     ),
-    case0 "retrieve" tx (runUint exampleSimpleStorageRetrieve state [0] [] [])
+    case0 "retrieve" tx (fun _ => runUint exampleSimpleStorageRetrieve state [0] [] [])
   ]
 
 /-!
@@ -265,9 +265,9 @@ private def exampleCounterGetCount : Contract Uint256 :=
 
 def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (runUnit exampleCounterIncrement state [0] [] []),
-    case0 "decrement" tx (runUnit exampleCounterDecrement state [0] [] []),
-    case0 "getCount" tx (runUint exampleCounterGetCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit exampleCounterIncrement state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit exampleCounterDecrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint exampleCounterGetCount state [0] [] [])
   ]
 
 /-!
@@ -285,9 +285,9 @@ private def exampleSafeCounterGetCount : Contract Uint256 :=
 
 def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (runUnit exampleSafeCounterIncrement state [0] [] []),
-    case0 "decrement" tx (runUnit exampleSafeCounterDecrement state [0] [] []),
-    case0 "getCount" tx (runUint exampleSafeCounterGetCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit exampleSafeCounterIncrement state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit exampleSafeCounterDecrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint exampleSafeCounterGetCount state [0] [] [])
   ]
 
 /-!
@@ -305,7 +305,7 @@ def interpretOwned (tx : Transaction) (state : ContractState) : ExecutionResult 
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
       runUnit (exampleOwnedTransferOwnership newOwnerAddr) state [] [0] []
     ),
-    case0 "getOwner" tx (runAddress exampleOwnedGetOwner state [] [0] [])
+    case0 "getOwner" tx (fun _ => runAddress exampleOwnedGetOwner state [] [0] [])
   ]
 
 /-!
@@ -370,16 +370,16 @@ private def exampleOwnedCounterTransferOwnership (newOwner : Address) : Contract
 
 def interpretOwnedCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (
+    case0 "increment" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
       runUnit exampleOwnedCounterIncrement state [1] [0] []
     ),
-    case0 "decrement" tx (
+    case0 "decrement" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
       runUnit exampleOwnedCounterDecrement state [1] [0] []
     ),
-    case0 "getCount" tx (runUint exampleOwnedCounterGetCount state [1] [] []),
-    case0 "getOwner" tx (runAddress exampleOwnedCounterGetOwner state [] [0] []),
+    case0 "getCount" tx (fun _ => runUint exampleOwnedCounterGetCount state [1] [] []),
+    case0 "getOwner" tx (fun _ => runAddress exampleOwnedCounterGetOwner state [] [0] []),
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
       -- Track owner address storage slot 0
       runUnit (exampleOwnedCounterTransferOwnership newOwnerAddr) state [] [0] []
@@ -423,8 +423,8 @@ def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionR
       let addrKey := (1, addr)
       runUint (exampleSimpleTokenBalanceOf addr) state [] [] [addrKey]
     ),
-    case0 "totalSupply" tx (runUint exampleSimpleTokenGetTotalSupply state [2] [] []),
-    case0 "owner" tx (runAddress exampleSimpleTokenGetOwner state [] [0] [])
+    case0 "totalSupply" tx (fun _ => runUint exampleSimpleTokenGetTotalSupply state [2] [] []),
+    case0 "owner" tx (fun _ => runAddress exampleSimpleTokenGetOwner state [] [0] [])
   ]
 
 /-!
