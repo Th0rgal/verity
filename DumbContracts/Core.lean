@@ -7,11 +7,13 @@
   Version 2: Added explicit ContractResult for guard modeling
 -/
 
+import DumbContracts.Core.Uint256
+
 namespace DumbContracts
 
 -- Basic Ethereum types
 abbrev Address := String
-abbrev Uint256 := Nat
+abbrev Uint256 := DumbContracts.Core.Uint256
 abbrev Bool' := Bool
 abbrev Bytes := List Nat
 

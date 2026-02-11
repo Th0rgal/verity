@@ -33,15 +33,17 @@ abbrev willAddOverflow := DumbContracts.Core.Uint256.willAddOverflow
 abbrev willSubUnderflow := DumbContracts.Core.Uint256.willSubUnderflow
 abbrev willMulOverflow := DumbContracts.Core.Uint256.willMulOverflow
 
-theorem add_eq_of_lt {a b : Nat} (h : a + b < 2^256) : add a b = a + b :=
+theorem add_eq_of_lt {a b : DumbContracts.Core.Uint256} (h : (a : Nat) + (b : Nat) < 2^256) :
+  ((add a b : DumbContracts.Core.Uint256) : Nat) = (a : Nat) + (b : Nat) :=
   DumbContracts.Core.Uint256.add_eq_of_lt h
 
-theorem sub_eq_of_le {a b : Nat} (h : b ≤ a) : sub a b = a - b :=
+theorem sub_eq_of_le {a b : DumbContracts.Core.Uint256} (h : (b : Nat) ≤ (a : Nat)) :
+  ((sub a b : DumbContracts.Core.Uint256) : Nat) = (a : Nat) - (b : Nat) :=
   DumbContracts.Core.Uint256.sub_eq_of_le h
 
-theorem sub_add_cancel_of_lt {a b : Nat} (ha : a < 2^256) (hb : b < 2^256) :
+theorem sub_add_cancel (a b : DumbContracts.Core.Uint256) :
   sub (add a b) b = a :=
-  DumbContracts.Core.Uint256.sub_add_cancel_of_lt ha hb
+  DumbContracts.Core.Uint256.sub_add_cancel a b
 
 end Uint256
 

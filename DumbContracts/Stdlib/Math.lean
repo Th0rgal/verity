@@ -21,30 +21,30 @@ def MAX_UINT256 : Nat := 2^256 - 1
 
 -- Safe addition: returns None on overflow
 def safeAdd (a b : Uint256) : Option Uint256 :=
-  let result := a + b
-  if result > MAX_UINT256 then
+  let sum := (a : Nat) + (b : Nat)
+  if sum > MAX_UINT256 then
     none
   else
-    some result
+    some (a + b)
 
 -- Safe subtraction: returns None on underflow
 def safeSub (a b : Uint256) : Option Uint256 :=
-  if b > a then
+  if (b : Nat) > (a : Nat) then
     none
   else
     some (a - b)
 
 -- Safe multiplication: returns None on overflow
 def safeMul (a b : Uint256) : Option Uint256 :=
-  let result := a * b
-  if result > MAX_UINT256 then
+  let prod := (a : Nat) * (b : Nat)
+  if prod > MAX_UINT256 then
     none
   else
-    some result
+    some (a * b)
 
 -- Safe division: returns None if divisor is zero
 def safeDiv (a b : Uint256) : Option Uint256 :=
-  if b == 0 then
+  if b.val = 0 then
     none
   else
     some (a / b)
