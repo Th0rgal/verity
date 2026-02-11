@@ -1,6 +1,6 @@
 # Property Extraction Progress - Priority 3
 
-## Current Status: 11.5% Complete
+## Current Status: 20.3% Complete
 
 Successfully extracting formally verified Lean theorems into executable Foundry tests.
 
@@ -10,26 +10,26 @@ Successfully extracting formally verified Lean theorems into executable Foundry 
 |----------|----------|----------------|-----------|--------|------|
 | Counter | 10 | 12 | 512 | ✅ Complete | test/PropertyCounter.t.sol |
 | SimpleStorage | 19 | 14 | 3,584 | ✅ Complete | test/PropertySimpleStorage.t.sol |
-| **Total** | **29** | **26** | **4,096** | **11.5%** | - |
+| Owned | 22 | 18 | 4,608 | ✅ Complete | test/PropertyOwned.t.sol |
+| **Total** | **51** | **44** | **8,704** | **20.3%** | - |
 
 ### Remaining Contracts
 
 | Contract | Theorems | Status | Estimated Tests |
 |----------|----------|--------|-----------------|
-| Owned | 22 | ⏳ Pending | ~18 |
 | SafeCounter | 25 | ⏳ Pending | ~20 |
 | Ledger | 25 | ⏳ Pending | ~20 |
 | OwnedCounter | 45 | ⏳ Pending | ~35 |
 | SimpleToken | 75 | ⏳ Pending | ~60 |
-| **Remaining** | **222** | - | **~153** |
+| **Remaining** | **170** | - | **~135** |
 
 ### Overall Progress
 
 ```
-Theorems Extracted:      29 / 251 (11.5%)
-Property Tests Created:  26
-Fuzz Test Runs:          4,096
-All Tests Passing:       ✅ 156/156 (100%)
+Theorems Extracted:      51 / 251 (20.3%)
+Property Tests Created:  44
+Fuzz Test Runs:          8,704
+All Tests Passing:       ✅ 174/174 (100%)
 ```
 
 ## Property Categories Extracted
