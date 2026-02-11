@@ -28,8 +28,10 @@ namespace Uint256
 def modulus : Nat := UINT256_MODULUS
 
 theorem modulus_pos : 0 < modulus := by
-  have h1 : 1 ≤ (2 : Nat) ^ 256 := Nat.one_le_two_pow (n := 256)
-  exact Nat.lt_of_lt_of_le Nat.zero_lt_one (by simpa [modulus] using h1)
+  have h2 : (0 : Nat) < (2 : Nat) := by decide
+  have h : 0 < (2 : Nat) ^ 256 := by
+    simpa using (Nat.pow_pos (a := 2) (n := 256) h2)
+  simpa [modulus] using h
 
 def ofNat (n : Nat) : Uint256 :=
   ⟨n % modulus, Nat.mod_lt _ modulus_pos⟩
@@ -151,7 +153,8 @@ theorem sub_add_cancel_of_lt {a b : Uint256} (ha : a.val < modulus) (hb : b.val 
         have hb_le' : b ≤ (a + b) % m := by
           simpa [hmod] using hb_le
         -- No overflow: direct cancellation.
-        simp [HAdd.hAdd, HSub.hSub, add, sub, ofNat, hmod, hb_le', Nat.add_sub_cancel,
+        have hcase : b ≤ (a + b) % m := hb_le'
+        simp [HAdd.hAdd, HSub.hSub, add, sub, ofNat, hmod, hcase, Nat.add_sub_cancel,
           Nat.mod_eq_of_lt ha'']
       · have h_ge : m ≤ a + b := Nat.le_of_not_gt h
         have hlt_sum : a + b < m + m := Nat.add_lt_add ha'' hb''
@@ -186,7 +189,8 @@ theorem sub_add_cancel_of_lt {a b : Uint256} (ha : a.val < modulus) (hb : b.val 
           simpa [hmod] using hbnot
         -- Overflow: wrap-around branch.
         have hma : a ≤ m := Nat.le_of_lt ha''
-        simp [HAdd.hAdd, HSub.hSub, add, sub, ofNat, hmod, hbnot', hdiff,
+        have hcase : ¬ b ≤ (a + b) % m := hbnot'
+        simp [HAdd.hAdd, HSub.hSub, add, sub, ofNat, hmod, hcase, hdiff,
           Nat.sub_sub_self hma, Nat.mod_eq_of_lt ha'']
 
 theorem sub_add_cancel (a b : Uint256) : (a + b - b) = a :=
