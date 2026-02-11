@@ -308,6 +308,13 @@ contract DifferentialCounter is YulTestBase {
     }
 
     /**
+     * @notice Run 1000 random differential tests
+     */
+    function testDifferential_Random1000() public {
+        _runRandomDifferentialTests(1000, 42);
+    }
+
+    /**
      * @notice Execute N random transactions
      */
     function _runRandomDifferentialTests(uint256 count, uint256 seed) internal {

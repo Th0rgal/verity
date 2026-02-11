@@ -483,6 +483,29 @@ contract DifferentialLedger is YulTestBase {
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 
+    function testDifferential_Random1000() public {
+        address[] memory actors = new address[](3);
+        actors[0] = address(0xA11CE);
+        actors[1] = address(0xB0B);
+        actors[2] = address(0xCA501);
+
+        // Seed: current block timestamp for reproducibility
+        uint256 seed = block.timestamp;
+
+        for (uint256 i = 0; i < 1000; i++) {
+            // Generate random transaction
+            (string memory funcName, address sender, address recipient, uint256 amount) =
+                _randomTransaction(seed + i, actors);
+
+            bool success = executeDifferentialTest(funcName, sender, recipient, amount);
+            assertTrue(success, string.concat("Random test ", vm.toString(i), " failed"));
+        }
+
+        console2.log("Random tests passed:", testsPassed);
+        console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
+    }
+
     function _randomTransaction(uint256 seed, address[] memory actors)
         internal
         pure

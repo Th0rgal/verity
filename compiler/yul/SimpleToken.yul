@@ -53,8 +53,8 @@ object "SimpleToken" {
                 mstore(0, sload(2))
                 return(0, 32)
             }
-            case 0x8da5cb5b {
-                /* owner() */
+            case 0x893d20e8 {
+                /* getOwner() */
                 mstore(0, sload(0))
                 return(0, 32)
             }

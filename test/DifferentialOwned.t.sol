@@ -459,6 +459,53 @@ contract DifferentialOwned is YulTestBase {
         require(testsFailed == 0, "Some tests failed");
     }
 
+    /**
+     * @notice Test: Random transactions (1000+)
+     */
+    function testDifferential_Random1000() public {
+        // Deterministic PRNG seed for reproducibility
+        uint256 seed = 12345;
+        uint256 numTransactions = 1000;
+
+        address[] memory testAddresses = new address[](3);
+        testAddresses[0] = address(this);
+        testAddresses[1] = address(0xa11ce);
+        testAddresses[2] = address(0xb0b);
+
+        console2.log("Generated", numTransactions, "random transactions");
+
+        for (uint256 i = 0; i < numTransactions; i++) {
+            seed = _prng(seed);
+            uint256 txType = seed % 100;
+
+            address sender;
+            uint256 arg0;
+
+            if (txType < 60) {
+                // 60% transferOwnership
+                sender = edslStorageAddr[0];  // Current owner
+                seed = _prng(seed);
+                arg0 = uint256(uint160(testAddresses[seed % testAddresses.length]));
+
+                bool success = executeDifferentialTest("transferOwnership", sender, arg0);
+                require(success, string(abi.encodePacked("Random test ", _uint256ToString(i), " failed")));
+            } else {
+                // 40% getOwner
+                seed = _prng(seed);
+                sender = testAddresses[seed % testAddresses.length];
+                arg0 = 0;
+
+                bool success = executeDifferentialTest("getOwner", sender, arg0);
+                require(success, string(abi.encodePacked("Random test ", _uint256ToString(i), " failed")));
+            }
+        }
+
+        console2.log("All random tests passed!");
+        console2.log("Tests passed:", testsPassed);
+        console2.log("Tests failed:", testsFailed);
+        require(testsFailed == 0, "Some tests failed");
+    }
+
     // ========== Helper Functions ==========
 
     /**

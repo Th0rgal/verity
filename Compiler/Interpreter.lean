@@ -593,7 +593,7 @@ def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionR
         storageAddrChanges := []
         mappingChanges := []
       }
-  | "owner" =>
+  | "getOwner" =>
     match tx.args with
     | [] =>
       let result := exampleSimpleTokenGetOwner |>.run state

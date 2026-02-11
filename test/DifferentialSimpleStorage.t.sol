@@ -327,13 +327,10 @@ contract DifferentialSimpleStorage is YulTestBase {
 
     /**
      * @notice Run 1000 random differential tests (slow)
-     * @dev Uncomment when ready for full-scale testing
      */
-    /*
     function testDifferential_Random1000() public {
         _runRandomDifferentialTests(1000, 42);
     }
-    */
 
     /**
      * @notice Execute N random transactions via random-gen
