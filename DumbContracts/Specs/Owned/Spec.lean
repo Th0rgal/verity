@@ -65,11 +65,11 @@ Properties about sequences of operations.
 -/
 
 /-- Constructor followed by getOwner returns the initial owner -/
-def constructor_getOwner_spec (initialOwner : Address) (s : ContractState) (result : Address) : Prop :=
+def constructor_getOwner_spec (initialOwner : Address) (_s : ContractState) (result : Address) : Prop :=
   result = initialOwner
 
 /-- TransferOwnership followed by getOwner returns the new owner -/
-def transfer_getOwner_spec (newOwner : Address) (s : ContractState) (result : Address) : Prop :=
+def transfer_getOwner_spec (newOwner : Address) (_s : ContractState) (result : Address) : Prop :=
   result = newOwner
 
 end DumbContracts.Specs.Owned

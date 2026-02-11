@@ -102,7 +102,7 @@ Properties about sequences of operations.
 -/
 
 /-- Constructor followed by getTotalSupply returns 0 -/
-def constructor_getTotalSupply_spec (initialOwner : Address) (s : ContractState) (result : Uint256) : Prop :=
+def constructor_getTotalSupply_spec (_initialOwner : Address) (_s : ContractState) (result : Uint256) : Prop :=
   result = 0
 
 /-- Mint followed by balanceOf returns increased balance -/
@@ -110,7 +110,7 @@ def mint_balanceOf_spec (to : Address) (amount : Uint256) (s : ContractState) (r
   result = add (s.storageMap 1 to) amount
 
 /-- Transfer followed by balanceOf (sender) returns decreased balance -/
-def transfer_balanceOf_sender_spec (sender to : Address) (amount : Uint256) (s : ContractState) (result : Uint256) : Prop :=
+def transfer_balanceOf_sender_spec (sender _to : Address) (amount : Uint256) (s : ContractState) (result : Uint256) : Prop :=
   s.storageMap 1 sender ≥ amount →
   result = sub (s.storageMap 1 sender) amount
 
