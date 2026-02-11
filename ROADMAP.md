@@ -343,6 +343,5 @@ test/
 ## References
 
 - **PR #11**: https://github.com/Th0rgal/dumbcontracts/pull/11
-- **Completion Summary**: `./COMPLETION_SUMMARY.md` - Detailed results for priorities 0-3
-- **EVM Compatibility**: `./EVM_COMPATIBILITY_STATUS.md` - Priority 0 technical details
-- **Final Status**: `./FINAL_ROADMAP_STATUS.md` - Overview of all completed work
+- **Project README**: `./README.md` - Project overview and getting started
+- **Research Context**: `./RESEARCH.md` - Background and motivation
