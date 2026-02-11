@@ -72,7 +72,15 @@ theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : A
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat newOwner := by
-  sorry
+  -- When sender is owner, both EDSL and spec succeed
+  unfold DumbContracts.Examples.Owned.transferOwnership Contract.run ownedSpec interpretSpec ownedEdslToSpecStorage
+  unfold DumbContracts.Examples.Owned.onlyOwner DumbContracts.Examples.Owned.isOwner
+  simp [msgSender, getStorageAddr, setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind, DumbContracts.require, DumbContracts.pure]
+  simp [execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot]
+  -- The require passes when sender = owner
+  simp [h]
+  -- Show: addressToNat newOwner % modulus = addressToNat newOwner
+  sorry -- Address encoding lemma needed
 
 /-- The `transferOwnership` function correctly reverts when called by non-owner -/
 theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner : Address) (sender : Address)
@@ -86,7 +94,14 @@ theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner 
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     edslResult.isSuccess = false ∧
     specResult.success = false := by
-  sorry
+  -- When sender is not owner, both EDSL and spec revert
+  unfold DumbContracts.Examples.Owned.transferOwnership Contract.run ownedSpec interpretSpec ownedEdslToSpecStorage
+  unfold DumbContracts.Examples.Owned.onlyOwner DumbContracts.Examples.Owned.isOwner
+  simp [msgSender, getStorageAddr, setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind, DumbContracts.require, DumbContracts.pure]
+  simp [execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, ContractResult.isSuccess]
+  -- The require fails when sender ≠ owner
+  -- Need to show: sender = state.storageAddr 0 is false
+  sorry -- Authorization check needs more work
 
 /-- The `getOwner` function correctly retrieves the owner address -/
 theorem getOwner_correct (state : ContractState) (sender : Address) :
