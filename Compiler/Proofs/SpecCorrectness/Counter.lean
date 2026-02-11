@@ -144,13 +144,12 @@ theorem decrement_increment_roundtrip (state : ContractState) (sender : Address)
     let afterInc := increment.runState { afterDec with sender := sender }
     afterInc.storage 0 = state.storage 0 := by
   -- This is the reverse of increment_decrement_roundtrip
-  -- We use add_sub_cancel: add (sub a b) b = a (when b ≤ a)
+  -- We use sub_add_cancel_left: (a - b) + b = a (always holds for Uint256 modular arithmetic)
   unfold decrement increment Contract.runState
   simp [getStorage, setStorage, count, DumbContracts.bind]
   -- We have: add (sub (state.storage 0) 1) 1 = state.storage 0
-  -- For Uint256, there's a theorem: ∀ a b, add (sub a b) b = a (always, due to modular arithmetic)
-  -- But we can also prove it directly using the fact that sub_add_cancel exists
-  sorry
+  -- This is exactly sub_add_cancel_left in infix notation: (a - b) + b = a
+  exact DumbContracts.Core.Uint256.sub_add_cancel_left (state.storage 0) 1
 
 /-- Multiple increments accumulate correctly (modulo 2^256) -/
 theorem multiple_increments (state : ContractState) (sender : Address) (n : Nat) :
@@ -159,6 +158,12 @@ theorem multiple_increments (state : ContractState) (sender : Address) (n : Nat)
       | k+1, s => applyN k (increment.runState { s with sender := sender })
     let finalState := applyN n state
     (finalState.storage 0).val = ((state.storage 0).val + n) % modulus := by
+  -- This theorem requires careful induction on the recursive applyN function
+  -- The proof is technical but follows from:
+  -- 1. Base case: 0 increments leaves state unchanged
+  -- 2. Inductive case: each increment adds 1 (mod modulus)
+  -- 3. Modular arithmetic: (a + 1) % m + n ≡ a + n + 1 (mod m)
+  -- Defer full proof as it requires more automation infrastructure
   sorry
 
 end Compiler.Proofs.SpecCorrectness
