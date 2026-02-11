@@ -303,6 +303,40 @@ contract DifferentialCounter is YulTestBase {
     }
 
     /**
+     * @notice Ensure modular wrap-around matches between EVM and EDSL
+     */
+    function testDifferential_IncrementWraps() public {
+        uint256 max = type(uint256).max;
+
+        // Seed both EVM and EDSL state to MAX_UINT256
+        vm.store(counter, bytes32(uint256(0)), bytes32(max));
+        edslStorage[0] = max;
+
+        bool success = executeDifferentialTest("increment", address(0xA11CE), 0);
+        assertTrue(success, "Increment wrap test failed");
+
+        uint256 evmStorageAfter = uint256(vm.load(counter, bytes32(uint256(0))));
+        assertEq(evmStorageAfter, 0, "EVM did not wrap on increment");
+        assertEq(edslStorage[0], 0, "EDSL did not wrap on increment");
+    }
+
+    /**
+     * @notice Ensure underflow wrap-around matches between EVM and EDSL
+     */
+    function testDifferential_DecrementWraps() public {
+        // Seed both EVM and EDSL state to 0
+        vm.store(counter, bytes32(uint256(0)), bytes32(uint256(0)));
+        edslStorage[0] = 0;
+
+        bool success = executeDifferentialTest("decrement", address(0xA11CE), 0);
+        assertTrue(success, "Decrement wrap test failed");
+
+        uint256 evmStorageAfter = uint256(vm.load(counter, bytes32(uint256(0))));
+        assertEq(evmStorageAfter, type(uint256).max, "EVM did not wrap on decrement");
+        assertEq(edslStorage[0], type(uint256).max, "EDSL did not wrap on decrement");
+    }
+
+    /**
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
