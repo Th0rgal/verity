@@ -17,16 +17,19 @@ def MAX_UINT256 : Nat := 2^256 - 1
 
 namespace Uint256
 
+-- 256-bit modulus
+def modulus : Nat := 2^256
+
 -- Modular addition (wraps at 2^256)
-def add (a b : Nat) : Nat := (a + b) % (2^256)
+def add (a b : Nat) : Nat := (a + b) % modulus
 
 -- Modular subtraction (two's complement wrapping)
 def sub (a b : Nat) : Nat :=
   if b ≤ a then a - b
-  else (2^256) - (b - a)
+  else modulus - (b - a)
 
 -- Modular multiplication (wraps at 2^256)
-def mul (a b : Nat) : Nat := (a * b) % (2^256)
+def mul (a b : Nat) : Nat := (a * b) % modulus
 
 -- Division (returns 0 on division by zero, matching EVM)
 def div (a b : Nat) : Nat :=
@@ -36,29 +39,39 @@ def div (a b : Nat) : Nat :=
 def mod (a b : Nat) : Nat :=
   if b = 0 then 0 else a % b
 
+-- Bitwise operations (EVM semantics)
+def and (a b : Nat) : Nat := Nat.land (a % modulus) (b % modulus)
+def or (a b : Nat) : Nat := Nat.lor (a % modulus) (b % modulus)
+def xor (a b : Nat) : Nat := Nat.xor (a % modulus) (b % modulus)
+def not (a : Nat) : Nat := MAX_UINT256 - (a % modulus)
+
+-- Shifts (EVM semantics)
+def shl (a n : Nat) : Nat := ((a % modulus) <<< n) % modulus
+def shr (a n : Nat) : Nat := (a % modulus) >>> n
+
 -- Overflow detection predicates for safety proofs
 
 def willAddOverflow (a b : Nat) : Bool :=
-  a + b ≥ 2^256
+  a + b ≥ modulus
 
 def willSubUnderflow (a b : Nat) : Bool :=
   b > a
 
 def willMulOverflow (a b : Nat) : Bool :=
-  a * b ≥ 2^256
+  a * b ≥ modulus
 
 -- Lemmas for modular arithmetic reasoning when no overflow/underflow occurs.
 
-theorem add_eq_of_lt {a b : Nat} (h : a + b < 2^256) : add a b = a + b := by
+theorem add_eq_of_lt {a b : Nat} (h : a + b < modulus) : add a b = a + b := by
   simp [add, Nat.mod_eq_of_lt h]
 
 theorem sub_eq_of_le {a b : Nat} (h : b ≤ a) : sub a b = a - b := by
   simp [sub, h]
 
 /-- Cancellation for modular addition/subtraction on valid uint256 inputs. -/
-theorem sub_add_cancel_of_lt {a b : Nat} (ha : a < 2^256) (hb : b < 2^256) :
+theorem sub_add_cancel_of_lt {a b : Nat} (ha : a < modulus) (hb : b < modulus) :
   sub (add a b) b = a := by
-  let m : Nat := 2^256
+  let m : Nat := modulus
   have ha' : a < m := by simpa [m] using ha
   have hb' : b < m := by simpa [m] using hb
   by_cases h : a + b < m

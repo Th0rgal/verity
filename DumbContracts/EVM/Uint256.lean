@@ -13,11 +13,21 @@ abbrev MAX_UINT256 : Nat := DumbContracts.Core.MAX_UINT256
 
 namespace Uint256
 
+abbrev modulus := DumbContracts.Core.Uint256.modulus
+
 abbrev add := DumbContracts.Core.Uint256.add
 abbrev sub := DumbContracts.Core.Uint256.sub
 abbrev mul := DumbContracts.Core.Uint256.mul
 abbrev div := DumbContracts.Core.Uint256.div
 abbrev mod := DumbContracts.Core.Uint256.mod
+
+abbrev and := DumbContracts.Core.Uint256.and
+abbrev or := DumbContracts.Core.Uint256.or
+abbrev xor := DumbContracts.Core.Uint256.xor
+abbrev not := DumbContracts.Core.Uint256.not
+
+abbrev shl := DumbContracts.Core.Uint256.shl
+abbrev shr := DumbContracts.Core.Uint256.shr
 
 abbrev willAddOverflow := DumbContracts.Core.Uint256.willAddOverflow
 abbrev willSubUnderflow := DumbContracts.Core.Uint256.willSubUnderflow
