@@ -36,6 +36,18 @@ def counterEdslToSpecStorage (state : ContractState) : SpecStorage :=
   { slots := [(0, (state.storage 0).val)]
     mappings := [] }
 
+/- Helper Lemmas -/
+
+-- Helper: decrement's monadic bind simplifies correctly
+private theorem decrement_runState_eq (state : ContractState) :
+    (decrement.runState state).storage 0 =
+    sub (state.storage 0) 1 := by
+  unfold decrement Contract.runState getStorage setStorage count
+  simp [sub, DumbContracts.bind]
+  -- After simp, we have: updated storage at slot 0 = sub (state.storage 0) 1
+  -- This is true by the if-statement for storage updates
+  rfl
+
 /- Correctness Theorems -/
 
 /-- The `increment` function correctly increments the counter with modular arithmetic -/
@@ -49,7 +61,7 @@ theorem increment_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslFinal.storage 0).val := by
-  -- Follow SimpleStorage pattern exactly and try rfl
+  -- Original working proof
   unfold increment counterSpec interpretSpec counterEdslToSpecStorage Contract.runState
   simp [getStorage, setStorage, add, count, execFunction, execStmts, execStmt, evalExpr,
         SpecStorage.setSlot, SpecStorage.getSlot, modulus, val_ofNat]
@@ -66,11 +78,18 @@ theorem decrement_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslFinal.storage 0).val := by
-  -- Decrement has conditional logic in sub, need more aggressive simplification
-  unfold decrement counterSpec interpretSpec counterEdslToSpecStorage Contract.runState
-  unfold getStorage setStorage sub count
-  simp [execFunction, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, modulus, val_ofNat, ofNat,
-        getStorage_runState, setStorage_runState, getStorage_runValue]
+  -- Use helper lemma to simplify the monadic bind
+  unfold counterSpec interpretSpec counterEdslToSpecStorage
+  simp only [execFunction, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot,
+             decrement_runState_eq]
+  constructor
+  · -- success = true
+    rfl
+  · -- finalStorage matches - show spec's evalExpr for sub matches EDSL's sub.val
+    -- The goal at this point is:
+    -- evalExpr ... (Expr.sub (Expr.storage "count") (Expr.literal 1)) = (sub (state.storage 0) 1).val
+    -- Need to show evalExpr correctly evaluates sub
+    sorry
 
 /-- The `getCount` function correctly retrieves the counter value -/
 theorem getCount_correct (state : ContractState) (sender : Address) :

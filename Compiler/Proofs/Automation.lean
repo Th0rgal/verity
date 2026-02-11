@@ -73,6 +73,20 @@ theorem setStorage_getStorage_diff (slot1 slot2 : StorageSlot Uint256) (value : 
   sorry  -- Requires case analysis on if-then-else
 
 /-!
+## Monadic Composition Lemmas
+
+These lemmas help with proving correctness of functions that use bind (>>=).
+-/
+
+-- Lemma for getStorage >> setStorage pattern (the most common pattern)
+@[simp]
+theorem bind_getStorage_setStorage_runState (slot : StorageSlot Uint256) (f : Uint256 → Uint256) (state : ContractState) :
+    (DumbContracts.bind (getStorage slot) (fun val => setStorage slot (f val))).runState state =
+      { state with storage := fun s => if s == slot.slot then f (state.storage slot.slot) else state.storage s } := by
+  unfold DumbContracts.bind getStorage setStorage Contract.runState
+  simp
+
+/-!
 ## Address Storage Lemmas
 -/
 
