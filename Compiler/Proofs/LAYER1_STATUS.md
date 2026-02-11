@@ -6,10 +6,10 @@
 **Progress:**
 - Proof structures: 7/7 contracts (100%)
 - SimpleStorage: 4/4 theorems proven (100%) ✅
-- Counter: 5/7 theorems proven (71%) ⚠️
-- Total theorems proven: 9/11 core correctness theorems (82%)
+- Counter: 6/7 theorems proven (86%) ⚠️
+- Total theorems proven: 10/11 core correctness theorems (91%)
 **Build Status:** ✅ All files compile successfully
-**Lines Added:** 1,656 lines across 15 commits
+**Lines Added:** 1,665 lines across 16 commits
 
 ## Completed Work
 
@@ -60,18 +60,18 @@ def edslToSpecStorage (state : ContractState) : SpecStorage :=
 
 ---
 
-#### Counter (156 lines) ⚠️ 71% Complete
+#### Counter (165 lines) ⚠️ 86% Complete
 **Complexity:** ⭐⭐ Moderate
 **Patterns:** Arithmetic operations with modular arithmetic
 
-**Theorems (5/7 proven):**
+**Theorems (6/7 proven):**
 - ✅ `increment_correct`: Prove increment with mod 2^256
 - ✅ `decrement_correct`: Prove decrement with mod 2^256 (via evalExpr helper)
 - ✅ `getCount_correct`: Prove getCount equivalence
 - ✅ `getCount_preserves_state`: Getter doesn't modify storage
 - ✅ `increment_decrement_roundtrip`: Roundtrip correctness (using sub_add_cancel)
-- ⚠️ `decrement_increment_roundtrip`: Reverse roundtrip (needs add_sub_cancel)
-- ⚠️ `multiple_increments`: Multi-increment accumulation (needs modular induction)
+- ✅ `decrement_increment_roundtrip`: Reverse roundtrip (using sub_add_cancel_left)
+- ⚠️ `multiple_increments`: Multi-increment accumulation (complex modular induction)
 
 **New Concepts:** EVM modular arithmetic semantics
 **Helper Lemmas:** evalExpr_decrement_eq (conditional matching, has sorry)
@@ -372,14 +372,14 @@ lake build Compiler.Proofs.Automation
 
 ### Warning Summary
 - SimpleStorage: 0 sorry warnings ✅
-- Counter: 3 sorry warnings (evalExpr helper + 2 properties)
+- Counter: 2 sorry warnings (evalExpr helper + multiple_increments)
 - SafeCounter: 8 sorry warnings
 - Owned: 8 sorry warnings
 - OwnedCounter: 11 sorry warnings
 - Ledger: 10 sorry warnings
 - SimpleToken: 13 sorry warnings
 - Automation: 4 sorry warnings
-- **Total:** 57 sorry placeholders (down from 65, -12%)
+- **Total:** 56 sorry placeholders (down from 65, -14%)
 
 ---
 
@@ -387,13 +387,13 @@ lake build Compiler.Proofs.Automation
 
 | Metric | Value |
 |--------|-------|
-| Total Lines | 1,656 |
+| Total Lines | 1,665 |
 | Proof Files | 7 |
 | Infrastructure Files | 2 |
 | Total Core Theorems | 11 (SimpleStorage + Counter) |
-| Proven Core Theorems | 9 (82%) |
-| Placeholder Theorems | 57 (down from 65) |
-| Commits | 15 |
+| Proven Core Theorems | 10 (91%) |
+| Placeholder Theorems | 56 (down from 65) |
+| Commits | 16 |
 | Build Status | ✅ Success |
 
 ---
@@ -409,7 +409,7 @@ lake build Compiler.Proofs.Automation
 
 ### Short Term (1-2 Weeks)
 1. ✅ Complete SimpleStorage proofs (4/4 proven)
-2. ⚠️ Complete Counter proofs (5/7 proven, 2 remaining)
+2. ⚠️ Complete Counter proofs (6/7 proven, 1 remaining: multiple_increments)
 3. Begin SafeCounter proofs
 
 ### Medium Term (1-2 Months)
