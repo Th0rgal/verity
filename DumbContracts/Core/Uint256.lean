@@ -128,9 +128,10 @@ def or (a b : Uint256) : Uint256 := ofNat (Nat.lor a.val b.val)
 def xor (a b : Uint256) : Uint256 := ofNat (Nat.xor a.val b.val)
 def not (a : Uint256) : Uint256 := ofNat (MAX_UINT256 - a.val)
 
--- Shifts (EVM semantics)
-def shl (a n : Uint256) : Uint256 := ofNat (a.val <<< n.val)
-def shr (a n : Uint256) : Uint256 := ofNat (a.val >>> n.val)
+-- Shifts (EVM semantics: shl(shift, value) computes value << shift)
+-- To match EVM convention, we put shift first
+def shl (shift value : Uint256) : Uint256 := ofNat (value.val <<< shift.val)
+def shr (shift value : Uint256) : Uint256 := ofNat (value.val >>> shift.val)
 
 -- Overflow detection predicates for safety proofs (on raw Nat values)
 def willAddOverflow (a b : Uint256) : Bool :=
