@@ -18,6 +18,7 @@ import Compiler.Proofs.SpecInterpreter
 import DumbContracts.Examples.SafeCounter
 import DumbContracts.Core.Uint256
 import DumbContracts.Stdlib.Math
+import DumbContracts.Proofs.SafeCounter.Basic
 
 namespace Compiler.Proofs.SpecCorrectness
 
@@ -95,28 +96,54 @@ theorem safeIncrement_reverts_at_max (state : ContractState) (sender : Address)
     (h : (state.storage 0).val = DumbContracts.Core.MAX_UINT256) :
     let result := increment.run { state with sender := sender }
     result.isSuccess = false := by
-  -- When count = MAX_UINT256, safeAdd returns none
-  -- requireSomeUint then calls require false, which reverts
-  -- This requires careful expansion of the monadic code
-  sorry
+  -- When count = MAX_UINT256, count + 1 > MAX_UINT256, so safeAdd returns none
+  have h_overflow : ((state.storage 0) : Nat) + 1 > DumbContracts.Core.MAX_UINT256 := by
+    rw [h]; omega
+  -- Use the existing proof from DumbContracts.Proofs.SafeCounter.Basic
+  have h_revert := DumbContracts.Proofs.SafeCounter.increment_reverts_overflow
+    { state with sender := sender } h_overflow
+  rcases h_revert with ⟨msg, h_eq⟩
+  rw [h_eq]
+  rfl
 
 /-- Decrement reverts when counter is 0 -/
 theorem safeDecrement_reverts_at_zero (state : ContractState) (sender : Address)
     (h : (state.storage 0).val = 0) :
     let result := decrement.run { state with sender := sender }
     result.isSuccess = false := by
-  -- When count = 0, safeSub 0 1 returns none (since 1 > 0)
-  -- requireSomeUint then calls require false, which reverts
-  sorry
+  -- When count = 0, safeSub returns none (underflow)
+  -- decrement_reverts_underflow expects: s.storage 0 = 0
+  have h_storage_zero : (state.storage 0) = 0 := by
+    ext
+    exact h
+  -- Use the existing proof from DumbContracts.Proofs.SafeCounter.Basic
+  have h_revert := DumbContracts.Proofs.SafeCounter.decrement_reverts_underflow
+    { state with sender := sender } h_storage_zero
+  rcases h_revert with ⟨msg, h_eq⟩
+  rw [h_eq]
+  rfl
 
 /-- Increment succeeds when not at max -/
 theorem safeIncrement_succeeds_below_max (state : ContractState) (sender : Address)
     (h : (state.storage 0).val < DumbContracts.Core.MAX_UINT256) :
     let result := increment.run { state with sender := sender }
     result.isSuccess = true := by
-  -- When count < MAX_UINT256, count + 1 ≤ MAX_UINT256
-  -- So safeAdd returns some value, requireSomeUint succeeds
-  sorry
+  -- When count < MAX_UINT256, count + 1 ≤ MAX_UINT256, so safeAdd succeeds
+  -- Unfold increment and show that safeAdd succeeds (returns Some), thus no revert
+  unfold increment getStorage setStorage count requireSomeUint Contract.run ContractResult.isSuccess
+  simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure]
+  -- Show safeAdd returns Some when no overflow
+  have h_no_overflow : ((state.storage 0) : Nat) + 1 ≤ DumbContracts.Core.MAX_UINT256 := by
+    omega
+  -- Note: MAX_UINT256 in Math and Core are equal (both 2^256-1)
+  have h_eq : DumbContracts.Stdlib.Math.MAX_UINT256 = DumbContracts.Core.MAX_UINT256 := by rfl
+  have h_safe : safeAdd (state.storage 0) 1 = some ((state.storage 0) + 1) := by
+    unfold safeAdd
+    rw [h_eq]
+    have h_not : ¬(((state.storage 0) : Nat) + 1 > DumbContracts.Core.MAX_UINT256) := by omega
+    simp [h_not]
+  rw [h_safe]
+  rfl
 
 /-- Decrement succeeds when above zero -/
 theorem safeDecrement_succeeds_above_zero (state : ContractState) (sender : Address)
@@ -124,6 +151,16 @@ theorem safeDecrement_succeeds_above_zero (state : ContractState) (sender : Addr
     let result := decrement.run { state with sender := sender }
     result.isSuccess = true := by
   -- When count > 0, count ≥ 1, so safeSub succeeds
-  sorry
+  unfold decrement getStorage setStorage count requireSomeUint Contract.run ContractResult.isSuccess
+  simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure]
+  -- Show safeSub returns Some when no underflow
+  have h_no_underflow : ((state.storage 0) : Nat) ≥ 1 := by
+    omega
+  have h_safe : safeSub (state.storage 0) 1 = some ((state.storage 0) - 1) := by
+    unfold safeSub
+    have h_not : ¬((1 : Nat) > ((state.storage 0) : Nat)) := by omega
+    simp [h_not]
+  rw [h_safe]
+  rfl
 
 end Compiler.Proofs.SpecCorrectness
