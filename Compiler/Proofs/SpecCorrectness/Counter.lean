@@ -44,9 +44,25 @@ private theorem decrement_runState_eq (state : ContractState) :
     sub (state.storage 0) 1 := by
   unfold decrement Contract.runState getStorage setStorage count
   simp [sub, DumbContracts.bind]
-  -- After simp, we have: updated storage at slot 0 = sub (state.storage 0) 1
-  -- This is true by the if-statement for storage updates
   rfl
+
+-- Helper: spec's evalExpr for decrement expression matches EDSL sub
+private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address) :
+    evalExpr
+      { sender := sender, msgValue := 0, blockTimestamp := 0, params := [], constructorArgs := [], localVars := [] }
+      { slots := [(0, (state.storage 0).val)], mappings := [] }
+      [{ name := "count", ty := FieldType.uint256 }]
+      []
+      ((Expr.storage "count").sub (Expr.literal 1)) =
+    (sub (state.storage 0) 1).val := by
+  -- Expand evalExpr for the sub expression
+  simp only [evalExpr, SpecStorage.getSlot]
+  -- Now we have: if val >= 1 then val - 1 else modulus - (1 - val)
+  -- And on the right: sub's definition which is the same
+  unfold sub
+  simp [val_ofNat, ofNat, modulus]
+  -- Both have the same if-then-else
+  split <;> rfl
 
 /- Correctness Theorems -/
 
@@ -78,18 +94,14 @@ theorem decrement_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslFinal.storage 0).val := by
-  -- Use helper lemma to simplify the monadic bind
-  unfold counterSpec interpretSpec counterEdslToSpecStorage
-  simp only [execFunction, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot,
-             decrement_runState_eq]
-  constructor
-  · -- success = true
-    rfl
-  · -- finalStorage matches - show spec's evalExpr for sub matches EDSL's sub.val
-    -- The goal at this point is:
-    -- evalExpr ... (Expr.sub (Expr.storage "count") (Expr.literal 1)) = (sub (state.storage 0) 1).val
-    -- Need to show evalExpr correctly evaluates sub
-    sorry
+  -- Similar to increment, but decrement has a conditional which blocks full automation
+  -- The proof requires showing:
+  -- 1. The spec's evalExpr for (Expr.sub (Expr.storage "count") (Expr.literal 1))
+  -- 2. Equals the EDSL's (sub (state.storage 0) 1).val
+  -- Both helper lemmas are proven, but matching them to the goal after simp is blocked
+  -- by the interpretSpec/execFunction/execStmt structure not fully reducing
+  -- TODO: Needs more powerful automation or manual expansion of interpretSpec
+  sorry
 
 /-- The `getCount` function correctly retrieves the counter value -/
 theorem getCount_correct (state : ContractState) (sender : Address) :
