@@ -608,7 +608,7 @@ contract DifferentialOwned is YulTestBase {
         for (uint256 i = 0; i < b.length; i++) {
             uint8 digit = uint8(b[i]);
             if (digit >= 48 && digit <= 57) {
-                result = result * 10 + (digit - 48);
+                unchecked { result = result * 10 + (digit - 48); }
             }
         }
         return result;

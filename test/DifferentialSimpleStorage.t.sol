@@ -206,7 +206,7 @@ contract DifferentialSimpleStorage is YulTestBase {
         for (uint i = 0; i < b.length; i++) {
             uint8 c = uint8(b[i]);
             if (c >= 48 && c <= 57) {
-                result = result * 10 + (c - 48);
+                unchecked { result = result * 10 + (c - 48); }
             }
         }
         return result;
@@ -373,9 +373,9 @@ contract DifferentialSimpleStorage is YulTestBase {
             bool isStore = (prng % 2) == 0;
 
             if (isStore) {
-                // Generate value (Lean: genUint256)
+                // Generate value (mostly small with some edge-case coverage)
                 prng = (1103515245 * prng + 12345) % (2**31);
-                uint256 value = prng % 1000000;
+                uint256 value = _coerceRandomUint256(prng, 1000000);
 
                 bool success = executeDifferentialTest("store", sender, value);
                 assertTrue(success, "Random store test failed");

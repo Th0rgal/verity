@@ -196,7 +196,7 @@ contract DifferentialCounter is YulTestBase {
         for (uint i = 0; i < b.length; i++) {
             uint8 c = uint8(b[i]);
             if (c >= 48 && c <= 57) {
-                result = result * 10 + (c - 48);
+                unchecked { result = result * 10 + (c - 48); }
             }
         }
         return result;

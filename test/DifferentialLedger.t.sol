@@ -376,7 +376,7 @@ contract DifferentialLedger is YulTestBase {
         for (uint i = 0; i < b.length; i++) {
             uint8 c = uint8(b[i]);
             if (c >= 48 && c <= 57) {
-                result = result * 10 + (c - 48);
+                unchecked { result = result * 10 + (c - 48); }
             }
         }
         return result;
@@ -390,7 +390,7 @@ contract DifferentialLedger is YulTestBase {
         for (uint i = startIdx; i < jsonBytes.length; i++) {
             bytes1 c = jsonBytes[i];
             if (c >= '0' && c <= '9') {
-                result = result * 10 + uint8(c) - uint8(bytes1('0'));
+                unchecked { result = result * 10 + uint8(c) - uint8(bytes1('0')); }
                 foundDigit = true;
             } else if (foundDigit) {
                 break;
@@ -539,7 +539,7 @@ contract DifferentialLedger is YulTestBase {
         // Choose recipient (for transfer/getBalance)
         recipient = actors[rand3 % actors.length];
 
-        // Choose amount (small values to avoid overflow in testing)
-        amount = rand4 % 1000;
+        // Choose amount (mostly small with occasional edge values to exercise wrapping)
+        amount = _coerceRandomUint256(rand4, 1000);
     }
 }
