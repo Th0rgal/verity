@@ -45,6 +45,11 @@ theorem sub_add_cancel (a b : DumbContracts.Core.Uint256) :
   sub (add a b) b = a :=
   DumbContracts.Core.Uint256.sub_add_cancel a b
 
+theorem sub_add_cancel_of_lt {a b : DumbContracts.Core.Uint256}
+  (ha : (a : Nat) < 2^256) (hb : (b : Nat) < 2^256) :
+  sub (add a b) b = a :=
+  DumbContracts.Core.Uint256.sub_add_cancel a b
+
 end Uint256
 
 end DumbContracts.EVM
