@@ -139,6 +139,11 @@ instance : HSub Uint256 Uint256 Uint256 := ⟨sub⟩
 instance : HMul Uint256 Uint256 Uint256 := ⟨mul⟩
 instance : HDiv Uint256 Uint256 Uint256 := ⟨div⟩
 instance : HMod Uint256 Uint256 Uint256 := ⟨mod⟩
+instance : Add Uint256 := ⟨add⟩
+instance : Sub Uint256 := ⟨sub⟩
+instance : Mul Uint256 := ⟨mul⟩
+instance : Div Uint256 := ⟨div⟩
+instance : Mod Uint256 := ⟨mod⟩
 
 -- Lemmas for modular arithmetic reasoning when no overflow/underflow occurs.
 
@@ -155,6 +160,11 @@ theorem sub_eq_of_le {a b : Uint256} (h : b.val ≤ a.val) :
   have hlt : a.val - b.val < modulus := by
     exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt
   simpa [HSub.hSub, sub, h, ofNat] using (Nat.mod_eq_of_lt hlt)
+
+theorem sub_val_of_gt {a b : Uint256} (h : b.val > a.val) :
+  (sub a b).val = (modulus - (b.val - a.val)) % modulus := by
+  have h' : ¬ b.val ≤ a.val := Nat.not_le_of_gt h
+  simp [sub, h', ofNat]
 
 @[ext] theorem ext {a b : Uint256} (h : a.val = b.val) : a = b := by
   cases a with
