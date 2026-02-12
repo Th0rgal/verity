@@ -44,6 +44,13 @@ theorem execYulStmts_runtimeCode_eq :
   · simp [Compiler.runtimeCode, h]
   · simp [Compiler.runtimeCode, h]
 
+/-- Switch cases generated from IR functions. -/
+def switchCases (fns : List IRFunction) : List (Nat × List YulStmt) :=
+  fns.map (fun f =>
+    let body := [YulStmt.comment s!"{f.name}()"] ++ f.body
+    (f.selector, body)
+  )
+
 /-- If the selector matches a case, the switch executes that case body. -/
 theorem execYulStmt_switch_match :
     (∀ (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
@@ -77,10 +84,7 @@ theorem execYulStmt_switch_miss :
 lemma find_switch_case_of_find_function
     (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
     (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
-    (fns.map (fun f =>
-      let body := [YulStmt.comment s!"{f.name}()"] ++ f.body
-      (f.selector, body)
-    )).find? (fun (c, _) => c = sel) =
+    (switchCases fns).find? (fun (c, _) => c = sel) =
       some (fn.selector, [YulStmt.comment s!"{fn.name}()"] ++ fn.body) := by
   induction fns with
   | nil =>
@@ -90,22 +94,19 @@ lemma find_switch_case_of_find_function
       by_cases hsel : f.selector == sel
       · simp [List.find?, hsel] at hFind
         cases hFind
-        simp [List.find?, hsel]
+        simp [switchCases, List.find?, hsel]
       · simp [List.find?, hsel] at hFind
         have := ih hFind
-        simp [List.find?, hsel, this]
+        simp [switchCases, List.find?, hsel, this]
 
 lemma find_switch_case_of_find_function_none
     (fns : List IRFunction) (sel : Nat)
     (hFind : fns.find? (fun f => f.selector == sel) = none) :
-    (fns.map (fun f =>
-      let body := [YulStmt.comment s!"{f.name}()"] ++ f.body
-      (f.selector, body)
-    )).find? (fun (c, _) => c = sel) = none := by
+    (switchCases fns).find? (fun (c, _) => c = sel) = none := by
   induction fns with
   | nil =>
       simp at hFind
-      simp
+      simp [switchCases]
   | cons f rest ih =>
       simp [List.find?] at hFind
       by_cases hsel : f.selector == sel
@@ -113,6 +114,6 @@ lemma find_switch_case_of_find_function_none
         cases hFind
       · simp [List.find?, hsel] at hFind
         have := ih hFind
-        simp [List.find?, hsel, this]
+        simp [switchCases, List.find?, hsel, this]
 
 end Compiler.Proofs.YulGeneration

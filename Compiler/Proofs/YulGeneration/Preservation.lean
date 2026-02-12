@@ -48,10 +48,7 @@ theorem yulCodegen_preserves_semantics
   | none =>
       -- IR interpreter reverts on missing selector.
       have hcase :
-          (contract.functions.map (fun f =>
-            let body := [YulStmt.comment s!"{f.name}()"] ++ f.body
-            (f.selector, body)
-          )).find? (fun (c, _) => c = tx.functionSelector) = none := by
+          (switchCases contract.functions).find? (fun (c, _) => c = tx.functionSelector) = none := by
         exact find_switch_case_of_find_function_none contract.functions tx.functionSelector hFind
       simp [interpretIR, hFind, interpretYulFromIR, interpretYulRuntime, irState,
         emitYul_runtimeCode_eq, execYulStmts_runtimeCode_eq, Compiler.runtimeCode,
@@ -69,10 +66,7 @@ theorem yulCodegen_preserves_semantics
       -- Selector extraction is deterministic.
       -- The switch cases align with `find?` on selectors.
       have hcase :
-          (contract.functions.map (fun f =>
-            let body := [YulStmt.comment s!"{f.name}()"] ++ f.body
-            (f.selector, body)
-          )).find? (fun (c, _) => c = tx.functionSelector) =
+          (switchCases contract.functions).find? (fun (c, _) => c = tx.functionSelector) =
             some (fn.selector, [YulStmt.comment s!"{fn.name}()"] ++ fn.body) := by
         exact find_switch_case_of_find_function contract.functions tx.functionSelector fn hFind
       -- Apply switch rule.
