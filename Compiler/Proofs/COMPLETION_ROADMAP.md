@@ -177,38 +177,75 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
 
 ### Phase 3: Complete Owned Proof (1-2 days)
 
-#### Task 3.1: Prove only_owner_can_transfer
+#### Task 3.1: Prove only_owner_can_transfer ⚠️ BLOCKED
 
-**Strategy**:
+**Status**: ⚠️ **BLOCKED** - Requires tactic composition infrastructure
+
+**Challenge Identified** (commit 73380fd):
+While all needed automation lemmas exist (Tasks 1.2, 1.3, 1.4), applying them
+requires navigating deep monadic structure:
+
 ```lean
-theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
-    let result := (transferOwnership newOwner).run { state with sender := sender }
-    result.isSuccess = true → state.storageAddr 0 = sender := by
-  intro h_success
-
-  -- transferOwnership = onlyOwner >> setStorageAddr owner newOwner
-  -- onlyOwner = msgSender >>= λs => getStorageAddr owner >>= λo =>
-  --             require (s == o) >> return ()
-
-  -- Step 1: Extract that onlyOwner succeeded
-  have h_onlyOwner : (onlyOwner.run ...).isSuccess = true :=
-    bind_isSuccess_left h_success  -- Task 1.2
-
-  -- Step 2: Decompose onlyOwner to get require success
-  have h_require : ... :=
-    bind_success_decompose h_onlyOwner  -- Task 1.2 (applied twice)
-
-  -- Step 3: Extract condition from require
-  have h_cond : sender == state.storageAddr 0 = true :=
-    require_success_implies_cond h_require  -- Task 1.3
-
-  -- Step 4: Convert beq to equality
-  exact address_beq_eq_true_iff_eq.mp h_cond  -- Task 1.4
+transferOwnership = onlyOwner >> setStorageAddr owner newOwner
+  where onlyOwner = isOwner >>= λcheck => require check msg
+    where isOwner = msgSender >>= λs => getStorageAddr o >>= λo => pure (s == o)
 ```
 
-**Dependencies**: Tasks 1.2, 1.3, 1.4
-**Estimated Effort**: 1 day (after automation)
+**Issue**: Direct application of automation lemmas creates complex intermediate
+goals that require sophisticated simplification tactics.
+
+**Solution Options**:
+1. **Build tactic composition layer** (~1-2 days)
+   - Create authorization-specific automation
+   - Compose bind_isSuccess_left + require_success_implies_cond + address_beq_eq_true_iff_eq
+   - Handle intermediate goal simplification
+
+2. **Manual proof term construction** (~1 day)
+   - Brittle but possible
+   - Not recommended for maintainability
+
+3. **Lean metaprogramming** (~2-3 days)
+   - Most robust solution
+   - Create custom tactics for monadic authorization patterns
+
+**Recommendation**: Build tactic composition layer (Option 1) before attempting this proof.
+
+**Dependencies**: Tasks 1.2 ✅, 1.3 ✅, 1.4 ✅, + Tactic Composition
+**Estimated Effort**: 0.5 days (after tactic infrastructure)
 **File**: `Compiler/Proofs/SpecCorrectness/Owned.lean`
+
+---
+
+### Phase 1.5: Tactic Composition Infrastructure (NEW - 1-2 days)
+
+**Discovery** (2026-02-12): While individual automation lemmas (Tasks 1.2-1.4) are
+complete, **composing them in complex monadic contexts requires additional infrastructure**.
+
+**Needed**: Higher-level automation that chains lemmas together.
+
+#### Task 1.5: Build Authorization Tactic
+
+**Goal**: Create automation that composes bind_isSuccess_left, require_success_implies_cond,
+and address_beq_eq_true_iff_eq into a single authorization pattern handler.
+
+**Approach**:
+```lean
+-- High-level tactic that handles: (auth_check >> operation).isSuccess = true → condition
+tactic authorization_from_success :
+  1. Apply bind_isSuccess_left to extract auth check success
+  2. Unfold auth check definition
+  3. Apply require_success_implies_cond to extract condition
+  4. Apply address_beq_eq_true_iff_eq (or similar) to convert beq
+  5. Handle intermediate simplifications
+```
+
+**Benefits**:
+- Unlocks Task 3.1 (only_owner_can_transfer)
+- Unlocks Task 2.2 (safeDecrement_correct)
+- Establishes pattern for future authorization proofs
+
+**Estimated Effort**: 1-2 days
+**Priority**: HIGH - blocks 2 remaining theorems
 
 ---
 
@@ -224,16 +261,24 @@ theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (se
 - ✅ Task 1.2 completed (bind_isSuccess_left)
 - ✅ Task 1.3 completed (require_success_implies_cond)
 - ✅ Task 1.4 completed (address_beq_eq_true_iff_eq)
-- **Automation infrastructure 75% complete (3/4 tasks)**
-- Remaining: Only Task 1.1 (Modular arithmetic)
+- **Base automation: 75% complete (3/4 tasks)**
+- 🔍 **Discovery**: Need tactic composition layer (Task 1.5)
+- Remaining: Task 1.1 (Modular arithmetic) + Task 1.5 (Tactic composition)
 
-### Week 2: Complete Remaining Proofs
-- **Day 1**: Task 2.1 (safeIncrement_correct)
-- **Day 2**: Task 2.2 (safeDecrement_correct)
-- **Day 3**: Task 3.1 (only_owner_can_transfer)
+### Revised Timeline
+
+**Week 1-2: Complete Infrastructure**
+- **Days 1-2**: Task 1.1 (Modular arithmetic wraparound)
+- **Days 3-4**: Task 1.5 (Tactic composition for authorization)
+- **Day 5**: Testing
+
+**Week 2: Complete Remaining Proofs**
+- **Day 1**: Task 2.1 (safeIncrement_correct) - needs Task 1.1
+- **Day 2**: Task 2.2 (safeDecrement_correct) - needs Task 1.5
+- **Day 3**: Task 3.1 (only_owner_can_transfer) - needs Task 1.5
 - **Days 4-5**: Final testing, documentation, cleanup
 
-**Total Estimated Time**: 2 weeks for one developer
+**Total Estimated Time**: 2-2.5 weeks for one developer
 
 ---
 
