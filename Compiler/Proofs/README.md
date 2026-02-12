@@ -22,6 +22,19 @@ Key entry points:
 
 **Status**: 61/61 theorems proven across 7 contracts
 
+### Generic Layer 1 Schema (Not Implemented Yet)
+
+We could package every Layer 1 proof into a single reusable theorem. The schema would say:
+
+1. Provide a state relation `R : ContractState → SpecStorage → Prop`.
+2. Prove per-function equivalence lemmas: each EDSL function matches its ContractSpec function under `R`.
+3. Prove dispatch alignment: the EDSL function selector table matches the ContractSpec function list.
+4. Prove result alignment: EDSL `ContractResult` matches the spec interpreter result.
+
+Then we can derive a global theorem: for any transaction, `interpretSpec` agrees with `Contract.run` (under `R`).
+
+We have not implemented this wrapper yet because the per-contract obligations still dominate the work. The current proofs already follow this structure and are easier to read when written directly in each contract file. If future contracts make Layer 1 proofs too repetitive, we can introduce this schema and refactor existing proofs to use it.
+
 #### Completed Contracts
 
 ##### SimpleStorage (100% ✅)
