@@ -17,6 +17,7 @@
 
 import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
+import Compiler.Proofs.Automation
 import Compiler.Hex
 import DumbContracts.Examples.Ledger
 import DumbContracts.Core.Uint256
@@ -27,6 +28,7 @@ namespace Compiler.Proofs.SpecCorrectness
 open Compiler.ContractSpec
 open Compiler.Specs
 open Compiler.Proofs
+open Compiler.Proofs.Automation
 open Compiler.Hex
 open DumbContracts
 open DumbContracts.Examples.Ledger
@@ -87,7 +89,107 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
     specResult.success = true ∧
     specResult.finalStorage.getMapping 0 (addressToNat sender) =
       (edslResult.getState.storageMap 0 sender).val := by
-  sorry
+  constructor
+  · -- EDSL success
+    simp [deposit, msgSender, getMapping, setMapping, balances,
+      DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
+      Contract.run, ContractResult.isSuccess]
+  constructor
+  · -- Spec success
+    simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping,
+      SpecStorage.getSlot, SpecStorage.setMapping]
+  · -- Spec mapping equals EDSL mapping
+    have h_spec_val :
+        (let specTx : DiffTestTypes.Transaction := {
+          sender := sender
+          functionName := "deposit"
+          args := [amount]
+        };
+        let specResult :=
+          interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
+        specResult.finalStorage.getMapping 0 (addressToNat sender)) =
+          ((state.storageMap 0 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
+      simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+        ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same]
+    have h_edsl_state :
+        (ContractResult.getState
+            ((deposit (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender =
+          DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
+            (DumbContracts.Core.Uint256.ofNat amount) := by
+      simpa [ContractResult.snd, ContractResult.getState] using
+        (DumbContracts.Proofs.Ledger.deposit_increases_balance
+          { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount))
+    have h_edsl_val :
+        ((ContractResult.getState
+            ((deposit (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender).val =
+          (DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
+            (DumbContracts.Core.Uint256.ofNat amount)).val := by
+      simpa using congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_edsl_state
+    have h_add_val :
+        (DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
+          (DumbContracts.Core.Uint256.ofNat amount)).val =
+          ((state.storageMap 0 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
+      let m := DumbContracts.Core.Uint256.modulus
+      have h_ofNat_add :
+          (DumbContracts.Core.Uint256.ofNat (amount % m) +
+            DumbContracts.Core.Uint256.ofNat (state.storageMap 0 sender).val).val =
+            (amount + (state.storageMap 0 sender).val) % m := by
+        have h_mod_state : (state.storageMap 0 sender).val % m = (state.storageMap 0 sender).val := by
+          exact Nat.mod_eq_of_lt (state.storageMap 0 sender).isLt
+        calc
+          (DumbContracts.Core.Uint256.ofNat (amount % m) +
+              DumbContracts.Core.Uint256.ofNat (state.storageMap 0 sender).val).val
+              = ((amount % m) + (state.storageMap 0 sender).val % m) % m := by
+                  simp [HAdd.hAdd, DumbContracts.Core.Uint256.add, DumbContracts.Core.Uint256.ofNat,
+                    DumbContracts.Core.Uint256.val_ofNat]
+          _ = ((amount % m) + (state.storageMap 0 sender).val) % m := by
+                  simp [h_mod_state]
+          _ = ((state.storageMap 0 sender).val + (amount % m)) % m := by
+                  simp [Nat.add_comm]
+          _ = ((state.storageMap 0 sender).val + amount) % m := by
+                  calc
+                    ((state.storageMap 0 sender).val + (amount % m)) % m
+                        = ((state.storageMap 0 sender).val % m + (amount % m) % m) % m := by
+                            exact (Nat.add_mod _ _ _)
+                    _ = ((state.storageMap 0 sender).val % m + amount % m) % m := by
+                            simp [Nat.mod_mod]
+                    _ = ((state.storageMap 0 sender).val + amount) % m := by
+                            symm
+                            exact (Nat.add_mod _ _ _)
+          _ = (amount + (state.storageMap 0 sender).val) % m := by
+                  simp [Nat.add_comm]
+      calc
+        (DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
+            (DumbContracts.Core.Uint256.ofNat amount)).val
+            = (DumbContracts.Core.Uint256.ofNat (amount % m) +
+                DumbContracts.Core.Uint256.ofNat (state.storageMap 0 sender).val).val := by
+                simp [DumbContracts.EVM.Uint256.add, DumbContracts.Core.Uint256.add,
+                  DumbContracts.Core.Uint256.val_ofNat, Nat.add_comm]
+        _ = ((state.storageMap 0 sender).val + amount) % m := by
+            simpa [Nat.add_comm] using h_ofNat_add
+    calc
+      (let specTx : DiffTestTypes.Transaction := {
+        sender := sender
+        functionName := "deposit"
+        args := [amount]
+      };
+      let specResult :=
+        interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
+      specResult.finalStorage.getMapping 0 (addressToNat sender))
+          = ((state.storageMap 0 sender).val + amount) % DumbContracts.Core.Uint256.modulus := h_spec_val
+      _ = (DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
+            (DumbContracts.Core.Uint256.ofNat amount)).val := by
+            symm
+            exact h_add_val
+      _ = ((ContractResult.getState
+            ((deposit (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender).val := by
+            symm
+            exact h_edsl_val
 
 /-- The `withdraw` function correctly subtracts when balance is sufficient -/
 theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat) (sender : Address)
@@ -103,7 +205,98 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
     specResult.success = true ∧
     specResult.finalStorage.getMapping 0 (addressToNat sender) =
       (edslResult.getState.storageMap 0 sender).val := by
-  sorry
+  have h_amount_lt : amount < DumbContracts.Core.Uint256.modulus := by
+    have hlt : (state.storageMap 0 sender).val < DumbContracts.Core.Uint256.modulus := by
+      exact (state.storageMap 0 sender).isLt
+    exact Nat.lt_of_le_of_lt h hlt
+  have h_balance_u :
+      (state.storageMap 0 sender) ≥ DumbContracts.Core.Uint256.ofNat amount := by
+    simp [DumbContracts.Core.Uint256.le_def, DumbContracts.Core.Uint256.val_ofNat,
+      Nat.mod_eq_of_lt h_amount_lt, h]
+  constructor
+  · -- EDSL success
+    simp [withdraw, msgSender, getMapping, setMapping, balances,
+      DumbContracts.require, DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
+      Contract.run, ContractResult.isSuccess, h_balance_u]
+  constructor
+  · -- Spec success
+    have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
+      exact Nat.not_lt_of_ge h
+    simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+      SpecStorage.setMapping, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt]
+  · -- Spec mapping equals EDSL mapping
+    have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
+      exact Nat.not_lt_of_ge h
+    have h_spec_val :
+        (let specTx : DiffTestTypes.Transaction := {
+          sender := sender
+          functionName := "withdraw"
+          args := [amount]
+        };
+        let specResult :=
+          interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
+        specResult.finalStorage.getMapping 0 (addressToNat sender)) =
+          (state.storageMap 0 sender).val - amount := by
+      simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+        ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
+        Nat.mod_eq_of_lt h_amount_lt]
+    have h_edsl_state :
+        (ContractResult.getState
+            ((withdraw (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender =
+          DumbContracts.EVM.Uint256.sub (state.storageMap 0 sender)
+            (DumbContracts.Core.Uint256.ofNat amount) := by
+      simpa [ContractResult.snd, ContractResult.getState] using
+        (DumbContracts.Proofs.Ledger.withdraw_decreases_balance
+          { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount) h_balance_u)
+    have h_edsl_val :
+        ((ContractResult.getState
+            ((withdraw (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender).val =
+          (state.storageMap 0 sender).val - amount := by
+      have h_val := congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_edsl_state
+      -- Subtraction uses Nat subtraction when no underflow; amount ≤ balance by h
+      have h_le : (DumbContracts.Core.Uint256.ofNat amount).val ≤ (state.storageMap 0 sender).val := by
+        simpa [DumbContracts.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using h
+      -- Convert the Uint256 subtraction to Nat subtraction using sub_eq_of_le.
+      have h_val' :
+          ((ContractResult.getState
+              ((withdraw (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+            ).storageMap 0 sender).val =
+            ((state.storageMap 0 sender - DumbContracts.Core.Uint256.ofNat amount :
+              DumbContracts.Core.Uint256) : Nat) := by
+        simpa [DumbContracts.EVM.Uint256.sub] using h_val
+      have h_val'' :
+          ((state.storageMap 0 sender - DumbContracts.Core.Uint256.ofNat amount :
+            DumbContracts.Core.Uint256) : Nat) =
+            (state.storageMap 0 sender).val - amount := by
+        simpa [DumbContracts.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using
+          (DumbContracts.Core.Uint256.sub_eq_of_le (a := state.storageMap 0 sender)
+            (b := DumbContracts.Core.Uint256.ofNat amount) h_le)
+      calc
+        ((ContractResult.getState
+            ((withdraw (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender).val
+            = ((state.storageMap 0 sender - DumbContracts.Core.Uint256.ofNat amount :
+              DumbContracts.Core.Uint256) : Nat) := h_val'
+        _ = (state.storageMap 0 sender).val - amount := h_val''
+    calc
+      (let specTx : DiffTestTypes.Transaction := {
+        sender := sender
+        functionName := "withdraw"
+        args := [amount]
+      };
+      let specResult :=
+        interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
+      specResult.finalStorage.getMapping 0 (addressToNat sender))
+          = (state.storageMap 0 sender).val - amount := h_spec_val
+      _ = ((ContractResult.getState
+            ((withdraw (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender })
+          ).storageMap 0 sender).val := by
+            symm
+            exact h_edsl_val
 
 /-- The `withdraw` function correctly reverts when balance is insufficient -/
 theorem ledger_withdraw_reverts_insufficient (state : ContractState) (amount : Nat) (sender : Address)
@@ -120,22 +313,20 @@ theorem ledger_withdraw_reverts_insufficient (state : ContractState) (amount : N
     specResult.success = false := by
   -- EDSL side: withdraw reverts when balance is insufficient.
   have h_insufficient : ¬ (amount ≤ (state.storageMap 0 sender).val) := by
-    exact not_le_of_gt h
+    exact Nat.not_le_of_gt h
   have h_insufficient_u :
       ¬ ((state.storageMap 0 sender) ≥ DumbContracts.Core.Uint256.ofNat amount) := by
     simpa [ge_iff_le, DumbContracts.Core.Uint256.le_def, DumbContracts.Core.Uint256.val_ofNat,
       Nat.mod_eq_of_lt h_amount] using h_insufficient
-  have h_edsl : edslResult.isSuccess = false := by
-    obtain ⟨msg, hrun⟩ :=
+  constructor
+  · obtain ⟨msg, hrun⟩ :=
       DumbContracts.Proofs.Ledger.withdraw_reverts_insufficient
         { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
-    simp [edslResult, ContractResult.isSuccess, hrun]
-  -- Spec side: require fails, so interpreter returns success = false.
-  have h_spec : specResult.success = false := by
-    simp [specResult, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+    simp [ContractResult.isSuccess, hrun]
+  · -- Spec side: require fails, so interpreter returns success = false.
+    simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
-      h_insufficient, Nat.mod_eq_of_lt h_amount]
-  exact ⟨h_edsl, h_spec⟩
+      h, h_insufficient, Nat.mod_eq_of_lt h_amount]
 
 /-- The `transfer` function correctly moves balance when sufficient -/
 theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address) (amount : Nat) (sender : Address)
@@ -170,22 +361,30 @@ theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Addre
     specResult.success = false := by
   -- EDSL side: transfer reverts when balance is insufficient.
   have h_insufficient : ¬ (amount ≤ (state.storageMap 0 sender).val) := by
-    exact not_le_of_gt h
+    exact Nat.not_le_of_gt h
   have h_insufficient_u :
       ¬ ((state.storageMap 0 sender) ≥ DumbContracts.Core.Uint256.ofNat amount) := by
     simpa [ge_iff_le, DumbContracts.Core.Uint256.le_def, DumbContracts.Core.Uint256.val_ofNat,
       Nat.mod_eq_of_lt h_amount] using h_insufficient
-  have h_edsl : edslResult.isSuccess = false := by
-    obtain ⟨msg, hrun⟩ :=
+  constructor
+  · obtain ⟨msg, hrun⟩ :=
       DumbContracts.Proofs.Ledger.transfer_reverts_insufficient
         { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
-    simp [edslResult, ContractResult.isSuccess, hrun]
-  -- Spec side: require fails, so interpreter returns success = false.
-  have h_spec : specResult.success = false := by
-    simp [specResult, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+    simp [ContractResult.isSuccess, hrun]
+  · -- Spec side: require fails, so interpreter returns success = false.
+    have h_senderBal :
+        (List.lookup "senderBal"
+            [("recipientBal",
+                (List.lookup (addressToNat to % DumbContracts.Core.Uint256.modulus)
+                      [(addressToNat sender, (state.storageMap 0 sender).val),
+                        (addressToNat to, (state.storageMap 0 to).val)]).getD
+                  0),
+              ("senderBal", (state.storageMap 0 sender).val)]).getD 0 =
+          (state.storageMap 0 sender).val := by
+      simp [List.lookup, beq_iff_eq]
+    simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
-      h_insufficient, Nat.mod_eq_of_lt h_amount]
-  exact ⟨h_edsl, h_spec⟩
+      h, h_insufficient, Nat.mod_eq_of_lt h_amount, h_senderBal]
 
 /-- The `getBalance` function correctly retrieves balance -/
 theorem ledger_getBalance_correct (state : ContractState) (addr : Address) (sender : Address) :
