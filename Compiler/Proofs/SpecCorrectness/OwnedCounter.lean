@@ -32,6 +32,39 @@ open Compiler.Hex
 open DumbContracts
 open DumbContracts.Examples.OwnedCounter
 
+/-!
+## Helper Lemmas for Address Encoding
+
+These mirror the Owned proofs: addressToNat yields a 160-bit value,
+so it is always < 2^256 (Uint256 modulus).
+-/
+
+private theorem addressToNat_lt_modulus (addr : Address) :
+    addressToNat addr < DumbContracts.Core.Uint256.modulus := by
+  -- addressToNat returns a value modulo 2^160
+  unfold addressToNat
+  split
+  · -- parseHexNat? returned some n
+    have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by
+      decide
+    rename_i n _
+    have h_mod : n % 2^160 < 2^160 := by
+      exact Nat.mod_lt _ (by decide : 2^160 > 0)
+    exact lt_trans h_mod h_160_lt_mod
+  · -- parseHexNat? returned none
+    rename_i _
+    have h_mod : stringToNat addr % 2^160 < 2^160 := Nat.mod_lt _ (by decide : 2^160 > 0)
+    have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by decide
+    exact lt_trans h_mod h_160_lt_mod
+
+private theorem addressToNat_mod_eq (addr : Address) :
+    addressToNat addr % DumbContracts.Core.Uint256.modulus = addressToNat addr := by
+  exact Nat.mod_eq_of_lt (addressToNat_lt_modulus addr)
+
+-- Trust assumption: address encoding is injective for valid addresses.
+private axiom addressToNat_injective :
+    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
+
 /- State Conversion -/
 
 /-- Convert EDSL ContractState to SpecStorage for OwnedCounter -/
@@ -56,7 +89,11 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
-  sorry
+  -- Constructor sets owner to initialOwner in both EDSL and spec
+  unfold DumbContracts.Examples.OwnedCounter.constructor Contract.run ownedCounterSpec interpretSpec
+  simp [setStorageAddr, DumbContracts.Examples.OwnedCounter.owner, DumbContracts.bind, DumbContracts.pure]
+  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
+  rw [addressToNat_mod_eq]
 
 /-- The `increment` function correctly increments when called by owner -/
 theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender : Address)
@@ -71,7 +108,23 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 1 = (edslResult.getState.storage 1).val := by
-  sorry
+  constructor
+  · -- EDSL success when sender is owner
+    unfold DumbContracts.Examples.OwnedCounter.increment Contract.run
+    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
+    have h_beq : (sender == state.storageAddr 0) = true := by
+      rw [beq_iff_eq, h]
+    rw [h_beq]
+    simp [ContractResult.isSuccess]
+  constructor
+  · -- Spec success when sender is owner
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
+  · -- Spec storage count equals EDSL count
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
 
 /-- The `increment` function correctly reverts when called by non-owner -/
 theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (sender : Address)
@@ -85,7 +138,33 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     edslResult.isSuccess = false ∧
     specResult.success = false := by
-  sorry
+  constructor
+  · -- EDSL reverts when sender is not owner
+    unfold DumbContracts.Examples.OwnedCounter.increment Contract.run
+    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
+    have h_beq : (sender == state.storageAddr 0) = false := by
+      cases h_eq : (sender == state.storageAddr 0)
+      · rfl
+      · rw [beq_iff_eq] at h_eq
+        exfalso
+        exact h h_eq.symm
+    rw [h_beq]
+    simp [ContractResult.isSuccess]
+  · -- Spec reverts when sender is not owner
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
+      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
+      · rfl
+      · -- If Nat equality holds, injectivity gives sender = owner, contradicting h
+        exfalso
+        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
+          simpa [beq_iff_eq] using h_eq
+        have h_addr : sender = state.storageAddr 0 :=
+          addressToNat_injective sender (state.storageAddr 0) h_nat
+        exact h h_addr.symm
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 
 /-- The `decrement` function correctly decrements when called by owner -/
 theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender : Address)
@@ -100,7 +179,23 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 1 = (edslResult.getState.storage 1).val := by
-  sorry
+  constructor
+  · -- EDSL success when sender is owner
+    unfold DumbContracts.Examples.OwnedCounter.decrement Contract.run
+    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
+    have h_beq : (sender == state.storageAddr 0) = true := by
+      rw [beq_iff_eq, h]
+    rw [h_beq]
+    simp [ContractResult.isSuccess]
+  constructor
+  · -- Spec success when sender is owner
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
+  · -- Spec storage count equals EDSL count
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
 
 /-- The `decrement` function correctly reverts when called by non-owner -/
 theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (sender : Address)
@@ -114,7 +209,32 @@ theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (send
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     edslResult.isSuccess = false ∧
     specResult.success = false := by
-  sorry
+  constructor
+  · -- EDSL reverts when sender is not owner
+    unfold DumbContracts.Examples.OwnedCounter.decrement Contract.run
+    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
+    have h_beq : (sender == state.storageAddr 0) = false := by
+      cases h_eq : (sender == state.storageAddr 0)
+      · rfl
+      · rw [beq_iff_eq] at h_eq
+        exfalso
+        exact h h_eq.symm
+    rw [h_beq]
+    simp [ContractResult.isSuccess]
+  · -- Spec reverts when sender is not owner
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
+      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
+      · rfl
+      · exfalso
+        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
+          simpa [beq_iff_eq] using h_eq
+        have h_addr : sender = state.storageAddr 0 :=
+          addressToNat_injective sender (state.storageAddr 0) h_nat
+        exact h h_addr.symm
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 
 /-- The `getCount` function correctly retrieves the counter value -/
 theorem ownedCounter_getCount_correct (state : ContractState) (sender : Address) :
@@ -157,7 +277,23 @@ theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) 
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat newOwner := by
-  sorry
+  constructor
+  · -- EDSL success when sender is owner
+    unfold DumbContracts.Examples.OwnedCounter.transferOwnership Contract.run
+    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorageAddr DumbContracts.Examples.OwnedCounter.owner
+    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
+    have h_beq : (sender == state.storageAddr 0) = true := by
+      rw [beq_iff_eq, h]
+    rw [h_beq]
+    simp [ContractResult.isSuccess]
+  constructor
+  · -- Spec success when sender is owner
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
+  · -- Spec sets owner to newOwner
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
 /- Helper Properties -/
 

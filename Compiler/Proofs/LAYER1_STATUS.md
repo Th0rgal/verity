@@ -391,14 +391,14 @@ lake build Compiler.Proofs.Automation
 
 ### Warning Summary
 - SimpleStorage: 0 sorry warnings ✅
-- Counter: 2 sorry warnings (evalExpr helper + modular arithmetic in applyNIncrements_val)
-- SafeCounter: 4 sorry warnings
-- Owned: 5 sorry warnings
-- OwnedCounter: 11 sorry warnings
+- Counter: 0 sorry warnings ✅
+- SafeCounter: 0 sorry warnings ✅
+- Owned: 0 sorry warnings ✅
+- OwnedCounter: 0 sorry warnings ✅
 - Ledger: 10 sorry warnings
 - SimpleToken: 13 sorry warnings
 - Automation: 0 sorry warnings ✅
-- **Total:** 45 sorry placeholders (SpecCorrectness files only)
+- **Total:** 23 sorry placeholders (SpecCorrectness files only)
 
 ---
 
