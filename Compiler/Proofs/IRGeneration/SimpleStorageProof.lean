@@ -50,8 +50,8 @@ theorem store_correct (value : Nat) :
   specResult.finalStorage.getSlot 0 = value := by
   -- Unfold definitions
   unfold interpretSpec
-  simp [simpleStorageSpec]
-  sorry
+  simp [simpleStorageSpec, execFunction, execStmts, execStmt, evalExpr,
+    SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot]
 
 /-! ## Retrieve Function Correctness
 
@@ -74,7 +74,7 @@ theorem retrieve_correct (storedValue : Nat) :
   specResult.success = true ∧
   specResult.returnValue = some storedValue := by
   unfold interpretSpec
-  simp [simpleStorageSpec]
-  sorry
+  simp [simpleStorageSpec, execFunction, execStmts, execStmt, evalExpr,
+    SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot]
 
 end Compiler.Proofs.IRGeneration.SimpleStorage
