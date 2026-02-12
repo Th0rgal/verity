@@ -93,6 +93,18 @@ private def runYul (runtimeCode : List YulStmt) (tx : YulTransaction)
   | { success := true, finalMappings, .. } => finalMappings 4 9 = 321
   | _ => false
 
+-- sstore on encoded mapping slot routes through decodeMappingSlot
+#guard
+  let runtime := [
+    YulStmt.expr (YulExpr.call "sstore" [
+      YulExpr.lit (encodeMappingSlot 4 9),
+      YulExpr.lit 555
+    ])
+  ]
+  match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
+  | { success := true, finalMappings, .. } => finalMappings 4 9 = 555
+  | _ => false
+
 /-! ## IR vs Yul Smoke Tests -/
 
 private def storageWith (slot value : Nat) : Nat → Nat :=

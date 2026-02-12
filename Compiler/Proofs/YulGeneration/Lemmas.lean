@@ -46,4 +46,22 @@ theorem evalYulExpr_selector_extract (state : YulState) :
   simp [evalYulExpr, evalYulCall, evalYulExprs, selectorWord, selectorModulus, selectorShift,
     Nat.mul_div_right, hpos]
 
+@[simp]
+theorem decodeMappingSlot_encode (base key : Nat) :
+    decodeMappingSlot (encodeMappingSlot base key) =
+      some (base % evmModulus, key % evmModulus) := by
+  have hpos : 0 < evmModulus := Nat.pow_pos (by decide : 0 < 2) _
+  have hge : mappingTag ≤ encodeMappingSlot base key := by
+    refine Nat.le.intro ?_
+    simp [encodeMappingSlot, mappingTag, Nat.add_assoc]
+  have hnot : ¬ encodeMappingSlot base key < mappingTag :=
+    Nat.not_lt_of_ge hge
+  have hkey_lt : key % evmModulus < evmModulus := Nat.mod_lt _ hpos
+  have hdiv : (key % evmModulus) / evmModulus = 0 :=
+    Nat.div_eq_of_lt hkey_lt
+  have hmod : (key % evmModulus) % evmModulus = key % evmModulus :=
+    Nat.mod_eq_of_lt hkey_lt
+  simp [decodeMappingSlot, encodeMappingSlot, mappingTag, hnot, Nat.add_sub_cancel_left,
+    Nat.mul_comm, Nat.mul_add_div hpos, hdiv, Nat.add_comm, Nat.add_mul_mod_self_left, hmod]
+
 end Compiler.Proofs.YulGeneration
