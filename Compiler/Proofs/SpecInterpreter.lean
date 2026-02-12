@@ -25,6 +25,8 @@ open Compiler.Hex
 open DumbContracts
 open DumbContracts.Core.Uint256 (modulus)
 
+def addressModulus : Nat := 2^160
+
 /-!
 ## Evaluation Context
 
@@ -38,8 +40,10 @@ structure EvalContext where
   blockTimestamp : Nat
   -- Function parameters (by index)
   params : List Nat
+  paramTypes : List ParamType
   -- Constructor parameters (by index, if in constructor)
   constructorArgs : List Nat
+  constructorParamTypes : List ParamType
   -- Local variables (from letVar)
   localVars : List (String × Nat)
   deriving Repr
@@ -99,11 +103,18 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
       -- Look up parameter by name in function parameter list
       -- Parameters are Nat values that need modular arithmetic like literals
       match paramNames.findIdx? (· == name) with
-      | some idx => (ctx.params.getD idx 0) % modulus
+      | some idx =>
+          let raw := ctx.params.getD idx 0
+          match ctx.paramTypes.get? idx with
+          | some ParamType.address => raw % addressModulus
+          | _ => raw % modulus
       | none => 0  -- Unknown param defaults to 0
   | Expr.constructorArg idx =>
       -- Constructor arguments are Nat values that need modular arithmetic
-      (ctx.constructorArgs.getD idx 0) % modulus
+      let raw := ctx.constructorArgs.getD idx 0
+      match ctx.constructorParamTypes.get? idx with
+      | some ParamType.address => raw % addressModulus
+      | _ => raw % modulus
   | Expr.storage fieldName =>
       match fields.findIdx? (·.name == fieldName) with
       | some slot => storage.getSlot slot
@@ -264,6 +275,7 @@ def execFunction (spec : ContractSpec) (funcName : String) (ctx : EvalContext)
   | none => none  -- Function not found, revert
   | some func =>
       -- Execute function body
+      let ctx := { ctx with paramTypes := func.params.map (·.ty) }
       let initialState : ExecState := {
         storage := initialStorage
         returnValue := none
@@ -279,6 +291,7 @@ def execConstructor (spec : ContractSpec) (ctx : EvalContext)
   match spec.constructor with
   | none => some (ctx, { storage := initialStorage, returnValue := none, halted := false })
   | some ctor =>
+      let ctx := { ctx with constructorParamTypes := ctor.params.map (·.ty) }
       let initialState : ExecState := {
         storage := initialStorage
         returnValue := none
@@ -311,7 +324,9 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
       msgValue := 0
       blockTimestamp := 0
       params := []
+      paramTypes := []
       constructorArgs := tx.args  -- Constructor args go here
+      constructorParamTypes := []
       localVars := []
     }
     match execConstructor spec ctx initialStorage with
@@ -332,7 +347,9 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
       msgValue := 0  -- Not exposed in current specs
       blockTimestamp := 0  -- Not exposed in current specs
       params := tx.args
+      paramTypes := []
       constructorArgs := []  -- Not used for regular functions
+      constructorParamTypes := []
       localVars := []
     }
     match execFunction spec tx.functionName ctx initialStorage with

@@ -49,7 +49,14 @@ private theorem decrement_runState_eq (state : ContractState) :
 -- Helper: spec's evalExpr for decrement expression matches EDSL sub
 private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address) :
     evalExpr
-      { sender := sender, msgValue := 0, blockTimestamp := 0, params := [], constructorArgs := [], localVars := [] }
+      { sender := sender,
+        msgValue := 0,
+        blockTimestamp := 0,
+        params := [],
+        paramTypes := [],
+        constructorArgs := [],
+        constructorParamTypes := [],
+        localVars := [] }
       { slots := [(0, (state.storage 0).val)], mappings := [] }
       [{ name := "count", ty := FieldType.uint256 }]
       []

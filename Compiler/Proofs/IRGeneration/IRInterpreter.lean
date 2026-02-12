@@ -82,15 +82,15 @@ def decodeMappingSlot (slot : Nat) : Option (Nat × Nat) :=
 mutual
 
 /-- Evaluate a list of Yul expressions in the IR context -/
-def evalIRExprs (state : IRState) : List YulExpr → Option (List Nat)
+partial def evalIRExprs (state : IRState) : List YulExpr → Option (List Nat)
   | [] => some []
   | e :: es => do
     let v ← evalIRExpr state e
     let vs ← evalIRExprs state es
     pure (v :: vs)
-
-def evalIRCall (state : IRState) (func : String) (args : List YulExpr) : Option Nat := do
-  match func, args with
+partial def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
+  | args => do
+    match func, args with
   | "mappingSlot", [baseExpr, keyExpr] => do
       let base ← evalIRExpr state baseExpr
       let key ← evalIRExpr state keyExpr
@@ -125,26 +125,22 @@ def evalIRCall (state : IRState) (func : String) (args : List YulExpr) : Option 
       | "and", [a, b] => some (a &&& b)  -- Bitwise AND
       | "or", [a, b] => some (a ||| b)   -- Bitwise OR
       | "caller", [] => some state.sender
-      | "calldataload", [offsetExpr] =>
+      | "calldataload", [offset] =>
           -- calldataload retrieves 32-byte word from calldata at given offset.
           -- We model calldata as 32-byte words aligned after the 4-byte selector.
           -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
-          match evalIRExpr state offsetExpr with
-          | none => none
-          | some offset =>
-            if offset < 4 then
+          if offset < 4 then
+            some 0
+          else
+            let wordOffset := offset - 4
+            if wordOffset % 32 != 0 then
               some 0
             else
-              let wordOffset := offset - 4
-              if wordOffset % 32 != 0 then
-                some 0
-              else
-                let idx := wordOffset / 32
-                some (state.calldata.getD idx 0)
+              let idx := wordOffset / 32
+              some (state.calldata.getD idx 0)
       | _, _ => none  -- Unknown or invalid function call
-
 /-- Evaluate a Yul expression in the IR context -/
-def evalIRExpr (state : IRState) : YulExpr → Option Nat
+partial def evalIRExpr (state : IRState) : YulExpr → Option Nat
   | .lit n => some n
   | .hex n => some n
   | .str _ => none  -- Strings not supported in our IR subset
@@ -152,11 +148,6 @@ def evalIRExpr (state : IRState) : YulExpr → Option Nat
   | .call func args => evalIRCall state func args
 
 end -- mutual
-
-termination_by
-  evalIRExprs _ es => sizeOf es
-  evalIRExpr _ e => sizeOf e
-  evalIRCall _ _ args => sizeOf args
 
 /-! ## IR Statement Execution -/
 
@@ -171,7 +162,7 @@ inductive IRExecResult
 mutual
 
 /-- Execute a single Yul statement -/
-def execIRStmt (state : IRState) : YulStmt → IRExecResult
+partial def execIRStmt (state : IRState) : YulStmt → IRExecResult
   | .comment _ => .continue state
   | .let_ name value =>
     match evalIRExpr state value with
@@ -245,9 +236,8 @@ def execIRStmt (state : IRState) : YulStmt → IRExecResult
     | none => .revert state
   | .block stmts => execIRStmts state stmts
   | .funcDef _ _ _ _ => .continue state  -- Function definitions don't execute
-
 /-- Execute a sequence of IR statements -/
-def execIRStmts (state : IRState) : List YulStmt → IRExecResult
+partial def execIRStmts (state : IRState) : List YulStmt → IRExecResult
   | [] => .continue state
   | stmt :: rest =>
     match execIRStmt state stmt with
@@ -257,10 +247,6 @@ def execIRStmts (state : IRState) : List YulStmt → IRExecResult
     | .revert s => .revert s
 
 end -- mutual
-
-termination_by
-  execIRStmt _ stmt => sizeOf stmt
-  execIRStmts _ stmts => sizeOf stmts
 
 /-! ## IR Function Execution -/
 
