@@ -15,7 +15,7 @@
 import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
-import DumbContracts.Examples.Counter
+import Contracts.Counter.Impl
 import DumbContracts.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
@@ -25,7 +25,7 @@ open Compiler.Specs
 open Compiler.Proofs
 open Compiler.Proofs.Automation
 open DumbContracts
-open DumbContracts.Examples.Counter
+open Contracts.Counter
 open DumbContracts.EVM.Uint256 (add sub)
 open DumbContracts.Core.Uint256 (modulus val_ofNat ofNat)
 

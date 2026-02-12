@@ -12,20 +12,20 @@
 -/
 
 import DumbContracts.Core
-import DumbContracts.Examples.SimpleStorage
-import DumbContracts.Examples.Counter
-import DumbContracts.Examples.SafeCounter
-import DumbContracts.Examples.Owned
-import DumbContracts.Examples.Ledger
-import DumbContracts.Examples.OwnedCounter
-import DumbContracts.Examples.SimpleToken
+import Contracts.SimpleStorage.Impl
+import Contracts.Counter.Impl
+import Contracts.SafeCounter.Impl
+import Contracts.Owned.Impl
+import Contracts.Ledger.Impl
+import Contracts.OwnedCounter.Impl
+import Contracts.SimpleToken.Impl
 import Compiler.DiffTestTypes
 import Compiler.Hex
 
 namespace Compiler.Interpreter
 
 open DumbContracts
-open DumbContracts.Examples
+open Contracts
 open Compiler.DiffTestTypes
 open Compiler.Hex
 

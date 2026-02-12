@@ -9,6 +9,9 @@ package «dumb-contracts» where
 lean_lib «DumbContracts» where
   globs := #[.andSubmodules `DumbContracts]
 
+lean_lib «Contracts» where
+  globs := #[.andSubmodules `Contracts]
+
 lean_lib «Compiler» where
   globs := #[.andSubmodules `Compiler]
 

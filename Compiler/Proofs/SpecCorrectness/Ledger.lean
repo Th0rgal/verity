@@ -19,9 +19,9 @@ import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
 import Compiler.Hex
-import DumbContracts.Examples.Ledger
+import Contracts.Ledger.Impl
 import DumbContracts.Core.Uint256
-import DumbContracts.Proofs.Ledger.Basic
+import Contracts.Ledger.Proofs.Basic
 
 namespace Compiler.Proofs.SpecCorrectness
 
@@ -31,7 +31,7 @@ open Compiler.Proofs
 open Compiler.Proofs.Automation
 open Compiler.Hex
 open DumbContracts
-open DumbContracts.Examples.Ledger
+open Contracts.Ledger
 
 /-!
 ## Helper Lemmas for Address Encoding
@@ -120,7 +120,7 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
           DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
             (DumbContracts.Core.Uint256.ofNat amount) := by
       simpa [ContractResult.snd, ContractResult.getState] using
-        (DumbContracts.Proofs.Ledger.deposit_increases_balance
+        (Contracts.Ledger.Proofs.deposit_increases_balance
           { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount))
     have h_edsl_val :
         ((ContractResult.getState
@@ -249,7 +249,7 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
           DumbContracts.EVM.Uint256.sub (state.storageMap 0 sender)
             (DumbContracts.Core.Uint256.ofNat amount) := by
       simpa [ContractResult.snd, ContractResult.getState] using
-        (DumbContracts.Proofs.Ledger.withdraw_decreases_balance
+        (Contracts.Ledger.Proofs.withdraw_decreases_balance
           { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount) h_balance_u)
     have h_edsl_val :
         ((ContractResult.getState
@@ -320,7 +320,7 @@ theorem ledger_withdraw_reverts_insufficient (state : ContractState) (amount : N
       Nat.mod_eq_of_lt h_amount] using h_insufficient
   constructor
   · obtain ⟨msg, hrun⟩ :=
-      DumbContracts.Proofs.Ledger.withdraw_reverts_insufficient
+      Contracts.Ledger.Proofs.withdraw_reverts_insufficient
         { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
     simp [ContractResult.isSuccess, hrun]
   · -- Spec side: require fails, so interpreter returns success = false.
@@ -462,7 +462,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
             DumbContracts.EVM.Uint256.sub (state.storageMap 0 sender)
               (DumbContracts.Core.Uint256.ofNat amount) := by
         simpa [ContractResult.snd, ContractResult.getState] using
-          (DumbContracts.Proofs.Ledger.transfer_decreases_sender
+          (Contracts.Ledger.Proofs.transfer_decreases_sender
             { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_balance_u h_ne)
       have h_edsl_val :
           ((ContractResult.getState
@@ -532,7 +532,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
             DumbContracts.EVM.Uint256.add (state.storageMap 0 to)
               (DumbContracts.Core.Uint256.ofNat amount) := by
         simpa [ContractResult.snd, ContractResult.getState] using
-          (DumbContracts.Proofs.Ledger.transfer_increases_recipient
+          (Contracts.Ledger.Proofs.transfer_increases_recipient
             { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_balance_u h_ne)
       have h_edsl_val :
           ((ContractResult.getState
@@ -586,7 +586,7 @@ theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Addre
       Nat.mod_eq_of_lt h_amount] using h_insufficient
   constructor
   · obtain ⟨msg, hrun⟩ :=
-      DumbContracts.Proofs.Ledger.transfer_reverts_insufficient
+      Contracts.Ledger.Proofs.transfer_reverts_insufficient
         { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
     simp [ContractResult.isSuccess, hrun]
   · -- Spec side: require fails, so interpreter returns success = false.
@@ -619,7 +619,7 @@ theorem ledger_getBalance_correct (state : ContractState) (addr : Address) (send
   have h_edsl : (getBalance addr).runValue { state with sender := sender } =
       state.storageMap 0 addr := by
     simpa [Contract.runValue] using
-      DumbContracts.Proofs.Ledger.getBalance_returns_balance { state with sender := sender } addr
+      Contracts.Ledger.Proofs.getBalance_returns_balance { state with sender := sender } addr
   have h_mod := addressToNat_mod_eq addr
   -- Spec side: interpretSpec returns the mapping value at key addressToNat addr.
   -- The Spec storage is initialized with exactly that mapping entry.
@@ -639,7 +639,7 @@ theorem ledger_getBalance_preserves_state (state : ContractState) (addr : Addres
       (getBalance addr).runState { state with sender := sender } =
         { state with sender := sender } := by
     simpa [Contract.runState] using
-      DumbContracts.Proofs.Ledger.getBalance_preserves_state { state with sender := sender } addr
+      Contracts.Ledger.Proofs.getBalance_preserves_state { state with sender := sender } addr
   -- runState returns the same state for getBalance, so storageMap is unchanged.
   rw [h_state]
 
@@ -650,7 +650,7 @@ theorem ledger_deposit_increases (state : ContractState) (amount : Nat) (sender 
     let finalState := (deposit (DumbContracts.Core.Uint256.ofNat amount)).runState { state with sender := sender }
     (finalState.storageMap 0 sender).val = (state.storageMap 0 sender).val + amount := by
   have h_deposit :=
-    DumbContracts.Proofs.Ledger.deposit_increases_balance { state with sender := sender }
+    Contracts.Ledger.Proofs.deposit_increases_balance { state with sender := sender }
       (DumbContracts.Core.Uint256.ofNat amount)
   have h_amount_lt : amount < DumbContracts.Core.Uint256.modulus := by
     have h_le : amount ≤ (state.storageMap 0 sender).val + amount := by
@@ -701,14 +701,14 @@ theorem ledger_transfer_preserves_total (state : ContractState) (to : Address) (
         DumbContracts.EVM.Uint256.sub (state.storageMap 0 sender)
           (DumbContracts.Core.Uint256.ofNat amount) := by
     simpa [Contract.runState] using
-      (DumbContracts.Proofs.Ledger.transfer_decreases_sender
+      (Contracts.Ledger.Proofs.transfer_decreases_sender
         { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_balance_u h)
   have h_recipient :
       (transfer to (DumbContracts.Core.Uint256.ofNat amount)).runState { state with sender := sender } |>.storageMap 0 to =
         DumbContracts.EVM.Uint256.add (state.storageMap 0 to)
           (DumbContracts.Core.Uint256.ofNat amount) := by
     simpa [Contract.runState] using
-      (DumbContracts.Proofs.Ledger.transfer_increases_recipient
+      (Contracts.Ledger.Proofs.transfer_increases_recipient
         { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_balance_u h)
   have h_sender_val :
       (finalState.storageMap 0 sender).val =
@@ -761,7 +761,7 @@ theorem ledger_deposit_isolates_other (state : ContractState) (amount : Nat) (se
     intro h_eq
     exact h h_eq.symm
   have h_preserve :=
-    DumbContracts.Proofs.Ledger.deposit_preserves_other_balances { state with sender := sender }
+    Contracts.Ledger.Proofs.deposit_preserves_other_balances { state with sender := sender }
       (DumbContracts.Core.Uint256.ofNat amount) other h_ne
   simp [Contract.runState] at h_preserve
   simpa using h_preserve

@@ -18,17 +18,17 @@ The EDSL has 252 proven theorems across 7 contracts and a math stdlib. The compi
 Each contract has three layers of files:
 
 ```
-DumbContracts/
-├── Examples/{Contract}.lean      # Implementation
-├── Specs/{Contract}/
+Contracts/
+├── {Contract}/
+│   ├── Impl.lean                 # Implementation
 │   ├── Spec.lean                 # What each operation should do
-│   └── Invariants.lean           # Properties that should always hold
-└── Proofs/{Contract}/
-    ├── Basic.lean                # Core proofs (specs met, state preserved)
-    ├── Correctness.lean          # Deeper proofs (composition, revert behavior)
-    ├── Conservation.lean         # Sum conservation laws (Ledger)
-    ├── Supply.lean               # Supply conservation (SimpleToken)
-    └── Isolation.lean            # Storage isolation (SimpleToken)
+│   ├── Invariants.lean           # Properties that should always hold
+│   └── Proofs/
+│       ├── Basic.lean            # Core proofs (specs met, state preserved)
+│       ├── Correctness.lean      # Deeper proofs (composition, revert behavior)
+│       ├── Conservation.lean     # Sum conservation laws (Ledger)
+│       ├── Supply.lean           # Supply conservation (SimpleToken)
+│       └── Isolation.lean        # Storage isolation (SimpleToken)
 ```
 
 ## Guard modeling

@@ -245,7 +245,8 @@ In short, the generic theorem is feasible, but it does not eliminate any of the 
 ## Simplest Practical Approach
 
 The simplest path that scales while keeping proofs readable is:
-- Keep the per-contract proof files in `Compiler/Proofs/SpecCorrectness/*.lean`
+- Keep compiler layer-1 proofs in `Compiler/Proofs/SpecCorrectness/*.lean`
+- Keep user-facing contract proofs alongside their contracts in `Contracts/<Name>/Proofs/`
 - Factor the repetitive steps into `Automation.lean` and reuse them
 - Optionally add a thin wrapper theorem later, once we have more complex contracts (like Safe Multisig)
 - If/when we add the wrapper, start by packaging existing patterns rather than changing proofs

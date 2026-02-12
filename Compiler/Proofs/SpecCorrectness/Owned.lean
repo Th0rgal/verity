@@ -18,7 +18,7 @@ import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
 import Compiler.Hex
-import DumbContracts.Examples.Owned
+import Contracts.Owned.Impl
 import DumbContracts.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
@@ -28,7 +28,7 @@ open Compiler.Specs
 open Compiler.Proofs
 open Compiler.Hex
 open DumbContracts
-open DumbContracts.Examples.Owned
+open Contracts.Owned
 
 /- State Conversion -/
 
@@ -107,8 +107,8 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
   -- Constructor sets owner to initialOwner in both EDSL and spec
-  unfold DumbContracts.Examples.Owned.constructor Contract.run ownedSpec interpretSpec
-  simp [setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind, DumbContracts.pure]
+  unfold Contracts.Owned.constructor Contract.run ownedSpec interpretSpec
+  simp [setStorageAddr, Contracts.Owned.owner, DumbContracts.bind, DumbContracts.pure]
   simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
   -- Use our lemma: addressToNat % modulus = addressToNat
   rw [addressToNat_mod_eq]
@@ -129,9 +129,9 @@ theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : A
   -- When sender is owner, both EDSL and spec succeed
   constructor
   · -- Part 1: edslResult.isSuccess = true
-    unfold DumbContracts.Examples.Owned.transferOwnership Contract.run
-    unfold DumbContracts.Examples.Owned.onlyOwner DumbContracts.Examples.Owned.isOwner
-    unfold msgSender getStorageAddr setStorageAddr DumbContracts.Examples.Owned.owner
+    unfold Contracts.Owned.transferOwnership Contract.run
+    unfold Contracts.Owned.onlyOwner Contracts.Owned.isOwner
+    unfold msgSender getStorageAddr setStorageAddr Contracts.Owned.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
       rw [beq_iff_eq, h]
@@ -165,9 +165,9 @@ theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner 
   -- When sender is not owner, both EDSL and spec revert
   constructor
   · -- Part 1: edslResult.isSuccess = false
-    unfold DumbContracts.Examples.Owned.transferOwnership Contract.run
-    unfold DumbContracts.Examples.Owned.onlyOwner DumbContracts.Examples.Owned.isOwner
-    unfold msgSender getStorageAddr setStorageAddr DumbContracts.Examples.Owned.owner
+    unfold Contracts.Owned.transferOwnership Contract.run
+    unfold Contracts.Owned.onlyOwner Contracts.Owned.isOwner
+    unfold msgSender getStorageAddr setStorageAddr Contracts.Owned.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     -- Show that (sender == state.storageAddr 0) = false when sender ≠ state.storageAddr 0
     have h_beq : (sender == state.storageAddr 0) = false := by
@@ -211,8 +211,8 @@ theorem getOwner_correct (state : ContractState) (sender : Address) :
     specResult.success = true ∧
     specResult.returnValue = some (addressToNat edslAddr) := by
   -- Same pattern as Counter.getCount_correct and SafeCounter.getCount_correct
-  unfold DumbContracts.Examples.Owned.getOwner Contract.runValue ownedSpec interpretSpec ownedEdslToSpecStorage
-  simp [getStorageAddr, DumbContracts.Examples.Owned.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
+  unfold Contracts.Owned.getOwner Contract.runValue ownedSpec interpretSpec ownedEdslToSpecStorage
+  simp [getStorageAddr, Contracts.Owned.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
 
 /- Helper Properties -/
 
@@ -221,8 +221,8 @@ theorem getOwner_preserves_state (state : ContractState) (sender : Address) :
     let finalState := getOwner.runState { state with sender := sender }
     finalState.storageAddr 0 = state.storageAddr 0 := by
   -- getOwner just reads storage, doesn't modify it
-  unfold DumbContracts.Examples.Owned.getOwner Contract.runState
-  simp [getStorageAddr, DumbContracts.Examples.Owned.owner]
+  unfold Contracts.Owned.getOwner Contract.runState
+  simp [getStorageAddr, Contracts.Owned.owner]
 
 /-- Only owner can transfer ownership -/
 theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
@@ -260,16 +260,16 @@ theorem constructor_sets_owner (state : ContractState) (initialOwner : Address) 
     let finalState := (constructor initialOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = initialOwner := by
   -- Constructor simply sets storage at slot 0 to initialOwner
-  unfold DumbContracts.Examples.Owned.constructor Contract.runState
-  simp [setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind]
+  unfold Contracts.Owned.constructor Contract.runState
+  simp [setStorageAddr, Contracts.Owned.owner, DumbContracts.bind]
 
 /-- TransferOwnership updates owner when authorized -/
 theorem transferOwnership_updates_owner (state : ContractState) (newOwner : Address) (sender : Address)
     (h : state.storageAddr 0 = sender) :
-    let finalState := (DumbContracts.Examples.Owned.transferOwnership newOwner).runState { state with sender := sender }
+    let finalState := (Contracts.Owned.transferOwnership newOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = newOwner := by
   -- Unfold all definitions
-  unfold DumbContracts.Examples.Owned.transferOwnership DumbContracts.Examples.Owned.onlyOwner DumbContracts.Examples.Owned.isOwner DumbContracts.Examples.Owned.owner
+  unfold Contracts.Owned.transferOwnership Contracts.Owned.onlyOwner Contracts.Owned.isOwner Contracts.Owned.owner
   unfold msgSender getStorageAddr setStorageAddr Contract.runState
   simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure, DumbContracts.require]
 

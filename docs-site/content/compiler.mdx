@@ -43,7 +43,7 @@ The DumbContracts compiler transforms high-level, verified contract specificatio
 
 ### EDSL Implementation
 ```lean
--- DumbContracts/Examples/SimpleStorage.lean
+-- Contracts/SimpleStorage/Impl.lean
 def storedData : StorageSlot Uint256 := ⟨0⟩
 
 def store (value : Uint256) : Contract Unit := do

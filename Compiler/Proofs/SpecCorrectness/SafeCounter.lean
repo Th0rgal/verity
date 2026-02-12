@@ -16,10 +16,10 @@
 import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
-import DumbContracts.Examples.SafeCounter
+import Contracts.SafeCounter.Impl
 import DumbContracts.Core.Uint256
 import DumbContracts.Stdlib.Math
-import DumbContracts.Proofs.SafeCounter.Basic
+import Contracts.SafeCounter.Proofs.Basic
 
 namespace Compiler.Proofs.SpecCorrectness
 
@@ -27,7 +27,7 @@ open Compiler.ContractSpec
 open Compiler.Specs
 open Compiler.Proofs
 open DumbContracts
-open DumbContracts.Examples.SafeCounter
+open Contracts.SafeCounter
 open DumbContracts.Stdlib.Math
 
 /- State Conversion -/
@@ -164,8 +164,8 @@ theorem safeIncrement_reverts_at_max (state : ContractState) (sender : Address)
   -- When count = MAX_UINT256, count + 1 > MAX_UINT256, so safeAdd returns none
   have h_overflow : ((state.storage 0) : Nat) + 1 > DumbContracts.Core.MAX_UINT256 := by
     rw [h]; omega
-  -- Use the existing proof from DumbContracts.Proofs.SafeCounter.Basic
-  have h_revert := DumbContracts.Proofs.SafeCounter.increment_reverts_overflow
+  -- Use the existing proof from Contracts.SafeCounter.Proofs.Basic
+  have h_revert := Contracts.SafeCounter.Proofs.increment_reverts_overflow
     { state with sender := sender } h_overflow
   rcases h_revert with ⟨msg, h_eq⟩
   rw [h_eq]
@@ -266,7 +266,7 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
       rw [this]; omega
     let s := { state with sender := sender }
     have h_adds :=
-      DumbContracts.Proofs.SafeCounter.increment_adds_one s h_le
+      Contracts.SafeCounter.Proofs.increment_adds_one s h_le
     have h_edsl_storage :
         ((ContractResult.getState (increment.run s)).storage 0).val =
           (DumbContracts.Core.Uint256.add (state.storage 0) 1).val := by
@@ -307,8 +307,8 @@ theorem safeDecrement_reverts_at_zero (state : ContractState) (sender : Address)
   have h_storage_zero : (state.storage 0) = 0 := by
     ext
     exact h
-  -- Use the existing proof from DumbContracts.Proofs.SafeCounter.Basic
-  have h_revert := DumbContracts.Proofs.SafeCounter.decrement_reverts_underflow
+  -- Use the existing proof from Contracts.SafeCounter.Proofs.Basic
+  have h_revert := Contracts.SafeCounter.Proofs.decrement_reverts_underflow
     { state with sender := sender } h_storage_zero
   rcases h_revert with ⟨msg, h_eq⟩
   rw [h_eq]
@@ -361,7 +361,7 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
       -- EDSL: decrement stores (count - 1)
       let s := { state with sender := sender }
       have h_subs :=
-        DumbContracts.Proofs.SafeCounter.decrement_subtracts_one s h_ge
+        Contracts.SafeCounter.Proofs.decrement_subtracts_one s h_ge
       have h_edsl_storage :
           ((ContractResult.getState (decrement.run s)).storage 0).val =
             (DumbContracts.Core.Uint256.sub (state.storage 0) 1).val := by

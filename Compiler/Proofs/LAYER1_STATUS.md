@@ -110,7 +110,7 @@ def edslToSpecStorage (state : ContractState) : SpecStorage :=
 - Boundary condition proofs
 - Monadic code with requireSomeUint
 - safeAdd/safeSub overflow detection
-- Reusing existing proofs from DumbContracts.Proofs.SafeCounter.Basic
+- Reusing existing proofs from Contracts/SafeCounter/Proofs/Basic.lean
 
 **Technical Challenge:** Resolved via Automation lemmas for bind and require.
 

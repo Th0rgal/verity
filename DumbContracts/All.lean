@@ -1,50 +1,50 @@
 import DumbContracts.Core
 import DumbContracts.Stdlib.Math
 import DumbContracts.Proofs.Stdlib.Math
-import DumbContracts.Examples.SimpleStorage
-import DumbContracts.Examples.Counter
-import DumbContracts.Examples.SafeCounter
-import DumbContracts.Examples.Owned
-import DumbContracts.Examples.OwnedCounter
-import DumbContracts.Examples.Ledger
-import DumbContracts.Examples.SimpleToken
+import Contracts.SimpleStorage.Impl
+import Contracts.Counter.Impl
+import Contracts.SafeCounter.Impl
+import Contracts.Owned.Impl
+import Contracts.OwnedCounter.Impl
+import Contracts.Ledger.Impl
+import Contracts.SimpleToken.Impl
 
 -- Formal Verification
-import DumbContracts.Specs.SimpleStorage.Spec
-import DumbContracts.Specs.SimpleStorage.Invariants
-import DumbContracts.Proofs.SimpleStorage.Basic
-import DumbContracts.Proofs.SimpleStorage.Correctness
+import Contracts.SimpleStorage.Spec
+import Contracts.SimpleStorage.Invariants
+import Contracts.SimpleStorage.Proofs.Basic
+import Contracts.SimpleStorage.Proofs.Correctness
 
-import DumbContracts.Specs.Counter.Spec
-import DumbContracts.Specs.Counter.Invariants
-import DumbContracts.Proofs.Counter.Basic
-import DumbContracts.Proofs.Counter.Correctness
+import Contracts.Counter.Spec
+import Contracts.Counter.Invariants
+import Contracts.Counter.Proofs.Basic
+import Contracts.Counter.Proofs.Correctness
 
-import DumbContracts.Specs.Owned.Spec
-import DumbContracts.Specs.Owned.Invariants
-import DumbContracts.Proofs.Owned.Basic
-import DumbContracts.Proofs.Owned.Correctness
+import Contracts.Owned.Spec
+import Contracts.Owned.Invariants
+import Contracts.Owned.Proofs.Basic
+import Contracts.Owned.Proofs.Correctness
 
-import DumbContracts.Specs.SimpleToken.Spec
-import DumbContracts.Specs.SimpleToken.Invariants
-import DumbContracts.Proofs.SimpleToken.Basic
-import DumbContracts.Proofs.SimpleToken.Correctness
-import DumbContracts.Proofs.SimpleToken.Supply
-import DumbContracts.Proofs.SimpleToken.Isolation
+import Contracts.SimpleToken.Spec
+import Contracts.SimpleToken.Invariants
+import Contracts.SimpleToken.Proofs.Basic
+import Contracts.SimpleToken.Proofs.Correctness
+import Contracts.SimpleToken.Proofs.Supply
+import Contracts.SimpleToken.Proofs.Isolation
 
-import DumbContracts.Specs.OwnedCounter.Spec
-import DumbContracts.Specs.OwnedCounter.Invariants
-import DumbContracts.Proofs.OwnedCounter.Basic
-import DumbContracts.Proofs.OwnedCounter.Correctness
-import DumbContracts.Proofs.OwnedCounter.Isolation
+import Contracts.OwnedCounter.Spec
+import Contracts.OwnedCounter.Invariants
+import Contracts.OwnedCounter.Proofs.Basic
+import Contracts.OwnedCounter.Proofs.Correctness
+import Contracts.OwnedCounter.Proofs.Isolation
 
-import DumbContracts.Specs.Ledger.Spec
-import DumbContracts.Specs.Ledger.Invariants
-import DumbContracts.Proofs.Ledger.Basic
-import DumbContracts.Proofs.Ledger.Correctness
-import DumbContracts.Proofs.Ledger.Conservation
+import Contracts.Ledger.Spec
+import Contracts.Ledger.Invariants
+import Contracts.Ledger.Proofs.Basic
+import Contracts.Ledger.Proofs.Correctness
+import Contracts.Ledger.Proofs.Conservation
 
-import DumbContracts.Specs.SafeCounter.Spec
-import DumbContracts.Specs.SafeCounter.Invariants
-import DumbContracts.Proofs.SafeCounter.Basic
-import DumbContracts.Proofs.SafeCounter.Correctness
+import Contracts.SafeCounter.Spec
+import Contracts.SafeCounter.Invariants
+import Contracts.SafeCounter.Proofs.Basic
+import Contracts.SafeCounter.Proofs.Correctness

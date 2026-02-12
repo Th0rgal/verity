@@ -20,9 +20,9 @@ import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
 import Compiler.Hex
-import DumbContracts.Examples.SimpleToken
-import DumbContracts.Proofs.SimpleToken.Basic
-import DumbContracts.Proofs.SimpleToken.Correctness
+import Contracts.SimpleToken.Impl
+import Contracts.SimpleToken.Proofs.Basic
+import Contracts.SimpleToken.Proofs.Correctness
 import DumbContracts.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
@@ -33,8 +33,8 @@ open Compiler.Proofs
 open Compiler.Proofs.Automation
 open Compiler.Hex
 open DumbContracts
-open DumbContracts.Examples.SimpleToken
-open DumbContracts.Proofs.SimpleToken
+open Contracts.SimpleToken
+open Contracts.SimpleToken.Proofs
 
 /- State Conversion -/
 
@@ -175,7 +175,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
     specResult.finalStorage.getSlot 2 = (edslResult.getState.storage 2).val := by
   constructor
   · -- EDSL success
-    simp [mint, DumbContracts.Examples.SimpleToken.onlyOwner, isOwner, Contract.run,
+    simp [mint, Contracts.SimpleToken.onlyOwner, isOwner, Contract.run,
       msgSender, getStorageAddr, getMapping, setMapping, getStorage, setStorage,
       Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
       DumbContracts.require, DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
@@ -309,7 +309,7 @@ theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (a
         have h_addr : sender = state.storageAddr 0 := by
           simpa [beq_iff_eq] using h_eq
         exact h h_addr.symm
-    simp [mint, DumbContracts.Examples.SimpleToken.onlyOwner, isOwner, Contract.run,
+    simp [mint, Contracts.SimpleToken.onlyOwner, isOwner, Contract.run,
       msgSender, getStorageAddr, getMapping, setMapping, getStorage, setStorage,
       Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
       DumbContracts.require, DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
@@ -577,7 +577,7 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
       Nat.mod_eq_of_lt h_amount] using h_insufficient
   constructor
   · obtain ⟨msg, hrun⟩ :=
-      DumbContracts.Proofs.SimpleToken.Correctness.transfer_reverts_insufficient_balance
+      Contracts.SimpleToken.Proofs.Correctness.transfer_reverts_insufficient_balance
         { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
     simp [ContractResult.isSuccess, hrun]
   · -- Spec side: require fails, so interpreter returns success = false.
@@ -713,7 +713,7 @@ theorem token_only_owner_mints (state : ContractState) (to : Address) (amount : 
   intro h_success
   by_contra h_not_owner
   obtain ⟨msg, hrun⟩ :=
-    DumbContracts.Proofs.SimpleToken.Correctness.mint_reverts_when_not_owner
+    Contracts.SimpleToken.Proofs.Correctness.mint_reverts_when_not_owner
       { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_not_owner
   have h_fail : result.isSuccess = false := by
     simpa [ContractResult.isSuccess, hrun] using rfl

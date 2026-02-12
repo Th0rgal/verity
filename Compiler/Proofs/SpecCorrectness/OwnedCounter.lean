@@ -19,7 +19,7 @@ import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
 import Compiler.Hex
-import DumbContracts.Examples.OwnedCounter
+import Contracts.OwnedCounter.Impl
 import DumbContracts.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
@@ -30,7 +30,7 @@ open Compiler.Proofs
 open Compiler.Proofs.Automation
 open Compiler.Hex
 open DumbContracts
-open DumbContracts.Examples.OwnedCounter
+open Contracts.OwnedCounter
 
 /-!
 ## Helper Lemmas for Address Encoding
@@ -90,8 +90,8 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
   -- Constructor sets owner to initialOwner in both EDSL and spec
-  unfold DumbContracts.Examples.OwnedCounter.constructor Contract.run ownedCounterSpec interpretSpec
-  simp [setStorageAddr, DumbContracts.Examples.OwnedCounter.owner, DumbContracts.bind, DumbContracts.pure]
+  unfold Contracts.OwnedCounter.constructor Contract.run ownedCounterSpec interpretSpec
+  simp [setStorageAddr, Contracts.OwnedCounter.owner, DumbContracts.bind, DumbContracts.pure]
   simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
   rw [addressToNat_mod_eq]
 
@@ -110,9 +110,9 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
     specResult.finalStorage.getSlot 1 = (edslResult.getState.storage 1).val := by
   constructor
   · -- EDSL success when sender is owner
-    unfold DumbContracts.Examples.OwnedCounter.increment Contract.run
-    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
-    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    unfold Contracts.OwnedCounter.increment Contract.run
+    unfold Contracts.OwnedCounter.onlyOwner Contracts.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage Contracts.OwnedCounter.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
       rw [beq_iff_eq, h]
@@ -140,9 +140,9 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
     specResult.success = false := by
   constructor
   · -- EDSL reverts when sender is not owner
-    unfold DumbContracts.Examples.OwnedCounter.increment Contract.run
-    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
-    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    unfold Contracts.OwnedCounter.increment Contract.run
+    unfold Contracts.OwnedCounter.onlyOwner Contracts.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage Contracts.OwnedCounter.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = false := by
       cases h_eq : (sender == state.storageAddr 0)
@@ -181,9 +181,9 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
     specResult.finalStorage.getSlot 1 = (edslResult.getState.storage 1).val := by
   constructor
   · -- EDSL success when sender is owner
-    unfold DumbContracts.Examples.OwnedCounter.decrement Contract.run
-    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
-    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    unfold Contracts.OwnedCounter.decrement Contract.run
+    unfold Contracts.OwnedCounter.onlyOwner Contracts.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage Contracts.OwnedCounter.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
       rw [beq_iff_eq, h]
@@ -211,9 +211,9 @@ theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (send
     specResult.success = false := by
   constructor
   · -- EDSL reverts when sender is not owner
-    unfold DumbContracts.Examples.OwnedCounter.decrement Contract.run
-    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
-    unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
+    unfold Contracts.OwnedCounter.decrement Contract.run
+    unfold Contracts.OwnedCounter.onlyOwner Contracts.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorage Contracts.OwnedCounter.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = false := by
       cases h_eq : (sender == state.storageAddr 0)
@@ -247,8 +247,8 @@ theorem ownedCounter_getCount_correct (state : ContractState) (sender : Address)
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
-  unfold DumbContracts.Examples.OwnedCounter.getCount Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
-  simp [getStorage, DumbContracts.Examples.OwnedCounter.count, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
+  unfold Contracts.OwnedCounter.getCount Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
+  simp [getStorage, Contracts.OwnedCounter.count, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
 
 /-- The `getOwner` function correctly retrieves the owner address -/
 theorem ownedCounter_getOwner_correct (state : ContractState) (sender : Address) :
@@ -261,8 +261,8 @@ theorem ownedCounter_getOwner_correct (state : ContractState) (sender : Address)
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some (addressToNat edslAddr) := by
-  unfold DumbContracts.Examples.OwnedCounter.getOwner Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
-  simp [getStorageAddr, DumbContracts.Examples.OwnedCounter.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
+  unfold Contracts.OwnedCounter.getOwner Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
+  simp [getStorageAddr, Contracts.OwnedCounter.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
 theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
@@ -279,9 +279,9 @@ theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) 
     specResult.finalStorage.getSlot 0 = addressToNat newOwner := by
   constructor
   · -- EDSL success when sender is owner
-    unfold DumbContracts.Examples.OwnedCounter.transferOwnership Contract.run
-    unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
-    unfold msgSender getStorageAddr setStorageAddr DumbContracts.Examples.OwnedCounter.owner
+    unfold Contracts.OwnedCounter.transferOwnership Contract.run
+    unfold Contracts.OwnedCounter.onlyOwner Contracts.OwnedCounter.isOwner
+    unfold msgSender getStorageAddr setStorageAddr Contracts.OwnedCounter.owner
     simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
       rw [beq_iff_eq, h]
@@ -303,8 +303,8 @@ theorem ownedCounter_getters_preserve_state (state : ContractState) (sender : Ad
     let ownerState := getOwner.runState { state with sender := sender }
     countState.storage 1 = state.storage 1 ∧
     ownerState.storageAddr 0 = state.storageAddr 0 := by
-  unfold DumbContracts.Examples.OwnedCounter.getCount DumbContracts.Examples.OwnedCounter.getOwner Contract.runState
-  simp [getStorage, getStorageAddr, DumbContracts.Examples.OwnedCounter.count, DumbContracts.Examples.OwnedCounter.owner]
+  unfold Contracts.OwnedCounter.getCount Contracts.OwnedCounter.getOwner Contract.runState
+  simp [getStorage, getStorageAddr, Contracts.OwnedCounter.count, Contracts.OwnedCounter.owner]
 
 /-- Only owner can modify counter -/
 theorem ownedCounter_only_owner_modifies (state : ContractState) (sender : Address) :
@@ -339,8 +339,8 @@ theorem ownedCounter_slots_independent (state : ContractState) (newOwner : Addre
     (h : state.storageAddr 0 = sender) :
     let finalState := (transferOwnership newOwner).runState { state with sender := sender }
     finalState.storage 1 = state.storage 1 := by
-  unfold DumbContracts.Examples.OwnedCounter.transferOwnership DumbContracts.Examples.OwnedCounter.onlyOwner
-  unfold DumbContracts.Examples.OwnedCounter.isOwner DumbContracts.Examples.OwnedCounter.owner
+  unfold Contracts.OwnedCounter.transferOwnership Contracts.OwnedCounter.onlyOwner
+  unfold Contracts.OwnedCounter.isOwner Contracts.OwnedCounter.owner
   unfold msgSender getStorageAddr setStorageAddr Contract.runState
   simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure, DumbContracts.require]
   have h_beq : (sender == state.storageAddr 0) = true := by
