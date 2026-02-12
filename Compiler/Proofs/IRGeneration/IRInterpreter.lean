@@ -56,14 +56,24 @@ def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
 
 /-! ## IR Expression Evaluation -/
 
+mutual
+
+/-- Evaluate a list of Yul expressions in the IR context -/
+def evalIRExprs (state : IRState) : List YulExpr → Option (List Nat)
+  | [] => some []
+  | e :: es => do
+    let v ← evalIRExpr state e
+    let vs ← evalIRExprs state es
+    pure (v :: vs)
+
 /-- Evaluate a Yul expression in the IR context -/
-partial def evalIRExpr (state : IRState) : YulExpr → Option Nat
+def evalIRExpr (state : IRState) : YulExpr → Option Nat
   | .lit n => some n
   | .hex n => some n
   | .str _ => none  -- Strings not supported in our IR subset
   | .ident name => state.getVar name
   | .call func args => do
-    let argVals ← args.mapM (evalIRExpr state)
+    let argVals ← evalIRExprs state args
     match func, argVals with
     | "add", [a, b] => some ((a + b) % (2^256))  -- EVM modular arithmetic
     | "sub", [a, b] =>
@@ -92,6 +102,12 @@ partial def evalIRExpr (state : IRState) : YulExpr → Option Nat
         some 0  -- Default value; actual parameters are bound to variables
     | _, _ => none  -- Unknown or invalid function call
 
+end -- mutual
+
+termination_by
+  evalIRExprs _ es => sizeOf es
+  evalIRExpr _ e => sizeOf e
+
 /-! ## IR Statement Execution -/
 
 /-- Result of executing IR statements -/
@@ -105,7 +121,7 @@ inductive IRExecResult
 mutual
 
 /-- Execute a single Yul statement -/
-partial def execIRStmt (state : IRState) : YulStmt → IRExecResult
+def execIRStmt (state : IRState) : YulStmt → IRExecResult
   | .comment _ => .continue state
   | .let_ name value =>
     match evalIRExpr state value with
@@ -162,7 +178,7 @@ partial def execIRStmt (state : IRState) : YulStmt → IRExecResult
   | .funcDef _ _ _ _ => .continue state  -- Function definitions don't execute
 
 /-- Execute a sequence of IR statements -/
-partial def execIRStmts (state : IRState) : List YulStmt → IRExecResult
+def execIRStmts (state : IRState) : List YulStmt → IRExecResult
   | [] => .continue state
   | stmt :: rest =>
     match execIRStmt state stmt with
@@ -172,6 +188,10 @@ partial def execIRStmts (state : IRState) : List YulStmt → IRExecResult
     | .revert s => .revert s
 
 end -- mutual
+
+termination_by
+  execIRStmt _ stmt => sizeOf stmt
+  execIRStmts _ stmts => sizeOf stmts
 
 /-! ## IR Function Execution -/
 

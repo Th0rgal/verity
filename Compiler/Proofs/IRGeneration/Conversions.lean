@@ -12,32 +12,39 @@ import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.SpecInterpreter
 import DumbContracts.Core
 import Compiler.ContractSpec
+import Compiler.Hex
 
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
 open DumbContracts
+open Compiler.Hex
 open DiffTestTypes
 
 /-! ## Address Encoding -/
 
 /-- Predicate for valid Ethereum addresses
 
-    Valid addresses are non-empty strings without null characters.
-    This ensures addressToNat is injective on the valid address space.
+    We treat valid addresses as 20-byte hex strings:
+    - Prefixed with "0x"
+    - Exactly 40 hex characters after the prefix
+    - All characters are valid hex digits
+
+    This matches the production address encoding used by `Compiler.Hex.addressToNat`.
 -/
 def isValidAddress (addr : Address) : Prop :=
-  addr ≠ "" ∧ ∀ c ∈ addr.data, c ≠ Char.ofNat 0
+  addr.startsWith "0x" ∧
+  addr.length = 42 ∧
+  (∀ c ∈ (addr.drop 2).data, (hexCharToNat? c).isSome)
 
 /-- Convert Address (String) to Nat for IR execution
 
-    We use a simple encoding: hash the address string to get a unique Nat.
-    For verification purposes, we only care about injectivity (different addresses → different Nats).
+    We use the production encoding:
+    - If `addr` is hex ("0x..." prefix), parse and mod 2^160.
+    - Otherwise, fall back to raw byte encoding and mod 2^160.
 -/
 def addressToNat (addr : Address) : Nat :=
-  -- Simple hash: sum of character codes
-  -- This is sufficient for proof purposes (we prove injectivity holds for valid addresses)
-  addr.data.foldl (fun acc c => acc * 256 + c.toNat) 0
+  Compiler.Hex.addressToNat addr
 
 /-! ## Address Domain for Mapping Keys -/
 
@@ -58,9 +65,9 @@ def addressFromNat (addrs : List Address) (key : Nat) : Option Address :=
     TRUST ASSUMPTION (Restricted): This axiom only claims injectivity for valid addresses.
 
     Why this is sound:
-    - Valid addresses are non-empty and contain no null characters
-    - For such addresses, the fold creates distinct hash values
-    - This matches the actual Ethereum address space (20-byte hex strings)
+    - Valid addresses are 20-byte hex strings (0x + 40 hex chars)
+    - For such addresses, hex parsing is injective before mod 2^160
+    - This matches the actual Ethereum address space
     - Validated by 70,000+ differential tests
 -/
 axiom addressToNat_injective_valid :
@@ -193,10 +200,10 @@ example : simpleStorageSelectorMap.lookup "retrieve" = some 0x2e64cec1 := by rfl
 
 The conversion layer makes several simplifying assumptions:
 
-1. **Address encoding**: We use a simple hash function. This is sound because:
+1. **Address encoding**: We reuse the production encoding. This is sound because:
    - We only care about test contracts with a small, fixed set of addresses
-   - We axiomatize injectivity for these addresses
-   - In practice, we could use a bijection for the address space we care about
+   - We axiomatize injectivity for valid 20-byte hex addresses
+   - The encoding matches `Compiler.Hex.addressToNat`
 
 2. **Uint256 conversion**: Direct value extraction is sound because:
    - Uint256.val already represents the mathematical value
