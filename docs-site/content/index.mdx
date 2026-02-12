@@ -40,7 +40,7 @@ This project uses Lean to:
 
 Each contract has three files:
 
-**1. Specification** (`Specs/SimpleToken/Spec.lean`)
+**1. Specification** (`DumbContracts/Specs/SimpleToken/Spec.lean`)
 ```lean
 -- What should mint do?
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
@@ -48,7 +48,7 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s'.storage 2 = s.storage 2 + amount                 -- supply increases
 ```
 
-**2. Implementation** (`Examples/SimpleToken.lean`)
+**2. Implementation** (`DumbContracts/Examples/SimpleToken.lean`)
 ```lean
 -- How to implement mint
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
@@ -59,7 +59,7 @@ def mint (to : Address) (amount : Uint256) : Contract Unit := do
   setStorage totalSupply (currentSupply + amount)
 ```
 
-**3. Proof** (`Proofs/SimpleToken/Basic.lean`)
+**3. Proof** (`DumbContracts/Proofs/SimpleToken/Basic.lean`)
 ```lean
 -- Proof that implementation satisfies specification
 theorem mint_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
