@@ -39,6 +39,123 @@ def safeCounterEdslToSpecStorage (state : ContractState) : SpecStorage :=
 
 /- Helper Lemmas -/
 
+/- Local variable lookup helpers for small letVar lists. -/
+private theorem lookup_count_newcount (count newCount : Nat) :
+    (List.lookup "count" [("newCount", newCount), ("count", count)]).getD 0 = count := by
+  simp [List.lookup]
+
+private theorem lookup_newcount (count newCount : Nat) :
+    (List.lookup "newCount" [("newCount", newCount), ("count", count)]).getD 0 = newCount := by
+  simp [List.lookup]
+
+private theorem lookup_count_single (count : Nat) :
+    (List.lookup "count" [("count", count)]).getD 0 = count := by
+  simp [List.lookup]
+
+private theorem one_modulus :
+    (1 : Nat) % DumbContracts.Core.Uint256.modulus = 1 := by
+  have h : (1 : Nat) < DumbContracts.Core.Uint256.modulus := by
+    decide
+  exact Nat.mod_eq_of_lt h
+
+private theorem add_one_val_eq_mod (a : DumbContracts.Core.Uint256) :
+    (a + 1).val =
+      ((a.val + (1 % DumbContracts.Core.Uint256.modulus)) % DumbContracts.Core.Uint256.modulus) := by
+  rfl
+
+private theorem add_one_val_eq_mod' (a : DumbContracts.Core.Uint256) :
+    (DumbContracts.Core.Uint256.add a 1).val =
+      ((a.val + 1) % DumbContracts.Core.Uint256.modulus) := by
+  rfl
+
+private theorem increment_spec_success_iff (state : ContractState) (sender : Address) :
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "increment"
+      args := []
+    }
+    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
+    specResult.success = true ↔
+      ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val := by
+  by_cases h_le :
+      ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus ≤ (state.storage 0).val
+  · have h_not_gt :
+        ¬((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val := by
+      exact Nat.not_lt_of_ge h_le
+    simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
+      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      lookup_count_newcount, lookup_newcount, List.lookup, one_modulus, h_le, h_not_gt]
+  · have h_gt :
+        ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val := by
+      exact Nat.lt_of_not_ge h_le
+    simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
+      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      lookup_count_newcount, lookup_newcount, List.lookup, one_modulus, h_le, h_gt]
+
+private theorem increment_spec_storage (state : ContractState) (sender : Address)
+    (h_gt : ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val) :
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "increment"
+      args := []
+    }
+    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
+    specResult.finalStorage.getSlot 0 =
+      ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus := by
+  have h_not_le :
+      ¬((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus ≤ (state.storage 0).val := by
+    exact Nat.not_le_of_gt h_gt
+  simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
+    execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+    lookup_count_newcount, lookup_newcount, List.lookup, one_modulus, h_not_le]
+
+private theorem decrement_spec_success_iff (state : ContractState) (sender : Address) :
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "decrement"
+      args := []
+    }
+    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
+    specResult.success = true ↔ (state.storage 0).val ≥ 1 := by
+  by_cases h_ge : (state.storage 0).val ≥ 1
+  · have h_not_lt : ¬(state.storage 0).val < 1 := by
+      exact Nat.not_lt_of_ge h_ge
+    have h_not_lt' : ¬(state.storage 0).val < 1 % DumbContracts.Core.Uint256.modulus := by
+      simpa [one_modulus] using h_not_lt
+    have h_ne : (state.storage 0).val ≠ 0 := by
+      omega
+    simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
+      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      lookup_count_single, List.lookup, one_modulus, h_not_lt', h_ge, h_ne]
+  · have h_lt : (state.storage 0).val < 1 := by
+      exact Nat.lt_of_not_ge h_ge
+    have h_lt' : (state.storage 0).val < 1 % DumbContracts.Core.Uint256.modulus := by
+      simpa [one_modulus] using h_lt
+    have h_zero : (state.storage 0).val = 0 := by
+      omega
+    simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
+      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      lookup_count_single, List.lookup, one_modulus, h_lt', h_ge, h_zero]
+
+private theorem decrement_spec_storage (state : ContractState) (sender : Address)
+    (h_ge : (state.storage 0).val ≥ 1) :
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "decrement"
+      args := []
+    }
+    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
+    specResult.finalStorage.getSlot 0 = (state.storage 0).val - 1 := by
+  have h_not_lt : ¬(state.storage 0).val < 1 := by
+    exact Nat.not_lt_of_ge h_ge
+  have h_not_lt' : ¬(state.storage 0).val < 1 % DumbContracts.Core.Uint256.modulus := by
+    simpa [one_modulus] using h_not_lt
+  have h_ne : (state.storage 0).val ≠ 0 := by
+    omega
+  simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
+    execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+    lookup_count_single, List.lookup, one_modulus, h_not_lt', h_ge, h_ne]
+
 /-- Increment reverts when counter is at MAX_UINT256 -/
 theorem safeIncrement_reverts_at_max (state : ContractState) (sender : Address)
     (h : (state.storage 0).val = DumbContracts.Core.MAX_UINT256) :
@@ -89,7 +206,7 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
     (edslResult.isSuccess = true ↔ specResult.success = true) ∧
     (edslResult.isSuccess = true →
-      specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
+      specResult.finalStorage.getSlot 0 = ((ContractResult.getState edslResult).storage 0).val) := by
   -- Proof strategy using add_one_preserves_order_iff_no_overflow:
   -- Both EDSL (safeAdd) and Spec (require newCount > count) succeed iff count < MAX_UINT256
   -- When successful, both store (count + 1).val
@@ -109,24 +226,27 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
         omega
       -- By wraparound lemma: count < MAX implies (count+1).val > count.val
       have h_gt := (Automation.add_one_preserves_order_iff_no_overflow (state.storage 0)).mpr h_below
-      -- Show spec succeeds by unfolding
-      sorry
+      -- Convert to the Nat-mod form used by the spec interpreter
+      have h_gt' :
+          ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val := by
+        simpa [add_one_val_eq_mod', one_modulus, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using h_gt
+      -- Show spec succeeds by unfolding (require passes)
+      exact (increment_spec_success_iff state sender).mpr h_gt'
     · -- Backward: Spec success → EDSL success
       intro h_spec
       -- From spec success, require passed: (count+1).val > count.val
       -- By wraparound lemma, this means count < MAX
-      unfold interpretSpec safeCounterSpec execFunction execStmts execStmt at h_spec
-      simp only [evalExpr, SpecStorage.getSlot, safeCounterEdslToSpecStorage] at h_spec
-      -- The spec has an if-then-else on the require
-      -- We need to extract that (count+1).val > count.val holds
-      by_cases h_guard : ((state.storage 0) + 1 : DumbContracts.Core.Uint256).val > (state.storage 0).val
-      · -- Require passed: (count+1).val > count.val
-        -- By wraparound lemma: (count+1).val > count.val implies count < MAX
-        have h_below := (Automation.add_one_preserves_order_iff_no_overflow (state.storage 0)).mp h_guard
-        -- Use helper: at count < MAX, EDSL succeeds
-        exact safeIncrement_succeeds_below_max state sender h_below
-      · -- Require failed - but spec succeeded, contradiction
-        sorry
+      have h_guard_mod :
+          ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val :=
+        (increment_spec_success_iff state sender).mp h_spec
+      -- Convert back to the Uint256 form
+      have h_guard' :
+          ((state.storage 0) + 1 : DumbContracts.Core.Uint256).val > (state.storage 0).val := by
+        simpa [add_one_val_eq_mod', one_modulus, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using h_guard_mod
+      -- By wraparound lemma: (count+1).val > count.val implies count < MAX
+      have h_below := (Automation.add_one_preserves_order_iff_no_overflow (state.storage 0)).mp h_guard'
+      -- Use helper: at count < MAX, EDSL succeeds
+      exact safeIncrement_succeeds_below_max state sender h_below
   · -- Part 2: Storage equivalence when successful
     intro h_edsl
     -- Both EDSL and Spec compute (count + 1) and store its .val
@@ -141,72 +261,41 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
       have h_le := DumbContracts.Core.Uint256.val_le_max (state.storage 0)
       omega
     -- EDSL stores (count + 1).val
-    unfold increment getStorage setStorage count requireSomeUint Contract.run ContractResult.getState
-    simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure]
-    -- safeAdd succeeds below MAX
     have h_le : ((state.storage 0) : Nat) + 1 ≤ DumbContracts.Stdlib.Math.MAX_UINT256 := by
       have : DumbContracts.Stdlib.Math.MAX_UINT256 = DumbContracts.Core.MAX_UINT256 := rfl
       rw [this]; omega
-    have h_safe := Automation.safeAdd_some_val (state.storage 0) 1 h_le
-    simp only [h_safe]
+    let s := { state with sender := sender }
+    have h_adds :=
+      DumbContracts.Proofs.SafeCounter.increment_adds_one s h_le
+    have h_edsl_storage :
+        ((ContractResult.getState (increment.run s)).storage 0).val =
+          (DumbContracts.Core.Uint256.add (state.storage 0) 1).val := by
+      have h_adds' :
+          ((increment.run s).snd.storage 0) =
+            DumbContracts.EVM.Uint256.add (state.storage 0) 1 := by
+        simpa [s] using h_adds
+      have h_adds_val :
+          ((increment.run s).snd.storage 0).val =
+            (DumbContracts.Core.Uint256.add (state.storage 0) 1).val := by
+        simpa [DumbContracts.EVM.Uint256.add] using congrArg DumbContracts.Core.Uint256.val h_adds'
+      simpa [ContractResult.getState] using h_adds_val
+    have h_edsl_storage_val :
+        ((ContractResult.getState (increment.run s)).storage 0).val =
+          ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus := by
+      simpa [add_one_val_eq_mod'] using h_edsl_storage
     -- Spec stores (count + 1).val
     -- The require passes and stores (count + 1).val
-    sorry
-
-/-- The `decrement` function correctly decrements with underflow check -/
-theorem safeDecrement_correct (state : ContractState) (sender : Address) :
-    let edslResult := decrement.run { state with sender := sender }
-    let specTx : DiffTestTypes.Transaction := {
-      sender := sender
-      functionName := "decrement"
-      args := []
-    }
-    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
-    (edslResult.isSuccess = true ↔ specResult.success = true) ∧
-    (edslResult.isSuccess = true →
-      specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
-  -- This proof requires showing equivalence between:
-  -- EDSL: safeSub returns Some/None based on count >= 1
-  -- Spec: require (count >= 1) passes/fails
-  --
-  -- The key insight: safeSub a 1 = Some ↔ a.val ≥ 1 (proven in Automation module)
-  --
-  -- However, after unfolding the spec interpreter, the goal becomes deeply nested
-  -- with Option.bind chains that are difficult to manipulate directly. We have:
-  -- - Helper lemmas in Automation.lean for safeSub behavior
-  -- - Existing boundary condition proofs (safeDecrement_reverts_at_zero, etc.)
-  --
-  -- A complete proof would require:
-  -- 1. Unfolding both EDSL and spec to explicit forms
-  -- 2. Case analysis on count >= 1 vs count = 0
-  -- 3. For each case, showing spec's evalExpr and Option.bind match EDSL behavior
-  -- 4. This needs automation for nested Option.bind simplification
-  sorry
-
-/-- The `getCount` function correctly retrieves the counter value -/
-theorem safeGetCount_correct (state : ContractState) (sender : Address) :
-    let edslValue := (getCount.runValue { state with sender := sender }).val
-    let specTx : DiffTestTypes.Transaction := {
-      sender := sender
-      functionName := "getCount"
-      args := []
-    }
-    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
-    specResult.success = true ∧
-    specResult.returnValue = some edslValue := by
-  -- Same pattern as Counter.getCount_correct
-  unfold getCount Contract.runValue safeCounterSpec interpretSpec safeCounterEdslToSpecStorage
-  simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
+    -- We can use the same guard proof as above
+    have h_gt := (Automation.add_one_preserves_order_iff_no_overflow (state.storage 0)).mpr h_below
+    have h_gt' :
+        ((state.storage 0).val + 1) % DumbContracts.Core.Uint256.modulus > (state.storage 0).val := by
+      simpa [add_one_val_eq_mod', one_modulus, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using h_gt
+    -- Unfold spec interpreter to compute finalStorage.getSlot 0
+    -- The require passes, so storage is updated to newCount
+    -- Combine with the EDSL storage computation
+    simpa [h_edsl_storage_val] using (increment_spec_storage state sender h_gt')
 
 /- Helper Properties -/
-
-/-- `getCount` does not modify storage -/
-theorem safeGetCount_preserves_state (state : ContractState) (sender : Address) :
-    let finalState := getCount.runState { state with sender := sender }
-    finalState.storage 0 = state.storage 0 := by
-  -- getCount just reads storage, doesn't modify it
-  unfold getCount Contract.runState
-  simp [getStorage, count]
 
 /-- Decrement reverts when counter is 0 -/
 theorem safeDecrement_reverts_at_zero (state : ContractState) (sender : Address)
@@ -242,5 +331,110 @@ theorem safeDecrement_succeeds_above_zero (state : ContractState) (sender : Addr
     simp [h_not]
   rw [h_safe]
   rfl
+
+/-- The `decrement` function correctly decrements with underflow check -/
+theorem safeDecrement_correct (state : ContractState) (sender : Address) :
+    let edslResult := decrement.run { state with sender := sender }
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "decrement"
+      args := []
+    }
+    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
+    (edslResult.isSuccess = true ↔ specResult.success = true) ∧
+    (edslResult.isSuccess = true →
+      specResult.finalStorage.getSlot 0 = ((ContractResult.getState edslResult).storage 0).val) := by
+  -- Split on whether count ≥ 1
+  by_cases h_ge : (state.storage 0 : Nat) ≥ 1
+  · -- No underflow: both EDSL and spec succeed and store count - 1
+    constructor
+    · -- EDSL success ↔ spec success
+      constructor
+      · intro _h_edsl
+        -- Spec requires count ≥ 1, which holds
+        exact (decrement_spec_success_iff state sender).mpr h_ge
+      · intro _h_spec
+        -- EDSL safeSub succeeds when count ≥ 1
+        exact safeDecrement_succeeds_above_zero state sender (by omega)
+    · -- Storage equivalence when successful
+      intro _h_edsl
+      -- EDSL: decrement stores (count - 1)
+      let s := { state with sender := sender }
+      have h_subs :=
+        DumbContracts.Proofs.SafeCounter.decrement_subtracts_one s h_ge
+      have h_edsl_storage :
+          ((ContractResult.getState (decrement.run s)).storage 0).val =
+            (DumbContracts.Core.Uint256.sub (state.storage 0) 1).val := by
+        have h_subs' :
+            ((decrement.run s).snd.storage 0) =
+              DumbContracts.EVM.Uint256.sub (state.storage 0) 1 := by
+          simpa [s] using h_subs
+        have h_subs_val :
+            ((decrement.run s).snd.storage 0).val =
+              (DumbContracts.Core.Uint256.sub (state.storage 0) 1).val := by
+          simpa [DumbContracts.EVM.Uint256.sub] using congrArg DumbContracts.Core.Uint256.val h_subs'
+        simpa [ContractResult.getState] using h_subs_val
+      have h_edsl_storage_val :
+          ((ContractResult.getState (decrement.run s)).storage 0).val =
+            (state.storage 0).val - 1 := by
+        have h_edsl_storage_mod :
+            ((ContractResult.getState (decrement.run s)).storage 0).val =
+              ((state.storage 0).val - 1) % DumbContracts.Core.Uint256.modulus := by
+          simpa [DumbContracts.Core.Uint256.sub, one_modulus, h_ge] using h_edsl_storage
+        have h_lt_mod : (state.storage 0).val - 1 < DumbContracts.Core.Uint256.modulus := by
+          have h_lt : (state.storage 0).val < DumbContracts.Core.Uint256.modulus :=
+            (state.storage 0).isLt
+          have h_le : (state.storage 0).val - 1 ≤ (state.storage 0).val := by
+            omega
+          exact Nat.lt_of_le_of_lt h_le h_lt
+        simpa [Nat.mod_eq_of_lt h_lt_mod] using h_edsl_storage_mod
+      -- Spec: require passes and setStorage stores (count - 1)
+      simpa [h_edsl_storage_val] using (decrement_spec_storage state sender h_ge)
+  · -- Underflow: count < 1, both EDSL and spec fail
+    have h_lt : (state.storage 0 : Nat) < 1 := by omega
+    constructor
+    · -- Success equivalence (both false)
+      constructor
+      · intro h_edsl
+        -- EDSL cannot succeed when count < 1
+        have h_fail := safeDecrement_reverts_at_zero state sender (by omega)
+        rw [h_fail] at h_edsl
+        exact (Bool.false_ne_true h_edsl).elim
+      · intro h_spec
+        -- Spec require fails when count < 1
+        have h_ge' : (state.storage 0).val ≥ 1 := (decrement_spec_success_iff state sender).mp h_spec
+        have h_not_ge : ¬ (state.storage 0).val ≥ 1 := by
+          exact Nat.not_le_of_gt h_lt
+        exact (h_not_ge h_ge').elim
+    · -- Storage equivalence on success is vacuous (EDSL success impossible)
+      intro h_edsl
+      have h_fail := safeDecrement_reverts_at_zero state sender (by omega)
+      rw [h_fail] at h_edsl
+      exact (Bool.false_ne_true h_edsl).elim
+
+/-- The `getCount` function correctly retrieves the counter value -/
+theorem safeGetCount_correct (state : ContractState) (sender : Address) :
+    let edslValue := (getCount.runValue { state with sender := sender }).val
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "getCount"
+      args := []
+    }
+    let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
+    specResult.success = true ∧
+    specResult.returnValue = some edslValue := by
+  -- Same pattern as Counter.getCount_correct
+  unfold getCount Contract.runValue safeCounterSpec interpretSpec safeCounterEdslToSpecStorage
+  simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
+
+/- Helper Properties -/
+
+/-- `getCount` does not modify storage -/
+theorem safeGetCount_preserves_state (state : ContractState) (sender : Address) :
+    let finalState := getCount.runState { state with sender := sender }
+    finalState.storage 0 = state.storage 0 := by
+  -- getCount just reads storage, doesn't modify it
+  unfold getCount Contract.runState
+  simp [getStorage, count]
 
 end Compiler.Proofs.SpecCorrectness
