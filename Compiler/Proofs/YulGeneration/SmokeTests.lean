@@ -25,6 +25,61 @@ private def mkState (selector : Nat) (args : List Nat) : YulState :=
 #eval evalYulExpr (mkState 7 [])
   (YulExpr.call "shr" [YulExpr.lit selectorShift, YulExpr.call "calldataload" [YulExpr.lit 0]])
 
+/-! ## Yul Runtime Semantics Smoke Tests -/
+
+private def runYul (runtimeCode : List YulStmt) (tx : YulTransaction)
+    (storage : Nat → Nat) (mappings : Nat → Nat → Nat) : YulResult :=
+  interpretYulRuntime runtimeCode tx storage mappings
+
+-- return(0,32) returns memory[0]
+#guard
+  let runtime := [
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 55]),
+    YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])
+  ]
+  match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
+  | { success := true, returnValue := some 55, .. } => true
+  | _ => false
+
+-- return(0,16) returns 0 in our single-word model
+#guard
+  let runtime := [
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 99]),
+    YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 16])
+  ]
+  match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
+  | { success := true, returnValue := some 0, .. } => true
+  | _ => false
+
+-- revert restores original storage and mappings
+#guard
+  let runtime := [
+    YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.lit 777]),
+    YulStmt.expr (YulExpr.call "sstore" [
+      YulExpr.call "mappingSlot" [YulExpr.lit 1, YulExpr.lit 2],
+      YulExpr.lit 888
+    ]),
+    YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+  ]
+  let storage0 := storageWith 0 123
+  let mappings0 := mappingsWith 1 2 456
+  match runYul runtime { sender := 0, functionSelector := 0, args := [] } storage0 mappings0 with
+  | { success := false, finalStorage, finalMappings, .. } =>
+      finalStorage 0 = 123 ∧ finalMappings 1 2 = 456
+  | _ => false
+
+-- sstore on mappingSlot updates mappings on success
+#guard
+  let runtime := [
+    YulStmt.expr (YulExpr.call "sstore" [
+      YulExpr.call "mappingSlot" [YulExpr.lit 4, YulExpr.lit 9],
+      YulExpr.lit 321
+    ])
+  ]
+  match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
+  | { success := true, finalMappings, .. } => finalMappings 4 9 = 321
+  | _ => false
+
 /-! ## IR vs Yul Smoke Tests -/
 
 private def storageWith (slot value : Nat) : Nat → Nat :=
