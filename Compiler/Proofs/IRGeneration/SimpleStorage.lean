@@ -38,7 +38,7 @@ def simpleStorageIR : Except String IRContract :=
     - `specStorageToIRState` for initial IR state
     This cleanly relates Spec and IR representations.
 -/
-theorem store_preserves_semantics (value : Nat) (initialState : ContractState) :
+theorem store_preserves_semantics (value : Nat) :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let sender := "test_sender"
@@ -58,10 +58,10 @@ theorem store_preserves_semantics (value : Nat) (initialState : ContractState) :
       resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   :=
-  simpleStorage_store_correct value initialState
+  simpleStorage_store_correct value
 
 /-- The retrieve function preserves semantics -/
-theorem retrieve_preserves_semantics (initialState : ContractState) :
+theorem retrieve_preserves_semantics :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let sender := "test_sender"
@@ -79,7 +79,7 @@ theorem retrieve_preserves_semantics (initialState : ContractState) :
       resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   :=
-  simpleStorage_retrieve_correct initialState
+  simpleStorage_retrieve_correct
 
 /-! ## Notes on Proof Strategy
 

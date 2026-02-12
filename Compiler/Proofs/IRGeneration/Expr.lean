@@ -113,7 +113,7 @@ as interpreting the Spec for `store(value)`.
 -/
 
 /-- Store function: IR execution matches Spec execution -/
-theorem simpleStorage_store_correct (value : Nat) (initialState : ContractState) :
+theorem simpleStorage_store_correct (value : Nat) :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]  -- store, retrieve selectors
   let sender := "test_sender"
@@ -149,7 +149,7 @@ theorem simpleStorage_store_correct (value : Nat) (initialState : ContractState)
 /-! ## SimpleStorage: Retrieve Function Correctness -/
 
 /-- Retrieve function: IR execution matches Spec execution -/
-theorem simpleStorage_retrieve_correct (initialState : ContractState) :
+theorem simpleStorage_retrieve_correct :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let sender := "test_sender"
@@ -182,7 +182,7 @@ theorem simpleStorage_retrieve_correct (initialState : ContractState) :
 
 /-! ## SimpleStorage: Retrieve with Pre-Initialized Storage -/
 
-theorem simpleStorage_retrieve_correct_with_storage (storedValue : Nat) (initialState : ContractState) :
+theorem simpleStorage_retrieve_correct_with_storage (storedValue : Nat) :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let sender := "test_sender"
@@ -262,7 +262,7 @@ def counterIRContract : IRContract :=
 
 /-! ## Counter: Function Correctness -/
 
-theorem counter_increment_correct (initialState : ContractState) :
+theorem counter_increment_correct :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
   let sender := "test_sender"
@@ -397,7 +397,7 @@ def safeCounterIRContract : IRContract :=
 
 /-! ## SafeCounter: Function Correctness -/
 
-theorem safeCounter_increment_correct (storedValue : Nat) (initialState : ContractState) :
+theorem safeCounter_increment_correct (storedValue : Nat) :
   let spec := safeCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
   let sender := "test_sender"
@@ -439,7 +439,7 @@ theorem safeCounter_increment_correct (storedValue : Nat) (initialState : Contra
         simp
       · simp [hslot]
 
-theorem safeCounter_decrement_correct (storedValue : Nat) (initialState : ContractState) :
+theorem safeCounter_decrement_correct (storedValue : Nat) :
   let spec := safeCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
   let sender := "test_sender"
@@ -483,7 +483,7 @@ theorem safeCounter_decrement_correct (storedValue : Nat) (initialState : Contra
         simp
       · simp [hslot]
 
-theorem safeCounter_getCount_correct (storedValue : Nat) (initialState : ContractState) :
+theorem safeCounter_getCount_correct (storedValue : Nat) :
   let spec := safeCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
   let sender := "test_sender"
@@ -515,7 +515,7 @@ theorem safeCounter_getCount_correct (storedValue : Nat) (initialState : Contrac
       simp
     · simp [h]
 
-theorem counter_decrement_correct (initialState : ContractState) :
+theorem counter_decrement_correct :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
   let sender := "test_sender"
@@ -546,7 +546,7 @@ theorem counter_decrement_correct (initialState : ContractState) :
       simp
     · simp [h]
 
-theorem counter_getCount_correct (storedValue : Nat) (initialState : ContractState) :
+theorem counter_getCount_correct (storedValue : Nat) :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
   let sender := "test_sender"
@@ -646,7 +646,7 @@ def ownedIRContract : IRContract :=
 
 /-! ## Owned: Function Correctness -/
 
-theorem owned_transferOwnership_correct_as_owner (newOwner : Nat) (initialState : ContractState) :
+theorem owned_transferOwnership_correct_as_owner (newOwner : Nat) :
   let spec := ownedSpec
   let irContract := compile spec [0xf2fde38b, 0x893d20e8]
   let sender := "test_sender"
@@ -678,7 +678,7 @@ theorem owned_transferOwnership_correct_as_owner (newOwner : Nat) (initialState 
       simp
     · simp [h]
 
-theorem owned_getOwner_correct (storedOwner : Nat) (initialState : ContractState) :
+theorem owned_getOwner_correct (storedOwner : Nat) :
   let spec := ownedSpec
   let irContract := compile spec [0xf2fde38b, 0x893d20e8]
   let sender := "test_sender"
@@ -804,7 +804,7 @@ def ownedCounterIRContract : IRContract :=
 
 /-! ## OwnedCounter: Function Correctness -/
 
-theorem ownedCounter_increment_correct (storedCount : Nat) (ownerAddr : Address) (initialState : ContractState) :
+theorem ownedCounter_increment_correct (storedCount : Nat) (ownerAddr : Address) :
   let spec := ownedCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c, 0x893d20e8, 0xf2fde38b]
   let sender := "test_sender"
@@ -853,7 +853,7 @@ theorem ownedCounter_increment_correct (storedCount : Nat) (ownerAddr : Address)
           simp [hslot]
         · simp [hslot, hslot']
 
-theorem ownedCounter_decrement_correct (storedCount : Nat) (ownerAddr : Address) (initialState : ContractState) :
+theorem ownedCounter_decrement_correct (storedCount : Nat) (ownerAddr : Address) :
   let spec := ownedCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c, 0x893d20e8, 0xf2fde38b]
   let sender := "test_sender"
@@ -902,7 +902,7 @@ theorem ownedCounter_decrement_correct (storedCount : Nat) (ownerAddr : Address)
           simp [hslot]
         · simp [hslot, hslot']
 
-theorem ownedCounter_getCount_correct (storedCount : Nat) (ownerAddr : Address) (initialState : ContractState) :
+theorem ownedCounter_getCount_correct (storedCount : Nat) (ownerAddr : Address) :
   let spec := ownedCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c, 0x893d20e8, 0xf2fde38b]
   let sender := "test_sender"
@@ -938,7 +938,7 @@ theorem ownedCounter_getCount_correct (storedCount : Nat) (ownerAddr : Address) 
         simp [hslot]
       · simp [hslot, hslot']
 
-theorem ownedCounter_getOwner_correct (storedOwner : Nat) (storedCount : Nat) (initialState : ContractState) :
+theorem ownedCounter_getOwner_correct (storedOwner : Nat) (storedCount : Nat) :
   let spec := ownedCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c, 0x893d20e8, 0xf2fde38b]
   let sender := "test_sender"
@@ -975,7 +975,7 @@ theorem ownedCounter_getOwner_correct (storedOwner : Nat) (storedCount : Nat) (i
       · simp [hslot, hslot']
 
 theorem ownedCounter_transferOwnership_correct (storedCount : Nat) (ownerAddr newOwnerAddr : Address)
-    (initialState : ContractState) :
+    :
   let spec := ownedCounterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c, 0x893d20e8, 0xf2fde38b]
   let sender := "test_sender"
@@ -1122,7 +1122,7 @@ def ledgerIRContract : IRContract :=
 
 /-! ## Ledger: Function Correctness -/
 
-theorem ledger_deposit_correct (senderBal amount : Nat) (senderAddr : Address) (initialState : ContractState) :
+theorem ledger_deposit_correct (senderBal amount : Nat) (senderAddr : Address) :
   let spec := ledgerSpec
   let irContract := compile spec [0xb6b55f25, 0x2e1a7d4d, 0xa9059cbb, 0xf8b2cb4f]
   let initialStorage : SpecStorage :=
@@ -1155,7 +1155,7 @@ theorem ledger_deposit_correct (senderBal amount : Nat) (senderAddr : Address) (
     subst haddr
     simp
 
-theorem ledger_withdraw_correct (senderBal amount : Nat) (senderAddr : Address) (initialState : ContractState) :
+theorem ledger_withdraw_correct (senderBal amount : Nat) (senderAddr : Address) :
   let spec := ledgerSpec
   let irContract := compile spec [0xb6b55f25, 0x2e1a7d4d, 0xa9059cbb, 0xf8b2cb4f]
   let initialStorage : SpecStorage :=
@@ -1202,7 +1202,7 @@ theorem ledger_withdraw_correct (senderBal amount : Nat) (senderAddr : Address) 
       simp
 
 theorem ledger_transfer_correct (senderBal recipientBal amount : Nat)
-    (senderAddr recipientAddr : Address) (initialState : ContractState) :
+    (senderAddr recipientAddr : Address) :
   let spec := ledgerSpec
   let irContract := compile spec [0xb6b55f25, 0x2e1a7d4d, 0xa9059cbb, 0xf8b2cb4f]
   let initialStorage : SpecStorage :=
@@ -1252,7 +1252,7 @@ theorem ledger_transfer_correct (senderBal recipientBal amount : Nat)
       · simp
 
 theorem ledger_getBalance_correct (storedBal : Nat) (addr : Address) (senderAddr : Address)
-    (initialState : ContractState) :
+    :
   let spec := ledgerSpec
   let irContract := compile spec [0xb6b55f25, 0x2e1a7d4d, 0xa9059cbb, 0xf8b2cb4f]
   let initialStorage : SpecStorage :=
@@ -1407,7 +1407,7 @@ def simpleTokenIRContract : IRContract :=
 /-! ## SimpleToken: Function Correctness -/
 
 theorem simpleToken_mint_correct (senderBal totalSupply amount : Nat) (senderAddr toAddr ownerAddr : Address)
-    (initialState : ContractState) :
+    :
   let spec := simpleTokenSpec
   let irContract := compile spec [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
   let initialStorage : SpecStorage :=
@@ -1467,7 +1467,7 @@ theorem simpleToken_mint_correct (senderBal totalSupply amount : Nat) (senderAdd
       simp
 
 theorem simpleToken_transfer_correct (senderBal recipientBal totalSupply amount : Nat)
-    (senderAddr recipientAddr ownerAddr : Address) (initialState : ContractState) :
+    (senderAddr recipientAddr ownerAddr : Address) :
   let spec := simpleTokenSpec
   let irContract := compile spec [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
   let initialStorage : SpecStorage :=
@@ -1532,7 +1532,7 @@ theorem simpleToken_transfer_correct (senderBal recipientBal totalSupply amount 
       · simp
 
 theorem simpleToken_balanceOf_correct (storedBal totalSupply : Nat) (addr ownerAddr senderAddr : Address)
-    (initialState : ContractState) :
+    :
   let spec := simpleTokenSpec
   let irContract := compile spec [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
   let initialStorage : SpecStorage :=
@@ -1573,7 +1573,7 @@ theorem simpleToken_balanceOf_correct (storedBal totalSupply : Nat) (addr ownerA
     simp
 
 theorem simpleToken_totalSupply_correct (storedSupply : Nat) (ownerAddr senderAddr : Address)
-    (initialState : ContractState) :
+    :
   let spec := simpleTokenSpec
   let irContract := compile spec [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
   let initialStorage : SpecStorage :=
@@ -1609,7 +1609,7 @@ theorem simpleToken_totalSupply_correct (storedSupply : Nat) (ownerAddr senderAd
       · simp [hslot, hslot']
 
 theorem simpleToken_owner_correct (storedOwner storedSupply : Nat) (senderAddr : Address)
-    (initialState : ContractState) :
+    :
   let spec := simpleTokenSpec
   let irContract := compile spec [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
   let initialStorage : SpecStorage :=

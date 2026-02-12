@@ -88,7 +88,7 @@ def testIRExecution (value : Nat) : IRResult :=
 /-! ## Step 4: Attempt the proof -/
 
 -- Try a specific instance first to see if the proof is tractable
-theorem store_correct_42 (initialState : ContractState) :
+theorem store_correct_42 :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let sender := "test_sender"
@@ -109,9 +109,9 @@ theorem store_correct_42 (initialState : ContractState) :
       resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
-  simpa using (Compiler.Proofs.IRGeneration.simpleStorage_store_correct 42 initialState)
+  simpa using (Compiler.Proofs.IRGeneration.simpleStorage_store_correct 42)
 
-theorem store_correct_attempt (value : Nat) (initialState : ContractState) :
+theorem store_correct_attempt (value : Nat) :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let sender := "test_sender"
@@ -132,6 +132,6 @@ theorem store_correct_attempt (value : Nat) (initialState : ContractState) :
       resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
-  simpa using (Compiler.Proofs.IRGeneration.simpleStorage_store_correct value initialState)
+  simpa using (Compiler.Proofs.IRGeneration.simpleStorage_store_correct value)
 
 end Compiler.Proofs.IRGeneration.StoreProof
