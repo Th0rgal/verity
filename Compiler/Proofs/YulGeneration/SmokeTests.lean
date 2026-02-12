@@ -300,4 +300,14 @@ private def simpleTokenSelectors : List Nat :=
       let state := mkIRState 9 (storageWith 0 123) (mappingsWith 0 7 42)
       checkIRvsYul ir tx state [0] [(0, 7)]
 
+-- Unknown selector with mappings: revert, mappings unchanged
+#guard
+  match compile ledgerSpec ledgerSelectors with
+  | .error _ => false
+  | .ok ir =>
+      let sender := 0xABCD
+      let tx : IRTransaction := { sender := sender, functionSelector := 0xDEADBEEF, args := [1, 2] }
+      let state := mkIRState sender emptyStorage (mappingsWith 0 sender 5)
+      checkIRvsYul ir tx state [] [(0, sender)]
+
 end Compiler.Proofs.YulGeneration
