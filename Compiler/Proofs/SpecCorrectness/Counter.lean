@@ -158,7 +158,7 @@ theorem getCount_preserves_state (state : ContractState) (sender : Address) :
 
 /-- Incrementing then decrementing returns to original value (when not wrapping) -/
 theorem increment_decrement_roundtrip (state : ContractState) (sender : Address)
-    (h : (state.storage 0).val < DumbContracts.Core.MAX_UINT256) :
+    (_h : (state.storage 0).val < DumbContracts.Core.MAX_UINT256) :
     let afterInc := increment.runState { state with sender := sender }
     let afterDec := decrement.runState { afterInc with sender := sender }
     afterDec.storage 0 = state.storage 0 := by
@@ -230,7 +230,7 @@ private theorem applyNIncrements_val (state : ContractState) (sender : Address) 
       calc
         (((state.storage 0).val + 1) % modulus + k) % modulus
             = (((state.storage 0).val + 1) + k) % modulus := by
-                simpa using (Nat.mod_add_mod ((state.storage 0).val + 1) modulus k)
+                exact (Nat.mod_add_mod ((state.storage 0).val + 1) modulus k)
         _ = ((state.storage 0).val + (k + 1)) % modulus := by
                 simp [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
 
