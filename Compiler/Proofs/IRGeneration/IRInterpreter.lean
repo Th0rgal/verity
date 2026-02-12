@@ -29,6 +29,8 @@ structure IRState where
   storage : Nat → Nat
   /-- Storage mappings (baseSlot → key → value) -/
   mappings : Nat → Nat → Nat
+  /-- Memory words (offset → value) -/
+  memory : Nat → Nat
   /-- Return value (if any) -/
   returnValue : Option Nat
   /-- Sender address -/
@@ -40,6 +42,7 @@ def IRState.initial (sender : Nat) : IRState :=
   { vars := []
     storage := fun _ => 0
     mappings := fun _ _ => 0
+    memory := fun _ => 0
     returnValue := none
     sender := sender }
 
@@ -95,6 +98,7 @@ partial def evalIRExpr (state : IRState) : YulExpr → Option Nat
 inductive IRExecResult
   | continue (state : IRState)
   | return (value : Nat) (state : IRState)
+  | stop (state : IRState)
   | revert (state : IRState)
   deriving Nonempty
 
@@ -119,22 +123,23 @@ partial def execIRStmt (state : IRState) : YulStmt → IRExecResult
       | some slot, some val =>
         .continue { state with storage := fun s => if s = slot then val else state.storage s }
       | _, _ => .revert state
+    | .call "mstore" [offsetExpr, valExpr] =>
+      match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
+      | some offset, some val =>
+        .continue { state with memory := fun o => if o = offset then val else state.memory o }
+      | _, _ => .revert state
+    | .call "stop" [] => .stop state
     | .call "revert" _ => .revert state
     | .call "return" [offsetExpr, sizeExpr] =>
       -- Yul return(offset, size) returns memory[offset:offset+size]
       -- For our IR subset focusing on single values, we interpret this as:
       -- return(0, 32) means return a 32-byte (256-bit) value stored at memory offset 0
-      -- For simplicity, we extract the value from memory offset (which we model as variables/storage)
-      -- In practice, the compiler stores the return value at offset 0 before calling return
       match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
       | some offset, some size =>
-        -- For return values, we expect offset=0 and size=32 (single 256-bit value)
-        -- The actual return value should be in a designated variable or we return 0 as placeholder
-        -- The compiler typically stores return values before calling return
-        if offset = 0 && size = 32 then
-          -- Look for a return value in variables (commonly "_retVal" or similar)
-          -- For now, use state's returnValue if set, else 0
-          .return (state.returnValue.getD 0) state
+        -- For return values, we expect size=32 (single 256-bit value)
+        -- Return the word stored at the requested offset.
+        if size = 32 then
+          .return (state.memory offset) state
         else
           .return 0 state
       | _, _ => .revert state
@@ -163,6 +168,7 @@ partial def execIRStmts (state : IRState) : List YulStmt → IRExecResult
     match execIRStmt state stmt with
     | .continue s' => execIRStmts s' rest
     | .return v s => .return v s
+    | .stop s => .stop s
     | .revert s => .revert s
 
 end -- mutual
@@ -197,6 +203,11 @@ def execIRFunction (fn : IRFunction) (args : List Nat) (initialState : IRState) 
   | .return v s =>
     { success := true
       returnValue := some v
+      finalStorage := s.storage
+      finalMappings := s.mappings }
+  | .stop s =>
+    { success := true
+      returnValue := none
       finalStorage := s.storage
       finalMappings := s.mappings }
   | .revert s =>

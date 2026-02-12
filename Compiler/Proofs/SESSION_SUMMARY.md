@@ -57,10 +57,12 @@ theorem sender_preservation : (contractStateToIRState s).sender = addressToNat s
 
 **Result Equivalence**:
 ```lean
-def resultsMatch (irResult : IRResult) (specResult : SpecResult) : Prop :=
+def resultsMatch (usesMapping : Bool) (irResult : IRResult) (specResult : SpecResult) : Prop :=
   irResult.success = specResult.success ∧
   irResult.returnValue = specResult.returnValue ∧
-  (∀ slot, irResult.finalStorage slot = specResult.finalStorage.getSlot slot)
+  (∀ slot, irResult.finalStorage slot = specResult.finalStorage.getSlot slot) ∧
+  (usesMapping = true → ∀ baseSlot key,
+    irResult.finalMappings baseSlot key = specResult.finalStorage.getMapping baseSlot key)
 ```
 
 ## Strategic Insights
@@ -223,7 +225,7 @@ For each Expr constructor:
    theorem contract_preserves_semantics (spec : ContractSpec) (selectors : List Nat)
        (tx : Transaction) (state : ContractState) :
      match compile spec selectors with
-     | .ok ir => resultsMatch (interpretIR ir irTx) (interpretSpec spec tx) state
+     | .ok ir => resultsMatch ir.usesMapping (interpretIR ir irTx) (interpretSpec spec tx) state
      | .error _ => True
    ```
 

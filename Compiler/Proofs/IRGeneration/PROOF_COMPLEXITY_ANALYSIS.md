@@ -17,7 +17,7 @@ theorem simpleStorage_store_correct (value : Nat) :
   let irContract := compile spec [0x6057361d, 0x2e64cec1]
   let irResult := interpretIR irContract (storeTransaction value)
   let specResult := interpretSpec spec (storeTransaction value)
-  resultsMatch irResult specResult
+  resultsMatch ir.usesMapping irResult specResult
 ```
 
 **What it proves**: Compiled IR for SimpleStorage.store produces same results as Spec interpreter.
@@ -98,7 +98,7 @@ To prove the theorem, we need to unfold:
 19. Function environment management
 
 **Result Matching** (~10 definitions):
-20. `resultsMatch` → three conjuncts
+20. `resultsMatch` → four conjuncts (mapping conditional on `usesMapping`)
 21. Storage equality: `∀ slot, ...`
 22. SpecStorage.getSlot vs. IRState.storage
 

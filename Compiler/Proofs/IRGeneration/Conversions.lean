@@ -146,11 +146,15 @@ def transactionToIRTransaction (tx : Transaction) (selector : Nat) : IRTransacti
     1. Success status is the same
     2. Return values match (if present)
     3. Storage states match (after conversion)
+    4. Mapping storage matches when the contract uses mappings
 -/
-def resultsMatch (irResult : IRResult) (specResult : SpecResult) (_initialState : ContractState) : Prop :=
+def resultsMatch (usesMapping : Bool) (irResult : IRResult) (specResult : SpecResult)
+    (_initialState : ContractState) : Prop :=
   irResult.success = specResult.success ∧
   irResult.returnValue = specResult.returnValue ∧
-  (∀ slot, irResult.finalStorage slot = specResult.finalStorage.getSlot slot)
+  (∀ slot, irResult.finalStorage slot = specResult.finalStorage.getSlot slot) ∧
+  (usesMapping = true → ∀ baseSlot key,
+    irResult.finalMappings baseSlot key = specResult.finalStorage.getMapping baseSlot key)
 
 /-! ## Helper: Function Selector Lookup -/
 
@@ -224,7 +228,7 @@ These conversions enable the preservation theorem:
     let irState := contractStateToIRState state
     let irResult := interpretIR ir irTx irState
     let specResult := interpretSpec spec (contractStateToSpecStorage state) tx
-    resultsMatch irResult specResult state
+    resultsMatch ir.usesMapping irResult specResult state
 
 -/
 

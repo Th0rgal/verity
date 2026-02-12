@@ -97,7 +97,7 @@ This session focused on addressing Cursor Bugbot review comments and completing 
   theorem contract_preserves_semantics (spec : ContractSpec) (selectors : List Nat)
       (tx : Transaction) (state : ContractState) :
     match compile spec selectors with
-    | .ok ir => resultsMatch (interpretIR ir irTx) (interpretSpec spec tx) state
+    | .ok ir => resultsMatch ir.usesMapping (interpretIR ir irTx) (interpretSpec spec tx) state
     | .error _ => True
   ```
 
