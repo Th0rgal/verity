@@ -74,8 +74,11 @@ test/                                # Foundry tests (unit, property, differenti
 ## Build and Test
 
 ```bash
-# Type-check all Lean code and proofs
+# Type-check DumbContracts (EDSL + proofs)
 lake build
+
+# Build compiler executable
+lake build dumbcontracts-compiler
 
 # Run Foundry tests (unit + property + differential)
 forge test
