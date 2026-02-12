@@ -55,7 +55,7 @@ Semantics are defined in Lean here:
 ```
 DumbContracts/                       # EDSL core + stdlib + examples/specs/proofs
 examples/solidity/                   # Solidity/Yul fixtures and test outputs
-compiler/                            # Compiler source + artifacts
+compiler/                            # Generated Yul output + fixtures (used in tests/docs)
 Compiler/                            # Compiler (spec DSL, IR, codegen, selector, Yul AST)
 Compiler/Proofs/                     # Compiler correctness proofs (3 layers)
 scripts/                             # build/test scripts
