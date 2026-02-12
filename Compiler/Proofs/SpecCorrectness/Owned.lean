@@ -55,9 +55,11 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
   simp [setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind, DumbContracts.pure]
   simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
   simp [ContractResult.isSuccess, ContractResult.getState]
-  -- Show: addressToNat initialOwner % modulus = addressToNat initialOwner
-  -- This is true because addressToNat returns a value < modulus
-  sorry -- Need lemma about addressToNat being bounded
+
+  -- After simplification, we need: addressToNat initialOwner % (2^256) = addressToNat initialOwner
+  -- This holds because Ethereum addresses are 160-bit, so addressToNat < 2^160 < 2^256
+  -- Therefore: addressToNat % 2^256 = addressToNat (modulo is identity)
+  sorry  -- TODO: Prove addressToNat bounds (requires parseHexNat? specification)
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
 theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
@@ -130,21 +132,22 @@ theorem getOwner_preserves_state (state : ContractState) (sender : Address) :
 
 /-- Only owner can transfer ownership -/
 theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
-    let result := (DumbContracts.Examples.Owned.transferOwnership newOwner).run { state with sender := sender }
+    let result := (transferOwnership newOwner).run { state with sender := sender }
     result.isSuccess = true → state.storageAddr 0 = sender := by
-  -- This proof requires: if transferOwnership succeeds, then onlyOwner check passed
+  intro h_success
+
+  -- Strategy: The key insight is that transferOwnership = onlyOwner >> setStorageAddr
+  -- If it succeeds, onlyOwner must have succeeded, which means require (sender == owner) passed
   --
-  -- Key steps:
-  -- 1. Unfold transferOwnership to: onlyOwner >> setStorageAddr
-  -- 2. Show that if the bind succeeds, the first part (onlyOwner) succeeded
-  -- 3. onlyOwner does: require (sender == owner)
-  -- 4. If require passed, then sender == owner
+  -- This proof requires careful reasoning about:
+  -- 1. Monadic bind: (m1 >> m2).isSuccess → m1.isSuccess
+  -- 2. Require success: require cond succeeds → cond = true
+  -- 3. Boolean equality: (a == b) = true → a = b for Address
   --
-  -- Needs automation for:
-  -- - Monadic bind reasoning: (m1 >> m2).isSuccess → m1.isSuccess
-  -- - Extracting condition from require: require cond succeeds → cond = true
-  -- - Converting beq to equality: (a == b) = true → a = b
-  sorry
+  -- All of these require automation lemmas that aren't yet in the Automation module.
+  -- Rather than adding incomplete/hacky lemmas, we document this as a clear TODO.
+
+  sorry -- TODO: Add automation for monadic authorization patterns
 
 /-- Constructor sets initial owner correctly -/
 theorem constructor_sets_owner (state : ContractState) (initialOwner : Address) (sender : Address) :
