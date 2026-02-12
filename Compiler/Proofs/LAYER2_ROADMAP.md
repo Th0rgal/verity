@@ -2,7 +2,7 @@
 
 **Status**: 🚀 **PHASE 2 FRAMEWORK COMPLETE** - Proofs underway
 **Last Updated**: 2026-02-12
-**Completion**: Infrastructure 100%, Phase 2 Framework 100%, Proofs ~10% (SimpleStorage)
+**Completion**: Infrastructure 100%, Phase 2 Framework 100%, Proofs ~20% (SimpleStorage + Counter)
 
 ## Overview
 
@@ -48,12 +48,16 @@ This layer bridges the gap between high-level declarative specifications and exe
 - Proven SimpleStorage preservation theorems:
   - `simpleStorage_store_correct`: Store function correctness
   - `simpleStorage_retrieve_correct`: Retrieve function correctness
+- Proven Counter preservation theorems:
+  - `counter_increment_correct`: Increment correctness
+  - `counter_decrement_correct`: Decrement correctness
+  - `counter_getCount_correct`: Getter correctness
 - General preservation theorem template
 - Detailed 4-step proof strategy documentation
 
 **Build Status**: ✅ Compiles with zero errors/warnings
 
-**Next**: Generalize proof pattern to Counter and SafeCounter
+**Next**: Generalize proof pattern to SafeCounter
 
 ---
 
@@ -235,18 +239,18 @@ Compared to Layer 1 (EDSL ↔ Spec), Layer 2 has advantages:
 
 Now that the framework is complete, prove the axiomatized theorems:
 
-1. **Prove SimpleStorage theorems** (~50 lines)
+1. **Prove SimpleStorage theorems** (~50 lines) ✅
    - Convert `simpleStorage_store_correct` from axiom to theorem
    - Convert `simpleStorage_retrieve_correct` from axiom to theorem
    - Both theorems are in `Compiler/Proofs/IRGeneration/Expr.lean`
    - Strategy: Unfold compile, interpretIR, interpretSpec, show equivalence
 
-2. **Generalize to Counter** (~100 lines)
+2. **Generalize to Counter** (~100 lines) ✅
    - Prove increment/decrement/getCount preservation
    - Handle arithmetic operations (add, sub)
    - Use same end-to-end pattern
 
-3. **Extend to SafeCounter** (~100 lines)
+3. **Extend to SafeCounter** (~100 lines) ⏳ Next
    - Prove safe arithmetic with overflow checks
    - Handle Option returns (Some/None cases)
 
@@ -256,7 +260,7 @@ Now that the framework is complete, prove the axiomatized theorems:
    - Ledger (mappings)
    - SimpleToken (full complexity)
 
-### Phase 4: Complete All 7 Contracts (after SimpleStorage proven)
+### Phase 4: Complete All 7 Contracts (after SimpleStorage + Counter proven)
 
 Once SimpleStorage is proven, apply the same pattern to:
 - Counter (arithmetic)
@@ -272,18 +276,18 @@ Once SimpleStorage is proven, apply the same pattern to:
 |-------|-----------|-------|------|--------|
 | 1 | Type Conversions | 195 | 1-2 days | ✅ **COMPLETE** |
 | 2 | Proof Framework | 172 | 1-2 days | ✅ **COMPLETE** |
-| 3 | SimpleStorage proofs | 50 | 2-3 days | ⏳ Next |
-| 3 | Counter proofs | 100 | 3-4 days | Pending |
+| 3 | SimpleStorage proofs | 50 | 2-3 days | ✅ **COMPLETE** |
+| 3 | Counter proofs | 100 | 3-4 days | ✅ **COMPLETE** |
 | 3 | SafeCounter proofs | 100 | 3-4 days | Pending |
 | 4 | Owned proofs | 100 | 3-4 days | Pending |
 | 4 | OwnedCounter proofs | 100 | 3-4 days | Pending |
 | 4 | Ledger proofs | 100 | 4-5 days | Pending |
 | 4 | SimpleToken proofs | 150 | 4-5 days | Pending |
 | | **Infrastructure Total** | **367** | **2-4 days** | ✅ **COMPLETE** |
-| | **Proof Total** | **700** | **3-4 weeks** | 0% |
-| | **Layer 2 Total** | **~1067** | **3-5 weeks** | **34% (Infrastructure)** |
+| | **Proof Total** | **700** | **3-4 weeks** | **~21%** |
+| | **Layer 2 Total** | **~1067** | **3-5 weeks** | **~48% (Infrastructure + SimpleStorage + Counter)** |
 
-**Progress**: Infrastructure and framework are done. Ready for actual theorem proving.
+**Progress**: Infrastructure and framework are done. SafeCounter proofs are next.
 
 ## Strategic Value
 
