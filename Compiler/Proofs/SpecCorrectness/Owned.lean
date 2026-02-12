@@ -130,11 +130,12 @@ theorem getOwner_preserves_state (state : ContractState) (sender : Address) :
 
 /-- Only owner can transfer ownership -/
 theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
-    let result := (transferOwnership newOwner).run { state with sender := sender }
+    let result := (DumbContracts.Examples.Owned.transferOwnership newOwner).run { state with sender := sender }
     result.isSuccess = true → state.storageAddr 0 = sender := by
-  -- If transferOwnership succeeds, then onlyOwner must have passed
-  -- which means sender = state.storageAddr 0
-  sorry -- Monadic unfolding needs automation
+  -- This proof requires showing that transferOwnership success implies authorization passed
+  -- Key steps: unfold monadic bind chain, split on require condition, extract equality
+  -- Needs automation for monadic reasoning with require/bind patterns
+  sorry
 
 /-- Constructor sets initial owner correctly -/
 theorem constructor_sets_owner (state : ContractState) (initialOwner : Address) (sender : Address) :
@@ -147,10 +148,16 @@ theorem constructor_sets_owner (state : ContractState) (initialOwner : Address) 
 /-- TransferOwnership updates owner when authorized -/
 theorem transferOwnership_updates_owner (state : ContractState) (newOwner : Address) (sender : Address)
     (h : state.storageAddr 0 = sender) :
-    let finalState := (transferOwnership newOwner).runState { state with sender := sender }
+    let finalState := (DumbContracts.Examples.Owned.transferOwnership newOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = newOwner := by
-  -- When sender is owner, onlyOwner passes and transferOwnership succeeds
-  -- This is provable but requires careful handling of the beq_iff_eq pattern
-  sorry -- Similar to constructor_sets_owner but with authorization check
+  -- Unfold all definitions
+  unfold DumbContracts.Examples.Owned.transferOwnership DumbContracts.Examples.Owned.onlyOwner DumbContracts.Examples.Owned.isOwner DumbContracts.Examples.Owned.owner
+  unfold msgSender getStorageAddr setStorageAddr Contract.runState
+  simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure, DumbContracts.require]
+
+  -- The key is that sender == state.storageAddr 0, so the require passes
+  have h_beq : (sender == state.storageAddr 0) = true := by
+    simp [beq_iff_eq, h]
+  simp [h_beq]
 
 end Compiler.Proofs.SpecCorrectness

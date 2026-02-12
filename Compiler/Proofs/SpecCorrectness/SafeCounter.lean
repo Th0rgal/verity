@@ -50,54 +50,13 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
     (edslResult.isSuccess = true ↔ specResult.success = true) ∧
     (edslResult.isSuccess = true →
       specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
-  -- The key is showing that:
-  -- 1. safeAdd returns Some ↔ (count + 1) > count (no wraparound)
-  -- 2. safeAdd returns None ↔ (count + 1) ≤ count (wraparound occurred)
-
-  -- Unfold the spec execution
-  unfold safeCounterSpec interpretSpec safeCounterEdslToSpecStorage
-  unfold execFunction execStmts execStmt evalExpr SpecStorage.getSlot SpecStorage.setSlot
-  simp only [List.foldlM, Option.bind, List.findIdx?, List.filter, List.lookup]
-
-  -- Unfold the EDSL execution
-  unfold increment getStorage setStorage count requireSomeUint Contract.run
-  simp only [DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure, DumbContracts.require]
-  simp only [ContractResult.isSuccess, ContractResult.getState]
-
-  -- Split on whether safeAdd succeeds or fails
-  cases h_safe : safeAdd (state.storage 0) 1
-  case none =>
-    -- safeAdd failed → overflow → EDSL reverts
-    simp [h_safe]
-    -- When safeAdd fails, count + 1 > MAX, so (count + 1) wraps to small value
-    -- Need to show: (add count 1) ≤ count, so require (newCount > count) fails
-    constructor
-    · constructor
-      · intro h_contra
-        -- EDSL with safeAdd = none cannot succeed
-        contradiction
-      · intro h_spec_success
-        -- If spec succeeds, then (add count 1) > count must be true
-        -- But we know overflow occurred, so this should be false
-        sorry -- Show contradiction: overflow means wraparound means newCount ≤ count
-    · intro h_edsl_success
-      -- Vacuous: EDSL doesn't succeed when safeAdd = none
-      simp [h_safe] at h_edsl_success
-  case some newVal =>
-    -- safeAdd succeeded → no overflow → both succeed
-    simp [h_safe]
-    constructor
-    · constructor
-      · intro h_edsl_success
-        -- EDSL succeeds, show spec succeeds
-        -- Need: (add count 1) > count is true (no wraparound)
-        sorry -- Show no overflow means newCount > count
-      · intro h_spec_success
-        -- Spec succeeds, so EDSL succeeds (already done by simp)
-        rfl
-    · intro h_edsl_success
-      -- Show storage values match
-      sorry -- Show both set storage to newVal
+  -- This proof requires showing equivalence between:
+  -- EDSL: safeAdd returns Some/None
+  -- Spec: require (newCount > count) passes/fails
+  --
+  -- Key lemma needed: safeAdd a 1 = Some ↔ (add a 1).val > a.val
+  -- This involves modular arithmetic wraparound reasoning
+  sorry
 
 /-- The `decrement` function correctly decrements with underflow check -/
 theorem safeDecrement_correct (state : ContractState) (sender : Address) :
@@ -111,6 +70,12 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
     (edslResult.isSuccess = true ↔ specResult.success = true) ∧
     (edslResult.isSuccess = true →
       specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
+  -- This proof requires showing equivalence between:
+  -- EDSL: safeSub returns Some/None
+  -- Spec: require (count >= 1) passes/fails
+  --
+  -- Key lemma needed: safeSub a 1 = Some ↔ a.val ≥ 1
+  -- Simpler than increment (no wraparound, just underflow)
   sorry
 
 /-- The `getCount` function correctly retrieves the counter value -/
