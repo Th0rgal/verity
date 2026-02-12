@@ -155,7 +155,7 @@ forge create SimpleStorage --from 0x... --private-key ...
 
 ### Modules
 
-**`Compiler/ContractSpec.lean`** (219 lines)
+**`Compiler/ContractSpec.lean`**
 - Declarative contract DSL
 - Expression language: `literal`, `param`, `storage`, `mapping`, `caller`, arithmetic, comparisons
 - Statement language: `setStorage`, `setMapping`, `require`, `return`, `stop`
@@ -163,17 +163,17 @@ forge create SimpleStorage --from 0x... --private-key ...
 - Constructor parameter handling (bytecode argument loading)
 - Storage slot inference (field order → slots 0, 1, 2, ...)
 
-**`Compiler/Specs.lean`** (238 lines)
+**`Compiler/Specs.lean`**
 - Specifications for all 7 contracts
 - Each contract 20-40 lines (vs 40-60 lines manual IR)
 - High-level, type-safe, maintainable
 
-**`Compiler/Selector.lean`** (75 lines)
+**`Compiler/Selector.lean`**
 - Function selector computation
 - Pre-computed Solidity keccak256 hashes
 - Type-safe signature generation
 
-**`Compiler/Codegen.lean`** (51 lines)
+**`Compiler/Codegen.lean`**
 - IR → Yul code generation
 - Dispatcher generation (function selector switch)
 - Mapping slot computation helper
