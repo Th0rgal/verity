@@ -70,12 +70,18 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
     (edslResult.isSuccess = true ↔ specResult.success = true) ∧
     (edslResult.isSuccess = true →
       specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
-  -- This proof requires showing equivalence between:
-  -- EDSL: safeSub returns Some/None
-  -- Spec: require (count >= 1) passes/fails
+  -- This proof is complex due to the interaction between:
+  -- 1. EDSL: safeSub returns Some iff no underflow (count >= 1)
+  -- 2. Spec: require (count >= 1) passes iff count >= 1
   --
-  -- Key lemma needed: safeSub a 1 = Some ↔ a.val ≥ 1
-  -- Simpler than increment (no wraparound, just underflow)
+  -- After unfolding, the spec interpreter produces deeply nested Option.bind chains
+  -- that are difficult to reason about directly. The key equivalence is:
+  -- safeSub a 1 = Some ↔ a.val ≥ 1
+  --
+  -- To complete this proof would require:
+  -- - Helper lemmas about evalExpr for Expr.ge reducing to decidable comparisons
+  -- - Automation for Option.bind chains with conditional execution
+  -- - Lemmas connecting safeSub behavior to the spec's require condition
   sorry
 
 /-- The `getCount` function correctly retrieves the counter value -/

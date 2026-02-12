@@ -132,9 +132,18 @@ theorem getOwner_preserves_state (state : ContractState) (sender : Address) :
 theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
     let result := (DumbContracts.Examples.Owned.transferOwnership newOwner).run { state with sender := sender }
     result.isSuccess = true → state.storageAddr 0 = sender := by
-  -- This proof requires showing that transferOwnership success implies authorization passed
-  -- Key steps: unfold monadic bind chain, split on require condition, extract equality
-  -- Needs automation for monadic reasoning with require/bind patterns
+  -- This proof requires: if transferOwnership succeeds, then onlyOwner check passed
+  --
+  -- Key steps:
+  -- 1. Unfold transferOwnership to: onlyOwner >> setStorageAddr
+  -- 2. Show that if the bind succeeds, the first part (onlyOwner) succeeded
+  -- 3. onlyOwner does: require (sender == owner)
+  -- 4. If require passed, then sender == owner
+  --
+  -- Needs automation for:
+  -- - Monadic bind reasoning: (m1 >> m2).isSuccess → m1.isSuccess
+  -- - Extracting condition from require: require cond succeeds → cond = true
+  -- - Converting beq to equality: (a == b) = true → a = b
   sorry
 
 /-- Constructor sets initial owner correctly -/
