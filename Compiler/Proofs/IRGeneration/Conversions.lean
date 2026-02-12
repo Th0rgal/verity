@@ -128,6 +128,33 @@ def contractStateToIRState (addrs : List Address) (state : ContractState) : IRSt
     returnValue := none
     sender := addressToNat state.sender }
 
+/-! ## SpecStorage → IRState
+
+    This conversion supports Layer 2 proofs that compare `interpretSpec` and
+    `interpretIR` directly, without routing through EDSL `ContractState`.
+-/
+
+def specStorageToIRState (storage : SpecStorage) (sender : Address) : IRState :=
+  { vars := []
+    storage := fun slot => storage.getSlot slot
+    mappings := fun base key => storage.getMapping base key
+    memory := fun _ => 0
+    calldata := []
+    returnValue := none
+    sender := addressToNat sender }
+
+@[simp] theorem specStorageToIRState_storage (storage : SpecStorage) (sender : Address) (slot : Nat) :
+    (specStorageToIRState storage sender).storage slot = storage.getSlot slot := by
+  rfl
+
+@[simp] theorem specStorageToIRState_mappings (storage : SpecStorage) (sender : Address) (base key : Nat) :
+    (specStorageToIRState storage sender).mappings base key = storage.getMapping base key := by
+  rfl
+
+@[simp] theorem specStorageToIRState_memory (storage : SpecStorage) (sender : Address) (offset : Nat) :
+    (specStorageToIRState storage sender).memory offset = 0 := by
+  rfl
+
 /-- Storage conversion preserves slot values -/
 theorem contractStateToIRState_storage (addrs : List Address) (state : ContractState) (slot : Nat) :
     (contractStateToIRState addrs state).storage slot = uint256ToNat (state.storage slot) := by

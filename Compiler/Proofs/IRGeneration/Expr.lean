@@ -114,14 +114,14 @@ theorem simpleStorage_store_correct (value : Nat) (initialState : ContractState)
   let specResult := interpretSpec spec (SpecStorage.empty) tx
   match irContract with
   | .ok ir =>
-      let irResult := interpretIR ir irTx (IRState.initial irTx.sender)
+      let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
       -- Results should match
       resultsMatch ir.usesMapping [] irResult specResult initialState
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
-    simpleStorageIRContract, SpecStorage.empty, IRState.initial]
+    simpleStorageIRContract, SpecStorage.empty, specStorageToIRState]
   · intro slot
     by_cases h : slot = 0
     · subst h
@@ -149,13 +149,47 @@ theorem simpleStorage_retrieve_correct (initialState : ContractState) :
   let specResult := interpretSpec spec (SpecStorage.empty) tx
   match irContract with
   | .ok ir =>
-      let irResult := interpretIR ir irTx (IRState.initial irTx.sender)
+      let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
       resultsMatch ir.usesMapping [] irResult specResult initialState
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
-    simpleStorageIRContract, SpecStorage.empty, IRState.initial]
+    simpleStorageIRContract, SpecStorage.empty, specStorageToIRState]
+  · intro slot
+    by_cases h : slot = 0
+    · subst h
+      simp
+    · simp [h]
+
+/-! ## SimpleStorage: Retrieve with Pre-Initialized Storage -/
+
+theorem simpleStorage_retrieve_correct_with_storage (storedValue : Nat) (initialState : ContractState) :
+  let spec := simpleStorageSpec
+  let irContract := compile spec [0x6057361d, 0x2e64cec1]
+  let sender := "test_sender"
+  let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
+  let tx : Transaction := {
+    sender := sender
+    functionName := "retrieve"
+    args := []
+  }
+  let irTx : IRTransaction := {
+    sender := addressToNat sender
+    functionSelector := 0x2e64cec1
+    args := []
+  }
+  let specResult := interpretSpec spec initialStorage tx
+  match irContract with
+  | .ok ir =>
+      let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
+      resultsMatch ir.usesMapping [] irResult specResult initialState
+  | .error _ => False
+  := by
+  simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+    interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
+    simpleStorageIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
+    specStorageToIRState]
   · intro slot
     by_cases h : slot = 0
     · subst h
