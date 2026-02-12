@@ -35,6 +35,12 @@ theorem evalYulExpr_selectorExpr_eq (state : YulState)
   simp [evalYulExpr_selectorExpr, Nat.mod_eq_of_lt hselector]
 
 /-- Executing runtime code is equivalent to executing the switch body (mapping helper is a no-op). -/
+@[simp]
+lemma execYulFuel_mappingSlotFunc (fuel : Nat) (state : YulState) :
+    execYulFuel fuel state (YulExecTarget.stmt mappingSlotFunc) =
+      YulExecResult.continue state := by
+  cases fuel <;> simp [mappingSlotFunc, execYulFuel]
+
 theorem execYulStmts_runtimeCode_eq :
     ∀ (contract : IRContract) (state : YulState) (fuel : Nat),
       execYulStmtsFuel fuel state (Compiler.runtimeCode contract) =
@@ -43,23 +49,9 @@ theorem execYulStmts_runtimeCode_eq :
   by_cases h : contract.usesMapping
   · cases fuel with
     | zero =>
-        simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel, mappingSlotFunc]
+        simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel]
     | succ fuel =>
-        cases fuel with
-        | zero =>
-            have hfunc :
-                execYulFuel 0 state (YulExecTarget.stmt mappingSlotFunc) =
-                  YulExecResult.continue state := by
-              unfold mappingSlotFunc
-              simp [execYulFuel]
-            simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel, mappingSlotFunc, hfunc]
-        | succ fuel =>
-            have hfunc :
-                execYulFuel (Nat.succ fuel) state (YulExecTarget.stmt mappingSlotFunc) =
-                  YulExecResult.continue state := by
-              unfold mappingSlotFunc
-              simp [execYulFuel]
-            simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel, mappingSlotFunc, hfunc]
+        simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel]
   · simp [Compiler.runtimeCode, h, execYulStmtsFuel]
 
 /-- Switch cases generated from IR functions. -/
