@@ -16,6 +16,18 @@ These lemmas capture the core obligations for Yul codegen correctness:
 2. Runtime switch dispatch executes the selected function body.
 -/
 
+theorem beq_eq_true_of_eq {a b : Nat} (h : a = b) : (a == b) = true := by
+  exact (Eq.mpr (Nat.beq_eq_true_eq a b) h)
+
+theorem beq_eq_false_of_ne {a b : Nat} (h : a ≠ b) : (a == b) = false := by
+  cases h' : (a == b) with
+  | true =>
+      have : a = b := by
+        exact (Eq.mp (Nat.beq_eq_true_eq a b) (by simpa [h'] ))
+      exact (h this).elim
+  | false =>
+      rfl
+
 @[simp]
 theorem emitYul_runtimeCode_eq (contract : IRContract) :
     (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
@@ -23,35 +35,77 @@ theorem emitYul_runtimeCode_eq (contract : IRContract) :
 
 /-- Selector extraction via `selectorExpr` yields the 4-byte selector. -/
 @[simp]
-theorem evalYulExpr_selectorExpr :
-    ∀ state : YulState, evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
-  simpa using Compiler.Proofs.YulGeneration.evalYulExpr_selectorExpr_semantics
+theorem evalYulExpr_selectorExpr (state : YulState) :
+    evalYulExpr state selectorExpr = some (state.selector % selectorModulus) :=
+by
+  simpa using (Compiler.Proofs.YulGeneration.evalYulExpr_selectorExpr_semantics state)
 
 /-- Selector extraction yields the raw selector when it fits in 4 bytes. -/
 @[simp]
 theorem evalYulExpr_selectorExpr_eq (state : YulState)
     (hselector : state.selector < selectorModulus) :
-    evalYulExpr state selectorExpr = some state.selector := by
+    evalYulExpr state selectorExpr = some state.selector :=
+by
   simp [evalYulExpr_selectorExpr, Nat.mod_eq_of_lt hselector]
 
-/-- Executing runtime code is equivalent to executing the switch body (mapping helper is a no-op). -/
-@[simp]
-lemma execYulFuel_mappingSlotFunc (fuel : Nat) (state : YulState) :
+theorem execYulFuel_mappingSlotFunc (fuel : Nat) (state : YulState) :
     execYulFuel fuel state (YulExecTarget.stmt mappingSlotFunc) =
-      YulExecResult.continue state := by
+      YulExecResult.continue state :=
+by
   cases fuel <;> simp [mappingSlotFunc, execYulFuel]
+
+theorem execYulFuel_stmts_singleton_of_not_funcDef
+    (fuel : Nat) (state : YulState) (stmt : YulStmt)
+    (hstmt : ∀ name args rets body, stmt ≠ YulStmt.funcDef name args rets body) :
+    execYulFuel fuel state (YulExecTarget.stmts [stmt]) =
+      match execYulFuel fuel state (YulExecTarget.stmt stmt) with
+      | YulExecResult.continue s' => execYulFuel fuel s' (YulExecTarget.stmts [])
+      | YulExecResult.return v s => YulExecResult.return v s
+      | YulExecResult.stop s => YulExecResult.stop s
+      | YulExecResult.revert s => YulExecResult.revert s :=
+by
+  cases fuel with
+  | zero =>
+      have hstmt' : execYulFuel 0 state (YulExecTarget.stmt stmt) = YulExecResult.revert state := by
+        cases stmt <;> simp [execYulFuel]
+        · exfalso
+          exact (hstmt _ _ _ _ rfl)
+      simp [execYulFuel, hstmt']
+  | succ fuel =>
+      simp [execYulFuel, hstmt]
+
+theorem buildSwitch_ne_funcDef (fns : List IRFunction) :
+    ∀ name args rets body, buildSwitch fns ≠ YulStmt.funcDef name args rets body := by
+  intro name args rets body
+  simp [Compiler.buildSwitch]
+
+theorem execYulFuel_drop_mappingSlotFunc_buildSwitch
+    (fuel : Nat) (state : YulState) (fns : List IRFunction) :
+    execYulFuel fuel state (YulExecTarget.stmts [mappingSlotFunc, buildSwitch fns]) =
+      execYulFuel fuel state (YulExecTarget.stmts [buildSwitch fns]) :=
+by
+  cases fuel with
+  | zero => rfl
+  | succ fuel =>
+      simp [execYulFuel, execYulFuel_mappingSlotFunc]
+      simpa using
+        (execYulFuel_stmts_singleton_of_not_funcDef
+          fuel state (buildSwitch fns) (buildSwitch_ne_funcDef fns))
 
 theorem execYulStmts_runtimeCode_eq :
     ∀ (contract : IRContract) (state : YulState) (fuel : Nat),
       execYulStmtsFuel fuel state (Compiler.runtimeCode contract) =
-        execYulStmtsFuel fuel state [Compiler.buildSwitch contract.functions] := by
+        execYulStmtsFuel fuel state [Compiler.buildSwitch contract.functions] :=
+by
   intro contract state fuel
   by_cases h : contract.usesMapping
   · cases fuel with
     | zero =>
         simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel]
     | succ fuel =>
-        simp [Compiler.runtimeCode, h, execYulStmtsFuel, execYulFuel]
+        simp [Compiler.runtimeCode, h, execYulStmtsFuel]
+        simpa using
+          (execYulFuel_drop_mappingSlotFunc_buildSwitch (fuel + 1) state contract.functions)
   · simp [Compiler.runtimeCode, h, execYulStmtsFuel]
 
 /-- Switch cases generated from IR functions. -/
@@ -105,7 +159,7 @@ theorem execYulStmtFuel_switch_miss
   simpa [execYulStmtFuel_switch_miss_result] using h
 
 /- Bridge lemmas for switch-case lookup. -/
-lemma find_switch_case_of_find_function
+theorem find_switch_case_of_find_function
     (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
     (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
     (switchCases fns).find? (fun (c, _) => c = sel) =
@@ -114,16 +168,21 @@ lemma find_switch_case_of_find_function
   | nil =>
       simp at hFind
   | cons f rest ih =>
-      simp [List.find?] at hFind
-      by_cases hsel : f.selector == sel
-      · simp [List.find?, hsel] at hFind
-        cases hFind
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          exact beq_eq_true_of_eq hsel
+        have hFind' : some f = some fn := by
+          simpa [List.find?, hselb] using hFind
+        cases hFind'
         simp [switchCases, List.find?, hsel]
-      · simp [List.find?, hsel] at hFind
-        have := ih hFind
-        simp [switchCases, List.find?, hsel, this]
+      · have hselb : (f.selector == sel) = false := by
+          exact beq_eq_false_of_ne hsel
+        have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
 
-lemma find_switch_case_of_find_function_none
+theorem find_switch_case_of_find_function_none
     (fns : List IRFunction) (sel : Nat)
     (hFind : fns.find? (fun f => f.selector == sel) = none) :
     (switchCases fns).find? (fun (c, _) => c = sel) = none := by
@@ -132,13 +191,18 @@ lemma find_switch_case_of_find_function_none
       simp at hFind
       simp [switchCases]
   | cons f rest ih =>
-      simp [List.find?] at hFind
-      by_cases hsel : f.selector == sel
-      · simp [List.find?, hsel] at hFind
-        cases hFind
-      · simp [List.find?, hsel] at hFind
-        have := ih hFind
-        simp [switchCases, List.find?, hsel, this]
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          exact beq_eq_true_of_eq hsel
+        have hFind' : (some f : Option IRFunction) = none := by
+          simpa [List.find?, hselb] using hFind
+        cases hFind'
+      · have hselb : (f.selector == sel) = false := by
+          exact beq_eq_false_of_ne hsel
+        have hFind' : rest.find? (fun f => f.selector == sel) = none := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
 
 
 end Compiler.Proofs.YulGeneration
