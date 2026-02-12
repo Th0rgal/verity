@@ -16,13 +16,6 @@ These lemmas capture the core obligations for Yul codegen correctness:
 2. Runtime switch dispatch executes the selected function body.
 -/
 
-/-- Selector expression used by the runtime switch. -/
-def selectorExpr : YulExpr :=
-  YulExpr.call "shr" [
-    YulExpr.lit selectorShift,
-    YulExpr.call "calldataload" [YulExpr.lit 0]
-  ]
-
 @[simp]
 theorem emitYul_runtimeCode_eq (contract : IRContract) :
     (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
