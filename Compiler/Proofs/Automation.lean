@@ -185,6 +185,17 @@ theorem require_success_implies_cond (cond : Bool) (msg : String) (state : Contr
     rfl
 
 /-!
+## Address Equality Lemmas
+-/
+
+-- Address beq reflects equality (Address is String)
+theorem address_beq_eq_true_iff_eq (a b : Address) :
+    (a == b) = true ↔ a = b := by
+  -- Address is String, so we can use String's BEq properties
+  -- Use the decidable equality property
+  simp only [beq_iff_eq]
+
+/-!
 ## SpecStorage Lemmas
 
 These lemmas about SpecStorage operations are currently placeholders.
