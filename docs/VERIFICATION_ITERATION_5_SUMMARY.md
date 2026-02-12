@@ -14,7 +14,7 @@ This iteration implemented **Priority 1: Guard Modeling** from the EDSL Extensio
 
 ### 1. Core EDSL Extension ✅
 
-**File**: `edsl/DumbContracts/Core.lean`
+**File**: `DumbContracts/Core.lean`
 
 Redesigned the Contract monad to explicitly model success and failure:
 
@@ -185,7 +185,7 @@ $ lake build 2>&1 | grep -c "sorry"
 ## Files Modified
 
 ### Core Infrastructure
-- `edsl/DumbContracts/Core.lean` — Complete rewrite with ContractResult, zero sorry
+- `DumbContracts/Core.lean` — Complete rewrite with ContractResult, zero sorry
 
 ### Examples (7 files)
 - `DumbContracts/Examples/{SimpleStorage,Counter,SafeCounter,Owned,OwnedCounter,Ledger,SimpleToken}.lean`
