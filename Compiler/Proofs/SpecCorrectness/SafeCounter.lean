@@ -15,6 +15,7 @@
 
 import Compiler.Specs
 import Compiler.Proofs.SpecInterpreter
+import Compiler.Proofs.Automation
 import DumbContracts.Examples.SafeCounter
 import DumbContracts.Core.Uint256
 import DumbContracts.Stdlib.Math
@@ -70,18 +71,22 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
     (edslResult.isSuccess = true ↔ specResult.success = true) ∧
     (edslResult.isSuccess = true →
       specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
-  -- This proof is complex due to the interaction between:
-  -- 1. EDSL: safeSub returns Some iff no underflow (count >= 1)
-  -- 2. Spec: require (count >= 1) passes iff count >= 1
+  -- This proof requires showing equivalence between:
+  -- EDSL: safeSub returns Some/None based on count >= 1
+  -- Spec: require (count >= 1) passes/fails
   --
-  -- After unfolding, the spec interpreter produces deeply nested Option.bind chains
-  -- that are difficult to reason about directly. The key equivalence is:
-  -- safeSub a 1 = Some ↔ a.val ≥ 1
+  -- The key insight: safeSub a 1 = Some ↔ a.val ≥ 1 (proven in Automation module)
   --
-  -- To complete this proof would require:
-  -- - Helper lemmas about evalExpr for Expr.ge reducing to decidable comparisons
-  -- - Automation for Option.bind chains with conditional execution
-  -- - Lemmas connecting safeSub behavior to the spec's require condition
+  -- However, after unfolding the spec interpreter, the goal becomes deeply nested
+  -- with Option.bind chains that are difficult to manipulate directly. We have:
+  -- - Helper lemmas in Automation.lean for safeSub behavior
+  -- - Existing boundary condition proofs (safeDecrement_reverts_at_zero, etc.)
+  --
+  -- A complete proof would require:
+  -- 1. Unfolding both EDSL and spec to explicit forms
+  -- 2. Case analysis on count >= 1 vs count = 0
+  -- 3. For each case, showing spec's evalExpr and Option.bind match EDSL behavior
+  -- 4. This needs automation for nested Option.bind simplification
   sorry
 
 /-- The `getCount` function correctly retrieves the counter value -/

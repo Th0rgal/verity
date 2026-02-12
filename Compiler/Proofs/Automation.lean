@@ -11,6 +11,7 @@
 -/
 
 import DumbContracts.Core
+import DumbContracts.Stdlib.Math
 import Compiler.Proofs.SpecInterpreter
 
 namespace Compiler.Proofs.Automation
@@ -178,6 +179,35 @@ theorem SpecStorage_getMapping_setMapping_diff_slot (storage : SpecStorage) (slo
     (h : slot1 ≠ slot2) :
     (storage.setMapping slot1 key value).getMapping slot2 key = storage.getMapping slot2 key := by
   sorry  -- Requires list reasoning
+
+/-!
+## Safe Arithmetic Lemmas
+
+Helper lemmas for reasoning about safe arithmetic operations (safeAdd, safeSub).
+-/
+
+-- safeSub returns Some iff no underflow
+theorem safeSub_some_iff_ge (a b : DumbContracts.Core.Uint256) :
+    (DumbContracts.Stdlib.Math.safeSub a b).isSome ↔ (a : Nat) ≥ (b : Nat) := by
+  unfold DumbContracts.Stdlib.Math.safeSub
+  split
+  · simp; rename_i h; omega
+  · simp; rename_i h; omega
+
+-- safeSub returns None iff underflow
+theorem safeSub_none_iff_lt (a b : DumbContracts.Core.Uint256) :
+    (DumbContracts.Stdlib.Math.safeSub a b).isNone ↔ (a : Nat) < (b : Nat) := by
+  unfold DumbContracts.Stdlib.Math.safeSub
+  split
+  · simp; rename_i h; omega
+  · simp; rename_i h; omega
+
+-- When safeSub succeeds, it returns the correct value
+theorem safeSub_some_val (a b : DumbContracts.Core.Uint256) (h : (a : Nat) ≥ (b : Nat)) :
+    DumbContracts.Stdlib.Math.safeSub a b = some (a - b) := by
+  unfold DumbContracts.Stdlib.Math.safeSub
+  have h_not : ¬((b : Nat) > (a : Nat)) := by omega
+  simp [h_not]
 
 /-!
 ## Notes on Completing These Proofs
