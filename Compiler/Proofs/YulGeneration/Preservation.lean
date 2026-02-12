@@ -75,17 +75,15 @@ theorem yulCodegen_preserves_semantics
             functionSelector := tx.functionSelector
             args := tx.args
           } irState.storage irState.mappings) selectorExpr =
-            some (tx.functionSelector % selectorModulus) := by
-        simpa using (evalYulExpr_selectorExpr
+            some tx.functionSelector := by
+        simpa using (evalYulExpr_selectorExpr_eq
           (YulState.initial {
             sender := tx.sender
             functionSelector := tx.functionSelector
             args := tx.args
-          } irState.storage irState.mappings))
-      have hsel' : tx.functionSelector % selectorModulus = tx.functionSelector := by
-        exact Nat.mod_eq_of_lt hselector
+          } irState.storage irState.mappings) hselector)
       -- Finish by aligning the switch-selected body with the hypothesis.
-      simp [hsel, hsel', hcase] at hmatch
+      simp [hsel, hcase] at hmatch
       exact hmatch
 
 end Compiler.Proofs.YulGeneration

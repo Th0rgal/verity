@@ -34,6 +34,13 @@ theorem evalYulExpr_selectorExpr (state : YulState) :
     evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
   simp [selectorExpr]
 
+/-- Selector extraction yields the raw selector when it fits in 4 bytes. -/
+@[simp]
+theorem evalYulExpr_selectorExpr_eq (state : YulState)
+    (hselector : state.selector < selectorModulus) :
+    evalYulExpr state selectorExpr = some state.selector := by
+  simp [evalYulExpr_selectorExpr, Nat.mod_eq_of_lt hselector]
+
 /-- Executing runtime code is equivalent to executing the switch body (mapping helper is a no-op). -/
 theorem execYulStmts_runtimeCode_eq (contract : IRContract) (state : YulState) :
     execYulStmts state (Compiler.runtimeCode contract) =
