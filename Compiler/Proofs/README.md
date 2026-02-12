@@ -200,6 +200,52 @@ theorem setter_correct (state : ContractState) (value : Uint256) (sender : Addre
   simp [setStorage]
 ```
 
+## Generic Layer 1 Schema (What It Would Mean)
+
+There is a clean, generic theorem shape for Layer 1, but it does not remove per-contract work. The idea is to package the common proof skeleton so each contract only supplies contract-specific obligations.
+
+**Generic statement (informal)**:
+If a contract `C` provides:
+- A state relation `R : ContractState -> SpecStorage -> Prop`
+- A per-function correspondence lemma for each function
+Then executing `C` in the EDSL and interpreting its `ContractSpec` produce matching results under `R`.
+
+**What the Lean theorem would look like** (sketch):
+```lean
+theorem edsl_spec_sound
+  (spec : ContractSpec)
+  (edsl : Contract)
+  (R : ContractState -> SpecStorage -> Prop)
+  (funcs_ok : forall f, function_equiv edsl spec R f)
+  (init_ok : R initState initStorage) :
+  results_match R (run_edsl edsl tx initState)
+                  (interpretSpec spec initStorage tx) := by
+  -- proof by cases on function name + use funcs_ok
+  ...
+```
+
+This theorem would be reusable, but it still requires each contract to:
+- Define the relation `R` between its concrete EDSL state and the abstract Spec storage.
+- Prove a lemma per function (constructor and external methods).
+
+## Why We Have Not Done This Yet
+
+We did not add this generic wrapper yet because the per-contract obligations are the hard part, and the payoff is mainly organizational:
+- The proofs still need contract-specific state relations and per-function reasoning.
+- The current proofs already follow the same structure, but inlined per file for clarity.
+- The biggest productivity gains have come from the `Automation` lemmas, not from a wrapper theorem.
+
+In short, the generic theorem is feasible, but it does not eliminate any of the contract-specific proof effort. It mostly standardizes the layout.
+
+## Simplest Practical Approach
+
+The simplest path that scales while keeping proofs readable is:
+- Keep the per-contract proof files in `Compiler/Proofs/SpecCorrectness/*.lean`
+- Factor the repetitive steps into `Automation.lean` and reuse them
+- Optionally add a thin wrapper theorem later, once we have more complex contracts (like Safe Multisig)
+
+This keeps the framework light, avoids a big upfront refactor, and lets us focus on the real bottleneck: proving each contract's behavior matches its spec.
+
 **Examples**: SimpleStorage.store_correct
 
 ### Pattern 3: Boundary Conditions with Safe Arithmetic

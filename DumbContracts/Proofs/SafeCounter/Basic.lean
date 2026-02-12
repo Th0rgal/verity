@@ -75,13 +75,7 @@ private theorem safeSub_none (a b : Uint256) (h : (b : Nat) > (a : Nat)) :
 private theorem increment_unfold (s : ContractState)
   (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
   (increment).run s = ContractResult.success ()
-    { storage := fun slot => if (slot == 0) = true then s.storage 0 + 1 else s.storage slot,
-      storageAddr := s.storageAddr,
-      storageMap := s.storageMap,
-      sender := s.sender,
-      thisAddress := s.thisAddress,
-      msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+    { s with storage := fun slot => if (slot == 0) = true then s.storage 0 + 1 else s.storage slot } := by
   have h_safe := safeAdd_some (s.storage 0) 1 h_no_overflow
   simp only [increment, getStorage, setStorage, count, requireSomeUint,
     DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
@@ -131,13 +125,7 @@ theorem increment_reverts_overflow (s : ContractState)
 private theorem decrement_unfold (s : ContractState)
   (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
   (decrement).run s = ContractResult.success ()
-    { storage := fun slot => if (slot == 0) = true then s.storage 0 - 1 else s.storage slot,
-      storageAddr := s.storageAddr,
-      storageMap := s.storageMap,
-      sender := s.sender,
-      thisAddress := s.thisAddress,
-      msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+    { s with storage := fun slot => if (slot == 0) = true then s.storage 0 - 1 else s.storage slot } := by
   have h_safe := safeSub_some (s.storage 0) 1 h_no_underflow
   simp only [decrement, getStorage, setStorage, count, requireSomeUint,
     DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
