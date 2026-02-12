@@ -114,6 +114,7 @@ def contractStateToIRState (addrs : List Address) (state : ContractState) : IRSt
       match addressFromNat addrs key with
       | some addr => uint256ToNat (state.storageMap base addr)
       | none => 0
+    calldata := []
     returnValue := none
     sender := addressToNat state.sender }
 

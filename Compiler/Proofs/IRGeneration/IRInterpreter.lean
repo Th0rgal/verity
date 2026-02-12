@@ -31,6 +31,8 @@ structure IRState where
   mappings : Nat → Nat → Nat
   /-- Memory words (offset → value) -/
   memory : Nat → Nat
+  /-- Calldata words (argument index → value) -/
+  calldata : List Nat
   /-- Return value (if any) -/
   returnValue : Option Nat
   /-- Sender address -/
@@ -43,6 +45,7 @@ def IRState.initial (sender : Nat) : IRState :=
     storage := fun _ => 0
     mappings := fun _ _ => 0
     memory := fun _ => 0
+    calldata := []
     returnValue := none
     sender := sender }
 
@@ -93,13 +96,22 @@ def evalIRExpr (state : IRState) : YulExpr → Option Nat
     | "or", [a, b] => some (a ||| b)   -- Bitwise OR
     | "sload", [slot] => some (state.storage slot)
     | "caller", [] => some state.sender
-    | "calldataload", [_offset] =>
-        -- calldataload retrieves 32-byte word from calldata at given offset
-        -- For our IR subset, we don't model full calldata memory
-        -- Parameters are loaded via explicit variable assignments in function bodies
-        -- This handler ensures calldataload doesn't cause reverts
-        -- The actual parameter values are set via function parameter binding
-        some 0  -- Default value; actual parameters are bound to variables
+    | "calldataload", [offsetExpr] =>
+        -- calldataload retrieves 32-byte word from calldata at given offset.
+        -- We model calldata as 32-byte words aligned after the 4-byte selector.
+        -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
+        match evalIRExpr state offsetExpr with
+        | none => none
+        | some offset =>
+          if offset < 4 then
+            some 0
+          else
+            let wordOffset := offset - 4
+            if wordOffset % 32 != 0 then
+              some 0
+            else
+              let idx := wordOffset / 32
+              some (state.calldata.getD idx 0)
     | _, _ => none  -- Unknown or invalid function call
 
 end -- mutual
@@ -240,7 +252,7 @@ def execIRFunction (fn : IRFunction) (args : List Nat) (initialState : IRState) 
 /-- Interpret an entire IR contract execution -/
 def interpretIR (contract : IRContract) (tx : IRTransaction) (initialState : IRState) : IRResult :=
   -- Execution sender must come from the transaction (matches SpecInterpreter)
-  let initialState := { initialState with sender := tx.sender }
+  let initialState := { initialState with sender := tx.sender, calldata := tx.args }
 
   -- Find matching function by selector
   match contract.functions.find? (·.selector == tx.functionSelector) with
