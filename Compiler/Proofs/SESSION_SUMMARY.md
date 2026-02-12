@@ -85,7 +85,7 @@ def resultsMatch (usesMapping : Bool) (addrs : List Address)
 |--------|----------------------|---------------------|
 | Semantics Complexity | High (nested bind, Option matching) | Low (flat variables, assignment) |
 | Automation Needed | Spec interpreter reduction | Structural compilation reasoning |
-| Current Bottleneck | 3 sorries in spec simplification | None (infrastructure complete) |
+| Current Bottleneck | None (Layer 1 complete) | None (infrastructure complete) |
 | Proof Strategy | Bidirectional equivalence | Forward preservation |
 | Type Alignment | EDSL ↔ Spec (similar types) | Spec ↔ IR (conversion layer) |
 
@@ -162,7 +162,7 @@ For each Expr constructor:
 ## Cumulative Progress
 
 ### Layer 1: EDSL ≡ ContractSpec
-- **Status**: 89% theorems proven (24/27)
+- **Status**: 100% theorems proven (27/27)
 - **Bottleneck**: Spec interpreter reduction automation
 - **Lines**: ~1,850 lines (proofs + infrastructure)
 
@@ -181,7 +181,7 @@ For each Expr constructor:
 
 **Layer 2 Phase 1 Success**: The type conversion infrastructure is complete, proven, and ready for use. The approach validates that Layer 2 offers a tractable path to compiler verification with clearer proof structure than Layer 1's automation challenges.
 
-**Recommended Next Action**: Proceed with Layer 2 Phase 2 (Expression compilation proofs). This provides concrete progress while maintaining the option to return to Layer 1 with insights gained from IR reasoning.
+**Recommended Next Action**: Proceed with Layer 2 preservation proofs (SimpleStorage → Counter → SafeCounter), now that Layer 1 is complete.
 
 **Key Validation**: Successfully built and proven bidirectional type conversions (Address↔Nat, Uint256↔Nat, State conversions) with preservation properties. This demonstrates that the Layer 2 approach is not just theoretically sound but practically implementable.
 

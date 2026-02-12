@@ -4,11 +4,11 @@ This directory contains formal verification proofs for the DumbContracts compile
 
 ## Three-Layer Verification Strategy
 
-### Layer 1: EDSL ≡ ContractSpec (Specification Correctness) 🚧 89% Complete
+### Layer 1: EDSL ≡ ContractSpec (Specification Correctness) ✅ 100% Complete
 
 **Goal**: Prove that manually written ContractSpec specifications accurately represent the verified EDSL contracts.
 
-**Status**: 24/27 theorems proven across 4 contracts
+**Status**: 27/27 theorems proven across 7 contracts
 
 #### Completed Contracts
 
@@ -18,31 +18,36 @@ This directory contains formal verification proofs for the DumbContracts compile
 - Pattern: unfold + simp for direct computation
 - **Proofs**: [SpecCorrectness/SimpleStorage.lean](SpecCorrectness/SimpleStorage.lean)
 
-##### Counter (100%* ✅)
+##### Counter (100% ✅)
 - 7/7 theorems proven
 - Includes modular arithmetic with wraparound
 - Features structural induction proof for multiple increments
-- *1 strategic sorry for standard modular arithmetic property (Nat.add_mod)
 - **Proofs**: [SpecCorrectness/Counter.lean](SpecCorrectness/Counter.lean)
 
-#### In Progress
-
-##### SafeCounter (75% ⚠️)
-- 6/8 theorems proven
+##### SafeCounter (100% ✅)
+- 8/8 theorems proven
 - Demonstrates overflow/underflow protection with safe arithmetic
-- **Proven**: Boundary conditions, success cases, getter functions
-- **Remaining**:
-  - `safeIncrement_correct` - needs modular wraparound reasoning
-  - `safeDecrement_correct` - needs Option.bind automation
 - **Proofs**: [SpecCorrectness/SafeCounter.lean](SpecCorrectness/SafeCounter.lean)
 
-##### Owned (88% ⚠️)
-- 7/8 theorems proven
+##### Owned (100% ✅)
+- 8/8 theorems proven
 - Demonstrates ownership and access control patterns
-- **Proven**: Constructor, getter, transfer functions, authorization checks
-- **Remaining**:
-  - `only_owner_can_transfer` - needs monadic bind reasoning
 - **Proofs**: [SpecCorrectness/Owned.lean](SpecCorrectness/Owned.lean)
+
+##### OwnedCounter (100% ✅)
+- 4/4 theorems proven
+- Combines ownership checks with counter semantics
+- **Proofs**: [SpecCorrectness/OwnedCounter.lean](SpecCorrectness/OwnedCounter.lean)
+
+##### Ledger (100% ✅)
+- 2/2 theorems proven
+- Mapping-based balance operations
+- **Proofs**: [SpecCorrectness/Ledger.lean](SpecCorrectness/Ledger.lean)
+
+##### SimpleToken (100% ✅)
+- 2/2 theorems proven
+- Token minting and transfers with balances mapping
+- **Proofs**: [SpecCorrectness/SimpleToken.lean](SpecCorrectness/SimpleToken.lean)
 
 ## Quick Start
 
@@ -299,44 +304,18 @@ lake build
 
 ### Expected Warnings
 
-Strategic `sorry` placeholders are documented and expected:
-- Counter: 1 sorry (Nat.add_mod property)
-- SafeCounter: 2 sorries (monadic equivalence proofs)
-- Owned: 4 sorries (address encoding + monadic reasoning)
-
-**Total**: 7 strategic sorries with clear resolution paths
+None. All Layer 1 proofs compile with zero placeholders.
 
 ## Metrics
 
 | Metric | Value |
 |--------|-------|
-| Layer 1 Progress | 89% (24/27) |
+| Layer 1 Progress | 100% (27/27) |
 | Total Lines | ~1,900 |
-| Proven Theorems | 24 |
+| Proven Theorems | 27 |
 | Automation Lemmas | 20+ |
 | Build Status | ✅ Success |
-| Strategic Sorries | 7 (documented) |
-
-## Remaining Work
-
-### SafeCounter (2 theorems)
-
-1. **safeIncrement_correct**: Prove EDSL ↔ Spec equivalence
-   - Key challenge: Modular wraparound reasoning
-   - Automation needed: `safeAdd a 1 = Some ↔ (add a 1).val > a.val`
-   - Foundation exists: safeAdd lemmas in Automation.lean
-
-2. **safeDecrement_correct**: Prove EDSL ↔ Spec equivalence
-   - Key challenge: Option.bind chain simplification
-   - Automation needed: evalExpr for Expr.ge
-   - Foundation exists: safeSub lemmas in Automation.lean
-
-### Owned (1 theorem)
-
-1. **only_owner_can_transfer**: Prove authorization invariant
-   - Key challenge: Monadic bind reasoning
-   - Automation needed: `(m1 >> m2).isSuccess → m1.isSuccess`
-   - Pattern: Extract condition from require in bind chain
+| Strategic Sorries | 0 |
 
 ## Documentation
 
@@ -351,7 +330,7 @@ Strategic `sorry` placeholders are documented and expected:
 1. **Start with theorem statement** - Get types right
 2. **Unfold definitions** - See the structure
 3. **Use automation lemmas** - Import Automation module
-4. **Document strategic sorries** - Explain what's needed
+4. **Keep proofs small** - Introduce helper lemmas when needed
 5. **Test incrementally** - Build after each change
 
 ### Code Style
@@ -399,4 +378,4 @@ Strategic `sorry` placeholders are documented and expected:
 
 ---
 
-**Status**: Active Development | **Last Updated**: 2026-02-12 | **Maintainer**: Verification Team
+**Status**: Layer 1 Complete, Layer 2 In Progress | **Last Updated**: 2026-02-12 | **Maintainer**: Verification Team

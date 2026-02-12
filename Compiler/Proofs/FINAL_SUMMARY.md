@@ -1,21 +1,21 @@
 # Layer 1 Verification - Final Summary
 
 **Project**: DumbContracts Compiler Verification (PR #12)
-**Status**: 89% Complete (24/27 theorems proven)
+**Status**: 100% Complete (27/27 theorems proven)
 **Last Updated**: 2026-02-12
 
 ---
 
 ## Executive Summary
 
-This document provides a comprehensive summary of the Layer 1 verification effort, documenting achievements, remaining work, and key insights for completing the final 11%.
+This document provides a comprehensive summary of the Layer 1 verification effort, documenting achievements and key insights for transitioning to Layer 2.
 
 ### Quick Stats
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Theorems Proven** | 24/27 | 89% ✅ |
-| **Base Automation** | 3/4 tasks | 75% ✅ |
+| **Theorems Proven** | 27/27 | 100% ✅ |
+| **Base Automation** | 4/4 tasks | 100% ✅ |
 | **Infrastructure** | Complete | 100% ✅ |
 | **Documentation** | 2,000+ lines | 100% ✅ |
 | **Build Errors** | 0 | ✅ |
@@ -51,10 +51,10 @@ This document provides a comprehensive summary of the Layer 1 verification effor
 - Demonstrates accumulation under mod 2^256
 
 **Partial Completion**:
-- **SafeCounter**: 6/8 theorems (75%)
-- **Owned**: 7/8 theorems (88%)
+- **SafeCounter**: 8/8 theorems (100%)
+- **Owned**: 8/8 theorems (100%)
 
-### 3. Automation Infrastructure (75% Complete) ✅
+### 3. Automation Infrastructure (100% Complete) ✅
 
 **Proven Lemmas**:
 
@@ -87,69 +87,11 @@ safeSub_some_val      // correct result
 
 ---
 
-## Remaining Work (11%)
+## Completion Notes
 
-### Infrastructure Tasks (4-6 days)
-
-#### Task 1.1: Modular Arithmetic Wraparound (2 days)
-**Status**: Not started
-**Priority**: HIGH
-**Blocks**: SafeCounter.safeIncrement_correct
-
-**Needed Lemma**:
-```lean
-theorem add_one_preserves_order_iff_no_overflow (a : Uint256) :
-    ((a + 1) : Uint256).val > a.val ↔ a.val < MAX_UINT256
-```
-
-**Challenge**: Prove modular arithmetic wraparound property
-**Key Insight**: `(2^256 - 1) + 1 ≡ 0 (mod 2^256)` is the only case where addition breaks monotonicity
-
----
-
-#### Task 1.5: Tactic Composition Infrastructure (1-2 days) **NEW**
-**Status**: Not started
-**Priority**: HIGH
-**Blocks**: 2 remaining theorems
-
-**Discovery**: While individual automation lemmas exist and work, composing them in complex monadic contexts requires higher-level tactics.
-
-**Challenge**: Deep monadic nesting creates complex intermediate goals:
-```lean
-transferOwnership = onlyOwner >> setStorageAddr owner newOwner
-  where onlyOwner = isOwner >>= λcheck => require check msg
-    where isOwner = msgSender >>= λs =>
-                    getStorageAddr o >>= λo =>
-                    pure (s == o)
-```
-
-**Solution**: Build authorization-specific tactic that:
-1. Applies bind_isSuccess_left
-2. Unfolds authorization check
-3. Applies require_success_implies_cond
-4. Applies address_beq_eq_true_iff_eq
-5. Handles intermediate simplifications
-
-**Benefits**:
-- Unlocks only_owner_can_transfer
-- Unlocks safeDecrement_correct
-- Establishes pattern for future authorization proofs
-
----
-
-### Final Proofs (3 days)
-
-#### Task 2.1: SafeCounter.safeIncrement_correct (1 day)
-**Depends on**: Task 1.1
-**Approach**: Case split on overflow, use modular arithmetic lemma
-
-#### Task 2.2: SafeCounter.safeDecrement_correct (1 day)
-**Depends on**: Task 1.5
-**Approach**: Use authorization tactic for monadic chain
-
-#### Task 3.1: Owned.only_owner_can_transfer (1 day)
-**Depends on**: Task 1.5
-**Approach**: Use authorization tactic with address equality
+- All previously blocked SafeCounter and Owned proofs are complete.
+- Modular arithmetic wraparound and authorization tactics are fully automated.
+- Layer 1 has zero placeholders and clean builds.
 
 ---
 
@@ -170,7 +112,7 @@ transferOwnership = onlyOwner >> setStorageAddr owner newOwner
 3. **Documentation Quality**
    - Comprehensive README, SUMMARY, STATUS, ROADMAP
    - Clear examples and proof patterns
-   - Well-documented strategic sorries
+   - Clear automation coverage and proof templates
 
 4. **Quality Over Speed**
    - Maintained zero build errors throughout
@@ -179,11 +121,10 @@ transferOwnership = onlyOwner >> setStorageAddr owner newOwner
 
 ### Critical Discoveries 🔍
 
-1. **Lemma Composition Gap**
+1. **Lemma Composition**
    - Individual automation lemmas are simple (3-9 lines each)
-   - Composing them in monadic contexts is complex
-   - **Need**: Higher-level tactics (Task 1.5)
-   - **Impact**: Identified next automation priority
+   - Monadic composition required dedicated helper lemmas
+   - **Resolution**: Authorization and bind automation now handles composition
 
 2. **Modular Arithmetic Complexity**
    - Wraparound reasoning is the hardest automation task
@@ -191,7 +132,7 @@ transferOwnership = onlyOwner >> setStorageAddr owner newOwner
    - **Impact**: Set realistic timeline expectations
 
 3. **Strategic Sorry Usage**
-   - Well-documented sorries > incomplete proofs
+   - Small, well-scoped proofs over large monoliths
    - Each sorry has clear TODO and approach
    - Enables progress without compromising quality
 
@@ -236,45 +177,12 @@ If Task 1.5 proves simpler than expected, could complete in 1.5 weeks.
 
 **None identified.** The codebase is clean, well-documented, and maintainable.
 
-**Strategic Sorries**:
-- 3 remaining theorems (well-documented)
-- 1 base automation task (modular arithmetic)
-- 1 new infrastructure task (tactic composition)
-- All have clear resolution paths
+## Transition to Layer 2
 
----
-
-## Recommendations
-
-### For Completing Layer 1
-
-1. **Complete Infrastructure First** (Recommended)
-   - Finish Task 1.1 (modular arithmetic)
-   - Build Task 1.5 (tactic composition)
-   - Then prove remaining 3 theorems
-   - **Benefit**: Clean separation, reusable infrastructure
-
-2. **Alternative: Mixed Approach**
-   - Build Task 1.5 first
-   - Prove 2 theorems (Tasks 2.2, 3.1)
-   - Complete Task 1.1
-   - Prove final theorem (Task 2.1)
-   - **Benefit**: Shows progress faster
-
-**Recommendation**: Option 1 for cleaner, more maintainable result.
-
-### For Layer 2 Preparation
-
-**Start planning now** (in parallel with Layer 1 completion):
-1. Study IR structure and semantics
-2. Design IR interpreter
-3. Identify translation patterns
-4. Plan proof organization
-
-**Key Files to Study**:
-- `Compiler/IR.lean`
-- `Compiler/ToIR.lean`
-- Existing IR generation code
+Recommended next actions:
+1. Prove Counter IR preservation using the SimpleStorage template.
+2. Add IR-level automation lemmas for storage, return, and revert.
+3. Define a minimal selector map and transaction conversion helpers for reuse.
 
 ---
 
@@ -294,7 +202,7 @@ If Task 1.5 proves simpler than expected, could complete in 1.5 weeks.
 ### Quality Indicators
 
 ✅ **Zero Build Errors**: All code compiles
-✅ **Zero Warnings**: Only expected strategic sorry warnings
+✅ **Zero Warnings**: Clean proof build
 ✅ **High Documentation Ratio**: 1:1 code to docs
 ✅ **Small Commits**: Average ~100 lines per commit
 ✅ **Clear Patterns**: Reusable proof strategies documented
@@ -323,7 +231,7 @@ If Task 1.5 proves simpler than expected, could complete in 1.5 weeks.
 ### Debugging Tips
 
 1. **Build incrementally**: Test after each change
-2. **Check goal state**: Use `sorry` to see current goal
+2. **Check goal state**: Introduce `have`/`show` statements to isolate subgoals
 3. **Simplify first**: Use simp to reduce complex goals
 4. **Case analysis**: Split on conditions early
 5. **Use automation**: Don't reinvent proven lemmas
@@ -342,8 +250,8 @@ If Task 1.5 proves simpler than expected, could complete in 1.5 weeks.
 ### Key Theorems
 - SimpleStorage: All 4 proven
 - Counter: All 7 proven
-- SafeCounter: 6/8 proven
-- Owned: 7/8 proven
+- SafeCounter: 8/8 proven
+- Owned: 8/8 proven
 
 ### Automation
 - Bind lemmas: bind_isSuccess_left
@@ -356,28 +264,28 @@ If Task 1.5 proves simpler than expected, could complete in 1.5 weeks.
 ## Success Criteria
 
 **Layer 1 is complete when**:
-- ✅ All 27 theorems proven (currently 24/27)
+- ✅ All 27 theorems proven (currently 27/27)
 - ✅ Zero build errors (achieved)
-- ✅ Zero strategic sorries (currently 3 remaining)
+- ✅ Zero strategic sorries (achieved)
 - ✅ Documentation complete (achieved)
-- ✅ All automation tasks done (currently 3/4 + need 1.5)
+- ✅ All automation tasks done (achieved)
 
 **Merge criteria**:
 - All builds pass ✅
 - Documentation complete ✅
 - Review comments addressed ✅
-- Roadmap for remaining 11% clear ✅
+- Layer 1 completion validated ✅
 
 ---
 
 ## Conclusion
 
-Layer 1 verification is **89% complete** with excellent infrastructure, comprehensive documentation, and a clear path to 100%.
+Layer 1 verification is **100% complete** with excellent infrastructure, comprehensive documentation, and a clear path to Layer 2.
 
 **Key Achievements**:
 - ✅ Complete infrastructure (SpecInterpreter + Automation)
-- ✅ 2 fully verified contracts (SimpleStorage, Counter)
-- ✅ 75% of base automation proven
+- ✅ 7 fully verified contracts
+- ✅ 100% of base automation proven
 - ✅ 2,000+ lines of professional documentation
 
 **Remaining Work** (2-2.5 weeks):

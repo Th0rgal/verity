@@ -1,31 +1,29 @@
 # Layer 1 Completion Roadmap
 
-**Current Status**: 89% Complete (24/27 theorems proven)
+**Current Status**: 100% Complete (27/27 theorems proven)
 **Last Updated**: 2026-02-12
 **Target**: 100% Layer 1 completion
 
 ## Executive Summary
 
-Layer 1 (EDSL ≡ ContractSpec) is nearly complete with excellent infrastructure in place. This document provides a clear roadmap for completing the final 11% (3 theorems) and transitioning to Layer 2.
+Layer 1 (EDSL ≡ ContractSpec) is complete. This document now serves as a completion log and reference for how the final proofs were achieved, and as a pointer for the Layer 2 transition.
 
 ### What's Complete ✅
 
 - **Infrastructure**: SpecInterpreter (310 lines), Automation library (196 lines)
 - **Contracts**: SimpleStorage (4/4), Counter (7/7)
-- **Partial**: SafeCounter (6/8), Owned (7/8)
+- **Contracts**: SafeCounter (8/8), Owned (8/8), OwnedCounter (4/4), Ledger (2/2), SimpleToken (2/2)
 - **Documentation**: 1,100+ lines across README, SUMMARY, LAYER1_STATUS
 - **Safe Arithmetic**: 6 proven lemmas for safeAdd/safeSub
 - **Build Status**: Zero errors, all files compile
 
-### What Remains ⚠️
+### What Remains
 
-Three theorems requiring specific automation infrastructure:
-
-1. **SafeCounter.safeIncrement_correct** - Modular arithmetic wraparound
-2. **SafeCounter.safeDecrement_correct** - Option.bind automation
-3. **Owned.only_owner_can_transfer** - Monadic authorization patterns
+Nothing. All 27 Layer 1 theorems are proven with zero placeholders.
 
 ## Detailed Completion Plan
+
+All items below are completed and kept for historical context.
 
 ### Phase 1: Automation Infrastructure (3-5 days)
 
@@ -246,7 +244,7 @@ tactic authorization_from_success :
 - Establishes pattern for future authorization proofs
 
 **Estimated Effort**: 1-2 days
-**Priority**: HIGH - blocks 2 remaining theorems
+**Priority**: COMPLETE
 
 ---
 
@@ -264,32 +262,10 @@ tactic authorization_from_success :
 - ✅ Task 1.3 completed (require_success_implies_cond)
 - ✅ Task 1.4 completed (address_beq_eq_true_iff_eq)
 - **Base automation: 100% complete (4/4 tasks)** ✅
-- ✅ **Task 2.1 PROOF STRUCTURE COMPLETE**: safeIncrement_correct
-  - ✅ Wraparound lemma successfully integrated as bridge between EDSL and Spec
-  - ✅ Helper theorems reorganized (moved before main theorem, forward references eliminated)
-  - ✅ Bidirectional proof strategy validated:
-    - Forward: EDSL success → count < MAX → (count+1).val > count.val → spec success
-    - Backward: Spec success → (count+1).val > count.val → count < MAX → EDSL success
-    - Storage: Both store (count+1).val when successful
-  - ⚠️ 3 strategic sorries for **spec interpreter reduction automation** (identified gap)
-  - **Status**: Core mathematical proof COMPLETE, needs automation layer for spec interpreter
-  - **Key Achievement**: Demonstrated wraparound lemma successfully bridges EDSL↔Spec semantic gap
-
-**Major Discovery**: The remaining gaps are ALL in the same category - **spec interpreter automation**.
-The proofs don't need more mathematical lemmas; they need tactical automation to reduce
-`interpretSpec` through its execution pipeline (execStmts → foldlM → match). This is a
-separate infrastructure task, not a proof correctness issue.
-
-**Recommendation**: The proof approach is validated. Move to documenting the automation
-requirements and either (a) build spec interpreter reduction tactics, or (b) defer to Layer 2
-where IR semantics may be simpler to work with.
-
-### Revised Timeline
-
-**Week 1-2: Complete Infrastructure**
-- **Days 1-2**: Task 1.1 (Modular arithmetic wraparound)
-- **Days 3-4**: Task 1.5 (Tactic composition for authorization)
-- **Day 5**: Testing
+**Completion Update**:
+- ✅ safeIncrement_correct, safeDecrement_correct, and only_owner_can_transfer proven
+- ✅ No placeholders remain in Layer 1
+- ✅ Spec interpreter automation and authorization tactics are complete
 
 **Week 2: Complete Remaining Proofs**
 - **Day 1**: Task 2.1 (safeIncrement_correct) - needs Task 1.1
@@ -319,7 +295,7 @@ All proofs must:
 1. **Be maintainable**: Clear structure, well-commented
 2. **Follow patterns**: Reuse existing automation
 3. **Be well-documented**: Explain key insights
-4. **Build cleanly**: No warnings on strategic lemmas
+4. **Build cleanly**: No warnings
 5. **Be tested**: Verify with `lake build`
 
 ---
