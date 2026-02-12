@@ -1,8 +1,8 @@
 # Layer 2: ContractSpec → IR Code Generation Verification
 
-**Status**: 🚀 **INFRASTRUCTURE COMPLETE** - Ready for proofs
+**Status**: 🚀 **PHASE 2 FRAMEWORK COMPLETE** - Ready for actual proofs
 **Last Updated**: 2026-02-12
-**Completion**: Infrastructure 100%, Proofs 0%
+**Completion**: Infrastructure 100%, Phase 2 Framework 100%, Proofs 0%
 
 ## Overview
 
@@ -14,9 +14,50 @@ interpretIR (compile spec) ≈ interpretSpec spec
 
 This layer bridges the gap between high-level declarative specifications and executable IR code.
 
-## Completed Infrastructure ✅
+## Completed Work ✅
 
-### 1. IR Interpreter (192 lines)
+### Phase 1: Type Conversion Infrastructure (195 lines) ✅
+
+**File**: `Compiler/Proofs/IRGeneration/Conversions.lean`
+
+**Components**:
+- `addressToNat` / `natToAddress`: Address ↔ Nat conversion
+- `uint256ToNat` / `natToUint256`: Uint256 ↔ Nat conversion
+- `contractStateToIRState`: Convert ContractState → IRState
+- `transactionToIRTransaction`: Convert Transaction → IRTransaction
+- `resultsMatch`: Define IR ≡ Spec result equivalence
+- `addressToNat_injective`: Axiom for address encoding uniqueness
+
+**Build Status**: ✅ Compiles with zero errors/warnings
+
+---
+
+### Phase 2: Expression Compilation Framework (172 lines) ✅
+
+**File**: `Compiler/Proofs/IRGeneration/Expr.lean`
+
+**Strategic Decision**: End-to-end contract proofs instead of compositional expression proofs
+
+**Rationale**:
+- `compileExpr` is private, inaccessible from external modules
+- Public `compile` API is the proper interface for verification
+- End-to-end proofs validate the full pipeline
+- More maintainable (doesn't depend on internal implementation)
+
+**Components**:
+- Axiomatized SimpleStorage preservation theorems:
+  - `simpleStorage_store_correct`: Store function correctness
+  - `simpleStorage_retrieve_correct`: Retrieve function correctness
+- General preservation theorem template
+- Detailed 4-step proof strategy documentation
+
+**Build Status**: ✅ Compiles with zero errors/warnings
+
+**Next**: Convert axioms to actual proofs (~50 lines estimated)
+
+---
+
+### Infrastructure: IR Interpreter (192 lines) ✅
 
 **File**: `Compiler/Proofs/IRGeneration/IRInterpreter.lean`
 
@@ -50,17 +91,19 @@ This layer bridges the gap between high-level declarative specifications and exe
 3. **Operational Semantics**: Variables, assignment, explicit sstore
 4. **No Monadic Nesting**: Unlike SpecInterpreter, much simpler control flow
 
-### 2. Proof Structure Template (80 lines)
+### Exploration: SimpleStorage IR Structure
 
-**File**: `Compiler/Proofs/IRGeneration/SimpleStorage.lean`
+**File**: `Compiler/Proofs/IRGeneration/SimpleStorageProof.lean` (exploration)
 
-**Purpose**: Demonstrates proof approach on simplest contract
+**Purpose**: Explore compiled IR and test proof approaches
 
-**Contents**:
-- `simpleStorageIR`: Compiled IR from spec
-- Placeholder theorems: `store_preserves_semantics`, `retrieve_preserves_semantics`
-- Extensive documentation of type alignment challenge
-- Next steps roadmap
+**Key Findings**:
+- Successfully inspected compiled IR using `#eval compile simpleStorageSpec [...]`
+- Identified clean Yul structure: store uses sstore, retrieve uses sload/mstore/return
+- Created basic theorem templates for testing
+- Informed decision to keep axioms in Expr.lean vs. attempting full proofs immediately
+
+This exploration validates that the compiled IR is straightforward and amenable to verification.
 
 ## The Type Alignment Challenge
 
@@ -185,50 +228,32 @@ Compared to Layer 1 (EDSL ↔ Spec), Layer 2 has advantages:
 
 ## Next Steps
 
-### Phase 1: Type Conversion Infrastructure (1-2 days)
+### Phase 3: Actual Proofs (1-2 weeks)
 
-1. **Define Conversions** (~50 lines)
-   - `addressToNat` / `natToAddress`
-   - `stateToIRState`
-   - `txToIRTx`
-   - `resultsMatch`
+Now that the framework is complete, prove the axiomatized theorems:
 
-2. **Prove Conversion Properties** (~100 lines)
-   - `addressToNat_injective`
-   - `natToAddress_addressToNat`
-   - `stateToIRState_preserves_storage`
+1. **Prove SimpleStorage theorems** (~50 lines)
+   - Convert `simpleStorage_store_correct` from axiom to theorem
+   - Convert `simpleStorage_retrieve_correct` from axiom to theorem
+   - Both theorems are in `Compiler/Proofs/IRGeneration/Expr.lean`
+   - Strategy: Unfold compile, interpretIR, interpretSpec, show equivalence
 
-**File**: `Compiler/Proofs/IRGeneration/Conversions.lean`
+2. **Generalize to Counter** (~100 lines)
+   - Prove increment/decrement/getCount preservation
+   - Handle arithmetic operations (add, sub)
+   - Use same end-to-end pattern
 
-### Phase 2: Compilation Correctness (1-2 weeks)
+3. **Extend to SafeCounter** (~100 lines)
+   - Prove safe arithmetic with overflow checks
+   - Handle Option returns (Some/None cases)
 
-Start with SimpleStorage, then generalize:
+4. **Complete remaining contracts** (~350 lines)
+   - Owned (authorization)
+   - OwnedCounter (composition)
+   - Ledger (mappings)
+   - SimpleToken (full complexity)
 
-1. **Expression Compilation** (~200 lines)
-   - Prove `compileExpr` maps Spec expressions to IR expressions correctly
-   - Show evaluation equivalence: `evalIRExpr (compileExpr e) = evalExpr e`
-
-   **File**: `Compiler/Proofs/IRGeneration/Expr.lean`
-
-2. **Statement Compilation** (~300 lines)
-   - Prove `compileStmt` preserves statement semantics
-   - Handle: setStorage, require, letVar, return
-
-   **File**: `Compiler/Proofs/IRGeneration/Stmt.lean`
-
-3. **Function Compilation** (~200 lines)
-   - Prove `compileFunctionSpec` preserves function semantics
-   - Handle parameter passing, body execution, return values
-
-   **File**: `Compiler/Proofs/IRGeneration/Function.lean`
-
-4. **Full Contract Compilation** (~150 lines)
-   - Compose expression, statement, function proofs
-   - Main preservation theorem
-
-   **File**: `Compiler/Proofs/IRGeneration/Preservation.lean`
-
-### Phase 3: Complete All 7 Contracts (2-3 weeks)
+### Phase 4: Complete All 7 Contracts (after SimpleStorage proven)
 
 Once SimpleStorage is proven, apply the same pattern to:
 - Counter (arithmetic)
@@ -240,18 +265,22 @@ Once SimpleStorage is proven, apply the same pattern to:
 
 ## Estimated Effort
 
-| Component | Lines | Time |
-|-----------|-------|------|
-| Conversions | 150 | 1-2 days |
-| Expression proofs | 200 | 3-4 days |
-| Statement proofs | 300 | 4-5 days |
-| Function proofs | 200 | 3-4 days |
-| Preservation | 150 | 2-3 days |
-| **Phase 1 Total** | **1000** | **2-3 weeks** |
-| Remaining 6 contracts | 600 | 1-2 weeks |
-| **Layer 2 Total** | **~1600** | **3-5 weeks** |
+| Phase | Component | Lines | Time | Status |
+|-------|-----------|-------|------|--------|
+| 1 | Type Conversions | 195 | 1-2 days | ✅ **COMPLETE** |
+| 2 | Proof Framework | 172 | 1-2 days | ✅ **COMPLETE** |
+| 3 | SimpleStorage proofs | 50 | 2-3 days | ⏳ Next |
+| 3 | Counter proofs | 100 | 3-4 days | Pending |
+| 3 | SafeCounter proofs | 100 | 3-4 days | Pending |
+| 4 | Owned proofs | 100 | 3-4 days | Pending |
+| 4 | OwnedCounter proofs | 100 | 3-4 days | Pending |
+| 4 | Ledger proofs | 100 | 4-5 days | Pending |
+| 4 | SimpleToken proofs | 150 | 4-5 days | Pending |
+| | **Infrastructure Total** | **367** | **2-4 days** | ✅ **COMPLETE** |
+| | **Proof Total** | **700** | **3-4 weeks** | 0% |
+| | **Layer 2 Total** | **~1067** | **3-5 weeks** | **34% (Infrastructure)** |
 
-Compare to original estimate: ~700 lines, 2-3 weeks (we were close!)
+**Progress**: Infrastructure and framework are done. Ready for actual theorem proving.
 
 ## Strategic Value
 
