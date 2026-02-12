@@ -205,6 +205,7 @@ partial def execYulStmt (state : YulState) : YulStmt → YulExecResult
           | some offset, some val =>
               .continue { state with memory := fun o => if o = offset then val else state.memory o }
           | _, _ => .revert state
+      | .call "stop" [] => .stop state
       | .call "return" [offsetExpr, sizeExpr] =>
           match evalYulExpr state offsetExpr, evalYulExpr state sizeExpr with
           | some offset, some size =>

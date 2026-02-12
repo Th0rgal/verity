@@ -51,6 +51,19 @@ private def runYul (runtimeCode : List YulStmt) (tx : YulTransaction)
   | { success := true, returnValue := some 0, .. } => true
   | _ => false
 
+-- stop halts successfully without mutating storage/mappings
+#guard
+  let runtime := [
+    YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.lit 777]),
+    YulStmt.expr (YulExpr.call "stop" [])
+  ]
+  let storage0 := storageWith 0 123
+  let mappings0 := mappingsWith 1 2 456
+  match runYul runtime { sender := 0, functionSelector := 0, args := [] } storage0 mappings0 with
+  | { success := true, returnValue := none, finalStorage, finalMappings } =>
+      finalStorage 0 = 777 ∧ finalMappings 1 2 = 456
+  | _ => false
+
 -- revert restores original storage and mappings
 #guard
   let runtime := [
