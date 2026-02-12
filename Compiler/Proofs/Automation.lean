@@ -71,7 +71,10 @@ theorem setStorage_getStorage_diff (slot1 slot2 : StorageSlot Uint256) (value : 
     (h : slot1.slot ≠ slot2.slot) :
     (getStorage slot2).runValue ((setStorage slot1 value).runState state) =
     state.storage slot2.slot := by
-  simp [setStorage, getStorage, Contract.runState, Contract.runValue, h]
+  unfold setStorage getStorage Contract.runState Contract.runValue
+  by_cases h_eq : slot2.slot = slot1.slot
+  · exact (h h_eq.symm).elim
+  · simp [h_eq]
 
 /-!
 ## Monadic Composition Lemmas
@@ -223,9 +226,29 @@ theorem lookup_filter_ne {β : Type} (k k' : Nat) (h : k ≠ k') (xs : List (Nat
             have hk0ne : k ≠ k0 := by
               intro hkk
               exact h (hkk.trans hk0)
-            simp [List.filter, List.lookup, hk0, beq_iff_eq, hk0ne, ih]
+            calc
+              (List.filter (fun kv => kv.1 ≠ k') ((k0, v0) :: xs)).lookup k
+                  = (List.filter (fun kv => kv.1 ≠ k') xs).lookup k := by
+                      simp [List.filter, hk0]
+              _ = xs.lookup k := ih
+              _ = ((k0, v0) :: xs).lookup k := by
+                      have hk0false : (k == k0) = false := by
+                        exact (beq_eq_false_iff_ne.mpr hk0ne)
+                      simp [List.lookup, hk0false]
           · -- Filter keeps this head.
-            simp [List.filter, List.lookup, hk0, beq_iff_eq, ih]
+            by_cases hk : k = k0
+            · simp [List.filter, List.lookup, hk0, beq_iff_eq, hk]
+            · calc
+                (List.filter (fun kv => kv.1 ≠ k') ((k0, v0) :: xs)).lookup k
+                    = (List.filter (fun kv => kv.1 ≠ k') xs).lookup k := by
+                        have hkfalse : (k == k0) = false := by
+                          exact (beq_eq_false_iff_ne.mpr hk)
+                        simp [List.filter, List.lookup, hk0, hkfalse]
+                _ = xs.lookup k := ih
+                _ = ((k0, v0) :: xs).lookup k := by
+                        have hkfalse : (k == k0) = false := by
+                          exact (beq_eq_false_iff_ne.mpr hk)
+                        simp [List.lookup, hkfalse]
 
 -- getSlot from setSlot (different slot)
 theorem SpecStorage_getSlot_setSlot_diff (storage : SpecStorage) (slot1 slot2 : Nat) (value : Nat)
@@ -238,7 +261,12 @@ theorem SpecStorage_getSlot_setSlot_diff (storage : SpecStorage) (slot1 slot2 : 
   have h' : slot2 ≠ slot1 := by
     intro h2
     exact h h2.symm
-  simp [List.lookup, beq_iff_eq, h', lookup_filter_ne slot2 slot1 h']
+  have hfalse : (slot2 == slot1) = false := by
+    exact (beq_eq_false_iff_ne.mpr h')
+  have hpred : (fun x : Nat × Nat => !decide (x.1 = slot1)) = (fun x : Nat × Nat => decide (x.1 ≠ slot1)) := by
+    funext x
+    simp [decide_not]
+  simp [List.lookup, hfalse, hpred, lookup_filter_ne slot2 slot1 h']
 
 -- getMapping from setMapping (same slot and key) - requires proof
 theorem SpecStorage_getMapping_setMapping_same (storage : SpecStorage) (slot : Nat) (key : Nat) (value : Nat) :
@@ -254,7 +282,13 @@ theorem SpecStorage_getMapping_setMapping_diff_slot (storage : SpecStorage) (slo
   have h' : slot2 ≠ slot1 := by
     intro h2
     exact h h2.symm
-  simp [List.lookup, beq_iff_eq, h', lookup_filter_ne slot2 slot1 h']
+  have hfalse : (slot2 == slot1) = false := by
+    exact (beq_eq_false_iff_ne.mpr h')
+  have hpred : (fun x : Nat × List (Nat × Nat) => !decide (x.1 = slot1)) =
+      (fun x : Nat × List (Nat × Nat) => decide (x.1 ≠ slot1)) := by
+    funext x
+    simp [decide_not]
+  simp [List.lookup, hfalse, hpred, lookup_filter_ne slot2 slot1 h']
 
 /-!
 ## Safe Arithmetic Lemmas

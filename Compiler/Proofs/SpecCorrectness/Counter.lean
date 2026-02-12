@@ -55,15 +55,41 @@ private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address)
       []
       ((Expr.storage "count").sub (Expr.literal 1)) =
     (sub (state.storage 0) 1).val := by
-  -- This requires proving that both evalExpr and sub compute the same conditional:
-  -- if val >= 1 then val - 1 else modulus - (1 - val)
-  -- The proof requires careful case splitting and showing that:
-  -- 1. Both use the same condition (1 ≤ val)
-  -- 2. In each branch, the computations are equal modulo UINT256_MODULUS
-  -- 3. The modular arithmetic properties match
-  -- This is straightforward but requires more sophisticated automation for
-  -- matching conditional structures across different representations (List.lookup vs Uint256.sub)
-  sorry
+  -- Both evalExpr and Uint256.sub use the same conditional on val >= 1.
+  have h1lt : (1 : Nat) < modulus := by
+    dsimp [modulus, DumbContracts.Core.UINT256_MODULUS]
+    decide
+  have h1mod : (1 % modulus) = (1 : Nat) := Nat.mod_eq_of_lt h1lt
+  have hidx :
+      (List.findIdx? (fun f : Field => f.name == "count")
+          (([{ name := "count", ty := FieldType.uint256 }] : List Field))) = some 0 := by
+    simp [List.findIdx?]
+  by_cases h : (state.storage 0).val ≥ 1
+  · -- No underflow: both sides are val - 1.
+    have hle : (1 : DumbContracts.Core.Uint256).val ≤ (state.storage 0).val := by
+      simpa using h
+    have h_sub : (sub (state.storage 0) 1).val = (state.storage 0).val - 1 := by
+      simpa using (DumbContracts.EVM.Uint256.sub_eq_of_le (a := state.storage 0) (b := (1 : DumbContracts.Core.Uint256)) hle)
+    -- Reduce evalExpr to the same expression
+    simp [evalExpr, SpecStorage.getSlot, List.lookup, hidx, h1mod, h, h_sub]  -- result matches
+  · -- Underflow case: val = 0, so result is modulus - 1 on both sides.
+    have hlt : (state.storage 0).val < 1 := Nat.lt_of_not_ge h
+    have h0 : (state.storage 0).val = 0 := by
+      exact (Nat.lt_one_iff.mp hlt)
+    have hgt : (1 : DumbContracts.Core.Uint256).val > (state.storage 0).val := by
+      simp [h0]
+    have h_sub : (sub (state.storage 0) 1).val =
+        (modulus - ((1 : DumbContracts.Core.Uint256).val - (state.storage 0).val)) % modulus := by
+      simpa using (DumbContracts.Core.Uint256.sub_val_of_gt (a := state.storage 0) (b := (1 : DumbContracts.Core.Uint256)) hgt)
+    have hlt_mod : modulus - (1 - (state.storage 0).val) < modulus := by
+      -- With val = 0, this is modulus - 1 < modulus.
+      have hle : (1 : Nat) ≤ modulus := Nat.succ_le_of_lt DumbContracts.Core.Uint256.modulus_pos
+      have hpos : 0 < (1 : Nat) := by decide
+      simpa [h0] using (Nat.sub_lt_of_pos_le hpos hle)
+    have h_mod : (modulus - (1 - (state.storage 0).val)) % modulus =
+        modulus - (1 - (state.storage 0).val) := by
+      exact Nat.mod_eq_of_lt hlt_mod
+    simp [evalExpr, SpecStorage.getSlot, List.lookup, hidx, h1mod, h, h0, h_sub, h_mod]
 
 /- Correctness Theorems -/
 
@@ -201,7 +227,12 @@ private theorem applyNIncrements_val (state : ContractState) (sender : Address) 
       -- This is a standard modular arithmetic fact
       -- We need to show: (a % m + b) % m = (a + b) % m where a = (state.storage 0).val + 1, b = k
       -- Use the fact that for any a, b, m: (a % m + b) % m ≡ (a + b) % m
-      sorry -- Modular arithmetic: requires Nat.add_mod or similar property
+      calc
+        (((state.storage 0).val + 1) % modulus + k) % modulus
+            = (((state.storage 0).val + 1) + k) % modulus := by
+                simpa using (Nat.mod_add_mod ((state.storage 0).val + 1) modulus k)
+        _ = ((state.storage 0).val + (k + 1)) % modulus := by
+                simp [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
 
 /-- Multiple increments accumulate correctly (modulo 2^256) -/
 theorem multiple_increments (state : ContractState) (sender : Address) (n : Nat) :
