@@ -9,6 +9,7 @@
 -/
 
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.IRGeneration.Conversions
 import Compiler.Proofs.IRGeneration.Expr
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Specs
@@ -30,15 +31,12 @@ def simpleStorageIR : Except String IRContract :=
 
 /-! ## Preservation Theorems -/
 
-/-- The store function preserves semantics: IR execution matches Spec execution
+/-- The store function preserves semantics: IR execution matches Spec execution.
 
-    TODO: This theorem statement needs refinement to properly relate
-    IRTransaction/IRResult with SpecInterpreter's Transaction/Result types.
-
-    The key challenge: IRInterpreter uses Nat everywhere (addresses, values)
-    while SpecInterpreter uses richer types (Address = String, Uint256).
-
-    We need a translation layer between these representations.
+    This statement now uses the explicit conversion layer:
+    - `transactionToIRTransaction` for the call
+    - `specStorageToIRState` for initial IR state
+    This cleanly relates Spec and IR representations.
 -/
 theorem store_preserves_semantics (value : Nat) (initialState : ContractState) :
   let spec := simpleStorageSpec
@@ -49,17 +47,13 @@ theorem store_preserves_semantics (value : Nat) (initialState : ContractState) :
     functionName := "store"
     args := [value]
   }
-  -- Create IR transaction
-  let irTx : IRTransaction := {
-    sender := addressToNat sender
-    functionSelector := 0x6057361d  -- store selector
-    args := [value]
-  }
+  -- Create IR transaction via conversion layer
+  let irTx : IRTransaction := transactionToIRTransaction tx 0x6057361d
   -- Execute both sides
   let specResult := interpretSpec spec (SpecStorage.empty) tx
   match irContract with
   | .ok ir =>
-      let irResult := interpretIR ir irTx (IRState.initial irTx.sender)
+      let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
       -- Results should match
       resultsMatch ir.usesMapping [] irResult specResult initialState
   | .error _ => False
@@ -76,16 +70,12 @@ theorem retrieve_preserves_semantics (initialState : ContractState) :
     functionName := "retrieve"
     args := []
   }
-  -- Create IR transaction
-  let irTx : IRTransaction := {
-    sender := addressToNat sender
-    functionSelector := 0x2e64cec1  -- retrieve selector
-    args := []
-  }
+  -- Create IR transaction via conversion layer
+  let irTx : IRTransaction := transactionToIRTransaction tx 0x2e64cec1
   let specResult := interpretSpec spec (SpecStorage.empty) tx
   match irContract with
   | .ok ir =>
-      let irResult := interpretIR ir irTx (IRState.initial irTx.sender)
+      let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
       resultsMatch ir.usesMapping [] irResult specResult initialState
   | .error _ => False
   :=

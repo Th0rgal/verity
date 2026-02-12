@@ -275,6 +275,213 @@ theorem counter_increment_correct (initialState : ContractState) :
       simp
     · simp [h]
 
+/-! ## SafeCounter: Concrete IR -/
+
+def safeCounterOverflowRevert : List YulStmt :=
+  [
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit 0,
+      YulExpr.hex 0x08c379a000000000000000000000000000000000000000000000000000000000
+    ]),
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]),
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 36, YulExpr.lit 21]),
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit 68,
+      YulExpr.hex 0x4f766572666c6f7720696e20696e6372656d656e740000000000000000000000
+    ]),
+    YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 100])
+  ]
+
+def safeCounterUnderflowRevert : List YulStmt :=
+  [
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit 0,
+      YulExpr.hex 0x08c379a000000000000000000000000000000000000000000000000000000000
+    ]),
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]),
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 36, YulExpr.lit 22]),
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit 68,
+      YulExpr.hex 0x556e646572666c6f7720696e2064656372656d656e7400000000000000000000
+    ]),
+    YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 100])
+  ]
+
+def safeCounterIRContract : IRContract :=
+  { name := "SafeCounter"
+    deploy := []
+    functions := [
+      { name := "increment"
+        selector := 0xd09de08a
+        params := []
+        ret := IRType.unit
+        body := [
+          YulStmt.let_ "count" (YulExpr.call "sload" [YulExpr.lit 0]),
+          YulStmt.let_ "newCount" (YulExpr.call "add" [
+            YulExpr.ident "count",
+            YulExpr.lit (1 % (2 ^ 256))
+          ]),
+          YulStmt.if_
+            (YulExpr.call "iszero" [
+              YulExpr.call "gt" [YulExpr.ident "newCount", YulExpr.ident "count"]
+            ])
+            safeCounterOverflowRevert,
+          YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.ident "newCount"]),
+          YulStmt.expr (YulExpr.call "stop" [])
+        ]
+      },
+      { name := "decrement"
+        selector := 0x2baeceb7
+        params := []
+        ret := IRType.unit
+        body := [
+          YulStmt.let_ "count" (YulExpr.call "sload" [YulExpr.lit 0]),
+          YulStmt.if_
+            (YulExpr.call "lt" [YulExpr.ident "count", YulExpr.lit (1 % (2 ^ 256))])
+            safeCounterUnderflowRevert,
+          YulStmt.expr (YulExpr.call "sstore" [
+            YulExpr.lit 0,
+            YulExpr.call "sub" [YulExpr.ident "count", YulExpr.lit (1 % (2 ^ 256))]
+          ]),
+          YulStmt.expr (YulExpr.call "stop" [])
+        ]
+      },
+      { name := "getCount"
+        selector := 0xa87d942c
+        params := []
+        ret := IRType.uint256
+        body := [
+          YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.call "sload" [YulExpr.lit 0]]),
+          YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])
+        ]
+      }
+    ]
+    usesMapping := false }
+
+@[simp] lemma compile_safeCounterSpec :
+    compile safeCounterSpec [0xd09de08a, 0x2baeceb7, 0xa87d942c] = .ok safeCounterIRContract := by
+  rfl
+
+/-! ## SafeCounter: Function Correctness -/
+
+theorem safeCounter_increment_correct (storedValue : Nat) (initialState : ContractState) :
+  let spec := safeCounterSpec
+  let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
+  let sender := "test_sender"
+  let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
+  let tx : Transaction := {
+    sender := sender
+    functionName := "increment"
+    args := []
+  }
+  let irTx : IRTransaction := {
+    sender := addressToNat sender
+    functionSelector := 0xd09de08a
+    args := []
+  }
+  let specResult := interpretSpec spec initialStorage tx
+  match irContract with
+  | .ok ir =>
+      let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
+      resultsMatch ir.usesMapping [] irResult specResult initialState
+  | .error _ => False
+  := by
+  by_cases h : (storedValue + 1) % evmModulus > storedValue
+  · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
+      safeCounterIRContract, safeCounterOverflowRevert, SpecStorage.empty, SpecStorage.setSlot,
+      SpecStorage.getSlot, specStorageToIRState, DumbContracts.Core.Uint256.modulus, evmModulus, h]
+    · intro slot
+      by_cases hslot : slot = 0
+      · subst hslot
+        simp
+      · simp [hslot]
+  · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
+      safeCounterIRContract, safeCounterOverflowRevert, SpecStorage.empty, SpecStorage.setSlot,
+      SpecStorage.getSlot, specStorageToIRState, DumbContracts.Core.Uint256.modulus, evmModulus, h]
+    · intro slot
+      by_cases hslot : slot = 0
+      · subst hslot
+        simp
+      · simp [hslot]
+
+theorem safeCounter_decrement_correct (storedValue : Nat) (initialState : ContractState) :
+  let spec := safeCounterSpec
+  let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
+  let sender := "test_sender"
+  let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
+  let tx : Transaction := {
+    sender := sender
+    functionName := "decrement"
+    args := []
+  }
+  let irTx : IRTransaction := {
+    sender := addressToNat sender
+    functionSelector := 0x2baeceb7
+    args := []
+  }
+  let specResult := interpretSpec spec initialStorage tx
+  match irContract with
+  | .ok ir =>
+      let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
+      resultsMatch ir.usesMapping [] irResult specResult initialState
+  | .error _ => False
+  := by
+  by_cases h : storedValue < 1
+  · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
+      safeCounterIRContract, safeCounterUnderflowRevert, SpecStorage.empty, SpecStorage.setSlot,
+      SpecStorage.getSlot, specStorageToIRState, DumbContracts.Core.Uint256.modulus, evmModulus, h]
+    · intro slot
+      by_cases hslot : slot = 0
+      · subst hslot
+        simp
+      · simp [hslot]
+  · have hge : storedValue >= 1 := by
+      exact Nat.not_lt.mp h
+    simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
+      safeCounterIRContract, safeCounterUnderflowRevert, SpecStorage.empty, SpecStorage.setSlot,
+      SpecStorage.getSlot, specStorageToIRState, DumbContracts.Core.Uint256.modulus, evmModulus, h, hge]
+    · intro slot
+      by_cases hslot : slot = 0
+      · subst hslot
+        simp
+      · simp [hslot]
+
+theorem safeCounter_getCount_correct (storedValue : Nat) (initialState : ContractState) :
+  let spec := safeCounterSpec
+  let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
+  let sender := "test_sender"
+  let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
+  let tx : Transaction := {
+    sender := sender
+    functionName := "getCount"
+    args := []
+  }
+  let irTx : IRTransaction := {
+    sender := addressToNat sender
+    functionSelector := 0xa87d942c
+    args := []
+  }
+  let specResult := interpretSpec spec initialStorage tx
+  match irContract with
+  | .ok ir =>
+      let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
+      resultsMatch ir.usesMapping [] irResult specResult initialState
+  | .error _ => False
+  := by
+  simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+    interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
+    safeCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
+    specStorageToIRState, DumbContracts.Core.Uint256.modulus, evmModulus]
+  · intro slot
+    by_cases h : slot = 0
+    · subst h
+      simp
+    · simp [h]
+
 theorem counter_decrement_correct (initialState : ContractState) :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]

@@ -147,7 +147,6 @@ theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : A
   · -- Part 3: specResult.finalStorage.getSlot 0 = addressToNat newOwner
     -- Similar to Part 2: requires Option.bind chain simplification
     -- When authorized, spec stores newOwner at slot 0
-    -- TODO: Add automation for Option.bind simplification in SpecInterpreter
     simp [ownedSpec, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
