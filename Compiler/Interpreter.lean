@@ -692,7 +692,7 @@ private def parseConfigArgs (configArgs : List String) :
       | _ => Except.error "Invalid config prefix"
   go configArgs none none none none none
 
-def main (args : List String) : IO Unit := do
+def runCli (args : List String) : IO Unit := do
   match args with
   | contractType :: functionName :: senderAddr :: rest =>
     let (argStrs, configArgs) ← match splitTrailingStorageArgs rest with
@@ -755,3 +755,6 @@ def main (args : List String) : IO Unit := do
     IO.println "With address storage: difftest-interpreter Owned transferOwnership 0xAlice 0xBob addr=\"0:0xAlice\""
     IO.println "With mapping: difftest-interpreter Ledger deposit 0xAlice 10 map=\"0:0xAlice=10\""
     IO.println "With context: difftest-interpreter Counter increment 0xAlice value=100 timestamp=1700000000"
+
+def main (args : List String) : IO Unit := do
+  runCli args
