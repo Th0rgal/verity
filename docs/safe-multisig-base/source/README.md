@@ -8,6 +8,7 @@ used for the formal proof work in this repo.
 - Release tag: v1.5.0
 - Commit: dc437e8
 - Contract: contracts/Safe.sol (Safe)
+- Interface: contracts/interfaces/ISafe.sol (ISafe)
 - Retrieved: 2026-02-12
 
 ## Integrity
@@ -18,6 +19,8 @@ used for the formal proof work in this repo.
 - SHA256 (base/GuardManager.sol): `7560378f976c2a7dc655db11d387a83f69943bf249cc74faca343bc72de60e73`
 - SHA256 (base/FallbackManager.sol): `fe990479ee73d9f0f602ec1a79f7c34b9fb6875b51d879d5929a3d6344f5e111`
 - SHA256 (common/Singleton.sol): `dd6e1eb6292caa256bcbc953a7f64ec26d3262c4b9e6893e002f0c602ec1985d`
+- SHA256 (interfaces/ISafe.sol): `ee9949b44f6b21f078e6b69dd927107f233fc38c1ea5b6d46b4618bf3a8af04d`
+- Detached hash file: `interfaces/ISafe.sol.sha256`
 
 ## Notes
 - This is a verbatim copy of the upstream contract file at the pinned commit.
