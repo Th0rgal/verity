@@ -123,6 +123,7 @@ def contractStateToIRState (addrs : List Address) (state : ContractState) : IRSt
       match addressFromNat addrs key with
       | some addr => uint256ToNat (state.storageMap base addr)
       | none => 0
+    memory := fun _ => 0
     calldata := []
     returnValue := none
     sender := addressToNat state.sender }
@@ -130,6 +131,11 @@ def contractStateToIRState (addrs : List Address) (state : ContractState) : IRSt
 /-- Storage conversion preserves slot values -/
 theorem contractStateToIRState_storage (addrs : List Address) (state : ContractState) (slot : Nat) :
     (contractStateToIRState addrs state).storage slot = uint256ToNat (state.storage slot) := by
+  unfold contractStateToIRState
+  rfl
+
+@[simp] theorem contractStateToIRState_memory (addrs : List Address) (state : ContractState) (offset : Nat) :
+    (contractStateToIRState addrs state).memory offset = 0 := by
   unfold contractStateToIRState
   rfl
 

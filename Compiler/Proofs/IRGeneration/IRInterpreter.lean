@@ -116,38 +116,38 @@ def evalIRExpr (state : IRState) : YulExpr → Option Nat
         let argVals ← evalIRExprs state args
         match func, argVals with
         | "add", [a, b] => some ((a + b) % evmModulus)  -- EVM modular arithmetic
-    | "sub", [a, b] =>
-        -- EVM SUB uses modular two's-complement wrapping, not truncating subtraction
-        -- If a >= b: result is a - b
-        -- If a < b: result wraps around: 2^256 - (b - a) = 2^256 + a - b
-        some ((evmModulus + a - b) % evmModulus)
-    | "mul", [a, b] => some ((a * b) % evmModulus)
-    | "div", [a, b] => if b = 0 then some 0 else some (a / b)
-    | "mod", [a, b] => if b = 0 then some 0 else some (a % b)
-    | "lt", [a, b] => some (if a < b then 1 else 0)
-    | "gt", [a, b] => some (if a > b then 1 else 0)
-    | "eq", [a, b] => some (if a = b then 1 else 0)
-    | "iszero", [a] => some (if a = 0 then 1 else 0)
-    | "and", [a, b] => some (a &&& b)  -- Bitwise AND
-    | "or", [a, b] => some (a ||| b)   -- Bitwise OR
-    | "caller", [] => some state.sender
-    | "calldataload", [offsetExpr] =>
-        -- calldataload retrieves 32-byte word from calldata at given offset.
-        -- We model calldata as 32-byte words aligned after the 4-byte selector.
-        -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
-        match evalIRExpr state offsetExpr with
-        | none => none
-        | some offset =>
-          if offset < 4 then
-            some 0
-          else
-            let wordOffset := offset - 4
-            if wordOffset % 32 != 0 then
-              some 0
-            else
-              let idx := wordOffset / 32
-              some (state.calldata.getD idx 0)
-    | _, _ => none  -- Unknown or invalid function call
+        | "sub", [a, b] =>
+            -- EVM SUB uses modular two's-complement wrapping, not truncating subtraction
+            -- If a >= b: result is a - b
+            -- If a < b: result wraps around: 2^256 - (b - a) = 2^256 + a - b
+            some ((evmModulus + a - b) % evmModulus)
+        | "mul", [a, b] => some ((a * b) % evmModulus)
+        | "div", [a, b] => if b = 0 then some 0 else some (a / b)
+        | "mod", [a, b] => if b = 0 then some 0 else some (a % b)
+        | "lt", [a, b] => some (if a < b then 1 else 0)
+        | "gt", [a, b] => some (if a > b then 1 else 0)
+        | "eq", [a, b] => some (if a = b then 1 else 0)
+        | "iszero", [a] => some (if a = 0 then 1 else 0)
+        | "and", [a, b] => some (a &&& b)  -- Bitwise AND
+        | "or", [a, b] => some (a ||| b)   -- Bitwise OR
+        | "caller", [] => some state.sender
+        | "calldataload", [offsetExpr] =>
+            -- calldataload retrieves 32-byte word from calldata at given offset.
+            -- We model calldata as 32-byte words aligned after the 4-byte selector.
+            -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
+            match evalIRExpr state offsetExpr with
+            | none => none
+            | some offset =>
+              if offset < 4 then
+                some 0
+              else
+                let wordOffset := offset - 4
+                if wordOffset % 32 != 0 then
+                  some 0
+                else
+                  let idx := wordOffset / 32
+                  some (state.calldata.getD idx 0)
+        | _, _ => none  -- Unknown or invalid function call
 
 end -- mutual
 
