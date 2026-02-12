@@ -56,16 +56,18 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
     (edslResult.isSuccess = true ↔ specResult.success = true) ∧
     (edslResult.isSuccess = true →
       specResult.finalStorage.getSlot 0 = (edslResult.getState.storage 0).val) := by
-  -- Core insight: EDSL's safeAdd and Spec's require (newCount > count) are equivalent
-  -- via add_one_preserves_order_iff_no_overflow lemma
-  -- Both succeed iff count < MAX_UINT256
+  -- Proof strategy using add_one_preserves_order_iff_no_overflow:
+  -- Both EDSL (safeAdd) and Spec (require newCount > count) succeed iff count < MAX_UINT256
+  -- When successful, both store (count + 1).val
   constructor
   · -- Part 1: Success equivalence
-    sorry  -- TODO: Prove using add_one_preserves_order_iff_no_overflow
-           -- Forward: EDSL success (safeAdd succeeds) → count < MAX → spec's require passes
-           -- Backward: Spec success (require passes) → count < MAX → safeAdd succeeds
-  · -- Part 2: Storage equivalence when successful
-    sorry  -- TODO: When both succeed, both store (count + 1).val
+    sorry  -- TODO: Prove bidirectional implication
+           -- Forward: Use add_one_preserves_order_iff_no_overflow to show
+           --   safeAdd succeeds → count < MAX → require passes
+           -- Backward: Use add_one_preserves_order_iff_no_overflow to show
+           --   require passes → count < MAX → safeAdd succeeds
+  · -- Part 2: Storage equivalence
+    sorry  -- TODO: When both succeed, both store ((state.storage 0) + 1).val
 
 /-- The `decrement` function correctly decrements with underflow check -/
 theorem safeDecrement_correct (state : ContractState) (sender : Address) :
