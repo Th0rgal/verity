@@ -16,8 +16,8 @@ def retrieve : Contract Uint256 := do
 
 -- Proof: retrieve returns what store stored
 theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
-  let s' := (store value).run s |>.2
-  let result := retrieve.run s' |>.1
+  let s' := ((store value).run s).snd
+  let result := ((retrieve).run s').fst
   result = value := by
   have h_store := store_meets_spec s value
   have h_retrieve := retrieve_meets_spec ((store value).run s |>.2)
