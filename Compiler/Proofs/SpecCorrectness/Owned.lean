@@ -56,25 +56,19 @@ These are reasonable assumptions because:
 private theorem addressToNat_lt_modulus (addr : Address) :
     addressToNat addr < DumbContracts.Core.Uint256.modulus := by
   -- addressToNat either:
-  -- 1. Returns the parsed hex value (which for valid addresses is < 2^160)
-  -- 2. Returns stringToNat % 2^160, which is by definition < 2^160
+  -- 1. Returns the parsed hex value modulo 2^160
+  -- 2. Returns stringToNat % 2^160
   -- In either case, the result is < 2^160 < 2^256
   unfold addressToNat
   split
   · -- Case: parseHexNat? returns some n
     -- We know that 2^160 < 2^256 (modulus)
     have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by
-      -- 2^256 = 115792089237316195423570985008687907853269984665640564039457584007913129639936
-      -- 2^160 = 1461501637330902918203684832716283019655932542976
-      -- So 2^160 < 2^256 holds
       decide
     rename_i n _
-    -- TRUST ASSUMPTION: For valid Ethereum addresses (20 bytes = 160 bits), n < 2^160
-    -- This is enforced by:
-    -- 1. The EVM only accepts 20-byte addresses
-    -- 2. Our parseHexNat? implementation respects this
-    -- 3. Validated empirically by 70,000+ differential tests
-    sorry
+    have h_mod : n % 2^160 < 2^160 := by
+      exact Nat.mod_lt _ (by decide : 2^160 > 0)
+    exact lt_trans h_mod h_160_lt_mod
   · -- Case: parseHexNat? returns none, so we use stringToNat % 2^160
     rename_i _
     have h_mod : stringToNat addr % 2^160 < 2^160 := Nat.mod_lt _ (by decide : 2^160 > 0)
