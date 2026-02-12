@@ -13,7 +13,7 @@ These helpers wire IR-level execution to Yul runtime execution so we can
 compare results directly in smoke tests.
 -/
 
-def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
+noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
     functionSelector := tx.functionSelector

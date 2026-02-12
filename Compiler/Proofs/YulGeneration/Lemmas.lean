@@ -11,41 +11,55 @@ open Compiler.Yul
 These lemmas connect the runtime codegen structure with the Yul semantics.
 -/
 
-@[simp]
-theorem evalYulExpr_selectorExpr_semantics :
+set_option maxHeartbeats 1000000 in
+@[simp] theorem evalYulExpr_selectorExpr_semantics :
     ∀ state : YulState, evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
   intro state
   -- Unfold the selector expression and reduce calldataload/shr.
   unfold selectorExpr
-  simp [evalYulExpr, evalYulExprs, evalYulCall, selectorWord, selectorModulus,
-    selectorShift, Nat.mul_div_right, Nat.pow_pos]
+  have hpow : 0 < (2 ^ selectorShift) := by
+    simpa using (Nat.pow_pos (a := 2) (n := selectorShift) (by decide : 0 < (2 : Nat)))
+  simp [evalYulExpr, evalYulExprs]
+  unfold evalYulCall
+  simp [evalYulExprs, evalYulExpr, selectorWord, selectorModulus,
+    selectorShift, Nat.mul_div_right, hpow]
 
 @[simp]
-theorem execYulStmt_switch_match_semantics
+theorem execYulStmtFuel_switch_match_semantics
     (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
-    (default : Option (List YulStmt)) (v : Nat) (body : List YulStmt)
+    (default : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
     (hEval : evalYulExpr state expr = some v)
     (hFind : List.find? (fun (c, _) => c = v) cases' = some (v, body)) :
-    execYulStmt state (YulStmt.switch expr cases' default) = execYulStmts state body := by
-  simp [execYulStmt, execYulStmtFuel, execYulStmts, execYulStmtsFuel, hEval, hFind]
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' default) =
+      execYulStmtsFuel fuel state body := by
+  have hFind' : List.find? (fun (c, _) => decide (c = v)) cases' = some (v, body) := by
+    simpa using hFind
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, hEval]
+      simp [execYulStmtsFuel, hFind']
+  | succ fuel =>
+      simp [execYulStmtFuel, hEval]
+      simp [execYulStmtsFuel, hFind']
 
 @[simp]
-theorem execYulStmt_switch_miss_semantics
+theorem execYulStmtFuel_switch_miss_semantics
     (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
-    (default : Option (List YulStmt)) (v : Nat)
+    (default : Option (List YulStmt)) (fuel v : Nat)
     (hEval : evalYulExpr state expr = some v)
     (hFind : List.find? (fun (c, _) => c = v) cases' = none) :
-    execYulStmt state (YulStmt.switch expr cases' default) =
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' default) =
       (match default with
-        | some body => execYulStmts state body
+        | some body => execYulStmtsFuel fuel state body
         | none => YulExecResult.continue state) := by
-  simp [execYulStmt, execYulStmtFuel, execYulStmts, execYulStmtsFuel, hEval, hFind]
-
-@[simp]
-theorem execYulStmts_funcDef
-    (state : YulState) (name : String) (args rets : List String) (body : List YulStmt)
-    (rest : List YulStmt) :
-    execYulStmts state (YulStmt.funcDef name args rets body :: rest) = execYulStmts state rest := by
-  simp [execYulStmts, execYulStmtsFuel, execYulStmt, execYulStmtFuel]
+  have hFind' : List.find? (fun (c, _) => decide (c = v)) cases' = none := by
+    simpa using hFind
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, hEval]
+      simp [execYulStmtsFuel, hFind']
+  | succ fuel =>
+      simp [execYulStmtFuel, hEval]
+      simp [execYulStmtsFuel, hFind']
 
 end Compiler.Proofs.YulGeneration
