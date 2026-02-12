@@ -111,7 +111,7 @@ def resultToExecutionResult
       storageAddrChanges := addrChanges.map (fun (slot, addr) => (slot, addressToNat addr))
       mappingChanges := extractMappingChanges initialState finalState mappingKeysToCheck
     }
-  | ContractResult.revert msg finalState =>
+  | ContractResult.revert msg _finalState =>
     { success := false
       returnValue := some (revertReturnValue msg)
       revertReason := some msg

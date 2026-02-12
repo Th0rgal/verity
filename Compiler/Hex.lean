@@ -35,7 +35,7 @@ def normalizeAddress (addr : String) : String :=
 
 def addressToNat (addr : String) : Nat :=
   match parseHexNat? addr with
-  | some n => n
+  | some n => n % (2^160)
   | none => stringToNat addr % (2^160)
 
 end Compiler.Hex

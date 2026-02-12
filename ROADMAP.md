@@ -82,76 +82,41 @@
 
 **Goal**: Formally prove that compiled EVM bytecode behaves exactly like the EDSL specification.
 
-**Approach**: Prove correctness in layers
-
-#### **Layer 1: EDSL ≡ ContractSpec** (Specification Correctness)
-   - 🔲 Write `interpretSpec : ContractSpec → State → Transaction → Result`
-   - 🔲 Prove `Compiler/Specs.lean` accurately represents each EDSL contract
-   - 🔲 Theorem: `∀ spec. interpretEDSL = interpretSpec spec`
-   - **Files needed**: `Compiler/Proofs/SpecCorrectness/*.lean` (7 proofs, one per contract)
-
-#### **Layer 2: ContractSpec → IR** (Code Generation)
-   - 🔲 Define `interpretIR : IRContract → State → Transaction → Result`
-   - 🔲 Prove `ContractSpec.toIR` preserves semantics
-   - 🔲 Theorem: `∀ spec. interpretIR (spec.toIR) = interpretSpec spec`
-   - **Files needed**: `Compiler/Proofs/IRGeneration/*.lean`
+**Approach**: Prove correctness in layers. Layers 1-2 are complete; remaining work is below.
 
 #### **Layer 3: IR → Yul** (Lowering)
-   - 🔲 Define or import Yul semantics
+   - 🔲 Define or import Yul semantics (fill remaining gaps)
    - 🔲 Prove `generateYul` preserves IR semantics
    - 🔲 Theorem: `∀ ir. interpretYul (generateYul ir) = interpretIR ir`
-   - **Files needed**: `Compiler/Proofs/YulGeneration/*.lean`
+   - **Files**: `Compiler/Proofs/YulGeneration/*.lean`
 
 #### **Layer 4: Yul → EVM Bytecode** (Trust solc)
-   - Document trust assumption: we trust `solc` to correctly compile Yul
-   - Differential testing provides empirical evidence (70k+ tests, zero mismatches)
+   - 🔲 Document trust assumption: we trust `solc` to correctly compile Yul
+   - 🔲 Justify with differential testing evidence (70k+ tests)
 
-**Success criteria**:
-   - ✅ All 3 layers proven (EDSL → Spec → IR → Yul)
-   - ✅ End-to-end theorem: compiled bytecode ≡ EDSL semantics (modulo solc)
-   - ✅ `lake build Compiler/Proofs` has zero `sorry`
+**Remaining success criteria**:
+   - 🔲 Layer 3 proof complete (IR → Yul preservation)
+   - 🔲 End-to-end theorem: compiled bytecode ≡ EDSL semantics (modulo solc)
+   - 🔲 Trust assumptions documented in verification docs
 
-**Current status**: Infrastructure planning phase
+**Current status**: Layer 3 in progress
 
 ---
 
 ## Compiler Verification Roadmap (Priority 4 - CURRENT FOCUS)
 
-### Phase 1: Infrastructure (Weeks 1-2)
-- [ ] Create `Compiler/Proofs/` directory structure
-- [ ] Define `interpretSpec : ContractSpec → State → Transaction → Result`
-- [ ] Define `interpretIR : IRContract → State → Transaction → Result`
-- [ ] Define or import Yul semantics
-
-### Phase 2: Layer 1 - Spec Correctness (Weeks 2-4)
-Prove each ContractSpec accurately represents its EDSL contract:
-- [ ] `simpleStorageSpec_correct : interpretEDSL SimpleStorage = interpretSpec simpleStorageSpec`
-- [ ] `counterSpec_correct`
-- [ ] `ownedSpec_correct`
-- [ ] `safeCounterSpec_correct`
-- [ ] `ledgerSpec_correct`
-- [ ] `ownedCounterSpec_correct`
-- [ ] `simpleTokenSpec_correct`
-
-### Phase 3: Layer 2 - IR Generation (Weeks 4-8)
-Prove code generation preserves semantics:
-- [ ] `exprToIR_correct : eval (exprToIR e) = eval e`
-- [ ] `stmtToIR_correct : exec (stmtToIR s) = exec s`
-- [ ] `functionToIR_correct : run (functionToIR f) = run f`
-- [ ] `toIR_preserves_semantics : interpretIR (spec.toIR) = interpretSpec spec`
-
-### Phase 4: Layer 3 - Yul Generation (Weeks 8-12)
+### Phase 1: Layer 3 - Yul Generation (Weeks 8-12)
 Prove Yul codegen correctness:
 - [ ] Define Yul semantics (or import from verified EVM work)
 - [ ] Prove codegen correctness for each IR construct
 - [ ] `yulCodegen_preserves_semantics : interpretYul (generateYul ir) = interpretIR ir`
 
-### Phase 5: End-to-End (Week 12)
+### Phase 2: End-to-End (Week 12)
 - [ ] Compose all layers into end-to-end theorem
 - [ ] Document trust assumptions (solc, Lean kernel, EVM)
 - [ ] Write verification paper/documentation
 
-### Phase 6: Integration & CI (Week 13)
+### Phase 3: Integration & CI (Week 13)
 - [ ] Add verification to CI pipeline
 - [ ] Create verification status dashboard
 - [ ] Update documentation with verification claims
@@ -164,9 +129,9 @@ Prove Yul codegen correctness:
 
 ### Verified Components
 - ✅ **EDSL semantics**: 252 correctness proofs
-- 🔲 **EDSL → ContractSpec**: 7 specification correctness proofs (to be done)
-- 🔲 **ContractSpec → IR**: IR generation preservation proof (to be done)
-- 🔲 **IR → Yul**: Yul codegen preservation proof (to be done)
+- ✅ **EDSL → ContractSpec**: 7 specification correctness proofs
+- ✅ **ContractSpec → IR**: IR generation preservation proof
+- 🔲 **IR → Yul**: Yul codegen preservation proof (remaining)
 
 ### Trusted Components (Small, Well-Audited)
 - **Lean 4 kernel**: ~10k lines, extensively reviewed
