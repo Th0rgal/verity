@@ -107,6 +107,17 @@ private def simpleTokenSelectors : List Nat :=
       let state := mkIRState 123 (storageWith 0 0xBEEF) emptyMappings
       checkIRvsYul ir tx state [0] []
 
+-- Owned.transferOwnership: owner succeeds, storage updated
+#guard
+  match compile ownedSpec ownedSelectors with
+  | .error _ => false
+  | .ok ir =>
+      let sender := 0xBEEF
+      let newOwner := 0xCAFE
+      let tx : IRTransaction := { sender := sender, functionSelector := 0xf2fde38b, args := [newOwner] }
+      let state := mkIRState sender (storageWith 0 sender) emptyMappings
+      checkIRvsYul ir tx state [0] []
+
 -- SafeCounter.decrement: underflow reverts, storage unchanged
 #guard
   match compile safeCounterSpec safeCounterSelectors with
@@ -138,6 +149,18 @@ private def simpleTokenSelectors : List Nat :=
         if b = 1 ∧ k = sender then 10 else if b = 1 ∧ k = recipient then 1 else 0)
       checkIRvsYul ir tx state [] [(1, sender), (1, recipient)]
 
+-- SimpleToken.transfer: insufficient balance reverts, mappings unchanged
+#guard
+  match compile simpleTokenSpec simpleTokenSelectors with
+  | .error _ => false
+  | .ok ir =>
+      let sender := 1111
+      let recipient := 2222
+      let tx : IRTransaction := { sender := sender, functionSelector := 0xa9059cbb, args := [recipient, 5] }
+      let state := mkIRState sender emptyStorage (fun b k =>
+        if b = 1 ∧ k = sender then 2 else if b = 1 ∧ k = recipient then 7 else 0)
+      checkIRvsYul ir tx state [] [(1, sender), (1, recipient)]
+
 -- SimpleToken.balanceOf: returns mapping[1][addr] = 42
 #guard
   match compile simpleTokenSpec simpleTokenSelectors with
@@ -156,5 +179,14 @@ private def simpleTokenSelectors : List Nat :=
       let tx : IRTransaction := { sender := 0, functionSelector := 0x18160ddd, args := [] }
       let state := mkIRState 0 (storageWith 2 99) emptyMappings
       checkIRvsYul ir tx state [2] []
+
+-- Unknown selector: dispatch should revert, storage/mappings unchanged
+#guard
+  match compile simpleStorageSpec simpleStorageSelectors with
+  | .error _ => false
+  | .ok ir =>
+      let tx : IRTransaction := { sender := 9, functionSelector := 0xDEADBEEF, args := [] }
+      let state := mkIRState 9 (storageWith 0 123) (mappingsWith 0 7 42)
+      checkIRvsYul ir tx state [0] [(0, 7)]
 
 end Compiler.Proofs.YulGeneration
