@@ -9,6 +9,7 @@
 -/
 
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.IRGeneration.Expr
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Specs
 import Compiler.ContractSpec
@@ -39,10 +40,56 @@ def simpleStorageIR : Except String IRContract :=
 
     We need a translation layer between these representations.
 -/
-axiom store_preserves_semantics : True
+theorem store_preserves_semantics (value : Nat) (initialState : ContractState) :
+  let spec := simpleStorageSpec
+  let irContract := compile spec [0x6057361d, 0x2e64cec1]
+  let sender := "test_sender"
+  let tx : Transaction := {
+    sender := sender
+    functionName := "store"
+    args := [value]
+  }
+  -- Create IR transaction
+  let irTx : IRTransaction := {
+    sender := addressToNat sender
+    functionSelector := 0x6057361d  -- store selector
+    args := [value]
+  }
+  -- Execute both sides
+  let specResult := interpretSpec spec (SpecStorage.empty) tx
+  match irContract with
+  | .ok ir =>
+      let irResult := interpretIR ir irTx
+      -- Results should match
+      resultsMatch ir.usesMapping [] irResult specResult initialState
+  | .error _ => False
+  :=
+  simpleStorage_store_correct value initialState
 
 /-- The retrieve function preserves semantics -/
-axiom retrieve_preserves_semantics : True
+theorem retrieve_preserves_semantics (initialState : ContractState) :
+  let spec := simpleStorageSpec
+  let irContract := compile spec [0x6057361d, 0x2e64cec1]
+  let sender := "test_sender"
+  let tx : Transaction := {
+    sender := sender
+    functionName := "retrieve"
+    args := []
+  }
+  -- Create IR transaction
+  let irTx : IRTransaction := {
+    sender := addressToNat sender
+    functionSelector := 0x2e64cec1  -- retrieve selector
+    args := []
+  }
+  let specResult := interpretSpec spec (SpecStorage.empty) tx
+  match irContract with
+  | .ok ir =>
+      let irResult := interpretIR ir irTx
+      resultsMatch ir.usesMapping [] irResult specResult initialState
+  | .error _ => False
+  :=
+  simpleStorage_retrieve_correct initialState
 
 /-! ## Notes on Proof Strategy
 
