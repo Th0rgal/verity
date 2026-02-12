@@ -28,6 +28,16 @@ def upstreamSafeSolPath : String := "contracts/Safe.sol"
 /-- Base contract name in the upstream repo. -/
 def upstreamBaseContractName : String := "Safe"
 
+/-- Solidity pragma range in the pinned Safe base contract. -/
+def upstreamPragmaRange : String := ">=0.7.0 <0.9.0"
+
+/-- Safe contract version constant in the pinned source. -/
+def upstreamVersionString : String := "1.5.0"
+
+/-- SHA256 of the pinned Safe.sol source snapshot. -/
+def upstreamSafeSolSha256 : String :=
+  "4b54dce0ad9d9c1264ecd5c146c82b7bc17d24f981bd42525487be3bf6a40366"
+
 /-- Constructor spec: sets owner0 + threshold and preserves all other state. -/
 def constructor_spec (initialOwner : Address) (initialThreshold : Uint256)
     (s s' : ContractState) : Prop :=
