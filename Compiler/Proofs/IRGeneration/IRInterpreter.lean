@@ -137,7 +137,7 @@ partial def evalIRCall (state : IRState) (func : String) : List YulExpr → Opti
               some 0
             else
               let idx := wordOffset / 32
-              some (state.calldata.getD idx 0)
+              some (state.calldata.getD idx 0 % evmModulus)
       | _, _ => none  -- Unknown or invalid function call
 /-- Evaluate a Yul expression in the IR context -/
 partial def evalIRExpr (state : IRState) : YulExpr → Option Nat

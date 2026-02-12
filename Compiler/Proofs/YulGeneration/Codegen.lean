@@ -23,32 +23,9 @@ def selectorExpr : YulExpr :=
     YulExpr.call "calldataload" [YulExpr.lit 0]
   ]
 
-/-- Re-export of mappingSlot helper used by codegen (same shape as `Compiler.Codegen`). -/
-def mappingSlotFunc : YulStmt :=
-  YulStmt.funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] [
-    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "key"]),
-    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, YulExpr.ident "baseSlot"]),
-    YulStmt.assign "slot" (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 64])
-  ]
-
-/-- Runtime switch generated from IR functions. -/
-def runtimeSwitch (contract : IRContract) : YulStmt :=
-  let cases := contract.functions.map (fun fn =>
-    let body := [YulStmt.comment s!"{fn.name}()"] ++ fn.body
-    (fn.selector, body)
-  )
-  YulStmt.switch selectorExpr cases (some [
-    YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
-  ])
-
-/-- Runtime code generated from an IR contract. -/
-def runtimeCode (contract : IRContract) : List YulStmt :=
-  let mapping := if contract.usesMapping then [mappingSlotFunc] else []
-  mapping ++ [runtimeSwitch contract]
-
 @[simp]
 theorem emitYul_runtimeCode_eq (contract : IRContract) :
-    (Compiler.emitYul contract).runtimeCode = runtimeCode contract := by
+    (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
   rfl
 
 /-- Selector extraction via `selectorExpr` yields the 4-byte selector. -/
@@ -59,11 +36,11 @@ theorem evalYulExpr_selectorExpr (state : YulState) :
 
 /-- Executing runtime code is equivalent to executing the switch body (mapping helper is a no-op). -/
 theorem execYulStmts_runtimeCode_eq (contract : IRContract) (state : YulState) :
-    execYulStmts state (runtimeCode contract) =
-      execYulStmts state [runtimeSwitch contract] := by
+    execYulStmts state (Compiler.runtimeCode contract) =
+      execYulStmts state [Compiler.buildSwitch contract.functions] := by
   by_cases h : contract.usesMapping
-  · simp [runtimeCode, h, execYulStmts, execYulStmt]
-  · simp [runtimeCode, h]
+  · simp [Compiler.runtimeCode, h, execYulStmts, execYulStmt]
+  · simp [Compiler.runtimeCode, h]
 
 /-- If the selector matches a case, the switch executes that case body. -/
 theorem execYulStmt_switch_match

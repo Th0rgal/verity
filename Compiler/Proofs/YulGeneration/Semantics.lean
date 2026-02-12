@@ -140,7 +140,7 @@ partial def evalYulCall (state : YulState) (func : String) : List YulExpr → Op
                 some 0
               else
                 let idx := wordOffset / 32
-                some (state.calldata.getD idx 0)
+                some (state.calldata.getD idx 0 % evmModulus)
         | _, _ => none
 
 /-- Evaluate a Yul expression -/

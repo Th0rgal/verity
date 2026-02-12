@@ -22,7 +22,7 @@ theorem evalYulExpr_calldataload_selector_word (state : YulState) :
 theorem evalYulExpr_calldataload_arg (state : YulState) (i : Nat) :
     evalYulExpr state
       (YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * i)]) =
-      some (state.calldata.getD i 0) := by
+      some (state.calldata.getD i 0 % evmModulus) := by
   have hmod : (32 * i) % 32 = 0 := by
     exact Nat.mod_eq_zero_of_dvd (Nat.dvd_mul_right 32 i)
   have hdiv : (32 * i) / 32 = i := by

@@ -57,8 +57,8 @@ theorem yulCodegen_preserves_semantics
       -- Unfold Yul runtime dispatch and reduce the switch.
       -- The runtime code is the switch (mapping helper is a no-op).
       simp [interpretIR, hFind, interpretYulFromIR, interpretYulRuntime, irState,
-        emitYul_runtimeCode_eq, execYulStmts_runtimeCode_eq, runtimeCode, runtimeSwitch,
-        selectorExpr] at hmatch ⊢
+        emitYul_runtimeCode_eq, execYulStmts_runtimeCode_eq, Compiler.runtimeCode,
+        Compiler.buildSwitch, selectorExpr] at hmatch ⊢
       -- Selector extraction is deterministic.
       -- The switch cases align with `find?` on selectors.
       have hcase :

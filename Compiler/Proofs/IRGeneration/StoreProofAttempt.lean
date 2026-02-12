@@ -106,7 +106,7 @@ theorem store_correct_42 (initialState : ContractState) :
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (IRState.initial irTx.sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simpa using (Compiler.Proofs.IRGeneration.simpleStorage_store_correct 42 initialState)
@@ -129,7 +129,7 @@ theorem store_correct_attempt (value : Nat) (initialState : ContractState) :
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (IRState.initial irTx.sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simpa using (Compiler.Proofs.IRGeneration.simpleStorage_store_correct value initialState)

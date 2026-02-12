@@ -134,7 +134,7 @@ theorem simpleStorage_store_correct (value : Nat) (initialState : ContractState)
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
       -- Results should match
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -168,7 +168,7 @@ theorem simpleStorage_retrieve_correct (initialState : ContractState) :
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -201,7 +201,7 @@ theorem simpleStorage_retrieve_correct_with_storage (storedValue : Nat) (initial
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -280,7 +280,7 @@ theorem counter_increment_correct (initialState : ContractState) :
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -416,7 +416,7 @@ theorem safeCounter_increment_correct (storedValue : Nat) (initialState : Contra
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   by_cases h : (storedValue + 1) % evmModulus > storedValue
@@ -458,7 +458,7 @@ theorem safeCounter_decrement_correct (storedValue : Nat) (initialState : Contra
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   by_cases h : storedValue < 1
@@ -502,7 +502,7 @@ theorem safeCounter_getCount_correct (storedValue : Nat) (initialState : Contrac
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -533,7 +533,7 @@ theorem counter_decrement_correct (initialState : ContractState) :
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState SpecStorage.empty sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -565,7 +565,7 @@ theorem counter_getCount_correct (storedValue : Nat) (initialState : ContractSta
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -665,7 +665,7 @@ theorem owned_transferOwnership_correct_as_owner (newOwner : Nat) (initialState 
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -697,7 +697,7 @@ theorem owned_getOwner_correct (storedOwner : Nat) (initialState : ContractState
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -824,7 +824,7 @@ theorem ownedCounter_increment_correct (storedCount : Nat) (ownerAddr : Address)
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   by_cases h : addressToNat sender = addressToNat ownerAddr
@@ -873,7 +873,7 @@ theorem ownedCounter_decrement_correct (storedCount : Nat) (ownerAddr : Address)
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   by_cases h : addressToNat sender = addressToNat ownerAddr
@@ -922,7 +922,7 @@ theorem ownedCounter_getCount_correct (storedCount : Nat) (ownerAddr : Address) 
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -958,7 +958,7 @@ theorem ownedCounter_getOwner_correct (storedOwner : Nat) (storedCount : Nat) (i
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -995,7 +995,7 @@ theorem ownedCounter_transferOwnership_correct (storedCount : Nat) (ownerAddr ne
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage sender)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   by_cases h : addressToNat sender = addressToNat ownerAddr
@@ -1141,7 +1141,7 @@ theorem ledger_deposit_correct (senderBal amount : Nat) (senderAddr : Address) (
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [senderAddr] irResult specResult initialState
+      resultsMatch ir.usesMapping [senderAddr] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -1174,7 +1174,7 @@ theorem ledger_withdraw_correct (senderBal amount : Nat) (senderAddr : Address) 
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [senderAddr] irResult specResult initialState
+      resultsMatch ir.usesMapping [senderAddr] irResult specResult
   | .error _ => False
   := by
   by_cases h : senderBal < amount
@@ -1222,7 +1222,7 @@ theorem ledger_transfer_correct (senderBal recipientBal amount : Nat)
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [senderAddr, recipientAddr] irResult specResult initialState
+      resultsMatch ir.usesMapping [senderAddr, recipientAddr] irResult specResult
   | .error _ => False
   := by
   by_cases h : senderBal < amount
@@ -1271,7 +1271,7 @@ theorem ledger_getBalance_correct (storedBal : Nat) (addr : Address) (senderAddr
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [addr] irResult specResult initialState
+      resultsMatch ir.usesMapping [addr] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -1427,7 +1427,7 @@ theorem simpleToken_mint_correct (senderBal totalSupply amount : Nat) (senderAdd
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [toAddr] irResult specResult initialState
+      resultsMatch ir.usesMapping [toAddr] irResult specResult
   | .error _ => False
   := by
   by_cases h : addressToNat senderAddr = addressToNat ownerAddr
@@ -1488,7 +1488,7 @@ theorem simpleToken_transfer_correct (senderBal recipientBal totalSupply amount 
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [senderAddr, recipientAddr] irResult specResult initialState
+      resultsMatch ir.usesMapping [senderAddr, recipientAddr] irResult specResult
   | .error _ => False
   := by
   by_cases h : senderBal < amount
@@ -1552,7 +1552,7 @@ theorem simpleToken_balanceOf_correct (storedBal totalSupply : Nat) (addr ownerA
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [addr] irResult specResult initialState
+      resultsMatch ir.usesMapping [addr] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -1592,7 +1592,7 @@ theorem simpleToken_totalSupply_correct (storedSupply : Nat) (ownerAddr senderAd
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -1628,7 +1628,7 @@ theorem simpleToken_owner_correct (storedOwner storedSupply : Nat) (senderAddr :
   match irContract with
   | .ok ir =>
       let irResult := interpretIR ir irTx (specStorageToIRState initialStorage senderAddr)
-      resultsMatch ir.usesMapping [] irResult specResult initialState
+      resultsMatch ir.usesMapping [] irResult specResult
   | .error _ => False
   := by
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -1661,7 +1661,7 @@ theorem contract_preserves_semantics (spec : ContractSpec) (selectors : List Nat
           let irState := contractStateToIRState addrs state
           let irResult := interpretIR ir irTx irState
           let specResult := interpretSpec spec (contractStateToSpecStorage state) tx
-          resultsMatch ir.usesMapping [] irResult specResult state
+          resultsMatch ir.usesMapping [] irResult specResult
       | none => True  -- Function not found, both should fail
   | .error _ => True  -- Compilation failed
 ```
