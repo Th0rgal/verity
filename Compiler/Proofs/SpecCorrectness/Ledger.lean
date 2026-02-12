@@ -107,6 +107,7 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
 
 /-- The `withdraw` function correctly reverts when balance is insufficient -/
 theorem ledger_withdraw_reverts_insufficient (state : ContractState) (amount : Nat) (sender : Address)
+    (h_amount : amount < DumbContracts.Core.Uint256.modulus)
     (h : (state.storageMap 0 sender).val < amount) :
     let edslResult := (withdraw (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender }
     let specTx : DiffTestTypes.Transaction := {
@@ -117,7 +118,24 @@ theorem ledger_withdraw_reverts_insufficient (state : ContractState) (amount : N
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx
     edslResult.isSuccess = false ∧
     specResult.success = false := by
-  sorry
+  -- EDSL side: withdraw reverts when balance is insufficient.
+  have h_insufficient : ¬ (amount ≤ (state.storageMap 0 sender).val) := by
+    exact not_le_of_gt h
+  have h_insufficient_u :
+      ¬ ((state.storageMap 0 sender) ≥ DumbContracts.Core.Uint256.ofNat amount) := by
+    simpa [ge_iff_le, DumbContracts.Core.Uint256.le_def, DumbContracts.Core.Uint256.val_ofNat,
+      Nat.mod_eq_of_lt h_amount] using h_insufficient
+  have h_edsl : edslResult.isSuccess = false := by
+    obtain ⟨msg, hrun⟩ :=
+      DumbContracts.Proofs.Ledger.withdraw_reverts_insufficient
+        { state with sender := sender } (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
+    simp [edslResult, ContractResult.isSuccess, hrun]
+  -- Spec side: require fails, so interpreter returns success = false.
+  have h_spec : specResult.success = false := by
+    simp [specResult, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+      h_insufficient, Nat.mod_eq_of_lt h_amount]
+  exact ⟨h_edsl, h_spec⟩
 
 /-- The `transfer` function correctly moves balance when sufficient -/
 theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address) (amount : Nat) (sender : Address)
@@ -139,6 +157,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
 
 /-- The `transfer` function correctly reverts when balance is insufficient -/
 theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Address) (amount : Nat) (sender : Address)
+    (h_amount : amount < DumbContracts.Core.Uint256.modulus)
     (h : (state.storageMap 0 sender).val < amount) :
     let edslResult := (transfer to (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender }
     let specTx : DiffTestTypes.Transaction := {
@@ -149,7 +168,24 @@ theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Addre
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx
     edslResult.isSuccess = false ∧
     specResult.success = false := by
-  sorry
+  -- EDSL side: transfer reverts when balance is insufficient.
+  have h_insufficient : ¬ (amount ≤ (state.storageMap 0 sender).val) := by
+    exact not_le_of_gt h
+  have h_insufficient_u :
+      ¬ ((state.storageMap 0 sender) ≥ DumbContracts.Core.Uint256.ofNat amount) := by
+    simpa [ge_iff_le, DumbContracts.Core.Uint256.le_def, DumbContracts.Core.Uint256.val_ofNat,
+      Nat.mod_eq_of_lt h_amount] using h_insufficient
+  have h_edsl : edslResult.isSuccess = false := by
+    obtain ⟨msg, hrun⟩ :=
+      DumbContracts.Proofs.Ledger.transfer_reverts_insufficient
+        { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_insufficient_u
+    simp [edslResult, ContractResult.isSuccess, hrun]
+  -- Spec side: require fails, so interpreter returns success = false.
+  have h_spec : specResult.success = false := by
+    simp [specResult, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+      ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+      h_insufficient, Nat.mod_eq_of_lt h_amount]
+  exact ⟨h_edsl, h_spec⟩
 
 /-- The `getBalance` function correctly retrieves balance -/
 theorem ledger_getBalance_correct (state : ContractState) (addr : Address) (sender : Address) :
