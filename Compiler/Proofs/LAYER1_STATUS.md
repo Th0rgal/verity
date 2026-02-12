@@ -322,11 +322,11 @@ All 7 contracts have complete proof structures with:
 - Multi-party invariants
 
 **Strategy:**
-1. **First:** Complete SpecStorage lemmas in Automation.lean
-   - Prove SpecStorage_getSlot_setSlot_same
-   - Prove SpecStorage_getSlot_setSlot_diff
-   - Prove SpecStorage_getMapping_setMapping_same
-   - Prove SpecStorage_getMapping_setMapping_diff_slot
+1. **Done:** Completed SpecStorage lemmas in Automation.lean
+   - SpecStorage_getSlot_setSlot_same
+   - SpecStorage_getSlot_setSlot_diff
+   - SpecStorage_getMapping_setMapping_same
+   - SpecStorage_getMapping_setMapping_diff_slot
 
 2. **Then:** Use these lemmas for Ledger
    - Prove deposit/withdraw/transfer correctness
@@ -342,29 +342,24 @@ All 7 contracts have complete proof structures with:
 ## Technical Debt
 
 ### High Priority
-1. **SpecStorage List Reasoning** (blocking for Phases 3-4)
-   - Need lemmas about List.lookup and List.filter
-   - Current placeholders in Automation.lean
-   - Required for mapping-based contracts
-
-2. **Spec Interpretation Correctness**
+1. **Spec Interpretation Correctness**
    - Currently no proofs about interpretSpec itself
    - Need to prove execStmt behaves correctly
    - Need to prove evalExpr matches EDSL semantics
 
 ### Medium Priority
-3. **Additional Automation**
+2. **Additional Automation**
    - Bind (>>=) operation lemmas
    - Do-notation unfolding
    - Pattern matching on ContractResult
 
-4. **Documentation**
+3. **Documentation**
    - Proof tactics guide
    - Common proof patterns
    - Troubleshooting guide
 
 ### Low Priority
-5. **Refactoring**
+4. **Refactoring**
    - Some theorem names could be more consistent
    - State conversion functions could share more code
    - Helper properties could be more systematic
@@ -397,13 +392,13 @@ lake build Compiler.Proofs.Automation
 ### Warning Summary
 - SimpleStorage: 0 sorry warnings ✅
 - Counter: 2 sorry warnings (evalExpr helper + modular arithmetic in applyNIncrements_val)
-- SafeCounter: 2 sorry warnings (safeIncrement_correct, safeDecrement_correct)
-- Owned: 8 sorry warnings
+- SafeCounter: 4 sorry warnings
+- Owned: 5 sorry warnings
 - OwnedCounter: 11 sorry warnings
 - Ledger: 10 sorry warnings
 - SimpleToken: 13 sorry warnings
-- Automation: 4 sorry warnings
-- **Total:** 50 sorry placeholders (unchanged, but more progress on proof structures)
+- Automation: 0 sorry warnings ✅
+- **Total:** 45 sorry placeholders (SpecCorrectness files only)
 
 ---
 

@@ -71,7 +71,7 @@ theorem setStorage_getStorage_diff (slot1 slot2 : StorageSlot Uint256) (value : 
     (h : slot1.slot ≠ slot2.slot) :
     (getStorage slot2).runValue ((setStorage slot1 value).runState state) =
     state.storage slot2.slot := by
-  sorry  -- Requires case analysis on if-then-else
+  simp [setStorage, getStorage, Contract.runState, Contract.runValue, h]
 
 /-!
 ## Monadic Composition Lemmas
@@ -207,7 +207,25 @@ theorem SpecStorage_getSlot_setSlot_same (storage : SpecStorage) (slot : Nat) (v
     (storage.setSlot slot value).getSlot slot = value := by
   -- After unfolding: List.lookup slot ((slot, value) :: filtered) = some value
   -- This is immediate since lookup finds (slot, value) at head
-  sorry  -- Requires: simp lemma for List.lookup on cons when key matches
+  unfold SpecStorage.getSlot SpecStorage.setSlot
+  simp [List.lookup]
+
+theorem lookup_filter_ne {β : Type} (k k' : Nat) (h : k ≠ k') (xs : List (Nat × β)) :
+    (xs.filter (fun kv => kv.1 ≠ k')).lookup k = xs.lookup k := by
+  induction xs with
+  | nil =>
+      simp
+  | cons kv xs ih =>
+      cases kv with
+      | mk k0 v0 =>
+          by_cases hk0 : k0 = k'
+          · -- Filter drops this head.
+            have hk0ne : k ≠ k0 := by
+              intro hkk
+              exact h (hkk.trans hk0)
+            simp [List.filter, List.lookup, hk0, beq_iff_eq, hk0ne, ih]
+          · -- Filter keeps this head.
+            simp [List.filter, List.lookup, hk0, beq_iff_eq, ih]
 
 -- getSlot from setSlot (different slot)
 theorem SpecStorage_getSlot_setSlot_diff (storage : SpecStorage) (slot1 slot2 : Nat) (value : Nat)
@@ -216,18 +234,27 @@ theorem SpecStorage_getSlot_setSlot_diff (storage : SpecStorage) (slot1 slot2 : 
   -- After unfolding: List.lookup slot2 ((slot1, value) :: filtered)
   -- Since slot2 ≠ slot1, lookup skips head and searches in filtered list
   -- Key lemma needed: List.lookup k (List.filter (·.1 ≠ k') xs) = List.lookup k xs when k ≠ k'
-  sorry  -- Requires: lemma about List.lookup and List.filter interaction
+  unfold SpecStorage.getSlot SpecStorage.setSlot
+  have h' : slot2 ≠ slot1 := by
+    intro h2
+    exact h h2.symm
+  simp [List.lookup, beq_iff_eq, h', lookup_filter_ne slot2 slot1 h']
 
 -- getMapping from setMapping (same slot and key) - requires proof
 theorem SpecStorage_getMapping_setMapping_same (storage : SpecStorage) (slot : Nat) (key : Nat) (value : Nat) :
     (storage.setMapping slot key value).getMapping slot key = value := by
-  sorry  -- Requires nested list reasoning
+  unfold SpecStorage.getMapping SpecStorage.setMapping
+  simp [List.lookup, beq_iff_eq, lookup_filter_ne]
 
 -- getMapping preserves other slots - requires proof
 theorem SpecStorage_getMapping_setMapping_diff_slot (storage : SpecStorage) (slot1 slot2 : Nat) (key : Nat) (value : Nat)
     (h : slot1 ≠ slot2) :
     (storage.setMapping slot1 key value).getMapping slot2 key = storage.getMapping slot2 key := by
-  sorry  -- Requires list reasoning
+  unfold SpecStorage.getMapping SpecStorage.setMapping
+  have h' : slot2 ≠ slot1 := by
+    intro h2
+    exact h h2.symm
+  simp [List.lookup, beq_iff_eq, h', lookup_filter_ne slot2 slot1 h']
 
 /-!
 ## Safe Arithmetic Lemmas
