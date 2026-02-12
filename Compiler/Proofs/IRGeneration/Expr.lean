@@ -46,7 +46,7 @@ as interpreting the Spec for `store(value)`.
 -/
 
 /-- Store function: IR execution matches Spec execution -/
-axiom simpleStorage_store_correct (value : Nat) (initialState : ContractState) :
+theorem simpleStorage_store_correct (value : Nat) (initialState : ContractState) :
   let spec := simpleStorageSpec
   let irContract := compile spec [0x6057361d, 0x2e64cec1]  -- store, retrieve selectors
   let sender := "test_sender"
@@ -69,6 +69,29 @@ axiom simpleStorage_store_correct (value : Nat) (initialState : ContractState) :
       -- Results should match
       resultsMatch irResult specResult initialState
   | .error _ => False
+  := by
+  -- Strategy: This proof requires showing that the compiled IR and the Spec
+  -- produce the same results when executed.
+  --
+  -- The challenge: Both interpretSpec and interpretIR involve complex execution logic.
+  -- For a complete proof, we would need to:
+  --   1. Show compile succeeds and produces specific IR
+  --   2. Unfold interpretSpec and show it stores value in slot 0
+  --   3. Unfold interpretIR and show it executes the Yul code to store in slot 0
+  --   4. Show resultsMatch holds: success=true, returnValue=none, storage slot 0 = value
+  --
+  -- This requires deep unfolding of:
+  --   - compile, compileFunctionSpec, compileExpr, compileStmt
+  --   - interpretSpec, execFunction, execStmt, evalExpr
+  --   - interpretIR, execIRStmts, execIRStmt, evalIRExpr
+  --
+  -- Each of these involves pattern matching, list operations, and monadic bind chains.
+  -- A complete proof would be ~100-150 lines of careful case analysis and simplification.
+  --
+  -- For now, we establish the theorem statement and leave the proof as a strategic goal.
+  -- The exploration in SimpleStorageProof.lean shows that the compiled IR is clean and
+  -- straightforward, which gives confidence that this proof is achievable.
+  sorry
 
 /-! ## SimpleStorage: Retrieve Function Correctness -/
 
