@@ -181,7 +181,8 @@ For each Expr constructor:
 ## Files Created This Session
 
 1. `Compiler/Proofs/IRGeneration/Conversions.lean` (195 lines) ✅
-2. `Compiler/Proofs/SESSION_SUMMARY.md` (this file)
+2. `Compiler/Proofs/IRGeneration/Expr.lean` (172 lines) ✅
+3. `Compiler/Proofs/SESSION_SUMMARY.md` (this file)
 
 ## Commits This Session
 
@@ -189,9 +190,68 @@ For each Expr constructor:
 2. `71bab19` - Layer 2 roadmap with infrastructure status and proof strategy
 3. `b22930d` - Layer 2 infrastructure - IR interpreter and initial proof structure
 4. `17b88d6` - Update COMPLETION_ROADMAP with final Layer 1 status
+5. `4288199` - Layer 2 Phase 2 proof framework - end-to-end contract preservation
 
 **All commits successfully pushed to remote**
 
 ---
 
-**Session End Status**: ✅ Layer 2 Phase 1 Complete - Ready for Expression Compilation Proofs
+## Session Continuation: Layer 2 Phase 2 Framework
+
+### Strategic Pivot: End-to-End Contract Proofs
+
+**Discovery**: The `compileExpr` function in `Compiler/ContractSpec.lean` is marked `private`, making it impossible to directly reference in external proof modules.
+
+**Solution**: Pivoted from bottom-up compositional proofs (individual expressions) to top-down end-to-end proofs (complete contracts):
+- Work with public `compile` function instead of private `compileExpr`
+- Prove preservation for complete contracts (SimpleStorage, Counter, etc.)
+- Validate full compilation pipeline, not just expression translation
+- More maintainable (doesn't depend on internal implementation details)
+
+### Expr.lean Framework (172 lines)
+
+**Purpose**: Establishes verification framework for ContractSpec → IR preservation
+
+**Key Components**:
+1. **Axiomatized Preservation Theorems**:
+   - `simpleStorage_store_correct`: Store function IR ≡ Spec
+   - `simpleStorage_retrieve_correct`: Retrieve function IR ≡ Spec
+   - Uses type conversions: `contractStateToIRState`, `addressToNat`, `resultsMatch`
+
+2. **General Preservation Template**:
+   ```lean
+   theorem contract_preserves_semantics (spec : ContractSpec) (selectors : List Nat)
+       (tx : Transaction) (state : ContractState) :
+     match compile spec selectors with
+     | .ok ir => resultsMatch (interpretIR ir irTx) (interpretSpec spec tx) state
+     | .error _ => True
+   ```
+
+3. **Detailed Proof Plan**:
+   - Step 1: Expression Equivalence (observed through function execution)
+   - Step 2: Statement Equivalence (storage updates, returns, reverts)
+   - Step 3: Function Equivalence (params, body, return values)
+   - Step 4: Contract Equivalence (compose function proofs)
+
+**Estimated Effort**: ~200 lines total for Phase 2
+- SimpleStorage proofs: ~50 lines (2 functions)
+- Counter proofs: ~100 lines (arithmetic)
+- General framework: ~50 lines (reusable)
+
+### Why This Approach Works
+
+1. **Public API**: Uses `compile` function, not internal `compileExpr`
+2. **End-to-End**: Proves what users actually care about
+3. **Compositional**: Start simple (SimpleStorage), build up complexity
+4. **Maintainable**: Robust to internal implementation changes
+
+### Build Status
+
+✅ **Zero errors, zero warnings**
+- `Compiler.Proofs.IRGeneration.Expr` builds cleanly
+- All imports resolve correctly
+- Type conversions from Phase 1 integrate seamlessly
+
+---
+
+**Session End Status**: ✅ Layer 2 Phase 2 Framework Complete - Ready for Actual Proofs
