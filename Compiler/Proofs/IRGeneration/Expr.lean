@@ -1674,6 +1674,109 @@ theorem ledger_getBalance_correct (storedBal : Nat) (addr : Address) (senderAddr
     subst haddr
     simp
 
+/-! ## Ledger: Contract-Level Preservation (Dispatch) -/
+
+theorem ledger_contract_preserves_semantics (senderBal recipientBal storedBal : Nat)
+    (recipientAddr balanceAddr : Address) (tx : Transaction) :
+  let spec := ledgerSpec
+  let irContract := compile spec [0xb6b55f25, 0x2e1a7d4d, 0xa9059cbb, 0xf8b2cb4f]
+  match irContract with
+  | .ok ir =>
+      match tx.functionName, tx.args with
+      | "deposit", [amount] =>
+          let initialStorage : SpecStorage :=
+            SpecStorage.empty.setMapping 0 (addressToNat tx.sender) senderBal
+          let specResult := interpretSpec spec initialStorage tx
+          let irTx := transactionToIRTransaction tx 0xb6b55f25
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [tx.sender] irResult specResult
+      | "withdraw", [amount] =>
+          let initialStorage : SpecStorage :=
+            SpecStorage.empty.setMapping 0 (addressToNat tx.sender) senderBal
+          let specResult := interpretSpec spec initialStorage tx
+          let irTx := transactionToIRTransaction tx 0x2e1a7d4d
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [tx.sender] irResult specResult
+      | "transfer", [recipient, amount] =>
+          if recipient = addressToNat recipientAddr then
+            let initialStorage : SpecStorage :=
+              (SpecStorage.empty.setMapping 0 (addressToNat tx.sender) senderBal)
+                .setMapping 0 (addressToNat recipientAddr) recipientBal
+            let specResult := interpretSpec spec initialStorage tx
+            let irTx := transactionToIRTransaction tx 0xa9059cbb
+            let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+            resultsMatch ir.usesMapping [tx.sender, recipientAddr] irResult specResult
+          else
+            True
+      | "getBalance", [addr] =>
+          if addr = addressToNat balanceAddr then
+            let initialStorage : SpecStorage :=
+              SpecStorage.empty.setMapping 0 (addressToNat balanceAddr) storedBal
+            let specResult := interpretSpec spec initialStorage tx
+            let irTx := transactionToIRTransaction tx 0xf8b2cb4f
+            let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+            resultsMatch ir.usesMapping [balanceAddr] irResult specResult
+          else
+            True
+      | _, _ => True
+  | .error _ => False
+  := by
+  by_cases hdep : tx.functionName = "deposit"
+  · subst hdep
+    cases hargs : tx.args with
+    | nil =>
+        simp [hargs]
+    | cons amount rest =>
+        cases rest with
+        | nil =>
+            simpa [hargs] using (ledger_deposit_correct senderBal amount tx.sender)
+        | cons _ _ =>
+            simp [hargs]
+  · by_cases hwith : tx.functionName = "withdraw"
+    · subst hwith
+      cases hargs : tx.args with
+      | nil =>
+          simp [hargs]
+      | cons amount rest =>
+          cases rest with
+          | nil =>
+              simpa [hargs] using (ledger_withdraw_correct senderBal amount tx.sender)
+          | cons _ _ =>
+              simp [hargs]
+    · by_cases htrans : tx.functionName = "transfer"
+      · subst htrans
+        cases hargs : tx.args with
+        | nil =>
+            simp [hargs]
+        | cons recipient rest =>
+            cases rest with
+            | nil =>
+                simp [hargs]
+            | cons amount tail =>
+                cases tail with
+                | nil =>
+                    by_cases haddr : recipient = addressToNat recipientAddr
+                    · simpa [hargs, haddr] using
+                        (ledger_transfer_correct senderBal recipientBal amount tx.sender recipientAddr)
+                    · simp [hargs, haddr]
+                | cons _ _ =>
+                    simp [hargs]
+      · by_cases hget : tx.functionName = "getBalance"
+        · subst hget
+          cases hargs : tx.args with
+          | nil =>
+              simp [hargs]
+          | cons addr rest =>
+              cases rest with
+              | nil =>
+                  by_cases haddr : addr = addressToNat balanceAddr
+                  · simpa [hargs, haddr] using
+                      (ledger_getBalance_correct storedBal balanceAddr tx.sender)
+                  · simp [hargs, haddr]
+              | cons _ _ =>
+                  simp [hargs]
+        · simp [hdep, hwith, htrans, hget]
+
 /-! ## SimpleToken: Concrete IR -/
 
 def simpleTokenIRContract : IRContract :=
@@ -2032,6 +2135,136 @@ theorem simpleToken_owner_correct (storedOwner storedSupply : Nat) (senderAddr :
       · subst hslot'
         simp [hslot]
       · simp [hslot, hslot']
+
+/-! ## SimpleToken: Contract-Level Preservation (Dispatch) -/
+
+theorem simpleToken_contract_preserves_semantics
+    (ownerAddr : Address) (totalSupply mintBal transferSenderBal transferRecipientBal balanceBal : Nat)
+    (mintAddr transferRecipientAddr balanceAddr : Address) (tx : Transaction) :
+  let spec := simpleTokenSpec
+  let irContract := compile spec [0x40c10f19, 0xa9059cbb, 0x70a08231, 0x18160ddd, 0x8da5cb5b]
+  match irContract with
+  | .ok ir =>
+      match tx.functionName, tx.args with
+      | "mint", [to, amount] =>
+          if to = addressToNat mintAddr then
+            let initialStorage : SpecStorage :=
+              ((SpecStorage.empty.setSlot 0 (addressToNat ownerAddr)).setSlot 2 totalSupply)
+                .setMapping 1 (addressToNat mintAddr) mintBal
+            let specResult := interpretSpec spec initialStorage tx
+            let irTx := transactionToIRTransaction tx 0x40c10f19
+            let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+            resultsMatch ir.usesMapping [mintAddr] irResult specResult
+          else
+            True
+      | "transfer", [recipient, amount] =>
+          if recipient = addressToNat transferRecipientAddr then
+            let initialStorage : SpecStorage :=
+              (((SpecStorage.empty.setSlot 0 (addressToNat ownerAddr)).setSlot 2 totalSupply)
+                .setMapping 1 (addressToNat tx.sender) transferSenderBal)
+                .setMapping 1 (addressToNat transferRecipientAddr) transferRecipientBal
+            let specResult := interpretSpec spec initialStorage tx
+            let irTx := transactionToIRTransaction tx 0xa9059cbb
+            let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+            resultsMatch ir.usesMapping [tx.sender, transferRecipientAddr] irResult specResult
+          else
+            True
+      | "balanceOf", [addr] =>
+          if addr = addressToNat balanceAddr then
+            let initialStorage : SpecStorage :=
+              ((SpecStorage.empty.setSlot 0 (addressToNat ownerAddr)).setSlot 2 totalSupply)
+                .setMapping 1 (addressToNat balanceAddr) balanceBal
+            let specResult := interpretSpec spec initialStorage tx
+            let irTx := transactionToIRTransaction tx 0x70a08231
+            let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+            resultsMatch ir.usesMapping [balanceAddr] irResult specResult
+          else
+            True
+      | "totalSupply", [] =>
+          let initialStorage : SpecStorage :=
+            (SpecStorage.empty.setSlot 0 (addressToNat ownerAddr)).setSlot 2 totalSupply
+          let specResult := interpretSpec spec initialStorage tx
+          let irTx := transactionToIRTransaction tx 0x18160ddd
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [] irResult specResult
+      | "owner", [] =>
+          let initialStorage : SpecStorage :=
+            (SpecStorage.empty.setSlot 0 (addressToNat ownerAddr)).setSlot 2 totalSupply
+          let specResult := interpretSpec spec initialStorage tx
+          let irTx := transactionToIRTransaction tx 0x8da5cb5b
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [] irResult specResult
+      | _, _ => True
+  | .error _ => False
+  := by
+  by_cases hmint : tx.functionName = "mint"
+  · subst hmint
+    cases hargs : tx.args with
+    | nil =>
+        simp [hargs]
+    | cons to rest =>
+        cases rest with
+        | nil =>
+            simp [hargs]
+        | cons amount tail =>
+            cases tail with
+            | nil =>
+                by_cases haddr : to = addressToNat mintAddr
+                · simpa [hargs, haddr] using
+                    (simpleToken_mint_correct mintBal totalSupply amount tx.sender mintAddr ownerAddr)
+                · simp [hargs, haddr]
+            | cons _ _ =>
+                simp [hargs]
+  · by_cases htrans : tx.functionName = "transfer"
+    · subst htrans
+      cases hargs : tx.args with
+      | nil =>
+          simp [hargs]
+      | cons recipient rest =>
+          cases rest with
+          | nil =>
+              simp [hargs]
+          | cons amount tail =>
+              cases tail with
+              | nil =>
+                  by_cases haddr : recipient = addressToNat transferRecipientAddr
+                  · simpa [hargs, haddr] using
+                      (simpleToken_transfer_correct transferSenderBal transferRecipientBal totalSupply amount
+                        tx.sender transferRecipientAddr ownerAddr)
+                  · simp [hargs, haddr]
+              | cons _ _ =>
+                  simp [hargs]
+    · by_cases hbal : tx.functionName = "balanceOf"
+      · subst hbal
+        cases hargs : tx.args with
+        | nil =>
+            simp [hargs]
+        | cons addr rest =>
+            cases rest with
+            | nil =>
+                by_cases haddr : addr = addressToNat balanceAddr
+                · simpa [hargs, haddr] using
+                    (simpleToken_balanceOf_correct balanceBal totalSupply balanceAddr ownerAddr tx.sender)
+                · simp [hargs, haddr]
+            | cons _ _ =>
+                simp [hargs]
+      · by_cases htotal : tx.functionName = "totalSupply"
+        · subst htotal
+          cases hargs : tx.args with
+          | nil =>
+              simpa [hargs] using
+                (simpleToken_totalSupply_correct totalSupply ownerAddr tx.sender)
+          | cons _ _ =>
+              simp [hargs]
+        · by_cases howner : tx.functionName = "owner"
+          · subst howner
+            cases hargs : tx.args with
+            | nil =>
+                simpa [hargs] using
+                  (simpleToken_owner_correct (addressToNat ownerAddr) totalSupply tx.sender)
+            | cons _ _ =>
+                simp [hargs]
+          · simp [hmint, htrans, hbal, htotal, howner]
 
 /-! ## General Preservation Theorem Template
 
