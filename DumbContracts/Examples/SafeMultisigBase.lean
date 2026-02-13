@@ -118,6 +118,7 @@ def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
     | [] => setMapping owners prev (encodeAddress ownersSentinel)
     | next :: tail =>
         validateOwner next
+        require (decide (next ≠ prev)) "owner duplicate"
         setMapping owners prev (encodeAddress next)
         initOwners next tail
 
