@@ -47,6 +47,13 @@ def fallbackHandlerStorageSlotHex : String :=
 def moduleGuardStorageSlotHex : String :=
   "0xb104e0b93118902c651344349b610029d694cfdec91c589c91ebafbcd0289947"
 
+-- Sentinel addresses used by Safe's linked-list owner encoding.
+def zeroAddress : Address := "0x0000000000000000000000000000000000000000"
+def ownersSentinel : Address := "0x0000000000000000000000000000000000000001"
+
+-- Placeholder encoding for storing addresses in Uint256 mapping values.
+opaque encodeAddress : Address → Uint256
+
 /-- Placeholder constructor: Safe singleton initializes threshold = 1. -/
 def constructor : Contract Unit := do
   setStorage threshold 1
@@ -73,11 +80,28 @@ def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
   let _ := paymentToken
   let _ := payment
   let _ := paymentReceiver
+  let thisAddr ← contractAddress
   let ownersLen : Uint256 := DumbContracts.Core.Uint256.ofNat ownersList.length
   require ((0 : Uint256) < ownersLen) "owners list empty"
   require ((0 : Uint256) < thresholdValue) "threshold zero"
   require (thresholdValue ≤ ownersLen) "threshold too high"
-  -- TODO: initialize owners mapping, modules, fallback handler, and guard.
+
+  let validateOwner (owner : Address) : Contract Unit := do
+    require (decide (owner ≠ zeroAddress)) "owner is zero"
+    require (decide (owner ≠ ownersSentinel)) "owner is sentinel"
+    require (decide (owner ≠ thisAddr)) "owner is contract"
+
+  let rec initOwners (prev : Address) (rest : List Address) : Contract Unit := do
+    match rest with
+    | [] => setMapping owners prev (encodeAddress ownersSentinel)
+    | next :: tail =>
+        validateOwner next
+        setMapping owners prev (encodeAddress next)
+        initOwners next tail
+
+  initOwners ownersSentinel ownersList
+
+  -- TODO: initialize modules, fallback handler, and guard.
   -- TODO: handle setup call with `to` and `data`, and payment/refund logic.
   setStorage ownerCount ownersLen
   setStorage threshold thresholdValue

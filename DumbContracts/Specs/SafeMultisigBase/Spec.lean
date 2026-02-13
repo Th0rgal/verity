@@ -125,8 +125,9 @@ def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
   s'.storage threshold.slot = thresholdValue ∧
   (∀ slot : Nat, slot ≠ ownerCount.slot ∧ slot ≠ threshold.slot →
     s'.storage slot = s.storage slot) ∧
+  (∀ slot : Nat, slot ≠ owners.slot →
+    s'.storageMap slot = s.storageMap slot) ∧
   s'.storageAddr = s.storageAddr ∧
-  s'.storageMap = s.storageMap ∧
   s'.sender = s.sender ∧
   s'.thisAddress = s.thisAddress ∧
   s'.msgValue = s.msgValue ∧

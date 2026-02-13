@@ -48,11 +48,6 @@ def safeMultisigBaseInvariant (s : ContractState) : Prop :=
   to ABI encoding rules when address modeling lands in the EDSL.
 -/
 
-def zeroAddress : Address := "0x0000000000000000000000000000000000000000"
-def ownersSentinel : Address := "0x0000000000000000000000000000000000000001"
-
-opaque encodeAddress : Address → Uint256
-
 def ownerNextVal (s : ContractState) (owner : Address) : Uint256 :=
   s.storageMap owners.slot owner
 
