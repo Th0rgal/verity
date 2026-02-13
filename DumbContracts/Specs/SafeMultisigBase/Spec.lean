@@ -137,12 +137,16 @@ def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
     s'.storage fallbackHandlerStorage.slot = s.storage fallbackHandlerStorage.slot
   else
     s'.storage fallbackHandlerStorage.slot = encodeAddress fallbackHandler) ∧
+  s'.storage guardStorage.slot = 0 ∧
+  s'.storage moduleGuardStorage.slot = 0 ∧
   s'.storage ownerCount.slot = ownersLen ∧
   s'.storage threshold.slot = thresholdValue ∧
   (∀ slot : Nat,
     slot ≠ ownerCount.slot ∧
     slot ≠ threshold.slot ∧
-    slot ≠ fallbackHandlerStorage.slot →
+    slot ≠ fallbackHandlerStorage.slot ∧
+    slot ≠ guardStorage.slot ∧
+    slot ≠ moduleGuardStorage.slot →
     s'.storage slot = s.storage slot) ∧
   (∀ slot : Nat, slot ≠ owners.slot ∧ slot ≠ modules.slot →
     s'.storageMap slot = s.storageMap slot) ∧

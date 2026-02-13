@@ -130,7 +130,9 @@ def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
   else
     pure ()
 
-  -- TODO: initialize guard and module guard (dedicated slots).
+  -- Safe setup initializes guard/module guard to zero-address (no guard).
+  setStorage guardStorage 0
+  setStorage moduleGuardStorage 0
   -- TODO: handle setup call with `to` and `data`, and payment/refund logic.
   setStorage ownerCount ownersLen
   setStorage threshold thresholdValue
