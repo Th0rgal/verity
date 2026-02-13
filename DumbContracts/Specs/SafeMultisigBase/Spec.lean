@@ -168,7 +168,20 @@ def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
   s'.blockTimestamp = s.blockTimestamp
 
 /-- Placeholder execTransaction spec: returns true and preserves state. -/
-def execTransaction_spec (result : Bool) (s s' : ContractState) : Prop :=
+def execTransaction_spec (to : Address) (value : Uint256) (data : Bytes) (operation : Uint256)
+    (safeTxGas : Uint256) (baseGas : Uint256) (gasPrice : Uint256)
+    (gasToken : Address) (refundReceiver : Address) (signatures : Bytes)
+    (result : Bool) (s s' : ContractState) : Prop :=
+  let _ := to
+  let _ := value
+  let _ := data
+  let _ := safeTxGas
+  let _ := baseGas
+  let _ := gasPrice
+  let _ := gasToken
+  let _ := refundReceiver
+  let _ := signatures
+  (operation = 0 ∨ operation = 1) ∧
   result = true ∧
   s' = s
 

@@ -50,17 +50,11 @@ def moduleGuardStorageSlotHex : String :=
   "0xb104e0b93118902c651344349b610029d694cfdec91c589c91ebafbcd0289947"
 
 def guardStorageSlot : Nat :=
-  match parseHexNat? guardStorageSlotHex with
-  | some n => n
-  | none => 0
+  (parseHexNat? guardStorageSlotHex).get!
 def fallbackHandlerStorageSlot : Nat :=
-  match parseHexNat? fallbackHandlerStorageSlotHex with
-  | some n => n
-  | none => 0
+  (parseHexNat? fallbackHandlerStorageSlotHex).get!
 def moduleGuardStorageSlot : Nat :=
-  match parseHexNat? moduleGuardStorageSlotHex with
-  | some n => n
-  | none => 0
+  (parseHexNat? moduleGuardStorageSlotHex).get!
 
 def guardStorage : StorageSlot Uint256 := ⟨guardStorageSlot⟩
 def fallbackHandlerStorage : StorageSlot Uint256 := ⟨fallbackHandlerStorageSlot⟩
@@ -146,7 +140,7 @@ def execTransaction (to : Address) (value : Uint256) (data : Bytes) (operation :
   let _ := to
   let _ := value
   let _ := data
-  let _ := operation
+  require (operation = 0 ∨ operation = 1) "invalid operation"
   let _ := safeTxGas
   let _ := baseGas
   let _ := gasPrice
