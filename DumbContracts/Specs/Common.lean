@@ -30,4 +30,24 @@ def sameStorageAddr (s s' : ContractState) : Prop :=
 def sameStorageMap (s s' : ContractState) : Prop :=
   s'.storageMap = s.storageMap
 
+/-- All storage slots except `slot` are unchanged. -/
+def storageUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
+  ∀ other : Nat, other ≠ slot → s'.storage other = s.storage other
+
+/-- All address storage slots except `slot` are unchanged. -/
+def storageAddrUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
+  ∀ other : Nat, other ≠ slot → s'.storageAddr other = s.storageAddr other
+
+/-- All mapping storage slots except `slot` are unchanged. -/
+def storageMapUnchangedExceptSlot (slot : Nat) (s s' : ContractState) : Prop :=
+  ∀ other : Nat, other ≠ slot → ∀ addr : Address, s'.storageMap other addr = s.storageMap other addr
+
+/-- All mapping entries at `slot` except `addr` are unchanged. -/
+def storageMapUnchangedExceptKey (slot : Nat) (addr : Address) (s s' : ContractState) : Prop :=
+  ∀ other : Address, other ≠ addr → s'.storageMap slot other = s.storageMap slot other
+
+/-- All mapping entries at `slot` except `addr1` and `addr2` are unchanged. -/
+def storageMapUnchangedExceptKeys (slot : Nat) (addr1 addr2 : Address) (s s' : ContractState) : Prop :=
+  ∀ other : Address, other ≠ addr1 → other ≠ addr2 → s'.storageMap slot other = s.storageMap slot other
+
 end DumbContracts.Specs

@@ -24,7 +24,7 @@ open DumbContracts.EVM.Uint256
 /-- Constructor: sets owner, does not touch count slot -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storageAddr slot = s.storageAddr slot) ∧
+  storageAddrUnchangedExcept 0 s s' ∧
   sameStorage s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
@@ -40,7 +40,7 @@ def getOwner_spec (result : Address) (s : ContractState) : Prop :=
 /-- increment (when owner): count increases by 1, owner unchanged, context preserved -/
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 1 = add (s.storage 1) 1 ∧
-  (∀ slot : Nat, slot ≠ 1 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 1 s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
@@ -48,7 +48,7 @@ def increment_spec (s s' : ContractState) : Prop :=
 /-- decrement (when owner): count decreases by 1, owner unchanged, context preserved -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 1 = sub (s.storage 1) 1 ∧
-  (∀ slot : Nat, slot ≠ 1 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 1 s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
@@ -56,7 +56,7 @@ def decrement_spec (s s' : ContractState) : Prop :=
 /-- transferOwnership (when owner): changes owner, count unchanged -/
 def transferOwnership_spec (newOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = newOwner ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storageAddr slot = s.storageAddr slot) ∧
+  storageAddrUnchangedExcept 0 s s' ∧
   sameStorage s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'

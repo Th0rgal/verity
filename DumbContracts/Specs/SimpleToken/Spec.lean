@@ -34,8 +34,8 @@ These define the expected behavior of each SimpleToken operation.
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
   s'.storage 2 = 0 ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storageAddr slot = s.storageAddr slot) ∧
-  (∀ slot : Nat, slot ≠ 2 → s'.storage slot = s.storage slot) ∧
+  storageAddrUnchangedExcept 0 s s' ∧
+  storageUnchangedExcept 2 s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
 
@@ -48,10 +48,10 @@ def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s'.storageMap 1 to = add (s.storageMap 1 to) amount ∧
   s'.storage 2 = add (s.storage 2) amount ∧
-  (∀ addr : Address, addr ≠ to → s'.storageMap 1 addr = s.storageMap 1 addr) ∧
+  storageMapUnchangedExceptKey 1 to s s' ∧
   s'.storageAddr 0 = s.storageAddr 0 ∧
-  (∀ slot : Nat, slot ≠ 1 → ∀ addr : Address, s'.storageMap slot addr = s.storageMap slot addr) ∧
-  (∀ slot : Nat, slot ≠ 2 → s'.storage slot = s.storage slot) ∧
+  storageMapUnchangedExceptSlot 1 s s' ∧
+  storageUnchangedExcept 2 s s' ∧
   sameContext s s'
 
 /-- Specification for transfer operation (when sender has sufficient balance):
@@ -65,9 +65,9 @@ def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState
   s.storageMap 1 sender ≥ amount ∧
   s'.storageMap 1 sender = sub (s.storageMap 1 sender) amount ∧
   s'.storageMap 1 to = add (s.storageMap 1 to) amount ∧
-  (∀ addr : Address, addr ≠ sender → addr ≠ to → s'.storageMap 1 addr = s.storageMap 1 addr) ∧
+  storageMapUnchangedExceptKeys 1 sender to s s' ∧
   s'.storageAddr 0 = s.storageAddr 0 ∧
-  (∀ slot : Nat, slot ≠ 1 → ∀ addr' : Address, s'.storageMap slot addr' = s.storageMap slot addr') ∧
+  storageMapUnchangedExceptSlot 1 s s' ∧
   sameStorage s s' ∧
   sameStorageAddr s s' ∧
   sameContext s s'

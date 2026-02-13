@@ -27,7 +27,7 @@ These define the expected behavior of each Counter operation.
 -/
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = add (s.storage 0) 1 ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 0 s s' ∧
   sameContext s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s'
@@ -39,7 +39,7 @@ def increment_spec (s s' : ContractState) : Prop :=
 -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = sub (s.storage 0) 1 ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 0 s s' ∧
   sameContext s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s'

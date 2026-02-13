@@ -25,7 +25,7 @@ These define the expected behavior of each Owned operation.
 -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storageAddr slot = s.storageAddr slot) ∧
+  storageAddrUnchangedExcept 0 s s' ∧
   sameStorage s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
@@ -45,7 +45,7 @@ def getOwner_spec (result : Address) (s : ContractState) : Prop :=
 -/
 def transferOwnership_spec (newOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = newOwner ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storageAddr slot = s.storageAddr slot) ∧
+  storageAddrUnchangedExcept 0 s s' ∧
   sameStorage s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'

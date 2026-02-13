@@ -16,7 +16,7 @@ open DumbContracts
 def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
   s'.storage 0 = value ∧
   -- Other storage slots unchanged
-  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 0 s s' ∧
   -- Context unchanged
   sameContext s s' ∧
   -- Other storage types unchanged

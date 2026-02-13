@@ -25,7 +25,7 @@ open DumbContracts.EVM.Uint256
 /-- increment (when no overflow): count increases by 1, everything else preserved -/
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = add (s.storage 0) 1 ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 0 s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
@@ -33,7 +33,7 @@ def increment_spec (s s' : ContractState) : Prop :=
 /-- decrement (when no underflow): count decreases by 1, everything else preserved -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = sub (s.storage 0) 1 ∧
-  (∀ slot : Nat, slot ≠ 0 → s'.storage slot = s.storage slot) ∧
+  storageUnchangedExcept 0 s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
