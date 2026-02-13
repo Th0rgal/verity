@@ -117,9 +117,15 @@ def getThreshold_spec (result : Uint256) (s : ContractState) : Prop :=
 
 /-- Placeholder setup spec: updates ownerCount and threshold, leaves other state unchanged. -/
 def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
-    (fallbackHandler : Address)
+    (to : Address) (data : Bytes) (fallbackHandler : Address)
+    (paymentToken : Address) (payment : Uint256) (paymentReceiver : Address)
     (s s' : ContractState) : Prop :=
   let ownersLen : Uint256 := DumbContracts.Core.Uint256.ofNat ownersList.length
+  to = zeroAddress ∧
+  data = [] ∧
+  paymentToken = zeroAddress ∧
+  payment = 0 ∧
+  paymentReceiver = zeroAddress ∧
   s.storage threshold.slot = 0 ∧
   ownersList.Nodup ∧
   (0 : Uint256) < ownersLen ∧

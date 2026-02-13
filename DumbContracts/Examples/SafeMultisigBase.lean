@@ -94,12 +94,11 @@ def getThreshold : Contract Uint256 := do
 def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
     (data : Bytes) (fallbackHandler : Address) (paymentToken : Address)
     (payment : Uint256) (paymentReceiver : Address) : Contract Unit := do
-  let _ := to
-  let _ := data
-  let _ := fallbackHandler
-  let _ := paymentToken
-  let _ := payment
-  let _ := paymentReceiver
+  require (decide (to = zeroAddress)) "setup call target disabled"
+  require (decide (data = [])) "setup call data disabled"
+  require (decide (paymentToken = zeroAddress)) "payment token disabled"
+  require (payment = 0) "payment disabled"
+  require (decide (paymentReceiver = zeroAddress)) "payment receiver disabled"
   let currentThreshold ← getStorage threshold
   require (currentThreshold = 0) "already initialized"
   let thisAddr ← contractAddress
