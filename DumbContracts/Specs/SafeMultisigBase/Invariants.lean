@@ -54,23 +54,22 @@ def ownerNextVal (s : ContractState) (owner : Address) : Uint256 :=
 def ownerAddressValid (s : ContractState) (owner : Address) : Prop :=
   owner ≠ zeroAddress ∧ owner ≠ ownersSentinel ∧ owner ≠ s.thisAddress
 
-def ownersChain (s : ContractState) : Address → List Address → Prop
-  | current, [] => ownerNextVal s current = encodeAddress ownersSentinel
-  | current, next :: rest =>
-      ownerNextVal s current = encodeAddress next ∧ ownersChain s next rest
-
-def ownersListChain (s : ContractState) (ownersList : List Address) : Prop :=
+def ownersLinkedList (s : ContractState) (ownersList : List Address) : Prop :=
+  let rec go (prev : Address) (rest : List Address) : Prop :=
+    match rest with
+    | [] => ownerNextVal s prev = encodeAddress ownersSentinel
+    | next :: tail =>
+        ownerNextVal s prev = encodeAddress next ∧
+        go next tail
   match ownersList with
-  | [] => False
-  | head :: tail =>
-      ownerNextVal s ownersSentinel = encodeAddress head ∧
-      ownersChain s head tail
+  | [] => ownerNextVal s ownersSentinel = encodeAddress ownersSentinel
+  | _ => go ownersSentinel ownersList
 
 def safeMultisigOwnersLinkedListInvariant (s : ContractState) (ownersList : List Address) : Prop :=
   ownersList ≠ [] ∧
   ownersList.Nodup ∧
   (∀ owner ∈ ownersList, ownerAddressValid s owner) ∧
   ownerCountVal s = (ownersList.length : Nat) ∧
-  ownersListChain s ownersList
+  ownersLinkedList s ownersList
 
 end DumbContracts.Specs.SafeMultisigBase
