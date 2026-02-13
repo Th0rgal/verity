@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+YUL_DIRS = [ROOT / "compiler" / "yul", ROOT / "compiler" / "yul-new"]
+
+
+def collect_yul_files() -> list[Path]:
+    files: list[Path] = []
+    for yul_dir in YUL_DIRS:
+        if not yul_dir.exists():
+            continue
+        files.extend(sorted(yul_dir.glob("*.yul")))
+    return files
+
+
+def run_solc(path: Path) -> tuple[int, str, str]:
+    result = subprocess.run(
+        ["solc", "--strict-assembly", "--bin", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+def main() -> None:
+    files = collect_yul_files()
+    if not files:
+        raise SystemExit("No generated Yul files found in compiler/yul or compiler/yul-new")
+
+    failures: list[str] = []
+    for path in files:
+        code, stdout, stderr = run_solc(path)
+        if code != 0:
+            failures.append(f"{path}: solc failed\n{stderr.strip()}")
+            continue
+        if not stdout.strip():
+            failures.append(f"{path}: solc returned no output")
+
+    if failures:
+        print("Yul->EVM compilation failed:", file=sys.stderr)
+        for failure in failures:
+            print(f"- {failure}", file=sys.stderr)
+        raise SystemExit(1)
+
+    print(f"Yul->EVM compilation check passed ({len(files)} files).")
+
+
+if __name__ == "__main__":
+    main()

@@ -71,6 +71,9 @@ jobs:
           chmod +x /usr/local/bin/solc
           solc --version
 
+      - name: Compile generated Yul with solc
+        run: python3 scripts/check_yul_compiles.py
+
       - name: Check selector fixtures against solc
         run: python3 scripts/check_selector_fixtures.py
 

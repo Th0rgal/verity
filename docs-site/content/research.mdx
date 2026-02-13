@@ -281,7 +281,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
   - **Done when**: selector hashes are proven in Lean and a fixture test asserts at least 3 real-world signatures match Solidity compiler output.
 - Add a formalized “bridge” lemma between Yul semantics and EVM, or document the test/verification gap clearly.
   - **Current gap**: Yul correctness is proven against the Lean Yul interpreter, but the Lean Yul interpreter is not yet proven equivalent to EVM execution.
-  - **Mitigation today**: Foundry tests provide behavioral confidence, but they do not close the formal gap.
+  - **Mitigation today**: Foundry tests provide behavioral confidence and CI now compiles generated Yul with `solc`, but neither closes the formal gap.
   - **Completion criterion**: a proof (or mechanized model) that links Yul execution to EVM execution for the supported subset.
 
 **G. Documentation (Optional But Valuable)**:
