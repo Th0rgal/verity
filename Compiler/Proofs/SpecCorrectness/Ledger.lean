@@ -115,44 +115,7 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
         (DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
           (DumbContracts.Core.Uint256.ofNat amount)).val =
           ((state.storageMap 0 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
-      let m := DumbContracts.Core.Uint256.modulus
-      have h_ofNat_add :
-          (DumbContracts.Core.Uint256.ofNat (amount % m) +
-            DumbContracts.Core.Uint256.ofNat (state.storageMap 0 sender).val).val =
-            (amount + (state.storageMap 0 sender).val) % m := by
-        have h_mod_state : (state.storageMap 0 sender).val % m = (state.storageMap 0 sender).val := by
-          exact Nat.mod_eq_of_lt (state.storageMap 0 sender).isLt
-        calc
-          (DumbContracts.Core.Uint256.ofNat (amount % m) +
-              DumbContracts.Core.Uint256.ofNat (state.storageMap 0 sender).val).val
-              = ((amount % m) + (state.storageMap 0 sender).val % m) % m := by
-                  simp [HAdd.hAdd, DumbContracts.Core.Uint256.add, DumbContracts.Core.Uint256.ofNat,
-                    DumbContracts.Core.Uint256.val_ofNat]
-          _ = ((amount % m) + (state.storageMap 0 sender).val) % m := by
-                  simp [h_mod_state]
-          _ = ((state.storageMap 0 sender).val + (amount % m)) % m := by
-                  simp [Nat.add_comm]
-          _ = ((state.storageMap 0 sender).val + amount) % m := by
-                  calc
-                    ((state.storageMap 0 sender).val + (amount % m)) % m
-                        = ((state.storageMap 0 sender).val % m + (amount % m) % m) % m := by
-                            exact (Nat.add_mod _ _ _)
-                    _ = ((state.storageMap 0 sender).val % m + amount % m) % m := by
-                            simp [Nat.mod_mod]
-                    _ = ((state.storageMap 0 sender).val + amount) % m := by
-                            symm
-                            exact (Nat.add_mod _ _ _)
-          _ = (amount + (state.storageMap 0 sender).val) % m := by
-                  simp [Nat.add_comm]
-      calc
-        (DumbContracts.EVM.Uint256.add (state.storageMap 0 sender)
-            (DumbContracts.Core.Uint256.ofNat amount)).val
-            = (DumbContracts.Core.Uint256.ofNat (amount % m) +
-                DumbContracts.Core.Uint256.ofNat (state.storageMap 0 sender).val).val := by
-                simp [DumbContracts.EVM.Uint256.add, DumbContracts.Core.Uint256.add,
-                  DumbContracts.Core.Uint256.val_ofNat, Nat.add_comm]
-        _ = ((state.storageMap 0 sender).val + amount) % m := by
-            simpa [Nat.add_comm] using h_ofNat_add
+      simpa using (uint256_add_val (state.storageMap 0 sender) amount)
     calc
       (let specTx : DiffTestTypes.Transaction := {
         sender := sender
