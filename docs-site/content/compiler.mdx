@@ -328,7 +328,7 @@ Ran 28 test suites in 96.15s (537.47s CPU time): 264 tests passed, 0 failed, 0 s
 
 ### Validated Contracts
 
-All 7 contracts compile and pass tests:
+All current example contracts compile and pass tests (as of Feb 13, 2026):
 - ✅ **SimpleStorage** — Basic storage operations
 - ✅ **Counter** — Arithmetic operations
 - ✅ **Owned** — Access control with constructor args
@@ -345,9 +345,9 @@ All 7 contracts compile and pass tests:
 - **Reduction**: Manual IR eliminated
 
 ### Time to Add Contract
-- **Before**: ~30 minutes (write IR, test, debug)
-- **After**: ~5 minutes (write spec, compile)
-- **Improvement**: -83% time
+- **Before**: Manual IR requires more steps (write IR, test, debug)
+- **After**: Declarative specs reduce the setup and iteration work
+- **Improvement**: Faster authoring and less surface for mistakes
 
 ### Code Quality
 - **Before**: Manual Yul construction, error-prone
@@ -356,7 +356,7 @@ All 7 contracts compile and pass tests:
 
 ### Example: Owned Contract
 
-**Before** (manual IR, 42 lines):
+**Before** (manual IR):
 ```lean
 private def ownedContract : IRContract :=
   let deployBody := [
@@ -380,7 +380,7 @@ private def ownedContract : IRContract :=
     usesMapping := false }
 ```
 
-**After** (declarative spec, 28 lines):
+**After** (declarative spec):
 ```lean
 def ownedSpec : ContractSpec := {
   name := "Owned"
