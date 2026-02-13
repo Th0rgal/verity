@@ -20,7 +20,6 @@ import Compiler.Proofs.SpecInterpreter
 import Compiler.Proofs.Automation
 import Compiler.Hex
 import DumbContracts.Examples.OwnedCounter
-import DumbContracts.Proofs.OwnedCounter.Basic
 import DumbContracts.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
@@ -32,45 +31,68 @@ open Compiler.Proofs.Automation
 open Compiler.Hex
 open DumbContracts
 open DumbContracts.Examples.OwnedCounter
-open DumbContracts.Proofs.OwnedCounter
 
--- Address encoding lemmas are provided by Automation.
+/-!
+## Helper Lemmas for Address Encoding
 
--- Small lookup helper for the owned+count slot layout.
-@[simp] theorem lookup_count_slot (ownerVal countVal : Nat) :
-    (List.lookup 1 [(0, ownerVal), (1, countVal)]).getD 0 = countVal := by
-  simp [List.lookup, List.lookup_cons]
+These mirror the Owned proofs: addressToNat yields a 160-bit value,
+so it is always < 2^256 (Uint256 modulus).
+-/
 
--- Helper: EVM add (Uint256) matches modular Nat addition.
--- (uint256_add_val) is provided by Automation.
+private theorem addressToNat_lt_modulus (addr : Address) :
+    addressToNat addr < DumbContracts.Core.Uint256.modulus := by
+  -- addressToNat returns a value modulo 2^160
+  unfold addressToNat
+  split
+  · -- parseHexNat? returned some n
+    have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by
+      decide
+    rename_i n _
+    have h_mod : n % 2^160 < 2^160 := by
+      exact Nat.mod_lt _ (by decide : 2^160 > 0)
+    exact Nat.lt_trans h_mod h_160_lt_mod
+  · -- parseHexNat? returned none
+    rename_i _
+    have h_mod : stringToNat addr % 2^160 < 2^160 := Nat.mod_lt _ (by decide : 2^160 > 0)
+    have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by decide
+    exact Nat.lt_trans h_mod h_160_lt_mod
 
--- Helper: EVM sub (Uint256) matches the EDSL modular subtraction formula.
-theorem uint256_sub_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
-    (DumbContracts.EVM.Uint256.sub a (DumbContracts.Core.Uint256.ofNat amount)).val =
-      (if amount % DumbContracts.Core.Uint256.modulus ≤ a.val then
-        a.val - amount % DumbContracts.Core.Uint256.modulus
-      else
-        DumbContracts.Core.Uint256.modulus -
-          (amount % DumbContracts.Core.Uint256.modulus - a.val)) := by
-  let m := DumbContracts.Core.Uint256.modulus
-  have h_amount_lt : amount % m < m := by
-    exact Nat.mod_lt _ DumbContracts.Core.Uint256.modulus_pos
-  by_cases h_le : amount % m ≤ a.val
-  · have h_lt : a.val - amount % m < m := by
-      exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt
-    simp [DumbContracts.EVM.Uint256.sub, DumbContracts.Core.Uint256.sub, h_le,
-      DumbContracts.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
-  · have h_not_le : ¬ amount % m ≤ a.val := h_le
-    have h_pos : 0 < amount % m - a.val := by
-      exact Nat.sub_pos_of_lt (Nat.lt_of_not_ge h_not_le)
-    have h_le_x : amount % m - a.val ≤ m := by
-      exact Nat.le_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) h_amount_lt)
-    have h_lt_add : m < (amount % m - a.val) + m := by
-      exact Nat.lt_add_of_pos_left h_pos
-    have h_lt : m - (amount % m - a.val) < m := by
-      exact Nat.sub_lt_left_of_lt_add h_le_x h_lt_add
-    simp [DumbContracts.EVM.Uint256.sub, DumbContracts.Core.Uint256.sub, h_not_le,
-      DumbContracts.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
+private theorem addressToNat_lt_addressModulus (addr : Address) :
+    addressToNat addr < addressModulus := by
+  unfold addressToNat addressModulus
+  split
+  · rename_i n _
+    exact Nat.mod_lt _ (by decide : 2^160 > 0)
+  · rename_i _
+    exact Nat.mod_lt _ (by decide : 2^160 > 0)
+
+private theorem addressToNat_mod_eq (addr : Address) :
+    addressToNat addr % DumbContracts.Core.Uint256.modulus = addressToNat addr := by
+  exact Nat.mod_eq_of_lt (addressToNat_lt_modulus addr)
+
+private theorem addressToNat_mod_address (addr : Address) :
+    addressToNat addr % addressModulus = addressToNat addr := by
+  exact Nat.mod_eq_of_lt (addressToNat_lt_addressModulus addr)
+
+private theorem uint256_add_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
+    (DumbContracts.EVM.Uint256.add a (DumbContracts.Core.Uint256.ofNat amount)).val =
+      (a.val + amount) % DumbContracts.Core.Uint256.modulus := by
+  cases a with
+  | mk aval a_lt =>
+    let m := DumbContracts.Core.Uint256.modulus
+    have h_mod : aval % m = aval := by
+      exact Nat.mod_eq_of_lt a_lt
+    unfold DumbContracts.EVM.Uint256.add DumbContracts.Core.Uint256.add
+    simp [HAdd.hAdd, DumbContracts.Core.Uint256.add, DumbContracts.Core.Uint256.val_ofNat]
+    have h_add : (aval + amount) % m = (aval % m + amount % m) % m :=
+      Nat.add_mod aval amount m
+    have h_add' : (aval + amount) % m = (aval + amount % m) % m := by
+      simpa [h_mod] using h_add
+    exact h_add'.symm
+
+-- Trust assumption: address encoding is injective for valid addresses.
+private axiom addressToNat_injective :
+    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
 
 /- State Conversion -/
 
@@ -100,7 +122,7 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
   unfold DumbContracts.Examples.OwnedCounter.constructor Contract.run ownedCounterSpec interpretSpec
   simp [setStorageAddr, DumbContracts.Examples.OwnedCounter.owner, DumbContracts.bind, DumbContracts.pure]
   simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
-  -- addressToNat_mod_eq is a simp lemma now.
+  rw [addressToNat_mod_address]
 
 /-- The `increment` function correctly increments when called by owner -/
 theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender : Address)
@@ -120,32 +142,38 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
     unfold DumbContracts.Examples.OwnedCounter.increment Contract.run
     unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
     unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
-    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
-      rw [beq_iff_eq, h]
-    rw [h_beq]
-    simp [ContractResult.isSuccess, getStorage, setStorage]
+      simp [beq_iff_eq, h]
+    simp [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure,
+      h_beq, ContractResult.isSuccess, getStorage, setStorage]
   constructor
   · -- Spec success when sender is owner
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec storage count equals EDSL count
-    have h_owner' : ({ state with sender := sender }).sender =
-        ({ state with sender := sender }).storageAddr 0 := by
-      simp [h]
-    have h_inc :
-        ((increment.run { state with sender := sender }).getState.storage 1) =
-          DumbContracts.EVM.Uint256.add (state.storage 1) 1 := by
-      simpa [ContractResult.getState, ContractResult.snd] using
-        (increment_adds_one_when_owner (s := { state with sender := sender }) h_owner')
-    have h_inc_val :
+    have h_edsl :
         ((increment.run { state with sender := sender }).getState.storage 1).val =
           ((state.storage 1).val + 1) % DumbContracts.Core.Uint256.modulus := by
-      have h_inc_val' := congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_inc
-      simp [uint256_add_val] at h_inc_val'
-      exact h_inc_val'
+      have h_state :
+          (increment.run { state with sender := sender }).getState.storage 1 =
+            DumbContracts.EVM.Uint256.add (state.storage 1) 1 := by
+        unfold DumbContracts.Examples.OwnedCounter.increment
+        unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+        unfold msgSender getStorageAddr getStorage setStorage DumbContracts.Examples.OwnedCounter.owner
+        have h_beq : (sender == state.storageAddr 0) = true := by
+          simp [beq_iff_eq, h]
+        simp [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure,
+          h_beq, Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
+          DumbContracts.Examples.OwnedCounter.count]
+      have h_state_val := congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_state
+      simpa [uint256_add_val] using h_state_val
+    have h_lookup :
+        (List.lookup 1 [(0, addressToNat sender), (1, (state.storage 1).val)]).getD 0 =
+          (state.storage 1).val := by
+      simp [List.lookup]
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_inc_val, lookup_count_slot]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_address,
+      h_lookup, h_edsl]
 
 /-- The `increment` function correctly reverts when called by non-owner -/
 theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (sender : Address)
@@ -172,7 +200,7 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
         exfalso
         exact h h_eq.symm
     rw [h_beq]
-    simp [ContractResult.isSuccess, getStorage, setStorage]
+    simp [ContractResult.isSuccess]
   · -- Spec reverts when sender is not owner
     have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
       cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
@@ -185,7 +213,7 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
           addressToNat_injective sender (state.storageAddr 0) h_nat
         exact h h_addr.symm
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq, addressToNat_mod_address]
 
 /-- The `decrement` function correctly decrements when called by owner -/
 theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender : Address)
@@ -205,34 +233,63 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
     unfold DumbContracts.Examples.OwnedCounter.decrement Contract.run
     unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
     unfold msgSender getStorageAddr setStorage DumbContracts.Examples.OwnedCounter.owner
-    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
-      rw [beq_iff_eq, h]
-    rw [h_beq]
-    simp [ContractResult.isSuccess, getStorage, setStorage]
+      simp [beq_iff_eq, h]
+    simp [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure,
+      h_beq, ContractResult.isSuccess, getStorage, setStorage]
   constructor
   · -- Spec success when sender is owner
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec storage count equals EDSL count
-    have h_owner' : ({ state with sender := sender }).sender =
-        ({ state with sender := sender }).storageAddr 0 := by
-      simp [h]
-    have h_dec :
-        ((decrement.run { state with sender := sender }).getState.storage 1) =
-          DumbContracts.EVM.Uint256.sub (state.storage 1) 1 := by
-      simpa [ContractResult.getState, ContractResult.snd] using
-        (decrement_subtracts_one_when_owner (s := { state with sender := sender }) h_owner')
-    have h_dec_val :
+    have h_edsl :
         ((decrement.run { state with sender := sender }).getState.storage 1).val =
-          (if 1 % DumbContracts.Core.Uint256.modulus ≤ (state.storage 1).val then
-            (state.storage 1).val - 1 % DumbContracts.Core.Uint256.modulus
-          else
-            DumbContracts.Core.Uint256.modulus -
-              (1 % DumbContracts.Core.Uint256.modulus - (state.storage 1).val)) := by
-      simpa [h_dec] using (uint256_sub_val (state.storage 1) 1)
+          (if 1 ≤ (state.storage 1).val then
+              ((state.storage 1).val - 1) % DumbContracts.Core.Uint256.modulus
+            else
+              (DumbContracts.Core.Uint256.modulus - (1 - (state.storage 1).val)) %
+                DumbContracts.Core.Uint256.modulus) := by
+      have h_state :
+          (decrement.run { state with sender := sender }).getState.storage 1 =
+            DumbContracts.EVM.Uint256.sub (state.storage 1) 1 := by
+        unfold DumbContracts.Examples.OwnedCounter.decrement
+        unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
+        unfold msgSender getStorageAddr getStorage setStorage DumbContracts.Examples.OwnedCounter.owner
+        have h_beq : (sender == state.storageAddr 0) = true := by
+          simp [beq_iff_eq, h]
+        simp [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure,
+          h_beq, Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
+          DumbContracts.Examples.OwnedCounter.count]
+      have h_state_val := congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_state
+      simpa [DumbContracts.EVM.Uint256.sub, DumbContracts.Core.Uint256.sub, DumbContracts.Core.Uint256.val_ofNat]
+        using h_state_val
+    have h_lookup :
+        (List.lookup 1 [(0, addressToNat sender), (1, (state.storage 1).val)]).getD 0 =
+          (state.storage 1).val := by
+      simp [List.lookup]
+    have h_mod_one : 1 % DumbContracts.Core.Uint256.modulus = 1 := by
+      exact Nat.mod_eq_of_lt (by decide : 1 < DumbContracts.Core.Uint256.modulus)
+    have h_norm :
+        (if 1 ≤ (state.storage 1).val then (state.storage 1).val - 1
+          else DumbContracts.Core.Uint256.modulus - (1 - (state.storage 1).val)) =
+        (if 1 ≤ (state.storage 1).val then ((state.storage 1).val - 1) % DumbContracts.Core.Uint256.modulus
+          else (DumbContracts.Core.Uint256.modulus - (1 - (state.storage 1).val)) %
+            DumbContracts.Core.Uint256.modulus) := by
+      by_cases h_le : 1 ≤ (state.storage 1).val
+      · have h_lt : (state.storage 1).val - 1 < DumbContracts.Core.Uint256.modulus := by
+          exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) (state.storage 1).isLt
+        simp [h_le, Nat.mod_eq_of_lt h_lt]
+      · have h_lt1 : (state.storage 1).val < 1 := Nat.lt_of_not_ge h_le
+        have h_le0 : (state.storage 1).val ≤ 0 := (Nat.lt_succ_iff).mp h_lt1
+        have h_zero : (state.storage 1).val = 0 := Nat.le_antisymm h_le0 (Nat.zero_le _)
+        have h_lt : DumbContracts.Core.Uint256.modulus - (1 - (state.storage 1).val) <
+            DumbContracts.Core.Uint256.modulus := by
+          simpa [h_zero] using
+            (Nat.sub_lt (by decide : 0 < DumbContracts.Core.Uint256.modulus) (by decide : 0 < 1))
+        simp [h_le, h_zero, Nat.mod_eq_of_lt h_lt]
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_dec_val, lookup_count_slot]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_address,
+      h_lookup, h_edsl, h_mod_one, h_norm]
 
 /-- The `decrement` function correctly reverts when called by non-owner -/
 theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (sender : Address)
@@ -259,7 +316,7 @@ theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (send
         exfalso
         exact h h_eq.symm
     rw [h_beq]
-    simp [ContractResult.isSuccess, getStorage, setStorage]
+    simp [ContractResult.isSuccess]
   · -- Spec reverts when sender is not owner
     have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
       cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
@@ -286,7 +343,7 @@ theorem ownedCounter_getCount_correct (state : ContractState) (sender : Address)
     specResult.returnValue = some edslValue := by
   unfold DumbContracts.Examples.OwnedCounter.getCount Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
   simp [getStorage, DumbContracts.Examples.OwnedCounter.count, execFunction, execStmts, execStmt, evalExpr,
-    SpecStorage.getSlot, lookup_count_slot]
+    SpecStorage.getSlot, addressToNat_mod_address, List.lookup]
 
 /-- The `getOwner` function correctly retrieves the owner address -/
 theorem ownedCounter_getOwner_correct (state : ContractState) (sender : Address) :
@@ -300,7 +357,8 @@ theorem ownedCounter_getOwner_correct (state : ContractState) (sender : Address)
     specResult.success = true ∧
     specResult.returnValue = some (addressToNat edslAddr) := by
   unfold DumbContracts.Examples.OwnedCounter.getOwner Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
-  simp [getStorageAddr, DumbContracts.Examples.OwnedCounter.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
+  simp [getStorageAddr, DumbContracts.Examples.OwnedCounter.owner, execFunction, execStmts, execStmt, evalExpr,
+    SpecStorage.getSlot, addressToNat_mod_address, List.lookup]
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
 theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
@@ -320,18 +378,17 @@ theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) 
     unfold DumbContracts.Examples.OwnedCounter.transferOwnership Contract.run
     unfold DumbContracts.Examples.OwnedCounter.onlyOwner DumbContracts.Examples.OwnedCounter.isOwner
     unfold msgSender getStorageAddr setStorageAddr DumbContracts.Examples.OwnedCounter.owner
-    simp only [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure]
     have h_beq : (sender == state.storageAddr 0) = true := by
-      rw [beq_iff_eq, h]
-    rw [h_beq]
-    simp [ContractResult.isSuccess]
+      simp [beq_iff_eq, h]
+    simp [DumbContracts.bind, Bind.bind, DumbContracts.require, DumbContracts.pure, Pure.pure,
+      h_beq, ContractResult.isSuccess, getStorageAddr, setStorageAddr]
   constructor
   · -- Spec success when sender is owner
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_address]
   · -- Spec sets owner to newOwner
     simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_address]
 
 /- Helper Properties -/
 
@@ -346,8 +403,7 @@ theorem ownedCounter_getters_preserve_state (state : ContractState) (sender : Ad
 
 /-- Only owner can modify counter -/
 theorem ownedCounter_only_owner_modifies (state : ContractState) (sender : Address) :
-    (increment.run { state with sender := sender }).isSuccess = true →
-    state.storageAddr 0 = sender := by
+    (increment.run { state with sender := sender }).isSuccess = true → state.storageAddr 0 = sender := by
   intro h_success
   have h_onlyOwner :
       ((onlyOwner).run { state with sender := sender }).isSuccess = true := by
@@ -370,7 +426,7 @@ theorem ownedCounter_only_owner_modifies (state : ContractState) (sender : Addre
       (msg := "Caller is not the owner")
       (state := { state with sender := sender })
       h_require_success
-  exact (Automation.address_beq_eq_true_iff_eq sender (state.storageAddr 0)).1 h_eq |>.symm
+  exact ((Automation.address_beq_eq_true_iff_eq sender (state.storageAddr 0)).1 h_eq).symm
 
 /-- Owner and count slots are independent -/
 theorem ownedCounter_slots_independent (state : ContractState) (newOwner : Address) (sender : Address)
