@@ -247,7 +247,10 @@ forge test --match-contract Differential  # Run 100 random tests
 
 **D. Property Extraction (Proofs → Tests)**:
 - Extract statements from Layer 1 proofs and compile them into Foundry invariants.
-- This is roadmap item 3.
+  - Create a small “invariant catalog” per contract (plain English + Lean lemma name).
+  - Add matching `test/Invariant<Contract>.t.sol` suites that enforce each invariant.
+  - Ensure invariants run against both the Lean interpreter and the compiled Yul (differential style).
+- **Done when**: every Layer 1 proof has a corresponding Foundry invariant and all invariants pass in CI.
 
 **E. Address Known Limitations (Core Modeling)**:
 - Self-transfer semantics: add a precise rule or identity behavior in token/ledger specs.
