@@ -98,6 +98,13 @@ test/                                # Foundry tests (unit, property, differenti
 4. Prove the implementation meets the spec in `DumbContracts/Specs/<Name>/Proofs.lean`.
 5. Add compiler-level spec glue in `Compiler/Specs.lean` and IR/Yul proofs in `Compiler/Proofs/` if new patterns are introduced.
 6. Add tests in `test/` (unit + property + differential if applicable).
+7. Use `SimpleStorage` as the minimal end-to-end reference for file layout and proof style.
+
+## Adding a Contract (Common Pitfalls)
+
+- Storage slot mismatches between the spec, EDSL implementation, and compiler spec.
+- Mapping conversions that assume simple storage slots instead of typed storage.
+- Missing proofs when a spec is changed but the EDSL implementation or invariants are not updated.
 
 ## Examples and Proofs
 
