@@ -50,7 +50,7 @@ This document provides a comprehensive summary of the Layer 1 verification effor
 - Structural induction for multi-increment
 - Demonstrates accumulation under mod 2^256
 
-**Partial Completion**:
+**Additional Completed Contracts**:
 - **SafeCounter**: 8/8 theorems (100%)
 - **Owned**: 8/8 theorems (100%)
 
@@ -131,10 +131,10 @@ safeSub_some_val      // correct result
    - Requires deep understanding of Uint256 internals
    - **Impact**: Set realistic timeline expectations
 
-3. **Strategic Sorry Usage**
-   - Small, well-scoped proofs over large monoliths
-   - Each sorry has clear TODO and approach
-   - Enables progress without compromising quality
+3. **Strategic Placeholder Usage**
+   - During development, small, well-scoped sorries kept proofs incremental
+   - Each placeholder had a clear TODO and approach
+   - All placeholders are now resolved
 
 ### Challenges Overcome 💪
 
@@ -152,7 +152,9 @@ safeSub_some_val      // correct result
 
 ---
 
-## Timeline to Completion
+## Historical Timeline Estimate (PR #12 Planning)
+
+This estimate is preserved for context only; Layer 1 was completed on 2026-02-12.
 
 ### Conservative Estimate: 2-2.5 weeks
 
