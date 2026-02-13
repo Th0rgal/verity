@@ -120,6 +120,7 @@ def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
     (fallbackHandler : Address)
     (s s' : ContractState) : Prop :=
   let ownersLen : Uint256 := DumbContracts.Core.Uint256.ofNat ownersList.length
+  s.storage threshold.slot = 0 ∧
   ownersList.Nodup ∧
   (0 : Uint256) < ownersLen ∧
   (0 : Uint256) < thresholdValue ∧

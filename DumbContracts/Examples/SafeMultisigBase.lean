@@ -100,6 +100,8 @@ def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
   let _ := paymentToken
   let _ := payment
   let _ := paymentReceiver
+  let currentThreshold ← getStorage threshold
+  require (currentThreshold = 0) "already initialized"
   let thisAddr ← contractAddress
   let ownersLen : Uint256 := DumbContracts.Core.Uint256.ofNat ownersList.length
   require ((0 : Uint256) < ownersLen) "owners list empty"
