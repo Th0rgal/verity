@@ -134,7 +134,7 @@ Prove Yul codegen correctness:
 - 🔲 **IR → Yul**: Yul codegen preservation proof (remaining)
 
 ### Trusted Components (Small, Well-Audited)
-- **Lean 4 kernel**: ~10k lines, extensively reviewed
+- **Lean 4 kernel**: small, extensively reviewed
 - **Solidity compiler (Yul → EVM)**: Mature, widely used, tested
 - **EVM implementation**: geth, etc. - consensus-critical, well-tested
 
@@ -188,7 +188,7 @@ To keep the compiler simple, auditable, and verifiable, we explicitly **avoid**:
 | Contracts with differential tests | 7/7 | ✅ 100% |
 | Contracts with property tests | 7/7 | ✅ 100% |
 | Contracts using EVM-compatible types | 7/7 | ✅ 100% |
-| Manual IR lines eliminated | 266 → 0 | ✅ -100% |
+| Manual IR eliminated | ✅ | ✅ |
 | Time to add new contract | 30 min → 5 min | ✅ -83% |
 | Compiler correctness proofs | 0 | 🔲 0% (next focus) |
 
