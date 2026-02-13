@@ -21,15 +21,6 @@ def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
   (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
   (∀ base key, ir.finalMappings base key = yul.finalMappings base key)
 
-/-- Interpret just a function body as Yul runtime code. -/
-noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
-  let yulTx : YulTransaction := {
-    sender := tx.sender
-    functionSelector := tx.functionSelector
-    args := tx.args
-  }
-  interpretYulRuntime fn.body yulTx state.storage state.mappings
-
 @[simp] theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body

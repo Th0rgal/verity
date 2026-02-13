@@ -241,12 +241,12 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 - **Done when**: each contract has a Layer 2 preservation theorem that compiles in Lean (met).
 
 **B. Finish Layer 3 (IR → Yul)**:
-- Scaffolding: IR interpreter now matches Yul bitwise ops (`xor`, `not`, `shl`, `shr`) to avoid semantic drift.
-- Added an IR→Yul state alignment helper (`yulStateOfIR`) to keep Layer 3 proofs focused on semantic equivalence.
-- Converted IR↔Yul smoke checks into Lean examples so `Compiler.Proofs.YulGeneration.SmokeTests` builds.
-- Prove IR op → Yul op equivalence for all IR instructions, not just the high-level theorem statement.
-- Add contract-level end-to-end theorems akin to Layer 2: “interpretIR = interpretYulFromIR” per contract.
-- **Done when**: every IR instruction has a corresponding Lean equivalence lemma in `Compiler/Proofs/YulGeneration/Equivalence.lean`, each contract has a compiled end-to-end theorem, and the layer builds without TODOs or `admit`s in the Yul generation proofs.
+- **Layer 3 proof equivalence (IR → Yul) — generic path**
+  - Instruction‑level IR↔Yul equivalence lemmas.
+  - Sequence/program equivalence lemma (composition + state mapping).
+  - Generic function equivalence theorem (parameterized by function + compiler).
+  - Contract‑level equivalence is then purely mechanical instantiation (no new proof ideas).
+  - **Done when**: instruction‑level lemmas exist, the generic function theorem compiles, and contracts are instantiated mechanically without new proof ideas.
 
 **C. Scale Differential Testing**:
 - Centralize the “random run” entrypoint so each harness can opt into the same seed/count knobs (avoid copy‑paste and drift).
@@ -255,52 +255,16 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 - **Done when**: CI runs a 10,000+ tx suite per contract, and the random harness setup is shared and parameterized across all 7 contracts.
 
 **D. Property Extraction (Proofs → Tests)**:
-- Extract statements from Layer 1 proofs and compile them into Foundry invariants.
-- Guard the manifest against drift: keep `test/property_manifest.json` synchronized with proofs via `scripts/check_property_manifest_sync.py`.
-  - New helper: `scripts/report_property_gaps.py` prints proof→test gaps and optional stub templates.
-  - Keep `test/property_exclusions.json` minimal; CI fails if exclusions include already-implemented properties.
-  - New coverage: SafeCounter now includes a property test for `evm_add_eq_of_no_overflow` (EVM `add` vs math addition).
-  - Start with SimpleStorage: extract 3–5 invariants and wire them end-to-end to validate the pipeline before scaling.
-  - Create a small “invariant catalog” per contract (plain English + Lean lemma name).
-  - Add matching `test/Invariant<Contract>.t.sol` suites that enforce each invariant.
-  - Ensure invariants run against both the Lean interpreter and the compiled Yul (differential style).
-- **Done when**: every Layer 1 proof has a corresponding Foundry invariant and all invariants pass in CI.
+- **Remaining**: Reduce 172 exclusions. Add property tests contract‑by‑contract and decide if any Stdlib proofs are “proof‑only.” Keep coverage script green.
 
 **E. Address Known Limitations (Core Modeling)**:
-- Self-transfer semantics: modeled as a no-op in token/ledger specs. (Done)
-- Full supply = sum of balances in a finite address model.
-  - Introduce a finite address set parameter so proofs can quantify over balances.
-  - Implemented invariant helpers (`sum_balances`, `supply_equals_sum`) in `Specs/SimpleToken/Invariants.lean`; proofs and tests pending.
-- Nested mappings (needed for allowances / ERC20 approve).
-  - Extend the storage model to support `Address -> Address -> Uint256` with clean read/write lemmas.
-  - Helper added: `encodeNestedMappingSlot` / `decodeNestedMappingSlot` in `Compiler/Proofs/MappingEncoding.lean`.
-  - Mapping slot encoding now preserves nested base slots (no modulo truncation), so nested encodings round‑trip.
-  - Smoke test added in `Compiler/Proofs/YulGeneration/SmokeTests.lean` to validate nested mapping slot routing in the Yul interpreter.
-- **Done when**: an ERC‑20-style spec can express `approve`/`transferFrom`, self-transfer is defined, and a supply‑equals‑sum proof composes over the finite address set.
+- **Remaining**: Full “supply = sum balances” proof over a finite address set plus tests. Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`). Add explicit self‑transfer property tests across affected contracts.
 
 **F. Reduce Remaining Trust Assumptions**:
-- Add a keccak256 verification step so selectors don’t stay “trusted”.
-  - Compute selectors in Lean from the Solidity signature and prove they match the generated selector in `Compiler/Selector.lean`.
-  - Add a small fixture-based test (Solidity/Yul) to guard the hash implementation against drift.
-    - Implemented: `scripts/check_selector_fixtures.py` runs `solc --hashes` against `scripts/fixtures/SelectorFixtures.sol` in the build job CI.
-  - **Done when**: selector hashes are proven in Lean and a fixture test asserts at least 3 real-world signatures match Solidity compiler output.
-- Add a formalized “bridge” lemma between Yul semantics and EVM, or document the test/verification gap clearly.
-  - **Current gap**: Yul correctness is proven against the Lean Yul interpreter, but the Lean Yul interpreter is not yet proven equivalent to EVM execution.
-  - **Mitigation today**: Foundry tests provide behavioral confidence and CI now compiles generated Yul with `solc`, but neither closes the formal gap.
-  - **Completion criterion**: a proof (or mechanized model) that links Yul execution to EVM execution for the supported subset.
+- **Remaining**: Prove selector hashes in Lean (not just CI fixture checks). Add a minimal Yul↔EVM semantic bridge lemma or mechanized model.
 
 **G. Documentation (Optional But Valuable)**:
-- Add a concise “How to add a new contract” guide (Spec → EDSL → Proof → Compiler spec → Tests).
-  - 1-page checklist anchored to SimpleStorage as the minimal example:
-    - `DumbContracts/Specs/SimpleStorage.lean`
-    - `DumbContracts/Examples/SimpleStorage.lean`
-    - `DumbContracts/Specs/SimpleStorage/Proofs.lean`
-    - `Compiler/Proofs/IRGeneration/SimpleStorageProof.lean`
-    - `test/DifferentialSimpleStorage.t.sol`
-  - Template section that shows the expected file layout + naming conventions.
-  - Short “common pitfalls” callout (e.g., storage slot mismatches, mapping conversions).
-- **Done when**: a newcomer can follow the guide to add a toy contract end-to-end in under 30 minutes.
-- Keep this page as the single source of truth for progress and new milestones.
+- **Remaining**: Add the 1‑page “add a contract” guide and keep roadmap updates in sync with each milestone.
 
 **Trust Model**: 100 random tests provide probabilistic confidence. Formal verification (Item 4) would provide mathematical certainty.
 
