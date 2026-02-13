@@ -185,4 +185,28 @@ def execTransaction_spec (to : Address) (value : Uint256) (data : Bytes) (operat
   result = true ∧
   s' = s
 
+/-- Placeholder setGuard spec: only callable by the Safe itself. -/
+def setGuard_spec (guard : Address) (s s' : ContractState) : Prop :=
+  s.sender = s.thisAddress ∧
+  s'.storage guardStorage.slot = encodeAddress guard ∧
+  (∀ slot : Nat, slot ≠ guardStorage.slot → s'.storage slot = s.storage slot) ∧
+  s'.storageMap = s.storageMap ∧
+  s'.storageAddr = s.storageAddr ∧
+  s'.sender = s.sender ∧
+  s'.thisAddress = s.thisAddress ∧
+  s'.msgValue = s.msgValue ∧
+  s'.blockTimestamp = s.blockTimestamp
+
+/-- Placeholder setModuleGuard spec: only callable by the Safe itself. -/
+def setModuleGuard_spec (guard : Address) (s s' : ContractState) : Prop :=
+  s.sender = s.thisAddress ∧
+  s'.storage moduleGuardStorage.slot = encodeAddress guard ∧
+  (∀ slot : Nat, slot ≠ moduleGuardStorage.slot → s'.storage slot = s.storage slot) ∧
+  s'.storageMap = s.storageMap ∧
+  s'.storageAddr = s.storageAddr ∧
+  s'.sender = s.sender ∧
+  s'.thisAddress = s.thisAddress ∧
+  s'.msgValue = s.msgValue ∧
+  s'.blockTimestamp = s.blockTimestamp
+
 end DumbContracts.Specs.SafeMultisigBase

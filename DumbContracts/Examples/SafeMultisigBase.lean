@@ -159,4 +159,18 @@ def execTransaction (to : Address) (value : Uint256) (data : Bytes) (operation :
   -- TODO: compute tx hash, check signatures, execute call, and pay refunds.
   pure true
 
+/-- Placeholder setGuard: only callable by the Safe itself. -/
+def setGuard (guard : Address) : Contract Unit := do
+  let sender ← msgSender
+  let thisAddr ← contractAddress
+  require (decide (sender = thisAddr)) "only self"
+  setStorage guardStorage (encodeAddress guard)
+
+/-- Placeholder setModuleGuard: only callable by the Safe itself. -/
+def setModuleGuard (guard : Address) : Contract Unit := do
+  let sender ← msgSender
+  let thisAddr ← contractAddress
+  require (decide (sender = thisAddr)) "only self"
+  setStorage moduleGuardStorage (encodeAddress guard)
+
 end DumbContracts.Examples.SafeMultisigBase
