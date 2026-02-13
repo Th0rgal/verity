@@ -20,8 +20,8 @@ The project evolved in two phases:
 This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
-- **Layer 2 (ContractSpec → IR)**: Per‑function preservation theorems complete for all 7 contracts; contract‑level dispatch generalization is underway (SimpleStorage done).
-- **Layer 3 (IR → Yul)**: In progress (core IR/Yul semantics aligned, runtime preservation theorem in place, and smoke tests assert revert preservation across IR and Yul).
+- **Layer 2 (ContractSpec -> IR)**: Per-function preservation theorems complete for all 7 contracts; contract-level dispatch generalization is underway (SimpleStorage + Counter done).
+- **Layer 3 (IR -> Yul)**: In progress (core IR/Yul semantics aligned, runtime preservation theorem in place, and smoke tests assert revert preservation across IR and Yul).
 
 ## Iterations
 
@@ -52,10 +52,10 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 ## Arithmetic Semantics
 
-All core arithmetic is EVM‑compatible. `Uint256` wraps at `2^256`, so `+`, `-`, `*`, `/`, and `%` match EVM behavior by default.
+All core arithmetic is EVM-compatible. `Uint256` wraps at `2^256`, so `+`, `-`, `*`, `/`, and `%` match EVM behavior by default.
 
 Two approaches coexist for overflow safety:
-- **Counter / Ledger / SimpleToken**: Bare `+`/`-` (modular arithmetic, EVM‑accurate)
+- **Counter / Ledger / SimpleToken**: Bare `+`/`-` (modular arithmetic, EVM-accurate)
 - **SafeCounter**: `safeAdd`/`safeSub` from `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow
 
 `MAX_UINT256 := 2^256 - 1`. Safe arithmetic checks this bound before returning `some`.
@@ -92,18 +92,18 @@ But `private theorem` isn't accessible from other files. Isolation proofs in sep
 ## Verification Structure
 
 Each contract has:
-- `DumbContracts/Examples/X.lean` — Implementation
-- `DumbContracts/Specs/X/Spec.lean` — Pre/postconditions for each operation
-- `DumbContracts/Specs/X/Invariants.lean` — State properties that should hold
-- `DumbContracts/Specs/X/Proofs.lean` — Layer 1: Spec correctness vs EDSL
-- `DumbContracts/Proofs/X/Basic.lean` — Spec conformance, basic properties
-- `DumbContracts/Proofs/X/Correctness.lean` — Revert proofs, composition, end-to-end
+- `DumbContracts/Examples/X.lean` -- Implementation
+- `DumbContracts/Specs/X/Spec.lean` -- Pre/postconditions for each operation
+- `DumbContracts/Specs/X/Invariants.lean` -- State properties that should hold
+- `DumbContracts/Specs/X/Proofs.lean` -- Layer 1: Spec correctness vs EDSL
+- `DumbContracts/Proofs/X/Basic.lean` -- Spec conformance, basic properties
+- `DumbContracts/Proofs/X/Correctness.lean` -- Revert proofs, composition, end-to-end
 
 Some contracts have additional proof files:
-- `DumbContracts/Proofs/SimpleToken/Supply.lean` — Supply conservation equations
-- `DumbContracts/Proofs/SimpleToken/Isolation.lean` — Storage isolation across slot types
-- `DumbContracts/Proofs/Ledger/Conservation.lean` — Balance conservation equations
-- `DumbContracts/Proofs/OwnedCounter/Isolation.lean` — Cross-pattern storage isolation
+- `DumbContracts/Proofs/SimpleToken/Supply.lean` -- Supply conservation equations
+- `DumbContracts/Proofs/SimpleToken/Isolation.lean` -- Storage isolation across slot types
+- `DumbContracts/Proofs/Ledger/Conservation.lean` -- Balance conservation equations
+- `DumbContracts/Proofs/OwnedCounter/Isolation.lean` -- Cross-pattern storage isolation
 
 Conservation proofs use `List.countOcc` to account for duplicate addresses. For `NoDup` lists, transfer preserves exact sum. For general lists, exact equations with `countOcc` multipliers are proven.
 
@@ -126,14 +126,14 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 **Result**: All 7 contracts compile automatically. Zero manual IR. Generated code is more optimized than manual translations.
 
 **Implementation** (as of 2026-02-13):
-- `Compiler/ContractSpec.lean` — DSL + automatic IR compiler
+- `Compiler/ContractSpec.lean` -- DSL + automatic IR compiler
   - Type-safe expression language (literals, storage, mappings, arithmetic, comparisons)
   - Statement DSL (setStorage, setMapping, require, return)
   - Automatic storage slot inference from field order
   - Constructor parameter handling (bytecode argument loading)
-- `Compiler/Specs.lean` — All 7 contract specifications
-- `Compiler/Selector.lean` — Function selector computation (Solidity keccak256)
-- `Compiler/Main.lean` — New compilation entry point
+- `Compiler/Specs.lean` -- All 7 contract specifications
+- `Compiler/Selector.lean` -- Function selector computation (Solidity keccak256)
+- `Compiler/Main.lean` -- New compilation entry point
 
 **Before**:
 ```lean
@@ -169,11 +169,11 @@ def ownedSpec : ContractSpec := {
 - Code quality: More concise, optimized (expression inlining)
 
 **Features Achieved**:
-- ✅ Automatic storage slot inference
-- ✅ Constructor parameter support
-- ✅ Function selector management
-- ✅ Type-safe DSL prevents errors
-- ✅ Code optimization
+- [x] Automatic storage slot inference
+- [x] Constructor parameter support
+- [x] Function selector management
+- [x] Type-safe DSL prevents errors
+- [x] Code optimization
 
 **Usage**:
 ```bash
@@ -191,17 +191,17 @@ forge test  # Run unit, property, and differential tests
 **Result**: default runs use 100 random transactions per contract, while CI scales the large suite to 10,000+ per contract. Zero mismatches detected so far.
 
 **Implementation** (as of 2026-02-13):
-- `Compiler/Interpreter.lean` — EDSL interpreter for differential testing
+- `Compiler/Interpreter.lean` -- EDSL interpreter for differential testing
   - Executes EDSL contracts on abstract state
   - Returns JSON results for comparison with EVM
   - Supports all 7 contracts used in the Foundry differential suites
-- `Compiler/RandomGen.lean` — Random transaction generator
+- `Compiler/RandomGen.lean` -- Random transaction generator
   - Generates random addresses, values, and function calls
   - Contract-specific transaction generation (store/retrieve for SimpleStorage)
-- `test/DiffTestConfig.sol` — Shared sharding + seed configuration
+- `test/DiffTestConfig.sol` -- Shared sharding + seed configuration
   - Centralizes shard range calculation and per-shard seed mixing
   - Exposes `_diffRandomSmallConfig()`/`_diffRandomLargeConfig()` so each harness opts into the same knobs
-- `test/DifferentialSimpleStorage.t.sol` — Foundry test harness
+- `test/DifferentialSimpleStorage.t.sol` -- Foundry test harness
   - Executes transactions on compiled EVM bytecode
   - Calls EDSL interpreter via `vm.ffi`
   - Compares: success/revert, return values, storage changes
@@ -234,32 +234,32 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
   forge test --match-contract Differential
 ```
 
-**Structured Next Steps (A–G)**:
+**Structured Next Steps (A-G)**:
 
-**A. Finish Layer 2 (ContractSpec → IR)**:
-- ✅ SimpleStorage + Counter preservation proofs are pinned and compiling.
-- ✅ Generalized preservation proofs now cover Owned, OwnedCounter, SafeCounter, Ledger, and SimpleToken.
-- ✅ Conversion relations for mappings + address types are exercised in the full suite of Layer 2 proofs.
-- ✅ Removed the exploratory `StoreProofAttempt.lean` once the real proof path was in place.
-- ✅ Contract-level dispatch preservation exists for SimpleStorage (selectors wired to transactions).
+**A. Finish Layer 2 (ContractSpec -> IR)**:
+- [x] SimpleStorage + Counter preservation proofs are pinned and compiling.
+- [x] Generalized preservation proofs now cover Owned, OwnedCounter, SafeCounter, Ledger, and SimpleToken.
+- [x] Conversion relations for mappings + address types are exercised in the full suite of Layer 2 proofs.
+- [x] Removed the exploratory `StoreProofAttempt.lean` once the real proof path was in place.
+- [x] Contract-level dispatch preservation exists for SimpleStorage + Counter (selectors wired to transactions).
 - **Done when**: each contract has a contract-level dispatch theorem that composes per-function proofs.
 
-**B. Finish Layer 3 (IR → Yul)**:
-- Prove IR op → Yul op equivalence for all IR instructions, not just the high-level theorem statement.
-- Add contract-level end-to-end theorems akin to Layer 2: “interpretIR = interpretYulFromIR” per contract.
+**B. Finish Layer 3 (IR -> Yul)**:
+- Prove IR op -> Yul op equivalence for all IR instructions, not just the high-level theorem statement.
+- Add contract-level end-to-end theorems akin to Layer 2: "interpretIR = interpretYulFromIR" per contract.
 - **Done when**: every IR instruction has a corresponding Lean equivalence lemma in `Compiler/Proofs/YulGeneration/Equivalence.lean`, each contract has a compiled end-to-end theorem, and the layer builds without TODOs or `admit`s in the Yul generation proofs.
 
 **C. Scale Differential Testing**:
-- ✅ Centralize the “random run” entrypoint so each harness can opt into the same seed/count knobs (avoid copy‑paste and drift).
-- ✅ Increase transaction counts from 100 to 10,000+ per contract (keep a quick-run default, allow override for CI).
-- ✅ Add adversarial patterns: self-transfer (done), max uint values (done for SimpleStorage/Ledger/SimpleToken), boundary overflows.
+- [x] Centralize the "random run" entrypoint so each harness can opt into the same seed/count knobs (avoid copy-paste and drift).
+- [x] Increase transaction counts from 100 to 10,000+ per contract (keep a quick-run default, allow override for CI).
+- [x] Add adversarial patterns: self-transfer (done), max uint values (done for SimpleStorage/Ledger/SimpleToken), boundary overflows.
 - **Done when**: CI runs a 10,000+ tx suite per contract, and the random harness setup is shared and parameterized across all 7 contracts (met).
 
-**D. Property Extraction (Proofs → Tests)**:
+**D. Property Extraction (Proofs -> Tests)**:
 - Extract statements from Layer 1 proofs and compile them into Foundry invariants.
 - Guard the manifest against drift: keep `test/property_manifest.json` synchronized with proofs via `scripts/check_property_manifest_sync.py`.
-  - Start with SimpleStorage: extract 3–5 invariants and wire them end-to-end to validate the pipeline before scaling.
-  - Create a small “invariant catalog” per contract (plain English + Lean lemma name).
+  - Start with SimpleStorage: extract 3-5 invariants and wire them end-to-end to validate the pipeline before scaling.
+  - Create a small "invariant catalog" per contract (plain English + Lean lemma name).
   - Add matching `test/Invariant<Contract>.t.sol` suites that enforce each invariant.
   - Ensure invariants run against both the Lean interpreter and the compiled Yul (differential style).
 - **Done when**: every Layer 1 proof has a corresponding Foundry invariant and all invariants pass in CI.
@@ -270,20 +270,20 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
   - Introduce a finite address set parameter so proofs can quantify over balances.
 - Nested mappings (needed for allowances / ERC20 approve).
   - Extend the storage model to support `Address -> Address -> Uint256` with clean read/write lemmas.
-- **Done when**: an ERC‑20-style spec can express `approve`/`transferFrom`, self-transfer is defined, and a supply‑equals‑sum proof composes over the finite address set.
+- **Done when**: an ERC-20-style spec can express `approve`/`transferFrom`, self-transfer is defined, and a supply-equals-sum proof composes over the finite address set.
 
 **F. Reduce Remaining Trust Assumptions**:
-- ✅ Add a keccak256 verification step so selectors don’t stay “trusted”.
+- [x] Add a keccak256 verification step so selectors don't stay "trusted".
   - Cross-check selector hashing against `cast` in `scripts/check_selectors.py`.
   - Validate IR selector tables and Yul switch cases against specs in CI.
   - **Done when**: selector hashes are proven or cross-checked against a trusted toolchain (met).
-- Add a formalized “bridge” lemma between Yul semantics and EVM, or document the test/verification gap clearly.
+- Add a formalized "bridge" lemma between Yul semantics and EVM, or document the test/verification gap clearly.
   - **Current gap**: Yul correctness is proven against the Lean Yul interpreter, but the Lean Yul interpreter is not yet proven equivalent to EVM execution.
   - **Mitigation today**: Foundry tests provide behavioral confidence, but they do not close the formal gap.
   - **Completion criterion**: a proof (or mechanized model) that links Yul execution to EVM execution for the supported subset.
 
 **G. Documentation (Optional But Valuable)**:
-- Add a concise “How to add a new contract” guide (Spec → EDSL → Proof → Compiler spec → Tests).
+- Add a concise "How to add a new contract" guide (Spec -> EDSL -> Proof -> Compiler spec -> Tests).
   - 1-page checklist anchored to SimpleStorage as the minimal example:
     - `DumbContracts/Specs/SimpleStorage.lean`
     - `DumbContracts/Examples/SimpleStorage.lean`
@@ -291,7 +291,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
     - `Compiler/Proofs/IRGeneration/SimpleStorageProof.lean`
     - `test/DifferentialSimpleStorage.t.sol`
   - Template section that shows the expected file layout + naming conventions.
-  - Short “common pitfalls” callout (e.g., storage slot mismatches, mapping conversions).
+  - Short "common pitfalls" callout (e.g., storage slot mismatches, mapping conversions).
 - **Done when**: a newcomer can follow the guide to add a toy contract end-to-end in under 30 minutes.
 - Keep this page as the single source of truth for progress and new milestones.
 
@@ -302,17 +302,17 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 **Property Extraction** (Roadmap Item 3):
 - Parse 252 proven theorems from EDSL files
 - Generate Foundry property tests from theorem statements
-- Example: `transfer_total_supply` theorem → Foundry invariant test
+- Example: `transfer_total_supply` theorem -> Foundry invariant test
 - Result: 252 theorems verified in both proofs and on-chain tests
 
 **Compiler Verification** (Roadmap Item 4, long-term):
 - Formalize EVM execution in Lean
-- Prove: `∀ contract state tx, evm_exec (compile contract) state tx = edsl_exec contract state tx`
+- Prove: `forall contract state tx, evm_exec (compile contract) state tx = edsl_exec contract state tx`
 - Eliminates all trust assumptions in the compilation pipeline
 
 ## What Could Come Next
 
-See **Structured Next Steps (A–G)** above for the single source of truth. The older “next steps” list has been removed to avoid drift and duplication.
+See **Structured Next Steps (A-G)** above for the single source of truth. The older "next steps" list has been removed to avoid drift and duplication.
 
 ## Detailed Logs
 

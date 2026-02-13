@@ -78,10 +78,9 @@ def counterIRContract : IRContract :=
 
 /-! ## Counter: Increment Correctness -/
 
-theorem counter_increment_correct (storedValue : Nat) :
+theorem counter_increment_correct (storedValue : Nat) (sender : Address) :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
-  let sender := "test_sender"
   let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
   let tx : Transaction := {
     sender := sender
@@ -111,10 +110,9 @@ theorem counter_increment_correct (storedValue : Nat) :
 
 /-! ## Counter: Decrement Correctness -/
 
-theorem counter_decrement_correct (storedValue : Nat) :
+theorem counter_decrement_correct (storedValue : Nat) (sender : Address) :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
-  let sender := "test_sender"
   let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
   let tx : Transaction := {
     sender := sender
@@ -154,10 +152,9 @@ theorem counter_decrement_correct (storedValue : Nat) :
 
 /-! ## Counter: getCount Correctness -/
 
-theorem counter_getCount_correct (storedValue : Nat) :
+theorem counter_getCount_correct (storedValue : Nat) (sender : Address) :
   let spec := counterSpec
   let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
-  let sender := "test_sender"
   let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
   let tx : Transaction := {
     sender := sender
@@ -184,5 +181,58 @@ theorem counter_getCount_correct (storedValue : Nat) :
     · subst hslot
       simp
     · simp [hslot]
+
+/-! ## Contract-Level Preservation (Dispatch)
+
+This theorem lifts the per-function proofs into a single dispatch lemma
+that matches on function name and arity. Incorrect arities are treated
+as out-of-scope for now (vacuously true).
+-/
+
+theorem counter_contract_preserves_semantics (storedValue : Nat) (tx : Transaction) :
+  let spec := counterSpec
+  let irContract := compile spec [0xd09de08a, 0x2baeceb7, 0xa87d942c]
+  let initialStorage : SpecStorage := SpecStorage.empty.setSlot 0 storedValue
+  let specResult := interpretSpec spec initialStorage tx
+  match irContract with
+  | .ok ir =>
+      match tx.functionName, tx.args with
+      | "increment", [] =>
+          let irTx := transactionToIRTransaction tx 0xd09de08a
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [] irResult specResult
+      | "decrement", [] =>
+          let irTx := transactionToIRTransaction tx 0x2baeceb7
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [] irResult specResult
+      | "getCount", [] =>
+          let irTx := transactionToIRTransaction tx 0xa87d942c
+          let irResult := interpretIR ir irTx (specStorageToIRState initialStorage tx.sender)
+          resultsMatch ir.usesMapping [] irResult specResult
+      | _, _ => True
+  | .error _ => False
+  := by
+  by_cases hinc : tx.functionName = "increment"
+  · subst hinc
+    cases hargs : tx.args with
+    | nil =>
+        simpa [hargs] using (counter_increment_correct storedValue tx.sender)
+    | cons _ _ =>
+        simp [hargs]
+  · by_cases hdec : tx.functionName = "decrement"
+    · subst hdec
+      cases hargs : tx.args with
+      | nil =>
+          simpa [hargs] using (counter_decrement_correct storedValue tx.sender)
+      | cons _ _ =>
+          simp [hargs]
+    · by_cases hget : tx.functionName = "getCount"
+      · subst hget
+        cases hargs : tx.args with
+        | nil =>
+            simpa [hargs] using (counter_getCount_correct storedValue tx.sender)
+        | cons _ _ =>
+            simp [hargs]
+      · simp [hinc, hdec, hget]
 
 end Compiler.Proofs.IRGeneration
