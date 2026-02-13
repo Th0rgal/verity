@@ -87,6 +87,9 @@ jobs:
       - name: Check property manifest references
         run: python3 scripts/check_property_manifest.py
 
+      - name: Check property coverage
+        run: python3 scripts/check_property_coverage.py
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
