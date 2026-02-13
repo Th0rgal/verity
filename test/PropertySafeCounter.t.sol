@@ -10,10 +10,11 @@ import "./yul/YulTestBase.sol";
  *
  * This file contains property tests for SafeCounter's 25 proven theorems:
  *
- * Basic.lean (16 theorems):
+ * Basic.lean (17 theorems):
  * 1. getCount_meets_spec - Read returns correct spec result
  * 2. getCount_returns_count - Read returns current count value
  * 3. getCount_preserves_state - Read doesn't modify state
+ * 3b. evm_add_eq_of_no_overflow - EVM add matches math when no overflow
  * 4. increment_meets_spec - Increment follows specification
  * 5. increment_adds_one - Increment increases count by 1
  * 6. increment_preserves_other_slots - Increment only modifies slot 0
@@ -28,7 +29,7 @@ import "./yul/YulTestBase.sol";
  * 15. decrement_preserves_bounds - Count stays in valid range
  * 16. increment_getCount_correct - Composition property
  *
- * Correctness.lean (9 theorems):
+ * Correctness.lean (8 theorems):
  * 17. increment_preserves_context - Sender/address unchanged
  * 18. decrement_preserves_context - Sender/address unchanged
  * 19. increment_preserves_storage_isolated - Storage isolation
@@ -87,6 +88,19 @@ contract PropertySafeCounterTest is YulTestBase {
 
         assertEq(readStorage(0), slot0Before, "getCount modified slot 0");
         assertEq(readStorage(1), slot1Before, "getCount modified slot 1");
+    }
+
+    /**
+     * Property 3b: evm_add_eq_of_no_overflow (fuzz test)
+     * Theorem: EVM add matches math addition when no overflow occurs
+     */
+    function testProperty_EvmAdd_EqOfNoOverflow(uint256 a, uint256 b) public {
+        vm.assume(a <= type(uint256).max - b);
+        uint256 evmAdd;
+        assembly {
+            evmAdd := add(a, b)
+        }
+        assertEq(evmAdd, a + b, "EVM add should match math addition");
     }
 
     //═══════════════════════════════════════════════════════════════════════════

@@ -69,9 +69,6 @@
     "transferOwnership_preserves_wellformedness",
     "transfer_then_transfer_reverts"
   ],
-  "SafeCounter": [
-    "evm_add_eq_of_no_overflow"
-  ],
   "SimpleStorage": [
     "retrieve_meets_spec",
     "retrieve_preserves_context",
