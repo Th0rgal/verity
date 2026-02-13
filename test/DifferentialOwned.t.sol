@@ -423,8 +423,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
      */
     function testDifferential_Random100() public {
         // Deterministic PRNG seed for reproducibility
-        (uint256 startIndex, uint256 numTransactions) = _diffRandomSmallRange();
-        uint256 seed = _diffRandomSeed();
+        (uint256 startIndex, uint256 numTransactions, uint256 seed) = _diffRandomSmallConfig();
 
         address[] memory testAddresses = new address[](3);
         testAddresses[0] = address(this);
@@ -471,8 +470,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
      */
     function testDifferential_Random10000() public {
         // Deterministic PRNG seed for reproducibility
-        (uint256 startIndex, uint256 numTransactions) = _diffRandomLargeRange();
-        uint256 seed = _diffRandomSeed();
+        (uint256 startIndex, uint256 numTransactions, uint256 seed) = _diffRandomLargeConfig();
 
         address[] memory testAddresses = new address[](3);
         testAddresses[0] = address(this);

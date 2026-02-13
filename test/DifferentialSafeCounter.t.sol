@@ -332,16 +332,16 @@ contract DifferentialSafeCounter is YulTestBase, DiffTestConfig {
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
-        (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
-        _runRandomDifferentialTests(startIndex, count, _diffRandomSeed());
+        (uint256 startIndex, uint256 count, uint256 seed) = _diffRandomSmallConfig();
+        _runRandomDifferentialTests(startIndex, count, seed);
     }
 
     /**
      * @notice Run 10000 random differential tests
      */
     function testDifferential_Random10000() public {
-        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
-        _runRandomDifferentialTests(startIndex, count, _diffRandomSeed());
+        (uint256 startIndex, uint256 count, uint256 seed) = _diffRandomLargeConfig();
+        _runRandomDifferentialTests(startIndex, count, seed);
     }
 
     /**

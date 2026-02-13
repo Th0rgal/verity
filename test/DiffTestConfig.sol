@@ -52,12 +52,12 @@ abstract contract DiffTestConfig is Test {
         return _diffShardRange(totalCount);
     }
 
-    function _diffRandomSeed() internal view returns (uint256) {
+    function _diffRandomBaseSeed() internal view returns (uint256) {
         return vm.envOr("DIFFTEST_RANDOM_SEED", uint256(42));
     }
 
     function _diffRandomSeed() internal view returns (uint256) {
-        uint256 seed = _diffRandomSeed();
+        uint256 seed = _diffRandomBaseSeed();
         uint256 shardIndex = _diffShardIndex();
         uint256 shardCount = _diffShardCount();
         require(shardIndex < shardCount, "DIFFTEST_SHARD_INDEX out of range");
@@ -65,6 +65,16 @@ abstract contract DiffTestConfig is Test {
         unchecked {
             return seed + (shardIndex * 0x9e3779b97f4a7c15);
         }
+    }
+
+    function _diffRandomSmallConfig() internal view returns (uint256 start, uint256 count, uint256 seed) {
+        (start, count) = _diffRandomSmallRange();
+        seed = _diffRandomSeed();
+    }
+
+    function _diffRandomLargeConfig() internal view returns (uint256 start, uint256 count, uint256 seed) {
+        (start, count) = _diffRandomLargeRange();
+        seed = _diffRandomSeed();
     }
 
     function _diffVerbose() internal view returns (bool) {

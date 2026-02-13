@@ -198,6 +198,9 @@ forge test  # 264/264 tests pass (as of 2026-02-13)
 - `Compiler/RandomGen.lean` — Random transaction generator
   - Generates random addresses, values, and function calls
   - Contract-specific transaction generation (store/retrieve for SimpleStorage)
+- `test/DiffTestConfig.sol` — Shared sharding + seed configuration
+  - Centralizes shard range calculation and per-shard seed mixing
+  - Exposes `_diffRandomSmallConfig()`/`_diffRandomLargeConfig()` so each harness opts into the same knobs
 - `test/DifferentialSimpleStorage.t.sol` — Foundry test harness
   - Executes transactions on compiled EVM bytecode
   - Calls EDSL interpreter via `vm.ffi`
