@@ -90,6 +90,15 @@ test/                                # Foundry tests (unit, property, differenti
 - **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
 - **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)
 
+## Adding a Contract (Checklist)
+
+1. Write a small, human-readable spec in `DumbContracts/Specs/<Name>/Spec.lean`.
+2. Add invariants in `DumbContracts/Specs/<Name>/Invariants.lean` (optional but encouraged).
+3. Implement the contract in `DumbContracts/Examples/<Name>.lean` using the EDSL.
+4. Prove the implementation meets the spec in `DumbContracts/Specs/<Name>/Proofs.lean`.
+5. Add compiler-level spec glue in `Compiler/Specs.lean` and IR/Yul proofs in `Compiler/Proofs/` if new patterns are introduced.
+6. Add tests in `test/` (unit + property + differential if applicable).
+
 ## Examples and Proofs
 
 - **Lean examples (EDSL implementations)**: `DumbContracts/Examples/`
