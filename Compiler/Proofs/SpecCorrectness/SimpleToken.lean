@@ -388,7 +388,9 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
                 { state with sender := sender })
             ).storageMap 1 sender).val =
             ((state.storageMap 1 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
-        simpa [uint256_add_val] using h_edsl_val
+        have h_edsl_val' := h_edsl_val
+        simp [uint256_add_val] at h_edsl_val'
+        exact h_edsl_val'
       simpa [h_spec_val] using h_edsl_val'.symm
     · -- Recipient mapping equals EDSL mapping (same as sender)
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
@@ -425,7 +427,9 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
                 { state with sender := sender })
             ).storageMap 1 sender).val =
             ((state.storageMap 1 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
-        simpa [uint256_add_val] using h_edsl_val
+        have h_edsl_val' := h_edsl_val
+        simp [uint256_add_val] at h_edsl_val'
+        exact h_edsl_val'
       simpa [h_spec_val] using h_edsl_val'.symm
   · have h_ne : sender ≠ to := h_eq
     have h_addr_ne : addressToNat sender ≠ addressToNat to := by
@@ -745,7 +749,7 @@ theorem token_only_owner_mints (state : ContractState) (to : Address) (amount : 
         { state with sender := sender } to (DumbContracts.Core.Uint256.ofNat amount) h_owner'
     have h_fail :
         ((mint to (DumbContracts.Core.Uint256.ofNat amount)).run { state with sender := sender }).isSuccess = false := by
-      simpa [ContractResult.isSuccess, hrun] using rfl
+      simp [ContractResult.isSuccess, hrun]
     have h_contra : (true : Bool) = false := by
       simpa using (h_success.symm.trans h_fail)
     cases h_contra

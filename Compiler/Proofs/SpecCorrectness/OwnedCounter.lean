@@ -166,8 +166,10 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
     have h_inc_val :
         ((increment.run { state with sender := sender }).getState.storage 1).val =
           ((state.storage 1).val + 1) % DumbContracts.Core.Uint256.modulus := by
-      simpa [uint256_add_val] using congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_inc
-    simpa [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      have h_inc_val' := congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_inc
+      simp [uint256_add_val] at h_inc_val'
+      exact h_inc_val'
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_inc_val, lookup_count_slot]
 
 /-- The `increment` function correctly reverts when called by non-owner -/
@@ -254,7 +256,7 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
             DumbContracts.Core.Uint256.modulus -
               (1 % DumbContracts.Core.Uint256.modulus - (state.storage 1).val)) := by
       simpa [h_dec] using (uint256_sub_val (state.storage 1) 1)
-    simpa [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_dec_val, lookup_count_slot]
 
 /-- The `decrement` function correctly reverts when called by non-owner -/
