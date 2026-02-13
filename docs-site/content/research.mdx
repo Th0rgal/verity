@@ -21,7 +21,7 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
 - **Layer 2 (ContractSpec → IR)**: Complete for all 7 contracts (per‑function preservation theorems compiled in Lean).
-- **Layer 3 (IR → Yul)**: In progress (generic equivalence goal scaffolding + smoke checks; equivalence theorems not yet proven).
+- **Layer 3 (IR → Yul)**: In progress (generic equivalence goal scaffolding + Yul fuel‑unfolding lemmas; equivalence theorems not yet proven).
 
 ## Iterations
 
@@ -243,6 +243,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 **B. Finish Layer 3 (IR → Yul)**:
 - **Layer 3 proof equivalence (IR → Yul) — generic path**
   - Instruction‑level IR↔Yul equivalence lemmas.
+  - ✅ Fuel‑unfolding lemmas for Yul statement lists (`execYulStmtsFuel_nil/cons`) added in `Compiler/Proofs/YulGeneration/Equivalence.lean`.
   - Sequence/program equivalence lemma (composition + state mapping).
   - Generic function equivalence theorem (parameterized by function + compiler).
   - Contract‑level equivalence is then purely mechanical instantiation (no new proof ideas).

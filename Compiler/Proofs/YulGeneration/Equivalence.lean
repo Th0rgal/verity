@@ -104,4 +104,25 @@ theorem statesAligned_refl (selector : Nat) (state : IRState) :
     statesAligned selector state (yulStateOfIR selector state) := by
   rfl
 
+/-! ## Fuel-Parametric Sequencing Lemmas
+
+These unfolding lemmas expose how `execYulStmtsFuel` consumes one unit of
+fuel before executing the first statement. They are intended as building
+blocks for the generic sequence equivalence proof.
+-/
+
+theorem execYulStmtsFuel_nil (fuel : Nat) (state : YulState) :
+    execYulStmtsFuel fuel state [] = .continue state := by
+  cases fuel <;> rfl
+
+theorem execYulStmtsFuel_cons
+    (fuel : Nat) (state : YulState) (stmt : YulStmt) (rest : List YulStmt) :
+    execYulStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
+      match execYulStmtFuel fuel state stmt with
+      | .continue s' => execYulStmtsFuel fuel s' rest
+      | .return v s => .return v s
+      | .stop s => .stop s
+      | .revert s => .revert s := by
+  rfl
+
 end Compiler.Proofs.YulGeneration
