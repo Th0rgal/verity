@@ -277,7 +277,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 - Add a keccak256 verification step so selectors don’t stay “trusted”.
   - Compute selectors in Lean from the Solidity signature and prove they match the generated selector in `Compiler/Selector.lean`.
   - Add a small fixture-based test (Solidity/Yul) to guard the hash implementation against drift.
-    - Implemented: `scripts/check_selector_fixtures.py` runs `solc --hashes` against `scripts/fixtures/SelectorFixtures.sol` in CI.
+    - Implemented: `scripts/check_selector_fixtures.py` runs `solc --hashes` against `scripts/fixtures/SelectorFixtures.sol` in the build job CI.
   - **Done when**: selector hashes are proven in Lean and a fixture test asserts at least 3 real-world signatures match Solidity compiler output.
 - Add a formalized “bridge” lemma between Yul semantics and EVM, or document the test/verification gap clearly.
   - **Current gap**: Yul correctness is proven against the Lean Yul interpreter, but the Lean Yul interpreter is not yet proven equivalent to EVM execution.

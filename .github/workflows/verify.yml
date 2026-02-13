@@ -65,6 +65,15 @@ jobs:
       - name: Check selector hashing against specs
         run: python3 scripts/check_selectors.py
 
+      - name: Install solc
+        run: |
+          curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          chmod +x /usr/local/bin/solc
+          solc --version
+
+      - name: Check selector fixtures against solc
+        run: python3 scripts/check_selector_fixtures.py
+
       - name: Check property manifest references
         run: python3 scripts/check_property_manifest.py
 
@@ -122,9 +131,6 @@ jobs:
           curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
           chmod +x /usr/local/bin/solc
           solc --version
-
-      - name: Check selector fixtures against solc
-        run: python3 scripts/check_selector_fixtures.py
 
       - name: Run Foundry tests
         env:
