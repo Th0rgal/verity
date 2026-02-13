@@ -106,13 +106,6 @@ test/                                # Foundry tests (unit, property, differenti
 - Mapping conversions that assume simple storage slots instead of typed storage.
 - Missing proofs when a spec is changed but the EDSL implementation or invariants are not updated.
 
-## Examples and Proofs
-
-- **Lean examples (EDSL implementations)**: `DumbContracts/Examples/`
-- **Specifications + invariants + Layer 1 proofs**: `DumbContracts/Specs/`
-- **Contract-level proofs (EDSL properties)**: `DumbContracts/Proofs/`
-- **Compiler proofs**: `Compiler/Proofs/` (Layer 1 infra, Layer 2: IR, Layer 3: Yul)
-
 ## Build and Test
 
 ```bash
