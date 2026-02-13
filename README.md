@@ -136,6 +136,9 @@ python3 scripts/extract_property_manifest.py
 
 # Optional: check that property tests reference real theorems
 python3 scripts/check_property_manifest.py
+
+# Optional: check selector hashing against specs and generated Yul
+python3 scripts/check_selectors.py
 ```
 
 ## Documentation

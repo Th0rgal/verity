@@ -81,6 +81,9 @@ jobs:
       - name: Generate Yul
         run: ./.lake/build/bin/dumbcontracts-compiler
 
+      - name: Check selector hashing against specs
+        run: python3 scripts/check_selectors.py
+
       - name: Check property manifest references
         run: python3 scripts/check_property_manifest.py
 
