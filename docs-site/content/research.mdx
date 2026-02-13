@@ -228,6 +228,39 @@ forge test --match-contract Differential  # Run 100 random tests
 - Increase test count to 10,000+ per contract (70k+ total)
 - Add more sophisticated transaction patterns (sequences, edge cases)
 
+**Structured Next Steps (A–G)**:
+
+**A. Finish Layer 2 (ContractSpec → IR)**:
+- Generalize the SimpleStorage preservation proof to all 7 contracts.
+- Formalize the conversion relation across types (SpecStorage ↔ IRState) for mappings and address types, not just simple storage slots.
+- Turn the “attempt” file into a real proof path or remove it once the general proof is in place.
+
+**B. Finish Layer 3 (IR → Yul)**:
+- Prove IR op → Yul op equivalence for all IR instructions, not just the high-level theorem statement.
+- Add contract-level end-to-end theorems akin to Layer 2: “interpretIR = interpretYulFromIR” per contract.
+
+**C. Scale Differential Testing**:
+- Add diff-testing harnesses for all 7 contracts.
+- Increase transaction counts from 100 to 10,000+ per contract.
+- Add adversarial patterns: self-transfer, max uint values, boundary overflows.
+
+**D. Property Extraction (Proofs → Tests)**:
+- Extract statements from Layer 1 proofs and compile them into Foundry invariants.
+- This is roadmap item 3.
+
+**E. Address Known Limitations (Core Modeling)**:
+- Self-transfer semantics: add a precise rule or identity behavior in token/ledger specs.
+- Full supply = sum of balances in a finite address model.
+- Nested mappings (needed for allowances / ERC20 approve).
+
+**F. Reduce Remaining Trust Assumptions**:
+- Add a keccak256 verification step so selectors don’t stay “trusted”.
+- Add a formalized “bridge” lemma between Yul semantics and EVM, or document the test/verification gap clearly.
+
+**G. Documentation (Optional But Valuable)**:
+- Add a concise “How to add a new contract” guide (Spec → EDSL → Proof → Compiler spec → Tests).
+- Keep this page as the single source of truth for progress and new milestones.
+
 **Trust Model**: 100 random tests provide probabilistic confidence. Formal verification (Item 4) would provide mathematical certainty.
 
 ### Future: Property Extraction & Compiler Verification
