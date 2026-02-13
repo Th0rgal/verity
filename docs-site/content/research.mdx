@@ -11,23 +11,21 @@ description: Design decisions, iterations, and proof techniques
 
 The project evolved in two phases:
 
-**Phase 1 (Iterations 1-7)**: Built 7 contracts on `StateM ContractState`. Core grew from 58 to 82 lines. Storage types were added incrementally: `Nat -> Uint256` (iteration 1), `Nat -> Address` (iteration 3), `Nat -> Address -> Uint256` for mappings (iteration 6). Each addition was driven by a concrete example that needed it.
+**Phase 1 (Iterations 1-7)**: Built 7 contracts on `StateM ContractState`. The core stayed intentionally small while storage types were added incrementally: `Nat -> Uint256` (iteration 1), `Nat -> Address` (iteration 3), `Nat -> Address -> Uint256` for mappings (iteration 6). Each addition was driven by a concrete example that needed it.
 
-**Phase 2 (Verification)**: Replaced `StateM` with custom `ContractResult` type (`success | revert`) to model `require` guards explicitly. This enabled proving properties like "mint reverts when caller is not owner." Core grew into the low‑200s, mostly from simp lemmas for proof automation and EVM context fields.
+**Phase 2 (Verification)**: Replaced `StateM` with custom `ContractResult` type (`success | revert`) to model `require` guards explicitly. This enabled proving properties like "mint reverts when caller is not owner." The core expanded to include proof automation lemmas and EVM context fields.
 
 ## Iterations
 
-| Iteration | Contract | Lines Added | Key Feature |
+| Iteration | Contract | Core Change | Key Feature |
 |-----------|----------|-------------|-------------|
-| 1 | SimpleStorage | 58 | Bootstrap: `ContractState`, storage ops, `require` |
-| 2 | Counter | 0 | Read-modify-write pattern |
-| 3 | Owned | +14 | Address storage, access control |
-| 4 | OwnedCounter | 0 | Pattern composition |
-| 5 | SafeCounter | 0 | Math stdlib with checked arithmetic |
-| 6 | Ledger | +13 | Mapping support (`Address -> Uint256`) |
-| 7 | SimpleToken | 0 | Combined patterns: owned + ledger + supply |
-
-Core: 58 → 72 → 82 lines (phase 1), then 82 → ~234 lines (phase 2 with verification + EVM context).
+| 1 | SimpleStorage | Bootstrap | `ContractState`, storage ops, `require` |
+| 2 | Counter | Reuse | Read-modify-write pattern |
+| 3 | Owned | Extend | Address storage, access control |
+| 4 | OwnedCounter | Compose | Pattern composition |
+| 5 | SafeCounter | Extend | Math stdlib with checked arithmetic |
+| 6 | Ledger | Extend | Mapping support (`Address -> Uint256`) |
+| 7 | SimpleToken | Compose | Combined patterns: owned + ledger + supply |
 
 ## Design Decisions
 
@@ -119,19 +117,19 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 
 **Result**: All 7 contracts compile automatically. Zero manual IR. Generated code is more optimized than manual translations.
 
-**Implementation** (as of 2026-02-12):
-- `Compiler/ContractSpec.lean` (413 lines) — DSL + automatic IR compiler
+**Implementation** (as of 2026-02-13):
+- `Compiler/ContractSpec.lean` — DSL + automatic IR compiler
   - Type-safe expression language (literals, storage, mappings, arithmetic, comparisons)
   - Statement DSL (setStorage, setMapping, require, return)
   - Automatic storage slot inference from field order
   - Constructor parameter handling (bytecode argument loading)
-- `Compiler/Specs.lean` (386 lines) — All 7 contract specifications
-- `Compiler/Selector.lean` (43 lines) — Function selector computation (Solidity keccak256)
-- `Compiler/Main.lean` (4 lines) — New compilation entry point
+- `Compiler/Specs.lean` — All 7 contract specifications
+- `Compiler/Selector.lean` — Function selector computation (Solidity keccak256)
+- `Compiler/Main.lean` — New compilation entry point
 
 **Before**:
 ```lean
-// Manual IR for each contract (40-60 lines each)
+// Manual IR for each contract (long, repetitive)
 private def ownedContract : IRContract :=
   let deployBody := [
     stmtLet "argsOffset" (call "sub" [call "codesize" [], lit 32]),
@@ -144,7 +142,7 @@ private def ownedContract : IRContract :=
 
 **After**:
 ```lean
-// Declarative spec (20-30 lines per contract)
+// Declarative spec (compact, declarative)
 def ownedSpec : ContractSpec := {
   name := "Owned"
   fields := [{ name := "owner", ty := FieldType.address }]
@@ -157,9 +155,9 @@ def ownedSpec : ContractSpec := {
 ```
 
 **Metrics**:
-- Manual IR eliminated: 266 lines → 0 (-100%)
-- Time to add contract: ~30 min → ~5 min (-83%)
-- Test results: Foundry tests pass (264/264 as of 2026-02-12), 252/252 Lean proofs verify
+- Manual IR eliminated in favor of generated IR from the spec
+- Time to add contract dropped significantly in practice
+- Test results: Foundry tests pass (264/264 as of 2026-02-13), Lean proofs verify (252/252 as of 2026-02-13)
 - Code quality: More concise, optimized (expression inlining)
 
 **Features Achieved**:
@@ -173,7 +171,7 @@ def ownedSpec : ContractSpec := {
 ```bash
 lake build dumbcontracts-compiler    # Build compiler
 lake exe dumbcontracts-compiler      # Generate all contracts
-forge test  # 264/264 tests pass (as of 2026-02-12)
+forge test  # 264/264 tests pass (as of 2026-02-13)
 ```
 
 ### Differential Testing (Completed 2026-02-10)
@@ -184,15 +182,15 @@ forge test  # 264/264 tests pass (as of 2026-02-12)
 
 **Result**: 100 random transactions pass for SimpleStorage contract. Zero mismatches detected. Ready to scale to all contracts.
 
-**Implementation** (1,396 lines, as of 2026-02-12):
-- `Compiler/Interpreter.lean` (757 lines) — EDSL interpreter for differential testing
+**Implementation** (as of 2026-02-13):
+- `Compiler/Interpreter.lean` — EDSL interpreter for differential testing
   - Executes EDSL contracts on abstract state
   - Returns JSON results for comparison with EVM
   - Supports SimpleStorage and Counter (extensible to all contracts)
-- `Compiler/RandomGen.lean` (232 lines) — Random transaction generator
+- `Compiler/RandomGen.lean` — Random transaction generator
   - Generates random addresses, values, and function calls
   - Contract-specific transaction generation (store/retrieve for SimpleStorage)
-- `test/DifferentialSimpleStorage.t.sol` (407 lines) — Foundry test harness
+- `test/DifferentialSimpleStorage.t.sol` — Foundry test harness
   - Executes transactions on compiled EVM bytecode
   - Calls EDSL interpreter via `vm.ffi`
   - Compares: success/revert, return values, storage changes
@@ -207,7 +205,7 @@ forge test  # 264/264 tests pass (as of 2026-02-12)
 **Test Results**:
 - 100/100 random transactions pass (SimpleStorage)
 - Zero mismatches detected
-- All Foundry tests passing (264/264 as of 2026-02-12)
+- All Foundry tests passing (264/264 as of 2026-02-13)
 - CI: All checks passing
 
 **Usage**:
