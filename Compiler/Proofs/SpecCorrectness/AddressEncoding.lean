@@ -16,22 +16,6 @@ open Compiler.Hex
 open DumbContracts
 open DumbContracts.Core.Uint256 (modulus)
 
-/-- Ethereum addresses are 160-bit values, so addressToNat is always less than 2^256. -/
-theorem addressToNat_lt_modulus (addr : Address) :
-    addressToNat addr < DumbContracts.Core.Uint256.modulus := by
-  unfold addressToNat
-  split
-  · have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by
-      decide
-    rename_i n _
-    have h_mod : n % 2^160 < 2^160 := by
-      exact Nat.mod_lt _ (by decide : 2^160 > 0)
-    exact Nat.lt_trans h_mod h_160_lt_mod
-  · rename_i _
-    have h_mod : stringToNat addr % 2^160 < 2^160 := Nat.mod_lt _ (by decide : 2^160 > 0)
-    have h_160_lt_mod : (2^160 : Nat) < DumbContracts.Core.Uint256.modulus := by decide
-    exact Nat.lt_trans h_mod h_160_lt_mod
-
 /-- addressToNat is always below the 160-bit address modulus. -/
 theorem addressToNat_lt_addressModulus (addr : Address) :
     addressToNat addr < addressModulus := by
@@ -41,11 +25,6 @@ theorem addressToNat_lt_addressModulus (addr : Address) :
     exact Nat.mod_lt _ (by decide : 2^160 > 0)
   · rename_i _
     exact Nat.mod_lt _ (by decide : 2^160 > 0)
-
-/-- addressToNat mod 2^256 is identity. -/
-theorem addressToNat_mod_eq (addr : Address) :
-    addressToNat addr % DumbContracts.Core.Uint256.modulus = addressToNat addr := by
-  exact Nat.mod_eq_of_lt (addressToNat_lt_modulus addr)
 
 /-- addressToNat mod 2^160 is identity. -/
 theorem addressToNat_mod_address (addr : Address) :

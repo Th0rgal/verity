@@ -55,4 +55,49 @@ def constructor : Contract Unit := do
 def getThreshold : Contract Uint256 := do
   getStorage threshold
 
+/-!
+  Minimal EDSL skeletons for core Safe base entrypoints.
+
+  These intentionally avoid full Safe semantics (modules, linked-list owners,
+  signature checks, and gas refunding). They provide a compilable surface for
+  the next proof iterations while keeping the ABI-level structure visible.
+-/
+
+/-- Placeholder setup: initializes ownerCount and threshold from inputs. -/
+def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
+    (data : Bytes) (fallbackHandler : Address) (paymentToken : Address)
+    (payment : Uint256) (paymentReceiver : Address) : Contract Unit := do
+  let _ := to
+  let _ := data
+  let _ := fallbackHandler
+  let _ := paymentToken
+  let _ := payment
+  let _ := paymentReceiver
+  let ownersLen : Uint256 := DumbContracts.Core.Uint256.ofNat ownersList.length
+  require ((0 : Uint256) < ownersLen) "owners list empty"
+  require ((0 : Uint256) < thresholdValue) "threshold zero"
+  require (thresholdValue ≤ ownersLen) "threshold too high"
+  -- TODO: initialize owners mapping, modules, fallback handler, and guard.
+  -- TODO: handle setup call with `to` and `data`, and payment/refund logic.
+  setStorage ownerCount ownersLen
+  setStorage threshold thresholdValue
+  pure ()
+
+/-- Placeholder execTransaction: returns `true` without side effects. -/
+def execTransaction (to : Address) (value : Uint256) (data : Bytes) (operation : Uint256)
+    (safeTxGas : Uint256) (baseGas : Uint256) (gasPrice : Uint256)
+    (gasToken : Address) (refundReceiver : Address) (signatures : Bytes) : Contract Bool := do
+  let _ := to
+  let _ := value
+  let _ := data
+  let _ := operation
+  let _ := safeTxGas
+  let _ := baseGas
+  let _ := gasPrice
+  let _ := gasToken
+  let _ := refundReceiver
+  let _ := signatures
+  -- TODO: compute tx hash, check signatures, execute call, and pay refunds.
+  pure true
+
 end DumbContracts.Examples.SafeMultisigBase

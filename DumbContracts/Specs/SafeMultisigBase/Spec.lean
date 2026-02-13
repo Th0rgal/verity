@@ -114,4 +114,27 @@ def constructor_spec (s s' : ContractState) : Prop :=
 def getThreshold_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage threshold.slot
 
+/-- Placeholder setup spec: updates ownerCount and threshold, leaves other state unchanged. -/
+def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
+    (s s' : ContractState) : Prop :=
+  let ownersLen : Uint256 := DumbContracts.Core.Uint256.ofNat ownersList.length
+  (0 : Uint256) < ownersLen ∧
+  (0 : Uint256) < thresholdValue ∧
+  thresholdValue ≤ ownersLen ∧
+  s'.storage ownerCount.slot = ownersLen ∧
+  s'.storage threshold.slot = thresholdValue ∧
+  (∀ slot : Nat, slot ≠ ownerCount.slot ∧ slot ≠ threshold.slot →
+    s'.storage slot = s.storage slot) ∧
+  s'.storageAddr = s.storageAddr ∧
+  s'.storageMap = s.storageMap ∧
+  s'.sender = s.sender ∧
+  s'.thisAddress = s.thisAddress ∧
+  s'.msgValue = s.msgValue ∧
+  s'.blockTimestamp = s.blockTimestamp
+
+/-- Placeholder execTransaction spec: returns true and preserves state. -/
+def execTransaction_spec (result : Bool) (s s' : ContractState) : Prop :=
+  result = true ∧
+  s' = s
+
 end DumbContracts.Specs.SafeMultisigBase
