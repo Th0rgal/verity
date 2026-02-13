@@ -43,8 +43,8 @@ theorem add_one_preserves_order_iff_no_overflow (a : Uint256) :
 2. Overflow case: prove `(MAX + 1) mod 2^256 = 0` and `0 ≯ MAX` (contradiction)
 3. Non-overflow case: prove `a + 1 < modulus` so mod is identity, order preserved
 
-**Result**: 50-line proven lemma, zero errors
-**File**: `Compiler/Proofs/Automation.lean` (lines 312-361)
+**Result**: Proven lemma, zero errors
+**File**: `Compiler/Proofs/Automation.lean`
 
 **Key Insights**:
 - Ethereum addresses overflow as: `2^256 - 1 + 1 ≡ 0 (mod 2^256)`
@@ -70,8 +70,8 @@ theorem bind_isSuccess_left {α β} (m1 : Contract α) (m2 : α → Contract β)
 2. Success case: trivially true by simplification
 3. Revert case: bind propagates revert → contradiction
 
-**Result**: Clean 9-line proof, zero errors
-**File**: `Compiler/Proofs/Automation.lean` (lines 91-104)
+**Result**: Clean proof, zero errors
+**File**: `Compiler/Proofs/Automation.lean`
 
 **Note**: `bind_success_decompose` not needed - `bind_isSuccess_left` is sufficient for current proofs.
 
@@ -95,8 +95,8 @@ theorem require_success_implies_cond (cond : Bool) (msg : String) (state : Contr
 2. When `cond = false`: require returns revert, isSuccess = false (contradiction)
 3. When `cond = true`: trivial by reflexivity
 
-**Result**: Clean 8-line proof, zero errors
-**File**: `Compiler/Proofs/Automation.lean` (lines 167-179)
+**Result**: Clean proof, zero errors
+**File**: `Compiler/Proofs/Automation.lean`
 
 ---
 
@@ -116,8 +116,8 @@ theorem address_beq_eq_true_iff_eq (a b : Address) :
 - Address is String, leverages String's BEq instance
 - Provides bidirectional equivalence
 
-**Result**: Minimal 3-line proof, zero errors
-**File**: `Compiler/Proofs/Automation.lean` (lines 187-196)
+**Result**: Minimal proof, zero errors
+**File**: `Compiler/Proofs/Automation.lean`
 
 ---
 
