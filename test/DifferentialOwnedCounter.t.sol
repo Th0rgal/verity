@@ -104,11 +104,14 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
         string memory edslResult = _runInterpreter(functionName, sender, arg0, storageState);
 
         // 3. Parse and compare results
-        console2.log("Function:", functionName);
-        console2.log("EVM success:", evmSuccess);
-        console2.log("EVM storage[1]:", evmStorageAfter);
-        console2.log("EVM owner:", evmOwnerAfter);
-        console2.log("EDSL result:", edslResult);
+        bool verbose = _diffVerbose();
+        if (verbose) {
+            console2.log("Function:", functionName);
+            console2.log("EVM success:", evmSuccess);
+            console2.log("EVM storage[1]:", evmStorageAfter);
+            console2.log("EVM owner:", evmOwnerAfter);
+            console2.log("EDSL result:", edslResult);
+        }
 
         // Parse EDSL result
         bool edslSuccess = contains(edslResult, "\"success\":true");

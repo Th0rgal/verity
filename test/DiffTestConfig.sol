@@ -54,6 +54,10 @@ abstract contract DiffTestConfig is Test {
         }
     }
 
+    function _diffVerbose() internal view returns (bool) {
+        return vm.envOr("DIFFTEST_VERBOSE", false);
+    }
+
     function _assertRandomSuccess(bool success, uint256 iteration) internal {
         if (!success) {
             emit log_named_uint("Random test failed at", iteration);

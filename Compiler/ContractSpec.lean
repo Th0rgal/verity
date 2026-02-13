@@ -398,9 +398,30 @@ private def compileConstructor (fields : List Field) (ctor : Option ConstructorS
 --   2. selectors[i] matches the Solidity signature of spec.functions[i]
 -- WARNING: Order matters! If selector list is reordered but function list isn't,
 --          functions will be mapped to wrong selectors with no runtime error.
+private def firstDuplicateSelector (selectors : List Nat) : Option Nat :=
+  let rec go (seen : List Nat) : List Nat → Option Nat
+    | [] => none
+    | sel :: rest =>
+      if seen.contains sel then
+        some sel
+      else
+        go (sel :: seen) rest
+  go [] selectors
+
+private def selectorNames (spec : ContractSpec) (selectors : List Nat) (sel : Nat) : List String :=
+  (spec.functions.zip selectors).foldl (fun acc (fn, s) =>
+    if s == sel then acc ++ [fn.name] else acc
+  ) []
+
 def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContract := do
   if spec.functions.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {spec.functions.length} functions"
+  match firstDuplicateSelector selectors with
+  | some dup =>
+      let names := selectorNames spec selectors dup
+      let nameStr := if names.isEmpty then "<unknown>" else String.intercalate ", " names
+      throw s!"Selector collision in {spec.name}: {dup} assigned to {nameStr}"
+  | none => pure ()
   let functions ← (spec.functions.zip selectors).mapM fun (fnSpec, sel) =>
     compileFunctionSpec spec.fields sel fnSpec
   return {
