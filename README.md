@@ -146,7 +146,7 @@ python3 scripts/check_property_manifest_sync.py
 python3 scripts/check_property_coverage.py
 
 # Property tests are discovered via comment tags like:
-# "Property 12: theorem_name", "Property 12b: theorem_name", or "Property: theorem_name" (optional suffixes/notes allowed).
+# "Property 12: theorem_name" or "Property: theorem_name" (optional trailing notes in parentheses are allowed).
 
 # Optional: scan docs for hidden Unicode control characters
 python3 scripts/check_unicode_controls.py docs-site/content

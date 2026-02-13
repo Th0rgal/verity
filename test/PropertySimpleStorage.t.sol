@@ -100,6 +100,10 @@ contract PropertySimpleStorageTest is YulTestBase {
 
     /**
      * Property 4-7: Context preservation
+     * Property: setStorage_preserves_sender
+     * Property: setStorage_preserves_address
+     * Property: setStorage_preserves_addr_storage
+     * Property: setStorage_preserves_map_storage
      * Theorem: store() preserves contract context (sender, address, etc.)
      * Note: In Solidity tests, we verify state isolation instead
      */
@@ -123,6 +127,8 @@ contract PropertySimpleStorageTest is YulTestBase {
 
     /**
      * Property 8-9: Specification adherence
+     * Property: store_meets_spec
+     * Property: retrieve_meets_spec
      * Theorem: store() and retrieve() meet their formal specifications
      */
     function testProperty_Store_MeetsSpec(uint256 value) public {
@@ -175,6 +181,8 @@ contract PropertySimpleStorageTest is YulTestBase {
 
     /**
      * Property 11 & 13: store_retrieve_roundtrip
+     * Property: store_retrieve_correct
+     * Property: store_retrieve_roundtrip_holds
      * Theorem: store(v) followed by retrieve() returns v
      * This is the fundamental correctness property
      */
@@ -248,6 +256,10 @@ contract PropertySimpleStorageTest is YulTestBase {
 
     /**
      * Property 15-17: Preservation properties
+     * Property: store_preserves_addr_storage
+     * Property: store_preserves_map_storage
+     * Property: store_preserves_context
+     * Property: store_preserves_wellformedness
      * Theorem: store() preserves various aspects of state
      */
     function testProperty_Store_PreservesState(uint256 value1, uint256 value2) public {
@@ -268,6 +280,8 @@ contract PropertySimpleStorageTest is YulTestBase {
 
     /**
      * Property 18-19: Retrieve preservation
+     * Property: retrieve_preserves_context
+     * Property: retrieve_preserves_wellformedness
      * Theorem: retrieve() preserves context and well-formedness
      */
     function testProperty_Retrieve_PreservesWellFormedness() public {

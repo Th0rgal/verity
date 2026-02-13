@@ -105,22 +105,6 @@
     "increment_preserves_storage_isolated",
     "increment_preserves_wellformedness"
   ],
-  "SimpleStorage": [
-    "retrieve_meets_spec",
-    "retrieve_preserves_context",
-    "retrieve_preserves_wellformedness",
-    "setStorage_preserves_addr_storage",
-    "setStorage_preserves_address",
-    "setStorage_preserves_map_storage",
-    "setStorage_preserves_sender",
-    "store_meets_spec",
-    "store_preserves_addr_storage",
-    "store_preserves_context",
-    "store_preserves_map_storage",
-    "store_preserves_wellformedness",
-    "store_retrieve_correct",
-    "store_retrieve_roundtrip_holds"
-  ],
   "SimpleToken": [
     "balanceOf_meets_spec",
     "balanceOf_preserves_wellformedness",
