@@ -69,64 +69,18 @@ private axiom addressToNat_injective :
     addressToNat addr % addressModulus = addressToNat addr := by
   exact Nat.mod_eq_of_lt (addressToNat_lt_modulus addr)
 
--- Local variable lookups in the spec interpreter.
-@[simp] theorem lookup_senderBal (recipientBal senderBal : Nat) :
-    (List.lookup "senderBal" [("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 = senderBal := by
-  simp [List.lookup, List.lookup_cons]
-
-@[simp] theorem lookup_recipientBal (recipientBal senderBal : Nat) :
-    (List.lookup "recipientBal" [("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 = recipientBal := by
-  simp [List.lookup, List.lookup_cons]
-
 @[simp] theorem lookup_recipientBal_supply (supply recipientBal : Nat) :
     (List.lookup "recipientBal" [("supply", supply), ("recipientBal", recipientBal)]).getD 0 = recipientBal := by
   simp [List.lookup, List.lookup_cons]
 
 -- Mapping lookups for two-address lists.
-@[simp] theorem lookup_addr_first (k1 k2 v1 v2 : Nat) :
-    (List.lookup k1 [(k1, v1), (k2, v2)]).getD 0 = v1 := by
-  simp [List.lookup, List.lookup_cons]
-
-@[simp] theorem lookup_addr_second (k1 k2 v1 v2 : Nat) (h : k1 ≠ k2) :
-    (List.lookup k2 [(k1, v1), (k2, v2)]).getD 0 = v2 := by
-  cases h_eq : (k2 == k1) with
-  | false =>
-      -- k2 == k1 is false: lookup returns the second entry.
-      simp [List.lookup, h_eq]
-  | true =>
-      -- k2 == k1 is true: contradicts h.
-      have : k2 = k1 := by
-        exact (beq_iff_eq).1 h_eq
-      exact (False.elim (h this.symm))
+-- (lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second) are provided by Automation.
 
 @[simp] theorem lookup_total_supply_slot (ownerVal supplyVal : Nat) :
     (List.lookup 2 [(0, ownerVal), (2, supplyVal)]).getD 0 = supplyVal := by
   simp
 
--- Helper: EVM add (Uint256) matches modular Nat addition.
-private theorem uint256_add_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
-    (DumbContracts.EVM.Uint256.add a (DumbContracts.Core.Uint256.ofNat amount)).val =
-      (a.val + amount) % DumbContracts.Core.Uint256.modulus := by
-  cases a with
-  | mk aval hlt =>
-      let m := DumbContracts.Core.Uint256.modulus
-      have h1 :
-          (DumbContracts.EVM.Uint256.add (DumbContracts.Core.Uint256.mk aval hlt)
-                (DumbContracts.Core.Uint256.ofNat amount)).val =
-            (aval + amount % m) % m := by
-        simp [DumbContracts.EVM.Uint256.add, DumbContracts.Core.Uint256.add,
-          DumbContracts.Core.Uint256.val_ofNat, -DumbContracts.Core.Uint256.ofNat_add]
-      calc
-        (DumbContracts.EVM.Uint256.add (DumbContracts.Core.Uint256.mk aval hlt)
-              (DumbContracts.Core.Uint256.ofNat amount)).val
-            = (aval + amount % m) % m := h1
-        _ = (aval + amount) % m := by
-            calc
-              (aval + amount % m) % m
-                  = ((aval % m) + (amount % m)) % m := by
-                      simp [Nat.mod_eq_of_lt hlt]
-              _ = (aval + amount) % m := by
-                      exact (Nat.add_mod _ _ _).symm
+-- (uint256_add_val) is provided by Automation.
 
 -- Helper: EVM sub (Uint256) matches Nat subtraction when no underflow.
 private theorem uint256_sub_val_of_le (a : DumbContracts.Core.Uint256) (amount : Nat)

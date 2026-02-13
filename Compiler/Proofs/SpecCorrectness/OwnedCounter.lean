@@ -67,29 +67,7 @@ private axiom addressToNat_injective :
   simp [List.lookup, List.lookup_cons]
 
 -- Helper: EVM add (Uint256) matches modular Nat addition.
-theorem uint256_add_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
-    (DumbContracts.EVM.Uint256.add a (DumbContracts.Core.Uint256.ofNat amount)).val =
-      (a.val + amount) % DumbContracts.Core.Uint256.modulus := by
-  cases a with
-  | mk aval hlt =>
-      let m := DumbContracts.Core.Uint256.modulus
-      have h1 :
-          (DumbContracts.EVM.Uint256.add (DumbContracts.Core.Uint256.mk aval hlt)
-                (DumbContracts.Core.Uint256.ofNat amount)).val =
-            (aval + amount % m) % m := by
-        simp [DumbContracts.EVM.Uint256.add, DumbContracts.Core.Uint256.add,
-          DumbContracts.Core.Uint256.val_ofNat, -DumbContracts.Core.Uint256.ofNat_add]
-      calc
-        (DumbContracts.EVM.Uint256.add (DumbContracts.Core.Uint256.mk aval hlt)
-              (DumbContracts.Core.Uint256.ofNat amount)).val
-            = (aval + amount % m) % m := h1
-        _ = (aval + amount) % m := by
-            calc
-              (aval + amount % m) % m
-                  = ((aval % m) + (amount % m)) % m := by
-                      simp [Nat.mod_eq_of_lt hlt]
-              _ = (aval + amount) % m := by
-                      exact (Nat.add_mod _ _ _).symm
+-- (uint256_add_val) is provided by Automation.
 
 -- Helper: EVM sub (Uint256) matches the EDSL modular subtraction formula.
 theorem uint256_sub_val (a : DumbContracts.Core.Uint256) (amount : Nat) :

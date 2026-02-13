@@ -12,6 +12,7 @@
 
 import DumbContracts.Core
 import DumbContracts.Stdlib.Math
+import DumbContracts.EVM.Uint256
 import Compiler.Proofs.SpecInterpreter
 
 namespace Compiler.Proofs.Automation
@@ -142,6 +143,36 @@ theorem getMapping_runValue (slot : StorageSlot (Address → Uint256)) (key : Ad
   simp [getMapping, Contract.runValue]
 
 /-!
+## List Lookup Lemmas
+-/
+
+-- Local variable lookups in the spec interpreter.
+@[simp] theorem lookup_senderBal (recipientBal senderBal : Nat) :
+    (List.lookup "senderBal" [("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
+      senderBal := by
+  simp [List.lookup, List.lookup_cons]
+
+@[simp] theorem lookup_recipientBal (recipientBal senderBal : Nat) :
+    (List.lookup "recipientBal" [("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
+      recipientBal := by
+  simp [List.lookup, List.lookup_cons]
+
+-- Mapping lookups for two-address lists.
+@[simp] theorem lookup_addr_first (k1 k2 v1 v2 : Nat) :
+    (List.lookup k1 [(k1, v1), (k2, v2)]).getD 0 = v1 := by
+  simp [List.lookup, List.lookup_cons]
+
+@[simp] theorem lookup_addr_second (k1 k2 v1 v2 : Nat) (h : k1 ≠ k2) :
+    (List.lookup k2 [(k1, v1), (k2, v2)]).getD 0 = v2 := by
+  cases h_eq : (k2 == k1) with
+  | false =>
+      simp [List.lookup, h_eq]
+  | true =>
+      have : k2 = k1 := by
+        exact (beq_iff_eq).1 h_eq
+      exact (False.elim (h this.symm))
+
+/-!
 ## msgSender Lemmas
 -/
 
@@ -204,6 +235,35 @@ theorem address_beq_eq_true_iff_eq (a b : Address) :
 These lemmas about SpecStorage operations are currently placeholders.
 They require more sophisticated reasoning about List operations.
 -/
+
+/-!
+## Uint256 Arithmetic Lemmas
+-/
+
+-- Helper: EVM add (Uint256) matches modular Nat addition.
+theorem uint256_add_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
+    (DumbContracts.EVM.Uint256.add a (DumbContracts.Core.Uint256.ofNat amount)).val =
+      (a.val + amount) % DumbContracts.Core.Uint256.modulus := by
+  cases a with
+  | mk aval hlt =>
+      let m := DumbContracts.Core.Uint256.modulus
+      have h1 :
+          (DumbContracts.EVM.Uint256.add (DumbContracts.Core.Uint256.mk aval hlt)
+                (DumbContracts.Core.Uint256.ofNat amount)).val =
+            (aval + amount % m) % m := by
+        simp [DumbContracts.EVM.Uint256.add, DumbContracts.Core.Uint256.add,
+          DumbContracts.Core.Uint256.val_ofNat, -DumbContracts.Core.Uint256.ofNat_add]
+      calc
+        (DumbContracts.EVM.Uint256.add (DumbContracts.Core.Uint256.mk aval hlt)
+              (DumbContracts.Core.Uint256.ofNat amount)).val
+            = (aval + amount % m) % m := h1
+        _ = (aval + amount) % m := by
+            calc
+              (aval + amount % m) % m
+                  = ((aval % m) + (amount % m)) % m := by
+                      simp [Nat.mod_eq_of_lt hlt]
+              _ = (aval + amount) % m := by
+                      exact (Nat.add_mod _ _ _).symm
 
 -- getSlot from setSlot (same slot)
 theorem SpecStorage_getSlot_setSlot_same (storage : SpecStorage) (slot : Nat) (value : Nat) :
