@@ -10,8 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "test" / "property_manifest.json"
 TEST_DIR = ROOT / "test"
 
-PROPERTY_WITH_NUM_RE = re.compile(r"Property\s+\d+\s*:\s*([A-Za-z0-9_']+)\s*$")
-PROPERTY_SIMPLE_RE = re.compile(r"Property\s*:\s*([A-Za-z0-9_']+)\s*$")
+PROPERTY_WITH_NUM_RE = re.compile(
+    r"Property\s+\d+[A-Za-z]*\s*:\s*([A-Za-z0-9_']+)(?:\s*\(.*\))?\s*$"
+)
+PROPERTY_SIMPLE_RE = re.compile(
+    r"Property\s*:\s*([A-Za-z0-9_']+)(?:\s*\(.*\))?\s*$"
+)
 FILE_RE = re.compile(r"^Property(.+)\.t\.sol$")
 
 

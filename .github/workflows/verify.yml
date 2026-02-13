@@ -53,29 +53,6 @@ jobs:
           fi
           echo "No sorry found — all proofs are complete"
 
-  foundry:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install elan
-        run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> $GITHUB_PATH
-
-      - name: Cache Lake packages
-        uses: actions/cache@v4
-        with:
-          path: .lake
-          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}
-          restore-keys: lake-${{ hashFiles('lean-toolchain') }}-
-
       - name: Build compiler
         run: lake build dumbcontracts-compiler
 
@@ -96,6 +73,44 @@ jobs:
 
       - name: Check property coverage
         run: python3 scripts/check_property_coverage.py
+
+      - name: Upload generated Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul
+          path: |
+            compiler/yul
+            compiler/yul-new
+
+      - name: Upload difftest interpreter
+        uses: actions/upload-artifact@v4
+        with:
+          name: difftest-interpreter
+          path: .lake/build/bin/difftest-interpreter
+
+  foundry:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download generated Yul
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-yul
+          path: .
+
+      - name: Download difftest interpreter
+        uses: actions/download-artifact@v4
+        with:
+          name: difftest-interpreter
+          path: .lake/build/bin
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1

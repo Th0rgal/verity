@@ -204,6 +204,14 @@ theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256
         simp [beq_iff_eq, h_slot]
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameContext]
 
+theorem transfer_self_preserves_balance (s : ContractState) (amount : Uint256)
+  (h_balance : s.storageMap 0 s.sender >= amount) :
+  let s' := ((transfer s.sender amount).run s).snd
+  s'.storageMap 0 s.sender = s.storageMap 0 s.sender := by
+  have h := transfer_meets_spec s s.sender amount h_balance
+  simp [transfer_spec, beq_iff_eq] at h
+  exact h.1
+
 theorem transfer_decreases_sender (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
   (h_ne : s.sender ≠ to) :

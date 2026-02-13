@@ -51,6 +51,7 @@
     "transfer_preserves_non_mapping",
     "transfer_preserves_wellformedness",
     "transfer_reverts_insufficient",
+    "transfer_self_preserves_balance",
     "transfer_sum_equation",
     "transfer_sum_preserved_unique",
     "withdraw_decreases_balance",

@@ -130,6 +130,7 @@ forge test
 # DIFFTEST_RANDOM_COUNT overrides both small/large when set
 # Large counts can be expensive; tune these for local runs vs CI.
 # CI runs with DIFFTEST_RANDOM_LARGE=10000 across all differential harnesses.
+# CI builds the compiler + difftest interpreter once and shares generated Yul across test shards.
 DIFFTEST_RANDOM_SMALL=200 DIFFTEST_RANDOM_LARGE=20000 DIFFTEST_RANDOM_SEED=42 forge test
 
 # Optional: extract proof theorem names into a test manifest
