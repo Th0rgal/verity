@@ -254,8 +254,12 @@ forge test --match-contract Differential  # Run 100 random tests
 
 **E. Address Known Limitations (Core Modeling)**:
 - Self-transfer semantics: add a precise rule or identity behavior in token/ledger specs.
+  - Decide if `transfer(a, a, x)` is a no-op or a guarded subtraction+addition, and state it explicitly.
 - Full supply = sum of balances in a finite address model.
+  - Introduce a finite address set parameter so proofs can quantify over balances.
 - Nested mappings (needed for allowances / ERC20 approve).
+  - Extend the storage model to support `Address -> Address -> Uint256` with clean read/write lemmas.
+- **Done when**: an ERC‑20-style spec can express `approve`/`transferFrom`, self-transfer is defined, and a supply‑equals‑sum proof composes over the finite address set.
 
 **F. Reduce Remaining Trust Assumptions**:
 - Add a keccak256 verification step so selectors don’t stay “trusted”.
