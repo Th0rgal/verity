@@ -35,24 +35,7 @@ open DumbContracts.Examples.Ledger
 
 -- Address encoding lemmas are provided by Automation.
 
--- Local variable lookups in the spec interpreter (self-transfer case).
-@[simp] theorem lookup_senderBal_same (v : Nat) :
-    (List.lookup "senderBal" [("recipientBal", v), ("senderBal", v)]).getD 0 = v := by
-  simp [List.lookup, List.lookup_cons]
-
-@[simp] theorem lookup_recipientBal_same (v : Nat) :
-    (List.lookup "recipientBal" [("recipientBal", v), ("senderBal", v)]).getD 0 = v := by
-  simp [List.lookup, List.lookup_cons]
-
--- (lookup_senderBal, lookup_recipientBal) are provided by Automation.
-
--- Mapping lookup when both entries use the same key.
-@[simp] theorem lookup_same_key (k v1 v2 : Nat) :
-    (List.lookup k [(k, v1), (k, v2)]).getD 0 = v1 := by
-  simp [List.lookup, List.lookup_cons]
-
--- Mapping lookups for two-address lists.
--- (lookup_addr_first, lookup_addr_second) are provided by Automation.
+-- Local variable and mapping lookup lemmas are provided by Automation.
 
 -- Helper: EVM add (Uint256) matches modular Nat addition.
 -- (uint256_add_val) is provided by Automation.
@@ -365,7 +348,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
-        lookup_senderBal_same, lookup_recipientBal_same, lookup_same_key]
+        lookup_senderBal, lookup_recipientBal, lookup_addr_first]
     constructor
     · -- Spec sender mapping equals EDSL sender mapping (self-transfer case)
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
@@ -383,8 +366,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
           ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
-          Nat.mod_eq_of_lt h_amount_lt, lookup_senderBal_same, lookup_recipientBal_same,
-          lookup_same_key]
+          Nat.mod_eq_of_lt h_amount_lt, lookup_senderBal, lookup_recipientBal, lookup_addr_first]
       have h_edsl_val :
           ((ContractResult.getState
               ((transfer sender (DumbContracts.Core.Uint256.ofNat amount)).run
