@@ -308,7 +308,7 @@ contract PropertyLedgerTest is YulTestBase {
     }
 
     /**
-     * Property 12: transfer_increases_recipient (fuzz test)
+     * Property 12a: transfer_increases_recipient (fuzz test)
      * Theorem: Transfer increases recipient's balance
      */
     function testProperty_Transfer_IncreasesRecipient(address sender, address recipient, uint256 senderBalance, uint256 amount) public {
@@ -328,7 +328,7 @@ contract PropertyLedgerTest is YulTestBase {
     }
 
     /**
-     * Property 12: transfer_self_preserves_balance (fuzz test)
+     * Property 12b: transfer_self_preserves_balance (fuzz test)
      * Theorem: Transfer to self preserves sender balance
      */
     function testProperty_Transfer_SelfPreservesBalance(address sender, uint256 senderBalance, uint256 amount) public {
