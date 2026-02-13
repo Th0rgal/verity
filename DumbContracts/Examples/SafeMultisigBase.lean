@@ -68,9 +68,9 @@ def modulesSentinel : Address := ownersSentinel
 -- Placeholder encoding for storing addresses in Uint256 mapping values.
 opaque encodeAddress : Address → Uint256
 
-/-- Placeholder constructor: Safe singleton initializes threshold = 1. -/
+/-- Placeholder constructor: no-op (Safe proxies perform initialization via `setup`). -/
 def constructor : Contract Unit := do
-  setStorage threshold 1
+  pure ()
 
 /-- Placeholder getter: returns threshold. -/
 def getThreshold : Contract Uint256 := do
@@ -129,6 +129,7 @@ def setup (ownersList : List Address) (thresholdValue : Uint256) (to : Address)
 
   setMapping modules modulesSentinel (encodeAddress modulesSentinel)
   if decide (fallbackHandler ≠ zeroAddress) then
+    require (decide (fallbackHandler ≠ thisAddr)) "handler is Safe"
     setStorage fallbackHandlerStorage (encodeAddress fallbackHandler)
   else
     pure ()

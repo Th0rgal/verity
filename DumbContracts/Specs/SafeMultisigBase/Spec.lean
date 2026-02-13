@@ -100,10 +100,9 @@ def abiEventSignatures : List String :=
   , "SafeReceived(address,uint256)"
   ]
 
-/-- Constructor spec: Safe singleton initializes threshold = 1 and preserves all other state. -/
+/-- Constructor spec: no-op (Safe proxies perform initialization via `setup`). -/
 def constructor_spec (s s' : ContractState) : Prop :=
-  s'.storage threshold.slot = 1 ∧
-  (∀ slot : Nat, slot ≠ threshold.slot → s'.storage slot = s.storage slot) ∧
+  s'.storage = s.storage ∧
   s'.storageAddr = s.storageAddr ∧
   s'.storageMap = s.storageMap ∧
   s'.sender = s.sender ∧
@@ -147,6 +146,7 @@ def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
   (if fallbackHandler = zeroAddress then
     s'.storage fallbackHandlerStorage.slot = s.storage fallbackHandlerStorage.slot
   else
+    fallbackHandler ≠ s.thisAddress ∧
     s'.storage fallbackHandlerStorage.slot = encodeAddress fallbackHandler) ∧
   s'.storage guardStorage.slot = 0 ∧
   s'.storage moduleGuardStorage.slot = 0 ∧
