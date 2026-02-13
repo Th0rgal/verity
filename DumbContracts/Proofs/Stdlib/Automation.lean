@@ -289,6 +289,34 @@ theorem uint256_add_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
               _ = (aval + amount) % m := by
                       exact (Nat.add_mod _ _ _).symm
 
+-- Helper: EVM sub (Uint256) matches the EDSL modular subtraction formula.
+theorem uint256_sub_val (a : DumbContracts.Core.Uint256) (amount : Nat) :
+    (DumbContracts.EVM.Uint256.sub a (DumbContracts.Core.Uint256.ofNat amount)).val =
+      (if amount % DumbContracts.Core.Uint256.modulus ≤ a.val then
+        a.val - amount % DumbContracts.Core.Uint256.modulus
+      else
+        DumbContracts.Core.Uint256.modulus -
+          (amount % DumbContracts.Core.Uint256.modulus - a.val)) := by
+  let m := DumbContracts.Core.Uint256.modulus
+  have h_amount_lt : amount % m < m := by
+    exact Nat.mod_lt _ DumbContracts.Core.Uint256.modulus_pos
+  by_cases h_le : amount % m ≤ a.val
+  · have h_lt : a.val - amount % m < m := by
+      exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt
+    simp [DumbContracts.EVM.Uint256.sub, DumbContracts.Core.Uint256.sub, h_le,
+      DumbContracts.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
+  · have h_not_le : ¬ amount % m ≤ a.val := h_le
+    have h_pos : 0 < amount % m - a.val := by
+      exact Nat.sub_pos_of_lt (Nat.lt_of_not_ge h_not_le)
+    have h_le_x : amount % m - a.val ≤ m := by
+      exact Nat.le_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) h_amount_lt)
+    have h_lt_add : m < (amount % m - a.val) + m := by
+      exact Nat.lt_add_of_pos_left h_pos
+    have h_lt : m - (amount % m - a.val) < m := by
+      exact Nat.sub_lt_left_of_lt_add h_le_x h_lt_add
+    simp [DumbContracts.EVM.Uint256.sub, DumbContracts.Core.Uint256.sub, h_not_le,
+      DumbContracts.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
+
 -- getSlot from setSlot (same slot)
 theorem SpecStorage_getSlot_setSlot_same (storage : SpecStorage) (slot : Nat) (value : Nat) :
     (storage.setSlot slot value).getSlot slot = value := by
