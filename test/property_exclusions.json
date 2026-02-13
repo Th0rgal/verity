@@ -20,27 +20,11 @@
     "setStorage_updates_count"
   ],
   "Ledger": [
-    "deposit_getBalance_correct",
-    "deposit_increases_balance",
-    "deposit_meets_spec",
-    "deposit_preserves_other_balances",
     "deposit_sum_equation",
     "deposit_sum_singleton_sender",
-    "deposit_withdraw_cancel",
     "deposit_withdraw_sum_cancel",
-    "getBalance_preserves_state",
-    "getBalance_returns_balance",
-    "transfer_decreases_sender",
-    "transfer_getBalance_recipient_correct",
-    "transfer_getBalance_sender_correct",
-    "transfer_increases_recipient",
-    "transfer_meets_spec",
-    "transfer_preserves_wellformedness",
     "transfer_sum_equation",
     "transfer_sum_preserved_unique",
-    "withdraw_decreases_balance",
-    "withdraw_getBalance_correct",
-    "withdraw_meets_spec",
     "withdraw_sum_equation",
     "withdraw_sum_singleton_sender"
   ],
@@ -86,24 +70,7 @@
     "transfer_then_transfer_reverts"
   ],
   "SafeCounter": [
-    "decrement_getCount_correct",
-    "decrement_meets_spec",
-    "decrement_preserves_bounds",
-    "decrement_preserves_context",
-    "decrement_preserves_other_slots",
-    "decrement_preserves_storage_isolated",
-    "decrement_preserves_wellformedness",
-    "decrement_subtracts_one",
-    "evm_add_eq_of_no_overflow",
-    "increment_adds_one",
-    "increment_decrement_cancel",
-    "increment_getCount_correct",
-    "increment_meets_spec",
-    "increment_preserves_bounds",
-    "increment_preserves_context",
-    "increment_preserves_other_slots",
-    "increment_preserves_storage_isolated",
-    "increment_preserves_wellformedness"
+    "evm_add_eq_of_no_overflow"
   ],
   "SimpleStorage": [
     "retrieve_meets_spec",

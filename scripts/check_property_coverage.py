@@ -86,6 +86,11 @@ def main() -> None:
     for contract, names in manifest.items():
         covered_names = covered.get(contract, set())
         excluded_names = exclusions.get(contract, set())
+        stale = covered_names & excluded_names
+        if stale:
+            errors.append(
+                f"{contract}: exclusions list covered theorem(s): {', '.join(sorted(stale))}"
+            )
         missing = names - covered_names - excluded_names
         if missing:
             errors.append(
