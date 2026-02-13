@@ -14,13 +14,6 @@ We prove that Yul code generation preserves IR semantics, assuming that
 executing an IR function body matches executing the same Yul statements.
 -/
 
-/-- Results match when success, return value, and storage/mapping functions agree. -/
-def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
-  ir.success = yul.success ∧
-  ir.returnValue = yul.returnValue ∧
-  (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
-  (∀ base key, ir.finalMappings base key = yul.finalMappings base key)
-
 @[simp] theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body

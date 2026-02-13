@@ -46,6 +46,9 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
   }
   interpretYulRuntime fn.body yulTx state.storage state.mappings
 
+set_option allowUnsafeReducibility true in
+attribute [reducible] execIRStmts
+
 def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
     (ir : IRResult) (yul : YulResult) : Bool :=
   ir.success == yul.success &&
@@ -67,7 +70,8 @@ def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Pro
   | .revert ir, .revert yul => statesAligned selector ir yul
   | _, _ => False
 
-def resultsAligned (ir : IRResult) (yul : YulResult) : Prop :=
+/-- Results match when success, return value, and storage/mapping functions agree. -/
+def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
   ir.success = yul.success ∧
   ir.returnValue = yul.returnValue ∧
   (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
@@ -89,7 +93,7 @@ def execIRStmts_equiv_execYulStmts_goal
 def ir_yul_function_equiv_goal
     (fn : IRFunction) (tx : IRTransaction) (state : IRState) : Prop :=
     tx.functionSelector < selectorModulus →
-    resultsAligned
+    resultsMatch
       (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args })
       (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args })
 
@@ -125,11 +129,13 @@ theorem execYulStmtsFuel_cons
       | .revert s => .revert s := by
   rfl
 
+
 /-! ## Generic Sequence Equivalence (TODO)
 
 We still need a compositional lemma that lifts `stmt_equiv` to statement
 lists with fuel/length constraints. This will live here once `execIRStmts`
 can be unfolded safely in proof contexts.
 -/
+
 
 end Compiler.Proofs.YulGeneration
