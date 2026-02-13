@@ -4,6 +4,26 @@ pragma solidity ^0.8.33;
 import "forge-std/Test.sol";
 
 abstract contract DiffTestConfig is Test {
+    function _diffShardIndex() internal view returns (uint256) {
+        return vm.envOr("DIFFTEST_SHARD_INDEX", uint256(0));
+    }
+
+    function _diffShardCount() internal view returns (uint256) {
+        return vm.envOr("DIFFTEST_SHARD_COUNT", uint256(1));
+    }
+
+    function _diffShardAdjustedCount(uint256 totalCount) internal view returns (uint256) {
+        uint256 shardCount = _diffShardCount();
+        require(shardCount > 0, "DIFFTEST_SHARD_COUNT must be > 0");
+
+        uint256 perShard = totalCount / shardCount;
+        if (totalCount % shardCount != 0) {
+            perShard += 1;
+        }
+
+        return perShard;
+    }
+
     function _diffRandomOverride() internal view returns (uint256) {
         return vm.envOr("DIFFTEST_RANDOM_COUNT", uint256(0));
     }
@@ -11,21 +31,28 @@ abstract contract DiffTestConfig is Test {
     function _diffRandomSmallCount() internal view returns (uint256) {
         uint256 overrideCount = _diffRandomOverride();
         if (overrideCount != 0) {
-            return overrideCount;
+            return _diffShardAdjustedCount(overrideCount);
         }
-        return vm.envOr("DIFFTEST_RANDOM_SMALL", uint256(100));
+        return _diffShardAdjustedCount(vm.envOr("DIFFTEST_RANDOM_SMALL", uint256(100)));
     }
 
     function _diffRandomLargeCount() internal view returns (uint256) {
         uint256 overrideCount = _diffRandomOverride();
         if (overrideCount != 0) {
-            return overrideCount;
+            return _diffShardAdjustedCount(overrideCount);
         }
-        return vm.envOr("DIFFTEST_RANDOM_LARGE", uint256(10000));
+        return _diffShardAdjustedCount(vm.envOr("DIFFTEST_RANDOM_LARGE", uint256(10000)));
     }
 
     function _diffRandomSeed() internal view returns (uint256) {
-        return vm.envOr("DIFFTEST_RANDOM_SEED", uint256(42));
+        uint256 seed = vm.envOr("DIFFTEST_RANDOM_SEED", uint256(42));
+        uint256 shardIndex = _diffShardIndex();
+        uint256 shardCount = _diffShardCount();
+        require(shardIndex < shardCount, "DIFFTEST_SHARD_INDEX out of range");
+
+        unchecked {
+            return seed + (shardIndex * 0x9e3779b97f4a7c15);
+        }
     }
 
     function _assertRandomSuccess(bool success, uint256 iteration) internal {
