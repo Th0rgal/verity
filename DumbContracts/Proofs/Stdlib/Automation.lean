@@ -265,8 +265,9 @@ theorem address_beq_eq_true_iff_eq (a b : Address) :
 /-!
 ## SpecStorage Lemmas
 
-These lemmas about SpecStorage operations are currently placeholders.
-They require more sophisticated reasoning about List operations.
+Reusable facts about `SpecStorage` updates and lookups.
+These are the small list-reasoning primitives used throughout the
+spec-correctness proofs.
 -/
 
 /-!
