@@ -1,11 +1,11 @@
 ---
 title: Example Contracts
-description: 7 contracts covering storage, arithmetic, access control, mappings, and composition
+description: Contracts covering storage, arithmetic, access control, mappings, and composition
 ---
 
 # Example Contracts
 
-7 contracts, each introducing a new pattern. They build on each other: SimpleStorage uses one slot, Counter adds arithmetic, Owned adds access control, and SimpleToken combines all three.
+A small set of contracts, each introducing a new pattern. They build on each other: SimpleStorage uses one slot, Counter adds arithmetic, Owned adds access control, and SimpleToken combines all three.
 
 ## SimpleStorage
 
@@ -21,7 +21,7 @@ def retrieve : Contract Uint256 := do
   getStorage storedData
 ```
 
-19 theorems (12 Basic + 7 Correctness). Proves store/retrieve roundtrip and state isolation.
+Proofs cover store/retrieve roundtrip and state isolation.
 
 ## Counter
 
@@ -39,7 +39,7 @@ def decrement : Contract Unit := do
   setStorage count (current - 1)
 ```
 
-29 theorems (19 Basic + 10 Correctness). Proves arithmetic, composition (two increments add 2), and decrement-at-zero behavior.
+Proofs cover arithmetic, composition (two increments add 2), and decrement-at-zero behavior.
 
 ## SafeCounter
 
@@ -52,7 +52,7 @@ def increment : Contract Unit := do
   setStorage count newCount
 ```
 
-30 theorems (22 Basic + 8 Correctness). Proves overflow/underflow revert and bounds preservation.
+Proofs cover overflow/underflow revert and bounds preservation.
 
 ## Owned
 
@@ -71,7 +71,7 @@ def onlyOwner : Contract Unit := do
   require ownerCheck "Caller is not the owner"
 ```
 
-22 theorems (18 Basic + 4 Correctness). Proves access control enforcement and ownership transfer.
+Proofs cover access control enforcement and ownership transfer.
 
 ## OwnedCounter
 
@@ -87,7 +87,7 @@ def increment : Contract Unit := do
   setStorage count (current + 1)
 ```
 
-34 theorems (29 Basic + 5 Correctness). Proves cross-pattern composition, ownership transfer locking out old owner, and counter value surviving ownership transfer.
+Proofs cover cross-pattern composition, ownership transfer locking out old owner, and counter value surviving ownership transfer.
 
 ## Ledger
 
@@ -110,7 +110,7 @@ def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   setMapping balances to (recipientBalance + amount)
 ```
 
-40 theorems (21 Basic + 6 Correctness + 13 Conservation). Proves balance guards, deposit/withdraw/transfer sum equations, and deposit-withdraw cancellation.
+Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposit-withdraw cancellation.
 
 ## SimpleToken
 
@@ -137,7 +137,7 @@ def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   setMapping balances to (recipientBalance + amount)
 ```
 
-64 theorems (36 Basic + 10 Correctness + 9 Supply conservation + 9 Isolation). Proves mint/transfer correctness, supply conservation equations, and storage isolation across all three slot types.
+Proofs cover mint/transfer correctness, supply conservation equations, and storage isolation across all three slot types.
 
 ## Pattern progression
 
