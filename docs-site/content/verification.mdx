@@ -5,9 +5,19 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 # Formal Verification
 
-As of 2026-02-13, the EDSL has 252 proven theorems across 7 contracts and a math stdlib. The compiler is additionally verified with IR and Yul preservation proofs in `Compiler/Proofs/`. No `sorry`, no axioms. All proofs are checked by `lake build`. The counts and lists below are a snapshot of that date.
+The compiler is additionally verified with IR and Yul preservation proofs in `Compiler/Proofs/`. No `sorry`, no axioms. All proofs are checked by `lake build`.
 
-Table headings include theorem counts as of 2026-02-13.
+## Snapshot (2026-02-13)
+
+- EDSL theorems: 252 across 7 contracts and a math stdlib.
+- SimpleStorage: 19 total (Basic 12, Correctness 7).
+- Counter: 29 total (Basic 19, Correctness 10).
+- Owned: 22 total (Basic 18, Correctness 4).
+- SimpleToken: 64 total (Basic 36, Correctness 10, Supply 9, Isolation 9).
+- OwnedCounter: 34 total (Basic 29, Correctness 5).
+- Ledger: 40 total (Basic 21, Correctness 6, Conservation 13).
+- SafeCounter: 30 total (Basic 22, Correctness 8).
+- Stdlib/Math: 14 theorems.
 
 ## Compiler Proofs (IR + Yul)
 
@@ -54,9 +64,9 @@ This lets proofs reason about both the success path and the revert path of guard
 
 ## Theorems by contract
 
-### SimpleStorage (19 theorems: 12 Basic + 7 Correctness)
+### SimpleStorage
 
-**Basic (12 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -73,7 +83,7 @@ This lets proofs reason about both the success path and the revert path of guard
 | 11 | `retrieve_preserves_state` | Read doesn't modify state |
 | 12 | `store_retrieve_spec_composition` | Spec composition correctness |
 
-**Correctness (7 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -85,9 +95,9 @@ This lets proofs reason about both the success path and the revert path of guard
 | 6 | `retrieve_preserves_context` | Read-only preserves context |
 | 7 | `retrieve_preserves_wellformedness` | Well-formedness preservation |
 
-### Counter (29 theorems: 19 Basic + 10 Correctness)
+### Counter
 
-**Basic (19 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -111,7 +121,7 @@ This lets proofs reason about both the success path and the revert path of guard
 | 18 | `decrement_preserves_other_slots` | Other slots unchanged |
 | 19 | `decrement_preserves_wellformedness` | Well-formedness maintained |
 
-**Correctness (10 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -126,9 +136,9 @@ This lets proofs reason about both the success path and the revert path of guard
 | 9 | `decrement_getCount_correct` | Decrement then getCount equals count - 1 |
 | 10 | `decrement_at_zero_stays_zero` | Decrementing at zero saturates to zero |
 
-### Owned (22 theorems: 18 Basic + 4 Correctness)
+### Owned
 
-**Basic (18 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -147,7 +157,7 @@ This lets proofs reason about both the success path and the revert path of guard
 | 17 | `transferOwnership_meets_spec_when_owner` | Owner transfer satisfies spec |
 | 18 | `transferOwnership_changes_owner_when_allowed` | Owner successfully changed |
 
-**Correctness (4 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -156,9 +166,9 @@ This lets proofs reason about both the success path and the revert path of guard
 | 3 | `constructor_transferOwnership_getOwner` | Full lifecycle: create, transfer, read |
 | 4 | `transferred_owner_cannot_act` | Old owner is actually locked out |
 
-### SimpleToken (64 theorems: 36 Basic + 10 Correctness + 9 Supply + 9 Isolation)
+### SimpleToken
 
-**Basic (36 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -178,7 +188,7 @@ This lets proofs reason about both the success path and the revert path of guard
 | 29 | `transfer_increases_recipient_balance` | Recipient balance increases |
 | 30-36 | Transfer preservation | Transfer preserves sender, address, other state |
 
-**Correctness (10 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -193,7 +203,7 @@ This lets proofs reason about both the success path and the revert path of guard
 | 9 | `transfer_then_balanceOf_sender_correct` | After transfer, sender balance decreased |
 | 10 | `transfer_then_balanceOf_recipient_correct` | After transfer, recipient balance increased |
 
-**Supply Conservation (9 theorems):**
+**Supply Conservation:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -205,7 +215,7 @@ This lets proofs reason about both the success path and the revert path of guard
 
 Transfer proofs require `sender != to` because the implementation writes the recipient balance last, overwriting the sender deduction on self-transfer. Supply conservation uses exact sum equations rather than the `supply_bounds_balances` invariant, which cannot be preserved for lists with duplicate addresses.
 
-**Isolation (9 theorems):**
+**Isolation:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -219,9 +229,9 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 8 | `transfer_balance_mapping_isolated` | Transfer only writes Mapping slot 1 |
 | 9 | `transfer_owner_addr_isolated` | Transfer doesn't write any Address slot |
 
-### OwnedCounter (34 theorems: 29 Basic + 5 Correctness)
+### OwnedCounter
 
-**Basic (29 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -233,7 +243,7 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 23-25 | Isolation | increment/decrement preserve owner, transfer preserves count |
 | 26-29 | Composition/preservation | constructor then increment, well-formedness |
 
-**Correctness (5 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -243,9 +253,9 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 4 | `transferOwnership_preserves_wellformedness` | Well-formedness preservation |
 | 5 | `increment_survives_transfer` | Counter value survives ownership transfer |
 
-### Ledger (40 theorems: 21 Basic + 6 Correctness + 13 Conservation)
+### Ledger
 
-**Basic (21 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -255,7 +265,7 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 12-16 | Transfer | Spec, decreases sender, increases recipient, reverts insufficient |
 | 17-21 | Preservation | Non-mapping storage, well-formedness, deposit-getBalance composition |
 
-**Correctness (6 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -266,7 +276,7 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 5 | `transfer_getBalance_recipient_correct` | After transfer, recipient balance increased |
 | 6 | `deposit_withdraw_cancel` | Deposit then withdraw cancellation |
 
-**Conservation (13 theorems):**
+**Conservation:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -280,9 +290,9 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 8 | `deposit_withdraw_sum_cancel` | Deposit then withdraw preserves total sum |
 | 9-13 | Helper lemmas | countOcc, map_sum_point_update/decrease, map_sum_transfer_eq |
 
-### SafeCounter (30 theorems: 22 Basic + 8 Correctness)
+### SafeCounter
 
-**Basic (22 theorems):**
+**Basic:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -293,7 +303,7 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 14-15 | Bounds | Increment/decrement preserve count bounds |
 | 16-22 | Composition/preservation | increment then getCount, various preservation |
 
-**Correctness (8 theorems):**
+**Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
@@ -303,7 +313,7 @@ Transfer proofs require `sender != to` because the implementation writes the rec
 | 7 | `increment_decrement_cancel` | Increment then decrement cancellation |
 | 8 | `decrement_getCount_correct` | Decrement then getCount equals count - 1 |
 
-### Stdlib/Math (14 theorems)
+### Stdlib/Math
 
 | # | Theorem | Property |
 |---|---------|----------|
