@@ -5,6 +5,7 @@
   used across SpecCorrectness proofs.
 -/
 
+import Compiler.Proofs.Automation
 import Compiler.Proofs.SpecInterpreter
 import Compiler.Hex
 import DumbContracts.Core.Uint256
@@ -13,6 +14,7 @@ import DumbContracts.EVM.Uint256
 namespace Compiler.Proofs.SpecCorrectness
 
 open Compiler.Hex
+open Compiler.Proofs.Automation
 open DumbContracts
 open DumbContracts.Core.Uint256 (modulus)
 
@@ -20,9 +22,10 @@ open DumbContracts.Core.Uint256 (modulus)
 ## Shared axioms
 -/
 
--- Shared across proof files to avoid duplication.
-axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
+-- Re-export the shared injectivity axiom from Automation to keep proofs concise.
+theorem addressToNat_injective :
+    ∀ (a b : Address), addressToNat a = addressToNat b → a = b :=
+  Compiler.Proofs.Automation.addressToNat_injective
 
 /-- addressToNat is always below the 160-bit address modulus. -/
 theorem addressToNat_lt_addressModulus (addr : Address) :

@@ -61,8 +61,8 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
   -- Constructor sets owner to initialOwner in both EDSL and spec
   unfold DumbContracts.Examples.OwnedCounter.constructor Contract.run ownedCounterSpec interpretSpec
   simp [setStorageAddr, DumbContracts.Examples.OwnedCounter.owner, DumbContracts.bind, DumbContracts.pure]
-  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
-  rw [addressToNat_mod_address]
+  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot,
+    SpecStorage.empty, addressToNat_mod_address]
 
 /-- The `increment` function correctly increments when called by owner -/
 theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender : Address)

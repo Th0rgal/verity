@@ -41,7 +41,8 @@ def ownedEdslToSpecStorage (state : ContractState) : SpecStorage :=
 /-!
 ## Helper Lemmas for Address Encoding
 
-Shared lemmas and axioms live in `Compiler.Proofs.SpecCorrectness.AddressEncoding`.
+Shared lemmas live in `Compiler.Proofs.SpecCorrectness.AddressEncoding`;
+address encoding axioms live in `Compiler.Proofs.Automation`.
 -/
 
 /- Correctness Theorems -/
@@ -61,9 +62,8 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
   -- Constructor sets owner to initialOwner in both EDSL and spec
   unfold DumbContracts.Examples.Owned.constructor Contract.run ownedSpec interpretSpec
   simp [setStorageAddr, DumbContracts.Examples.Owned.owner, DumbContracts.bind, DumbContracts.pure]
-  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
-  -- Use our lemma: addressToNat % modulus = addressToNat
-  rw [addressToNat_mod_address]
+  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot,
+    SpecStorage.empty, addressToNat_mod_address]
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
 theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
