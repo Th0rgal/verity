@@ -124,6 +124,11 @@ jobs:
           name: difftest-interpreter
           path: .lake/build/bin
 
+      - name: Make difftest interpreter executable
+        run: |
+          chmod +x .lake/build/bin/difftest-interpreter
+          ls -l .lake/build/bin/difftest-interpreter
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:

@@ -131,6 +131,7 @@ forge test
 # Large counts can be expensive; tune these for local runs vs CI.
 # CI runs with DIFFTEST_RANDOM_LARGE=10000 across all differential harnesses.
 # CI builds the compiler + difftest interpreter once and shares generated Yul across test shards.
+# CI shards download a prebuilt difftest interpreter artifact and run it directly (must be executable).
 # DIFFTEST_RANDOM_SEED is mixed with shard index + contract label to avoid identical sequences across shards.
 DIFFTEST_RANDOM_SMALL=200 DIFFTEST_RANDOM_LARGE=20000 DIFFTEST_RANDOM_SEED=42 forge test
 
