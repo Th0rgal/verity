@@ -15,13 +15,12 @@ abstract contract DiffTestConfig is Test {
     function _diffShardAdjustedCount(uint256 totalCount) internal view returns (uint256) {
         uint256 shardCount = _diffShardCount();
         require(shardCount > 0, "DIFFTEST_SHARD_COUNT must be > 0");
+        uint256 shardIndex = _diffShardIndex();
+        require(shardIndex < shardCount, "DIFFTEST_SHARD_INDEX out of range");
 
-        uint256 perShard = totalCount / shardCount;
-        if (totalCount % shardCount != 0) {
-            perShard += 1;
-        }
-
-        return perShard;
+        uint256 start = (totalCount * shardIndex) / shardCount;
+        uint256 end = (totalCount * (shardIndex + 1)) / shardCount;
+        return end - start;
     }
 
     function _diffRandomOverride() internal view returns (uint256) {
