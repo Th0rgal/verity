@@ -6,7 +6,7 @@ This directory contains formal verification proofs for the DumbContracts compile
 
 - **Layer 1: EDSL ≡ ContractSpec** — Spec correctness for the user-facing contracts.
 - **Layer 2: ContractSpec → IR** — IR generation preserves spec semantics.
-- **Layer 3: IR → Yul** — Yul codegen preserves IR semantics and runtime behavior.
+- **Layer 3: IR → Yul** — Yul codegen preservation is in progress (semantics + scaffolding exist; full equivalence theorems pending).
 
 Key entry points:
 

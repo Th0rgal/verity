@@ -1,6 +1,6 @@
 # Dumb Contracts
 
-DumbContracts is a Lean 4 project for writing smart contracts in a tiny EDSL, proving their behavior in Lean, and compiling verified specs to Yul/EVM bytecode. It contains executable semantics, a compiler pipeline, and machine-checked proofs across the EDSL, IR generation, and Yul codegen.
+DumbContracts is a Lean 4 project for writing smart contracts in a tiny EDSL, proving their behavior in Lean, and compiling verified specs to Yul/EVM bytecode. It contains executable semantics, a compiler pipeline, and machine-checked proofs across the EDSL and IR generation, with Yul preservation proofs in progress.
 
 ## Example
 
@@ -47,7 +47,7 @@ def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
 
 - **EDSL correctness**: Each example contract satisfies its specification in Lean.
 - **Spec semantics**: ContractSpec execution matches the intended DSL behavior.
-- **Compiler correctness**: IR generation and Yul codegen preserve semantics.
+- **Compiler correctness**: IR generation is proven; Yul codegen proofs are in progress (semantics + scaffolding in place).
 - **Automation**: Common proof patterns are captured in reusable lemmas.
 
 See `Compiler/Proofs/README.md` for the proof inventory and layout across layers.
@@ -56,9 +56,9 @@ See `Compiler/Proofs/README.md` for the proof inventory and layout across layers
 
 These are the remaining trusted components outside Lean:
 
-- **`solc` Yul compiler**: The Solidity compiler is trusted to compile Yul to EVM bytecode.
+- **`solc` Yul compiler**: The Solidity compiler is trusted to compile Yul to EVM bytecode (CI now compiles generated Yul as a sanity check).
 - **EVM semantics**: The EVM execution model is assumed to match the specification used in proofs.
-- **Function selectors**: Precomputed `keccak256` hashes in `Compiler/Selector.lean` are assumed correct.
+- **Function selectors**: Precomputed `keccak256` hashes in `Compiler/Selector.lean` are assumed correct (CI checks fixtures against `solc --hashes`).
 
 Semantics are defined in Lean here:
 

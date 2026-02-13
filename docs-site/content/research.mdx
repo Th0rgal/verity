@@ -21,7 +21,7 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
 - **Layer 2 (ContractSpec → IR)**: Complete for all 7 contracts (per‑function preservation theorems compiled in Lean).
-- **Layer 3 (IR → Yul)**: Not started.
+- **Layer 3 (IR → Yul)**: In progress (scaffolding + smoke checks; equivalence theorems not yet proven).
 
 ## Iterations
 
@@ -113,7 +113,7 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 - **Supply = sum of balances**: Requires finite address model. Proven as exact sum equations with `countOcc`, not as global invariant over all addresses.
 - **`ContractResult.fst`**: Returns `default` on revert, requiring `[Inhabited a]`. Proofs using `.fst` always show result is `success` first.
 - **No events, no gas**: EDSL models storage and control flow only.
-- **No nested mappings**: Can't express `mapping(address => mapping(address => uint256))` without extending core.
+- **No nested mappings**: Slot encoding helpers and smoke tests exist, but core storage semantics and proofs still lack full nested mapping support (`mapping(address => mapping(address => uint256))`).
 
 ## Compiler Development
 
