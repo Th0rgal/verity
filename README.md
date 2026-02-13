@@ -122,7 +122,7 @@ lake build
 # Build compiler executable
 lake build dumbcontracts-compiler
 
-# Run Foundry tests (unit + property + differential)
+# Run Foundry tests (unit + property + differential + selector sanity)
 forge test
 ```
 
