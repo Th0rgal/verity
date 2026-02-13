@@ -728,7 +728,7 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig {
                 _randomTransaction(seed + i, actors);
 
             bool success = executeDifferentialTest(funcName, sender, recipient, amount);
-            assertTrue(success, string.concat("Random test ", vm.toString(i), " failed"));
+            _assertRandomSuccess(success, i);
         }
 
         console2.log("Random tests passed:", testsPassed);
@@ -752,7 +752,7 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig {
                 _randomTransaction(seed + i, actors);
 
             bool success = executeDifferentialTest(funcName, sender, recipient, amount);
-            assertTrue(success, string.concat("Random test ", vm.toString(i), " failed"));
+            _assertRandomSuccess(success, i);
         }
         vm.resumeGasMetering();
 

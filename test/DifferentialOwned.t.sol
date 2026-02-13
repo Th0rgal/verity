@@ -444,7 +444,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = uint256(uint160(testAddresses[seed % testAddresses.length]));
 
                 bool success = executeDifferentialTest("transferOwnership", sender, arg0);
-                require(success, string(abi.encodePacked("Random test ", _uint256ToString(i), " failed")));
+                _assertRandomSuccess(success, i);
             } else {
                 // 40% getOwner
                 seed = _prng(seed);
@@ -452,7 +452,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = 0;
 
                 bool success = executeDifferentialTest("getOwner", sender, arg0);
-                require(success, string(abi.encodePacked("Random test ", _uint256ToString(i), " failed")));
+                _assertRandomSuccess(success, i);
             }
         }
 
@@ -491,7 +491,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = uint256(uint160(testAddresses[seed % testAddresses.length]));
 
                 bool success = executeDifferentialTest("transferOwnership", sender, arg0);
-                require(success, string(abi.encodePacked("Random test ", _uint256ToString(i), " failed")));
+                _assertRandomSuccess(success, i);
             } else {
                 // 40% getOwner
                 seed = _prng(seed);
@@ -499,7 +499,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = 0;
 
                 bool success = executeDifferentialTest("getOwner", sender, arg0);
-                require(success, string(abi.encodePacked("Random test ", _uint256ToString(i), " failed")));
+                _assertRandomSuccess(success, i);
             }
         }
 

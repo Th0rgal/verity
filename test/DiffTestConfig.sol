@@ -15,4 +15,11 @@ abstract contract DiffTestConfig is Test {
     function _diffRandomSeed() internal view returns (uint256) {
         return vm.envOr("DIFFTEST_RANDOM_SEED", uint256(42));
     }
+
+    function _assertRandomSuccess(bool success, uint256 iteration) internal {
+        if (!success) {
+            emit log_named_uint("Random test failed at", iteration);
+            fail();
+        }
+    }
 }
