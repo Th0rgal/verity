@@ -23,9 +23,11 @@ DumbContracts/
 ├── Specs/{Contract}/
 │   ├── Spec.lean                 # What each operation should do
 │   └── Invariants.lean           # Properties that should always hold
-└── Proofs/{Contract}/
-    ├── Basic.lean                # Core proofs (specs met, state preserved)
-    ├── Correctness.lean          # Deeper proofs (composition, revert behavior)
+│   └── Proofs.lean               # User-facing proofs (spec → impl)
+├── Proofs/Stdlib/                # Reusable proof infrastructure
+└── Proofs/{Contract}/            # Deeper contract proof suites
+    ├── Basic.lean                # Core properties and lemmas
+    ├── Correctness.lean          # Composition and revert behavior
     ├── Conservation.lean         # Sum conservation laws (Ledger)
     ├── Supply.lean               # Supply conservation (SimpleToken)
     └── Isolation.lean            # Storage isolation (SimpleToken)

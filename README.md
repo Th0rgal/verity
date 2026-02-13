@@ -64,6 +64,15 @@ scripts/                             # build/test scripts
 test/                                # Foundry tests (unit, property, differential)
 ```
 
+## Where Things Live (Spec → Impl → Proof)
+
+- **User-facing specs**: `DumbContracts/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
+- **Implementations (EDSL)**: `DumbContracts/Examples/<Name>.lean`
+- **User-facing proofs**: `DumbContracts/Specs/<Name>/Proofs.lean`
+- **Reusable proof infrastructure**: `DumbContracts/Proofs/Stdlib/` (spec interpreter + automation)
+- **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
+- **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)
+
 ## Examples and Proofs
 
 - **Lean examples (EDSL implementations)**: `DumbContracts/Examples/`

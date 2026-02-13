@@ -72,6 +72,15 @@ theorem mint_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
 
 The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
+## Where things live
+
+- **User-facing specs**: `DumbContracts/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
+- **Implementations (EDSL)**: `DumbContracts/Examples/<Name>.lean`
+- **User-facing proofs**: `DumbContracts/Specs/<Name>/Proofs.lean`
+- **Reusable proof infrastructure**: `DumbContracts/Proofs/Stdlib/` (spec interpreter + automation)
+- **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
+- **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)
+
 ## Example Contracts
 
 Seven contracts are implemented and verified:

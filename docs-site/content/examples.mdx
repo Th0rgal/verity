@@ -7,6 +7,18 @@ description: Contracts covering storage, arithmetic, access control, mappings, a
 
 A small set of contracts, each introducing a new pattern. They build on each other: SimpleStorage uses one slot, Counter adds arithmetic, Owned adds access control, and SimpleToken combines all three.
 
+## How to organize a contract
+
+- **Spec**: `DumbContracts/Specs/<Name>/Spec.lean`
+- **Implementation**: `DumbContracts/Examples/<Name>.lean`
+- **Proof**: `DumbContracts/Specs/<Name>/Proofs.lean`
+- **Reusable proof infra**: `DumbContracts/Proofs/Stdlib/`
+
+Example (SimpleStorage):
+- Spec: `DumbContracts/Specs/SimpleStorage/Spec.lean`
+- Implementation: `DumbContracts/Examples/SimpleStorage.lean`
+- Proof: `DumbContracts/Specs/SimpleStorage/Proofs.lean`
+
 ## SimpleStorage
 
 Single storage slot with get/set.
