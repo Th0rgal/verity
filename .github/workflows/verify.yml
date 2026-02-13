@@ -93,4 +93,8 @@ jobs:
           solc --version
 
       - name: Run Foundry tests
+        env:
+          DIFFTEST_RANDOM_SMALL: "100"
+          DIFFTEST_RANDOM_LARGE: "1000"
+          DIFFTEST_RANDOM_SEED: "42"
         run: forge test

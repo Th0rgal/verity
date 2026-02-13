@@ -1,11 +1,13 @@
 import Compiler.Yul.Ast
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.MappingEncoding
 
 namespace Compiler.Proofs.YulGeneration
 
 open Compiler
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
+open Compiler.Proofs
 
 /-! ## Yul Runtime Semantics (Layer 3 Foundation)
 
@@ -14,7 +16,7 @@ IRInterpreter but models selector-aware calldata so `emitYul`'s runtime switch
 behaves correctly.
 -/
 
-def evmModulus : Nat := 2 ^ 256
+abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
 
 def selectorModulus : Nat := 2 ^ 32
 
@@ -37,17 +39,9 @@ than flat `storage`. The tag is `2^256`, which is outside the EVM word range,
 so it cannot collide with real storage slots produced by arithmetic.
 -/
 
-def mappingTag : Nat := evmModulus
-
-def encodeMappingSlot (baseSlot key : Nat) : Nat :=
-  mappingTag + (baseSlot % evmModulus) * evmModulus + (key % evmModulus)
-
-def decodeMappingSlot (slot : Nat) : Option (Nat × Nat) :=
-  if slot < mappingTag then
-    none
-  else
-    let raw := slot - mappingTag
-    some (raw / evmModulus, raw % evmModulus)
+abbrev mappingTag : Nat := Compiler.Proofs.mappingTag
+abbrev encodeMappingSlot := Compiler.Proofs.encodeMappingSlot
+abbrev decodeMappingSlot := Compiler.Proofs.decodeMappingSlot
 
 /-! ## Execution State -/
 

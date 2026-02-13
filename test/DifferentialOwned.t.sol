@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {console2} from "forge-std/Test.sol";
+import "./DiffTestConfig.sol";
 import "./yul/YulTestBase.sol";
 
 /**
@@ -16,7 +17,7 @@ import "./yul/YulTestBase.sol";
  *
  * Success: 100+ tests with zero mismatches
  */
-contract DifferentialOwned is YulTestBase {
+contract DifferentialOwned is YulTestBase, DiffTestConfig {
     // Compiled contract
     address owned;
 
@@ -419,8 +420,8 @@ contract DifferentialOwned is YulTestBase {
      */
     function testDifferential_Random100() public {
         // Deterministic PRNG seed for reproducibility
-        uint256 seed = 12345;
-        uint256 numTransactions = 100;
+        uint256 seed = _diffRandomSeed();
+        uint256 numTransactions = _diffRandomSmallCount();
 
         address[] memory testAddresses = new address[](3);
         testAddresses[0] = address(this);
@@ -466,8 +467,8 @@ contract DifferentialOwned is YulTestBase {
      */
     function testDifferential_Random10000() public {
         // Deterministic PRNG seed for reproducibility
-        uint256 seed = 12345;
-        uint256 numTransactions = 1000;
+        uint256 seed = _diffRandomSeed();
+        uint256 numTransactions = _diffRandomLargeCount();
 
         address[] memory testAddresses = new address[](3);
         testAddresses[0] = address(this);

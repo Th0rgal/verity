@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {console2} from "forge-std/Test.sol";
+import "./DiffTestConfig.sol";
 import "./yul/YulTestBase.sol";
 
 /**
@@ -16,7 +17,7 @@ import "./yul/YulTestBase.sol";
  *
  * Success: 10,000+ tests with zero mismatches
  */
-contract DifferentialSafeCounter is YulTestBase {
+contract DifferentialSafeCounter is YulTestBase, DiffTestConfig {
     // Compiled contract
     address safeCounter;
 
@@ -38,8 +39,7 @@ contract DifferentialSafeCounter is YulTestBase {
      */
     function executeDifferentialTest(
         string memory functionName,
-        address sender,
-        uint256 arg0
+        address sender
     ) internal returns (bool success) {
         // 1. Execute on compiled contract (EVM)
         vm.prank(sender);
@@ -70,7 +70,7 @@ contract DifferentialSafeCounter is YulTestBase {
 
         // 2. Execute on EDSL interpreter (via vm.ffi)
         string memory storageState = _buildStorageString();
-        string memory edslResult = _runInterpreter(functionName, sender, arg0, storageState);
+        string memory edslResult = _runInterpreter(functionName, sender, storageState);
 
         // 3. Parse and compare results
         console2.log("EVM success:", evmSuccess);
@@ -131,7 +131,6 @@ contract DifferentialSafeCounter is YulTestBase {
     function _runInterpreter(
         string memory functionName,
         address sender,
-        uint256 arg0,
         string memory storageState
     ) internal returns (string memory) {
         // Build command with storage state
@@ -273,27 +272,27 @@ contract DifferentialSafeCounter is YulTestBase {
      */
     function testDifferential_BasicOperations() public {
         // Test increment
-        bool success1 = executeDifferentialTest("increment", address(0xA11CE), 0);
+        bool success1 = executeDifferentialTest("increment", address(0xA11CE));
         assertTrue(success1, "Increment test 1 failed");
 
         // Test getCount
-        bool success2 = executeDifferentialTest("getCount", address(0xA11CE), 0);
+        bool success2 = executeDifferentialTest("getCount", address(0xA11CE));
         assertTrue(success2, "GetCount test 1 failed");
 
         // Test another increment
-        bool success3 = executeDifferentialTest("increment", address(0xB0B), 0);
+        bool success3 = executeDifferentialTest("increment", address(0xB0B));
         assertTrue(success3, "Increment test 2 failed");
 
         // Test getCount again
-        bool success4 = executeDifferentialTest("getCount", address(0xB0B), 0);
+        bool success4 = executeDifferentialTest("getCount", address(0xB0B));
         assertTrue(success4, "GetCount test 2 failed");
 
         // Test decrement
-        bool success5 = executeDifferentialTest("decrement", address(0xCA401), 0);
+        bool success5 = executeDifferentialTest("decrement", address(0xCA401));
         assertTrue(success5, "Decrement test 1 failed");
 
         // Final getCount
-        bool success6 = executeDifferentialTest("getCount", address(0xCA401), 0);
+        bool success6 = executeDifferentialTest("getCount", address(0xCA401));
         assertTrue(success6, "GetCount test 3 failed");
 
         console2.log("Differential tests passed:", testsPassed);
@@ -308,7 +307,7 @@ contract DifferentialSafeCounter is YulTestBase {
         vm.store(safeCounter, bytes32(uint256(0)), bytes32(type(uint256).max));
 
         // Try to increment (should revert)
-        bool success = executeDifferentialTest("increment", address(0xA11CE), 0);
+        bool success = executeDifferentialTest("increment", address(0xA11CE));
         assertTrue(success, "Overflow protection test failed");
 
         // Verify both reverted
@@ -322,7 +321,7 @@ contract DifferentialSafeCounter is YulTestBase {
         // Storage starts at 0
 
         // Try to decrement (should revert)
-        bool success = executeDifferentialTest("decrement", address(0xB0B), 0);
+        bool success = executeDifferentialTest("decrement", address(0xB0B));
         assertTrue(success, "Underflow protection test failed");
 
         // Verify both reverted
@@ -333,14 +332,14 @@ contract DifferentialSafeCounter is YulTestBase {
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
-        _runRandomDifferentialTests(100, 42);
+        _runRandomDifferentialTests(_diffRandomSmallCount(), _diffRandomSeed());
     }
 
     /**
      * @notice Run 10000 random differential tests
      */
     function testDifferential_Random10000() public {
-        _runRandomDifferentialTests(10000, 42);
+        _runRandomDifferentialTests(_diffRandomLargeCount(), _diffRandomSeed());
     }
 
     /**
@@ -371,7 +370,7 @@ contract DifferentialSafeCounter is YulTestBase {
                 functionName = "getCount";
             }
 
-            bool success = executeDifferentialTest(functionName, sender, 0);
+            bool success = executeDifferentialTest(functionName, sender);
             assertTrue(success, string.concat("Random ", functionName, " test failed"));
         }
 

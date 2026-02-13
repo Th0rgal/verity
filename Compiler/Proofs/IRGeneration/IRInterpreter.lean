@@ -11,6 +11,7 @@
 
 import Compiler.IR
 import Compiler.ContractSpec
+import Compiler.Proofs.MappingEncoding
 import DumbContracts.Proofs.Stdlib.SpecInterpreter
 import DumbContracts.Core
 
@@ -19,6 +20,7 @@ namespace Compiler.Proofs.IRGeneration
 open Compiler
 open Compiler.Yul
 open DumbContracts.Core
+open Compiler.Proofs
 
 /-! ## Execution State for IR -/
 
@@ -59,7 +61,7 @@ def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
 
 /-! ## IR Expression Evaluation -/
 
-def evmModulus : Nat := 2 ^ 256
+abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
 
 /-!
 Mapping slots in Yul are derived via keccak(baseSlot, key). For proofs, we model
@@ -67,17 +69,9 @@ them with a tagged encoding so `sload`/`sstore` can route to `mappings` rather
 than flat `storage`. The tag is `2^256`, which is outside the EVM word range,
 so it cannot collide with real storage slots produced by arithmetic.
 -/
-def mappingTag : Nat := evmModulus
-
-def encodeMappingSlot (baseSlot key : Nat) : Nat :=
-  mappingTag + (baseSlot % evmModulus) * evmModulus + (key % evmModulus)
-
-def decodeMappingSlot (slot : Nat) : Option (Nat × Nat) :=
-  if slot < mappingTag then
-    none
-  else
-    let raw := slot - mappingTag
-    some (raw / evmModulus, raw % evmModulus)
+abbrev mappingTag : Nat := Compiler.Proofs.mappingTag
+abbrev encodeMappingSlot := Compiler.Proofs.encodeMappingSlot
+abbrev decodeMappingSlot := Compiler.Proofs.decodeMappingSlot
 
 mutual
 

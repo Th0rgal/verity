@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {console2} from "forge-std/Test.sol";
+import "./DiffTestConfig.sol";
 import "./yul/YulTestBase.sol";
 
 /**
@@ -16,7 +17,7 @@ import "./yul/YulTestBase.sol";
  *
  * Success: 10,000+ tests with zero mismatches
  */
-contract DifferentialSimpleStorage is YulTestBase {
+contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig {
     // Compiled contract
     address simpleStorage;
 
@@ -325,14 +326,14 @@ contract DifferentialSimpleStorage is YulTestBase {
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
-        _runRandomDifferentialTests(100, 42);
+        _runRandomDifferentialTests(_diffRandomSmallCount(), _diffRandomSeed());
     }
 
     /**
      * @notice Run 10000 random differential tests (slow)
      */
     function testDifferential_Random10000() public {
-        _runRandomDifferentialTests(10000, 42);
+        _runRandomDifferentialTests(_diffRandomLargeCount(), _diffRandomSeed());
     }
 
     /**

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {console2} from "forge-std/Test.sol";
+import "./DiffTestConfig.sol";
 import "./yul/YulTestBase.sol";
 
 /**
@@ -16,7 +17,7 @@ import "./yul/YulTestBase.sol";
  *
  * Success: 100+ tests with zero mismatches
  */
-contract DifferentialOwnedCounter is YulTestBase {
+contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
     // Compiled contract
     address ownedCounter;
 
@@ -567,10 +568,10 @@ contract DifferentialOwnedCounter is YulTestBase {
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
 
-        // Seed: current block timestamp for reproducibility
-        uint256 seed = block.timestamp;
+        uint256 seed = _diffRandomSeed();
 
-        for (uint256 i = 0; i < 100; i++) {
+        uint256 count = _diffRandomSmallCount();
+        for (uint256 i = 0; i < count; i++) {
             // Generate random transaction
             (string memory funcName, address sender, uint256 arg) =
                 _randomTransaction(seed + i, actors);
@@ -590,10 +591,10 @@ contract DifferentialOwnedCounter is YulTestBase {
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
 
-        // Seed: current block timestamp for reproducibility
-        uint256 seed = block.timestamp;
+        uint256 seed = _diffRandomSeed();
 
-        for (uint256 i = 0; i < 1000; i++) {
+        uint256 count = _diffRandomLargeCount();
+        for (uint256 i = 0; i < count; i++) {
             // Generate random transaction
             (string memory funcName, address sender, uint256 arg) =
                 _randomTransaction(seed + i, actors);

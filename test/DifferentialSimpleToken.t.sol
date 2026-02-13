@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {console2} from "forge-std/Test.sol";
+import "./DiffTestConfig.sol";
 import "./yul/YulTestBase.sol";
 
 /**
@@ -16,7 +17,7 @@ import "./yul/YulTestBase.sol";
  *
  * Success: 100+ tests with zero mismatches
  */
-contract DifferentialSimpleToken is YulTestBase {
+contract DifferentialSimpleToken is YulTestBase, DiffTestConfig {
     // Compiled contract
     address simpleToken;
 
@@ -718,10 +719,10 @@ contract DifferentialSimpleToken is YulTestBase {
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
 
-        // Seed: current block timestamp for reproducibility
-        uint256 seed = block.timestamp;
+        uint256 seed = _diffRandomSeed();
+        uint256 count = _diffRandomSmallCount();
 
-        for (uint256 i = 0; i < 100; i++) {
+        for (uint256 i = 0; i < count; i++) {
             // Generate random transaction
             (string memory funcName, address sender, address recipient, uint256 amount) =
                 _randomTransaction(seed + i, actors);
@@ -741,11 +742,11 @@ contract DifferentialSimpleToken is YulTestBase {
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
 
-        // Seed: current block timestamp for reproducibility
-        uint256 seed = block.timestamp;
+        uint256 seed = _diffRandomSeed();
+        uint256 count = _diffRandomLargeCount();
 
         vm.pauseGasMetering();
-        for (uint256 i = 0; i < 1000; i++) {
+        for (uint256 i = 0; i < count; i++) {
             // Generate random transaction
             (string memory funcName, address sender, address recipient, uint256 amount) =
                 _randomTransaction(seed + i, actors);
