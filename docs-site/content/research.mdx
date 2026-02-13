@@ -277,7 +277,12 @@ forge test --match-contract Differential  # Run 100 random tests
 
 **G. Documentation (Optional But Valuable)**:
 - Add a concise “How to add a new contract” guide (Spec → EDSL → Proof → Compiler spec → Tests).
-  - 1-page checklist with links to a minimal example contract and its spec/proofs.
+  - 1-page checklist anchored to SimpleStorage as the minimal example:
+    - `DumbContracts/Specs/SimpleStorage.lean`
+    - `DumbContracts/Examples/SimpleStorage.lean`
+    - `DumbContracts/Specs/SimpleStorage/Proofs.lean`
+    - `Compiler/Proofs/IRGeneration/SimpleStorageProof.lean`
+    - `test/DifferentialSimpleStorage.t.sol`
   - Template section that shows the expected file layout + naming conventions.
   - Short “common pitfalls” callout (e.g., storage slot mismatches, mapping conversions).
 - **Done when**: a newcomer can follow the guide to add a toy contract end-to-end in <30 minutes.
