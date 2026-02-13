@@ -130,6 +130,10 @@ def setup_spec (ownersList : List Address) (thresholdValue : Uint256)
     owner ≠ s.thisAddress ∧
     s.storageMap owners.slot owner = 0) ∧
   ownersLinkedList s' ownersList ∧
+  (∀ addr : Address,
+    addr ≠ ownersSentinel →
+    addr ∉ ownersList →
+    s'.storageMap owners.slot addr = s.storageMap owners.slot addr) ∧
   s'.storageMap modules.slot modulesSentinel = encodeAddress modulesSentinel ∧
   (∀ addr : Address, addr ≠ modulesSentinel →
     s'.storageMap modules.slot addr = s.storageMap modules.slot addr) ∧
