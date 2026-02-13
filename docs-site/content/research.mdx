@@ -20,7 +20,7 @@ The project evolved in two phases:
 This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
-- **Layer 2 (ContractSpec -> IR)**: Per-function preservation theorems complete for all 7 contracts; contract-level dispatch generalization is underway (SimpleStorage + Counter done).
+- **Layer 2 (ContractSpec -> IR)**: Per-function preservation theorems complete for all 7 contracts; contract-level dispatch generalization is underway (SimpleStorage + Counter + Owned done).
 - **Layer 3 (IR -> Yul)**: In progress (core IR/Yul semantics aligned, runtime preservation theorem in place, and smoke tests assert revert preservation across IR and Yul).
 
 ## Iterations
@@ -241,7 +241,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 - [x] Generalized preservation proofs now cover Owned, OwnedCounter, SafeCounter, Ledger, and SimpleToken.
 - [x] Conversion relations for mappings + address types are exercised in the full suite of Layer 2 proofs.
 - [x] Removed the exploratory `StoreProofAttempt.lean` once the real proof path was in place.
-- [x] Contract-level dispatch preservation exists for SimpleStorage + Counter (selectors wired to transactions).
+- [x] Contract-level dispatch preservation exists for SimpleStorage + Counter + Owned (selectors wired to transactions).
 - **Done when**: each contract has a contract-level dispatch theorem that composes per-function proofs.
 
 **B. Finish Layer 3 (IR -> Yul)**:
