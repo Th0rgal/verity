@@ -113,6 +113,10 @@ def insertLeaves (commitments : List Uint256) : Contract Unit := do
   setStorage merkleRoot newRoot
   markRootSeen newRoot
 
+  -- Update next leaf index (CRITICAL for spec compliance)
+  let currentIndex ← getStorage nextLeafIndex
+  setStorage nextLeafIndex (currentIndex + commitments.length)
+
 /-! ## Main Protocol Functions -/
 
 -- Deposit: Add commitments to the pool
