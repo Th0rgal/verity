@@ -232,6 +232,7 @@ forge test --match-contract Differential  # Run 100 random tests
 - Generalize the SimpleStorage preservation proof to all 7 contracts.
 - Formalize the conversion relation across types (SpecStorage ↔ IRState) for mappings and address types, not just simple storage slots.
 - Turn the “attempt” file into a real proof path or remove it once the general proof is in place.
+- **Done when**: each contract has a Layer 2 preservation theorem that compiles in Lean and `Compiler/Proofs/IRGeneration/StoreProofAttempt.lean` is either replaced by the real proof path or deleted.
 
 **B. Finish Layer 3 (IR → Yul)**:
 - Prove IR op → Yul op equivalence for all IR instructions, not just the high-level theorem statement.
