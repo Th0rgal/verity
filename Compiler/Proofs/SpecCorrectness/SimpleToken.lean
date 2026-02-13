@@ -88,7 +88,7 @@ theorem token_constructor_correct (state : ContractState) (initialOwner : Addres
   constructor
   · -- Spec constructor succeeds
     simp [interpretSpec, execConstructor, execStmts, execStmt, evalExpr,
-      simpleTokenSpec, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty,
+      simpleTokenSpec, requireOwner, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty,
       addressToNat_mod_eq]
   constructor
   · -- Owner slot matches
@@ -100,7 +100,7 @@ theorem token_constructor_correct (state : ContractState) (initialOwner : Addres
         (constructor_sets_owner { state with sender := sender } initialOwner)
     -- Spec side stores constructorArg 0 (addressToNat initialOwner)
     simp [interpretSpec, execConstructor, execStmts, execStmt, evalExpr,
-      simpleTokenSpec, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty,
+      simpleTokenSpec, requireOwner, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty,
       addressToNat_mod_eq, h_owner]
   · -- Total supply slot matches
     have h_supply :
@@ -109,7 +109,7 @@ theorem token_constructor_correct (state : ContractState) (initialOwner : Addres
       simpa [Contract.run, ContractResult.getState, ContractResult.snd] using
         (constructor_sets_supply_zero { state with sender := sender } initialOwner)
     simp [interpretSpec, execConstructor, execStmts, execStmt, evalExpr,
-      simpleTokenSpec, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty, h_supply]
+      simpleTokenSpec, requireOwner, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty, h_supply]
 
 /-- The `mint` function correctly mints when called by owner -/
 theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amount : Nat) (sender : Address)
@@ -135,7 +135,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
   constructor
   · -- Spec success
     simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-      simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+      simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
       SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
       addressToNat_mod_eq, h]
   constructor
@@ -167,7 +167,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         specResult.finalStorage.getMapping 1 (addressToNat to)) =
           ((state.storageMap 1 to).val + amount) % DumbContracts.Core.Uint256.modulus := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-        simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         addressToNat_mod_eq, lookup_recipientBal_supply, h]
     calc
@@ -217,7 +217,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         specResult.finalStorage.getSlot 2) =
           ((state.storage 2).val + amount) % DumbContracts.Core.Uint256.modulus := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-        simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         addressToNat_mod_eq, h]
     calc
@@ -277,7 +277,7 @@ theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (a
           addressToNat_injective sender (state.storageAddr 0) h_nat
         exact h h_addr.symm
     simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-      simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+      simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
       SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
       addressToNat_mod_eq, h_beq]
 
@@ -315,7 +315,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
         exact Nat.not_lt_of_ge h
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-        simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
         addressToNat_mod_eq, lookup_senderBal, lookup_recipientBal, lookup_addr_first]
     constructor
@@ -333,7 +333,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           specResult.finalStorage.getMapping 1 (addressToNat sender)) =
             ((state.storageMap 1 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-          simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+          simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, addressToNat_mod_eq, lookup_senderBal, lookup_recipientBal,
           lookup_addr_first]
@@ -372,7 +372,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           specResult.finalStorage.getMapping 1 (addressToNat sender)) =
             ((state.storageMap 1 sender).val + amount) % DumbContracts.Core.Uint256.modulus := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-          simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+          simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, addressToNat_mod_eq, lookup_senderBal, lookup_recipientBal,
           lookup_addr_first]
@@ -414,7 +414,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
         exact Nat.not_lt_of_ge h
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-        simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
         addressToNat_mod_eq, h_addr_ne, h_addr_ne', lookup_senderBal, lookup_recipientBal, lookup_addr_first,
         lookup_addr_second]
@@ -433,7 +433,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           specResult.finalStorage.getMapping 1 (addressToNat sender)) =
             (state.storageMap 1 sender).val - amount := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-          simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+          simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
           h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt, addressToNat_mod_eq, h_ne, h_addr_ne, h_addr_ne',
           lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second]
@@ -492,7 +492,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           specResult.finalStorage.getMapping 1 (addressToNat to)) =
             ((state.storageMap 1 to).val + amount) % DumbContracts.Core.Uint256.modulus := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-          simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+          simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
           h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt, addressToNat_mod_eq, h_ne, h_addr_ne,
           lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second]
@@ -566,7 +566,7 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
     by_cases h_eq : sender = to
     · subst h_eq
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-        simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         h, h_insufficient, Nat.mod_eq_of_lt h_amount, lookup_senderBal, lookup_recipientBal,
         lookup_addr_first]
@@ -574,7 +574,7 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
         intro h_nat
         exact h_eq (addressToNat_injective _ _ h_nat)
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-        simpleTokenSpec, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         h, h_insufficient, Nat.mod_eq_of_lt h_amount, h_addr_ne, lookup_senderBal, lookup_recipientBal,
         lookup_addr_first, lookup_addr_second]

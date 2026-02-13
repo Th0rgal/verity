@@ -101,7 +101,7 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
     simp [ContractResult.isSuccess, getStorage, setStorage]
   constructor
   · -- Spec success when sender is owner
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec storage count equals EDSL count
     have h_owner' : ({ state with sender := sender }).sender =
@@ -118,7 +118,7 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
       have h_inc_val' := congrArg (fun v : DumbContracts.Core.Uint256 => v.val) h_inc
       simp [uint256_add_val] at h_inc_val'
       exact h_inc_val'
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_inc_val, lookup_count_slot]
 
 /-- The `increment` function correctly reverts when called by non-owner -/
@@ -158,7 +158,7 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
         have h_addr : sender = state.storageAddr 0 :=
           addressToNat_injective sender (state.storageAddr 0) h_nat
         exact h h_addr.symm
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 
 /-- The `decrement` function correctly decrements when called by owner -/
@@ -186,7 +186,7 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
     simp [ContractResult.isSuccess, getStorage, setStorage]
   constructor
   · -- Spec success when sender is owner
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec storage count equals EDSL count
     have h_owner' : ({ state with sender := sender }).sender =
@@ -205,7 +205,7 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
             DumbContracts.Core.Uint256.modulus -
               (1 % DumbContracts.Core.Uint256.modulus - (state.storage 1).val)) := by
       simpa [h_dec] using (uint256_sub_val (state.storage 1) 1)
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_dec_val, lookup_count_slot]
 
 /-- The `decrement` function correctly reverts when called by non-owner -/
@@ -244,7 +244,7 @@ theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (send
         have h_addr : sender = state.storageAddr 0 :=
           addressToNat_injective sender (state.storageAddr 0) h_nat
         exact h h_addr.symm
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 
 /-- The `getCount` function correctly retrieves the counter value -/
@@ -301,10 +301,10 @@ theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) 
     simp [ContractResult.isSuccess]
   constructor
   · -- Spec success when sender is owner
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec sets owner to newOwner
-    simp [ownedCounterSpec, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
 /- Helper Properties -/

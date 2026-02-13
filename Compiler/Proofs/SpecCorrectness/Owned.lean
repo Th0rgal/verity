@@ -89,12 +89,12 @@ theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : A
     -- After unfolding, the spec evaluates: if sender == owner then execute else revert
     -- When h: sender = owner, the spec succeeds
     -- This requires simplifying nested Option.bind chains with evalExpr
-    simp [ownedSpec, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
+    simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Part 3: specResult.finalStorage.getSlot 0 = addressToNat newOwner
     -- Similar to Part 2: requires Option.bind chain simplification
     -- When authorized, spec stores newOwner at slot 0
-    simp [ownedSpec, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
+    simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
 /-- The `transferOwnership` function correctly reverts when called by non-owner -/
@@ -143,7 +143,7 @@ theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner 
           addressToNat_injective sender (state.storageAddr 0) h_nat
         exact h h_addr.symm
     -- Now the require in the spec fails, so success = false
-    simp [ownedSpec, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
+    simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 
 /-- The `getOwner` function correctly retrieves the owner address -/

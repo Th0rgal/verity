@@ -14,6 +14,13 @@ namespace Compiler.Specs
 open Compiler.ContractSpec
 
 /-!
+## Shared Helpers
+-/
+
+def requireOwner : Stmt :=
+  Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+
+/-!
 ## SimpleStorage Specification
 -/
 
@@ -101,7 +108,7 @@ def ownedSpec : ContractSpec := {
       params := [{ name := "newOwner", ty := ParamType.address }]
       returnType := none
       body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        requireOwner,
         Stmt.setStorage "owner" (Expr.param "newOwner"),
         Stmt.stop
       ]
@@ -203,7 +210,7 @@ def ownedCounterSpec : ContractSpec := {
       params := []
       returnType := none
       body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        requireOwner,
         Stmt.setStorage "count" (Expr.add (Expr.storage "count") (Expr.literal 1)),
         Stmt.stop
       ]
@@ -212,7 +219,7 @@ def ownedCounterSpec : ContractSpec := {
       params := []
       returnType := none
       body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        requireOwner,
         Stmt.setStorage "count" (Expr.sub (Expr.storage "count") (Expr.literal 1)),
         Stmt.stop
       ]
@@ -235,7 +242,7 @@ def ownedCounterSpec : ContractSpec := {
       params := [{ name := "newOwner", ty := ParamType.address }]
       returnType := none
       body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        requireOwner,
         Stmt.setStorage "owner" (Expr.param "newOwner"),
         Stmt.stop
       ]
@@ -270,7 +277,7 @@ def simpleTokenSpec : ContractSpec := {
       ]
       returnType := none
       body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        requireOwner,
         Stmt.letVar "recipientBal" (Expr.mapping "balances" (Expr.param "to")),
         Stmt.letVar "supply" (Expr.storage "totalSupply"),
         Stmt.setMapping "balances" (Expr.param "to")
