@@ -76,19 +76,19 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 Seven contracts are implemented and verified:
 
-| Contract | Theorems | Demonstrates |
-|----------|----------|--------------|
-| SimpleStorage | 19 | Basic storage read/write, state isolation |
-| Counter | 29 | Arithmetic operations, composition |
-| Owned | 22 | Access control patterns, ownership transfer |
-| SimpleToken | 64 | Token minting/transfer, supply conservation, storage isolation |
-| OwnedCounter | 34 | Combining patterns (owned + counter) |
-| Ledger | 40 | Balance tracking, deposit/withdraw/transfer, conservation laws |
-| SafeCounter | 30 | Overflow/underflow prevention with checked arithmetic |
+| Contract | Demonstrates |
+|----------|--------------|
+| SimpleStorage | Basic storage read/write, state isolation |
+| Counter | Arithmetic operations, composition |
+| Owned | Access control patterns, ownership transfer |
+| SimpleToken | Token minting/transfer, supply conservation, storage isolation |
+| OwnedCounter | Combining patterns (owned + counter) |
+| Ledger | Balance tracking, deposit/withdraw/transfer, conservation laws |
+| SafeCounter | Overflow/underflow prevention with checked arithmetic |
 
-Plus a math standard library with 14 theorems about safe arithmetic (`safeMul`, `safeDiv`, etc.).
+Plus a math standard library with safe arithmetic theorems (`safeMul`, `safeDiv`, etc.).
 
-**Total**: 252 proven theorems. See [/verification](/verification) for the complete list.
+See [/verification](/verification) for the complete, always-current theorem list.
 
 ## Introduction to Formal Verification
 
@@ -111,7 +111,7 @@ theorem store_retrieve : store 42 >> retrieve = pure 42 := by
 
 ## Documentation
 
-- **[Verification](/verification)** — All 252 theorems listed by contract
+- **[Verification](/verification)** — Full theorem list by contract
 - **[Examples](/examples)** — The 7 contracts and what they demonstrate
 - **[Core](/core)** — How the 234-line EDSL works
 - **[Research](/research)** — Design decisions and proof techniques
