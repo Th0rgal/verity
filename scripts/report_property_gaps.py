@@ -12,7 +12,7 @@ EXCLUSIONS = ROOT / "test" / "property_exclusions.json"
 TEST_DIR = ROOT / "test"
 
 PROPERTY_WITH_NUM_RE = re.compile(
-    r"Property\s+\d+[A-Za-z0-9]*\s*:\s*([A-Za-z0-9_']+)(?=\s*(?:\(|$))"
+    r"Property\s+\d+[A-Za-z0-9]*(?:-\d+)?\s*:\s*([A-Za-z0-9_']+)(?=\s*(?:\(|$))"
 )
 PROPERTY_SIMPLE_RE = re.compile(r"Property\s*:\s*([A-Za-z0-9_']+)(?=\s*(?:\(|$))")
 FILE_RE = re.compile(r"^Property(.+)\.t\.sol$")
@@ -70,6 +70,7 @@ def render_report(missing: dict[str, list[str]]) -> str:
     lines.append("Suggested tag format in tests:")
     lines.append("- `Property: <theorem_name>`")
     lines.append("- `Property 12: <theorem_name>` (optional numbering)")
+    lines.append("- `Property 12-13: <theorem_name>` (optional numbering ranges)")
     lines.append("")
     lines.append("Run this script after updating proofs or tests to keep tracking up to date.")
     return "\n".join(lines) + "\n"

@@ -149,7 +149,8 @@ python3 scripts/check_property_coverage.py
 python3 scripts/report_property_gaps.py
 
 # Property tests are discovered via comment tags like:
-# "Property 12a: theorem_name" or "Property: theorem_name" (optional trailing notes in parentheses are allowed).
+# "Property 12a: theorem_name", "Property 12-13: theorem_name", or "Property: theorem_name"
+# (optional trailing notes in parentheses are allowed).
 
 # Optional: scan docs for hidden Unicode control characters
 python3 scripts/check_unicode_controls.py docs-site/content

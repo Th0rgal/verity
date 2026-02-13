@@ -11,7 +11,7 @@ MANIFEST = ROOT / "test" / "property_manifest.json"
 TEST_DIR = ROOT / "test"
 
 PROPERTY_WITH_NUM_RE = re.compile(
-    r"Property\s+\d+[A-Za-z0-9]*\s*:\s*([A-Za-z0-9_']+)(?=\s*(?:\(|$))"
+    r"Property\s+\d+[A-Za-z0-9]*(?:-\d+)?\s*:\s*([A-Za-z0-9_']+)(?=\s*(?:\(|$))"
 )
 PROPERTY_SIMPLE_RE = re.compile(r"Property\s*:\s*([A-Za-z0-9_']+)(?=\s*(?:\(|$))")
 FILE_RE = re.compile(r"^Property(.+)\.t\.sol$")
