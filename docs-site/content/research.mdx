@@ -21,7 +21,7 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
 - **Layer 2 (ContractSpec -> IR)**: Per-function preservation theorems complete for all 7 contracts; contract-level dispatch generalization is underway (SimpleStorage + Counter + Owned done).
-- **Layer 3 (IR -> Yul)**: In progress (core IR/Yul semantics aligned, runtime preservation theorem in place, and smoke tests assert revert preservation across IR and Yul).
+- **Layer 3 (IR -> Yul)**: In progress (core IR/Yul semantics aligned, runtime preservation theorem in place, smoke tests assert revert preservation across IR and Yul, and `YulGeneration/Equivalence.lean` now includes aligned-Yul helpers plus a `calldataload` (offset >= 4) evaluation lemma).
 
 ## Iterations
 
