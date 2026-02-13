@@ -196,6 +196,15 @@ theorem getMapping_runValue (slot : StorageSlot (Address → Uint256)) (key : Ad
         exact (beq_iff_eq).1 h_eq
       exact (False.elim (h this.symm))
 
+-- Slot lookups for the common two-slot layout.
+@[simp] theorem lookup_slot_first (v0 v1 : Nat) :
+    (List.lookup 0 [(0, v0), (1, v1)]).getD 0 = v0 := by
+  simp [List.lookup, List.lookup_cons]
+
+@[simp] theorem lookup_slot_second (v0 v1 : Nat) :
+    (List.lookup 1 [(0, v0), (1, v1)]).getD 0 = v1 := by
+  simp [List.lookup, List.lookup_cons]
+
 /-!
 ## msgSender Lemmas
 -/

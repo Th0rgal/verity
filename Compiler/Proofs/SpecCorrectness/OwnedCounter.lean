@@ -36,11 +36,6 @@ open DumbContracts.Proofs.OwnedCounter
 
 -- Address encoding lemmas are provided by Automation.
 
--- Small lookup helper for the owned+count slot layout.
-@[simp] theorem lookup_count_slot (ownerVal countVal : Nat) :
-    (List.lookup 1 [(0, ownerVal), (1, countVal)]).getD 0 = countVal := by
-  simp [List.lookup, List.lookup_cons]
-
 -- Helper: EVM add (Uint256) matches modular Nat addition.
 -- (uint256_add_val) is provided by Automation.
 
@@ -119,7 +114,7 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
       simp [uint256_add_val] at h_inc_val'
       exact h_inc_val'
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_inc_val, lookup_count_slot]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_inc_val, lookup_slot_second]
 
 /-- The `increment` function correctly reverts when called by non-owner -/
 theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (sender : Address)
@@ -206,7 +201,7 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
               (1 % DumbContracts.Core.Uint256.modulus - (state.storage 1).val)) := by
       simpa [h_dec] using (uint256_sub_val (state.storage 1) 1)
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_dec_val, lookup_count_slot]
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_dec_val, lookup_slot_second]
 
 /-- The `decrement` function correctly reverts when called by non-owner -/
 theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (sender : Address)
@@ -260,7 +255,7 @@ theorem ownedCounter_getCount_correct (state : ContractState) (sender : Address)
     specResult.returnValue = some edslValue := by
   unfold DumbContracts.Examples.OwnedCounter.getCount Contract.runValue ownedCounterSpec interpretSpec ownedCounterEdslToSpecStorage
   simp [getStorage, DumbContracts.Examples.OwnedCounter.count, execFunction, execStmts, execStmt, evalExpr,
-    SpecStorage.getSlot, lookup_count_slot]
+    SpecStorage.getSlot, lookup_slot_second]
 
 /-- The `getOwner` function correctly retrieves the owner address -/
 theorem ownedCounter_getOwner_correct (state : ContractState) (sender : Address) :
