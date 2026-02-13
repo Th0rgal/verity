@@ -148,6 +148,9 @@ python3 scripts/check_property_coverage.py
 # Property tests are discovered via comment tags like:
 # "Property 12: theorem_name" or "Property: theorem_name" (optional suffixes and annotations allowed).
 
+# Optional: scan docs for hidden Unicode control characters
+python3 scripts/check_unicode_controls.py docs-site/content
+
 # Optional: check selector hashing against specs and generated Yul (including yul-new if present)
 python3 scripts/check_selectors.py
 ```

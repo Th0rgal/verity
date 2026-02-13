@@ -18,6 +18,8 @@ jobs:
         working-directory: docs-site
     steps:
       - uses: actions/checkout@v4
+      - name: Check docs for Unicode controls
+        run: python3 ../scripts/check_unicode_controls.py content
 
       - uses: actions/setup-node@v4
         with:
