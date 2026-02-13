@@ -93,4 +93,15 @@ def ir_yul_function_equiv_goal
       (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args })
       (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args })
 
+/-! ## Generic Layer 3 Lemmas (Fuel-Agnostic)
+
+These lemmas lift instruction-level equivalence to sequences and function
+bodies. They do not assume any specific instruction equivalence proof;
+instead, they require it as a parameter and then compose it.
+-/
+
+theorem statesAligned_refl (selector : Nat) (state : IRState) :
+    statesAligned selector state (yulStateOfIR selector state) := by
+  rfl
+
 end Compiler.Proofs.YulGeneration
