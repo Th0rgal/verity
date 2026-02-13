@@ -180,8 +180,8 @@ def execTransaction_spec (to : Address) (value : Uint256) (data : Bytes) (operat
   let _ := gasPrice
   let _ := gasToken
   let _ := refundReceiver
-  let _ := signatures
   (operation = 0 ∨ operation = 1) ∧
+  signatures.length % 65 = 0 ∧
   result = true ∧
   s' = s
 

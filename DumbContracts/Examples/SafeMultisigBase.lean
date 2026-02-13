@@ -149,6 +149,7 @@ def execTransaction (to : Address) (value : Uint256) (data : Bytes) (operation :
   let _ := value
   let _ := data
   require (operation = 0 ∨ operation = 1) "invalid operation"
+  require (decide (signatures.length % 65 = 0)) "invalid signature length"
   let _ := safeTxGas
   let _ := baseGas
   let _ := gasPrice
