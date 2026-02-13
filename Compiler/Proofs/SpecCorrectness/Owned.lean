@@ -41,13 +41,8 @@ def ownedEdslToSpecStorage (state : ContractState) : SpecStorage :=
 /-!
 ## Helper Lemmas for Address Encoding
 
-Shared lemmas live in `Compiler.Proofs.SpecCorrectness.AddressEncoding`.
-We keep the injectivity axiom local to make the trust assumption explicit.
+Shared lemmas and axioms live in `Compiler.Proofs.SpecCorrectness.AddressEncoding`.
 -/
-
--- TRUST ASSUMPTION: Different addresses encode to different natural numbers.
-private axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
 
 /- Correctness Theorems -/
 

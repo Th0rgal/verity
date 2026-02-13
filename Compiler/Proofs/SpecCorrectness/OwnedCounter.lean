@@ -34,9 +34,6 @@ open DumbContracts
 open DumbContracts.Examples.OwnedCounter
 
 -- Trust assumption: address encoding is injective for valid addresses.
-private axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
-
 /- State Conversion -/
 
 /-- Convert EDSL ContractState to SpecStorage for OwnedCounter -/

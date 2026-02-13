@@ -34,9 +34,6 @@ open Compiler.Hex
 open DumbContracts
 open DumbContracts.Examples.Ledger
 
-private axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
-
 /- State Conversion -/
 
 /-- Convert EDSL ContractState to SpecStorage for Ledger (placeholder) -/

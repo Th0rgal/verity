@@ -46,10 +46,6 @@ def tokenEdslToSpecStorageWithAddrs (state : ContractState) (addrs : List Addres
       (2, (state.storage 2).val)                -- totalSupply at slot 2
     ]
     mappings := [(1, addrs.map (fun addr => (addressToNat addr, (state.storageMap 1 addr).val)))] }
-
--- Trust assumption: addressToNat is injective for valid addresses.
-private axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
 /-!
 ## Helper Lemmas for Address and Uint256 Arithmetic
 -/
