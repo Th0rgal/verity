@@ -15,7 +15,7 @@ def mappingTag : Nat := evmModulus
 
 /-- Encode a mapping slot (base slot + key) into a tagged word. -/
 def encodeMappingSlot (baseSlot key : Nat) : Nat :=
-  mappingTag + (baseSlot % evmModulus) * evmModulus + (key % evmModulus)
+  mappingTag + baseSlot * evmModulus + (key % evmModulus)
 
 /-- Decode a tagged mapping slot back into (base slot, key). -/
 def decodeMappingSlot (slot : Nat) : Option (Nat × Nat) :=

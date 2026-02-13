@@ -243,6 +243,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 **B. Finish Layer 3 (IR → Yul)**:
 - Scaffolding: IR interpreter now matches Yul bitwise ops (`xor`, `not`, `shl`, `shr`) to avoid semantic drift.
 - Added an IR→Yul state alignment helper (`yulStateOfIR`) to keep Layer 3 proofs focused on semantic equivalence.
+- Converted IR↔Yul smoke checks into Lean examples so `Compiler.Proofs.YulGeneration.SmokeTests` builds.
 - Prove IR op → Yul op equivalence for all IR instructions, not just the high-level theorem statement.
 - Add contract-level end-to-end theorems akin to Layer 2: “interpretIR = interpretYulFromIR” per contract.
 - **Done when**: every IR instruction has a corresponding Lean equivalence lemma in `Compiler/Proofs/YulGeneration/Equivalence.lean`, each contract has a compiled end-to-end theorem, and the layer builds without TODOs or `admit`s in the Yul generation proofs.
@@ -273,6 +274,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 - Nested mappings (needed for allowances / ERC20 approve).
   - Extend the storage model to support `Address -> Address -> Uint256` with clean read/write lemmas.
   - Helper added: `encodeNestedMappingSlot` / `decodeNestedMappingSlot` in `Compiler/Proofs/MappingEncoding.lean`.
+  - Mapping slot encoding now preserves nested base slots (no modulo truncation), so nested encodings round‑trip.
   - Smoke test added in `Compiler/Proofs/YulGeneration/SmokeTests.lean` to validate nested mapping slot routing in the Yul interpreter.
 - **Done when**: an ERC‑20-style spec can express `approve`/`transferFrom`, self-transfer is defined, and a supply‑equals‑sum proof composes over the finite address set.
 
