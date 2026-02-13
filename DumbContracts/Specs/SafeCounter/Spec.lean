@@ -26,17 +26,13 @@ open DumbContracts.EVM.Uint256
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = add (s.storage 0) 1 ∧
   storageUnchangedExcept 0 s s' ∧
-  sameStorageAddr s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  sameAddrMapContext s s'
 
 /-- decrement (when no underflow): count decreases by 1, everything else preserved -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = sub (s.storage 0) 1 ∧
   storageUnchangedExcept 0 s s' ∧
-  sameStorageAddr s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  sameAddrMapContext s s'
 
 /-- getCount: returns current count, no state change -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=

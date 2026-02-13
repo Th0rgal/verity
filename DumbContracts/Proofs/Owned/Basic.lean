@@ -65,7 +65,8 @@ theorem setStorageAddr_preserves_context (s : ContractState) (addr : Address) :
 theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   let s' := ((constructor initialOwner).run s).snd
   constructor_spec initialOwner s s' := by
-  simp [constructor, constructor_spec, owner, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+  simp [constructor, constructor_spec, owner, Specs.sameStorageMapContext,
+    Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
   intro slot h_neq
   simp [setStorageAddr, owner, h_neq]
 
@@ -130,7 +131,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
     transferOwnership_spec]
   -- After unfolding, the guard condition is (s.sender == s.storageAddr 0)
   -- Since h_is_owner tells us s.sender = s.storageAddr 0, the guard passes
-  simp [h_is_owner, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+  simp [h_is_owner, Specs.sameStorageMapContext, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
   intro slot h_neq
   simp [beq_iff_eq, h_neq]
 
@@ -160,7 +161,8 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   let s' := ((constructor initialOwner).run s).snd
   WellFormedState s' := by
   have h_spec := constructor_meets_spec s initialOwner
-  obtain ⟨h_owner_set, _h_other_addr, _h_storage, _h_map, h_ctx⟩ := h_spec
+  rcases h_spec with ⟨h_owner_set, _h_other_addr, h_same⟩
+  rcases h_same with ⟨_h_storage, _h_map, h_ctx⟩
   have h_sender := h_ctx.1
   have h_this := h_ctx.2.1
   constructor

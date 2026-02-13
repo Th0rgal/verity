@@ -25,9 +25,7 @@ open DumbContracts.EVM.Uint256
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
   storageAddrUnchangedExcept 0 s s' ∧
-  sameStorage s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  sameStorageMapContext s s'
 
 /-- getCount: returns count from slot 1, no state change -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=
@@ -41,24 +39,18 @@ def getOwner_spec (result : Address) (s : ContractState) : Prop :=
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 1 = add (s.storage 1) 1 ∧
   storageUnchangedExcept 1 s s' ∧
-  sameStorageAddr s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  sameAddrMapContext s s'
 
 /-- decrement (when owner): count decreases by 1, owner unchanged, context preserved -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 1 = sub (s.storage 1) 1 ∧
   storageUnchangedExcept 1 s s' ∧
-  sameStorageAddr s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  sameAddrMapContext s s'
 
 /-- transferOwnership (when owner): changes owner, count unchanged -/
 def transferOwnership_spec (newOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = newOwner ∧
   storageAddrUnchangedExcept 0 s s' ∧
-  sameStorage s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  sameStorageMapContext s s'
 
 end DumbContracts.Specs.OwnedCounter

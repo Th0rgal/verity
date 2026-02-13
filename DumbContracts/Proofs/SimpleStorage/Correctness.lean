@@ -57,7 +57,7 @@ theorem store_preserves_addr_storage (s : ContractState) (value : Uint256) :
   simp [addr_storage_unchanged]
   have h := store_meets_spec s value
   simp [store_spec] at h
-  exact h.2.2.2.1
+  exact h.2.2.1
 
 /-- store preserves mapping storage. -/
 theorem store_preserves_map_storage (s : ContractState) (value : Uint256) :
@@ -66,7 +66,7 @@ theorem store_preserves_map_storage (s : ContractState) (value : Uint256) :
   simp [map_storage_unchanged]
   have h := store_meets_spec s value
   simp [store_spec] at h
-  exact h.2.2.2.2
+  exact h.2.2.2.1
 
 /-- store preserves context (sender, thisAddress). -/
 theorem store_preserves_context (s : ContractState) (value : Uint256) :
@@ -74,7 +74,7 @@ theorem store_preserves_context (s : ContractState) (value : Uint256) :
   context_preserved s s' := by
   have h := store_meets_spec s value
   simp [store_spec] at h
-  simpa [Specs.sameContext, context_preserved] using h.2.2.1
+  simpa [Specs.sameContext, context_preserved] using h.2.2.2.2
 
 /-- retrieve preserves all state (read-only, trivially preserves everything). -/
 theorem retrieve_preserves_context (s : ContractState) :

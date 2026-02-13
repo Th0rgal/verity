@@ -72,7 +72,8 @@ theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
 theorem store_meets_spec (s : ContractState) (value : Uint256) :
   let s' := ((store value).run s).snd
   store_spec value s s' := by
-  simp [store, storedData, store_spec, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  simp [store, storedData, store_spec, Specs.sameAddrMapContext,
+    Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
   intro slot h_neq
   simp [setStorage, storedData, h_neq]
 

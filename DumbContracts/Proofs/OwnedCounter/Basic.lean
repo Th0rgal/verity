@@ -27,7 +27,7 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   let s' := ((constructor initialOwner).run s).snd
   constructor_spec initialOwner s s' := by
   simp [constructor, setStorageAddr, owner, constructor_spec, Contract.run, ContractResult.snd,
-    Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+    Specs.sameStorageMapContext, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
   intro slot h_neq
   simp [setStorageAddr, owner, h_neq]
 
@@ -101,7 +101,8 @@ theorem increment_meets_spec_when_owner (s : ContractState)
   let s' := (increment.run s).snd
   increment_spec s s' := by
   rw [increment_unfold s h_owner]
-  simp [increment_spec, ContractResult.snd, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  simp [increment_spec, ContractResult.snd, Specs.sameAddrMapContext,
+    Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
   intro slot h_neq
   simp [beq_iff_eq, h_neq]
 
@@ -147,7 +148,8 @@ theorem decrement_meets_spec_when_owner (s : ContractState)
   let s' := (decrement.run s).snd
   decrement_spec s s' := by
   rw [decrement_unfold s h_owner]
-  simp [decrement_spec, ContractResult.snd, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  simp [decrement_spec, ContractResult.snd, Specs.sameAddrMapContext,
+    Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
   intro slot h_neq
   simp [beq_iff_eq, h_neq]
 
@@ -192,7 +194,8 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   let s' := ((transferOwnership newOwner).run s).snd
   transferOwnership_spec newOwner s s' := by
   rw [transferOwnership_unfold s newOwner h_owner]
-  simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+  simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorageMapContext,
+    Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
   intro slot h_neq
   simp [beq_iff_eq, h_neq]
 
@@ -248,7 +251,8 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   let s' := ((constructor initialOwner).run s).snd
   WellFormedState s' := by
   have h_spec := constructor_meets_spec s initialOwner
-  obtain ⟨h_set, _h_other_addr, _h_storage, _h_map, h_ctx⟩ := h_spec
+  rcases h_spec with ⟨h_set, _h_other_addr, h_same⟩
+  rcases h_same with ⟨_h_storage, _h_map, h_ctx⟩
   have h_sender := h_ctx.1
   have h_this := h_ctx.2.1
   constructor

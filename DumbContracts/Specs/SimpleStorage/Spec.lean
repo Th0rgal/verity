@@ -17,11 +17,8 @@ def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
   s'.storage 0 = value ∧
   -- Other storage slots unchanged
   storageUnchangedExcept 0 s s' ∧
-  -- Context unchanged
-  sameContext s s' ∧
-  -- Other storage types unchanged
-  sameStorageAddr s s' ∧
-  sameStorageMap s s'
+  -- Context and other storage types unchanged
+  sameAddrMapContext s s'
 
 -- What retrieve should do: return the value at slot 0
 def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=

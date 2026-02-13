@@ -32,7 +32,8 @@ theorem increment_state_preserved_except_count (s : ContractState) :
   let s' := ((increment).run s).snd
   state_preserved_except_count s s' := by
   have h := increment_meets_spec s
-  obtain ⟨_, h_slots, h_ctx, h_addr, h_map⟩ := h
+  rcases h with ⟨_, h_slots, h_same⟩
+  rcases h_same with ⟨h_addr, h_map, h_ctx⟩
   refine ⟨fun h_ne => h_slots 0 h_ne, h_addr, h_map, ?_⟩
   simpa [context_preserved, Specs.sameContext] using h_ctx
 
@@ -41,7 +42,8 @@ theorem decrement_state_preserved_except_count (s : ContractState) :
   let s' := ((decrement).run s).snd
   state_preserved_except_count s s' := by
   have h := decrement_meets_spec s
-  obtain ⟨_, h_slots, h_ctx, h_addr, h_map⟩ := h
+  rcases h with ⟨_, h_slots, h_same⟩
+  rcases h_same with ⟨h_addr, h_map, h_ctx⟩
   refine ⟨fun h_ne => h_slots 0 h_ne, h_addr, h_map, ?_⟩
   simpa [context_preserved, Specs.sameContext] using h_ctx
 

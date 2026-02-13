@@ -63,7 +63,7 @@ theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
 theorem increment_meets_spec (s : ContractState) :
   let s' := ((increment).run s).snd
   increment_spec s s' := by
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_⟩
   · rfl
   · intro slot h_neq
     simp only [increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
@@ -72,9 +72,8 @@ theorem increment_meets_spec (s : ContractState) :
       have : slot = 0 := by simp [beq_iff_eq] at h; exact h
       exact absurd this h_neq
     · rfl
-  · simp [Specs.sameContext, increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
-  · simp [Specs.sameStorageAddr, increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
-  · simp [Specs.sameStorageMap, increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
+  · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
+      increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
 
 theorem increment_adds_one (s : ContractState) :
   let s' := ((increment).run s).snd
@@ -88,7 +87,7 @@ theorem increment_adds_one (s : ContractState) :
 theorem decrement_meets_spec (s : ContractState) :
   let s' := ((decrement).run s).snd
   decrement_spec s s' := by
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_⟩
   · rfl
   · intro slot h_neq
     simp only [decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
@@ -97,9 +96,8 @@ theorem decrement_meets_spec (s : ContractState) :
       have : slot = 0 := by simp [beq_iff_eq] at h; exact h
       exact absurd this h_neq
     · rfl
-  · simp [Specs.sameContext, decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
-  · simp [Specs.sameStorageAddr, decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
-  · simp [Specs.sameStorageMap, decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
+  · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
+      decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
 
 theorem decrement_subtracts_one (s : ContractState) :
   let s' := ((decrement).run s).snd
@@ -174,14 +172,16 @@ theorem increment_preserves_wellformedness (s : ContractState) (h : WellFormedSt
   let s' := ((increment).run s).snd
   WellFormedState s' := by
   have h_spec := increment_meets_spec s
-  have h_ctx : Specs.sameContext s ((increment).run s).snd := h_spec.2.2.1
+  rcases h_spec with ⟨_, _, h_same⟩
+  rcases h_same with ⟨_, _, h_ctx⟩
   exact ⟨h_ctx.1 ▸ h.sender_nonempty, h_ctx.2.1 ▸ h.contract_nonempty⟩
 
 theorem decrement_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((decrement).run s).snd
   WellFormedState s' := by
   have h_spec := decrement_meets_spec s
-  have h_ctx : Specs.sameContext s ((decrement).run s).snd := h_spec.2.2.1
+  rcases h_spec with ⟨_, _, h_same⟩
+  rcases h_same with ⟨_, _, h_ctx⟩
   exact ⟨h_ctx.1 ▸ h.sender_nonempty, h_ctx.2.1 ▸ h.contract_nonempty⟩
 
 theorem getCount_preserves_state (s : ContractState) :
