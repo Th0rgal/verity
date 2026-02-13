@@ -42,15 +42,6 @@ open DumbContracts.Examples.Ledger
 
 /- State Conversion -/
 
-/-- Convert EDSL ContractState to SpecStorage for Ledger (placeholder) -/
-def ledgerEdslToSpecStorage (_state : ContractState) : SpecStorage :=
-  { slots := []
-    -- Note: We can't easily convert the full mapping. For proofs, we'll need to
-    -- specify which addresses we care about and convert those entries.
-    -- This is a limitation we'll address in the actual proof.
-    mappings := [(0, [])]  -- Placeholder, will be refined per-theorem
-  }
-
 /-- Convert EDSL mapping to SpecStorage mapping for specific addresses -/
 def ledgerEdslToSpecStorageWithAddrs (state : ContractState) (addrs : List Address) : SpecStorage :=
   { slots := []
