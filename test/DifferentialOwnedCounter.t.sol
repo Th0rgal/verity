@@ -571,16 +571,15 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
 
-        uint256 seed = _diffRandomSeed();
-
-        uint256 count = _diffRandomSmallCount();
+        (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
+        uint256 seed = _diffRandomBaseSeed();
         for (uint256 i = 0; i < count; i++) {
             // Generate random transaction
             (string memory funcName, address sender, uint256 arg) =
-                _randomTransaction(seed + i, actors);
+                _randomTransaction(seed + startIndex + i, actors);
 
             bool success = executeDifferentialTest(funcName, sender, arg);
-            _assertRandomSuccess(success, i);
+            _assertRandomSuccess(success, startIndex + i);
         }
 
         console2.log("Random tests passed:", testsPassed);
@@ -594,16 +593,15 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
 
-        uint256 seed = _diffRandomSeed();
-
-        uint256 count = _diffRandomLargeCount();
+        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
+        uint256 seed = _diffRandomBaseSeed();
         for (uint256 i = 0; i < count; i++) {
             // Generate random transaction
             (string memory funcName, address sender, uint256 arg) =
-                _randomTransaction(seed + i, actors);
+                _randomTransaction(seed + startIndex + i, actors);
 
             bool success = executeDifferentialTest(funcName, sender, arg);
-            _assertRandomSuccess(success, i);
+            _assertRandomSuccess(success, startIndex + i);
         }
 
         console2.log("Random tests passed:", testsPassed);

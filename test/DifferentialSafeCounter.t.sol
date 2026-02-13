@@ -332,33 +332,35 @@ contract DifferentialSafeCounter is YulTestBase, DiffTestConfig {
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
-        _runRandomDifferentialTests(_diffRandomSmallCount(), _diffRandomSeed());
+        (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
+        _runRandomDifferentialTests(startIndex, count, _diffRandomBaseSeed());
     }
 
     /**
      * @notice Run 10000 random differential tests
      */
     function testDifferential_Random10000() public {
-        _runRandomDifferentialTests(_diffRandomLargeCount(), _diffRandomSeed());
+        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
+        _runRandomDifferentialTests(startIndex, count, _diffRandomBaseSeed());
     }
 
     /**
      * @notice Execute N random transactions
      */
-    function _runRandomDifferentialTests(uint256 count, uint256 seed) internal {
+    function _runRandomDifferentialTests(uint256 startIndex, uint256 count, uint256 seed) internal {
         console2.log("Generated", count, "random transactions");
 
-        uint256 prng = seed;
+        uint256 prng = _skipRandom(seed, startIndex);
         vm.pauseGasMetering();
         for (uint256 i = 0; i < count; i++) {
             // Simple PRNG
-            prng = (1103515245 * prng + 12345) % (2**31);
+            prng = _lcg(prng);
 
             // Generate address
             address sender = _indexToAddress(prng % 5);
 
             // Determine function (3 options: increment, decrement, getCount)
-            prng = (1103515245 * prng + 12345) % (2**31);
+            prng = _lcg(prng);
             uint256 funcChoice = prng % 3;
 
             string memory functionName;
@@ -379,6 +381,18 @@ contract DifferentialSafeCounter is YulTestBase, DiffTestConfig {
         console2.log("Random differential tests completed:", testsPassed);
         console2.log("Failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
+    }
+
+    function _skipRandom(uint256 prng, uint256 iterations) internal pure returns (uint256) {
+        for (uint256 i = 0; i < iterations; i++) {
+            prng = _lcg(prng);
+            prng = _lcg(prng);
+        }
+        return prng;
+    }
+
+    function _lcg(uint256 prng) internal pure returns (uint256) {
+        return (1103515245 * prng + 12345) % (2**31);
     }
 
     function _indexToAddress(uint256 index) internal pure returns (address) {

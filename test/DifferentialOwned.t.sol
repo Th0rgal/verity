@@ -423,8 +423,8 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
      */
     function testDifferential_Random100() public {
         // Deterministic PRNG seed for reproducibility
-        uint256 seed = _diffRandomSeed();
-        uint256 numTransactions = _diffRandomSmallCount();
+        (uint256 startIndex, uint256 numTransactions) = _diffRandomSmallRange();
+        uint256 seed = _diffRandomBaseSeed();
 
         address[] memory testAddresses = new address[](3);
         testAddresses[0] = address(this);
@@ -433,6 +433,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
 
         console2.log("Generated", numTransactions, "random transactions");
 
+        seed = _skipRandom(seed, startIndex);
         for (uint256 i = 0; i < numTransactions; i++) {
             seed = _prng(seed);
             uint256 txType = seed % 100;
@@ -447,7 +448,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = uint256(uint160(testAddresses[seed % testAddresses.length]));
 
                 bool success = executeDifferentialTest("transferOwnership", sender, arg0);
-                _assertRandomSuccess(success, i);
+                _assertRandomSuccess(success, startIndex + i);
             } else {
                 // 40% getOwner
                 seed = _prng(seed);
@@ -455,7 +456,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = 0;
 
                 bool success = executeDifferentialTest("getOwner", sender, arg0);
-                _assertRandomSuccess(success, i);
+                _assertRandomSuccess(success, startIndex + i);
             }
         }
 
@@ -470,8 +471,8 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
      */
     function testDifferential_Random10000() public {
         // Deterministic PRNG seed for reproducibility
-        uint256 seed = _diffRandomSeed();
-        uint256 numTransactions = _diffRandomLargeCount();
+        (uint256 startIndex, uint256 numTransactions) = _diffRandomLargeRange();
+        uint256 seed = _diffRandomBaseSeed();
 
         address[] memory testAddresses = new address[](3);
         testAddresses[0] = address(this);
@@ -480,6 +481,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
 
         console2.log("Generated", numTransactions, "random transactions");
 
+        seed = _skipRandom(seed, startIndex);
         for (uint256 i = 0; i < numTransactions; i++) {
             seed = _prng(seed);
             uint256 txType = seed % 100;
@@ -494,7 +496,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = uint256(uint160(testAddresses[seed % testAddresses.length]));
 
                 bool success = executeDifferentialTest("transferOwnership", sender, arg0);
-                _assertRandomSuccess(success, i);
+                _assertRandomSuccess(success, startIndex + i);
             } else {
                 // 40% getOwner
                 seed = _prng(seed);
@@ -502,7 +504,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
                 arg0 = 0;
 
                 bool success = executeDifferentialTest("getOwner", sender, arg0);
-                _assertRandomSuccess(success, i);
+                _assertRandomSuccess(success, startIndex + i);
             }
         }
 
@@ -519,6 +521,14 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
      */
     function _prng(uint256 seed) internal pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(seed))) % (2**32);
+    }
+
+    function _skipRandom(uint256 seed, uint256 iterations) internal pure returns (uint256) {
+        for (uint256 i = 0; i < iterations; i++) {
+            seed = _prng(seed);
+            seed = _prng(seed);
+        }
+        return seed;
     }
 
     /**

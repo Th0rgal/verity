@@ -326,20 +326,22 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig {
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
-        _runRandomDifferentialTests(_diffRandomSmallCount(), _diffRandomSeed());
+        (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
+        _runRandomDifferentialTests(startIndex, count, _diffRandomBaseSeed());
     }
 
     /**
      * @notice Run 10000 random differential tests (slow)
      */
     function testDifferential_Random10000() public {
-        _runRandomDifferentialTests(_diffRandomLargeCount(), _diffRandomSeed());
+        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
+        _runRandomDifferentialTests(startIndex, count, _diffRandomBaseSeed());
     }
 
     /**
      * @notice Execute N random transactions via random-gen
      */
-    function _runRandomDifferentialTests(uint256 count, uint256 seed) internal {
+    function _runRandomDifferentialTests(uint256 startIndex, uint256 count, uint256 seed) internal {
         // Generate random transactions via Lean random-gen (disabled - use inline PRNG for CI)
         // string[] memory inputs = new string[](3);
         // inputs[0] = "bash";
@@ -362,22 +364,22 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig {
         // For now, execute a simpler approach: generate them one-by-one inline
         // This avoids complex JSON parsing in Solidity
 
-        uint256 prng = seed;
+        uint256 prng = _skipRandom(seed, startIndex);
         vm.pauseGasMetering();
         for (uint256 i = 0; i < count; i++) {
             // Simple PRNG matching Lean's LCG + generation order
-            prng = (1103515245 * prng + 12345) % (2**31);
+            prng = _lcg(prng);
 
             // Generate address (Lean: genAddress)
             address sender = _indexToAddress(prng % 5);
 
             // Determine function (Lean: genBool)
-            prng = (1103515245 * prng + 12345) % (2**31);
+            prng = _lcg(prng);
             bool isStore = (prng % 2) == 0;
 
             if (isStore) {
                 // Generate value (mostly small with some edge-case coverage)
-                prng = (1103515245 * prng + 12345) % (2**31);
+                prng = _lcg(prng);
                 uint256 value = _coerceRandomUint256(prng, 1000000);
 
                 bool success = executeDifferentialTest("store", sender, value);
@@ -393,6 +395,22 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig {
         console2.log("Random differential tests completed:", testsPassed);
         console2.log("Failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
+    }
+
+    function _skipRandom(uint256 prng, uint256 iterations) internal pure returns (uint256) {
+        for (uint256 i = 0; i < iterations; i++) {
+            prng = _lcg(prng);
+            prng = _lcg(prng);
+            bool isStore = (prng % 2) == 0;
+            if (isStore) {
+                prng = _lcg(prng);
+            }
+        }
+        return prng;
+    }
+
+    function _lcg(uint256 prng) internal pure returns (uint256) {
+        return (1103515245 * prng + 12345) % (2**31);
     }
 
     /**
