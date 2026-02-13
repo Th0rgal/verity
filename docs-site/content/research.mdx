@@ -268,6 +268,7 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
 - Self-transfer semantics: modeled as a no-op in token/ledger specs. (Done)
 - Full supply = sum of balances in a finite address model.
   - Introduce a finite address set parameter so proofs can quantify over balances.
+  - Implemented invariant helpers (`sum_balances`, `supply_equals_sum`) in `Specs/SimpleToken/Invariants.lean`; proofs and tests pending.
 - Nested mappings (needed for allowances / ERC20 approve).
   - Extend the storage model to support `Address -> Address -> Uint256` with clean read/write lemmas.
 - **Done when**: an ERC‑20-style spec can express `approve`/`transferFrom`, self-transfer is defined, and a supply‑equals‑sum proof composes over the finite address set.

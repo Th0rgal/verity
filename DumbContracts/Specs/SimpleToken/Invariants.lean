@@ -41,8 +41,15 @@ def supply_non_negative (s : ContractState) : Prop :=
     For our infinite address space model, we express this differently:
     "Any finite subset of addresses has balances that don't exceed total supply"
 -/
+def sum_balances (s : ContractState) (addrs : List Address) : Uint256 :=
+  (addrs.map (fun addr => s.storageMap 1 addr)).sum
+
 def supply_bounds_balances (s : ContractState) : Prop :=
-  ∀ addrs : List Address, (addrs.map (fun addr => s.storageMap 1 addr)).sum ≤ s.storage 2
+  ∀ addrs : List Address, sum_balances s addrs ≤ s.storage 2
+
+/-- Total supply equals the sum of balances over a finite address set. -/
+def supply_equals_sum (s : ContractState) (addrs : List Address) : Prop :=
+  s.storage 2 = sum_balances s addrs
 
 /-- Owner cannot change except through transferOwnership (which doesn't exist yet) -/
 def owner_stable (s s' : ContractState) : Prop :=
