@@ -135,3 +135,17 @@ def die(msg: str) -> None:
     """
     print(f"error: {msg}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def report_errors(errors: list[str], message: str) -> None:
+    """Print error list to stderr and exit with code 1.
+
+    Args:
+        errors: List of error messages to report.
+        message: Header message to print before error list.
+    """
+    if errors:
+        print(f"{message}:", file=sys.stderr)
+        for item in errors:
+            print(f"  - {item}", file=sys.stderr)
+        raise SystemExit(1)

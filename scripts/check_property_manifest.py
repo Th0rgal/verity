@@ -10,6 +10,7 @@ from property_utils import (
     TEST_DIR,
     extract_property_names,
     load_manifest,
+    report_errors,
 )
 
 
@@ -37,11 +38,7 @@ def main() -> None:
     if empty_tags:
         missing.append("Property files missing Property tags: " + ", ".join(empty_tags))
 
-    if missing:
-        print("Property manifest check failed:", file=sys.stderr)
-        for item in missing:
-            print(f"  - {item}", file=sys.stderr)
-        raise SystemExit(1)
+    report_errors(missing, "Property manifest check failed")
 
     print("Property manifest check passed.")
 

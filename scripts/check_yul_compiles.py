@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from property_utils import report_errors
+
 ROOT = Path(__file__).resolve().parents[1]
 YUL_DIRS = [ROOT / "compiler" / "yul", ROOT / "compiler" / "yul-new"]
 
@@ -48,11 +50,7 @@ def main() -> None:
         if not stdout.strip():
             failures.append(f"{path}: solc returned no output")
 
-    if failures:
-        print("Yul->EVM compilation failed:", file=sys.stderr)
-        for failure in failures:
-            print(f"- {failure}", file=sys.stderr)
-        raise SystemExit(1)
+    report_errors(failures, "Yul->EVM compilation failed")
 
     print(f"Yul->EVM compilation check passed ({len(files)} files).")
 

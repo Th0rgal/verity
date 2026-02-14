@@ -237,118 +237,75 @@ private def dispatch (tx : Transaction) (cases : List (String × (Unit → Execu
 Demonstrate how to wrap EDSL contract for differential testing.
 -/
 
--- Import SimpleStorage EDSL
-private def exampleSimpleStorageStore (value : Nat) : Contract Unit :=
-  store value
-
-private def exampleSimpleStorageRetrieve : Contract Uint256 :=
-  retrieve
-
 -- Interpret SimpleStorage transactions
 def interpretSimpleStorage (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case1 "store" tx (fun value =>
-      runUnit (exampleSimpleStorageStore value) state [0] [] []  -- Check slot 0
+      runUnit (store value) state [0] [] []  -- Check slot 0
     ),
-    case0 "retrieve" tx (fun _ => runUint exampleSimpleStorageRetrieve state [0] [] [])
+    case0 "retrieve" tx (fun _ => runUint retrieve state [0] [] [])
   ]
 
 /-!
 ## Counter Interpreter
 -/
 
-private def exampleCounterIncrement : Contract Unit :=
-  Counter.increment
-
-private def exampleCounterDecrement : Contract Unit :=
-  Counter.decrement
-
-private def exampleCounterGetCount : Contract Uint256 :=
-  Counter.getCount
-
 def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (fun _ => runUnit exampleCounterIncrement state [0] [] []),
-    case0 "decrement" tx (fun _ => runUnit exampleCounterDecrement state [0] [] []),
-    case0 "getCount" tx (fun _ => runUint exampleCounterGetCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit Counter.increment state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit Counter.decrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint Counter.getCount state [0] [] [])
   ]
 
 /-!
 ## SafeCounter Interpreter
 -/
 
-private def exampleSafeCounterIncrement : Contract Unit :=
-  SafeCounter.increment
-
-private def exampleSafeCounterDecrement : Contract Unit :=
-  SafeCounter.decrement
-
-private def exampleSafeCounterGetCount : Contract Uint256 :=
-  SafeCounter.getCount
-
 def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (fun _ => runUnit exampleSafeCounterIncrement state [0] [] []),
-    case0 "decrement" tx (fun _ => runUnit exampleSafeCounterDecrement state [0] [] []),
-    case0 "getCount" tx (fun _ => runUint exampleSafeCounterGetCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit SafeCounter.increment state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit SafeCounter.decrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint SafeCounter.getCount state [0] [] [])
   ]
 
 /-!
 ## Owned Interpreter
 -/
 
-private def exampleOwnedTransferOwnership (newOwner : Address) : Contract Unit :=
-  Owned.transferOwnership newOwner
-
-private def exampleOwnedGetOwner : Contract Address :=
-  Owned.getOwner
-
 def interpretOwned (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
-      runUnit (exampleOwnedTransferOwnership newOwnerAddr) state [] [0] []
+      runUnit (Owned.transferOwnership newOwnerAddr) state [] [0] []
     ),
-    case0 "getOwner" tx (fun _ => runAddress exampleOwnedGetOwner state [] [0] [])
+    case0 "getOwner" tx (fun _ => runAddress Owned.getOwner state [] [0] [])
   ]
 
 /-!
 ## Ledger Interpreter
 -/
 
-private def exampleLedgerDeposit (amount : Nat) : Contract Unit :=
-  Ledger.deposit amount
-
-private def exampleLedgerWithdraw (amount : Nat) : Contract Unit :=
-  Ledger.withdraw amount
-
-private def exampleLedgerTransfer (to : Address) (amount : Nat) : Contract Unit :=
-  Ledger.transfer to amount
-
-private def exampleLedgerGetBalance (addr : Address) : Contract Uint256 :=
-  Ledger.getBalance addr
-
 def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case1 "deposit" tx (fun amount =>
       -- Track mapping changes for sender's balance
       let senderKey := (0, tx.sender)
-      runUnit (exampleLedgerDeposit amount) state [] [] [senderKey]
+      runUnit (Ledger.deposit amount) state [] [] [senderKey]
     ),
     case1 "withdraw" tx (fun amount =>
       -- Track mapping changes for sender's balance
       let senderKey := (0, tx.sender)
-      runUnit (exampleLedgerWithdraw amount) state [] [] [senderKey]
+      runUnit (Ledger.withdraw amount) state [] [] [senderKey]
     ),
     case2AddressNat "transfer" tx (fun toAddr amount =>
       -- Track mapping changes for both sender and recipient
       let senderKey := (0, tx.sender)
       let recipientKey := (0, toAddr)
-      runUnit (exampleLedgerTransfer toAddr amount) state [] [] [senderKey, recipientKey]
+      runUnit (Ledger.transfer toAddr amount) state [] [] [senderKey, recipientKey]
     ),
     case1Address "getBalance" tx (fun addr =>
       -- Track mapping for the queried address
       let addrKey := (0, addr)
-      runUint (exampleLedgerGetBalance addr) state [] [] [addrKey]
+      runUint (Ledger.getBalance addr) state [] [] [addrKey]
     )
   ]
 
@@ -356,36 +313,21 @@ def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult
 ## OwnedCounter Interpreter
 -/
 
-private def exampleOwnedCounterIncrement : Contract Unit :=
-  OwnedCounter.increment
-
-private def exampleOwnedCounterDecrement : Contract Unit :=
-  OwnedCounter.decrement
-
-private def exampleOwnedCounterGetCount : Contract Uint256 :=
-  OwnedCounter.getCount
-
-private def exampleOwnedCounterGetOwner : Contract Address :=
-  OwnedCounter.getOwner
-
-private def exampleOwnedCounterTransferOwnership (newOwner : Address) : Contract Unit :=
-  OwnedCounter.transferOwnership newOwner
-
 def interpretOwnedCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case0 "increment" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
-      runUnit exampleOwnedCounterIncrement state [1] [0] []
+      runUnit OwnedCounter.increment state [1] [0] []
     ),
     case0 "decrement" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
-      runUnit exampleOwnedCounterDecrement state [1] [0] []
+      runUnit OwnedCounter.decrement state [1] [0] []
     ),
-    case0 "getCount" tx (fun _ => runUint exampleOwnedCounterGetCount state [1] [] []),
-    case0 "getOwner" tx (fun _ => runAddress exampleOwnedCounterGetOwner state [] [0] []),
+    case0 "getCount" tx (fun _ => runUint OwnedCounter.getCount state [1] [] []),
+    case0 "getOwner" tx (fun _ => runAddress OwnedCounter.getOwner state [] [0] []),
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
       -- Track owner address storage slot 0
-      runUnit (exampleOwnedCounterTransferOwnership newOwnerAddr) state [] [0] []
+      runUnit (OwnedCounter.transferOwnership newOwnerAddr) state [] [0] []
     )
   ]
 
@@ -393,41 +335,26 @@ def interpretOwnedCounter (tx : Transaction) (state : ContractState) : Execution
 ## SimpleToken Interpreter
 -/
 
-private def exampleSimpleTokenMint (to : Address) (amount : Nat) : Contract Unit :=
-  SimpleToken.mint to amount
-
-private def exampleSimpleTokenTransfer (to : Address) (amount : Nat) : Contract Unit :=
-  SimpleToken.transfer to amount
-
-private def exampleSimpleTokenBalanceOf (addr : Address) : Contract Uint256 :=
-  SimpleToken.balanceOf addr
-
-private def exampleSimpleTokenGetTotalSupply : Contract Uint256 :=
-  SimpleToken.getTotalSupply
-
-private def exampleSimpleTokenGetOwner : Contract Address :=
-  SimpleToken.getOwner
-
 def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case2AddressNat "mint" tx (fun toAddr amount =>
       -- Track: storage slot 2 (totalSupply), owner slot 0, mapping for recipient
       let recipientKey := (1, toAddr)
-      runUnit (exampleSimpleTokenMint toAddr amount) state [2] [0] [recipientKey]
+      runUnit (SimpleToken.mint toAddr amount) state [2] [0] [recipientKey]
     ),
     case2AddressNat "transfer" tx (fun toAddr amount =>
       -- Track mapping changes for both sender and recipient
       let senderKey := (1, tx.sender)
       let recipientKey := (1, toAddr)
-      runUnit (exampleSimpleTokenTransfer toAddr amount) state [] [] [senderKey, recipientKey]
+      runUnit (SimpleToken.transfer toAddr amount) state [] [] [senderKey, recipientKey]
     ),
     case1Address "balanceOf" tx (fun addr =>
       -- Track mapping for the queried address
       let addrKey := (1, addr)
-      runUint (exampleSimpleTokenBalanceOf addr) state [] [] [addrKey]
+      runUint (SimpleToken.balanceOf addr) state [] [] [addrKey]
     ),
-    case0 "totalSupply" tx (fun _ => runUint exampleSimpleTokenGetTotalSupply state [2] [] []),
-    case0 "owner" tx (fun _ => runAddress exampleSimpleTokenGetOwner state [] [0] [])
+    case0 "totalSupply" tx (fun _ => runUint SimpleToken.getTotalSupply state [2] [] []),
+    case0 "owner" tx (fun _ => runAddress SimpleToken.getOwner state [] [0] [])
   ]
 
 /-!

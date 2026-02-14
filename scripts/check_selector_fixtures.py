@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 
-from property_utils import die
+from property_utils import die, report_errors
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
@@ -116,11 +117,7 @@ def main() -> None:
                 f"Selector mismatch for {signature}: solc={solc_selector} keccak={keccak_selector}"
             )
 
-    if errors:
-        print("Selector fixture check failed:", file=sys.stderr)
-        for item in errors:
-            print(f"  - {item}", file=sys.stderr)
-        raise SystemExit(1)
+    report_errors(errors, "Selector fixture check failed")
 
     print("Selector fixture check passed.")
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import sys
 
-from property_utils import collect_covered, load_exclusions, load_manifest
+from property_utils import collect_covered, load_exclusions, load_manifest, report_errors
 
 
 def main() -> None:
@@ -40,11 +40,7 @@ def main() -> None:
                 f"{contract}: missing property tests for {len(missing)} theorem(s): {', '.join(sorted(missing))}"
             )
 
-    if errors:
-        print("Property coverage check failed:", file=sys.stderr)
-        for item in errors:
-            print(f"  - {item}", file=sys.stderr)
-        raise SystemExit(1)
+    report_errors(errors, "Property coverage check failed")
 
     if warnings:
         for item in warnings:
