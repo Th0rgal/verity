@@ -43,12 +43,14 @@ def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage 0
 ```
 
-## What’s Verified
+## What's Verified
 
 - **EDSL correctness**: Each example contract satisfies its specification in Lean.
 - **Spec semantics**: ContractSpec execution matches the intended DSL behavior.
 - **Compiler correctness**: IR generation is proven; Yul codegen proofs are in progress (semantics + scaffolding in place).
 - **Automation**: Common proof patterns are captured in reusable lemmas.
+
+**Verification Status**: Layers 1-2 complete (100%), Layer 3 in progress. See [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for comprehensive status and roadmap.
 
 See `Compiler/Proofs/README.md` for the proof inventory and layout across layers.
 
