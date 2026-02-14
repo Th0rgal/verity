@@ -75,7 +75,20 @@ theorem sumBalances_zero_of_all_zero {slot : Nat} {addrs : FiniteAddressSet}
   intro h
   unfold sumBalances FiniteSet.sum
   -- Prove by induction on list that foldl over zeros gives zero
-  sorry
+  induction addrs.addresses.elements with
+  | nil =>
+    -- Base case: empty list folds to 0
+    rfl
+  | cons hd tl ih =>
+    -- Inductive case: cons case
+    simp [List.foldl]
+    have h_hd : balances slot hd = 0 := h hd (List.mem_cons_self hd tl)
+    have h_tl : ∀ addr ∈ tl, balances slot addr = 0 := by
+      intro addr h_mem
+      exact h addr (List.mem_cons_of_mem hd h_mem)
+    rw [h_hd]
+    simp
+    exact ih h_tl
 
 /-- Helper: balancesFinite preserved by setMapping (deposit) -/
 theorem balancesFinite_preserved_deposit {slot : Nat} (s : ContractState)
