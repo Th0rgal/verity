@@ -59,14 +59,6 @@ theorem sumBalances_update_existing {slot : Nat} {addr : Address} {addrs : Finit
   -- 3. Recompose using Uint256 arithmetic
   sorry
 
-/-- Helper: knownAddresses update preserves sum when value changes -/
-theorem sumBalances_knownAddresses_insert {slot : Nat} {addr : Address} {addrs : FiniteAddressSet}
-    {balances : Nat → Address → Uint256} :
-    addr ∈ addrs.addresses.elements →
-    sumBalances slot (addrs.insert addr) balances = sumBalances slot addrs balances := by
-  intro h
-  rw [sumBalances_insert_existing h]
-
 /-- Helper: sumBalances equals zero when all balances are zero -/
 theorem sumBalances_zero_of_all_zero {slot : Nat} {addrs : FiniteAddressSet}
     {balances : Nat → Address → Uint256} :
