@@ -1,32 +1,19 @@
 #!/usr/bin/env python3
+"""Check that property_manifest.json is in sync with actual Lean proofs."""
+
 from __future__ import annotations
 
-import json
-from pathlib import Path
-import re
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
-PROOFS_DIR = ROOT / "DumbContracts" / "Proofs"
-MANIFEST_PATH = ROOT / "test" / "property_manifest.json"
-
-THEOREM_RE = re.compile(r"^\s*(theorem|lemma)\s+([A-Za-z0-9_']+)")
+from property_utils import MANIFEST, PROOFS_DIR, collect_theorems, load_manifest
 
 
-def collect_theorems(path: Path) -> list[str]:
-    names: list[str] = []
-    try:
-        text = path.read_text(encoding="utf-8")
-    except Exception:
-        return names
-    for line in text.splitlines():
-        match = THEOREM_RE.match(line)
-        if match:
-            names.append(match.group(2))
-    return names
+def extract_manifest_from_proofs() -> dict[str, list[str]]:
+    """Extract theorem names from Lean proof files.
 
-
-def extract_manifest() -> dict[str, list[str]]:
+    Returns:
+        Dictionary mapping contract names to lists of theorem names.
+    """
     if not PROOFS_DIR.exists():
         raise SystemExit(f"Missing proofs dir: {PROOFS_DIR}")
     manifest: dict[str, list[str]] = {}
@@ -42,16 +29,10 @@ def extract_manifest() -> dict[str, list[str]]:
     return manifest
 
 
-def load_manifest() -> dict[str, list[str]]:
-    if not MANIFEST_PATH.exists():
-        raise SystemExit(f"Missing property manifest: {MANIFEST_PATH}")
-    data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    return {k: list(v) for k, v in data.items()}
-
-
 def main() -> None:
-    expected = extract_manifest()
-    actual = load_manifest()
+    expected = extract_manifest_from_proofs()
+    # Convert loaded manifest to list format for comparison
+    actual = {k: sorted(v) for k, v in load_manifest().items()}
 
     problems: list[str] = []
     all_contracts = sorted(set(expected.keys()) | set(actual.keys()))
