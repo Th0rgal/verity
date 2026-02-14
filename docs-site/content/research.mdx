@@ -42,6 +42,7 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 - Storage as functions (`Nat -> Uint256`), not finite maps. Uninitialized slots return 0.
 - `require` returns `ContractResult.revert msg s`, preserving original state.
 - Manual storage slot allocation (slot 0, 1, 2...). No automatic allocation needed.
+- Selector maps remain explicit per contract (no ContractSpec-derived builder yet).
 - `onlyOwner` is a regular function, not special syntax.
 
 **What didn't work:**

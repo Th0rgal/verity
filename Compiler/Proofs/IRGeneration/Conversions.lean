@@ -202,26 +202,12 @@ def resultsMatch (usesMapping : Bool) (addrs : List Address) (irResult : IRResul
 
 /-! ## Helper: Function Selector Lookup -/
 
-/-- Given a ContractSpec and function name, find the corresponding selector
-
-    This is needed to convert Transaction.functionName to IRTransaction.functionSelector.
-    In practice, selectors are provided when compiling the spec.
--/
 structure SelectorMap where
   /-- Map function names to their selectors -/
   selectors : List (String × Nat)
 
 def SelectorMap.lookup (map : SelectorMap) (name : String) : Option Nat :=
   map.selectors.find? (·.1 == name) |>.map (·.2)
-
-def SelectorMap.fromSpec (spec : ContractSpec) (selectors : List Nat) : Except String SelectorMap :=
-  match spec with
-  | ⟨specName, _fields, _ctor, functions⟩ =>
-      if functions.length != selectors.length then
-        .error s!"Selector count mismatch for {specName}: {selectors.length} selectors for {functions.length} functions"
-      else
-        let names := functions.map (fun fn => fn.name)
-        .ok { selectors := names.zip selectors }
 
 /-! ## Conversion Properties -/
 
