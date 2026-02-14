@@ -21,16 +21,15 @@ namespace FiniteSet
 variable {α : Type}
 
 /-- Create an empty finite set -/
-def empty [BEq α] : FiniteSet α :=
+def empty : FiniteSet α :=
   ⟨[], List.nodup_nil⟩
 
 /-- Insert an element into the set (maintains no duplicates) -/
-def insert [BEq α] (a : α) (s : FiniteSet α) : FiniteSet α :=
-  if s.elements.contains a then
+def insert [DecidableEq α] (a : α) (s : FiniteSet α) : FiniteSet α :=
+  if h : a ∈ s.elements then
     s
   else
-    -- Temporarily use sorry for the nodup proof
-    ⟨a :: s.elements, sorry⟩
+    ⟨a :: s.elements, List.nodup_cons.mpr ⟨h, s.nodup⟩⟩
 
 /-- Get the size of the set -/
 def card (s : FiniteSet α) : Nat :=

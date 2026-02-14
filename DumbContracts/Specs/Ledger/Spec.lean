@@ -73,10 +73,10 @@ def withdraw_sum_equation (amount : Uint256) (s s' : ContractState) : Prop :=
 def transfer_sum_preservation (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   totalBalance s' = totalBalance s
 
-/-- Sum of balances for singleton set containing only sender -/
+/-- Sum of balances for singleton set containing only sender after deposit -/
 def deposit_sum_singleton_sender (amount : Uint256) (s s' : ContractState) : Prop :=
   (∀ addr, addr ≠ s.sender → s.storageMap 0 addr = 0) →
-    totalBalance s' = s'.storageMap 0 s.sender
+    totalBalance s' = add (s.storageMap 0 s.sender) amount
 
 /-- Sum preserved for deposit followed by withdraw -/
 def deposit_withdraw_sum_cancel (amount : Uint256) (s s' s'' : ContractState) : Prop :=
@@ -87,7 +87,7 @@ def deposit_withdraw_sum_cancel (amount : Uint256) (s s' s'' : ContractState) : 
 /-- Sum of balances for singleton set after withdraw -/
 def withdraw_sum_singleton_sender (amount : Uint256) (s s' : ContractState) : Prop :=
   (∀ addr, addr ≠ s.sender → s.storageMap 0 addr = 0) →
-    totalBalance s' = s'.storageMap 0 s.sender
+    totalBalance s' = sub (s.storageMap 0 s.sender) amount
 
 /-- Transfer preserves sum for unique addresses -/
 def transfer_sum_preserved_unique (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
