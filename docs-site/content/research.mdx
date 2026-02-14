@@ -21,7 +21,7 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
 - **Layer 2 (ContractSpec → IR)**: Complete for all 7 contracts (per‑function preservation theorems compiled in Lean).
-- **Layer 3 (IR → Yul)**: In progress (generic equivalence scaffolding + Yul/IR fuel‑unfolding lemmas + local reducibility for `execIRStmt/execIRStmts` inside equivalence proofs + fuel‑bounded IR↔Yul sequence lemma + fuel‑based function equivalence goal + fuel‑bounded function lemma from aligned IR state + explicit fuel‑adequacy goal definitions for IR + adequacy‑lifting lemma from stmt‑level goal to function‑level goal; full non‑fuel equivalence theorems not yet proven).
+- **Layer 3 (IR → Yul)**: In progress (generic equivalence scaffolding + Yul/IR fuel‑unfolding lemmas + local reducibility for `execIRStmt/execIRStmts` inside equivalence proofs + fuel‑bounded IR↔Yul sequence lemma + fuel‑based function equivalence goal + fuel‑bounded function lemma from aligned IR state + explicit fuel‑adequacy goal definitions for IR + adequacy‑lifting lemma from stmt‑level goal to function‑level goal; full contract‑level equivalence theorems not yet proven).
 
 Recent updates:
 - CI now installs `solc` with `sudo` to avoid permission failures on GitHub Actions runners.
@@ -29,6 +29,7 @@ Recent updates:
 - Mapping slot encoding restores the defensive `baseSlot % evmModulus` normalization.
 - Documented that stmt‑level fuel adequacy remains blocked due to opaque `execIRStmts` (goal defined, proof not yet available).
 - Added a helper lemma that combines stmt‑level equivalence + function‑level adequacy into a non‑fuel function equivalence result.
+- Scoped `supply_equals_sum` as a private helper until it is actually used in total‑supply proofs (keeps the public invariant surface minimal).
 - Nested mapping encoding now preserves tagged base slots so nested slots round‑trip without losing tags.
 - Removed unused `decodeNestedMappingSlot` helper to reduce dead code.
 

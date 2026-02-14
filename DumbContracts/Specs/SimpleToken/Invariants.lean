@@ -47,8 +47,8 @@ def sum_balances (s : ContractState) (addrs : List Address) : Uint256 :=
 def supply_bounds_balances (s : ContractState) : Prop :=
   ∀ addrs : List Address, sum_balances s addrs ≤ s.storage 2
 
-/-- Total supply equals the sum of balances over a finite address set. -/
-def supply_equals_sum (s : ContractState) (addrs : List Address) : Prop :=
+-- Scoped helper for future total-supply proofs.
+private def supply_equals_sum (s : ContractState) (addrs : List Address) : Prop :=
   s.storage 2 = sum_balances s addrs
 
 /-- Owner cannot change except through transferOwnership (which doesn't exist yet) -/
