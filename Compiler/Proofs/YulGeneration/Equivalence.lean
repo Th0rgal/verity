@@ -181,12 +181,6 @@ theorem resultsMatch_of_execResultsAligned
     simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
       yulStateOfIR]
 
-/-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
-def execIRStmt_equiv_execYulStmt_goal
-    (selector : Nat) (fuel : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
-    statesAligned selector irState yulState →
-    execResultsAligned selector (execIRStmt irState stmt) (execYulStmtFuel fuel yulState stmt)
-
 /-- Generic function equivalence goal: holds for any IR function and its compiled Yul body. -/
 def ir_yul_function_equiv_goal
     (fn : IRFunction) (tx : IRTransaction) (state : IRState) : Prop :=
@@ -333,6 +327,12 @@ mutual
             | .revert s => .revert s
 end
 
+/-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
+def execIRStmt_equiv_execYulStmt_goal
+    (selector : Nat) (fuel : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
+    statesAligned selector irState yulState →
+    execResultsAligned selector (execIRStmtFuel fuel irState stmt) (execYulStmtFuel fuel yulState stmt)
+
 /-- Sequence/program equivalence goal: statement lists compose under alignment (fuel-parametric). -/
 def execIRStmts_equiv_execYulStmts_goal
     (selector : Nat) (fuel : Nat) (stmts : List YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
@@ -421,7 +421,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
             execYulFuel, execResultsAligned, hAligned]
       | succ fuel =>
           have hStmt := stmt_equiv selector fuel stmt irState yulState hAligned
-          cases hIR : execIRStmt irState stmt with
+          cases hIR : execIRStmtFuel fuel irState stmt with
           | «continue» ir' =>
               cases hYul : execYulStmtFuel fuel yulState stmt with
               | «continue» y' =>
