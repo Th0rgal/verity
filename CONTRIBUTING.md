@@ -60,6 +60,132 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 
 Types: `feat` `fix` `proof` `docs` `refactor` `test` `chore`
 
+## Code Comment Conventions
+
+Follow these conventions to keep documentation accurate and maintainable.
+
+### Proof Status
+
+**For Theorems**:
+- `sorry` - Incomplete proof (blocked by CI in proof files)
+- No marker - Complete proof
+- **DON'T** use TODO/STUB in proven theorems
+
+```lean
+-- ✅ GOOD: Complete proof, no marker needed
+theorem my_theorem : ... := by
+  unfold ...
+  simp [...]
+
+-- ❌ BAD: Complete proof but has misleading TODO
+theorem my_theorem : ... := by
+  -- TODO: This actually works fine
+  unfold ...
+  simp [...]
+```
+
+**For Incomplete Proofs**:
+```lean
+-- Only in draft branches, NOT in main
+theorem draft_theorem : ... := by
+  sorry  -- Strategy: Use induction on List structure
+           -- See issue #123 for details
+```
+
+### Module Documentation
+
+**Module Headers** should reflect current status:
+
+```lean
+/-! ## Module Name
+
+Brief description of what this module does.
+
+**Status**: Complete | Partial | Draft
+**Dependencies**: List axioms/external dependencies
+**Related**: Links to other relevant modules
+-/
+```
+
+**Status Definitions**:
+- **Complete**: All theorems proven, no sorry
+- **Partial**: Some proven, some sorry (specify which)
+- **Draft**: Structural outline only
+
+**Example**:
+```lean
+/-! ## Layer 3: Statement-Level Equivalence
+
+Proves IR statement execution is equivalent to Yul statement execution
+when states are aligned.
+
+**Status**: Complete - All statement types proven
+**Dependencies**: Requires expression evaluation axioms (see AXIOMS.md)
+-/
+```
+
+### Future Work Comments
+
+For planned improvements or known limitations:
+
+```lean
+-- FUTURE: Add support for delegatecall
+-- See issue #123 for design discussion
+def currentImplementation := ...
+```
+
+**DON'T** use:
+- ~~`TODO:`~~ (implies incomplete current work)
+- ~~`FIXME:`~~ (implies broken code)
+- ~~`HACK:`~~ (use `NOTE:` with explanation instead)
+
+### Implementation Notes
+
+For non-obvious design choices:
+
+```lean
+-- NOTE: We use fuel-based recursion here because Lean cannot prove
+-- termination for mutually recursive functions with this structure.
+-- See Equivalence.lean for the proof strategy this enables.
+def execIRStmtFuel (fuel : Nat) : ... := ...
+```
+
+### Axiom Documentation
+
+All axioms **must** be documented inline **and** in AXIOMS.md:
+
+```lean
+/-- AXIOM: Expression evaluation equivalence
+
+This is an axiom because both evalIRExpr and evalYulExpr are partial functions.
+See AXIOMS.md for full soundness justification.
+-/
+axiom evalIRExpr_eq_evalYulExpr : ...
+```
+
+### Property Test Tags
+
+Property tests must match Lean theorem names exactly:
+
+```solidity
+/// Property: store_retrieve_roundtrip
+function testProp_StoreRetrieveRoundtrip(...) public { ... }
+```
+
+Tag format: `/// Property: exact_theorem_name`
+
+### What NOT to Include
+
+❌ **Stale TODOs** in completed code
+❌ **Difficulty estimates** after proof is done
+❌ **Verbose explanations** of obvious code
+❌ **Status claims** that don't match reality
+
+✅ **Brief descriptions** of what code does
+✅ **Links** to related issues for context
+✅ **Explanations** of non-obvious design choices
+✅ **Accurate status** in module headers
+
 ## Development
 
 **Layer 3 proofs**: Read [Compiler/Proofs/README.md](Compiler/Proofs/README.md), study completed proofs (`assign_equiv`, `storageLoad_equiv`), use templates
