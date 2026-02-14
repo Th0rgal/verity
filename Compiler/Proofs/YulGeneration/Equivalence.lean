@@ -181,17 +181,11 @@ theorem resultsMatch_of_execResultsAligned
     simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
       yulStateOfIR]
 
-/-- Instruction-level equivalence goal: single IR statement matches Yul statement. -/
+/-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
 def execIRStmt_equiv_execYulStmt_goal
-    (selector : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
+    (selector : Nat) (fuel : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
     statesAligned selector irState yulState →
-    execResultsAligned selector (execIRStmt irState stmt) (execYulStmt yulState stmt)
-
-/-- Sequence/program equivalence goal: statement lists compose under alignment. -/
-def execIRStmts_equiv_execYulStmts_goal
-    (selector : Nat) (stmts : List YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
-    statesAligned selector irState yulState →
-    execResultsAligned selector (execIRStmts irState stmts) (execYulStmts yulState stmts)
+    execResultsAligned selector (execIRStmt irState stmt) (execYulStmtFuel fuel yulState stmt)
 
 /-- Generic function equivalence goal: holds for any IR function and its compiled Yul body. -/
 def ir_yul_function_equiv_goal
@@ -200,6 +194,16 @@ def ir_yul_function_equiv_goal
     resultsMatch
       (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args })
       (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args })
+
+theorem ir_yul_function_equiv_goal_of_resultsMatch
+    (fn : IRFunction) (tx : IRTransaction) (state : IRState)
+    (hMatch :
+      resultsMatch
+        (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args })
+        (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args })) :
+    ir_yul_function_equiv_goal fn tx state := by
+  intro _
+  simpa [ir_yul_function_equiv_goal] using hMatch
 
 /-! ## Generic Layer 3 Lemmas (Fuel-Agnostic)
 
@@ -245,6 +249,12 @@ def execIRStmtsFuel (fuel : Nat) (state : IRState) (stmts : List YulStmt) : IREx
           | .return v s => .return v s
           | .stop s => .stop s
           | .revert s => .revert s
+
+/-- Sequence/program equivalence goal: statement lists compose under alignment (fuel-parametric). -/
+def execIRStmts_equiv_execYulStmts_goal
+    (selector : Nat) (fuel : Nat) (stmts : List YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
+    statesAligned selector irState yulState →
+    execResultsAligned selector (execIRStmtsFuel fuel irState stmts) (execYulStmtsFuel fuel yulState stmts)
 
 theorem execIRStmtsFuel_nil (fuel : Nat) (state : IRState) :
     execIRStmtsFuel fuel state [] = .continue state := by
@@ -309,26 +319,22 @@ composition logic.
 theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
-        statesAligned selector irState yulState →
-        execResultsAligned selector
-          (execIRStmt irState stmt)
-          (execYulStmtFuel fuel yulState stmt)) :
+        execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
     ∀ selector fuel stmts irState yulState,
-      statesAligned selector irState yulState →
-      execResultsAligned selector
-        (execIRStmtsFuel fuel irState stmts)
-        (execYulStmtsFuel fuel yulState stmts) := by
+      execIRStmts_equiv_execYulStmts_goal selector fuel stmts irState yulState := by
   intro selector fuel stmts irState yulState hAligned
   revert fuel irState yulState hAligned
   induction stmts with
   | nil =>
       intro fuel irState yulState hAligned
-      simp [execIRStmtsFuel, execYulStmtsFuel_nil, execResultsAligned, hAligned]
+      simp [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execYulStmtsFuel_nil,
+        execResultsAligned, hAligned]
   | cons stmt rest ih =>
       intro fuel irState yulState hAligned
       cases fuel with
       | zero =>
-          simp [execIRStmtsFuel, execYulStmtsFuel, execYulFuel, execResultsAligned, hAligned]
+          simp [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execYulStmtsFuel,
+            execYulFuel, execResultsAligned, hAligned]
       | succ fuel =>
           have hStmt := stmt_equiv selector fuel stmt irState yulState hAligned
           cases hIR : execIRStmt irState stmt with
@@ -403,10 +409,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
 theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
-        statesAligned selector irState yulState →
-        execResultsAligned selector
-          (execIRStmt irState stmt)
-          (execYulStmtFuel fuel yulState stmt)) :
+        execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
     ∀ selector stmts irState yulState,
       statesAligned selector irState yulState →
       execResultsAligned selector
@@ -421,10 +424,7 @@ theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
 theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
-        statesAligned selector irState yulState →
-        execResultsAligned selector
-          (execIRStmt irState stmt)
-          (execYulStmtFuel fuel yulState stmt)) :
+        execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
     ∀ selector fn args initialState,
       resultsMatch
         (execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState)
@@ -452,10 +452,7 @@ theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
 theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
-        statesAligned selector irState yulState →
-        execResultsAligned selector
-          (execIRStmt irState stmt)
-          (execYulStmtFuel fuel yulState stmt)) :
+        execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
     ∀ selector fn args initialState,
       ir_yul_function_equiv_fuel_goal fn selector args initialState := by
   intro selector fn args initialState
@@ -482,6 +479,14 @@ theorem execIRFunctionFuel_eq_execIRFunction
   simp [hFuel]
   rfl
 
+def execIRStmtsFuel_adequate_goal (state : IRState) (stmts : List YulStmt) : Prop :=
+  execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts state stmts
+
+def execIRFunctionFuel_adequate_goal
+    (fn : IRFunction) (args : List Nat) (initialState : IRState) : Prop :=
+  execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
+    execIRFunction fn args initialState
+
 theorem ir_yul_function_equiv_from_state_of_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
     (hFuel :
@@ -496,5 +501,20 @@ theorem ir_yul_function_equiv_from_state_of_fuel_goal
           initialState)
         initialState) := by
   simpa [ir_yul_function_equiv_fuel_goal, hFuel] using hFuelGoal
+
+theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
+    (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
+    (hAdequacy : execIRFunctionFuel_adequate_goal fn args initialState)
+    (hFuelGoal : ir_yul_function_equiv_fuel_goal fn selector args initialState) :
+    resultsMatch
+      (execIRFunction fn args initialState)
+      (interpretYulBodyFromState fn selector
+        (fn.params.zip args |>.foldl
+          (fun s (p, v) => s.setVar p.name v)
+          initialState)
+        initialState) := by
+  apply ir_yul_function_equiv_from_state_of_fuel_goal
+  · simpa [execIRFunctionFuel_adequate_goal] using hAdequacy
+  · exact hFuelGoal
 
 end Compiler.Proofs.YulGeneration
