@@ -113,6 +113,145 @@ test/                                # Foundry tests (unit, property, differenti
 - **Contract-level proofs (EDSL properties)**: `DumbContracts/Proofs/`
 - **Compiler proofs**: `Compiler/Proofs/` (Layer 1 infra, Layer 2: IR, Layer 3: Yul)
 
+## Unlink Privacy Protocol (Formal Verification)
+
+The [Unlink privacy protocol](https://github.com/Th0rgal/unlink-contracts) is a ZK-SNARK based mixer (deposit, private transfer, anonymous withdrawal) implemented in Solidity. This project contains a complete Lean rewrite using the EDSL, formal specifications of its security properties, and machine-checked proofs that the implementation satisfies the specs. All theorems are proven with zero `sorry`.
+
+### Solidity vs Lean — File Mapping
+
+| Solidity (unlink-contracts) | Lean (this repo) | What it does |
+|---|---|---|
+| `src/lib/Models.sol` | `DumbContracts/Specs/Unlink/Types.lean` | `Note`, `Commitment`, `NullifierHash`, `MerkleRoot` |
+| `src/lib/State.sol` | `DumbContracts/Examples/Unlink/UnlinkPool.lean` (storage slots) | Storage layout: slots 0-4, nullifier/root mappings |
+| `src/lib/Logic.sol` | `DumbContracts/Examples/Unlink/UnlinkPool.lean` (functions) | `deposit`, `transact`, `insertLeaves`, `hashNote`, etc. |
+| `src/UnlinkPool.sol` | `DumbContracts/Examples/Unlink/UnlinkPool.lean` | Entry points: `deposit`, `transact`, view functions |
+| _(no equivalent)_ | `DumbContracts/Specs/Unlink/Spec.lean` | Formal specification: what each function must do |
+| _(no equivalent)_ | `DumbContracts/Specs/Unlink/Proofs.lean` | Security property proofs |
+| _(no equivalent)_ | `DumbContracts/Proofs/Unlink/Basic.lean` | `insertLeaves` correctness proofs |
+| _(no equivalent)_ | `DumbContracts/Proofs/Unlink/Correctness.lean` | `deposit_meets_spec` proof |
+| _(no equivalent)_ | `DumbContracts/Proofs/Unlink/TransactCorrectness.lean` | `transact_meets_spec` proof |
+| _(no equivalent)_ | `DumbContracts/Specs/Unlink/Arithmetic.lean` | Uint256 arithmetic lemmas |
+
+### Specifications (What Each Function Must Do)
+
+Defined in `Specs/Unlink/Spec.lean`. These are the rules the implementation is proven to satisfy.
+
+**`deposit_spec`** — 6 conjuncts:
+1. Merkle root changes
+2. New root is marked as seen
+3. Leaf index increases by the number of notes
+4. Previously-spent nullifiers remain spent
+5. Previously-seen roots remain seen
+6. Context (sender, address, value, timestamp) is preserved
+
+**`transact_spec`** — 10 conjuncts:
+1. Merkle root was previously seen
+2. All input nullifiers were fresh (unspent)
+3. All input nullifiers are now spent
+4. Merkle root changes
+5. New root is marked as seen
+6. Leaf index increases by the number of new commitments
+7. Previously-seen roots remain seen
+8. Previously-spent nullifiers remain spent
+9. Context is preserved
+10. If withdrawal amount > 0, the withdrawal commitment equals the last output commitment
+
+### Cryptographic Assumptions
+
+These are stated as axioms (they model the ZK proof system, not the contract logic):
+
+| Axiom | What it says |
+|---|---|
+| `zk_soundness` | If a transaction is accepted, the prover knows a secret and commitment for each nullifier |
+| `nullifier_binding` | Different secrets produce different nullifiers (collision resistance) |
+
+### Proven Theorems
+
+All proofs are machine-checked (zero `sorry`). Grouped by file:
+
+**Spec-level security (`Specs/Unlink/Spec.lean`)** — 3 theorems:
+- `no_double_spend_monotonic` — once spent, a nullifier stays spent across any operation
+- `roots_cumulative` — historical roots remain valid across any operation
+- `leaf_index_monotonic` — leaf index never decreases
+
+**Security properties (`Specs/Unlink/Proofs.lean`)** — 14 theorems:
+- `valid_deposit_implies_positive_amounts` — deposit validation implies positive note amounts
+- `valid_transact_implies_has_inputs` — transact validation implies non-empty nullifiers
+- `valid_transact_implies_has_commitments` — transact validation implies non-empty commitments
+- `valid_transact_withdrawal_implies_valid_recipient` — non-zero withdrawal requires non-zero recipient
+- `deposit_preserves_nullifiers` — deposits don't clear nullifiers
+- `roots_preserved_general` — any operation preserves historical roots
+- `deposit_changes_root` — deposits change the merkle root
+- `transact_changes_root` — transactions change the merkle root
+- `historical_root_validity_holds` — valid roots remain valid forever
+- `deposit_increases_leaves_holds` — deposits grow the merkle tree
+- `no_double_spend_property_holds` — spent nullifier can't appear in future transaction inputs
+- `commitments_cumulative_holds` — the merkle tree only grows
+- `transact_requires_valid_root_holds` — transactions require a previously-seen root
+- `transact_requires_fresh_nullifiers_holds` — transactions can only spend unspent nullifiers
+- `exclusive_withdrawal_holds` — to spend a nullifier, it must be unspent
+- `exclusive_withdrawal_full_holds` — combines contract enforcement with ZK soundness: to spend a nullifier, it must be fresh AND the prover must know the secret
+- `withdrawal_commitment_coherence_holds` — withdrawal commitment matches last output commitment
+
+**`insertLeaves` building blocks (`Proofs/Unlink/Basic.lean`)** — 15 theorems:
+- `insertLeaves_updates_root` — slot 1 gets `oldRoot + commitments.length`
+- `insertLeaves_marks_root_seen` — new root's seen-slot is set to 1
+- `insertLeaves_updates_leaf_index` — slot 0 gets `oldIndex + commitments.length`
+- `insertLeaves_preserves_slot` — all other slots unchanged
+- `insertLeaves_preserves_context` — context preserved
+- `insertLeaves_succeeds` — always returns `success`
+- `insertLeaves_root_changes` — new root differs from old (non-empty list)
+- `insertLeaves_new_root_seen` — new root satisfies `rootSeen` predicate
+- `insertLeaves_leaf_index_updated` — leaf index incremented correctly
+- `insertLeaves_preserves_nullifiers` — nullifier spent status unchanged
+- `insertLeaves_preserves_roots` — previously-seen roots remain seen
+
+**Deposit correctness (`Proofs/Unlink/Correctness.lean`)** — 7 theorems:
+- `hashNote_eq` — `hashNote` computes `npk + token + amount` without modifying state
+- `computeCommitments_spec` — preserves state, output list has same length as input
+- `validateNotes_spec` — preserves state when all note amounts are positive
+- `deposit_reduces` — deposit is equivalent to `insertLeaves` on commitments
+- `deposit_succeeds` — deposit doesn't revert when preconditions hold
+- **`deposit_meets_spec`** — the deposit implementation satisfies all 6 conjuncts of `deposit_spec`
+
+**Transact correctness (`Proofs/Unlink/TransactCorrectness.lean`)** — 15 theorems:
+- `isRootSeen_spec`, `isRootSeen_true` — root-seen check characterization
+- `verifyProof_spec` — proof verification characterization
+- `isNullifierSpent_spec` — nullifier-spent check characterization
+- `checkNullifiersUnspent_spec` — recursive nullifier check
+- `markNullifierSpent_spec` — single nullifier state effect
+- `markNullifiersSpent_succeeds` — recursive marking always succeeds
+- `markNullifiersSpent_preserves_one` — slots with value 1 stay at 1
+- `markNullifiersSpent_sets_slots` — each nullifier slot is set to 1
+- `markNullifiersSpent_preserves_other_slots` — unrelated slots unchanged
+- `markNullifiersSpent_preserves_context` — context preserved
+- `markNullifiersSpent_preserves_spent` — already-spent nullifiers remain spent
+- `markNullifiersSpent_preserves_rootSeen` — root-seen slots preserved
+- **`transact_meets_spec`** — the transact implementation satisfies all 10 conjuncts of `transact_spec`
+
+**Arithmetic (`Specs/Unlink/Arithmetic.lean`)** — 7 theorems:
+- `add_pos_gt`, `add_length_gt`, `eq_add_pos_implies_gt`, `gt_irrefl`, `gt_implies_ne`, `add_nat_ge`, `eq_add_implies_ge`
+
+### Scaffolded Components
+
+These parts are placeholders — the proofs are valid for the scaffolded behavior, but the scaffolds don't model full cryptographic operations:
+
+- **`hashNote`**: returns `npk + token + amount` (real: Poseidon hash)
+- **`verifyProof`**: returns `true` (real: ZK-SNARK verification via verifier router)
+- **`insertLeaves`**: updates root as `oldRoot + commitments.length` (real: incremental Merkle tree)
+- **Token transfers**: not modeled (real: ERC20 `transferFrom` / ETH handling)
+
+### Reading the Proofs
+
+Start with `Spec.lean` to understand what's being claimed, then check the corresponding proof file:
+
+```
+Spec.lean          →  "deposit must change the root, mark it seen, ..."
+Correctness.lean   →  "running deposit on this state produces a state satisfying deposit_spec"
+```
+
+The main theorems to look at are `deposit_meets_spec` and `transact_meets_spec` — everything else is a building block for these two.
+
 ## Build and Test
 
 ```bash
