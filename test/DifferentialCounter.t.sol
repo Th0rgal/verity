@@ -4,6 +4,7 @@ pragma solidity ^0.8.33;
 import {console2} from "forge-std/Test.sol";
 import "./DiffTestConfig.sol";
 import "./yul/YulTestBase.sol";
+import "./DifferentialTestBase.sol";
 
 /**
  * @title DifferentialCounter
@@ -17,13 +18,9 @@ import "./yul/YulTestBase.sol";
  *
  * Success: 10,000+ tests with zero mismatches
  */
-contract DifferentialCounter is YulTestBase, DiffTestConfig {
+contract DifferentialCounter is YulTestBase, DiffTestConfig, DifferentialTestBase {
     // Compiled contract
     address counter;
-
-    // Test counters
-    uint256 public testsPassed;
-    uint256 public testsFailed;
 
     // Storage state tracking for EDSL interpreter
     mapping(uint256 => uint256) edslStorage;
@@ -158,114 +155,12 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig {
         return string(edslResultBytes);
     }
 
-    function _extractReturnValue(string memory json) internal pure returns (uint256) {
-        bytes memory jsonBytes = bytes(json);
-        bytes memory searchBytes = bytes("\"returnValue\":\"");
-
-        if (jsonBytes.length < searchBytes.length) return 0;
-        for (uint i = 0; i <= jsonBytes.length - searchBytes.length; i++) {
-            bool found = true;
-            for (uint j = 0; j < searchBytes.length; j++) {
-                if (jsonBytes[i + j] != searchBytes[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) {
-                uint start = i + searchBytes.length;
-                uint end = start;
-                while (end < jsonBytes.length && jsonBytes[end] != bytes1('"')) {
-                    end++;
-                }
-                bytes memory numBytes = new bytes(end - start);
-                for (uint k = 0; k < end - start; k++) {
-                    numBytes[k] = jsonBytes[start + k];
-                }
-                return _stringToUint(string(numBytes));
-            }
-        }
-        return 0;
-    }
-
-    function _stringToUint(string memory s) internal pure returns (uint256) {
-        bytes memory b = bytes(s);
-        uint256 result = 0;
-        for (uint i = 0; i < b.length; i++) {
-            uint8 c = uint8(b[i]);
-            if (c >= 48 && c <= 57) {
-                unchecked { result = result * 10 + (c - 48); }
-            }
-        }
-        return result;
-    }
-
-    function _extractStorageChange(string memory json, uint256 slot) internal pure returns (bool, uint256) {
-        bytes memory jsonBytes = bytes(json);
-        bytes memory slotPattern = bytes(string.concat("\"slot\":", vm.toString(slot)));
-
-        if (jsonBytes.length < slotPattern.length) return (false, 0);
-        for (uint i = 0; i <= jsonBytes.length - slotPattern.length; i++) {
-            bool found = true;
-            for (uint j = 0; j < slotPattern.length; j++) {
-                if (jsonBytes[i + j] != slotPattern[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) {
-                bytes memory valuePattern = bytes("\"value\":");
-                if (jsonBytes.length < valuePattern.length) return (false, 0);
-                for (uint k = i; k <= jsonBytes.length - valuePattern.length; k++) {
-                    bool valueFound = true;
-                    for (uint l = 0; l < valuePattern.length; l++) {
-                        if (jsonBytes[k + l] != valuePattern[l]) {
-                            valueFound = false;
-                            break;
-                        }
-                    }
-                    if (valueFound) {
-                        uint start = k + valuePattern.length;
-                        uint end = start;
-                        while (end < jsonBytes.length && jsonBytes[end] >= 0x30 && jsonBytes[end] <= 0x39) {
-                            end++;
-                        }
-                        bytes memory numBytes = new bytes(end - start);
-                        for (uint m = 0; m < end - start; m++) {
-                            numBytes[m] = jsonBytes[start + m];
-                        }
-                        return (true, _stringToUint(string(numBytes)));
-                    }
-                }
-            }
-        }
-        return (false, 0);
-    }
-
     function _buildStorageString() internal view returns (string memory) {
         uint256 val = edslStorage[0];
         if (val == 0) {
             return "";
         }
         return string.concat("0:", vm.toString(val));
-    }
-
-    function contains(string memory str, string memory substr) internal pure returns (bool) {
-        bytes memory strBytes = bytes(str);
-        bytes memory substrBytes = bytes(substr);
-
-        if (substrBytes.length > strBytes.length) return false;
-
-        for (uint i = 0; i <= strBytes.length - substrBytes.length; i++) {
-            bool found = true;
-            for (uint j = 0; j < substrBytes.length; j++) {
-                if (strBytes[i + j] != substrBytes[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) return true;
-        }
-        return false;
     }
 
     /**
@@ -355,14 +250,14 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig {
     function _runRandomDifferentialTests(uint256 startIndex, uint256 count, uint256 seed) internal {
         console2.log("Generated", count, "random transactions");
 
-        uint256 prng = _skipRandom(seed, startIndex);
+        uint256 prng = _skipRandomLcg(seed, startIndex);
         vm.pauseGasMetering();
         for (uint256 i = 0; i < count; i++) {
             // Simple PRNG
             prng = _lcg(prng);
 
             // Generate address
-            address sender = _indexToAddress(prng % 5);
+            address sender = _indexToAddress(prng);
 
             // Determine function (3 options: increment, decrement, getCount)
             prng = _lcg(prng);
@@ -388,19 +283,11 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig {
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 
-    function _skipRandom(uint256 prng, uint256 iterations) internal pure returns (uint256) {
+    function _skipRandomLcg(uint256 prng, uint256 iterations) internal pure returns (uint256) {
         for (uint256 i = 0; i < iterations; i++) {
             prng = _lcg(prng);
             prng = _lcg(prng);
         }
         return prng;
-    }
-
-    function _indexToAddress(uint256 index) internal pure returns (address) {
-        if (index == 0) return address(0xA11CE);
-        if (index == 1) return address(0xB0B);
-        if (index == 2) return address(0xCA401);
-        if (index == 3) return address(0xDABE);
-        return address(0xEBE);
     }
 }
