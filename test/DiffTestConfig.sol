@@ -12,7 +12,8 @@ abstract contract DiffTestConfig is Test {
         uint256 shardCount = _diffShardCount();
 
         if (shardCount > 1) {
-            console.log("DIFFTEST_RANDOM_SEED:", seed, "(shard", shardIndex, "/", shardCount, ")");
+            console.log("DIFFTEST_RANDOM_SEED:", seed);
+            console.log("Shard:", shardIndex, "/", shardCount);
         } else {
             console.log("DIFFTEST_RANDOM_SEED:", seed);
         }
