@@ -257,4 +257,30 @@ theorem transact_requires_fresh_nullifiers_holds :
   -- From transact_spec, the second condition is: ∀ n ∈ nulls, ¬nullifierSpent s n
   exact h_transact.right.left
 
+-- Theorem: Exclusive withdrawal property holds
+-- **User-friendly**: "If I deposit my money, only I can withdraw it (if I know my note secret)"
+-- **Why it matters**: This is THE core security guarantee of the privacy pool
+--
+-- Combined with the cryptographic assumption (exclusive_control_via_zk), this proves:
+-- 1. Deposits create commitments in the merkle tree
+-- 2. Withdrawals require spending nullifiers via valid ZK proofs
+-- 3. Valid ZK proofs require knowing the note secret (cryptographic soundness)
+-- 4. Therefore: only the note holder can withdraw their funds
+--
+-- This theorem proves the contract-level part: a nullifier can only be spent
+-- if it wasn't previously spent (enforced by transact_spec).
+-- The ZK proof system ensures only the note owner can generate valid proofs.
+theorem exclusive_withdrawal_holds :
+    exclusive_withdrawal := by
+  unfold exclusive_withdrawal
+  intro s nullifier h_can_spend
+  -- We need to show: ¬nullifierSpent s nullifier
+  -- (i.e., the nullifier was fresh before spending)
+  obtain ⟨s', root, comms, h_transact⟩ := h_can_spend
+  -- From transact_spec: ∀ n ∈ [nullifier], ¬nullifierSpent s n
+  have h_fresh : ∀ n ∈ [nullifier], ¬nullifierSpent s n := h_transact.right.left
+  -- Apply to our specific nullifier
+  simp at h_fresh
+  exact h_fresh
+
 end DumbContracts.Specs.Unlink.Proofs
