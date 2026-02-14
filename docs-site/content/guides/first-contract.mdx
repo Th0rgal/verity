@@ -1,0 +1,799 @@
+---
+title: Adding Your First Contract
+description: Step-by-step tutorial for creating a verified smart contract in DumbContracts
+---
+
+# Adding Your First Contract to DumbContracts
+
+**Time Required**: 2-3 hours for first contract
+**Prerequisites**: Basic familiarity with Lean 4 syntax and smart contract concepts
+
+This tutorial walks you through creating a complete verified smart contract from scratch. We'll build a simple `NameRegistry` contract that lets users register and look up names.
+
+---
+
+## Overview: The DumbContracts Workflow
+
+Every contract follows this path:
+
+```
+Specification → Implementation → Proofs → Compilation → Testing
+     (30m)          (45m)         (1-2h)      (auto)      (30m)
+```
+
+**What you'll learn**:
+- How to write formal specifications
+- How to implement contracts in the EDSL
+- How to prove correctness properties
+- How to test against compiled bytecode
+
+---
+
+## Phase 1: Setup (15 minutes)
+
+### 1.1 Create Directory Structure
+
+```bash
+# Create spec directory
+mkdir -p DumbContracts/Specs/NameRegistry
+
+# Create the three required files
+touch DumbContracts/Specs/NameRegistry/Spec.lean
+touch DumbContracts/Specs/NameRegistry/Invariants.lean
+touch DumbContracts/Specs/NameRegistry/Proofs.lean
+
+# Create EDSL implementation
+touch DumbContracts/Examples/NameRegistry.lean
+
+# Create compiler proof file
+touch Compiler/Proofs/SpecCorrectness/NameRegistry.lean
+
+# Create test files
+touch test/PropertyNameRegistry.t.sol
+touch test/DifferentialNameRegistry.t.sol
+```
+
+### 1.2 Our Contract Goal
+
+We want to build a contract where:
+- Users can register a name by calling `setName(string)`
+- Anyone can look up a name by calling `getName(address) → string`
+- Each address can only have one name
+- Names are stored permanently on-chain
+
+---
+
+## Phase 2: Write Specification (30 minutes)
+
+Specifications describe **what** the contract should do, not **how** it does it.
+
+### 2.1 Create the Spec File
+
+Open `DumbContracts/Specs/NameRegistry/Spec.lean`:
+
+```lean
+/-
+  NameRegistry: Formal Specification
+
+  Maps Ethereum addresses to human-readable names.
+-/
+
+import DumbContracts.Core
+import DumbContracts.Specs.Common
+
+namespace DumbContracts.Specs.NameRegistry
+
+open DumbContracts
+
+-- What setName should do: store a name for the sender
+def setName_spec (name : String) (s s' : ContractState) : Prop :=
+  -- The name is stored in a mapping from addresses to strings
+  s'.storageMap 0 (addressToKey s.sender) = stringToStorageValue name ∧
+  -- Mapping storage is only changed at this key
+  (∀ addr : Address, addr ≠ s.sender →
+    s'.storageMap 0 (addressToKey addr) = s.storageMap 0 (addressToKey addr)) ∧
+  -- Other storage types are unchanged
+  s'.storage = s.storage ∧
+  s'.storageAddr = s.storageAddr ∧
+  -- Context is preserved (sender, address, etc.)
+  sameContext s s'
+
+-- What getName should do: return the stored name for an address
+def getName_spec (addr : Address) (result : String) (s : ContractState) : Prop :=
+  result = storageValueToString (s.storageMap 0 (addressToKey addr))
+
+-- Roundtrip property: setName then getName returns the same name
+def setName_getName_roundtrip (name : String) (s : ContractState) : Prop :=
+  ∀ s_after_set : ContractState,
+    setName_spec name s s_after_set →
+    getName_spec s.sender name s_after_set
+
+end DumbContracts.Specs.NameRegistry
+```
+
+**Key Concepts**:
+- `s` is the initial state, `s'` is the final state
+- `storageMap` stores key-value pairs (like Solidity mappings)
+- Specs must be explicit about what changes and what stays the same
+- The roundtrip property proves that stored data can be retrieved
+
+### 2.2 Create Invariants File
+
+Open `DumbContracts/Specs/NameRegistry/Invariants.lean`:
+
+```lean
+/-
+  NameRegistry: State Invariants
+
+  Properties that hold for all valid contract states.
+-/
+
+import DumbContracts.Core
+import DumbContracts.Specs.Common
+
+namespace DumbContracts.Specs.NameRegistry
+
+open DumbContracts
+
+-- Basic well-formedness of ContractState
+structure WellFormedState (s : ContractState) : Prop where
+  -- Sender is not empty
+  sender_nonempty : s.sender ≠ ""
+  -- Contract address is not empty
+  contract_nonempty : s.thisAddress ≠ ""
+
+-- Name operations don't affect regular storage slots
+def uint_storage_unchanged (s s' : ContractState) : Prop :=
+  s'.storage = s.storage
+
+-- Name operations don't affect address storage
+def addr_storage_unchanged (s s' : ContractState) : Prop :=
+  s'.storageAddr = s.storageAddr
+
+-- Context preservation
+abbrev context_preserved := Specs.sameContext
+
+end DumbContracts.Specs.NameRegistry
+```
+
+---
+
+## Phase 3: Implement in EDSL (45 minutes)
+
+Now we implement the contract using the embedded domain-specific language (EDSL).
+
+### 3.1 Create EDSL Implementation
+
+Open `DumbContracts/Examples/NameRegistry.lean`:
+
+```lean
+/-
+  NameRegistry: Store human-readable names for addresses
+
+  Demonstrates:
+  - Mapping storage (address → string)
+  - String handling
+  - Sender-based storage
+
+  Pattern: User registry with permanent storage
+-/
+
+import DumbContracts.Core
+
+namespace DumbContracts.Examples.NameRegistry
+
+open DumbContracts
+
+-- Storage layout: mapping from address to string at slot 0
+def names : MappingSlot Address String := ⟨0⟩
+
+-- Register a name for the sender
+def setName (name : String) : Contract Unit := do
+  let caller ← getSender
+  setMappingStorage names caller name
+
+-- Look up the name for a given address
+def getName (addr : Address) : Contract String := do
+  getMappingStorage names addr
+
+-- Example usage
+def exampleUsage : Contract String := do
+  setName "Alice"
+  getName "0xAlice"
+
+#eval (exampleUsage.run {
+  storage := fun _ => 0,
+  storageAddr := fun _ => "",
+  storageMap := fun _ _ => 0,
+  sender := "0xAlice",
+  thisAddress := "0xRegistry",
+  msgValue := 0,
+  blockTimestamp := 0,
+  knownAddresses := fun _ => Core.FiniteAddressSet.empty
+}).getValue?
+-- Expected output: some "Alice"
+
+end DumbContracts.Examples.NameRegistry
+```
+
+**Key Concepts**:
+- `Contract Unit` is a stateful computation returning `Unit` (no value)
+- `Contract String` returns a `String`
+- `do` notation allows sequential operations
+- `getSender` gets the transaction sender
+- Storage operations are typed and safe
+
+### 3.2 Test the EDSL Implementation
+
+Verify your implementation works:
+
+```bash
+# This will evaluate the #eval block
+lake build DumbContracts.Examples.NameRegistry
+```
+
+If successful, you'll see the expected output in build logs.
+
+---
+
+## Phase 4: Prove Correctness (1-2 hours)
+
+This is where formal verification happens. We prove that our implementation matches our specification.
+
+### 4.1 Create Proof Stub
+
+Open `DumbContracts/Specs/NameRegistry/Proofs.lean`:
+
+```lean
+import Compiler.Proofs.SpecCorrectness.NameRegistry
+
+/-
+  Layer 1 proof re-export.
+  This keeps the user-facing path stable while reusing the core proof module.
+-/
+```
+
+### 4.2 Write Compiler Spec
+
+First, add your contract to `Compiler/Specs.lean`. Find the section with other contract specs and add:
+
+```lean
+-- NameRegistry: Address → Name mapping
+def nameRegistrySpec : ContractSpec :=
+  let nameMappingSlot := 0
+  { functions := [
+      -- setName(string name)
+      { name := "setName"
+        params := [ParamType.string]
+        returnType := none
+        body := [
+          Stmt.mappingStore nameMappingSlot (Expr.sender) (Expr.param 0)
+        ]
+      },
+      -- getName(address addr) returns (string)
+      { name := "getName"
+        params := [ParamType.address]
+        returnType := some ParamType.string
+        body := [
+          Stmt.return (Expr.mappingLoad nameMappingSlot (Expr.param 0))
+        ]
+      }
+    ]
+  }
+```
+
+### 4.3 Write Layer 2 Proofs
+
+Open `Compiler/Proofs/SpecCorrectness/NameRegistry.lean`:
+
+```lean
+/-
+  Compiler.Proofs.SpecCorrectness.NameRegistry
+
+  Prove that nameRegistrySpec accurately represents the NameRegistry EDSL.
+-/
+
+import Compiler.Specs
+import DumbContracts.Proofs.Stdlib.SpecInterpreter
+import DumbContracts.Examples.NameRegistry
+import DumbContracts.Core.Uint256
+
+namespace Compiler.Proofs.SpecCorrectness
+
+open Compiler.ContractSpec
+open Compiler.Specs
+open DumbContracts.Proofs.Stdlib.SpecInterpreter
+open DumbContracts
+open DumbContracts.Examples.NameRegistry
+
+/-!
+## State Conversion
+
+NameRegistry uses a mapping at slot 0 for names.
+-/
+
+-- Convert EDSL state to SpecStorage
+def edslToSpecStorage (state : ContractState) : SpecStorage :=
+  { slots := []
+    mappings := [(0, fun addr => state.storageMap 0 addr)] }
+
+/-!
+## Correctness Theorems
+-/
+
+-- setName function correctness
+theorem setName_correct (state : ContractState) (name : String) (sender : Address) :
+    let edslFinal := (setName name).runState { state with sender := sender }
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "setName"
+      args := [name]  -- TODO: Handle string encoding
+    }
+    let specResult := interpretSpec nameRegistrySpec (edslToSpecStorage state) specTx
+    -- Both succeed and store the name for sender
+    specResult.success = true ∧
+    specResult.finalStorage.getMapping 0 (addressToKey sender) =
+      stringToStorageValue name := by
+  sorry  -- TODO: Prove using unfold + simp tactics
+
+-- getName function correctness
+theorem getName_correct (state : ContractState) (addr : Address) (sender : Address) :
+    let edslValue := (getName addr).runValue { state with sender := sender }
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "getName"
+      args := [addressToString addr]  -- TODO: Handle address encoding
+    }
+    let specResult := interpretSpec nameRegistrySpec (edslToSpecStorage state) specTx
+    -- Both succeed and return same name
+    specResult.success = true ∧
+    specResult.returnValue = some (stringToStorageValue edslValue) := by
+  sorry  -- TODO: Prove using unfold + simp tactics
+
+/-!
+## Helper Properties
+-/
+
+-- getName doesn't modify state
+theorem getName_preserves_state (state : ContractState) (addr : Address) (sender : Address) :
+    let result := (getName addr).runState { state with sender := sender }
+    result.storageMap = state.storageMap := by
+  unfold getName Contract.runState
+  simp [getMappingStorage]
+
+-- setName-getName roundtrip
+theorem setName_getName_roundtrip (name : String) (sender : Address) (state : ContractState) :
+    let state1 := (setName name).runState { state with sender := sender }
+    let retrieved := (getName sender).runValue { state1 with sender := sender }
+    retrieved = name := by
+  unfold setName getName Contract.runState Contract.runValue
+  simp [setMappingStorage, getMappingStorage, names]
+
+end Compiler.Proofs.SpecCorrectness
+```
+
+### 4.4 Common Proof Patterns
+
+Here are the tactics you'll use most often:
+
+**Pattern 1: Simple proofs with unfold + simp**
+```lean
+theorem simple_property : ... := by
+  unfold functionName Contract.runState
+  simp [helperFunctions]
+```
+
+**Pattern 2: Proofs with case splits**
+```lean
+theorem conditional_property : ... := by
+  unfold functionName
+  split
+  · -- Case 1
+    simp [...]
+  · -- Case 2
+    simp [...]
+```
+
+**Pattern 3: Proofs requiring intermediate lemmas**
+```lean
+theorem main_property : ... := by
+  have h1 := helper_lemma_1
+  have h2 := helper_lemma_2
+  unfold functionName
+  simp [h1, h2]
+```
+
+### 4.5 Build and Check Proofs
+
+```bash
+# Build all proofs
+lake build
+
+# Check for incomplete proofs
+grep -r "sorry" DumbContracts/Specs/NameRegistry/
+```
+
+**Goal**: Zero `sorry` statements before moving to testing.
+
+---
+
+## Phase 5: Add to Compiler (auto)
+
+### 5.1 Update Module Imports
+
+Add your spec to `Compiler/Specs.lean` imports section:
+
+```lean
+-- At the top of the file
+import Compiler.Specs.NameRegistry  -- If you separated it
+```
+
+Or just add directly in the file as shown in Phase 4.2.
+
+### 5.2 Generate Yul Code
+
+```bash
+# Rebuild compiler with your new contract
+lake build dumbcontracts-compiler
+
+# Generate Yul code
+./.lake/build/bin/dumbcontracts-compiler
+
+# Check output
+ls compiler/yul/NameRegistry.yul
+```
+
+### 5.3 Verify Compilation
+
+```bash
+# Install solc if needed
+sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+sudo chmod +x /usr/local/bin/solc
+
+# Compile generated Yul
+python3 scripts/check_yul_compiles.py
+```
+
+---
+
+## Phase 6: Testing (30 minutes)
+
+### 6.1 Create Differential Tests
+
+Open `test/DifferentialNameRegistry.t.sol`:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.33;
+
+import "forge-std/Test.sol";
+import "./DiffTestBase.sol";
+
+/**
+ * @title DifferentialNameRegistry
+ * @notice Tests that verify EDSL ≡ Yul ≡ EVM execution for NameRegistry
+ */
+contract DifferentialNameRegistry is DiffTestBase {
+    function setUp() public {
+        setContract("NameRegistry");
+    }
+
+    /// Test setName stores correctly
+    function testDiff_SetName() public {
+        string memory name = "Alice";
+
+        // Call both EDSL and Yul
+        (bool edslSuccess, bytes memory edslResult) = callEDSL(
+            "setName",
+            abi.encode(name),
+            address(0x1)  // sender
+        );
+
+        (bool yulSuccess, bytes memory yulResult) = callYul(
+            "setName",
+            abi.encode(name),
+            address(0x1)  // sender
+        );
+
+        // Both should succeed with identical results
+        assertEq(edslSuccess, yulSuccess, "Success mismatch");
+        assertEq(edslResult, yulResult, "Result mismatch");
+    }
+
+    /// Test getName retrieves correctly
+    function testDiff_GetName() public {
+        // First set a name
+        callYul("setName", abi.encode("Bob"), address(0x2));
+
+        // Then retrieve it
+        (bool edslSuccess, bytes memory edslResult) = callEDSL(
+            "getName",
+            abi.encode(address(0x2)),
+            address(0x3)  // different caller
+        );
+
+        (bool yulSuccess, bytes memory yulResult) = callYul(
+            "getName",
+            abi.encode(address(0x2)),
+            address(0x3)
+        );
+
+        assertEq(edslSuccess, yulSuccess, "Success mismatch");
+        assertEq(edslResult, yulResult, "Result mismatch");
+
+        string memory name = abi.decode(yulResult, (string));
+        assertEq(name, "Bob", "Name mismatch");
+    }
+
+    /// Property test: setName then getName roundtrip
+    /// @custom:property setName_getName_roundtrip
+    function testProp_SetGetRoundtrip(string calldata name, address user) public {
+        vm.assume(user != address(0));
+        vm.assume(bytes(name).length < 100);  // Reasonable limit
+
+        // Set name
+        callYul("setName", abi.encode(name), user);
+
+        // Get name
+        (, bytes memory result) = callYul("getName", abi.encode(user), address(0x999));
+
+        string memory retrieved = abi.decode(result, (string));
+        assertEq(retrieved, name, "Roundtrip failed");
+    }
+}
+```
+
+### 6.2 Create Property Tests
+
+Open `test/PropertyNameRegistry.t.sol`:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.33;
+
+import "forge-std/Test.sol";
+import "./DiffTestBase.sol";
+
+/**
+ * @title PropertyNameRegistry
+ * @notice Property-based tests from Lean proofs
+ */
+contract PropertyNameRegistry is DiffTestBase {
+    function setUp() public {
+        setContract("NameRegistry");
+    }
+
+    /// Property: getName doesn't modify storage
+    /// @custom:property getName_preserves_state
+    function testProp_GetNamePreservesState(address addr) public {
+        // Record storage before
+        bytes32 storageBefore = vm.load(yulContract, bytes32(uint256(0)));
+
+        // Call getName
+        callYul("getName", abi.encode(addr), address(0x1));
+
+        // Storage should be unchanged
+        bytes32 storageAfter = vm.load(yulContract, bytes32(uint256(0)));
+        assertEq(storageBefore, storageAfter, "Storage modified");
+    }
+
+    /// Property: setName-getName roundtrip
+    /// @custom:property setName_getName_roundtrip
+    function testProp_RoundTrip(string calldata name, address user) public {
+        vm.assume(user != address(0));
+        vm.assume(bytes(name).length > 0 && bytes(name).length < 100);
+
+        // Set name for user
+        callYul("setName", abi.encode(name), user);
+
+        // Get name for user
+        (, bytes memory result) = callYul("getName", abi.encode(user), user);
+        string memory retrieved = abi.decode(result, (string));
+
+        // Should match
+        assertEq(keccak256(bytes(retrieved)), keccak256(bytes(name)), "Roundtrip failed");
+    }
+
+    /// Property: Different users have independent names
+    function testProp_UserIsolation(
+        string calldata name1,
+        string calldata name2,
+        address user1,
+        address user2
+    ) public {
+        vm.assume(user1 != address(0) && user2 != address(0));
+        vm.assume(user1 != user2);
+        vm.assume(bytes(name1).length < 100 && bytes(name2).length < 100);
+
+        // Set different names
+        callYul("setName", abi.encode(name1), user1);
+        callYul("setName", abi.encode(name2), user2);
+
+        // Retrieve and verify isolation
+        (, bytes memory result1) = callYul("getName", abi.encode(user1), address(0x999));
+        (, bytes memory result2) = callYul("getName", abi.encode(user2), address(0x999));
+
+        string memory retrieved1 = abi.decode(result1, (string));
+        string memory retrieved2 = abi.decode(result2, (string));
+
+        assertEq(keccak256(bytes(retrieved1)), keccak256(bytes(name1)), "User1 name wrong");
+        assertEq(keccak256(bytes(retrieved2)), keccak256(bytes(name2)), "User2 name wrong");
+    }
+}
+```
+
+### 6.3 Run Tests
+
+```bash
+# Run all tests for your contract
+forge test --match-contract NameRegistry
+
+# Run with verbosity to see details
+forge test --match-contract NameRegistry -vv
+
+# Run specific test
+forge test --match-test testProp_RoundTrip -vvv
+```
+
+### 6.4 Verify Property Coverage
+
+```bash
+# Check that property tags match Lean theorem names
+python3 scripts/check_property_manifest.py
+
+# Generate coverage report
+python3 scripts/report_property_coverage.py --format=markdown
+```
+
+---
+
+## Phase 7: Integration & Validation (15 minutes)
+
+### 7.1 Final Checklist
+
+Run all validation scripts:
+
+```bash
+# 1. All Lean code compiles
+lake build
+
+# 2. No incomplete proofs
+./scripts/check_for_sorry.sh
+
+# 3. Yul generates and compiles
+./.lake/build/bin/dumbcontracts-compiler
+python3 scripts/check_yul_compiles.py
+
+# 4. All tests pass
+forge test --match-contract NameRegistry
+
+# 5. Property coverage is tracked
+python3 scripts/check_property_manifest.py
+python3 scripts/check_property_coverage.py
+
+# 6. Selectors are correct
+python3 scripts/check_selectors.py
+
+# 7. Full CI suite
+forge test  # All contracts
+```
+
+### 7.2 Add to Module Exports
+
+Update `DumbContracts.lean`:
+
+```lean
+import DumbContracts.Examples.NameRegistry
+```
+
+Update `Compiler.lean`:
+
+```lean
+import Compiler.Proofs.SpecCorrectness.NameRegistry
+```
+
+### 7.3 Update Documentation
+
+Add your contract to `docs/VERIFICATION_STATUS.md`:
+
+```markdown
+| NameRegistry | ✅ | 3/3 (100%) | Address-to-name mapping | 500 |
+```
+
+---
+
+## Common Troubleshooting
+
+### "Unknown identifier" in proofs
+
+**Problem**: Lean can't find a function or theorem.
+
+**Solution**: Check your imports. Make sure you have:
+```lean
+import DumbContracts.Core
+import DumbContracts.Examples.NameRegistry
+import Compiler.Specs
+```
+
+### "Type mismatch" errors
+
+**Problem**: Function returns wrong type.
+
+**Solution**: Check the function signature:
+```lean
+def myFunction : Contract Uint256 := do  -- Returns Uint256
+  ...
+
+def myOtherFunction : Contract Unit := do  -- Returns nothing
+  ...
+```
+
+### Tests fail with "selector not found"
+
+**Problem**: Function selector mismatch.
+
+**Solution**: Run:
+```bash
+python3 scripts/check_selectors.py
+```
+
+### "Sorry" in unexpected places
+
+**Problem**: You have incomplete proofs.
+
+**Solution**:
+```bash
+grep -r "sorry" DumbContracts/Specs/YourContract/
+```
+Replace each `sorry` with actual proof tactics.
+
+---
+
+## Next Steps
+
+### Immediate
+
+1. **Add more properties**: Think of edge cases and prove them
+2. **Add fuzzing**: Use Foundry's fuzzing to find corner cases
+3. **Optimize gas**: Check generated Yul for efficiency
+
+### Advanced
+
+4. **Compose contracts**: Build on existing verified contracts
+5. **Add access control**: Implement Owned pattern
+6. **Add complex state**: Try mappings of mappings
+
+### Learning Resources
+
+- **SimpleStorage**: Simplest possible contract
+- **Counter**: Arithmetic operations
+- **Ledger**: Mapping-heavy contract
+- **OwnedCounter**: Access control patterns
+- **[Lean 4 Manual](https://lean-lang.org/lean4/doc/)**: Language reference
+- **[Foundry Book](https://book.getfoundry.sh/)**: Testing framework
+
+---
+
+## Summary
+
+You've now:
+- ✅ Written formal specifications
+- ✅ Implemented a contract in the EDSL
+- ✅ Proven correctness properties
+- ✅ Compiled to Yul and bytecode
+- ✅ Tested against the full stack
+
+**Your contract is formally verified!**
+
+Every property you proved is now mathematically guaranteed to hold in the deployed bytecode (modulo trust assumptions in TRUST_ASSUMPTIONS.md).
+
+---
+
+## Getting Help
+
+- **Stuck on proofs?** Check `Compiler/Proofs/README.md` for proof patterns
+- **Build errors?** Run `lake clean && lake build`
+- **Test failures?** Add `console.log` in Solidity tests
+- **Questions?** Open an issue with the `help-wanted` label
+
+**Welcome to verified smart contract development! 🎉**
