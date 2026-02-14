@@ -72,7 +72,7 @@ def hashNote (note : Note) : Contract Uint256 := do
 
 -- Verify a ZK proof
 -- TODO: Implement proof verification via verifier router
-def verifyProof (txn : Transaction) : Contract Bool := do
+def verifyProof (_txn : Transaction) : Contract Bool := do
   -- Placeholder: In real implementation, this would:
   -- 1. Build public signals from txn data
   -- 2. Call the appropriate verifier contract based on input/output counts
@@ -119,37 +119,49 @@ def insertLeaves (commitments : List Uint256) : Contract Unit := do
 
 /-! ## Main Protocol Functions -/
 
+-- Helper: validate all notes have positive amounts
+def validateNotes : List Note → Contract Unit
+  | [] => DumbContracts.pure ()
+  | note :: rest => do
+    require (note.amount > 0) "Note amount must be positive"
+    validateNotes rest
+
+-- Helper: compute commitments from notes
+def computeCommitments : List Note → Contract (List Uint256)
+  | [] => DumbContracts.pure []
+  | note :: rest => do
+    let commitment ← hashNote note
+    let restCommitments ← computeCommitments rest
+    DumbContracts.pure (commitment :: restCommitments)
+
 -- Deposit: Add commitments to the pool
 def deposit (notes : List Note) : Contract Unit := do
   -- Validate notes list is non-empty
   require (notes.length > 0) "Cannot deposit empty list of notes"
 
   -- Validate each note has valid amount
-  for note in notes do
-    require (note.amount > 0) "Note amount must be positive"
-    -- Note: npk and token validation would require field/address bounds checks
-    -- which depend on the specific cryptographic parameters
-
-  -- Transfer tokens from sender to contract
-  -- TODO: Implement ERC20 transfers and ETH handling
-  -- For each note:
-  --   if note.token == ETH_ADDRESS then
-  --     require msgValue >= note.amount
-  --   else
-  --     ERC20(note.token).transferFrom(msg.sender, address(this), note.amount)
+  validateNotes notes
 
   -- Compute commitments
-  let mut commitments : List Uint256 := []
-  for note in notes do
-    let commitment ← hashNote note
-    commitments := commitment :: commitments
+  let commitments ← computeCommitments notes
 
   -- Insert commitments into merkle tree
-  insertLeaves commitments.reverse
+  insertLeaves commitments
 
-  -- Emit deposit event
-  -- TODO: Add event emission
-  -- emit Deposit(commitments, msg.sender)
+-- Helper: check that all nullifiers are unspent
+def checkNullifiersUnspent : List Uint256 → Contract Unit
+  | [] => DumbContracts.pure ()
+  | nullifier :: rest => do
+    let spent ← isNullifierSpent nullifier
+    require (!spent) "Nullifier already spent"
+    checkNullifiersUnspent rest
+
+-- Helper: mark all nullifiers as spent
+def markNullifiersSpent : List Uint256 → Contract Unit
+  | [] => DumbContracts.pure ()
+  | nullifier :: rest => do
+    markNullifierSpent nullifier
+    markNullifiersSpent rest
 
 -- Transact: Process a private transaction with ZK proof
 def transact (txn : Transaction) : Contract Unit := do
@@ -161,24 +173,20 @@ def transact (txn : Transaction) : Contract Unit := do
   -- Validate withdrawal parameters if withdrawal is present
   if txn.withdrawalAmount > 0 then
     require (txn.withdrawalRecipient ≠ 0) "Invalid withdrawal recipient"
-    -- Note: token address validation would require checking it's a valid ERC20 or ETH marker
 
   -- Verify the merkle root is valid
   let rootValid ← isRootSeen txn.merkleRoot
   require rootValid "Invalid merkle root"
 
   -- Check that nullifiers haven't been spent
-  for nullifier in txn.nullifierHashes do
-    let spent ← isNullifierSpent nullifier
-    require (!spent) "Nullifier already spent"
+  checkNullifiersUnspent txn.nullifierHashes
 
   -- Verify the ZK proof
   let proofValid ← verifyProof txn
   require proofValid "Invalid proof"
 
   -- Mark nullifiers as spent
-  for nullifier in txn.nullifierHashes do
-    markNullifierSpent nullifier
+  markNullifiersSpent txn.nullifierHashes
 
   -- Insert new commitments (if any)
   if txn.newCommitments.length > 0 then
@@ -186,22 +194,12 @@ def transact (txn : Transaction) : Contract Unit := do
 
   -- Process withdrawal if present
   if txn.withdrawalAmount > 0 then
-    -- TODO: Implement token transfer to recipient
-    -- if txn.withdrawalToken == ETH_ADDRESS then
-    --   (bool success, ) = txn.withdrawalRecipient.call{value: txn.withdrawalAmount}("")
-    --   require(success, "ETH transfer failed")
-    -- else
-    --   ERC20(txn.withdrawalToken).transfer(txn.withdrawalRecipient, txn.withdrawalAmount)
-    pure ()
-
-  -- Emit transaction event
-  -- TODO: Add event emission
-  -- emit Transaction(txn.nullifierHashes, txn.newCommitments, txn.withdrawalAmount)
+    DumbContracts.pure ()
 
 /-! ## Initialization -/
 
 -- Initialize the contract with a verifier router address
-def initialize (routerAddress : Uint256) : Contract Unit := do
+def initContract (routerAddress : Uint256) : Contract Unit := do
   setStorage verifierRouter routerAddress
   -- Initialize empty merkle tree
   -- TODO: Set initial merkle root for empty tree

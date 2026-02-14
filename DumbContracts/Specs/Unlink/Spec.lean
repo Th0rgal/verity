@@ -21,6 +21,7 @@ namespace DumbContracts.Specs.Unlink
 
 open DumbContracts
 open DumbContracts.Specs
+open DumbContracts.Core.Uint256
 
 /-! ## Type Definitions -/
 
@@ -39,6 +40,12 @@ structure Note where
   token : Uint256      -- token address (as uint256)
   amount : Uint256     -- amount of tokens
   deriving Repr
+
+-- A transaction for the spec (mirrors the implementation's Transaction)
+structure Transaction where
+  merkleRoot : Uint256
+  nullifierHashes : List Uint256
+  newCommitments : List Uint256
 
 /-! ## Storage Layout Constants -/
 
@@ -81,6 +88,39 @@ def valid_transact_input (nulls : List NullifierHash) (comms : List Commitment)
   nulls.length ≤ 16 ∧
   comms.length ≤ 16 ∧
   (withdrawalAmount > 0 → withdrawalRecipient ≠ 0)
+
+/-! ## insertLeaves Specification -/
+
+-- Specification for insertLeaves: the core building block that updates
+-- the merkle tree state. This is a straight-line function (no loops/guards)
+-- so it can be proven correct by unfolding.
+--
+-- insertLeaves updates three storage regions:
+--   slot 1 (merkleRoot): set to oldRoot + commitments.length
+--   slot 3+newRoot (rootSeen): set to 1
+--   slot 0 (nextLeafIndex): set to oldIndex + commitments.length
+def insertLeaves_spec
+    (commitments : List Uint256)
+    (s s' : ContractState) : Prop :=
+  -- Merkle root changes
+  currentMerkleRoot s' = currentMerkleRoot s + commitments.length ∧
+  -- New root is marked as seen
+  rootSeen s' (currentMerkleRoot s') ∧
+  -- Leaf index increases by number of commitments
+  nextLeafIndex s' = nextLeafIndex s + commitments.length ∧
+  -- Old nullifiers remain spent (insertLeaves doesn't touch nullifier slots)
+  (∀ n : Uint256, nullifierSpent s n → nullifierSpent s' n) ∧
+  -- Old roots remain seen (insertLeaves doesn't overwrite existing root slots)
+  -- Note: this requires that the new rootSeen slot (3 + newRoot) is distinct
+  -- from any existing rootSeen slot, which holds when newRoot ≠ oldRoot
+  -- (guaranteed by commitments.length > 0 case in deposit_spec)
+  -- For the general case, we state it as: non-new-root slots are preserved
+  (∀ slot : Nat, slot ≠ MERKLE_ROOT_SLOT →
+    slot ≠ (3 + (currentMerkleRoot s + commitments.length)) →
+    slot ≠ NEXT_LEAF_INDEX_SLOT →
+    s'.storage slot = s.storage slot) ∧
+  -- Context unchanged
+  sameContext s s'
 
 /-! ## Deposit Specification -/
 
@@ -145,13 +185,11 @@ theorem no_double_spend_monotonic
     -- Nullifier remains spent
     nullifierSpent s' nullifier := by
   intro h_spent h_op
-  cases h_op with
-  | inl ⟨notes, h_deposit⟩ =>
-    -- From deposit_spec, old nullifiers remain spent
+  rcases h_op with ⟨notes, h_deposit⟩ | ⟨root, nulls, comms, h_transact⟩
+  · -- From deposit_spec, old nullifiers remain spent
     exact h_deposit.right.right.right.left nullifier h_spent
-  | inr ⟨root, nulls, comms, h_transact⟩ =>
-    -- From transact_spec, old nullifiers remain spent
-    exact h_transact.right.right.right.right.right.right.left nullifier h_spent
+  · -- From transact_spec, old nullifiers remain spent (element 8)
+    exact h_transact.right.right.right.right.right.right.right.left nullifier h_spent
 
 -- Theorem: Roots are cumulative (historical tracking)
 theorem roots_cumulative
@@ -162,29 +200,27 @@ theorem roots_cumulative
     (∃ r nulls comms, transact_spec r nulls comms s s') →
     rootSeen s' root := by
   intro h_seen h_op
-  cases h_op with
-  | inl ⟨notes, h_deposit⟩ =>
-    exact h_deposit.right.right.right.right.left root h_seen
-  | inr ⟨r, nulls, comms, h_transact⟩ =>
-    exact h_transact.right.right.right.right.right.left root h_seen
+  rcases h_op with ⟨notes, h_deposit⟩ | ⟨r, nulls, comms, h_transact⟩
+  · exact h_deposit.right.right.right.right.left root h_seen
+  · -- Old roots remain seen (element 7)
+    exact h_transact.right.right.right.right.right.right.left root h_seen
 
 -- Theorem: Leaf index is monotonically increasing
 theorem leaf_index_monotonic
     (s s' : ContractState)
-    (h_no_overflow_deposit : ∀ notes, deposit_spec notes s s' → (nextLeafIndex s).val + notes.length < Uint256.modulus)
-    (h_no_overflow_transact : ∀ root nulls comms, transact_spec root nulls comms s s' → (nextLeafIndex s).val + comms.length < Uint256.modulus) :
+    (h_no_overflow_deposit : ∀ notes, deposit_spec notes s s' → (nextLeafIndex s).val + notes.length < modulus)
+    (h_no_overflow_transact : ∀ root nulls comms, transact_spec root nulls comms s s' → (nextLeafIndex s).val + comms.length < modulus) :
     (∃ notes, deposit_spec notes s s') ∨
     (∃ root nulls comms, transact_spec root nulls comms s s') →
     nextLeafIndex s' ≥ nextLeafIndex s := by
   intro h_op
-  cases h_op with
-  | inl ⟨notes, h_deposit⟩ =>
-    -- From deposit_spec: s'.nextLeafIndex = s.nextLeafIndex + notes.length
+  rcases h_op with ⟨notes, h_deposit⟩ | ⟨root, nulls, comms, h_transact⟩
+  · -- From deposit_spec: s'.nextLeafIndex = s.nextLeafIndex + notes.length
     have h_eq := h_deposit.right.right.left
     have h_overflow := h_no_overflow_deposit notes h_deposit
     exact eq_add_implies_ge h_eq h_overflow
-  | inr ⟨root, nulls, comms, h_transact⟩ =>
-    have h_eq := h_transact.right.right.right.right.left
+  · -- Leaf index (element 6)
+    have h_eq := h_transact.right.right.right.right.right.left
     have h_overflow := h_no_overflow_transact root nulls comms h_transact
     exact eq_add_implies_ge h_eq h_overflow
 

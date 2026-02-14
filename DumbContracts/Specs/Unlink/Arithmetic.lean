@@ -20,10 +20,15 @@ open DumbContracts.Core.Uint256
 -- Lemma: Adding a positive number increases the value (when no overflow)
 theorem add_pos_gt {a : Uint256} {n : Nat} (h_pos : n > 0) (h_no_overflow : a.val + n < modulus) :
     a + (ofNat n) > a := by
-  simp [LT.lt, lt_def]
-  have h_add : (a + ofNat n).val = a.val + n := by
-    exact add_eq_of_lt h_no_overflow
-  simp [h_add]
+  simp only [GT.gt, lt_def]
+  have h_mod : (ofNat n : Uint256).val = n % modulus := rfl
+  have h_n_lt : n < modulus := Nat.lt_of_le_of_lt (Nat.le_add_left n a.val) (by omega)
+  have h_n_eq : n % modulus = n := Nat.mod_eq_of_lt h_n_lt
+  have h_bval : (ofNat n : Uint256).val = n := by rw [h_mod, h_n_eq]
+  have h_overflow' : a.val + (ofNat n : Uint256).val < modulus := by rw [h_bval]; exact h_no_overflow
+  have h_add := add_eq_of_lt h_overflow'
+  simp only [Coe.coe] at h_add
+  rw [h_add, h_bval]
   exact Nat.lt_add_of_pos_right h_pos
 
 -- Lemma: Adding List.length is positive when list is non-empty
@@ -50,7 +55,7 @@ theorem eq_add_pos_implies_gt {a b : Uint256} {n : Nat}
 
 -- Lemma: Greater than is irreflexive
 theorem gt_irrefl (a : Uint256) : ¬(a > a) := by
-  simp [LT.lt, lt_def]
+  simp only [GT.gt, lt_def]
   exact Nat.lt_irrefl a.val
 
 -- Lemma: Greater than implies not equal
@@ -64,10 +69,13 @@ theorem gt_implies_ne {a b : Uint256} (h : a > b) : a ≠ b := by
 -- Lemma: a + n ≥ a (adding any natural number maintains or increases value)
 theorem add_nat_ge {a : Uint256} {n : Nat} (h_no_overflow : a.val + n < modulus) :
     a + (ofNat n) ≥ a := by
-  simp [LE.le, le_def]
-  have h_add : (a + ofNat n).val = a.val + n := by
-    exact add_eq_of_lt h_no_overflow
-  simp [h_add]
+  simp only [GE.ge, le_def]
+  have h_n_lt : n < modulus := Nat.lt_of_le_of_lt (Nat.le_add_left n a.val) (by omega)
+  have h_bval : (ofNat n : Uint256).val = n := Nat.mod_eq_of_lt h_n_lt
+  have h_overflow' : a.val + (ofNat n : Uint256).val < modulus := by rw [h_bval]; exact h_no_overflow
+  have h_add := add_eq_of_lt h_overflow'
+  simp only [Coe.coe] at h_add
+  rw [h_add, h_bval]
   exact Nat.le_add_right a.val n
 
 -- Lemma: If a = b + n, then a ≥ b
