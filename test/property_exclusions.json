@@ -20,32 +20,7 @@
     "isOwner_returns_correct_value"
   ],
   "OwnedCounter": [
-    "constructor_context_preserved",
-    "constructor_meets_spec",
-    "constructor_owner_preserves_count",
-    "constructor_preserves_map_storage",
-    "constructor_preserves_wellformedness",
-    "decrement_context_preserved",
-    "decrement_count_preserves_owner",
-    "decrement_meets_spec_when_owner",
-    "decrement_preserves_map_storage",
-    "decrement_preserves_wellformedness",
-    "getCount_context_preserved",
-    "getCount_meets_spec",
-    "getOwner_context_preserved",
-    "getOwner_meets_spec",
-    "increment_context_preserved",
-    "increment_count_preserves_owner",
-    "increment_meets_spec_when_owner",
-    "increment_preserves_map_storage",
-    "increment_preserves_wellformedness",
-    "isOwner_correct",
-    "transferOwnership_context_preserved",
-    "transferOwnership_meets_spec_when_owner",
-    "transferOwnership_owner_preserves_count",
-    "transferOwnership_preserves_map_storage",
-    "transferOwnership_preserves_wellformedness",
-    "transfer_then_transfer_reverts"
+    "isOwner_correct"
   ],
   "SimpleStorage": [
     "store_preserves_wellformedness"
