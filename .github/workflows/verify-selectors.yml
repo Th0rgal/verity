@@ -27,6 +27,4 @@ jobs:
           python-version: '3.11'
 
       - name: Validate function selectors
-        run: |
-          cd dumbcontracts
-          python3 scripts/validate_selectors.py
+        run: python3 scripts/validate_selectors.py
