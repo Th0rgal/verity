@@ -1,22 +1,9 @@
 {
   "Counter": [
-    "decrement_meets_spec",
-    "decrement_preserves_wellformedness",
-    "decrement_subtracts_one",
-    "getCount_meets_spec",
-    "getCount_preserves_state",
-    "getCount_reads_count_value",
     "getStorage_reads_count",
-    "increment_adds_one",
-    "increment_decrement_cancel",
-    "increment_getCount_correct",
-    "increment_meets_spec",
-    "increment_preserves_wellformedness",
-    "increment_twice_adds_two",
     "setStorage_preserves_addr_storage",
     "setStorage_preserves_context",
     "setStorage_preserves_map_storage",
-    "setStorage_preserves_other_slots",
     "setStorage_updates_count"
   ],
   "Ledger": [
@@ -29,17 +16,8 @@
     "withdraw_sum_singleton_sender"
   ],
   "Owned": [
-    "constructor_preserves_wellformedness",
-    "getOwner_preserves_state",
-    "getOwner_preserves_wellformedness",
-    "getOwner_returns_owner",
-    "getStorageAddr_reads_owner",
     "isOwner_meets_spec",
-    "isOwner_returns_correct_value",
-    "setStorageAddr_preserves_context",
-    "setStorageAddr_preserves_map_storage",
-    "setStorageAddr_updates_owner",
-    "transferOwnership_changes_owner_when_allowed"
+    "isOwner_returns_correct_value"
   ],
   "OwnedCounter": [
     "constructor_context_preserved",
@@ -70,20 +48,7 @@
     "transfer_then_transfer_reverts"
   ],
   "SimpleStorage": [
-    "retrieve_meets_spec",
-    "retrieve_preserves_context",
-    "retrieve_preserves_wellformedness",
-    "setStorage_preserves_addr_storage",
-    "setStorage_preserves_address",
-    "setStorage_preserves_map_storage",
-    "setStorage_preserves_sender",
-    "store_meets_spec",
-    "store_preserves_addr_storage",
-    "store_preserves_context",
-    "store_preserves_map_storage",
-    "store_preserves_wellformedness",
-    "store_retrieve_correct",
-    "store_retrieve_roundtrip_holds"
+    "store_preserves_wellformedness"
   ],
   "SimpleToken": [
     "balanceOf_meets_spec",
