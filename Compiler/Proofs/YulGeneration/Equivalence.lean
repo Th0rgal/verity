@@ -46,6 +46,7 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
   }
   interpretYulRuntime fn.body yulTx state.storage state.mappings
 
+/-- Interpret a function body starting from an aligned IR-derived state. -/
 def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
     (ir : IRResult) (yul : YulResult) : Bool :=
   ir.success == yul.success &&
@@ -117,6 +118,65 @@ def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulRes
         returnValue := none
         finalStorage := rollback.storage
         finalMappings := rollback.mappings }
+
+/-- Interpret a function body starting from an aligned IR-derived state. -/
+noncomputable def interpretYulBodyFromState
+    (fn : IRFunction) (selector : Nat) (state rollback : IRState) : YulResult :=
+  let yulState := yulStateOfIR selector state
+  let yulRollback := yulStateOfIR selector rollback
+  yulResultOfExecWithRollback yulRollback (execYulStmts yulState fn.body)
+
+theorem resultsMatch_of_execResultsAligned
+    (selector : Nat) (rollbackIR : IRState) (rollbackYul : YulState)
+    (hAligned : statesAligned selector rollbackIR rollbackYul) :
+    ∀ irExec yulExec,
+      execResultsAligned selector irExec yulExec →
+      resultsMatch (irResultOfExecWithRollback rollbackIR irExec)
+        (yulResultOfExecWithRollback rollbackYul yulExec) := by
+  intro irExec yulExec hExec
+  cases irExec <;> cases yulExec
+  · -- continue / continue
+    cases hExec
+    simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
+      statesAligned, yulStateOfIR]
+  · -- continue / return
+    cases hExec
+  · -- continue / stop
+    cases hExec
+  · -- continue / revert
+    cases hExec
+  · -- return / continue
+    cases hExec
+  · -- return / return
+    rcases hExec with ⟨hVal, hAligned'⟩
+    cases hAligned'
+    simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
+      yulStateOfIR, hVal]
+  · -- return / stop
+    cases hExec
+  · -- return / revert
+    cases hExec
+  · -- stop / continue
+    cases hExec
+  · -- stop / return
+    cases hExec
+  · -- stop / stop
+    cases hExec
+    simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
+      statesAligned, yulStateOfIR]
+  · -- stop / revert
+    cases hExec
+  · -- revert / continue
+    cases hExec
+  · -- revert / return
+    cases hExec
+  · -- revert / stop
+    cases hExec
+  · -- revert / revert
+    cases hExec
+    cases hAligned
+    simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
+      yulStateOfIR]
 
 /-- Instruction-level equivalence goal: single IR statement matches Yul statement. -/
 def execIRStmt_equiv_execYulStmt_goal
@@ -330,5 +390,36 @@ theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
     execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv stmt_equiv
       selector (sizeOf stmts + 1) stmts irState yulState hAligned
   simpa [execYulStmts] using hFuel
+
+theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
+    (stmt_equiv :
+      ∀ selector fuel stmt irState yulState,
+        statesAligned selector irState yulState →
+        execResultsAligned selector
+          (execIRStmt irState stmt)
+          (execYulStmtFuel fuel yulState stmt)) :
+    ∀ selector fn args initialState,
+      resultsMatch
+        (execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState)
+        (interpretYulBodyFromState fn selector
+          (fn.params.zip args |>.foldl
+            (fun s (p, v) => s.setVar p.name v)
+            initialState)
+          initialState) := by
+  intro selector fn args initialState
+  let stateWithParams :=
+    fn.params.zip args |>.foldl
+      (fun s (p, v) => s.setVar p.name v)
+      initialState
+  have hAligned : statesAligned selector stateWithParams (yulStateOfIR selector stateWithParams) := by
+    rfl
+  have hExec :=
+    execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv stmt_equiv
+      selector fn.body stateWithParams (yulStateOfIR selector stateWithParams) hAligned
+  have hRollback : statesAligned selector initialState (yulStateOfIR selector initialState) := by
+    rfl
+  simpa [execIRFunctionFuel, interpretYulBodyFromState, stateWithParams] using
+    (resultsMatch_of_execResultsAligned selector initialState
+      (yulStateOfIR selector initialState) hRollback _ _ hExec)
 
 end Compiler.Proofs.YulGeneration
