@@ -109,49 +109,39 @@ test/                                # Foundry tests (unit, property, differenti
 ## Build and Test
 
 ```bash
-# Type-check DumbContracts (EDSL + proofs)
+# Build Lean proofs
 lake build
 
-# Build compiler executable
+# Build compiler
 lake build dumbcontracts-compiler
 
-# Run Foundry tests (unit + property + differential + selector sanity)
+# Run all tests
 forge test
-
-# Optional: scale differential random test counts
-# DIFFTEST_RANDOM_SMALL defaults to 100, DIFFTEST_RANDOM_LARGE defaults to 10000
-# DIFFTEST_RANDOM_COUNT overrides both small/large when set
-# DIFFTEST_SHARD_COUNT/DIFFTEST_SHARD_INDEX split work across shards (seed is offset per shard).
-# Large counts can be expensive; tune these for local runs vs CI.
-# CI runs with DIFFTEST_RANDOM_LARGE=10000 across all differential harnesses.
-DIFFTEST_RANDOM_SMALL=200 DIFFTEST_RANDOM_LARGE=20000 DIFFTEST_RANDOM_SEED=42 forge test
-
-# Optional: extract proof theorem names into a test manifest
-python3 scripts/extract_property_manifest.py
-
-# Optional: check that property tests reference real theorems
-python3 scripts/check_property_manifest.py
-
-# Optional: check that property_manifest.json matches current proofs
-python3 scripts/check_property_manifest_sync.py
-
-# Optional: check that all theorems have property coverage (with exclusions)
-python3 scripts/check_property_coverage.py
-
-# Optional: report missing property tests to prioritize proof → test extraction
-python3 scripts/report_property_gaps.py
-
-# Property tests are discovered via comment tags like:
-# "Property 12a: theorem_name", "Property 12b: theorem_name (fuzz test)",
-# "Property 12-13: theorem_name", or "Property: theorem_name"
-# (optional trailing notes in parentheses are allowed).
-
-# Optional: scan docs for hidden Unicode control characters
-python3 scripts/check_unicode_controls.py docs-site/content
-
-# Optional: check selector hashing against specs and generated Yul (including yul-new if present)
-python3 scripts/check_selectors.py
 ```
+
+### Optional Validation Scripts
+
+```bash
+# Property test validation
+python3 scripts/extract_property_manifest.py      # Extract theorem names
+python3 scripts/check_property_manifest.py         # Verify test references
+python3 scripts/check_property_manifest_sync.py    # Check manifest sync
+python3 scripts/check_property_coverage.py         # Check coverage
+python3 scripts/report_property_gaps.py            # Report gaps
+
+# Other validation
+python3 scripts/check_selectors.py                 # Verify selector hashing
+python3 scripts/check_unicode_controls.py docs-site/content  # Scan for control chars
+```
+
+### Advanced Test Configuration
+
+Scale differential test counts (defaults: SMALL=100, LARGE=10000):
+```bash
+DIFFTEST_RANDOM_SMALL=200 DIFFTEST_RANDOM_LARGE=20000 DIFFTEST_RANDOM_SEED=42 forge test
+```
+
+Property tests use comment tags: `Property 12a: theorem_name`, `Property: theorem_name`, etc.
 
 ## Documentation
 
