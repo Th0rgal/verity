@@ -8,6 +8,9 @@ open Compiler
 open Compiler.Proofs.IRGeneration
 open Compiler.Yul
 
+set_option allowUnsafeReducibility true in
+attribute [reducible] execIRStmt execIRStmts
+
 /-! ## IR ↔ Yul State Alignment -/
 
 def yulStateOfIR (selector : Nat) (state : IRState) : YulState :=
@@ -270,6 +273,16 @@ def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initial
         finalStorage := initialState.storage
         finalMappings := initialState.mappings }
 
+def ir_yul_function_equiv_fuel_goal
+    (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) : Prop :=
+  resultsMatch
+    (execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState)
+    (interpretYulBodyFromState fn selector
+      (fn.params.zip args |>.foldl
+        (fun s (p, v) => s.setVar p.name v)
+        initialState)
+      initialState)
+
 
 /-! ## Generic Sequence Equivalence
 
@@ -421,5 +434,19 @@ theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
   simpa [execIRFunctionFuel, interpretYulBodyFromState, stateWithParams] using
     (resultsMatch_of_execResultsAligned selector initialState
       (yulStateOfIR selector initialState) hRollback _ _ hExec)
+
+theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
+    (stmt_equiv :
+      ∀ selector fuel stmt irState yulState,
+        statesAligned selector irState yulState →
+        execResultsAligned selector
+          (execIRStmt irState stmt)
+          (execYulStmtFuel fuel yulState stmt)) :
+    ∀ selector fn args initialState,
+      ir_yul_function_equiv_fuel_goal fn selector args initialState := by
+  intro selector fn args initialState
+  simpa [ir_yul_function_equiv_fuel_goal] using
+    (execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv stmt_equiv
+      selector fn args initialState)
 
 end Compiler.Proofs.YulGeneration
