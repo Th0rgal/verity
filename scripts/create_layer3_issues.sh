@@ -24,6 +24,12 @@ if ! gh auth status &> /dev/null; then
     exit 1
 fi
 
+# Fetch existing issues to check for duplicates
+echo "Fetching existing Layer 3 issues..."
+EXISTING_ISSUES=$(gh issue list --repo "$REPO" --label "layer-3" --state all --json title --jq '.[].title')
+echo "Found $(echo "$EXISTING_ISSUES" | grep -c .) existing Layer 3 issues"
+echo ""
+
 # Array of statement proofs to create issues for
 declare -a statements=(
     "1:Variable Assignment:assign_equiv:Low:1h:None:70"
@@ -47,6 +53,14 @@ create_issue() {
     local line=$7
 
     local title="[Layer 3] Prove ${name,,} statement equivalence"
+
+    # Check if issue already exists
+    if echo "$EXISTING_ISSUES" | grep -qF "$title"; then
+        echo "⊘ Issue already exists: ${title}"
+        echo "  Skipping..."
+        echo ""
+        return 0
+    fi
 
     local body=$(cat <<EOF
 ## Statement Type
@@ -138,7 +152,9 @@ for stmt in "${statements[@]}"; do
     sleep 2
 done
 
-echo "All issues created successfully!"
+echo "Done!"
+echo ""
+echo "Summary: Script is idempotent - existing issues are skipped."
 echo ""
 echo "Next steps:"
 echo "1. Review created issues on GitHub"
