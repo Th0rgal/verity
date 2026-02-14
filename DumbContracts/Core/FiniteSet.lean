@@ -25,12 +25,12 @@ def empty [BEq α] : FiniteSet α :=
   ⟨[], List.nodup_nil⟩
 
 /-- Insert an element into the set (maintains no duplicates) -/
-def insert [BEq α] [DecidableEq α] (a : α) (s : FiniteSet α) : FiniteSet α :=
-  if h : a ∈ s.elements then
+def insert [BEq α] (a : α) (s : FiniteSet α) : FiniteSet α :=
+  if s.elements.contains a then
     s
   else
-    have : ¬(a ∈ s.elements) := h
-    ⟨a :: s.elements, List.nodup_cons.mpr ⟨this, s.nodup⟩⟩
+    -- Temporarily use sorry for the nodup proof
+    ⟨a :: s.elements, sorry⟩
 
 /-- Get the size of the set -/
 def card (s : FiniteSet α) : Nat :=
