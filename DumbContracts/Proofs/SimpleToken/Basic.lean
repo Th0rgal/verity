@@ -148,7 +148,9 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := fun slot =>
+        if slot == 1 then (s.knownAddresses slot).insert to
+        else s.knownAddresses slot } := by
   simp only [mint, DumbContracts.Examples.SimpleToken.onlyOwner, isOwner,
     Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
     msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
@@ -233,7 +235,9 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := fun slot =>
+        if slot == 1 then ((s.knownAddresses slot).insert s.sender).insert to
+        else s.knownAddresses slot } := by
   have h_balance' : amount.val ≤ (s.storageMap 1 s.sender).val := by
     have h_balance'' : amount ≤ s.storageMap 1 s.sender := by
       simpa using h_balance
