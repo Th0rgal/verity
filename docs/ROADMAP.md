@@ -35,8 +35,8 @@
 
 ### 🟢 **Ledger Sum Properties** (7 Properties)
 **What**: Prove total supply equals sum of all balances
-**Status**: 0/7 complete (PR #47 WIP)
-**Blocker**: Need finite address set modeling first (Issue #39)
+**Status**: Infrastructure complete (PR #47, #51), proofs pending (Issue #39)
+**Remaining**: Complete 7 theorem proofs (~10-14 days Lean expertise)
 
 | # | Property | Description |
 |---|----------|-------------|
@@ -113,7 +113,8 @@
 **Work Items**:
 - ✅ Complete Layer 3 statement-level proofs (PR #42)
 - ✅ Function selector verification (PR #43, #46)
-- 🔄 Ledger sum properties (Issue #39, PR #47 WIP)
+- ✅ Ledger sum properties infrastructure (PR #47, #51)
+- 🔄 Complete sum property proofs (Issue #39 - requires Lean expertise)
 - 🔄 Yul → EVM bridge investigation
 
 **Success Metrics**:
