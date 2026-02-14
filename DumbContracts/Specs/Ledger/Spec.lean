@@ -70,7 +70,7 @@ def Spec_withdraw_sum_equation (amount : Uint256) (s s' : ContractState) : Prop 
   totalBalance s' = sub (totalBalance s) amount
 
 /-- Spec: transfer preserves total balance -/
-def Spec_transfer_sum_preservation (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
+def Spec_transfer_sum_preservation (_to : Address) (_amount : Uint256) (s s' : ContractState) : Prop :=
   totalBalance s' = totalBalance s
 
 /-- Spec: Sum of balances for singleton set containing only sender after deposit -/
@@ -92,7 +92,7 @@ def Spec_withdraw_sum_singleton_sender (amount : Uint256) (s s' : ContractState)
     totalBalance s' = sub (s.storageMap 0 s.sender) amount
 
 /-- Spec: Transfer preserves sum for unique addresses -/
-def Spec_transfer_sum_preserved_unique (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
+def Spec_transfer_sum_preserved_unique (to : Address) (_amount : Uint256) (s s' : ContractState) : Prop :=
   s.sender ≠ to →
   totalBalance s' = totalBalance s
 
