@@ -34,12 +34,19 @@ theorem valid_transact_implies_has_inputs
     nulls.length > 0 := by
   intro h; exact h.1
 
+theorem valid_transact_implies_has_commitments
+    (nulls : List NullifierHash) (comms : List Commitment)
+    (withdrawalAmount withdrawalRecipient : Uint256) :
+    valid_transact_input nulls comms withdrawalAmount withdrawalRecipient →
+    comms.length > 0 := by
+  intro h; exact h.2.1
+
 theorem valid_transact_withdrawal_implies_valid_recipient
     (nulls : List NullifierHash) (comms : List Commitment)
     (withdrawalAmount withdrawalRecipient : Uint256) :
     valid_transact_input nulls comms withdrawalAmount withdrawalRecipient →
     withdrawalAmount > 0 → withdrawalRecipient ≠ 0 := by
-  intro h ha; exact h.2.2.2 ha
+  intro h ha; exact h.2.2.2.2 ha
 
 /-! ## Auxiliary Theorems -/
 
@@ -87,8 +94,8 @@ theorem deposit_increases_leaves_holds
 theorem no_double_spend_property_holds (s : ContractState) :
     no_double_spend_property s := by
   unfold no_double_spend_property
-  intro n hs s' _ nulls' ⟨root', comms', ht'⟩
-  intro h_in; exact (ht'.2.1 n h_in) hs
+  intro n s' root nulls comms hs ht h_in
+  exact (ht.2.1 n h_in) hs
 
 theorem commitments_cumulative_holds
     (h_no_overflow_deposit : ∀ s s' notes,

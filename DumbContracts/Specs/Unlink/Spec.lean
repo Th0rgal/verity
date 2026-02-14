@@ -67,9 +67,11 @@ def valid_deposit_input (notes : List Note) : Prop :=
   notes.length > 0 ∧
   ∀ note ∈ notes, note.amount > 0
 
+-- Matches Solidity: both nullifiers and commitments must be non-empty
 def valid_transact_input (nulls : List NullifierHash) (comms : List Commitment)
     (withdrawalAmount : Uint256) (withdrawalRecipient : Uint256) : Prop :=
   nulls.length > 0 ∧
+  comms.length > 0 ∧
   nulls.length ≤ 16 ∧
   comms.length ≤ 16 ∧
   (withdrawalAmount > 0 → withdrawalRecipient ≠ 0)
@@ -151,15 +153,13 @@ theorem leaf_index_monotonic
 
 /-! ## High-Level Security Properties -/
 
--- Once a nullifier is spent, it cannot appear in any future transaction
+-- Once a nullifier is spent, it cannot appear in any future transaction's inputs
 def no_double_spend_property (s : ContractState) : Prop :=
-  ∀ (n : NullifierHash),
+  ∀ (n : NullifierHash) (s' : ContractState)
+    (root : MerkleRoot) (nulls : List NullifierHash) (comms : List Commitment),
     nullifierSpent s n →
-    ∀ s' : ContractState,
-      (∃ root nulls comms, transact_spec root nulls comms s s') →
-      ∀ nulls : List NullifierHash,
-        (∃ root comms, transact_spec root nulls comms s s') →
-        n ∉ nulls
+    transact_spec root nulls comms s s' →
+    n ∉ nulls
 
 -- Deposits increase the leaf count (when non-empty)
 def deposit_increases_leaves (notes : List Note) (s s' : ContractState) : Prop :=

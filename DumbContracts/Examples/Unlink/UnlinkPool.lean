@@ -165,8 +165,9 @@ def markNullifiersSpent : List Uint256 → Contract Unit
 
 -- Transact: Process a private transaction with ZK proof
 def transact (txn : Transaction) : Contract Unit := do
-  -- Validate inputs
+  -- Validate inputs (matching Solidity: both arrays must be non-empty)
   require (txn.nullifierHashes.length > 0) "Must spend at least one note"
+  require (txn.newCommitments.length > 0) "Must have at least one commitment"
   require (txn.nullifierHashes.length ≤ 16) "Too many input notes (max 16)"
   require (txn.newCommitments.length ≤ 16) "Too many output notes (max 16)"
 
@@ -188,9 +189,8 @@ def transact (txn : Transaction) : Contract Unit := do
   -- Mark nullifiers as spent
   markNullifiersSpent txn.nullifierHashes
 
-  -- Insert new commitments (if any)
-  if txn.newCommitments.length > 0 then
-    insertLeaves txn.newCommitments
+  -- Insert new commitments into merkle tree
+  insertLeaves txn.newCommitments
 
   -- Process withdrawal if present
   if txn.withdrawalAmount > 0 then
