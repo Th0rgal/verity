@@ -15,13 +15,17 @@ The project evolved in two phases:
 
 **Phase 2 (Verification)**: Replaced `StateM` with custom `ContractResult` type (`success | revert`) to model `require` guards explicitly. This enabled proving properties like "mint reverts when caller is not owner." The core expanded to include proof automation lemmas and EVM context fields.
 
-## Progress and Roadmap (as of 2026-02-13)
+## Progress and Roadmap (as of 2026-02-14)
 
 This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Layer 1 (Spec Correctness)**: Complete for all 7 contracts.
 - **Layer 2 (ContractSpec → IR)**: Complete for all 7 contracts (per‑function preservation theorems compiled in Lean).
 - **Layer 3 (IR → Yul)**: In progress (generic equivalence scaffolding + Yul/IR fuel‑unfolding lemmas + fuel‑bounded IR↔Yul sequence lemma + fuel‑based function equivalence goal + fuel‑bounded function lemma from aligned IR state + explicit fuel‑adequacy goal definitions for IR; full non‑fuel equivalence theorems not yet proven).
+
+Recent updates:
+- CI now installs `solc` with `sudo` to avoid permission failures on GitHub Actions runners.
+- Mapping slot encoding restores the defensive `baseSlot % evmModulus` normalization.
 
 ## Iterations
 

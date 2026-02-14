@@ -67,8 +67,8 @@ jobs:
 
       - name: Install solc
         run: |
-          curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
-          chmod +x /usr/local/bin/solc
+          sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          sudo chmod +x /usr/local/bin/solc
           solc --version
 
       - name: Compile generated Yul with solc
@@ -136,8 +136,8 @@ jobs:
 
       - name: Install solc
         run: |
-          curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
-          chmod +x /usr/local/bin/solc
+          sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          sudo chmod +x /usr/local/bin/solc
           solc --version
 
       - name: Run Foundry tests
