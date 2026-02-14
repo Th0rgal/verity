@@ -49,7 +49,8 @@ private theorem deposit_unfold (s : ContractState) (amount : Uint256) :
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := s.knownAddresses } := by
   simp only [deposit, msgSender, getMapping, setMapping, balances,
     DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst]
@@ -95,7 +96,8 @@ private theorem withdraw_unfold (s : ContractState) (amount : Uint256)
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := s.knownAddresses } := by
   simp only [withdraw, msgSender, getMapping, setMapping, balances,
     DumbContracts.require, DumbContracts.bind, Bind.bind, DumbContracts.pure, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst]
@@ -162,7 +164,8 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := s.knownAddresses } := by
   have h_balance' : amount.val ≤ (s.storageMap 0 s.sender).val := by
     have h_balance'' : amount ≤ s.storageMap 0 s.sender := by
       simpa using h_balance
