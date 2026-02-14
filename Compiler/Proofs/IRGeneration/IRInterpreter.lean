@@ -246,6 +246,9 @@ partial def execIRStmts (state : IRState) : List YulStmt → IRExecResult
 
 end -- mutual
 
+set_option allowUnsafeReducibility true in
+attribute [reducible] execIRStmts
+
 /-! ## IR Function Execution -/
 
 structure IRTransaction where
