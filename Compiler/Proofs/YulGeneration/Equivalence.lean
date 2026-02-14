@@ -351,7 +351,8 @@ theorem execIRStmtsFuel_cons
       | .return v s => .return v s
       | .stop s => .stop s
       | .revert s => .revert s := by
-  sorry  -- This theorem needs to be reproven for mutual definitions
+  -- The mutual definition unfolds directly
+  rfl
 
 def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initialState : IRState) :
     IRResult :=
