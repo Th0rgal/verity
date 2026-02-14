@@ -101,8 +101,6 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed status.
 ```bash
 lake build                           # Required before commits
 forge test                           # All tests
-./scripts/create_layer3_issues.sh    # Create issues (idempotent)
-gh issue list --label "layer-3"      # View Layer 3 work
 ```
 
 ## Resources
