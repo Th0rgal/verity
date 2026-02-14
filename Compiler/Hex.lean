@@ -38,4 +38,16 @@ def addressToNat (addr : String) : Nat :=
   | some n => n % (2^160)
   | none => stringToNat addr % (2^160)
 
+private def hexDigit (n : Nat) : Char :=
+  if n < 10 then Char.ofNat (n + 48) else Char.ofNat (n - 10 + 97)
+
+/-- Convert a Nat to a zero-padded hex string (e.g. selector → "0x12345678") -/
+def natToHex (n : Nat) (digits : Nat := 8) : String :=
+  let rec go (val : Nat) (acc : List Char) : List Char :=
+    if val = 0 then acc
+    else go (val / 16) (hexDigit (val % 16) :: acc)
+  let raw := go n []
+  let padded := List.replicate (digits - raw.length) '0' ++ raw
+  "0x" ++ String.mk padded
+
 end Compiler.Hex

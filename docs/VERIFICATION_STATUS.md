@@ -145,59 +145,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
         (execYulStmtFuel fuel yulState stmt)
 ```
 
-**What This Requires**: For each IR/Yul statement type, prove that executing it in IR matches executing it in Yul when states are aligned.
-
-**Statement Types to Prove**:
-- Variable assignments
-- Storage loads/stores
-- Mapping loads/stores
-- Arithmetic operations
-- Conditionals (if/switch)
-- Return statements
-- Revert statements
-
-**Why It's Blocked**: The proof requires careful handling of fuel consumption in recursive statement execution. The current fuel-parametric approach needs statement-level lemmas that compose correctly.
-
-### Concrete Next Steps for Layer 3
-
-1. **Prove Variable Assignment Equivalence**
-   ```lean
-   theorem exec_assign_equiv (selector : Nat) (fuel : Nat) :
-       ∀ irState yulState var value,
-         statesAligned selector irState yulState →
-         execResultsAligned selector
-           (execIRStmt irState (assign var value))
-           (execYulStmtFuel fuel yulState (assign var value))
-   ```
-
-2. **Prove Storage Operation Equivalence**
-   - `storageLoad` equivalence
-   - `storageStore` equivalence
-   - `mappingLoad` equivalence
-   - `mappingStore` equivalence
-
-3. **Prove Control Flow Equivalence**
-   - Conditional (`if`) equivalence
-   - Switch statement equivalence
-
-4. **Prove Termination Equivalence**
-   - `return` statement equivalence
-   - `revert` statement equivalence
-
-5. **Compose Statement Lemmas**
-   Once all statement types are proven, use the composition theorem:
-   ```lean
-   theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
-   ```
-   to lift to full function body equivalence.
-
-### Alternative Approaches
-
-If fuel-parametric approach proves too complex:
-
-1. **Well-Founded Recursion**: Replace fuel with well-founded recursion on statement structure
-2. **Defunctionalization**: Convert to continuation-passing style
-3. **Shallow Embedding**: Use Lean's built-in termination checking more directly
+All 8 statement types (assign, storage load/store, mapping load/store, conditional, return, revert) plus the composition theorem are proven. See `Compiler/Proofs/YulGeneration/StatementEquivalence.lean` for details.
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
@@ -263,9 +211,7 @@ If fuel-parametric approach proves too complex:
    - Mitigation: Differential testing against actual EVM execution
    - Future: Formal EVM semantics integration
 
-3. **Function Selectors**: Precomputed keccak256 hashes assumed correct
-   - Mitigation: CI verifies selector hashes against `solc --hashes`
-   - Future: Selector hash proofs in Lean
+3. ~~**Function Selectors**~~: Resolved — keccak256 axiom validated by CI against `solc --hashes` (PR #43, #46)
 
 ### Verified Components (Zero Trust)
 
@@ -279,13 +225,12 @@ If fuel-parametric approach proves too complex:
 ### ✅ Completed Milestones
 
 - [x] Complete Layer 3 statement-level equivalence proofs (PR #42)
-- [x] Function selector axiom with CI validation (PR #43, Phase 1)
+- [x] Function selector axiom with CI validation (PR #43, #46)
+- [x] External function linking for cryptographic libraries (PR #49)
 
 ### Short Term (1-2 months)
 
-- [ ] Complete selector hash validation in CI (Phase 2 of #38)
 - [ ] Add finite address set modeling for Ledger sum properties (Issue #39)
-- [ ] External function linking for cryptographic libraries (Issue #36)
 
 ### Medium Term (3-6 months)
 
@@ -322,4 +267,4 @@ See `scripts/README.md` for:
 ---
 
 **Last Updated**: 2026-02-14
-**Status Summary**: Layers 1-2 complete, Layer 3 semantics ready, property extraction near-complete
+**Status Summary**: Layers 1-3 complete, trust reduction in progress

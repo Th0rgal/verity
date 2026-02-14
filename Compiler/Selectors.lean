@@ -21,6 +21,8 @@ on manual selector computation.
 - Trust Assumptions: docs/ROADMAP.md
 -/
 
+import Compiler.Hex
+
 namespace Compiler
 
 /-! ## Keccak256 Axiom
@@ -76,21 +78,8 @@ noncomputable def set_selector : Nat := keccak256_first_4_bytes "set(uint256)"
 /-- Ownership: transferOwnership(address) -/
 noncomputable def transferOwnership_selector : Nat := keccak256_first_4_bytes "transferOwnership(address)"
 
-/-! ## Selector Validation Helpers
-
-These functions help validate that our axiom usage matches solc output.
--/
-
 /-- Convert selector to hex string for comparison with solc output -/
 def selector_to_hex (selector : Nat) : String :=
-  let rec toHexDigit (n : Nat) : Char :=
-    if n < 10 then Char.ofNat (n + 48)  -- '0'..'9'
-    else Char.ofNat (n - 10 + 97)       -- 'a'..'f'
-  let rec toHexString (n : Nat) (acc : List Char) : List Char :=
-    if n = 0 then acc
-    else toHexString (n / 16) (toHexDigit (n % 16) :: acc)
-  let digits := toHexString selector []
-  let padded := List.replicate (8 - digits.length) '0' ++ digits
-  "0x" ++ String.mk padded
+  Hex.natToHex selector 8
 
 end Compiler

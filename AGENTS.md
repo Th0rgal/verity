@@ -66,7 +66,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full conventions.
 ```
 Layer 1 ✅ EDSL ≡ ContractSpec
 Layer 2 ✅ ContractSpec → IR
-Layer 3 🟡 IR → Yul (in progress)
+Layer 3 ✅ IR → Yul
 ```
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed status.

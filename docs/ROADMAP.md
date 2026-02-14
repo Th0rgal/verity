@@ -1,50 +1,22 @@
-# DumbContracts Roadmap to Completion
+# DumbContracts Roadmap
 
-**Project Health**: 97/100 🎯 **(+5 from Layer 3 breakthrough!)**
-
-**Goal**: Achieve full end-to-end verified smart contracts from EDSL to EVM bytecode with minimal trust assumptions.
+**Goal**: End-to-end verified smart contracts from EDSL to EVM bytecode with minimal trust assumptions.
 
 ---
 
-## Executive Summary
-
-DumbContracts has achieved **97% completion** toward production-ready, fully verified smart contracts:
+## Current Status
 
 - ✅ **Layer 1 Complete**: 228 properties proven across 7 contracts (EDSL ≡ ContractSpec)
 - ✅ **Layer 2 Complete**: All IR generation with preservation proofs (ContractSpec → IR)
-- 🟡 **Layer 3 Nearly Complete**: **97% done!** Infrastructure complete, 7/8 statement proofs done, composition theorem exists
+- ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
 - ✅ **Property Testing**: 70% coverage (203/292), all testable properties covered
 - ✅ **Differential Testing**: Production-ready with 10k+ tests
-
-**Estimated Time to Production-Ready**: **3-6 hours** to finish Layer 3, then trust reduction work!
+- ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
+- ✅ **External Linking**: Cryptographic library support (PR #49)
 
 ---
 
-## 🎯 Three Critical Work Streams
-
-Here's what stands between current state (97%) and full completion (100%):
-
-### ✅ **Layer 3 COMPLETE!** (100%)
-**What**: All statement-level equivalence proofs proven
-**Status**: ✅ **100% COMPLETE!** All 8 statement proofs + universal dispatcher done!
-**Impact**: End-to-end IR → Yul verification fully proven
-**Completed**: Universal dispatcher (PR #42) with mutual recursion
-**Achievement**: Zero sorry statements in Layer 3!
-
-🎉 **MILESTONE REACHED**: Layer 3 (IR → Yul) verification 100% complete!
-
-| # | Statement | Difficulty | Effort | Status | Notes |
-|---|-----------|------------|--------|--------|-------|
-| 0 | **Add execIRStmtFuel** | **Medium** | **1w** | ✅ **DONE** | **Unblocked all!** |
-| 1 | Variable Assignment | Low | 1h | ✅ **PROVEN** | Issue #28 closed |
-| 2 | Storage Load | Low | 1h | ✅ **PROVEN** | Issue #29 closed |
-| 3 | Storage Store | Low | 1h | ✅ **PROVEN** | Issue #30 closed |
-| 4 | Mapping Load | Medium | 2-4h | ✅ **PROVEN** | Issue #31 closed |
-| 5 | Mapping Store | Medium | 2-4h | ✅ **PROVEN** | Issue #32 closed |
-| 6 | Conditional (if) | Medium-High | 4-8h | ✅ **PROVEN** | Issue #33 closed (PR #42) |
-| 7 | Return | Low | 1-2h | ✅ **PROVEN** | Issue #34 closed |
-| 8 | Revert | Low-Medium | 2-3h | ✅ **PROVEN** | Issue #35 closed |
-| 9 | **Composition** | High | 1-2d | ✅ **PROVEN** | Issue #37 closed (PR #42) |
+## Remaining Work Streams
 
 ### 🟡 **Trust Reduction** (3 Components)
 **What**: Eliminate or verify all trusted components
@@ -54,13 +26,9 @@ Here's what stands between current state (97%) and full completion (100%):
 
 | # | Component | Approach | Effort | Status |
 |---|-----------|----------|--------|--------|
-| 1 | Function Selectors | keccak256 axiom + CI | 1-2w | 🟡 **PHASE 1 DONE** (PR #43) |
+| 1 | Function Selectors | keccak256 axiom + CI | 1-2w | ✅ **DONE** (PR #43, #46) |
 | 2 | Yul→EVM Bridge | Integrate KEVM | 1-3m | ⚪ TODO |
 | 3 | EVM Semantics | Strong testing + docs | Ongoing | ⚪ TODO |
-
-**Function Selectors Progress:**
-- ✅ Phase 1: Axiom + structure validation (Issue #38, PR #43)
-- ⚪ Phase 2: Full hash comparison in CI
 
 ### 🟢 **Ledger Sum Properties** (7 Properties)
 **What**: Prove total supply equals sum of all balances
@@ -83,139 +51,6 @@ Here's what stands between current state (97%) and full completion (100%):
 
 ---
 
-## Critical Path: Layer 3 Completion (🟡 Nearly Complete!)
-
-**Progress**: 92% → 97% (current) → 100% (final universal proof)
-
-### 🎉 Major Milestone Achieved!
-
-**Layer 3 is 97% complete!** The verification infrastructure is fully in place and working.
-
-### Current Status
-
-**✅ COMPLETED Infrastructure** (All Major Components):
-- ✅ Yul semantics with executable interpreter
-- ✅ Preservation theorem structure and scaffolding
-- ✅ State alignment definitions and result matching predicates
-- ✅ **Fuel-parametric IR execution** (`execIRStmtFuel` + `execIRStmtsFuel` as mutual definitions)
-- ✅ Helper axiom (`evalIRExpr_eq_evalYulExpr`) with full soundness documentation
-- ✅ **7/8 individual statement equivalence proofs** (all complete, no sorries!)
-- ✅ **Composition theorem EXISTS and is PROVEN** (`execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv`)
-
-**🔄 Remaining Work** (3% - Final Touches):
-- 🔵 **Universal statement dispatcher** (`all_stmts_equiv`) - 2-4 hours
-- 🔵 **Finish conditional proof** - Apply composition theorem to recursive case - 1-2 hours
-
-### ✅ execIRStmtFuel Implementation (COMPLETE!)
-
-**Status**: ✅ COMPLETE - All statement proofs now possible!
-
-Implemented `execIRStmtFuel` and `execIRStmtsFuel` as mutual definitions (~95 lines) with fuel parameter ensuring termination. See `Compiler/Proofs/YulGeneration/Equivalence.lean:247-333`.
-
-### Required Theorems
-
-The core blocker is proving this theorem:
-
-```lean
-theorem stmt_equiv :
-    ∀ selector fuel stmt irState yulState,
-      statesAligned selector irState yulState →
-      execResultsAligned selector
-        (execIRStmt irState stmt)
-        (execYulStmtFuel fuel yulState stmt)
-```
-
-**What This Means**: For each IR/Yul statement type, prove that executing it in IR matches executing it in Yul when states are aligned.
-
-### Statement Equivalence Proofs (7/8 Complete!)
-
-**Achievement**: 7/8 individual proofs complete! All follow the same clean pattern using the helper axiom. See `Compiler/Proofs/YulGeneration/StatementEquivalence.lean` for detailed progress.
-
-### ✅ Composition Theorem (ALREADY PROVEN!)
-
-**DISCOVERY**: The composition theorem was already fully proven in the codebase!
-
-**Location**: `Compiler/Proofs/YulGeneration/Equivalence.lean:403-491`
-
-**Theorem**:
-```lean
-theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
-    (stmt_equiv : ∀ selector fuel stmt irState yulState,
-        execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
-    ∀ selector fuel stmts irState yulState,
-      execIRStmts_equiv_execYulStmts_goal selector fuel stmts irState yulState
-```
-
-**What It Does**: Takes a universal proof that ALL statements are equivalent, and lifts it to prove that statement LISTS are equivalent.
-
-**Status**: ✅ **Fully proven, 89 lines, no sorries!**
-
-**Why This Matters**: This is THE composition theorem. Once we provide the universal statement proof (`all_stmts_equiv`), this theorem gives us function body equivalence for free!
-
-### Remaining Work (3% of Layer 3)
-
-**1. Universal Statement Dispatcher** (`all_stmts_equiv`)
-- **What**: Proves ALL statements (any type) are equivalent by dispatching to specific proofs
-- **How**: Pattern match on statement type, call appropriate theorem (assign_equiv, storageLoad_equiv, etc.)
-- **Circular Dependency**: conditional_equiv needs this, but this needs conditional_equiv
-- **Solution**: Mutual recursion or well-founded recursion on statement structure
-- **Estimated Effort**: 2-4 hours
-- **Impact**: Unblocks completing conditional_equiv and enables using composition theorem
-
-**2. Finish Conditional Proof**
-- **Current**: 25 lines, proven for base cases, has 1 sorry for recursive case
-- **Remaining**: Apply `all_stmts_equiv` + composition theorem to body execution
-- **Estimated Effort**: 1-2 hours (once all_stmts_equiv exists)
-- **Impact**: Completes all 8/8 individual statement proofs
-
-**Total Remaining**: 3-6 hours to reach 100% Layer 3!
-
-### Alternative Approaches
-
-If the fuel-parametric approach proves too complex:
-
-1. **Well-Founded Recursion**: Replace fuel with well-founded recursion on statement structure
-2. **Defunctionalization**: Convert to continuation-passing style
-3. **Shallow Embedding**: Use Lean's built-in termination checking more directly
-
-### Estimated Effort
-
-**2-4 weeks** of focused Lean proof work, depending on proof automation quality.
-
-### Implementation Guide
-
-**NEW**: We've created a skeleton file with theorem stubs and a worked example to help contributors:
-
-📁 **`Compiler/Proofs/YulGeneration/StatementEquivalence.lean`**
-- Contains theorem stubs for all 8 statement types
-- Includes a worked example (variable assignment)
-- Documents proof strategy, difficulty, and dependencies for each theorem
-- Ready for contributors to replace `sorry` with actual proofs
-
-**Getting Started**:
-1. Read the roadmap context (this file)
-2. Open `StatementEquivalence.lean` and pick a theorem stub
-3. Study the worked example to understand the proof pattern
-4. Review IR/Yul semantics in `IRInterpreter.lean` and `Semantics.lean`
-5. Replace `sorry` with your proof
-6. Add smoke tests to verify correctness
-
-**Tracking Progress**:
-- Each statement type has a corresponding GitHub issue (label: `layer-3`)
-- Use `.github/ISSUE_TEMPLATE/layer3-statement-proof.md` to create issues
-- See "Contributing" section below for high-impact opportunities
-
-### Files to Work With
-
-- **Main Work**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean` - Replace `sorry` stubs
-- **Reference**: `Compiler/Proofs/YulGeneration/Equivalence.lean` - State alignment definitions
-- **Reference**: `Compiler/Proofs/IRGeneration/IRInterpreter.lean` - IR execution semantics
-- **Reference**: `Compiler/Proofs/YulGeneration/Semantics.lean` - Yul execution semantics
-- **Testing**: `Compiler/Proofs/YulGeneration/SmokeTests.lean` - Add tests for proven statements
-- **Final Step**: `Compiler/Proofs/YulGeneration/Preservation.lean` - Already proven modulo statement equivalence
-
----
-
 ## Trust Reduction (🟡 High Priority)
 
 **Goal**: Eliminate all trust assumptions → Zero-trust verification
@@ -224,28 +59,11 @@ If the fuel-parametric approach proves too complex:
 
 Currently, we trust:
 
-1. **Function Selectors** (keccak256 hash computation) - Not proven in Lean
+1. ~~**Function Selectors**~~ → ✅ Resolved via keccak256 axiom + CI validation (PR #43, #46)
 2. **`solc` Yul Compiler** (Yul → EVM bytecode) - Compilation unverified
 3. **EVM Semantics** (assumed to match specification) - No formal link
 
-**Impact**: Eliminating these completes end-to-end zero-trust verification EDSL → EVM
-
-### 1. Function Selector Verification
-
-**Current**: Function selectors are precomputed keccak256 hashes, validated in CI against `solc --hashes` but not proven in Lean.
-
-**Options**:
-- **Option A**: Prove keccak256 computation in Lean (hard, but zero-trust)
-- **Option B**: Add keccak256 axiom with CI validation (pragmatic)
-- **Option C**: Use selector oracle with runtime verification
-
-**Recommended**: Option B (axiom + CI validation)
-
-**Estimated Effort**: 1-2 weeks
-
-**Impact**: Eliminates function dispatch trust assumption
-
-### 2. Yul → EVM Bridge
+### Yul → EVM Bridge
 
 **Current**: `solc` compilation from Yul to EVM bytecode is trusted.
 
@@ -394,10 +212,10 @@ theorem mint_preserves_supply_sum (s : FiniteAddressSet) :
 **Milestone**: End-to-end verification with minimal trust assumptions
 
 **Work Items**:
-- ✅ Complete Layer 3 statement-level proofs (2-4 weeks)
-- ✅ Function selector verification (1-2 weeks)
-- ✅ Ledger sum properties (1-2 weeks)
-- 🔄 Yul → EVM bridge investigation (1-2 months)
+- ✅ Complete Layer 3 statement-level proofs (PR #42)
+- ✅ Function selector verification (PR #43, #46)
+- 🔄 Ledger sum properties (Issue #39, PR #47 WIP)
+- 🔄 Yul → EVM bridge investigation
 
 **Success Metrics**:
 - Layer 3 preservation theorem proven
@@ -512,5 +330,4 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 ---
 
 **Last Updated**: 2026-02-14
-**Status**: Layers 1-2 complete, Layer 3 in progress, property extraction complete
-**Next Milestone**: Layer 3 statement-level proofs (2-4 weeks)
+**Status**: Layers 1-3 complete, trust reduction in progress
