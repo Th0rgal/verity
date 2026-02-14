@@ -47,12 +47,11 @@ theorem stmt_equiv (selector : Nat) (fuel : Nat) (stmt : IRStmt)
       (execYulStmtFuel fuel yulState stmt)
 ```
 
-This file organizes the proof by statement type, providing theorem stubs
-and a worked example.
+This file organizes the proofs by statement type.
 
 ### Composition Strategy
 
-Once all statement types are proven individually, they compose via:
+All statement types are proven individually and compose via:
 
 ```lean
 theorem execIRStmtsFuel_equiv_execYulStmtsFuel
@@ -79,10 +78,6 @@ the simplest case: variable assignment.
 **Yul Semantics**: Update `state.vars` with new binding
 **Proof Strategy**: Both semantics do the same thing, unfold and apply rfl
 -/
-
--- TODO: This is a stub showing the proof structure. Fill in the actual proof.
--- See Compiler/Proofs/YulGeneration/Semantics.lean for execYulStmtFuel definition.
--- See Compiler/Proofs/IRGeneration/IRInterpreter.lean for execIRStmt definition.
 
 /-! ## Helper Lemmas -/
 
@@ -141,7 +136,7 @@ theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### TODO: Storage Load Equivalence
+/-! ### Storage Load Equivalence
 
 **Statement**: `x := sload(slot)`
 **IR Semantics**: Read from `state.storage` at `slot`
@@ -178,7 +173,7 @@ theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### TODO: Storage Store Equivalence
+/-! ### Storage Store Equivalence
 
 **Statement**: `sstore(slot, value)`
 **IR Semantics**: Write to `state.storage` at `slot`
@@ -212,7 +207,7 @@ theorem storageStore_equiv (selector : Nat) (fuel : Nat)
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
 
-/-! ### TODO: Mapping Load Equivalence
+/-! ### Mapping Load Equivalence
 
 **Statement**: `x := mappingLoad(base, key)`
 **IR Semantics**: Compute storage slot from `base` and `key`, read from mappings
@@ -251,7 +246,7 @@ theorem mappingLoad_equiv (selector : Nat) (fuel : Nat)
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### TODO: Mapping Store Equivalence
+/-! ### Mapping Store Equivalence
 
 **Statement**: `mappingStore(base, key, value)`
 **IR Semantics**: Compute storage slot, write to mappings
@@ -565,8 +560,8 @@ theorem revert_equiv (selector : Nat) (fuel : Nat)
 NOTE: This theorem is REDUNDANT. The composition theorem already exists at
 Equivalence.lean:403 (`execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv`).
 
-Once `all_stmts_equiv` is proven, statement list equivalence follows directly
-by applying the composition theorem. No separate proof is needed.
+With `all_stmts_equiv` proven, statement list equivalence follows directly
+by applying the composition theorem.
 -/
 
 -- This theorem is redundant - use execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv instead
@@ -579,21 +574,5 @@ theorem stmtList_equiv (selector : Nat) (fuel : Nat) (stmts : List YulStmt)
   -- Just apply the existing composition theorem with all_stmts_equiv
   exact execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv all_stmts_equiv
         selector fuel stmts irState yulState halign
-
-/-! ## Alternative Approaches
-
-If the fuel-parametric approach proves too complex, consider:
-
-1. **Well-Founded Recursion**: Replace fuel with well-founded recursion on
-   statement structure (e.g., size of statement AST).
-
-2. **Defunctionalization**: Convert to continuation-passing style where
-   statement execution returns a continuation instead of directly executing.
-
-3. **Shallow Embedding**: Use Lean's built-in termination checking by
-   restructuring the execution functions.
-
-See docs/ROADMAP.md "Alternative Approaches" section for details.
--/
 
 end Compiler.Proofs.YulGeneration
