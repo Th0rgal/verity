@@ -1,6 +1,6 @@
 # Contributing to DumbContracts
 
-Quick conventions for contributing. See [README.md](README.md) for project overview, [docs/ROADMAP.md](docs/ROADMAP.md) for current status.
+Quick conventions for contributing. See [README.md](README.md) for project overview, [docs/ROADMAP.md](docs/ROADMAP.md) for status.
 
 ## Issue Format
 
@@ -72,7 +72,7 @@ Types: `feat` `fix` `proof` `docs` `refactor` `test` `chore`
 - `DumbContracts/` - EDSL, specs, Layer 1 proofs
 - `Compiler/` - IR, Yul, codegen
 - `Compiler/Proofs/` - Layer 2 & 3 proofs
-- `docs/ROADMAP.md` - Progress (97% complete)
+- `docs/ROADMAP.md` - Progress tracking
 - `test/` - Foundry tests
 
 Full details: [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)

@@ -5,8 +5,8 @@ Quick reference for AI agents. Humans: see [README.md](README.md).
 ## Agent Workflow
 
 ### Before Starting
-1. Check [docs/ROADMAP.md](docs/ROADMAP.md) - currently 97% complete
-2. Read [CONTRIBUTING.md](CONTRIBUTING.md) - conventions
+1. Check [docs/ROADMAP.md](docs/ROADMAP.md) for current status
+2. Read [CONTRIBUTING.md](CONTRIBUTING.md) for conventions
 3. Read relevant README in working directory
 
 ### When Writing Code
@@ -46,8 +46,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full conventions.
 ## Task Workflows
 
 **Layer 3 Proofs**:
-1. Read docs/ROADMAP.md - Layer 3 section
-2. Read Compiler/Proofs/README.md - patterns
+1. Read docs/ROADMAP.md for Layer 3 status
+2. Read Compiler/Proofs/README.md for patterns
 3. Study completed proofs: `assign_equiv`, `storageLoad_equiv`
 4. Use template: `.github/ISSUE_TEMPLATE/layer3-statement-proof.md`
 
@@ -64,10 +64,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full conventions.
 ## Architecture
 
 ```
-Layer 1 ✅ 100%: EDSL ≡ ContractSpec (228 properties)
-Layer 2 ✅ 100%: ContractSpec → IR (7 contracts)
-Layer 3 🟡 97%:  IR → Yul (8/10 statements, 2-6h remaining)
+Layer 1 ✅ EDSL ≡ ContractSpec
+Layer 2 ✅ ContractSpec → IR
+Layer 3 🟡 IR → Yul (in progress)
 ```
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed status.
 
 **Directories**:
 - `DumbContracts/` - EDSL, specs, Layer 1 proofs
@@ -111,4 +113,4 @@ gh issue list --label "layer-3"      # View Layer 3 work
 
 ---
 
-**Status**: 97% complete (2-6h remaining) · **Humans**: [README.md](README.md) · **Conventions**: [CONTRIBUTING.md](CONTRIBUTING.md)
+**Status**: [docs/ROADMAP.md](docs/ROADMAP.md) · **Humans**: [README.md](README.md) · **Conventions**: [CONTRIBUTING.md](CONTRIBUTING.md)
