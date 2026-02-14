@@ -242,92 +242,96 @@ theorem execYulStmtsFuel_cons
 This is the key missing piece! We need a fuel-parametric version of `execIRStmt`
 to make it provable. The `partial` version in IRInterpreter.lean cannot be
 reasoned about in proofs.
+
+These must be defined as mutual functions since they call each other.
 -/
 
-def execIRStmtFuel : Nat → IRState → YulStmt → IRExecResult
-  | 0, state, _ => .revert state  -- Out of fuel
-  | Nat.succ fuel, state, stmt =>
-      match stmt with
-      | .comment _ => .continue state
-      | .let_ name value =>
-          match evalIRExpr state value with
-          | some v => .continue (state.setVar name v)
-          | none => .revert state
-      | .assign name value =>
-          match evalIRExpr state value with
-          | some v => .continue (state.setVar name v)
-          | none => .revert state
-      | .expr e =>
-          match e with
-          | .call "sstore" [slotExpr, valExpr] =>
-              match slotExpr with
-              | .call "mappingSlot" [baseExpr, keyExpr] =>
-                  match evalIRExpr state baseExpr, evalIRExpr state keyExpr, evalIRExpr state valExpr with
-                  | some baseSlot, some key, some val =>
-                      .continue {
-                        state with
-                        mappings := fun b k =>
-                          if b = baseSlot ∧ k = key then val else state.mappings b k
-                      }
-                  | _, _, _ => .revert state
-              | _ =>
-                  match evalIRExpr state slotExpr, evalIRExpr state valExpr with
-                  | some slot, some val =>
-                    match decodeMappingSlot slot with
-                    | some (baseSlot, key) =>
+mutual
+  def execIRStmtFuel : Nat → IRState → YulStmt → IRExecResult
+    | 0, state, _ => .revert state  -- Out of fuel
+    | Nat.succ fuel, state, stmt =>
+        match stmt with
+        | .comment _ => .continue state
+        | .let_ name value =>
+            match evalIRExpr state value with
+            | some v => .continue (state.setVar name v)
+            | none => .revert state
+        | .assign name value =>
+            match evalIRExpr state value with
+            | some v => .continue (state.setVar name v)
+            | none => .revert state
+        | .expr e =>
+            match e with
+            | .call "sstore" [slotExpr, valExpr] =>
+                match slotExpr with
+                | .call "mappingSlot" [baseExpr, keyExpr] =>
+                    match evalIRExpr state baseExpr, evalIRExpr state keyExpr, evalIRExpr state valExpr with
+                    | some baseSlot, some key, some val =>
                         .continue {
                           state with
                           mappings := fun b k =>
                             if b = baseSlot ∧ k = key then val else state.mappings b k
                         }
-                    | none =>
-                        .continue { state with storage := fun s => if s = slot then val else state.storage s }
-                  | _, _ => .revert state
-          | .call "mstore" [offsetExpr, valExpr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
-              | some offset, some val =>
-                .continue { state with memory := fun o => if o = offset then val else state.memory o }
-              | _, _ => .revert state
-          | .call "stop" [] => .stop state
-          | .call "revert" _ => .revert state
-          | .call "return" [offsetExpr, sizeExpr] =>
-              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
-              | some offset, some size =>
-                if size = 32 then
-                  .return (state.memory offset) state
-                else
-                  .return 0 state
-              | _, _ => .revert state
-          | _ => .continue state  -- Other expressions are no-ops
-      | .if_ cond body =>
-          match evalIRExpr state cond with
-          | some c => if c ≠ 0 then execIRStmtsFuel fuel state body else .continue state
-          | none => .revert state
-      | .switch expr cases default =>
-          match evalIRExpr state expr with
-          | some v =>
-            match cases.find? (·.1 == v) with
-            | some (_, body) => execIRStmtsFuel fuel state body
-            | none =>
-              match default with
-              | some body => execIRStmtsFuel fuel state body
-              | none => .continue state
-          | none => .revert state
-      | .block stmts => execIRStmtsFuel fuel state stmts
-      | .funcDef _ _ _ _ => .continue state
+                    | _, _, _ => .revert state
+                | _ =>
+                    match evalIRExpr state slotExpr, evalIRExpr state valExpr with
+                    | some slot, some val =>
+                      match decodeMappingSlot slot with
+                      | some (baseSlot, key) =>
+                          .continue {
+                            state with
+                            mappings := fun b k =>
+                              if b = baseSlot ∧ k = key then val else state.mappings b k
+                          }
+                      | none =>
+                          .continue { state with storage := fun s => if s = slot then val else state.storage s }
+                    | _, _ => .revert state
+            | .call "mstore" [offsetExpr, valExpr] =>
+                match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
+                | some offset, some val =>
+                  .continue { state with memory := fun o => if o = offset then val else state.memory o }
+                | _, _ => .revert state
+            | .call "stop" [] => .stop state
+            | .call "revert" _ => .revert state
+            | .call "return" [offsetExpr, sizeExpr] =>
+                match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
+                | some offset, some size =>
+                  if size = 32 then
+                    .return (state.memory offset) state
+                  else
+                    .return 0 state
+                | _, _ => .revert state
+            | _ => .continue state  -- Other expressions are no-ops
+        | .if_ cond body =>
+            match evalIRExpr state cond with
+            | some c => if c ≠ 0 then execIRStmtsFuel fuel state body else .continue state
+            | none => .revert state
+        | .switch expr cases default =>
+            match evalIRExpr state expr with
+            | some v =>
+              match cases.find? (·.1 == v) with
+              | some (_, body) => execIRStmtsFuel fuel state body
+              | none =>
+                match default with
+                | some body => execIRStmtsFuel fuel state body
+                | none => .continue state
+            | none => .revert state
+        | .block stmts => execIRStmtsFuel fuel state stmts
+        | .funcDef _ _ _ _ => .continue state
 
-def execIRStmtsFuel (fuel : Nat) (state : IRState) (stmts : List YulStmt) : IRExecResult :=
-  match stmts with
-  | [] => .continue state
-  | stmt :: rest =>
-      match fuel with
-      | 0 => .revert state
-      | Nat.succ fuel =>
-          match execIRStmtFuel fuel state stmt with
-          | .continue s' => execIRStmtsFuel fuel s' rest
-          | .return v s => .return v s
-          | .stop s => .stop s
-          | .revert s => .revert s
+  def execIRStmtsFuel (fuel : Nat) (state : IRState) (stmts : List YulStmt) : IRExecResult :=
+    match stmts with
+    | [] => .continue state
+    | stmt :: rest =>
+        match fuel with
+        | 0 => .revert state
+        | Nat.succ fuel =>
+            match execIRStmtFuel fuel state stmt with
+            | .continue s' => execIRStmtsFuel fuel s' rest
+            | .return v s => .return v s
+            | .stop s => .stop s
+            | .revert s => .revert s
+end
 
 /-- Sequence/program equivalence goal: statement lists compose under alignment (fuel-parametric). -/
 def execIRStmts_equiv_execYulStmts_goal
@@ -342,12 +346,12 @@ theorem execIRStmtsFuel_nil (fuel : Nat) (state : IRState) :
 theorem execIRStmtsFuel_cons
     (fuel : Nat) (state : IRState) (stmt : YulStmt) (rest : List YulStmt) :
     execIRStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
-      match execIRStmt state stmt with
+      match execIRStmtFuel fuel state stmt with
       | .continue s' => execIRStmtsFuel fuel s' rest
       | .return v s => .return v s
       | .stop s => .stop s
       | .revert s => .revert s := by
-  rfl
+  sorry  -- This theorem needs to be reproven for mutual definitions
 
 def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initialState : IRState) :
     IRResult :=
