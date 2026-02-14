@@ -46,9 +46,6 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
   }
   interpretYulRuntime fn.body yulTx state.storage state.mappings
 
-set_option allowUnsafeReducibility true in
-attribute [reducible] execIRStmts
-
 def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
     (ir : IRResult) (yul : YulResult) : Bool :=
   ir.success == yul.success &&
@@ -245,5 +242,22 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
                     simpa [execResultsAligned, hIR, hYul] using hStmt
                   cases this
 
+theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
+    (stmt_equiv :
+      ∀ selector fuel stmt irState yulState,
+        statesAligned selector irState yulState →
+        execResultsAligned selector
+          (execIRStmt irState stmt)
+          (execYulStmtFuel fuel yulState stmt)) :
+    ∀ selector stmts irState yulState,
+      statesAligned selector irState yulState →
+      execResultsAligned selector
+        (execIRStmtsFuel (sizeOf stmts + 1) irState stmts)
+        (execYulStmts yulState stmts) := by
+  intro selector stmts irState yulState hAligned
+  have hFuel :=
+    execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv stmt_equiv
+      selector (sizeOf stmts + 1) stmts irState yulState hAligned
+  simpa [execYulStmts] using hFuel
 
 end Compiler.Proofs.YulGeneration
