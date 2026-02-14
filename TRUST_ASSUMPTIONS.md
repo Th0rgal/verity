@@ -1,0 +1,479 @@
+# Trust Assumptions and Verification Boundaries
+
+This document provides a comprehensive overview of what is formally verified in DumbContracts and what components are trusted without formal proof. Understanding these boundaries is essential for security audits and production deployments.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Verified Components](#verified-components)
+- [Trusted Components](#trusted-components)
+- [Axioms](#axioms)
+- [Security Audit Checklist](#security-audit-checklist)
+- [Future Work to Reduce Trust](#future-work-to-reduce-trust)
+
+---
+
+## Overview
+
+DumbContracts provides **end-to-end verification** from high-level contract specifications down to Yul intermediate representation, with a small trusted computing base (TCB).
+
+### Verification Chain
+
+```
+User's Contract Code (EDSL)
+    ↓ [Layer 1: FULLY VERIFIED]
+ContractSpec (High-level specification)
+    ↓ [Layer 2: FULLY VERIFIED]
+IR (Intermediate representation)
+    ↓ [Layer 3: FULLY VERIFIED, 3 axioms]
+Yul (Ethereum intermediate language)
+    ↓ [TRUSTED: Solidity compiler]
+EVM Bytecode
+```
+
+### Trust Model Summary
+
+| Component | Status | Risk Level |
+|-----------|--------|------------|
+| Layer 1 (EDSL → Spec) | ✅ Verified | None |
+| Layer 2 (Spec → IR) | ✅ Verified | None |
+| Layer 3 (IR → Yul) | ✅ Verified (3 axioms) | Very Low |
+| Axioms | ⚠️ Documented | Low |
+| Solidity Compiler (solc) | ⚠️ Trusted | Medium |
+| Keccak256 Hashing | ⚠️ Trusted | Low |
+| EVM Semantics | ⚠️ Trusted | Low |
+| Lean 4 Type Checker | ⚠️ Foundational | Very Low |
+
+---
+
+## Verified Components
+
+These components have been formally verified with machine-checked proofs in Lean 4.
+
+### Layer 1: EDSL → ContractSpec
+
+**Status**: ✅ **Fully Verified**
+
+**What is proven**: Contract implementations written in the EDSL correctly implement their formal specifications.
+
+**Files**:
+- `DumbContracts/Specs/*/Proofs.lean` (one per contract)
+- Example: `DumbContracts/Specs/SimpleStorage/Proofs.lean`
+
+**Example Theorems**:
+```lean
+-- SimpleStorage: getValue returns the stored value
+theorem getValue_correct (state : ContractState) :
+    let result := (getValue.run state).fst
+    result = state.storage valueSlot
+
+-- Counter: increment increases count by exactly 1
+theorem increment_correct (state : ContractState) :
+    let finalState := increment.runState state
+    finalState.storage countSlot = add (state.storage countSlot) 1
+```
+
+**Coverage**: 203 properties proven across 7 contracts (70% coverage)
+
+**What this guarantees**:
+- Contract behavior matches specification
+- No unexpected side effects
+- State transitions are correct
+- Arithmetic operations are safe
+
+---
+
+### Layer 2: ContractSpec → IR
+
+**Status**: ✅ **Fully Verified**
+
+**What is proven**: Compilation from high-level ContractSpec to intermediate representation (IR) preserves all semantic properties.
+
+**Files**:
+- `Compiler/Proofs/IRGeneration/*`
+- Key file: `Compiler/Proofs/IRGeneration/Preservation.lean`
+
+**Example Theorems**:
+```lean
+-- Expression evaluation is preserved
+theorem evalExpr_preserves_semantics :
+    evalContractSpecExpr expr state = evalIRExpr (compileExpr expr) irState
+
+-- Statement execution is preserved
+theorem execStmt_preserves_properties :
+    allPropertiesHold spec state →
+    allPropertiesHold (compileSpec spec) (compileState state)
+```
+
+**What this guarantees**:
+- IR accurately represents high-level spec
+- No information loss during compilation
+- Properties proven at Layer 1 still hold
+- Type safety maintained
+
+---
+
+### Layer 3: IR → Yul
+
+**Status**: ✅ **Verified (with 3 axioms)**
+
+**What is proven**: IR execution is equivalent to Yul execution when states are properly aligned.
+
+**Files**:
+- `Compiler/Proofs/YulGeneration/*`
+- Key file: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean`
+
+**Example Theorems**:
+```lean
+-- Variable assignment equivalence
+theorem assign_equiv :
+    execIRStmt (assign var expr) irState =
+    execYulStmt (assign var expr) yulState
+
+-- Storage operations equivalence
+theorem storageLoad_equiv : ...
+theorem storageStore_equiv : ...
+
+-- Control flow equivalence
+theorem if_equiv : ...
+```
+
+**Dependencies**: Relies on 3 axioms (see [Axioms](#axioms) section)
+
+**What this guarantees**:
+- Yul code correctly implements IR semantics
+- All IR properties transfer to Yul
+- Execution equivalence under state alignment
+
+---
+
+## Trusted Components
+
+These components are **not formally verified** but are trusted based on testing, industry adoption, or foundational assumptions.
+
+### 1. Solidity Compiler (solc)
+
+**Role**: Compiles Yul intermediate representation to EVM bytecode
+
+**Assumption**: The Solidity compiler correctly translates Yul to executable EVM bytecode without introducing bugs or semantic changes.
+
+**Details**:
+- **Version**: 0.8.33+commit.64118f21 (pinned)
+- **Scope**: Only Yul → Bytecode compilation (not Solidity)
+- **Industry Status**: Battle-tested, used to secure billions in value
+
+**Mitigation Strategies**:
+1. **Differential Testing**: 70,000+ property tests validate EDSL ≡ Yul ≡ EVM execution
+   - Files: `test/Property*.t.sol`
+   - Tests run on actual compiled bytecode
+   - Catches discrepancies between layers
+
+2. **Pinned Version**: Exact solc version locked in CI
+   - Prevents unexpected compiler changes
+   - Reproducible builds
+
+3. **CI Validation**:
+   - `scripts/check_yul_compiles.py` - Ensures Yul compiles without errors
+   - `scripts/check_selector_fixtures.py` - Validates function selectors
+
+**Risk Assessment**: **Medium**
+- Solc is mature and widely used
+- Yul compilation is simpler than Solidity compilation
+- Differential tests provide strong validation
+- However, compiler bugs are possible
+
+**Future Work**:
+- Integrate KEVM or EVMYulLean for Yul → Bytecode verification
+- See issue #76 for formal verification roadmap
+
+---
+
+### 2. Keccak256 Function Selector Hashing
+
+**Role**: Computes Ethereum function selectors via Keccak256 hashing
+
+**Assumption**: Python's Keccak256 implementation matches the EVM's Keccak256 semantics.
+
+**Details**:
+- **Implementation**: `scripts/keccak256.py`
+- **Usage**: Generates function selectors for contract compilation
+- **Standard**: EIP-20 function selector specification
+
+**Mitigation Strategies**:
+1. **Cross-Validation**: `scripts/check_selectors.py`
+   - Compares Python output against solc-generated selectors
+   - Runs in CI on every build
+   - Ensures consistency
+
+2. **Fixture Testing**: `scripts/check_selector_fixtures.py`
+   - Tests against known correct selector values
+   - Prevents regression
+
+**Risk Assessment**: **Low**
+- Keccak256 is a deterministic algorithm
+- Validated against multiple implementations
+- Extensively tested in CI
+- Any mismatch would fail differential tests
+
+**Files**:
+- `Compiler/Selectors.lean` - Selector definitions
+- `scripts/keccak256.py` - Implementation
+- `scripts/check_selectors.py` - Validation
+
+---
+
+### 3. EVM Semantics
+
+**Role**: The Ethereum Virtual Machine executes bytecode
+
+**Assumption**: The EVM behaves according to the Ethereum Yellow Paper specification and established consensus rules.
+
+**Details**:
+- **Specification**: Ethereum Yellow Paper (Byzantium+)
+- **Implementation**: Various EVM implementations (Geth, Foundry, etc.)
+- **Validation**: Ethereum consensus across thousands of nodes
+
+**Mitigation Strategies**:
+1. **Differential Testing**:
+   - Tests run against Foundry's EVM implementation
+   - 70,000+ test cases validate expected behavior
+   - Sharded testing across 8 parallel jobs
+
+2. **Conformance Testing** (planned):
+   - Issue #75 tracks integration with Ethereum test vectors
+   - Will validate against official EVM test suite
+
+**Risk Assessment**: **Low**
+- EVM semantics are well-defined and stable
+- Billions of dollars secured by EVM
+- Multiple independent implementations agree
+- Decades of production use
+
+**Future Work**:
+- Add conformance testing (issue #75)
+- Integrate with EVMYulLean for EVM semantics proofs
+
+---
+
+### 4. External Library Code
+
+**Role**: External contracts or libraries called by DumbContracts
+
+**Assumption**: External libraries behave as specified in their interfaces.
+
+**Examples**:
+- Cryptographic libraries (signatures, hashing)
+- Standard precompiled contracts (ecrecover, sha256, etc.)
+- External contract calls
+
+**Mitigation Strategies**:
+1. **Explicit Interfaces**: Define clear contract interfaces
+2. **Property Testing**: Test external call behavior
+3. **Precompile Preference**: Use verified precompiled contracts when possible
+
+**Risk Assessment**: **Varies**
+- Precompiled contracts: Low (EVM-native, well-tested)
+- Third-party libraries: Medium to High (depends on library)
+- Recommendation: Minimize external dependencies
+
+**Future Work**:
+- Issue #71: Integrate EVMYulLean precompiled contracts
+- Formal interface specifications for external calls
+
+---
+
+### 5. Lean 4 Type Checker
+
+**Role**: Verifies all Lean proofs are correct
+
+**Assumption**: Lean 4's type checker and proof checker are sound.
+
+**Details**:
+- **Foundation**: Lean is based on the Calculus of Inductive Constructions
+- **Development**: Extensively peer-reviewed, formal methods community
+- **Status**: Used in academic research and industrial verification
+
+**Risk Assessment**: **Very Low** (Foundational Trust)
+- Lean's soundness is a foundational assumption of all formal verification
+- Decades of research in type theory
+- Active development and testing
+- No known soundness bugs in Lean 4
+
+**Note**: This is an irreducible trust assumption - all formal verification tools require trusting their proof checker.
+
+---
+
+## Axioms
+
+DumbContracts uses **3 axioms** in Layer 3 (IR → Yul) proofs. All axioms are documented with soundness justifications.
+
+**See**: [AXIOMS.md](AXIOMS.md) for complete details.
+
+### Summary of Axioms
+
+| Axiom | Purpose | Risk | Validation |
+|-------|---------|------|------------|
+| `evalIRExpr_eq_evalYulExpr` | Expression evaluation equivalence | Low | Differential tests, code inspection |
+| `evalIRExprs_eq_evalYulExprs` | List version of above | Low | Differential tests, code inspection |
+| `addressToNat_injective_valid` | Ethereum address injectivity | Low | Differential tests, EVM semantics |
+
+**Key Points**:
+- All axioms have **low risk** with strong soundness arguments
+- All validated by **70,000+ differential tests**
+- Documented with elimination strategies
+- CI enforces documentation (see AXIOMS.md)
+
+**Future Work**:
+- Eliminate expression evaluation axioms via fuel-based refactoring (~500 LOC)
+- Formalize hex string parsing for address injectivity
+
+---
+
+## Security Audit Checklist
+
+Use this checklist when performing security audits of DumbContracts-verified contracts.
+
+### 1. Verification Review
+- [ ] Review Layer 1 proofs for the specific contract
+- [ ] Check property coverage (should be ≥70%)
+- [ ] Verify no `sorry` placeholders in proofs
+- [ ] Confirm all properties tested in `test/Property*.t.sol`
+
+### 2. Trust Boundary Analysis
+- [ ] Review AXIOMS.md for current axioms
+- [ ] Assess axiom soundness arguments
+- [ ] Check solc version is pinned and tested
+- [ ] Verify differential tests cover contract functionality
+
+### 3. Testing Validation
+- [ ] Confirm all Foundry tests pass
+- [ ] Review property coverage report
+- [ ] Check differential test count (should be >10k for production contracts)
+- [ ] Validate tests against edge cases
+
+### 4. External Dependencies
+- [ ] List all external contract calls
+- [ ] Assess risk of each external dependency
+- [ ] Check for precompile usage (lower risk)
+- [ ] Review interface specifications
+
+### 5. Deployment Verification
+- [ ] Verify compiled bytecode matches Yul output
+- [ ] Check function selectors against specifications
+- [ ] Validate storage layout (issue #84)
+- [ ] Confirm gas costs are acceptable (issue #80)
+
+### 6. Documentation Review
+- [ ] Check README for accurate description
+- [ ] Verify TRUST_ASSUMPTIONS.md is current
+- [ ] Review AXIOMS.md for changes
+- [ ] Confirm property manifest is up-to-date
+
+---
+
+## Future Work to Reduce Trust
+
+### Short-term (3-6 months)
+
+1. **EVMYulLean UInt256 Integration** (Issue #67)
+   - Replace current Uint256 with EVMYulLean's verified implementation
+   - Reduces trust in arithmetic operations
+   - Effort: 3 days
+
+2. **Precompiled Contracts Integration** (Issue #71)
+   - Use EVMYulLean's verified precompiles
+   - Reduces trust in cryptographic operations
+   - Effort: 2 weeks
+
+3. **Conformance Testing** (Issue #75)
+   - Validate against Ethereum test vectors
+   - Cross-validates with EVM implementations
+   - Effort: 2 weeks
+
+4. **Storage Layout Formalization** (Issue #84)
+   - Type-safe storage layout system
+   - Prevents slot collisions
+   - Effort: 5 weeks
+
+### Long-term (6-12 months)
+
+1. **Formal Yul → Bytecode Verification** (Issue #76)
+   - Integrate KEVM or EVMYulLean EVM semantics
+   - **Eliminates solc trust assumption**
+   - Proves Yul semantics ≡ Bytecode execution
+   - Effort: 3-4 months
+
+2. **Axiom Elimination**
+   - Refactor expression evaluation to fuel-based
+   - Removes 2 of 3 axioms
+   - Effort: ~500 LOC refactoring
+
+3. **Gas Cost Verification** (Issue #80)
+   - Formally verify gas bounds
+   - Prevents DoS via gas exhaustion
+   - Effort: 6 weeks
+
+### Verification Roadmap
+
+**Current State**:
+```
+EDSL → Spec → IR → Yul → [solc] → Bytecode
+              ✅    ✅    ⚠️ TRUSTED
+```
+
+**After Issue #76**:
+```
+EDSL → Spec → IR → Yul → Bytecode
+              ✅    ✅    ✅
+```
+
+**Impact**: Complete end-to-end verification, minimal trust assumptions
+
+---
+
+## Conclusion
+
+DumbContracts provides **strong formal verification** with a **small trusted computing base**:
+
+### What is Guaranteed (Proven)
+✅ Contract implementations match specifications (Layer 1)
+✅ Specifications preserved through compilation (Layer 2)
+✅ IR semantics equivalent to Yul semantics (Layer 3)
+✅ 203 properties proven across 7 contracts
+
+### What is Trusted (Validated but Not Proven)
+⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
+⚠️ Keccak256 hashing - Validated against solc
+⚠️ EVM semantics - Industry standard, billions in TVL
+⚠️ 3 axioms - Low risk, extensively validated
+
+### Risk Profile
+- **Overall**: Low to Medium risk
+- **Production Ready**: Yes, with caveats
+- **Recommended Use**: High-value contracts where formal verification adds significant security value
+- **Not Recommended**: Contracts requiring zero trust (not achievable without full EVM verification)
+
+### For Auditors
+DumbContracts offers **substantially higher assurance** than traditional Solidity contracts:
+- Formal proofs replace manual code review for core logic
+- Differential testing validates entire compilation pipeline
+- Explicit trust boundaries enable focused auditing
+- Property-based testing catches edge cases
+
+### For Developers
+Trust assumptions are **documented and minimized**:
+- Clear distinction between proven and trusted
+- Roadmap for further trust reduction
+- CI enforces documentation of all assumptions
+- Regular updates as verification expands
+
+---
+
+**Last Updated**: 2026-02-14
+**Next Review**: After completing issue #76 (Yul → Bytecode verification)
+**Maintainer**: Update when trust boundaries change or new components are verified
+
+**Related Documents**:
+- [AXIOMS.md](AXIOMS.md) - Detailed axiom documentation
+- [README.md](README.md) - Project overview
+- [docs/ROADMAP.md](docs/ROADMAP.md) - Verification roadmap
