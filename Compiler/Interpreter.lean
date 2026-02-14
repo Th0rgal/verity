@@ -455,24 +455,24 @@ private def parseArgNat? (s : String) : Option Nat :=
   | some n => some n
   | none => s.toNat?
 
--- Parse storage state from command line args
--- Format: "slot0:value0,slot1:value1,..."
-def parseStorage (storageStr : String) : Nat → Uint256 :=
+-- Generic parser for "slot:value,slot:value,..." storage formats.
+-- Takes a value parser and default, returns a slot→value lookup function.
+private def parseSlotPairs (storageStr : String) (parseVal : String → Option α) (default : α) : Nat → α :=
   let pairs := storageStr.splitOn ","
-  let storageMap := pairs.foldl (fun acc pair =>
-    if pair.isEmpty then
-      acc
-    else
-      match pair.splitOn ":" with
+  let entries := pairs.foldl (fun acc pair =>
+    if pair.isEmpty then acc
+    else match pair.splitOn ":" with
       | [slotStr, valStr] =>
-        match parseArgNat? slotStr, parseArgNat? valStr with
-        | some slot, some val =>
-          let valU : Uint256 := val
-          acc ++ [(slot, valU)]
+        match parseArgNat? slotStr, parseVal valStr with
+        | some slot, some val => acc ++ [(slot, val)]
         | _, _ => acc
       | _ => acc
   ) []
-  fun slot => (storageMap.find? (fun (s, _) => s == slot)).map Prod.snd |>.getD 0
+  fun slot => (entries.find? (fun (s, _) => s == slot)).map Prod.snd |>.getD default
+
+-- Parse storage state: "slot0:value0,slot1:value1,..."
+def parseStorage (storageStr : String) : Nat → Uint256 :=
+  parseSlotPairs storageStr (fun s => (parseArgNat? s).map (fun n => (n : Uint256))) 0
 
 private def looksLikeStorage (s : String) : Bool :=
   s.data.any (fun c => c == ':' || c == ',')
@@ -508,22 +508,9 @@ private def parseStorageConfig (s : String) : (String × String) :=
   | some (kind, value) => (kind, value)
   | none => ("storage", s)
 
--- Parse address storage from command line args
--- Format: "slot0:addr0,slot1:addr1,..."
+-- Parse address storage: "slot0:addr0,slot1:addr1,..."
 def parseStorageAddr (storageStr : String) : Nat → String :=
-  let pairs := storageStr.splitOn ","
-  let storageMap := pairs.foldl (fun acc pair =>
-    if pair.isEmpty then
-      acc
-    else
-      match pair.splitOn ":" with
-      | [slotStr, addrStr] =>
-        match parseArgNat? slotStr with
-        | some slot => acc ++ [(slot, normalizeAddress addrStr)]
-        | none => acc
-      | _ => acc
-  ) []
-  fun slot => (storageMap.find? (fun (s, _) => s == slot)).map Prod.snd |>.getD ""
+  parseSlotPairs storageStr (fun s => some (normalizeAddress s)) ""
 
 -- Parse mapping storage from command line args
 -- Format: "slot0:key0:val0,slot1:key1=val1,..."
