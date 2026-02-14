@@ -307,15 +307,15 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
     /**
      * Property: constructor_preserves_wellformedness
-     * Theorem: Constructor produces a well-formed state (owner is valid address, count is 0)
+     * Theorem: Constructor produces a well-formed state (owner is set correctly, count is 0)
      */
     function testProperty_Constructor_PreservesWellformedness() public {
         address newContract = deployYulWithArgs("OwnedCounter", abi.encode(alice));
         address owner = readStorageAddr(newContract, 0);
         uint256 count = readStorage(newContract, 1);
 
-        assertTrue(owner != address(0) || owner == address(0), "Owner is a valid address");
-        assertTrue(count < type(uint256).max, "Count is within bounds");
+        assertEq(owner, alice, "Owner is set to initialOwner");
+        assertEq(count, 0, "Count is initialized to 0");
     }
 
     /**
@@ -341,8 +341,8 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         address owner = readStorageAddr(0);
         uint256 count = readStorage(1);
-        assertTrue(owner != address(0) || owner == address(0), "Owner still valid");
-        assertTrue(count > 0, "Count increased");
+        assertEq(owner, alice, "Owner preserved");
+        assertEq(count, 1, "Count increased to 1");
     }
 
     /**
@@ -361,8 +361,8 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         address owner = readStorageAddr(0);
         uint256 count = readStorage(1);
-        assertTrue(owner != address(0) || owner == address(0), "Owner still valid");
-        assertTrue(count == 0, "Count back to 0");
+        assertEq(owner, alice, "Owner preserved");
+        assertEq(count, 0, "Count back to 0");
     }
 
     /**

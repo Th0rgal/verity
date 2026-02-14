@@ -464,14 +464,13 @@ contract PropertySimpleTokenTest is YulTestBase {
 
     /**
      * Property: constructor_establishes_supply_bounds
-     * Theorem: Constructor initializes supply within valid bounds (0)
+     * Theorem: Constructor initializes supply to 0 (establishes bounds)
      */
     function testProperty_Constructor_EstablishesSupplyBounds() public {
         address newToken = deployYulWithArgs("SimpleToken", abi.encode(owner));
         uint256 supply = readStorage(newToken, 2);
 
-        assertLe(supply, MAX_UINT256, "Supply within uint256 bounds");
-        assertEq(supply, 0, "Supply is 0 initially");
+        assertEq(supply, 0, "Supply is 0 initially (upper bound established)");
     }
 
     /**
@@ -484,8 +483,8 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
-        assertTrue(tokenOwner != address(0) || tokenOwner == address(0), "Owner still valid");
-        assertTrue(supply <= MAX_UINT256, "Supply within bounds");
+        assertEq(tokenOwner, owner, "Owner preserved");
+        assertEq(supply, 0, "Supply still 0 (read-only operation)");
     }
 
     /**
@@ -498,8 +497,8 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
-        assertTrue(tokenOwner != address(0) || tokenOwner == address(0), "Owner still valid");
-        assertTrue(supply <= MAX_UINT256, "Supply within bounds");
+        assertEq(tokenOwner, owner, "Owner preserved");
+        assertEq(supply, 0, "Supply still 0 (read-only operation)");
     }
 
     /**
@@ -512,8 +511,8 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
-        assertTrue(tokenOwner != address(0) || tokenOwner == address(0), "Owner still valid");
-        assertTrue(supply <= MAX_UINT256, "Supply within bounds");
+        assertEq(tokenOwner, owner, "Owner preserved");
+        assertEq(supply, 0, "Supply still 0 (read-only operation)");
     }
 
     /**
@@ -527,9 +526,8 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
-        assertEq(tokenOwner, owner, "Owner still valid");
-        assertGt(supply, 0, "Supply increased");
-        assertLe(supply, MAX_UINT256, "Supply within bounds");
+        assertEq(tokenOwner, owner, "Owner preserved");
+        assertEq(supply, 100, "Supply increased to 100");
     }
 
     /**
