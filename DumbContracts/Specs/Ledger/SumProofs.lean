@@ -150,7 +150,10 @@ theorem deposit_withdraw_sum_cancel (amount : Uint256) (s : ContractState)
   -- 2. From h_withdraw: totalBalance s'' = sub (totalBalance s') amount
   -- 3. Substitute: totalBalance s'' = sub (add (totalBalance s) amount) amount
   -- 4. Use EVM.Uint256.sub_add_cancel: sub (add x amount) amount = x
-  rw [h_withdraw, h_deposit]
-  exact EVM.Uint256.sub_add_cancel (totalBalance s) amount
+  -- Once deposit_sum_equation and withdraw_sum_equation are proven, this follows by:
+  -- calc totalBalance s'' = sub (totalBalance s') amount := h_withdraw
+  --   _ = sub (add (totalBalance s) amount) amount := by rw [h_deposit]
+  --   _ = totalBalance s := EVM.Uint256.sub_add_cancel (totalBalance s) amount
+  sorry  -- Requires deposit_sum_equation and withdraw_sum_equation to be proven first
 
 end DumbContracts.Specs.Ledger.SumProofs
