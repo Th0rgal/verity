@@ -99,7 +99,11 @@ contract PropertySimpleStorageTest is YulTestBase {
     }
 
     /**
-     * Property 4-7: Context preservation
+     * Property 4: setStorage_preserves_sender
+     * Property 5: setStorage_preserves_address
+     * Property 6: setStorage_preserves_addr_storage
+     * Property 7: setStorage_preserves_map_storage
+     * Property: store_preserves_context
      * Theorem: store() preserves contract context (sender, address, etc.)
      * Note: In Solidity tests, we verify state isolation instead
      */
@@ -122,8 +126,8 @@ contract PropertySimpleStorageTest is YulTestBase {
     }
 
     /**
-     * Property 8-9: Specification adherence
-     * Theorem: store() and retrieve() meet their formal specifications
+     * Property 8: store_meets_spec
+     * Theorem: store() meets its formal specification
      */
     function testProperty_Store_MeetsSpec(uint256 value) public {
         // Spec: store(value) sets slot 0 to value, preserves other state
@@ -135,6 +139,10 @@ contract PropertySimpleStorageTest is YulTestBase {
         assertEq(readStorage(0), value, "store_spec: slot 0 = value");
     }
 
+    /**
+     * Property 9: retrieve_meets_spec
+     * Theorem: retrieve() meets its formal specification
+     */
     function testProperty_Retrieve_MeetsSpec() public {
         // Spec: retrieve() returns slot 0 value without modifying state
         uint256 expected = 12345;
@@ -153,6 +161,7 @@ contract PropertySimpleStorageTest is YulTestBase {
 
     /**
      * Property 10: retrieve_preserves_state
+     * Property: retrieve_preserves_context
      * Theorem: retrieve() is read-only, preserves all storage
      */
     function testProperty_Retrieve_PreservesState() public {
@@ -174,7 +183,8 @@ contract PropertySimpleStorageTest is YulTestBase {
     }
 
     /**
-     * Property 11 & 13: store_retrieve_roundtrip
+     * Property 11: store_retrieve_correct
+     * Property 13: store_retrieve_roundtrip_holds
      * Theorem: store(v) followed by retrieve() returns v
      * This is the fundamental correctness property
      */
@@ -247,7 +257,9 @@ contract PropertySimpleStorageTest is YulTestBase {
     }
 
     /**
-     * Property 15-17: Preservation properties
+     * Property 15: store_preserves_storage_isolated
+     * Property 16: store_preserves_addr_storage
+     * Property 17: store_preserves_map_storage
      * Theorem: store() preserves various aspects of state
      */
     function testProperty_Store_PreservesState(uint256 value1, uint256 value2) public {
@@ -267,7 +279,8 @@ contract PropertySimpleStorageTest is YulTestBase {
     }
 
     /**
-     * Property 18-19: Retrieve preservation
+     * Property 18: retrieve_preserves_context
+     * Property 19: retrieve_preserves_wellformedness
      * Theorem: retrieve() preserves context and well-formedness
      */
     function testProperty_Retrieve_PreservesWellFormedness() public {
