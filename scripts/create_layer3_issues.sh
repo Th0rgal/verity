@@ -27,7 +27,8 @@ fi
 # Fetch existing issues to check for duplicates
 echo "Fetching existing Layer 3 issues..."
 EXISTING_ISSUES=$(gh issue list --repo "$REPO" --label "layer-3" --state all --limit 1000 --json title --jq '.[].title')
-ISSUE_COUNT=$(echo "$EXISTING_ISSUES" | grep -c . || echo "0")
+# Count issues - use wc -l to avoid grep -c exit code issues with set -e
+ISSUE_COUNT=$(echo "$EXISTING_ISSUES" | wc -l | tr -d ' ')
 echo "Found $ISSUE_COUNT existing Layer 3 issues"
 echo ""
 
