@@ -51,7 +51,8 @@ def exampleUsage : Contract Uint256 := do
   sender := "0xAlice",
   thisAddress := "0xSafeCounter",
   msgValue := 0,
-  blockTimestamp := 0
+  blockTimestamp := 0,
+  knownAddresses := fun _ => Core.FiniteAddressSet.empty
 }).getValue?
 -- Expected output: some 1
 

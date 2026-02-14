@@ -664,6 +664,7 @@ def main (args : List String) : IO Unit := do
       thisAddress := "0xContract"
       msgValue := valueOpt.getD 0
       blockTimestamp := timestampOpt.getD 0
+      knownAddresses := fun _ => DumbContracts.Core.FiniteAddressSet.empty
     }
     let contractTypeEnum? : Option ContractType := match contractType with
       | "SimpleStorage" => some ContractType.simpleStorage

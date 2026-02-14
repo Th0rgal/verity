@@ -64,14 +64,15 @@ def exampleUsage : Contract (Uint256 × Uint256) := do
   return (aliceBalance, bobBalance)
 
 -- Evaluate the example
-#eval (exampleUsage.run {
+#eval! (exampleUsage.run {
   storage := fun _ => 0,
   storageAddr := fun _ => "",
   storageMap := fun _ _ => 0,
   sender := "0xAlice",
   thisAddress := "0xLedger",
   msgValue := 0,
-  blockTimestamp := 0
+  blockTimestamp := 0,
+  knownAddresses := fun _ => Core.FiniteAddressSet.empty
 }).getValue?
 -- Expected output: some (20, 50) - Alice has 20, Bob has 50
 

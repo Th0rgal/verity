@@ -147,7 +147,10 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := fun slot =>
+        if slot == 1 then (s.knownAddresses slot).insert to
+        else s.knownAddresses slot } := by
   simp only [mint, DumbContracts.Examples.SimpleToken.onlyOwner, isOwner,
     Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
     msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
@@ -231,7 +234,10 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := fun slot =>
+        if slot == 1 then ((s.knownAddresses slot).insert s.sender).insert to
+        else s.knownAddresses slot } := by
   have h_balance' : amount.val ≤ (s.storageMap 1 s.sender).val := by
     have h_balance'' : amount ≤ s.storageMap 1 s.sender := by
       simpa using h_balance
@@ -241,6 +247,11 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
     h_balance', h_ne, beq_iff_eq]
+  -- Simplify the nested knownAddresses expression
+  funext slot
+  split
+  · rfl
+  · rfl
 
 theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount) :

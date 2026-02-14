@@ -89,7 +89,8 @@ private theorem increment_unfold (s : ContractState)
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := s.knownAddresses } := by
   simp only [increment, onlyOwner, isOwner, owner, count,
     msgSender, getStorageAddr, getStorage, setStorage,
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
@@ -136,7 +137,8 @@ private theorem decrement_unfold (s : ContractState)
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := s.knownAddresses } := by
   simp only [decrement, onlyOwner, isOwner, owner, count,
     msgSender, getStorageAddr, getStorage, setStorage,
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
@@ -182,7 +184,8 @@ private theorem transferOwnership_unfold (s : ContractState) (newOwner : Address
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
-      blockTimestamp := s.blockTimestamp } := by
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := s.knownAddresses } := by
   simp only [transferOwnership, onlyOwner, isOwner, owner,
     msgSender, getStorageAddr, setStorageAddr,
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,

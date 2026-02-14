@@ -5,11 +5,15 @@
   Philosophy: Keep it minimal - only add what examples actually need.
 
   Version 2: Added explicit ContractResult for guard modeling
+  Version 3: Added FiniteAddressSet for sum property proofs
 -/
 
 import DumbContracts.Core.Uint256
+import DumbContracts.Core.FiniteSet
 
 namespace DumbContracts
+
+open DumbContracts.Core (FiniteAddressSet)
 
 -- Basic Ethereum types
 abbrev Address := String
@@ -31,6 +35,7 @@ structure ContractState where
   thisAddress : Address
   msgValue : Uint256
   blockTimestamp : Uint256
+  knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
 
 -- Repr instance for ContractState (simplified for readability)
 instance : Repr ContractState where
@@ -154,7 +159,12 @@ def setMapping (s : StorageSlot (Address → Uint256)) (key : Address) (value : 
   fun state => ContractResult.success () { state with
     storageMap := fun slot addr =>
       if slot == s.slot && addr == key then value
-      else state.storageMap slot addr
+      else state.storageMap slot addr,
+    knownAddresses := fun slot =>
+      if slot == s.slot then
+        (state.knownAddresses slot).insert key
+      else
+        state.knownAddresses slot
   }
 
 -- Simp lemmas for mapping operations
@@ -168,7 +178,12 @@ def setMapping (s : StorageSlot (Address → Uint256)) (key : Address) (value : 
   ((setMapping s key value).run state).snd = { state with
     storageMap := fun slot addr =>
       if slot == s.slot && addr == key then value
-      else state.storageMap slot addr
+      else state.storageMap slot addr,
+    knownAddresses := fun slot =>
+      if slot == s.slot then
+        (state.knownAddresses slot).insert key
+      else
+        state.knownAddresses slot
   } := by rfl
 
 -- Read-only context accessors

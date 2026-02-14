@@ -68,7 +68,8 @@ def exampleUsage : Contract Uint256 := do
   sender := "0xAlice",
   thisAddress := "0xCryptoHash",
   msgValue := 0,
-  blockTimestamp := 0
+  blockTimestamp := 0,
+  knownAddresses := fun _ => DumbContracts.Core.FiniteAddressSet.empty
 }).getValue?
 -- Expected output: some 300 (with placeholder hash: 100 + 200)
 

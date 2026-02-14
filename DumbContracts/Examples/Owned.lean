@@ -58,7 +58,8 @@ def exampleUsage : Contract Address := do
   sender := "0xAlice",  -- Alice is the caller
   thisAddress := "0xContract",
   msgValue := 0,
-  blockTimestamp := 0
+  blockTimestamp := 0,
+  knownAddresses := fun _ => Core.FiniteAddressSet.empty
 }).getValue?
 -- Expected output: some "0xBob" (after transfer)
 

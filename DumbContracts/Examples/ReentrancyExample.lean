@@ -94,7 +94,8 @@ theorem vulnerable_attack_exists :
     , sender := "attacker"
     , thisAddress := "this"
     , msgValue := 0
-    , blockTimestamp := 0 }
+    , blockTimestamp := 0
+    , knownAddresses := fun _ => Core.FiniteAddressSet.empty }
   refine ⟨s, ?_⟩
   constructor
   · simp [s, balances]
