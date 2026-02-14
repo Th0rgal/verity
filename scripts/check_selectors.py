@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
+
+from property_utils import die
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
@@ -42,11 +43,6 @@ class SpecInfo:
 class CompileSelectors:
     def_name: str
     selectors: List[int]
-
-
-def die(msg: str) -> None:
-    print(f"error: {msg}", file=sys.stderr)
-    raise SystemExit(1)
 
 
 def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:

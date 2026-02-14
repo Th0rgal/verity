@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 from pathlib import Path
+
+from property_utils import die
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
@@ -18,11 +19,6 @@ KECCAK = ROOT / "scripts" / "keccak256.py"
 
 SIG_RE = re.compile(r"^([A-Za-z0-9_]+\([^\)]*\))\s*:\s*(0x)?([0-9a-fA-F]{8})$")
 HASH_RE = re.compile(r"^(0x)?([0-9a-fA-F]{8})\s*:\s*([A-Za-z0-9_]+\([^\)]*\))$")
-
-
-def die(msg: str) -> None:
-    print(f"error: {msg}", file=sys.stderr)
-    raise SystemExit(1)
 
 
 def _strip_param_names(params: str) -> str:
