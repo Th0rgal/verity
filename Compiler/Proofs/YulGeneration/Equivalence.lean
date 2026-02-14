@@ -9,7 +9,7 @@ open Compiler.Proofs.IRGeneration
 open Compiler.Yul
 
 set_option allowUnsafeReducibility true in
-attribute [reducible] execIRStmt execIRStmts
+attribute [local reducible] execIRStmt execIRStmts
 
 /-! ## IR ↔ Yul State Alignment -/
 

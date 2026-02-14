@@ -32,24 +32,15 @@ def decodeMappingSlot (slot : Nat) : Option (Nat × Nat) :=
     let raw := slot - mappingTag
     some (raw / evmModulus, raw % evmModulus)
 
-/-! ## Nested Mapping Helpers
+/-! ## Nested Mapping Helper
 
 EVM nested mappings are effectively a mapping whose base slot is itself
-another mapping slot. These helpers make that structure explicit so
+another mapping slot. This helper makes that structure explicit so
 proofs and specs can name it directly.
 -/
 
 /-- Encode a nested mapping slot (base slot + key1 + key2). -/
 def encodeNestedMappingSlot (baseSlot key1 key2 : Nat) : Nat :=
   encodeMappingSlot (encodeMappingSlot baseSlot key1) key2
-
-/-- Decode a nested mapping slot back into (base slot, key1, key2). -/
-def decodeNestedMappingSlot (slot : Nat) : Option (Nat × Nat × Nat) :=
-  match decodeMappingSlot slot with
-  | none => none
-  | some (innerBase, key2) =>
-      match decodeMappingSlot innerBase with
-      | none => none
-      | some (baseSlot, key1) => some (baseSlot, key1, key2)
 
 end Compiler.Proofs
