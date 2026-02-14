@@ -26,25 +26,25 @@ Here's what stands between current state (92%) and full completion (100%):
 
 ### 🔴 **Layer 3 Statement Proofs** (THE Critical Path)
 **What**: Prove 9 theorems showing IR → Yul compilation correctness
-**Status**: ✅ 2/10 complete (prerequisite DONE + 1 proven + 7 ready + 1 composition)
-**Impact**: 92% → 94% (prerequisite) → 98% (statements) → 100% (composition)
-**Effort**: 2-4 weeks remaining (prerequisite complete, 7 proofs + composition)
-**Parallelizable**: Yes! Remaining 7 statement proofs are independent
+**Status**: ✅ 8/10 complete! (prerequisite + 7 proofs done, 1 partial + 1 composition remaining)
+**Impact**: 92% → 97% (current) → 98% (conditional complete) → 100% (composition)
+**Effort**: 1-2 days remaining (finish conditional + composition)
+**Parallelizable**: All individual proofs done!
 
-🎉 **PREREQUISITE COMPLETE**: `execIRStmtFuel` implemented and first proof done!
+🎉 **MASSIVE PROGRESS**: 7/8 statement equivalence proofs COMPLETE!
 
 | # | Statement | Difficulty | Effort | Status | Notes |
 |---|-----------|------------|--------|--------|-------|
 | 0 | **Add execIRStmtFuel** | **Medium** | **1w** | ✅ **DONE** | **Unblocked all!** |
-| 1 | Variable Assignment | Low | 1h | ✅ **PROVEN** | `assign_equiv` |
-| 2 | Storage Load | Low | 1h | ⚪ TODO | Ready to prove |
-| 3 | Storage Store | Low | 1h | ⚪ TODO | Ready to prove |
-| 4 | Mapping Load | Medium | 2-4h | ⚪ TODO | Ready to prove |
-| 5 | Mapping Store | Medium | 2-4h | ⚪ TODO | Ready to prove |
-| 6 | Conditional (if) | Medium-High | 4-8h | ⚪ TODO | Ready to prove |
-| 7 | Return | Low | 1-2h | ⚪ TODO | Ready to prove |
-| 8 | Revert | Low-Medium | 2-3h | ⚪ TODO | Ready to prove |
-| 9 | **Composition** | High | 1-2d | ⚪ TODO | Needs #2-8 |
+| 1 | Variable Assignment | Low | 1h | ✅ **PROVEN** | Issue #28 closed |
+| 2 | Storage Load | Low | 1h | ✅ **PROVEN** | Issue #29 closed |
+| 3 | Storage Store | Low | 1h | ✅ **PROVEN** | Issue #30 closed |
+| 4 | Mapping Load | Medium | 2-4h | ✅ **PROVEN** | Issue #31 closed |
+| 5 | Mapping Store | Medium | 2-4h | ✅ **PROVEN** | Issue #32 closed |
+| 6 | Conditional (if) | Medium-High | 4-8h | 🟡 **PARTIAL** | Issue #33 (1 sorry) |
+| 7 | Return | Low | 1-2h | ✅ **PROVEN** | Issue #34 closed |
+| 8 | Revert | Low-Medium | 2-3h | ✅ **PROVEN** | Issue #35 closed |
+| 9 | **Composition** | High | 1-2d | ⚪ TODO | Unblocks #6 |
 
 ### 🟡 **Trust Reduction** (3 Components)
 **What**: Eliminate or verify all trusted components

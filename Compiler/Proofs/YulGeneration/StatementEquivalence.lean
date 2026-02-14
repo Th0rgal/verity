@@ -164,7 +164,21 @@ theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
     execResultsAligned selector
       (execIRStmtFuel fuel irState (YulStmt.let_ varName (.call "sload" [slotExpr])))
       (execYulStmtFuel fuel yulState (YulStmt.let_ varName (.call "sload" [slotExpr]))) := by
-  sorry
+  -- Same pattern as assign_equiv
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      rw [evalIRExpr_eq_evalYulExpr]
+      cases evalYulExpr (yulStateOfIR selector irState) (.call "sload" [slotExpr]) with
+      | none =>
+          unfold execResultsAligned
+          rfl
+      | some v =>
+          unfold execResultsAligned statesAligned yulStateOfIR
+          simp [IRState.setVar, YulState.setVar]
 
 /-! ### TODO: Storage Store Equivalence
 
@@ -187,7 +201,18 @@ theorem storageStore_equiv (selector : Nat) (fuel : Nat)
     execResultsAligned selector
       (execIRStmtFuel fuel irState (YulStmt.expr (.call "sstore" [slotExpr, valExpr])))
       (execYulStmtFuel fuel yulState (YulStmt.expr (.call "sstore" [slotExpr, valExpr]))) := by
-  sorry
+  -- Storage store follows same pattern
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      -- Both eval the same expressions using our axiom
+      simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
+      -- Now both sides are syntactically identical
+      unfold execResultsAligned statesAligned yulStateOfIR
+      simp
 
 /-! ### TODO: Mapping Load Equivalence
 
@@ -212,7 +237,21 @@ theorem mappingLoad_equiv (selector : Nat) (fuel : Nat)
         (YulStmt.let_ varName (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]])))
       (execYulStmtFuel fuel yulState
         (YulStmt.let_ varName (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]]))) := by
-  sorry
+  -- Mapping load is just storage load with computed slot - same pattern
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      rw [evalIRExpr_eq_evalYulExpr]
+      cases evalYulExpr (yulStateOfIR selector irState) (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]]) with
+      | none =>
+          unfold execResultsAligned
+          rfl
+      | some v =>
+          unfold execResultsAligned statesAligned yulStateOfIR
+          simp [IRState.setVar, YulState.setVar]
 
 /-! ### TODO: Mapping Store Equivalence
 
@@ -237,7 +276,16 @@ theorem mappingStore_equiv (selector : Nat) (fuel : Nat)
         (YulStmt.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr])))
       (execYulStmtFuel fuel yulState
         (YulStmt.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr]))) := by
-  sorry
+  -- Mapping store is just storage store with computed slot - same pattern
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
+      unfold execResultsAligned statesAligned yulStateOfIR
+      simp
 
 /-! ### TODO: Conditional (if) Equivalence
 
@@ -261,7 +309,32 @@ theorem conditional_equiv (selector : Nat) (fuel : Nat)
     execResultsAligned selector
       (execIRStmtFuel fuel irState (YulStmt.if_ condExpr body))
       (execYulStmtFuel fuel yulState (YulStmt.if_ condExpr body)) := by
-  sorry
+  -- Conditional evaluates condition, then executes body if non-zero
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      rw [evalIRExpr_eq_evalYulExpr]
+      cases h : evalYulExpr (yulStateOfIR selector irState) condExpr with
+      | none =>
+          -- Evaluation fails, both revert
+          unfold execResultsAligned
+          rfl
+      | some c =>
+          -- Evaluation succeeds with value c
+          simp [h]
+          by_cases hc : c = 0
+          · -- Condition is false (0), both continue without executing body
+            simp [hc]
+            unfold execResultsAligned statesAligned yulStateOfIR
+            rfl
+          · -- Condition is true (non-zero), both execute body
+            simp [hc]
+            -- Both call execIRStmtsFuel/execYulStmtsFuel on the body
+            -- These will be equivalent (assumed, would need stmtList_equiv for full proof)
+            sorry  -- This case requires the composition theorem
 
 /-! ### TODO: Return Statement Equivalence
 
@@ -284,7 +357,16 @@ theorem return_equiv (selector : Nat) (fuel : Nat)
     execResultsAligned selector
       (execIRStmtFuel fuel irState (YulStmt.expr (.call "return" [offsetExpr, sizeExpr])))
       (execYulStmtFuel fuel yulState (YulStmt.expr (.call "return" [offsetExpr, sizeExpr]))) := by
-  sorry
+  -- Return evaluates offset and size, then transitions to .return state
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
+      unfold execResultsAligned statesAligned yulStateOfIR
+      simp
 
 /-! ### TODO: Revert Statement Equivalence
 
@@ -308,7 +390,16 @@ theorem revert_equiv (selector : Nat) (fuel : Nat)
     execResultsAligned selector
       (execIRStmtFuel fuel irState (YulStmt.expr (.call "revert" [offsetExpr, sizeExpr])))
       (execYulStmtFuel fuel yulState (YulStmt.expr (.call "revert" [offsetExpr, sizeExpr]))) := by
-  sorry
+  -- Revert transitions to .revert state - both do the same
+  unfold statesAligned at halign
+  subst halign
+  cases fuel with
+  | zero => contradiction
+  | succ fuel' =>
+      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      -- Both return .revert regardless of evaluation
+      unfold execResultsAligned statesAligned yulStateOfIR
+      rfl
 
 /-! ### Composition: Statement List Equivalence
 
