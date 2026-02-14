@@ -60,7 +60,19 @@ theorem valid_transact_withdrawal_implies_valid_recipient
 
 /-! ## Implementation Correctness Proofs -/
 
--- Proof: deposit implementation satisfies deposit_spec
+-- These theorems connect the EDSL implementation to the declarative spec.
+-- They require reasoning about the Contract monad (bind chains, for-loops,
+-- require guards) which needs proof infrastructure not yet available.
+--
+-- Current blockers:
+-- 1. deposit uses `for` loops and `mut` which don't unfold cleanly
+-- 2. Both functions use `require` guards that cause reverts on invalid input,
+--    so the theorems need preconditions (valid input + root seen, etc.)
+-- 3. Storage slot distinctness reasoning is needed for insertLeaves
+--
+-- These are deferred until the monad proof infrastructure supports
+-- loop reasoning and conditional branching.
+
 theorem deposit_meets_spec
     (s : ContractState)
     (notes : List Note) :
@@ -68,7 +80,6 @@ theorem deposit_meets_spec
     deposit_spec notes s s' := by
   sorry
 
--- Proof: transact implementation satisfies transact_spec
 theorem transact_meets_spec
     (s : ContractState)
     (txn : Transaction) :
@@ -257,30 +268,29 @@ theorem transact_requires_fresh_nullifiers_holds :
   -- From transact_spec, the second condition is: ∀ n ∈ nulls, ¬nullifierSpent s n
   exact h_transact.right.left
 
--- Theorem: Exclusive withdrawal property holds
--- **User-friendly**: "If I deposit my money, only I can withdraw it (if I know my note secret)"
--- **Why it matters**: This is THE core security guarantee of the privacy pool
---
--- Combined with the cryptographic assumption (exclusive_control_via_zk), this proves:
--- 1. Deposits create commitments in the merkle tree
--- 2. Withdrawals require spending nullifiers via valid ZK proofs
--- 3. Valid ZK proofs require knowing the note secret (cryptographic soundness)
--- 4. Therefore: only the note holder can withdraw their funds
---
--- This theorem proves the contract-level part: a nullifier can only be spent
--- if it wasn't previously spent (enforced by transact_spec).
--- The ZK proof system ensures only the note owner can generate valid proofs.
+-- Theorem: Exclusive withdrawal (contract-level) holds
+-- **User-friendly**: "To withdraw, the nullifier must be fresh (unspent)"
+-- **Why it matters**: Combined with ZK soundness, this guarantees only the
+-- note secret holder can withdraw
 theorem exclusive_withdrawal_holds :
     exclusive_withdrawal := by
   unfold exclusive_withdrawal
   intro s nullifier h_can_spend
-  -- We need to show: ¬nullifierSpent s nullifier
-  -- (i.e., the nullifier was fresh before spending)
   obtain ⟨s', root, comms, h_transact⟩ := h_can_spend
-  -- From transact_spec: ∀ n ∈ [nullifier], ¬nullifierSpent s n
   have h_fresh : ∀ n ∈ [nullifier], ¬nullifierSpent s n := h_transact.right.left
-  -- Apply to our specific nullifier
   simp at h_fresh
   exact h_fresh
+
+-- Theorem: Full exclusive withdrawal (contract + crypto) holds
+-- Uses zk_soundness axiom to combine both halves of the security guarantee
+theorem exclusive_withdrawal_full_holds (txn : Transaction) (s s' : ContractState) :
+    exclusive_withdrawal_full txn s s' := by
+  unfold exclusive_withdrawal_full
+  intro h_transact nullifier h_mem
+  constructor
+  · -- Contract enforcement: nullifier was fresh
+    exact h_transact.right.left nullifier h_mem
+  · -- Cryptographic enforcement: spender knows the secret
+    exact zk_soundness txn s s' h_transact nullifier h_mem
 
 end DumbContracts.Specs.Unlink.Proofs

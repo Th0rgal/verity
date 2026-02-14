@@ -238,50 +238,78 @@ def transact_requires_fresh_nullifiers : Prop :=
     transact_spec root nulls comms s s' →
     ∀ n ∈ nulls, ¬nullifierSpent s n
 
--- Property: Exclusive control via cryptography
--- To spend a note, you must know the secret that generates its nullifier
--- This models the cryptographic requirement: nullifier = hash(note_secret, ...)
--- We cannot prove this property holds WITHOUT cryptographic assumptions,
--- but we CAN specify what it means and prove the contract respects it.
---
--- The property: If a valid transaction spends a nullifier, it must have been
--- derived from a note commitment that was previously added to the tree.
--- This is enforced by the ZK proof verification.
-axiom exclusive_control_via_zk :
-  ∀ (txn : Transaction) (s s' : ContractState),
-    -- If the transaction is valid (passes all checks including ZK proof)
-    transact_spec txn.merkleRoot txn.nullifierHashes txn.newCommitments s s' →
-    -- Then the ZK proof has verified that:
-    -- 1. The nullifiers were correctly derived from notes in the merkle tree
-    -- 2. The prover knows the secrets for those notes
-    -- This is a cryptographic property we cannot prove in the contract,
-    -- but the ZK proof system guarantees it (soundness assumption)
-    True  -- Placeholder for the cryptographic guarantee
+/-! ## Cryptographic Assumptions
 
--- Property: Exclusive withdrawal
--- Combining exclusive_control_via_zk with our proven properties gives us:
--- "If I deposit my money, only someone who knows my note secret can withdraw it"
---
--- This is the user-facing security guarantee:
--- 1. Your deposit creates a commitment in the merkle tree
--- 2. To withdraw, you need to provide a valid ZK proof
--- 3. The ZK proof forces you to know the note secret (exclusive_control_via_zk)
--- 4. Therefore, only you (the note holder) can withdraw
+The following are properties that depend on the ZK proof system's soundness
+and the hash function's security. They cannot be proven from the contract
+logic alone — they are trust assumptions about the cryptographic primitives.
+
+We state them as `axiom` to be explicit: the security model relies on these.
+-/
+
+-- Abstract type for note secrets (the preimage known only to the note owner)
+axiom NoteSecret : Type
+
+-- Abstract relation: "this secret corresponds to this nullifier"
+-- In practice: nullifier = PoseidonHash(secret, leafIndex, ...)
+axiom secretDerivesNullifier : NoteSecret → NullifierHash → Prop
+
+-- Abstract relation: "this secret corresponds to this commitment"
+-- In practice: commitment = PoseidonHash(npk, token, amount) where npk = derive(secret)
+axiom secretDerivesCommitment : NoteSecret → Commitment → Prop
+
+-- Cryptographic assumption 1: ZK proof soundness
+-- If verifyProof accepts a transaction, then the prover knows secrets
+-- for each nullifier that correspond to commitments in the merkle tree.
+-- This is what the Groth16/PLONK verification guarantees.
+axiom zk_soundness :
+  ∀ (txn : Transaction) (s s' : ContractState),
+    transact_spec txn.merkleRoot txn.nullifierHashes txn.newCommitments s s' →
+    ∀ nullifier ∈ txn.nullifierHashes,
+      ∃ (secret : NoteSecret) (commitment : Commitment),
+        secretDerivesNullifier secret nullifier ∧
+        secretDerivesCommitment secret commitment
+        -- (In full model: ∧ commitment is in the merkle tree at txn.merkleRoot)
+
+-- Cryptographic assumption 2: Nullifier binding
+-- Different secrets produce different nullifiers.
+-- This prevents two people from accidentally (or maliciously) generating
+-- the same nullifier from different notes.
+axiom nullifier_binding :
+  ∀ (s1 s2 : NoteSecret) (n : NullifierHash),
+    secretDerivesNullifier s1 n →
+    secretDerivesNullifier s2 n →
+    s1 = s2
+
+-- Note: Commitment hiding (privacy/unlinkability) is a computational assumption
+-- about Poseidon hash that cannot be meaningfully stated in constructive logic.
+-- It's assumed implicitly: the hash function is a secure commitment scheme.
+
+/-! ## Derived Security Property
+
+Exclusive withdrawal: combining the contract-level properties we proved
+with the cryptographic assumptions above.
+-/
+
+-- Property: Exclusive withdrawal (contract-level part)
+-- "To spend a nullifier, it must not have been spent before"
+-- This is the contract enforcement half of "only I can withdraw my money."
+-- The other half (only the secret holder can produce a valid ZK proof) comes
+-- from zk_soundness above.
 def exclusive_withdrawal : Prop :=
   ∀ (s : ContractState) (nullifier : NullifierHash),
-    -- If a nullifier gets spent in a transaction
     (∃ s' root comms, transact_spec root [nullifier] comms s s') →
-    -- Then either:
-    -- (a) The nullifier was already spent (impossible by transact_spec), OR
-    -- (b) The transaction had a valid ZK proof (guaranteed by transact_spec)
-    --     which proves knowledge of the note secret (exclusive_control_via_zk)
-    ¬nullifierSpent s nullifier  -- It must have been fresh before spending
+    ¬nullifierSpent s nullifier
 
--- Axiom: Privacy property (unlinkability depends on cryptographic assumptions)
--- We cannot prove this in the contract logic - it's a property of the ZK system
-axiom unlinkability :
-  ∀ (deposit_note withdrawal_note : Note),
-    -- Even observing both notes, they cannot be linked without knowing secrets
-    ∃ (cryptographic_hiding : Prop), cryptographic_hiding
+-- Combined property: exclusive withdrawal + ZK soundness
+-- "To spend a nullifier, you must know the note secret AND it must be fresh"
+-- This is the full user-facing guarantee but relies on the zk_soundness axiom.
+def exclusive_withdrawal_full (txn : Transaction) (s s' : ContractState) : Prop :=
+  transact_spec txn.merkleRoot txn.nullifierHashes txn.newCommitments s s' →
+  ∀ nullifier ∈ txn.nullifierHashes,
+    ¬nullifierSpent s nullifier ∧
+    ∃ (secret : NoteSecret) (commitment : Commitment),
+      secretDerivesNullifier secret nullifier ∧
+      secretDerivesCommitment secret commitment
 
 end DumbContracts.Specs.Unlink
