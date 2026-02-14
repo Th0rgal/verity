@@ -38,8 +38,11 @@ theorem sumBalances_insert_new {slot : Nat} {addr : Address} {addrs : FiniteAddr
     sumBalances slot (addrs.insert addr) (fun s a =>
       if s == slot && a == addr then amount else balances s a) =
     add (sumBalances slot addrs balances) amount := by
-  -- This proof requires additional lemmas about List.foldl and sum preservation
-  -- For Phase 2, we'll need to develop these supporting lemmas
+  -- This proof requires developing lemmas about:
+  -- 1. List.foldl with Uint256 addition
+  -- 2. Function extensionality over list elements
+  -- 3. Uint256.add commutativity and associativity
+  -- This is complex theorem proving work that requires careful development
   sorry  -- Proof requires foldl lemmas - to be completed in Phase 2
 
 end DumbContracts.Specs.Common
