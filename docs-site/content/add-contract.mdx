@@ -8,50 +8,72 @@ This is the shortest reliable path to add a new contract end-to-end, anchored to
 
 ## Checklist
 
-1. Spec
-- Define the contract interface and storage in `DumbContracts/Specs/SimpleStorage.lean`.
-- Keep function signatures aligned with Solidity types and storage slots.
+1. **Spec**
+   - Define interface and storage in `DumbContracts/Specs/<Name>/Spec.lean`
+   - Add invariants in `DumbContracts/Specs/<Name>/Invariants.lean` (optional)
+   - Align function signatures with Solidity types and storage slots
 
-2. EDSL Example
-- Implement the contract logic in `DumbContracts/Examples/SimpleStorage.lean`.
-- Reuse helper lemmas for storage updates and mapping reads when possible.
+2. **EDSL Implementation**
+   - Implement contract logic in `DumbContracts/Examples/<Name>.lean`
+   - Reuse helper lemmas for storage updates and mapping reads
 
-3. Layer 1 Proofs
-- Prove correctness in `DumbContracts/Specs/SimpleStorage/Proofs.lean`.
-- Each theorem should state the observable behavior (return values + storage deltas).
+3. **Layer 1 Proofs**
+   - Prove correctness in `DumbContracts/Specs/<Name>/Proofs.lean`
+   - Each theorem states observable behavior (return values + storage deltas)
 
-4. Compiler Spec + Proofs (Layer 2)
-- Add compiler-level spec in `Compiler/Specs.lean`.
-- Prove `ContractSpec → IR` preservation in `Compiler/Proofs/IRGeneration/SimpleStorageProof.lean`.
+4. **Compiler Spec + Layer 2 Proofs**
+   - Add compiler-level spec in `Compiler/Specs.lean`
+   - Prove `ContractSpec → IR` preservation in `Compiler/Proofs/SpecCorrectness/<Name>.lean`
 
-5. Differential Tests
-- Add a diff test harness in `test/DifferentialSimpleStorage.t.sol`.
-- Use the shared knobs in `test/DiffTestConfig.sol` for sharding and random counts.
-- Add any edge-value tests using `_edgeUintValues()`.
+5. **Differential Tests**
+   - Add harness in `test/Differential<Name>.t.sol`
+   - Use shared config from `test/DiffTestConfig.sol`
+   - Add edge-value tests using `_edgeUintValues()`
 
-6. Property Tests (Proofs → Tests)
-- Register lemma names in `test/property_manifest.json`.
-- Add matching Foundry tests in `test/InvariantSimpleStorage.t.sol`.
-- Keep the manifest in sync with `scripts/check_property_manifest.py`.
+6. **Property Tests** (Proofs → Tests)
+   - Add Foundry tests in `test/Property<Name>.t.sol`
+   - Tag tests with `/// Property: theorem_name`
+   - Verify with `python3 scripts/check_property_coverage.py`
 
 ## Expected File Layout
 
-- `DumbContracts/Specs/<YourContract>.lean`
-- `DumbContracts/Examples/<YourContract>.lean`
-- `DumbContracts/Specs/<YourContract>/Proofs.lean`
-- `Compiler/Proofs/IRGeneration/<YourContract>Proof.lean`
-- `test/Differential<YourContract>.t.sol`
-- `test/Invariant<YourContract>.t.sol`
+```
+DumbContracts/Specs/<Name>/
+  ├── Spec.lean        # Function specifications
+  ├── Invariants.lean  # State invariants (optional)
+  └── Proofs.lean      # Layer 1 correctness proofs
+
+DumbContracts/Examples/<Name>.lean     # EDSL implementation
+Compiler/Proofs/SpecCorrectness/<Name>.lean  # Layer 2 proofs
+test/Differential<Name>.t.sol          # Differential tests
+test/Property<Name>.t.sol              # Property tests
+```
 
 ## Common Pitfalls
 
-- Storage slot mismatches between spec and Yul output.
-- Missing selector updates when adding functions.
-- Mapping conversions not mirrored in proofs.
-- Property tags drifting from lemma names.
+- **Storage slot mismatches** between spec, EDSL, and compiler
+- **Missing selector updates** in `Compiler/Specs.lean` when adding functions
+- **Mapping conversions** not mirrored between spec and proofs
+- **Property tag drift** — test tags must match lemma names exactly
 
-## Done When
+## Validation Checklist
 
-- `lake build` passes.
-- `forge test --match-contract Differential` passes locally.
-- Property checks pass: `python3 scripts/check_property_manifest.py` and `python3 scripts/check_property_coverage.py`.
+```bash
+# 1. Lean code compiles
+lake build
+
+# 2. Differential tests pass
+forge test --match-contract Differential<Name>
+
+# 3. Property tests pass
+forge test --match-contract Property<Name>
+
+# 4. Property manifest is in sync
+python3 scripts/check_property_manifest.py
+python3 scripts/check_property_coverage.py
+
+# 5. Selectors are correct
+python3 scripts/check_selectors.py
+```
+
+**Reference**: See `SimpleStorage` for a minimal end-to-end example.
