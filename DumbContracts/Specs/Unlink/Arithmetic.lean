@@ -31,10 +31,6 @@ theorem add_pos_gt {a : Uint256} {n : Nat} (h_pos : n > 0) (h_no_overflow : a.va
   rw [h_add, h_bval]
   exact Nat.lt_add_of_pos_right h_pos
 
--- Lemma: Adding List.length is positive when list is non-empty
-theorem list_length_pos {α : Type} (xs : List α) (h : xs.length > 0) :
-    xs.length > 0 := h
-
 -- Lemma: For non-empty lists, adding length increases value (without overflow)
 theorem add_length_gt {a : Uint256} {α : Type} (xs : List α)
     (h_nonempty : xs.length > 0)
