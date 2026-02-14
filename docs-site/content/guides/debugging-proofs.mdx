@@ -1,0 +1,686 @@
+---
+title: Proof Debugging Handbook
+description: Practical guide for debugging common proof failures, errors, and roadblocks in DumbContracts development
+---
+
+# Proof Debugging Handbook
+
+**Purpose**: Get unstuck when proofs fail with practical solutions, not theory.
+
+**Who this is for**: Developers writing proofs in DumbContracts, from beginners to experts encountering unfamiliar errors.
+
+---
+
+## Quick Reference
+
+### Most Common Issues
+
+| Symptom | Quick Fix | Section |
+|---------|-----------|---------|
+| "simp made no progress" | Add `unfold` before `simp` | [Tactic Failures](#common-tactic-failures) |
+| "omega failed" | Use `by_cases` to split constraints | [Tactic Failures](#common-tactic-failures) |
+| "unknown identifier" | Check imports, spelling | [Import Errors](#import-errors) |
+| "type mismatch" | Use `#check` to compare types | [Type Errors](#type-errors) |
+| Proof too slow | Cache intermediate lemmas with `have` | [Performance](#proof-performance) |
+| "motive is not type correct" | Use `generalize` before `induction` | [Induction Errors](#induction-errors) |
+
+---
+
+## Diagnostic Tools
+
+Before debugging, know your tools:
+
+### Type Inspection
+
+```lean
+-- Show the type of an expression
+#check myTerm                    -- Output: myTerm : Type
+
+-- Show all implicit arguments
+#check @myFunction              -- Shows hidden type parameters
+
+-- Print full definition
+#print MyTheorem                -- Shows complete proof/definition
+
+-- Show type and value
+#reduce myComplexExpression     -- Normalizes and evaluates
+```
+
+### Goal Inspection
+
+```lean
+-- In a proof, inspect current state
+theorem my_theorem : ... := by
+  trace "{goal}"                -- Print current goal
+  trace "Variable x: {x}"       -- Print specific variable
+  sorry                         -- Skip temporarily to see what's needed
+```
+
+### Evaluation
+
+```lean
+-- Test functions
+#eval myFunction arg1 arg2      -- Runs the function
+
+-- Check equivalence
+example : expr1 = expr2 := rfl  -- Definitional equality
+```
+
+---
+
+## Common Tactic Failures
+
+### "simp made no progress"
+
+**Diagnosis**: `simp` doesn't know how to simplify your goal.
+
+**Cause**: Definition not unfolded, or no simp lemmas apply.
+
+**Solution 1**: Unfold before simping
+```lean
+-- ❌ DOESN'T WORK
+theorem getValue_correct : ... := by
+  simp [getStorage]  -- Error: simp made no progress
+
+-- ✅ WORKS
+theorem getValue_correct : ... := by
+  unfold getValue     -- First unfold the definition
+  simp [getStorage]   -- Now simp can make progress
+```
+
+**Solution 2**: Add simp attribute
+```lean
+-- Mark lemma for automatic simplification
+@[simp] theorem my_helper_lemma : a + 0 = a := ...
+
+-- Now simp will use it automatically
+theorem uses_helper : ... := by
+  simp  -- Automatically applies my_helper_lemma
+```
+
+**Solution 3**: Add specific lemmas to simp
+```lean
+-- Be explicit about what to simplify
+simp [myDefinition, myLemma1, myLemma2]
+```
+
+### "omega failed to solve goal"
+
+**Diagnosis**: Constraint is not linear arithmetic, or omega needs help.
+
+**Cause**: Non-linear terms, dependent types, or complex constraints.
+
+**Solution 1**: Split into linear cases
+```lean
+-- ❌ DOESN'T WORK (non-linear)
+theorem complex_bound : a * b ≤ MAX := by
+  omega  -- Error: not linear arithmetic
+
+-- ✅ WORKS (split cases)
+theorem complex_bound : a * b ≤ MAX := by
+  by_cases ha : a = 0
+  · simp [ha]     -- a = 0 case is trivial
+  · by_cases hb : b = 0
+    · simp [hb]   -- b = 0 case is trivial
+    · omega       -- Now linear constraints only
+```
+
+**Solution 2**: Add intermediate lemmas
+```lean
+-- Help omega with explicit steps
+theorem with_helper : a + b < MAX := by
+  have h1 : a < MAX / 2 := by assumption
+  have h2 : b < MAX / 2 := by assumption
+  omega  -- Now has enough context
+```
+
+**Solution 3**: Convert inequalities
+```lean
+-- omega prefers ≤ over <
+have h : a + b ≤ MAX := by omega
+have h' : a + b < MAX + 1 := by omega
+```
+
+### "failed to synthesize instance"
+
+**Diagnosis**: Lean can't find required typeclass instance.
+
+**Cause**: Missing import, or instance doesn't exist.
+
+**Solution 1**: Add missing import
+```lean
+-- ❌ DOESN'T WORK
+#check (5 : Uint256)  -- Error: failed to synthesize OfNat
+
+-- ✅ WORKS
+import DumbContracts.Core.Uint256
+#check (5 : Uint256)  -- Now works
+```
+
+**Solution 2**: Provide instance explicitly
+```lean
+-- If instance exists but isn't found automatically
+example : MyClass MyType := inferInstance  -- Try to find it
+example : MyClass MyType := by assumption  -- Use from context
+```
+
+### "motive is not type correct"
+
+**Diagnosis**: Dependent type mismatch during induction.
+
+**Cause**: Goal depends on the term being inducted on.
+
+**Solution**: Generalize the motive
+```lean
+-- ❌ DOESN'T WORK
+theorem bad_induction (xs : List α) : xs.length = n := by
+  induction xs  -- Error: motive not type correct
+
+-- ✅ WORKS
+theorem good_induction (xs : List α) : xs.length = n := by
+  generalize hlen : xs.length = m  -- Generalize first
+  rw [hlen] in *
+  induction xs
+  · simp  -- Base case
+  · simp [*]  -- Inductive case
+```
+
+---
+
+## Type Errors
+
+### "type mismatch"
+
+**Diagnosis**: Expression has wrong type for context.
+
+**Cause**: Incorrect type annotation, coercion needed, or logic error.
+
+**Solution 1**: Check types
+```lean
+-- Use #check to debug
+#check myValue      -- Expected: Uint256, Got: Nat
+
+-- Add explicit coercion
+example : Uint256 := ofNat myNatValue  -- ✅
+```
+
+**Solution 2**: Check expected vs actual
+```lean
+-- Error message shows:
+-- Expected: a.val + b.val ≤ MAX_UINT256
+-- Got:      a + b ≤ MAX_UINT256
+
+-- Fix: Extract .val explicitly
+have h : a.val + b.val ≤ MAX_UINT256 := by assumption
+```
+
+**Solution 3**: Rewrite to match types
+```lean
+-- Use rw to convert types
+rw [theorem_that_converts_type]
+exact my_proof
+```
+
+---
+
+## Arithmetic & Overflow Proofs
+
+### SafeAdd/SafeSub Failures
+
+**Pattern 1**: Proving safeAdd returns Some
+```lean
+-- Goal: safeAdd a b = some c
+theorem safeAdd_proof (h : a.val + b.val ≤ MAX_UINT256) :
+    safeAdd a b = some ⟨a.val + b.val, by omega⟩ := by
+  unfold safeAdd
+  simp [willAddOverflow_eq_false h]
+  -- Now prove the value is correct
+  rfl
+```
+
+**Pattern 2**: Proving addition doesn't overflow
+```lean
+-- Common pattern for increment proofs
+theorem increment_no_overflow (h : count.val < MAX_UINT256) :
+    willAddOverflow count 1 = false := by
+  unfold willAddOverflow
+  simp
+  omega  -- Uses h to show count.val + 1 ≤ MAX_UINT256
+```
+
+**Pattern 3**: Bounded arithmetic
+```lean
+-- Prove result stays in bounds
+theorem bounded_add (h1 : a.val ≤ bound) (h2 : b.val ≤ bound) :
+    (safeAdd a b).isSome → (safeAdd a b).get!.val ≤ 2 * bound := by
+  intro hsome
+  have hval : (safeAdd a b).get! = ⟨a.val + b.val, _⟩ := by
+    simp [safeAdd] at hsome ⊢
+    omega
+  simp [hval]
+  omega  -- Uses h1, h2
+```
+
+---
+
+## Storage State Reasoning
+
+### Function Extensionality
+
+**Problem**: Prove two storage functions are equal.
+
+**Pattern**: Use `ext` tactic
+```lean
+-- Goal: state1.storage = state2.storage
+theorem storage_equal : state1.storage = state2.storage := by
+  ext slot  -- For all slots
+  by_cases h : slot = targetSlot
+  · simp [h]  -- Show target slot is equal
+  · simp [h]  -- Show other slots unchanged
+```
+
+### Storage Unchanged Except
+
+**Pattern**: Common in contract proofs
+```lean
+-- Goal: Only slot k changed
+theorem only_slot_k_changed :
+    ∀ slot, slot ≠ k → state'.storage slot = state.storage slot := by
+  intro slot hneq
+  unfold updateOperation
+  simp [setStorage, hneq]
+```
+
+### runState Composition
+
+**Problem**: Multiple storage updates in sequence.
+
+**Pattern**: Use runState_bind
+```lean
+theorem multi_update_proof :
+    (do setStorage slot1 val1; setStorage slot2 val2).runState state = finalState := by
+  rw [runState_bind]           -- Separate first operation
+  simp [setStorage]             -- Simplify first update
+  rw [runState_bind]            -- Separate second operation
+  simp [setStorage]              -- Simplify second update
+  ext slot                      -- Prove storage equality
+  by_cases h1 : slot = slot1
+  · simp [h1]
+  · by_cases h2 : slot = slot2
+    · simp [h2, h1]
+    · simp [h1, h2]
+```
+
+---
+
+## Proof Pattern Library
+
+### Authorization Checks
+
+```lean
+-- Pattern: Operation succeeds when authorized
+theorem authorized_succeeds (h : state.owner = sender) :
+    (operation sender).isSuccess = true := by
+  unfold operation onlyOwner require
+  simp [h]  -- Simplifies sender = owner check
+  -- Prove rest of operation
+```
+
+### Induction on Nat
+
+```lean
+-- Pattern: Structural induction
+theorem by_nat_induction : ∀ n : Nat, P n := by
+  intro n
+  induction n with
+  | zero =>
+      -- Base case: P 0
+      constructor
+      simp
+  | succ k ih =>
+      -- Inductive case: P k → P (k+1)
+      constructor
+      simp [ih]  -- Use inductive hypothesis
+```
+
+### Induction on Lists
+
+```lean
+-- Pattern: List induction
+theorem by_list_induction (xs : List α) : Q xs := by
+  induction xs with
+  | nil =>
+      -- Base case: Q []
+      simp [Q]
+  | cons head tail ih =>
+      -- Inductive case: Q tail → Q (head :: tail)
+      simp [Q, ih]
+```
+
+### Case Analysis
+
+```lean
+-- Pattern: Boolean case split
+theorem by_bool_cases (b : Bool) : R b := by
+  cases b
+  · -- Case: b = false
+    simp [R]
+  · -- Case: b = true
+    simp [R]
+```
+
+### Option Handling
+
+```lean
+-- Pattern: Option.isSome vs Option.get?
+theorem option_proof (opt : Option α) (h : opt.isSome) :
+    opt.get! = value := by
+  cases opt
+  · contradiction  -- opt = none contradicts h
+  · simp            -- opt = some x, prove x = value
+```
+
+---
+
+## Tactic Ordering
+
+**Wrong order** (doesn't work):
+```lean
+-- ❌ BAD: simp before unfold
+theorem bad_order : getValue state = value := by
+  simp [getStorage]  -- Too early, doesn't know getValue
+  unfold getValue    -- Too late
+```
+
+**Right order** (works):
+```lean
+-- ✅ GOOD: unfold before simp
+theorem good_order : getValue state = value := by
+  unfold getValue     -- First expose the definition
+  simp [getStorage]   -- Now simp can work with it
+```
+
+**General rule**: `unfold` → `simp` → `omega`
+
+---
+
+## Common Error Messages
+
+### Import Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| "unknown identifier 'Uint256'" | Missing import | `import DumbContracts.Core.Uint256` |
+| "unknown identifier 'Contract'" | Missing import | `import DumbContracts.Core` |
+| "unknown identifier 'ContractState'" | Missing import | `import DumbContracts.Core` |
+| "ambiguous identifier" | Multiple imports | Use fully qualified name |
+
+### Type Class Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| "failed to synthesize OfNat" | Missing numeric instance | Check type has OfNat instance |
+| "failed to synthesize Inhabited" | No default value | Provide explicit value |
+| "failed to synthesize DecidableEq" | Can't decide equality | Use `= true` or `= false` explicitly |
+
+### Proof Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| "unsolved goals" | Proof incomplete | Add sorry to see remaining goals |
+| "maximum recursion depth" | Infinite tactic loop | Add fuel or use different tactic |
+| "kernel type mismatch" | Proof term invalid | Check proof type matches theorem |
+| "deterministic timeout" | Proof too expensive | Simplify or add intermediate lemmas |
+
+---
+
+## Proof Performance
+
+### Slow Proofs (>10 seconds)
+
+**Problem**: Proof takes too long.
+
+**Diagnosis**: Expensive tactics on large terms.
+
+**Solution 1**: Cache intermediate results
+```lean
+-- ❌ SLOW: Recomputes expensive_lemma multiple times
+theorem slow_proof : ... := by
+  simp [expensive_lemma args]
+  rw [expensive_lemma args]
+  exact expensive_lemma args
+
+-- ✅ FAST: Compute once, reuse
+theorem fast_proof : ... := by
+  have h := expensive_lemma args  -- Compute once
+  simp [h]
+  rw [h]
+  exact h
+```
+
+**Solution 2**: Split into smaller lemmas
+```lean
+-- Instead of one giant proof
+theorem giant_proof : A ∧ B ∧ C ∧ D := by
+  constructor; [proof of A]
+  constructor; [proof of B]
+  constructor; [proof of C]
+  [proof of D]
+
+-- Split into pieces
+theorem prove_A : A := by [proof]
+theorem prove_B : B := by [proof]
+theorem prove_C : C := by [proof]
+theorem prove_D : D := by [proof]
+
+-- Combine quickly
+theorem fast_proof : A ∧ B ∧ C ∧ D := ⟨prove_A, prove_B, prove_C, prove_D⟩
+```
+
+**Solution 3**: Use rfl instead of simp
+```lean
+-- ❌ SLOW: simp does lots of work
+example : (a + 0) = a := by simp
+
+-- ✅ FAST: rfl is instant for definitional equality
+example : (a + 0) = a := rfl  -- Works if definitionally equal
+```
+
+---
+
+## Debugging Workflows
+
+### Workflow 1: Unknown Error
+
+1. **Read error message carefully** - Often points to exact issue
+2. **Use #check** on terms mentioned in error
+3. **Simplify** - Remove parts of proof until it works
+4. **Add sorry** - See remaining goals after partial proof
+5. **Search codebase** - Find similar proofs that worked
+
+### Workflow 2: Stuck on Goal
+
+1. **Inspect goal** - `trace "{goal}"` to see full state
+2. **Try tactics** systematically:
+   - `simp` (simplify)
+   - `unfold` (expand definitions)
+   - `rw` (rewrite with lemma)
+   - `omega` (arithmetic)
+3. **Split cases** - `by_cases` or `cases` to reduce complexity
+4. **Add assumptions** - Use `have` for intermediate steps
+
+### Workflow 3: Type Mismatch
+
+1. **Check both types** - `#check expected` and `#check actual`
+2. **Look for coercions** - May need `ofNat`, `.val`, etc.
+3. **Rewrite** - Use `rw [lemma]` to transform type
+4. **Convert** - Add explicit conversion functions
+
+---
+
+## Real Examples from DumbContracts
+
+### Example 1: SimpleStorage getValue
+
+**Goal**: Prove getValue returns stored value
+```lean
+theorem getValue_correct (state : ContractState) :
+    (getValue.run state).fst = state.storage valueSlot := by
+  unfold getValue Contract.run        -- Expand definitions
+  simp [getStorage, valueSlot]         -- Simplify storage access
+  -- Result: rfl (definitionally equal)
+```
+
+**Key insights**:
+- Unfold `getValue` first to expose `getStorage`
+- `simp` handles storage function application
+- Result is definitionally equal (rfl)
+
+### Example 2: Counter increment
+
+**Goal**: Prove increment adds 1
+```lean
+theorem increment_correct (state : ContractState) :
+    let finalState := increment.runState state
+    finalState.storage countSlot = add (state.storage countSlot) 1 := by
+  unfold increment Contract.runState   -- Expand
+  simp [getStorage, setStorage, countSlot, add]  -- Simplify
+  -- Uses EVM modular arithmetic
+```
+
+**Key insights**:
+- Must account for modular arithmetic (add, not +)
+- Order: unfold → simp
+- Storage slot access needs simplification
+
+### Example 3: Ledger sum preservation
+
+**Goal**: Total balance unchanged by transfer
+```lean
+theorem transfer_preserves_sum (h : from ≠ to) :
+    sum balances' = sum balances := by
+  unfold transfer sum
+  rw [sum_update_twice]               -- Use helper lemma
+  simp [h]                            -- Simplify with h
+  omega                               -- Arithmetic
+```
+
+**Key insights**:
+- Need helper lemma `sum_update_twice`
+- Case distinction (from ≠ to) is critical
+- omega handles final arithmetic
+
+---
+
+## Getting Help
+
+### When to Ask for Help
+
+Try these first:
+1. ✅ Read this guide
+2. ✅ Search codebase for similar proofs
+3. ✅ Use diagnostic tools (#check, trace)
+4. ✅ Simplify to minimal failing example
+
+If still stuck:
+- **GitHub Discussions**: Post minimal example
+- **Issues**: If you found a bug or missing documentation
+- **Lean Zulip**: For general Lean questions
+
+### Minimal Example Template
+
+```lean
+-- Minimal failing example for help requests
+import DumbContracts.Core
+
+-- Context
+def myDefinition : Type := ...
+
+-- What I'm trying to prove
+theorem my_theorem : myProperty := by
+  unfold myDefinition
+  simp
+  -- ERROR: simp made no progress
+  sorry
+
+-- What I expected: ...
+-- What I got: ...
+```
+
+---
+
+## Advanced Debugging
+
+### Proof Term Inspection
+
+```lean
+-- See the proof term Lean generates
+#print my_theorem  -- Shows proof term
+
+-- Check if proof is what you expect
+example : ... := proof_term  -- Manually write proof term
+```
+
+### Tactic Tracing
+
+```lean
+-- Enable tactic tracing
+set_option trace.Meta.Tactic.simp true
+
+theorem my_theorem : ... := by
+  simp  -- Will show all simplification steps
+```
+
+### Goal State Logging
+
+```lean
+-- Log intermediate states
+theorem complex_proof : ... := by
+  trace "Initial goal: {goal}"
+  unfold definition1
+  trace "After unfold: {goal}"
+  simp
+  trace "After simp: {goal}"
+  omega
+```
+
+---
+
+## Summary: Quick Decision Tree
+
+**Proof fails?**
+→ Read error message
+
+**"unknown identifier"?**
+→ Check imports, spelling
+
+**"type mismatch"?**
+→ Use #check, add coercion
+
+**"simp made no progress"?**
+→ Add unfold first
+
+**"omega failed"?**
+→ Split cases with by_cases
+
+**Proof too slow?**
+→ Cache intermediate results with have
+
+**Still stuck?**
+→ Search for similar proofs, ask for help
+
+---
+
+## Additional Resources
+
+- **First Contract Tutorial**: [/guides/first-contract](/guides/first-contract) - Start here if new
+- **Code Comment Conventions**: [CONTRIBUTING.md](https://github.com/Th0rgal/dumbcontracts/blob/main/CONTRIBUTING.md) - Style guide
+- **Proof Structure**: [Compiler/Proofs/README.md](https://github.com/Th0rgal/dumbcontracts/blob/main/Compiler/Proofs/README.md) - Architecture
+- **Lean 4 Manual**: [https://lean-lang.org/lean4/doc/](https://lean-lang.org/lean4/doc/) - Language reference
+- **Lean Zulip**: [https://leanprover.zulipchat.com/](https://leanprover.zulipchat.com/) - Community chat
+
+---
+
+**Happy Proving! 🎉**
+
+Remember: Every expert was once stuck on "simp made no progress". You've got this!
