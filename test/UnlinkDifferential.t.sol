@@ -428,6 +428,113 @@ contract UnlinkDifferential is YulTestBase {
     }
 
     // ---------------------------------------------------------------
+    // Fuzz: deposit with random notes
+    // ---------------------------------------------------------------
+
+    function testFuzz_Deposit(uint256 npk, uint256 token, uint256 amount) public {
+        vm.assume(amount > 0);
+
+        UnlinkPool.Note[] memory notes = _makeNotes1(npk, token, amount);
+
+        solImpl.deposit(notes);
+        (bool ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.deposit, (notes)));
+        assertTrue(ok, "Yul deposit failed");
+
+        assertEq(solImpl.getMerkleRoot(), _yulGetRoot(), "Root mismatch");
+        assertEq(solImpl.getNextLeafIndex(), _yulGetIndex(), "Index mismatch");
+    }
+
+    function testFuzz_DepositThenTransact(
+        uint256 npk, uint256 token, uint256 amount,
+        uint256 nullifier, uint256 commitment
+    ) public {
+        vm.assume(amount > 0);
+
+        // Deposit
+        UnlinkPool.Note[] memory notes = _makeNotes1(npk, token, amount);
+        solImpl.deposit(notes);
+        (bool ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.deposit, (notes)));
+        assertTrue(ok);
+
+        uint256 root = solImpl.getMerkleRoot();
+
+        // Transact
+        uint256[] memory nulls = _u256Array1(nullifier);
+        uint256[] memory comms = _u256Array1(commitment);
+        UnlinkPool.Transaction memory txn = _makeTxn(root, nulls, comms, _zeroNote());
+
+        solImpl.transact(txn);
+        (ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.transact, (txn)));
+        assertTrue(ok, "Yul transact failed");
+
+        assertEq(solImpl.getMerkleRoot(), _yulGetRoot(), "Root mismatch");
+        assertEq(solImpl.getNextLeafIndex(), _yulGetIndex(), "Index mismatch");
+        assertEq(solImpl.isNullifierSpent(nullifier), _yulIsNullifierSpent(nullifier), "Nullifier mismatch");
+    }
+
+    function testFuzz_DoubleSpendReverts(
+        uint256 npk, uint256 token, uint256 amount,
+        uint256 nullifier, uint256 comm1, uint256 comm2
+    ) public {
+        vm.assume(amount > 0);
+
+        // Deposit
+        UnlinkPool.Note[] memory notes = _makeNotes1(npk, token, amount);
+        solImpl.deposit(notes);
+        (bool ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.deposit, (notes)));
+        assertTrue(ok);
+
+        // First transact
+        uint256 root = solImpl.getMerkleRoot();
+        UnlinkPool.Transaction memory txn1 = _makeTxn(
+            root, _u256Array1(nullifier), _u256Array1(comm1), _zeroNote()
+        );
+        solImpl.transact(txn1);
+        (ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.transact, (txn1)));
+        assertTrue(ok);
+
+        // Second transact with same nullifier should revert on both
+        uint256 newRoot = solImpl.getMerkleRoot();
+        UnlinkPool.Transaction memory txn2 = _makeTxn(
+            newRoot, _u256Array1(nullifier), _u256Array1(comm2), _zeroNote()
+        );
+
+        vm.expectRevert();
+        solImpl.transact(txn2);
+
+        (ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.transact, (txn2)));
+        assertFalse(ok, "Yul should revert on double spend");
+    }
+
+    function testFuzz_WithdrawalCoherence(
+        uint256 wNpk, uint256 wToken, uint256 wAmount,
+        uint256 nullifier
+    ) public {
+        vm.assume(wAmount > 0);
+
+        // Deposit to create a root
+        UnlinkPool.Note[] memory notes = _makeNotes1(1, 2, 3);
+        solImpl.deposit(notes);
+        (bool ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.deposit, (notes)));
+        assertTrue(ok);
+
+        uint256 root = solImpl.getMerkleRoot();
+        uint256 wHash = wNpk + wToken + wAmount;
+
+        // Valid withdrawal: last commitment = hash of withdrawal note
+        UnlinkPool.Note memory withdrawal = _makeNote(wNpk, wToken, wAmount);
+        UnlinkPool.Transaction memory txn = _makeTxn(
+            root, _u256Array1(nullifier), _u256Array1(wHash), withdrawal
+        );
+
+        solImpl.transact(txn);
+        (ok,) = yulImpl.call(abi.encodeCall(UnlinkPool.transact, (txn)));
+        assertTrue(ok, "Valid withdrawal should succeed");
+
+        assertEq(solImpl.getMerkleRoot(), _yulGetRoot(), "Root mismatch");
+    }
+
+    // ---------------------------------------------------------------
     // Yul view helpers
     // ---------------------------------------------------------------
 
