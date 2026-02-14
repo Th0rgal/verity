@@ -255,25 +255,7 @@ case neg => -- proof when h is false
 
 ## Testing and Validation
 
-### Build Commands
-
-```bash
-# Build specific contract proofs
-lake build DumbContracts.Specs.SimpleStorage.Proofs
-lake build DumbContracts.Specs.Counter.Proofs
-lake build DumbContracts.Specs.SafeCounter.Proofs
-lake build DumbContracts.Specs.Owned.Proofs
-lake build DumbContracts.Specs.OwnedCounter.Proofs
-lake build DumbContracts.Specs.Ledger.Proofs
-lake build DumbContracts.Specs.SimpleToken.Proofs
-
-# Build infrastructure
-lake build DumbContracts.Proofs.Stdlib.Automation
-lake build DumbContracts.Proofs.Stdlib.SpecInterpreter
-
-# Build everything
-lake build
-```
+See the [Quick Start](#quick-start) section for build commands. To build everything at once, use `lake build`.
 
 ### Expected Warnings
 
