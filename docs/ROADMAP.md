@@ -40,13 +40,13 @@
 
 | # | Property | Description |
 |---|----------|-------------|
-| 1 | `mint_sum_equation` | Mint increases total |
-| 2 | `burn_sum_equation` | Burn decreases total |
-| 3 | `transfer_sum_preservation` | Transfer preserves total |
-| 4 | `totalSupply_equals_sum` | Supply = sum of balances |
-| 5 | `mint_increases_supply` | Mint increases supply |
-| 6 | `burn_decreases_supply` | Burn decreases supply |
-| 7 | `transfer_preserves_supply` | Transfer preserves supply |
+| 1 | `Spec_deposit_sum_equation` | Deposit increases total by amount |
+| 2 | `Spec_withdraw_sum_equation` | Withdraw decreases total by amount |
+| 3 | `Spec_transfer_sum_preservation` | Transfer preserves total |
+| 4 | `Spec_deposit_sum_singleton_sender` | Singleton set deposit property |
+| 5 | `Spec_withdraw_sum_singleton_sender` | Singleton set withdraw property |
+| 6 | `Spec_transfer_sum_preserved_unique` | Transfer with unique addresses preserves sum |
+| 7 | `Spec_deposit_withdraw_sum_cancel` | Deposit then withdraw cancels out |
 
 ---
 
