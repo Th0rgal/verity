@@ -12,6 +12,7 @@
 
 import DumbContracts.Examples.Unlink.UnlinkPool
 import DumbContracts.Specs.Unlink.Spec
+import DumbContracts.Specs.Unlink.Arithmetic
 import DumbContracts.Proofs.Stdlib.SpecInterpreter
 
 namespace DumbContracts.Specs.Unlink.Proofs
@@ -78,7 +79,8 @@ theorem impl_leaf_index_increases
   -- Need to show: s'.nextLeafIndex > s.nextLeafIndex
   -- Given: s'.nextLeafIndex = s.nextLeafIndex + notes.length
   -- And: notes.length > 0
-  sorry -- Needs Uint256 arithmetic lemmas
+  -- Assume no overflow (realistic for contract operation)
+  sorry -- Still needs overflow assumption to be complete
 
 /-! ## Helper Lemmas -/
 
@@ -153,15 +155,17 @@ theorem historical_root_validity_holds :
 -- **Why it matters**: Proves deposits are actually recorded, not forgotten
 theorem deposit_increases_leaves_holds
     (notes : List Note)
-    (s s' : ContractState) :
+    (s s' : ContractState)
+    (h_no_overflow : (nextLeafIndex s).val + notes.length < Uint256.modulus) :
     deposit_increases_leaves notes s s' := by
   unfold deposit_increases_leaves
   intro h_deposit h_nonempty
   -- From deposit_spec: nextLeafIndex s' = nextLeafIndex s + notes.length
   have h_eq : nextLeafIndex s' = nextLeafIndex s + notes.length := h_deposit.right.right.left
   -- Need to show: nextLeafIndex s' > nextLeafIndex s
-  -- This follows from h_eq and h_nonempty, but needs Uint256 arithmetic
-  sorry -- Needs: a + n > a when n > 0
+  -- This follows from h_eq and h_nonempty using our arithmetic lemmas
+  rw [h_eq]
+  exact add_length_gt notes h_nonempty h_no_overflow
 
 -- Theorem: No double spend property holds
 -- **User-friendly**: "Once you spend a note, you can never spend it again"
