@@ -5,12 +5,14 @@ on:
     branches: [ main ]
     paths:
       - 'Compiler/Selectors.lean'
-      - 'examples/solidity/*.sol'
+      - 'scripts/validate_selectors.py'
+      - 'scripts/keccak256.py'
       - '.github/workflows/verify-selectors.yml'
   pull_request:
     paths:
       - 'Compiler/Selectors.lean'
-      - 'examples/solidity/*.sol'
+      - 'scripts/validate_selectors.py'
+      - 'scripts/keccak256.py'
       - '.github/workflows/verify-selectors.yml'
 
 jobs:
@@ -19,62 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          version: nightly
+          python-version: '3.11'
 
-      - name: Extract selectors from solc
-        id: solc_selectors
-        run: |
-          cd examples/solidity
-
-          # Generate function hashes for all contracts
-          echo "## Solc Function Hashes" > /tmp/solc_hashes.txt
-          for file in *.sol; do
-            contract=$(basename "$file" .sol)
-            echo "### $contract" >> /tmp/solc_hashes.txt
-            forge inspect "$contract" methods >> /tmp/solc_hashes.txt 2>/dev/null || true
-          done
-
-          cat /tmp/solc_hashes.txt
-
-      - name: Extract selectors from Lean
-        id: lean_selectors
-        run: |
-          # Extract selector definitions from Lean
-          echo "## Lean Selectors" > /tmp/lean_selectors.txt
-
-          grep -E "def \w+_selector.*keccak256_first_4_bytes" Compiler/Selectors.lean | \
-            sed 's/def \(\w\+\)_selector.*keccak256_first_4_bytes "\([^"]*\)".*/\1: \2/' \
-            >> /tmp/lean_selectors.txt || true
-
-          cat /tmp/lean_selectors.txt
-
-      - name: Compare selectors
-        run: |
-          echo "Comparing Lean selectors against solc output..."
-          echo ""
-          echo "This is a basic validation that selectors are defined."
-          echo "Full validation requires parsing JSON output and computing hashes."
-          echo ""
-          echo "Expected selectors from Lean:"
-          grep -E "def \w+_selector" Compiler/Selectors.lean || true
-          echo ""
-          echo "Known selectors (for manual verification):"
-          echo "  transfer(address,uint256): 0xa9059cbb"
-          echo "  approve(address,uint256): 0x095ea7b3"
-          echo "  balanceOf(address): 0x70a08231"
-          echo "  increment(): 0xd09de08a"
-          echo "  get(): 0x6d4ce63c"
-          echo "  set(uint256): 0x60fe47b1"
-          echo ""
-          echo "✅ Selector definitions found in Lean code"
-          echo "⚠️  Full hash validation to be implemented"
-
-      - name: Validation complete
-        run: |
-          echo "Selector validation workflow executed successfully"
-          echo ""
-          echo "Note: This is Phase 1 validation (structure check)"
-          echo "Phase 2 will add actual hash comparison"
+      - name: Validate function selectors
+        run: python3 scripts/validate_selectors.py
