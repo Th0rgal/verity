@@ -139,6 +139,33 @@ def execIRStmtsFuel (fuel : Nat) (state : IRState) (stmts : List YulStmt) : IREx
           | .stop s => .stop s
           | .revert s => .revert s
 
+def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initialState : IRState) :
+    IRResult :=
+  let stateWithParams := fn.params.zip args |>.foldl
+    (fun s (p, v) => s.setVar p.name v)
+    initialState
+  match execIRStmtsFuel fuel stateWithParams fn.body with
+  | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := s.mappings }
+  | .return v s =>
+      { success := true
+        returnValue := some v
+        finalStorage := s.storage
+        finalMappings := s.mappings }
+  | .stop s =>
+      { success := true
+        returnValue := none
+        finalStorage := s.storage
+        finalMappings := s.mappings }
+  | .revert s =>
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := initialState.mappings }
+
 
 /-! ## Generic Sequence Equivalence
 
