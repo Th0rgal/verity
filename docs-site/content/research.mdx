@@ -238,64 +238,28 @@ DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
   forge test --match-contract Differential
 ```
 
-**Structured Next Steps (A–G)**:
+**Remaining Work**:
 
-**A. Finish Layer 2 (ContractSpec → IR)**:
-- ✅ SimpleStorage + Counter preservation proofs are pinned and compiling.
-- ✅ Generalized preservation proofs now cover Owned, OwnedCounter, SafeCounter, Ledger, and SimpleToken.
-- ✅ Conversion relations for mappings + address types are exercised in the full suite of Layer 2 proofs.
-- ✅ Removed the exploratory `StoreProofAttempt.lean` once the real proof path was in place.
-- **Done when**: each contract has a Layer 2 preservation theorem that compiles in Lean (met).
+**A. Scale Differential Testing**:
+- Centralize the "random run" entrypoint so each harness can opt into the same seed/count knobs.
+- Add adversarial patterns: boundary overflows, more edge cases.
+- **Done when**: random harness setup is shared and parameterized across all 7 contracts.
 
-**B. Finish Layer 3 (IR → Yul)**:
-- **Layer 3 proof equivalence (IR → Yul) — generic path**
-  - Instruction‑level IR↔Yul equivalence lemmas.
-  - ✅ Fuel‑unfolding lemmas for Yul statement lists (`execYulStmtsFuel_nil/cons`) added in `Compiler/Proofs/YulGeneration/Equivalence.lean`.
-  - ✅ Fuel‑unfolding lemmas for IR statement lists (`execIRStmtsFuel_nil/cons`) added in `Compiler/Proofs/YulGeneration/Equivalence.lean`.
-  - ✅ `execIRStmts` marked reducible for proof unfolding in `Compiler/Proofs/YulGeneration/Equivalence.lean`.
-  - ✅ Fuel‑adequacy goals defined (`execIRStmtsFuel_adequate_goal`, `execIRFunctionFuel_adequate_goal`).
-  - Sequence/program equivalence lemma (composition + state mapping) still needs a clean non‑fuel bridge on the IR side (fuel adequacy). Current blocker: `execIRStmts` unfolding/adequacy proof still open.
-  - Generic function equivalence theorem (parameterized by function + compiler) still needs a non‑fuel bridge.
-  - Contract‑level equivalence is then purely mechanical instantiation (no new proof ideas).
-  - **Done when**: instruction‑level lemmas exist, the generic function theorem compiles, and contracts are instantiated mechanically without new proof ideas.
+**B. Property Extraction (Proofs → Tests)**:
+- Reduce exclusions. Add property tests contract‑by‑contract. Keep coverage script green.
 
-**C. Scale Differential Testing**:
-- Centralize the “random run” entrypoint so each harness can opt into the same seed/count knobs (avoid copy‑paste and drift).
-- Increase transaction counts from 100 to 10,000+ per contract (keep a quick-run default, allow override for CI).
-- Add adversarial patterns: self-transfer (done), max uint values (done for SimpleStorage/Ledger/SimpleToken), boundary overflows.
-- **Done when**: CI runs a 10,000+ tx suite per contract, and the random harness setup is shared and parameterized across all 7 contracts.
+**C. Address Known Limitations (Core Modeling)**:
+- Full "supply = sum balances" proof over a finite address set (PR #47 foundation, PR #51 infrastructure).
+- Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`).
 
-**D. Property Extraction (Proofs → Tests)**:
-- **Remaining**: Reduce 172 exclusions. Add property tests contract‑by‑contract and decide if any Stdlib proofs are “proof‑only.” Keep coverage script green.
+**D. Reduce Remaining Trust Assumptions**:
+- Prove selector hashes in Lean (not just CI fixture checks).
+- Add a minimal Yul↔EVM semantic bridge lemma or mechanized model.
 
-**E. Address Known Limitations (Core Modeling)**:
-- ✅ SimpleToken transfer preservation lemmas no longer require `sender ≠ to`, aligning proofs with self-transfer no-op behavior.
-- **Remaining**: Full “supply = sum balances” proof over a finite address set plus tests. Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`). Add explicit self‑transfer property tests across affected contracts.
+**E. Documentation**:
+- Add the 1‑page "add a contract" guide and keep roadmap updates in sync with each milestone.
 
-**F. Reduce Remaining Trust Assumptions**:
-- **Remaining**: Prove selector hashes in Lean (not just CI fixture checks). Add a minimal Yul↔EVM semantic bridge lemma or mechanized model.
-
-**G. Documentation (Optional But Valuable)**:
-- **Remaining**: Add the 1‑page “add a contract” guide and keep roadmap updates in sync with each milestone.
-
-**Trust Model**: 100 random tests provide probabilistic confidence. Formal verification (Item 4) would provide mathematical certainty.
-
-### Future: Property Extraction & Compiler Verification
-
-**Property Extraction** (Roadmap Item 3):
-- Parse 252 proven theorems from EDSL files
-- Generate Foundry property tests from theorem statements
-- Example: `transfer_total_supply` theorem → Foundry invariant test
-- Result: 252 theorems verified in both proofs and on-chain tests
-
-**Compiler Verification** (Roadmap Item 4, long-term):
-- Formalize EVM execution in Lean
-- Prove: `∀ contract state tx, evm_exec (compile contract) state tx = edsl_exec contract state tx`
-- Eliminates all trust assumptions in the compilation pipeline
-
-## What Could Come Next
-
-See **Structured Next Steps (A–G)** above for the single source of truth. The older “next steps” list has been removed to avoid drift and duplication.
+See [`docs/ROADMAP.md`](/docs/ROADMAP.md) for the full roadmap and timeline.
 
 ## Detailed Logs
 
