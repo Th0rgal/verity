@@ -24,15 +24,14 @@ DumbContracts has achieved **97% completion** toward production-ready, fully ver
 
 Here's what stands between current state (97%) and full completion (100%):
 
-### 🟡 **Layer 3 Final Touches** (97% Complete!)
-**What**: Complete the final 3% - universal statement dispatcher + finish conditional proof
-**Status**: ✅ **Infrastructure 100% complete!** Composition theorem exists, 7/8 proofs done
-**Impact**: 97% (current) → 100% (3-6 hours of work)
-**Remaining**: Universal dispatcher pattern matching (2-4h) + apply to conditional (1-2h)
-**Effort**: 1-2 days remaining (finish conditional + composition)
-**Parallelizable**: All individual proofs done!
+### ✅ **Layer 3 COMPLETE!** (100%)
+**What**: All statement-level equivalence proofs proven
+**Status**: ✅ **100% COMPLETE!** All 8 statement proofs + universal dispatcher done!
+**Impact**: End-to-end IR → Yul verification fully proven
+**Completed**: Universal dispatcher (PR #42) with mutual recursion
+**Achievement**: Zero sorry statements in Layer 3!
 
-🎉 **MASSIVE PROGRESS**: 7/8 statement equivalence proofs COMPLETE!
+🎉 **MILESTONE REACHED**: Layer 3 (IR → Yul) verification 100% complete!
 
 | # | Statement | Difficulty | Effort | Status | Notes |
 |---|-----------|------------|--------|--------|-------|
@@ -42,22 +41,26 @@ Here's what stands between current state (97%) and full completion (100%):
 | 3 | Storage Store | Low | 1h | ✅ **PROVEN** | Issue #30 closed |
 | 4 | Mapping Load | Medium | 2-4h | ✅ **PROVEN** | Issue #31 closed |
 | 5 | Mapping Store | Medium | 2-4h | ✅ **PROVEN** | Issue #32 closed |
-| 6 | Conditional (if) | Medium-High | 4-8h | 🟡 **PARTIAL** | Issue #33 (1 sorry) |
+| 6 | Conditional (if) | Medium-High | 4-8h | ✅ **PROVEN** | Issue #33 closed (PR #42) |
 | 7 | Return | Low | 1-2h | ✅ **PROVEN** | Issue #34 closed |
 | 8 | Revert | Low-Medium | 2-3h | ✅ **PROVEN** | Issue #35 closed |
-| 9 | **Composition** | High | 1-2d | ⚪ TODO | Unblocks #6 |
+| 9 | **Composition** | High | 1-2d | ✅ **PROVEN** | Issue #37 closed (PR #42) |
 
 ### 🟡 **Trust Reduction** (3 Components)
 **What**: Eliminate or verify all trusted components
-**Status**: 0/3 complete
+**Status**: 1/3 complete (Phase 1)
 **Impact**: Achieves zero-trust end-to-end verification
 **Effort**: 1-4 months total
 
 | # | Component | Approach | Effort | Status |
 |---|-----------|----------|--------|--------|
-| 1 | Function Selectors | keccak256 axiom + CI | 1-2w | ⚪ TODO |
+| 1 | Function Selectors | keccak256 axiom + CI | 1-2w | 🟡 **PHASE 1 DONE** (PR #43) |
 | 2 | Yul→EVM Bridge | Integrate KEVM | 1-3m | ⚪ TODO |
 | 3 | EVM Semantics | Strong testing + docs | Ongoing | ⚪ TODO |
+
+**Function Selectors Progress:**
+- ✅ Phase 1: Axiom + structure validation (Issue #38, PR #43)
+- ⚪ Phase 2: Full hash comparison in CI
 
 ### 🟢 **Ledger Sum Properties** (7 Properties)
 **What**: Prove total supply equals sum of all balances
