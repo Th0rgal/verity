@@ -26,22 +26,25 @@ Here's what stands between current state (92%) and full completion (100%):
 
 ### 🔴 **Layer 3 Statement Proofs** (THE Critical Path)
 **What**: Prove 9 theorems showing IR → Yul compilation correctness
-**Status**: 0/9 complete (8 statement proofs + 1 composition)
+**Status**: 0/10 complete (1 prerequisite + 8 statement proofs + 1 composition)
 **Impact**: 92% → 98% (statements) → 100% (composition)
-**Effort**: 2-4 weeks
-**Parallelizable**: Yes! All 8 statement proofs are independent
+**Effort**: 3-5 weeks (1 week prerequisite + 2-4 weeks proofs)
+**Parallelizable**: Yes! All 8 statement proofs are independent (after prerequisite)
 
-| # | Statement | Difficulty | Effort | Status |
-|---|-----------|------------|--------|--------|
-| 1 | Variable Assignment | Low | 1h | ⚪ TODO |
-| 2 | Storage Load | Low | 1h | ⚪ TODO |
-| 3 | Storage Store | Low | 1h | ⚪ TODO |
-| 4 | Mapping Load | Medium | 2-4h | ⚪ TODO |
-| 5 | Mapping Store | Medium | 2-4h | ⚪ TODO |
-| 6 | Conditional (if) | Medium-High | 4-8h | ⚪ TODO |
-| 7 | Return | Low | 1-2h | ⚪ TODO |
-| 8 | Revert | Low-Medium | 2-3h | ⚪ TODO |
-| 9 | **Composition** | High | 1-2d | ⚪ TODO |
+⚠️ **PREREQUISITE**: Add `execIRStmtFuel` before statement proofs can begin
+
+| # | Statement | Difficulty | Effort | Status | Blocker |
+|---|-----------|------------|--------|--------|---------|
+| 0 | **Add execIRStmtFuel** | **Medium** | **1w** | ⚪ **TODO** | **BLOCKS ALL** |
+| 1 | Variable Assignment | Low | 1h | ⚪ TODO | Needs #0 |
+| 2 | Storage Load | Low | 1h | ⚪ TODO | Needs #0 |
+| 3 | Storage Store | Low | 1h | ⚪ TODO | Needs #0 |
+| 4 | Mapping Load | Medium | 2-4h | ⚪ TODO | Needs #0 |
+| 5 | Mapping Store | Medium | 2-4h | ⚪ TODO | Needs #0 |
+| 6 | Conditional (if) | Medium-High | 4-8h | ⚪ TODO | Needs #0 |
+| 7 | Return | Low | 1-2h | ⚪ TODO | Needs #0 |
+| 8 | Revert | Low-Medium | 2-3h | ⚪ TODO | Needs #0 |
+| 9 | **Composition** | High | 1-2d | ⚪ TODO | Needs #1-8 |
 
 ### 🟡 **Trust Reduction** (3 Components)
 **What**: Eliminate or verify all trusted components
@@ -93,9 +96,62 @@ Complete the final verification layer proving **IR → Yul correctness**. This i
 - Fuel-parametric execution models
 - Smoke tests demonstrating equivalence for specific cases
 
-**🔄 Pending Work**: 9 theorems remaining
-- **8 statement-level equivalence proofs** (parallelizable, independent)
+**🔄 Pending Work**: 10 items remaining
+- **1 PREREQUISITE**: Add `execIRStmtFuel` (blocks all statement proofs)
+- **8 statement-level equivalence proofs** (parallelizable, independent, after prerequisite)
 - **1 composition theorem** (depends on all 8 statement proofs)
+
+### ⚠️ Prerequisite: Add `execIRStmtFuel`
+
+**Status**: ⚪ BLOCKED - Must be completed before any statement proofs
+
+**Problem**: Current theorem stubs cannot be proven because:
+- `execIRStmt` is marked `partial` in `IRInterpreter.lean`
+- Lean cannot reason about `partial` functions in proofs
+- Cannot unfold, case-split, or prove properties about them
+
+**Example of the issue**:
+```lean
+theorem assign_equiv :
+    execResultsAligned selector
+      (execIRStmt irState stmt)           -- ← partial (unprovable!)
+      (execYulStmtFuel fuel yulState stmt) -- ← total with fuel (provable)
+```
+
+**Solution**: Add fuel-parametric version of `execIRStmt`:
+
+```lean
+def execIRStmtFuel (fuel : Nat) (state : IRState) (stmt : YulStmt) : IRExecResult :=
+  match fuel, stmt with
+  | 0, _ => .revert state  -- Out of fuel
+  | Nat.succ fuel', .assign name value =>
+      match evalIRExpr state value with
+      | some v => .continue (state.setVar name v)
+      | none => .revert state
+  | Nat.succ fuel', .let_ name value =>
+      match evalIRExpr state value with
+      | some v => .continue (state.setVar name v)
+      | none => .revert state
+  -- ... (pattern for all statement types)
+```
+
+**Required Work**:
+1. Add `execIRStmtFuel` to `Compiler/Proofs/YulGeneration/Equivalence.lean`
+2. Mirror the structure of `execYulStmtFuel` from `Semantics.lean`
+3. Handle all statement cases: assign, let, expr (sstore/sload/etc), if, switch, block
+4. Update `execIRStmtsFuel` to call `execIRStmtFuel` instead of `execIRStmt`
+5. Prove adequacy theorem: `execIRStmtFuel (sizeOf stmt + 1) s stmt = execIRStmt s stmt`
+6. Update `StatementEquivalence.lean` theorem stubs to use `execIRStmtFuel`
+
+**Estimated Effort**: 1 week
+- Day 1-2: Implement `execIRStmtFuel` with all cases
+- Day 3-4: Update `execIRStmtsFuel` and test
+- Day 5: Prove adequacy theorem
+- Day 6-7: Update theorem stubs and verify compilation
+
+**Impact**: Unblocks all 8 statement proofs
+
+**Note**: This is why `StatementEquivalence.lean` currently has all `sorry` statements - the proof infrastructure wasn't complete yet!
 
 ### Required Theorems
 
