@@ -116,7 +116,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: generated-yul
-          path: .
+          path: compiler
 
       - name: Download difftest interpreter
         uses: actions/download-artifact@v4

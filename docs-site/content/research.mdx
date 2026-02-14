@@ -25,6 +25,7 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 Recent updates:
 - CI now installs `solc` with `sudo` to avoid permission failures on GitHub Actions runners.
+- CI now downloads generated Yul artifacts into `compiler/` so Foundry tests use fresh outputs.
 - Mapping slot encoding restores the defensive `baseSlot % evmModulus` normalization.
 - Documented that stmt‑level fuel adequacy remains blocked due to opaque `execIRStmts` (goal defined, proof not yet available).
 - Added a helper lemma that combines stmt‑level equivalence + function‑level adequacy into a non‑fuel function equivalence result.
