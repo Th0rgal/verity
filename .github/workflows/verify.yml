@@ -86,6 +86,12 @@ jobs:
       - name: Check property coverage
         run: python3 scripts/check_property_coverage.py
 
+      - name: Generate property coverage report
+        run: |
+          echo "## Property Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python3 scripts/report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY
+
       - name: Upload generated Yul
         uses: actions/upload-artifact@v4
         with:
