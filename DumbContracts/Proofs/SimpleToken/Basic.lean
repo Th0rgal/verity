@@ -247,6 +247,11 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
     h_balance', h_ne, beq_iff_eq]
+  -- Simplify the nested knownAddresses expression
+  funext slot
+  split
+  · rfl
+  · rfl
 
 theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount) :
