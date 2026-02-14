@@ -10,15 +10,31 @@ open Compiler.Proofs.IRGeneration
 
 /-! ## Layer 3: Statement-Level Equivalence
 
+⚠️ **WARNING: This file contains admitted axioms (`sorry`) and must NOT be imported
+into production code or other proof modules until all `sorry` statements are replaced
+with complete proofs. Importing this module would compromise verification soundness.**
+
+**Purpose**: This is a **scaffolding file** that provides theorem stubs for contributors
+to implement Layer 3 statement equivalence proofs. It is intended for:
+- Documenting the required proof structure
+- Providing a worked example for contributors to follow
+- Tracking progress on Layer 3 completion
+
+**Status**: Scaffolding only - all theorems have `sorry` placeholders.
+
+**DO NOT IMPORT** until all `sorry` statements are replaced with actual proofs.
+
+**Roadmap**: See docs/ROADMAP.md for context and contribution guide.
+
+---
+
+## Layer 3: Statement-Level Equivalence
+
 This file contains the statement-level equivalence proofs needed to complete
 Layer 3 (IR → Yul) verification.
 
 **Goal**: Prove that each IR statement type executes equivalently in Yul when
 states are aligned.
-
-**Status**: Scaffolding complete, statement proofs pending.
-
-**Roadmap**: See docs/ROADMAP.md for context and contribution guide.
 
 ### Required Theorems
 
