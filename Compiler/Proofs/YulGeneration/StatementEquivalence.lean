@@ -8,76 +8,17 @@ open Compiler
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
 
-/-! ## Layer 3: Statement-Level Equivalence
+/-! ## Layer 3: Statement-Level Equivalence (Complete)
 
-✅ **STATUS: COMPLETE** - All statement-level equivalence proofs are now implemented.
+Proves that each IR statement type executes equivalently in Yul when states
+are aligned. Uses `mutual` recursion between `conditional_equiv` and
+`all_stmts_equiv` to handle the circular dependency.
 
-**Purpose**: This file provides the complete Layer 3 statement equivalence proofs
-needed for IR → Yul verification. It contains:
-- Mutual recursion between `conditional_equiv` and `all_stmts_equiv`
-- Universal statement dispatcher for all YulStmt types
-- Complete pattern matching and proof delegation
-
-**Implementation**: Uses Lean's `mutual` keyword to resolve the circular dependency
-between conditional statements (which need to prove bodies equivalent) and the
-universal statement equivalence (which needs to handle conditionals).
-
-**Roadmap**: See docs/ROADMAP.md for context and contribution guide.
-
----
-
-## Layer 3: Statement-Level Equivalence
-
-This file contains the statement-level equivalence proofs needed to complete
-Layer 3 (IR → Yul) verification.
-
-**Goal**: Prove that each IR statement type executes equivalently in Yul when
-states are aligned.
-
-### Required Theorems
-
-For each IR/Yul statement type, we need to prove:
-
-```lean
-theorem stmt_equiv (selector : Nat) (fuel : Nat) (stmt : IRStmt)
-    (irState : IRState) (yulState : YulState) :
-    statesAligned selector irState yulState →
-    execResultsAligned selector
-      (execIRStmt irState stmt)
-      (execYulStmtFuel fuel yulState stmt)
-```
-
-This file organizes the proofs by statement type.
-
-### Composition Strategy
-
-All statement types are proven individually and compose via:
-
-```lean
-theorem execIRStmtsFuel_equiv_execYulStmtsFuel
-    (selector : Nat) (fuel : Nat) (stmts : List IRStmt)
-    (irState : IRState) (yulState : YulState)
-    (hstmt : ∀ stmt ∈ stmts, stmt_equiv selector fuel stmt irState yulState) :
-    statesAligned selector irState yulState →
-    execResultsAligned selector
-      (execIRStmts irState stmts)
-      (execYulStmtsFuel fuel yulState stmts)
-```
-
-This lifts statement-level equivalence to function body equivalence,
-completing the `hbody` hypothesis in `Preservation.lean`.
+Individual statement proofs compose via `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv`
+(Equivalence.lean) to complete the `hbody` hypothesis in `Preservation.lean`.
 -/
 
-/-! ### Example: Variable Assignment Equivalence (WORKED EXAMPLE)
-
-This section demonstrates the proof pattern for statement equivalence using
-the simplest case: variable assignment.
-
-**Statement**: `x := value`
-**IR Semantics**: Update `state.vars` with new binding
-**Yul Semantics**: Update `state.vars` with new binding
-**Proof Strategy**: Both semantics do the same thing, unfold and apply rfl
--/
+/-! ### Variable Assignment Equivalence -/
 
 /-! ## Helper Lemmas -/
 
@@ -136,18 +77,7 @@ theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### Storage Load Equivalence
-
-**Statement**: `x := sload(slot)`
-**IR Semantics**: Read from `state.storage` at `slot`
-**Yul Semantics**: Read from `state.storage` at `slot`
-**Proof Strategy**: Both semantics read the same storage location
-
-**Difficulty**: Low (similar to variable assignment)
-**Estimated Effort**: 30 minutes - 1 hour
-**Dependencies**: None
-**See Also**: Compiler/Proofs/YulGeneration/Semantics.lean:execYulStmtFuel
--/
+/-! ### Storage Load Equivalence -/
 
 theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
     (varName : String) (slotExpr : YulExpr)
@@ -173,18 +103,7 @@ theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### Storage Store Equivalence
-
-**Statement**: `sstore(slot, value)`
-**IR Semantics**: Write to `state.storage` at `slot`
-**Yul Semantics**: Write to `state.storage` at `slot`
-**Proof Strategy**: Both semantics write to the same storage location
-
-**Difficulty**: Low (similar to storage load)
-**Estimated Effort**: 30 minutes - 1 hour
-**Dependencies**: None
-**See Also**: Compiler/Proofs/YulGeneration/Semantics.lean:execYulStmtFuel
--/
+/-! ### Storage Store Equivalence -/
 
 theorem storageStore_equiv (selector : Nat) (fuel : Nat)
     (slotExpr valExpr : YulExpr)
@@ -207,18 +126,7 @@ theorem storageStore_equiv (selector : Nat) (fuel : Nat)
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
 
-/-! ### Mapping Load Equivalence
-
-**Statement**: `x := mappingLoad(base, key)`
-**IR Semantics**: Compute storage slot from `base` and `key`, read from mappings
-**Yul Semantics**: Compute storage slot from `base` and `key`, read from mappings
-**Proof Strategy**: Show slot computation matches, then storage access matches
-
-**Difficulty**: Medium (requires proving slot computation equivalence)
-**Estimated Effort**: 2-4 hours
-**Dependencies**: May need lemma about mapping slot calculation
-**See Also**: Compiler/Proofs/YulGeneration/Semantics.lean:computeMappingSlot
--/
+/-! ### Mapping Load Equivalence -/
 
 theorem mappingLoad_equiv (selector : Nat) (fuel : Nat)
     (varName : String) (baseExpr keyExpr : YulExpr)
@@ -246,18 +154,7 @@ theorem mappingLoad_equiv (selector : Nat) (fuel : Nat)
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### Mapping Store Equivalence
-
-**Statement**: `mappingStore(base, key, value)`
-**IR Semantics**: Compute storage slot, write to mappings
-**Yul Semantics**: Compute storage slot, write to mappings
-**Proof Strategy**: Show slot computation matches, then mapping write matches
-
-**Difficulty**: Medium (similar to mapping load)
-**Estimated Effort**: 2-4 hours
-**Dependencies**: May need lemma about mapping slot calculation
-**See Also**: Compiler/Proofs/YulGeneration/Semantics.lean:computeMappingSlot
--/
+/-! ### Mapping Store Equivalence -/
 
 theorem mappingStore_equiv (selector : Nat) (fuel : Nat)
     (baseExpr keyExpr valExpr : YulExpr)
@@ -280,22 +177,10 @@ theorem mappingStore_equiv (selector : Nat) (fuel : Nat)
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
 
-/-! ### Conditional (if) Equivalence and Universal Statement Equivalence
+/-! ### Conditional (if) and Universal Statement Equivalence
 
-These are proven mutually to resolve the circular dependency:
-- conditional_equiv needs all_stmts_equiv for the recursive body case
-- all_stmts_equiv needs conditional_equiv for the if_ case
-
-**Statement**: `if condition then thenBranch else elseBranch`
-**IR Semantics**: Evaluate condition, execute corresponding branch
-**Yul Semantics**: Evaluate condition, execute corresponding branch
-**Proof Strategy**: Case split on condition value, recursively apply to branches
-
-**Difficulty**: Medium-High (recursive structure, need induction on fuel)
-**Estimated Effort**: 4-8 hours
-**Dependencies**: Requires equivalence proofs for statements in branches
-**See Also**: Compiler/Proofs/YulGeneration/Semantics.lean:execYulStmtFuel
-**Note**: This is a recursive case - may need well-founded recursion or fuel lemmas
+Proven mutually: `conditional_equiv` needs `all_stmts_equiv` for the body,
+and `all_stmts_equiv` needs `conditional_equiv` for `if_` statements.
 -/
 
 mutual
@@ -337,20 +222,7 @@ theorem conditional_equiv (selector : Nat) (fuel : Nat)
               (fun sel f st irSt yulSt => all_stmts_equiv sel f st irSt yulSt)
               selector fuel' body irState (yulStateOfIR selector irState) rfl
 
-/-! ### Universal Statement Equivalence
-
-The composition theorem `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv`
-(Equivalence.lean:403) ALREADY EXISTS and is FULLY PROVEN.
-
-It requires a universal proof that ALL statements (of any type) are equivalent.
-This universal proof is constructed by dispatching to specific theorems based
-on statement type.
-
-**Status**: Implemented with mutual recursion
-**Difficulty**: Medium (pattern matching on statement types)
-**Estimated Effort**: 2-4 hours
-**Dependencies**: All 8 individual statement theorems (7 complete, 1 mutual with this)
--/
+/-! Universal dispatcher: dispatches to specific theorems based on statement type. -/
 
 theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
     execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState := by
@@ -489,18 +361,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 end
 
-/-! ### Return Statement Equivalence
-
-**Statement**: `return value`
-**IR Semantics**: Set return value, transition to `.return` state
-**Yul Semantics**: Set return value, transition to `.return` state
-**Proof Strategy**: Both semantics do the same thing
-
-**Difficulty**: Low (terminal statement, no recursion)
-**Estimated Effort**: 1-2 hours
-**Dependencies**: None
-**See Also**: Compiler/Proofs/YulGeneration/Equivalence.lean:execResultsAligned
--/
+/-! ### Return Statement Equivalence -/
 
 theorem return_equiv (selector : Nat) (fuel : Nat)
     (offsetExpr sizeExpr : YulExpr)
@@ -521,19 +382,7 @@ theorem return_equiv (selector : Nat) (fuel : Nat)
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
 
-/-! ### Revert Statement Equivalence
-
-**Statement**: `revert`
-**IR Semantics**: Transition to `.revert` state (rollback storage/mappings)
-**Yul Semantics**: Transition to `.revert` state (rollback storage/mappings)
-**Proof Strategy**: Both semantics revert with same rollback behavior
-
-**Difficulty**: Low-Medium (need to handle rollback semantics)
-**Estimated Effort**: 2-3 hours
-**Dependencies**: None
-**See Also**: Compiler/Proofs/YulGeneration/Equivalence.lean:execResultsAligned
-**Note**: May need lemmas about rollback state alignment
--/
+/-! ### Revert Statement Equivalence -/
 
 theorem revert_equiv (selector : Nat) (fuel : Nat)
     (offsetExpr sizeExpr : YulExpr)
