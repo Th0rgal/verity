@@ -35,12 +35,14 @@ theorem deposit_sum_equation (amount : Uint256) (s : ContractState)
     let s' := (deposit amount).runState s
     Spec_deposit_sum_equation amount s s' := by
   unfold Spec_deposit_sum_equation totalBalance
-  -- Strategy:
-  -- 1. Use deposit_increases_balance to get: s'.storageMap 0 s.sender = add (s.storageMap 0 s.sender) amount
-  -- 2. Determine if s.sender was in knownAddresses before deposit
-  -- 3. Apply sumBalances_insert_new or sumBalances_insert_existing accordingly
-  -- 4. Handle Uint256 arithmetic
-  sorry
+  unfold Contract.runState
+  -- We have:
+  -- - deposit_increases_balance shows balance increases
+  -- - knownAddresses is updated to include sender
+  -- The proof would show:
+  -- sumBalances 0 (s'.knownAddresses 0) s'.storageMap = add (sumBalances 0 (s.knownAddresses 0) s.storageMap) amount
+  -- This follows from the FiniteSet.sum properties
+  sorry  -- Requires completing sumBalances helper lemmas
 
 /-- Deposit on singleton set with only sender -/
 theorem deposit_sum_singleton_sender (amount : Uint256) (s : ContractState)
@@ -48,12 +50,14 @@ theorem deposit_sum_singleton_sender (amount : Uint256) (s : ContractState)
     let s' := (deposit amount).runState s
     Spec_deposit_sum_singleton_sender amount s s' := by
   unfold Spec_deposit_sum_singleton_sender totalBalance
+  intro h_only_sender
   -- Strategy:
-  -- 1. Use hypothesis that only sender has non-zero balance
-  -- 2. Show totalBalance s = s.storageMap 0 s.sender
-  -- 3. Show totalBalance s' = add (s.storageMap 0 s.sender) amount
-  -- 4. Apply deposit_increases_balance
-  sorry
+  -- 1. From h_only_sender: only sender has non-zero balance
+  -- 2. Show totalBalance s = s.storageMap 0 s.sender (sum over singleton)
+  -- 3. After deposit: totalBalance s' = add (s.storageMap 0 s.sender) amount
+  -- 4. Use deposit_increases_balance
+  -- This is a special case of deposit_sum_equation
+  sorry  -- Follows from deposit_sum_equation and singleton sum property
 
 /-! ## Withdraw Sum Properties -/
 
@@ -64,11 +68,14 @@ theorem withdraw_sum_equation (amount : Uint256) (s : ContractState)
     let s' := (withdraw amount).runState s
     Spec_withdraw_sum_equation amount s s' := by
   unfold Spec_withdraw_sum_equation totalBalance
-  -- Strategy:
-  -- 1. Use withdraw_decreases_balance to get: s'.storageMap 0 s.sender = sub (s.storageMap 0 s.sender) amount
-  -- 2. Show knownAddresses doesn't change (only value changes)
-  -- 3. Apply sumBalances properties to show sum decreases by amount
-  sorry
+  unfold Contract.runState
+  -- We have:
+  -- - withdraw_decreases_balance: s'.storageMap 0 s.sender = sub (s.storageMap 0 s.sender) amount
+  -- - knownAddresses includes sender (unchanged or already present)
+  -- The proof shows:
+  -- sumBalances 0 (s'.knownAddresses 0) s'.storageMap = sub (sumBalances 0 (s.knownAddresses 0) s.storageMap) amount
+  -- This follows from sumBalances_update_existing
+  sorry  -- Requires completing sumBalances helper lemmas
 
 /-- Withdraw on singleton set with only sender -/
 theorem withdraw_sum_singleton_sender (amount : Uint256) (s : ContractState)
@@ -77,12 +84,14 @@ theorem withdraw_sum_singleton_sender (amount : Uint256) (s : ContractState)
     let s' := (withdraw amount).runState s
     Spec_withdraw_sum_singleton_sender amount s s' := by
   unfold Spec_withdraw_sum_singleton_sender totalBalance
+  intro h_only_sender
   -- Strategy:
-  -- 1. Use hypothesis that only sender has non-zero balance
-  -- 2. Show totalBalance s = s.storageMap 0 s.sender
-  -- 3. Show totalBalance s' = sub (s.storageMap 0 s.sender) amount
-  -- 4. Apply withdraw_decreases_balance
-  sorry
+  -- 1. From h_only_sender: only sender has non-zero balance
+  -- 2. Show totalBalance s = s.storageMap 0 s.sender (sum over singleton)
+  -- 3. After withdraw: totalBalance s' = sub (s.storageMap 0 s.sender) amount
+  -- 4. Use withdraw_decreases_balance
+  -- This is a special case of withdraw_sum_equation
+  sorry  -- Follows from withdraw_sum_equation and singleton sum property
 
 /-! ## Transfer Sum Properties -/
 
@@ -93,17 +102,21 @@ theorem transfer_sum_preservation (to : Address) (amount : Uint256) (s : Contrac
     let s' := (transfer to amount).runState s
     Spec_transfer_sum_preservation to amount s s' := by
   unfold Spec_transfer_sum_preservation totalBalance
+  unfold Contract.runState
   -- Strategy:
-  -- Case 1: s.sender == to
-  --   Use transfer_self_preserves_balance
-  --   Show balances unchanged, so sum unchanged
-  -- Case 2: s.sender ≠ to
-  --   Use transfer_decreases_sender and transfer_increases_recipient
-  --   Show sum of (balance - amount) + (balance' + amount) = sum of balances
-  --   The amount cancels out in the total
   by_cases h_eq : s.sender = to
-  · sorry  -- Case: sender == to
-  · sorry  -- Case: sender ≠ to
+  · -- Case 1: sender == to
+    -- Use transfer_self_preserves_balance
+    -- Show balances unchanged, so sum unchanged
+    -- This is trivial: s'.storageMap = s.storageMap
+    sorry  -- Straightforward equality
+  · -- Case 2: sender ≠ to
+    -- Use transfer_decreases_sender: s'.storageMap 0 sender = sub (s.storageMap 0 sender) amount
+    -- Use transfer_increases_recipient: s'.storageMap 0 to = add (s.storageMap 0 to) amount
+    -- Show: sub balance_sender amount + add balance_to amount + rest = balance_sender + balance_to + rest
+    -- The amount added to recipient cancels the amount subtracted from sender
+    -- Requires: add (sub x amount) amount = x and Uint256 arithmetic lemmas
+    sorry  -- Requires sumBalances distributivity and Uint256 arithmetic
 
 /-- Transfer with unique addresses preserves total balance -/
 theorem transfer_sum_preserved_unique (to : Address) (amount : Uint256) (s : ContractState)
@@ -113,11 +126,13 @@ theorem transfer_sum_preserved_unique (to : Address) (amount : Uint256) (s : Con
     let s' := (transfer to amount).runState s
     Spec_transfer_sum_preserved_unique to amount s s' := by
   unfold Spec_transfer_sum_preserved_unique totalBalance
+  intro _
   -- Strategy:
-  -- Use h_ne explicitly (sender ≠ to)
-  -- Apply transfer_decreases_sender and transfer_increases_recipient
-  -- Show the arithmetic: (balance_sender - amount) + (balance_to + amount) = balance_sender + balance_to
-  sorry
+  -- This is essentially the same as transfer_sum_preservation with h_ne assumed
+  -- Use transfer_decreases_sender: s'.storageMap 0 sender = sub (s.storageMap 0 sender) amount
+  -- Use transfer_increases_recipient: s'.storageMap 0 to = add (s.storageMap 0 to) amount
+  -- Show: The amount subtracted from sender is added to recipient, preserving the sum
+  sorry  -- Follows directly from transfer_sum_preservation
 
 /-! ## Composition Properties -/
 
@@ -129,11 +144,13 @@ theorem deposit_withdraw_sum_cancel (amount : Uint256) (s : ContractState)
     let s'' := (withdraw amount).runState s'
     Spec_deposit_withdraw_sum_cancel amount s s' s'' := by
   unfold Spec_deposit_withdraw_sum_cancel
+  intro h_deposit h_withdraw
   -- Strategy:
-  -- 1. Use deposit_sum_equation to show: totalBalance s' = add (totalBalance s) amount
-  -- 2. Use withdraw_sum_equation to show: totalBalance s'' = sub (totalBalance s') amount
-  -- 3. Substitute and use Uint256 arithmetic: sub (add x amount) amount = x
-  -- 4. Apply sub_add_cancel theorem
-  sorry
+  -- 1. From h_deposit: totalBalance s' = add (totalBalance s) amount
+  -- 2. From h_withdraw: totalBalance s'' = sub (totalBalance s') amount
+  -- 3. Substitute: totalBalance s'' = sub (add (totalBalance s) amount) amount
+  -- 4. Use EVM.Uint256.sub_add_cancel: sub (add x amount) amount = x
+  rw [h_withdraw, h_deposit]
+  exact EVM.Uint256.sub_add_cancel (totalBalance s) amount
 
 end DumbContracts.Specs.Ledger.SumProofs
