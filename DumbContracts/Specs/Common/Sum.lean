@@ -27,8 +27,8 @@ theorem sumBalances_insert_existing {slot : Nat} {addr : Address} {addrs : Finit
     {balances : Nat → Address → Uint256}
     (h : addr ∈ addrs.addresses.elements) :
     sumBalances slot (addrs.insert addr) balances = sumBalances slot addrs balances := by
-  unfold sumBalances FiniteAddressSet.insert
-  sorry  -- Proof to be completed
+  unfold sumBalances FiniteAddressSet.insert FiniteSet.insert
+  simp [h]
 
 /-- Helper: sum increases when adding balance to new address -/
 theorem sumBalances_insert_new {slot : Nat} {addr : Address} {addrs : FiniteAddressSet}
@@ -38,7 +38,8 @@ theorem sumBalances_insert_new {slot : Nat} {addr : Address} {addrs : FiniteAddr
     sumBalances slot (addrs.insert addr) (fun s a =>
       if s == slot && a == addr then amount else balances s a) =
     add (sumBalances slot addrs balances) amount := by
-  unfold sumBalances FiniteAddressSet.insert
-  sorry  -- Proof to be completed
+  -- This proof requires additional lemmas about List.foldl and sum preservation
+  -- For Phase 2, we'll need to develop these supporting lemmas
+  sorry  -- Proof requires foldl lemmas - to be completed in Phase 2
 
 end DumbContracts.Specs.Common
