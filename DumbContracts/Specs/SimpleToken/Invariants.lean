@@ -6,6 +6,7 @@
 -/
 
 import DumbContracts.Core
+import DumbContracts.Specs.Common
 import DumbContracts.EVM.Uint256
 
 namespace DumbContracts.Specs.SimpleToken
@@ -68,11 +69,7 @@ def owner_addr_isolated (s s' : ContractState) (slot : Nat) : Prop :=
   slot ≠ 0 → s'.storageAddr slot = s.storageAddr slot
 
 /-- Context preservation (sender, contract address unchanged) -/
-def context_preserved (s s' : ContractState) : Prop :=
-  s'.sender = s.sender ∧
-  s'.thisAddress = s.thisAddress ∧
-  s'.msgValue = s.msgValue ∧
-  s'.blockTimestamp = s.blockTimestamp
+abbrev context_preserved := Specs.sameContext
 
 /-- State preserved except for specific modifications -/
 def state_preserved_except (s s' : ContractState)

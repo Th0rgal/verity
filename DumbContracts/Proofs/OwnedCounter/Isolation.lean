@@ -69,14 +69,14 @@ All successful operations preserve sender and thisAddress.
 /-- Constructor preserves context. -/
 theorem constructor_context_preserved (s : ContractState) (initialOwner : Address) :
   context_preserved s ((constructor initialOwner).run s).snd := by
-  unfold context_preserved
+  unfold context_preserved Specs.sameContext
   simp [constructor, setStorageAddr, owner, Contract.run, ContractResult.snd]
 
 /-- Increment preserves context (when authorized). -/
 theorem increment_context_preserved (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   context_preserved s (increment.run s).snd := by
-  unfold context_preserved
+  unfold context_preserved Specs.sameContext
   simp only [increment, onlyOwner, isOwner, owner, count,
     msgSender, getStorageAddr, getStorage, setStorage,
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
@@ -87,7 +87,7 @@ theorem increment_context_preserved (s : ContractState)
 theorem decrement_context_preserved (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   context_preserved s (decrement.run s).snd := by
-  unfold context_preserved
+  unfold context_preserved Specs.sameContext
   simp only [decrement, onlyOwner, isOwner, owner, count,
     msgSender, getStorageAddr, getStorage, setStorage,
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
@@ -98,7 +98,7 @@ theorem decrement_context_preserved (s : ContractState)
 theorem transferOwnership_context_preserved (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
   context_preserved s ((transferOwnership newOwner).run s).snd := by
-  unfold context_preserved
+  unfold context_preserved Specs.sameContext
   simp only [transferOwnership, onlyOwner, isOwner, owner,
     msgSender, getStorageAddr, setStorageAddr,
     DumbContracts.require, DumbContracts.pure, DumbContracts.bind, Bind.bind, Pure.pure,
@@ -108,13 +108,13 @@ theorem transferOwnership_context_preserved (s : ContractState) (newOwner : Addr
 /-- getCount preserves context. -/
 theorem getCount_context_preserved (s : ContractState) :
   context_preserved s (getCount.run s).snd := by
-  unfold context_preserved
+  unfold context_preserved Specs.sameContext
   simp [getCount, getStorage, count, Contract.run, ContractResult.snd]
 
 /-- getOwner preserves context. -/
 theorem getOwner_context_preserved (s : ContractState) :
   context_preserved s (getOwner.run s).snd := by
-  unfold context_preserved
+  unfold context_preserved Specs.sameContext
   simp [getOwner, getStorageAddr, owner, Contract.run, ContractResult.snd]
 
 /-! ## Mapping storage isolation

@@ -6,6 +6,7 @@
 -/
 
 import DumbContracts.Core
+import DumbContracts.Specs.Common
 import DumbContracts.Stdlib.Math
 
 namespace DumbContracts.Specs.SafeCounter
@@ -21,11 +22,7 @@ structure WellFormedState (s : ContractState) : Prop where
   contract_nonempty : s.thisAddress ≠ ""
 
 /-- Context preserved: operations don't change sender or contract address -/
-def context_preserved (s s' : ContractState) : Prop :=
-  s'.sender = s.sender ∧
-  s'.thisAddress = s.thisAddress ∧
-  s'.msgValue = s.msgValue ∧
-  s'.blockTimestamp = s.blockTimestamp
+abbrev context_preserved := Specs.sameContext
 
 /-- Storage isolation: operations on slot 0 don't affect other slots -/
 def storage_isolated (s s' : ContractState) : Prop :=

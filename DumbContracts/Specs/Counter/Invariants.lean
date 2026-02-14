@@ -5,6 +5,7 @@
 -/
 
 import DumbContracts.Core
+import DumbContracts.Specs.Common
 
 namespace DumbContracts.Specs.Counter
 
@@ -36,11 +37,7 @@ def map_storage_unchanged (s s' : ContractState) : Prop :=
   s'.storageMap = s.storageMap
 
 /-- Contract context preserved: Operations don't change sender or contract address -/
-def context_preserved (s s' : ContractState) : Prop :=
-  s'.sender = s.sender ∧
-  s'.thisAddress = s.thisAddress ∧
-  s'.msgValue = s.msgValue ∧
-  s'.blockTimestamp = s.blockTimestamp
+abbrev context_preserved := Specs.sameContext
 
 /-- Complete state preservation except for count:
     Everything except slot 0 remains unchanged

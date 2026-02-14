@@ -3,6 +3,7 @@
 -/
 
 import DumbContracts.Core
+import DumbContracts.Specs.Common
 
 namespace DumbContracts.Specs.Ledger
 
@@ -16,11 +17,7 @@ structure WellFormedState (s : ContractState) : Prop where
   contract_nonempty : s.thisAddress ≠ ""
 
 /-- Context preserved across operations -/
-def context_preserved (s s' : ContractState) : Prop :=
-  s'.sender = s.sender ∧
-  s'.thisAddress = s.thisAddress ∧
-  s'.msgValue = s.msgValue ∧
-  s'.blockTimestamp = s.blockTimestamp
+abbrev context_preserved := Specs.sameContext
 
 /-- Non-mapping storage unchanged by all Ledger operations -/
 def non_mapping_storage_unchanged (s s' : ContractState) : Prop :=

@@ -71,7 +71,7 @@ theorem getCount_preserves_context (s : ContractState) :
   let s' := ((getCount).run s).snd
   context_preserved s s' := by
   have h := getCount_preserves_state s
-  simp [h, context_preserved]
+  simp [h, Specs.sameContext]
 
 /-- getCount preserves well-formedness. -/
 theorem getCount_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :

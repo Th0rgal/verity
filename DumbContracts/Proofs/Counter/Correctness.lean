@@ -53,7 +53,7 @@ theorem getCount_state_preserved (s : ContractState) :
   state_preserved_except_count s s' := by
   have h := getCount_preserves_state s
   simp [h, state_preserved_except_count, storage_isolated, addr_storage_unchanged,
-    map_storage_unchanged, context_preserved]
+    map_storage_unchanged, Specs.sameContext]
 
 /-! ## Combined Spec Proofs
 
