@@ -92,17 +92,19 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 ## Example Contracts
 
-Seven contracts are implemented and verified:
+Nine contracts are implemented and verified:
 
 | Contract | Demonstrates |
 |----------|--------------|
 | SimpleStorage | Basic storage read/write, state isolation |
 | Counter | Arithmetic operations, composition |
+| SafeCounter | Overflow/underflow prevention with checked arithmetic |
 | Owned | Access control patterns, ownership transfer |
-| SimpleToken | Token minting/transfer, supply conservation, storage isolation |
 | OwnedCounter | Combining patterns (owned + counter) |
 | Ledger | Balance tracking, deposit/withdraw/transfer, conservation laws |
-| SafeCounter | Overflow/underflow prevention with checked arithmetic |
+| SimpleToken | Token minting/transfer, supply conservation, storage isolation |
+| ReentrancyExample | Reentrancy vulnerability vs safe withdrawal patterns |
+| CryptoHash | External cryptographic library linking |
 
 Plus a math standard library with safe arithmetic theorems (`safeMul`, `safeDiv`, etc.).
 

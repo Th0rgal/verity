@@ -9,6 +9,8 @@ on:
       - 'Compiler/**'
       - 'Compiler.lean'
       - 'examples/solidity/**'
+      - 'test/**'
+      - 'scripts/**'
       - 'lakefile.lean'
       - 'lean-toolchain'
   pull_request:
@@ -18,6 +20,8 @@ on:
       - 'Compiler/**'
       - 'Compiler.lean'
       - 'examples/solidity/**'
+      - 'test/**'
+      - 'scripts/**'
       - 'lakefile.lean'
       - 'lean-toolchain'
   workflow_dispatch:

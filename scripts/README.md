@@ -72,6 +72,25 @@ Properties are excluded in `test/property_exclusions.json` for valid reasons:
 - **Sum equations**: Properties requiring finite address set modeling (e.g., total supply invariants)
 - **Internal helpers**: Functions like `isOwner_*` that are tested implicitly through other operations
 
+## Validation Scripts
+
+These CI-critical scripts validate cross-layer consistency:
+
+- **`check_property_manifest_sync.py`** - Ensures `property_manifest.json` stays in sync with actual Lean theorems (detects added/removed theorems)
+- **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, and Compiler layers; detects intra-contract slot collisions
+- **`check_doc_counts.py`** - Validates theorem, axiom, category, test, and suite counts in README.md, llms.txt, and TRUST_ASSUMPTIONS.md against actual codebase data
+
+```bash
+# Run locally before submitting documentation changes
+python3 scripts/check_doc_counts.py
+
+# Run locally after modifying storage slots or adding contracts
+python3 scripts/check_storage_layout.py
+
+# Run locally after adding/removing theorems
+python3 scripts/check_property_manifest_sync.py
+```
+
 ## Selector & Yul Scripts
 
 - **`check_selectors.py`** - Verifies function selector hashes match between Lean and generated Yul
@@ -82,14 +101,19 @@ Properties are excluded in `test/property_exclusions.json` for valid reasons:
 
 - **`property_utils.py`** - Shared utilities for loading manifests, exclusions, and test coverage
 - **`keccak256.py`** - Keccak-256 hashing implementation for selector verification
+- **`extract_property_manifest.py`** - Extracts theorem names from Lean proofs to regenerate `property_manifest.json`
+- **`test_multiple_seeds.sh`** - Runs Foundry tests with multiple random seeds to detect flakiness
 
 ## CI Integration
 
-All verification scripts run automatically in GitHub Actions:
-1. Property coverage is checked on every PR
-2. Coverage reports are displayed in the workflow summary
-3. Selector hashes are verified against both Lean specs and solc output
-4. Generated Yul code must compile successfully
+All verification scripts run automatically in GitHub Actions (`verify.yml`):
+1. Property manifest sync check
+2. Property coverage validation
+3. Selector hash verification (against Lean specs and solc output)
+4. Yul compilation check
+5. Storage layout consistency validation
+6. Documentation count validation
+7. Coverage reports in workflow summary
 
 ## Adding New Property Tests
 
@@ -118,4 +142,4 @@ To add test coverage for a proven theorem:
   - Text/Markdown/JSON output formats
   - Per-contract and overall statistics
   - CI integration with GitHub workflow summaries
-  - Coverage improved from 53.1% (155/292) to 69.9% (207/296) — all testable properties covered
+  - Coverage improved from 53.1% (155/292) to 70% (207/296) — all testable properties covered
