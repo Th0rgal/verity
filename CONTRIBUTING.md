@@ -39,7 +39,15 @@ lake build  # Must pass
 # No new `sorry` without documentation
 # No new `axiom` without documenting in AXIOMS.md
 # Update docs/ROADMAP.md if architectural changes
+# If adding a new contract, run the checklist below
 ```
+
+**When adding a new contract**, also update:
+- `test/property_manifest.json` — Run `python3 scripts/extract_property_manifest.py`
+- `README.md` — Contracts table (theorem count and description)
+- `docs/VERIFICATION_STATUS.md` — Contract table and coverage stats
+- `docs-site/public/llms.txt` — Quick Facts and theorem breakdown table
+- `docs-site/content/verification.mdx` — Snapshot section
 
 ## Code Style
 

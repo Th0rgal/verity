@@ -137,6 +137,9 @@ jobs:
       - name: Check storage layout consistency
         run: python3 scripts/check_storage_layout.py
 
+      - name: Check documentation counts
+        run: python3 scripts/check_doc_counts.py
+
       - name: Generate property coverage report
         run: python3 scripts/report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY
 

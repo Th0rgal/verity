@@ -43,18 +43,30 @@ def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage 0
 ```
 
+## Contracts
+
+| Contract | Theorems | Description |
+|----------|----------|-------------|
+| SimpleStorage | 20 | Store/retrieve with roundtrip proof |
+| Counter | 28 | Increment/decrement with wrapping, composition proofs |
+| SafeCounter | 25 | Overflow/underflow revert proofs |
+| Owned | 22 | Access control and ownership transfer |
+| OwnedCounter | 45 | Cross-pattern composition, lockout proofs |
+| Ledger | 32 | Deposit/withdraw/transfer with balance conservation |
+| SimpleToken | 56 | Mint/transfer, supply conservation, storage isolation |
+| ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal (inline proofs) |
+| CryptoHash | — | External cryptographic library linking (no specs) |
+
+**Verification snapshot**: 296 theorems across 9 categories, 207 covered by property tests (70% coverage), 89 proof-only exclusions. 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/dumbcontracts/issues/65)). 311 Foundry tests across 30 test suites.
+
 ## What's Verified
 
-- **EDSL correctness**: Each example contract satisfies its specification in Lean.
-- **Spec semantics**: ContractSpec execution matches the intended DSL behavior.
-- **Compiler correctness**: IR generation and Yul codegen fully proven (Layers 1-3 complete).
-- **Automation**: Common proof patterns are captured in reusable lemmas.
+- **EDSL correctness**: Each contract satisfies its specification in Lean (Layer 1).
+- **Compiler correctness**: IR generation preserves ContractSpec semantics (Layer 2). Yul codegen preserves IR semantics (Layer 3).
+- **End-to-end pipeline**: EDSL → ContractSpec → IR → Yul fully verified with 5 axioms.
+- **Trust boundary**: Yul → EVM bytecode via solc (validated by 70k+ differential tests).
 
-See [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for detailed verification status and [`Compiler/Proofs/README.md`](Compiler/Proofs/README.md) for proof inventory.
-
-## Trust Model
-
-See [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for detailed trust assumptions and semantics definitions.
+See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for detailed trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
 
 ## Repository Structure
 
@@ -80,12 +92,19 @@ test/                                # Foundry tests (unit, property, differenti
 5. **Compiler Spec**: `Compiler/Specs.lean` — ContractSpec for code generation
 6. **Tests**: `test/Property<Name>.t.sol` + differential tests
 
+**Documentation Checklist:**
+After adding a contract, update these files to keep counts in sync:
+- `test/property_manifest.json` — Run `python3 scripts/extract_property_manifest.py`
+- Contracts table in this README
+- `docs/VERIFICATION_STATUS.md` — Contract table and coverage stats
+- `docs-site/public/llms.txt` — Quick Facts and theorem breakdown
+
 **Common Pitfalls:**
 - Storage slot mismatches between spec, EDSL, and compiler
 - Mapping conversions assuming simple slots instead of typed storage
 - Stale proofs when specs change
 
-**Reference**: Use `SimpleStorage` as the minimal end-to-end example.
+**Reference**: Use `SimpleStorage` as the minimal end-to-end example (full spec pipeline). Use `ReentrancyExample` as a reference for proof-only contracts (inline theorems, no compiler spec).
 
 **Infrastructure:**
 - **Proof automation**: `DumbContracts/Proofs/Stdlib/` (SpecInterpreter + automation lemmas)
