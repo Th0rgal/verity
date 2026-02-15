@@ -235,7 +235,8 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ### Short Term (1-2 months)
 
-- [ ] Add finite address set modeling for Ledger sum properties (Issue #39)
+- [x] Add finite address set modeling for Ledger sum properties (Issue #39, closed)
+- [ ] Complete Ledger sum property proofs — 12 `sorry` remaining (Issue #65)
 
 ### Medium Term (3-6 months)
 

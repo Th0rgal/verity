@@ -23,7 +23,7 @@ lake build                                           # Build everything
 lake build DumbContracts.Specs.SimpleStorage.Proofs  # Build one contract's proofs
 ```
 
-Expected warnings: `sorry` from `DumbContracts.Specs.Ledger.SumProofs` and `DumbContracts.Specs.Common.Sum` (WIP sum properties, Issue #39).
+Expected warnings: `sorry` from `DumbContracts.Specs.Ledger.SumProofs` and `DumbContracts.Specs.Common.Sum` (sum property proofs, Issue #65).
 
 ## Infrastructure
 

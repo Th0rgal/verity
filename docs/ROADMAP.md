@@ -10,7 +10,7 @@
 - ✅ **Layer 2 Complete**: All IR generation with preservation proofs (ContractSpec → IR)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
 - ✅ **Property Testing**: 70% coverage (207/296), all testable properties covered
-- ✅ **Differential Testing**: Production-ready with 10k+ tests
+- ✅ **Differential Testing**: Production-ready with 70k+ tests
 - ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
 - ✅ **External Linking**: Cryptographic library support (PR #49)
 
@@ -35,7 +35,7 @@
 
 ### 🟢 **Ledger Sum Properties** (7 Properties)
 **What**: Prove total supply equals sum of all balances
-**Status**: Infrastructure complete (PR #47, #51), proofs pending (Issue #39)
+**Status**: Infrastructure complete (PR #47, #51, Issue #39 closed), proofs pending (Issue #65)
 **Remaining**: Complete 7 theorem proofs (~10-14 days Lean expertise)
 
 | # | Property | Description |
@@ -114,7 +114,7 @@
 - ✅ Complete Layer 3 statement-level proofs (PR #42)
 - ✅ Function selector verification (PR #43, #46)
 - ✅ Ledger sum properties infrastructure (PR #47, #51)
-- 🔄 Complete sum property proofs (Issue #39 - requires Lean expertise)
+- 🔄 Complete sum property proofs (Issue #65 - requires Lean expertise)
 - 🔄 Yul → EVM bridge investigation
 
 **Success Metrics**:
