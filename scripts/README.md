@@ -79,6 +79,7 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_property_manifest_sync.py`** - Ensures `property_manifest.json` stays in sync with actual Lean theorems (detects added/removed theorems)
 - **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, and Compiler layers; detects intra-contract slot collisions
 - **`check_doc_counts.py`** - Validates theorem, axiom, category, test, and suite counts in README.md, llms.txt, and TRUST_ASSUMPTIONS.md against actual codebase data
+- **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
 
 ```bash
 # Run locally before submitting documentation changes
@@ -89,6 +90,9 @@ python3 scripts/check_storage_layout.py
 
 # Run locally after adding/removing theorems
 python3 scripts/check_property_manifest_sync.py
+
+# Run locally after adding a new contract
+python3 scripts/check_contract_structure.py
 ```
 
 ## Selector & Yul Scripts
@@ -96,6 +100,25 @@ python3 scripts/check_property_manifest_sync.py
 - **`check_selectors.py`** - Verifies function selector hashes match between Lean and generated Yul
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc
+
+## Contract Scaffold Generator
+
+- **`generate_contract.py`** - Generates all boilerplate files for a new contract
+
+```bash
+# Simple contract
+python3 scripts/generate_contract.py MyContract
+
+# Contract with typed fields and custom functions
+python3 scripts/generate_contract.py MyToken \
+  --fields "balances:mapping,totalSupply:uint256,owner:address" \
+  --functions "deposit,withdraw,getBalance"
+
+# Preview without creating files
+python3 scripts/generate_contract.py MyContract --dry-run
+```
+
+Creates 6 files: EDSL implementation, Spec, Invariants, Basic proofs, Correctness proofs, and Property tests. Prints instructions for manual steps (All.lean imports, Compiler/Specs.lean entry).
 
 ## Utilities
 
@@ -112,8 +135,9 @@ All verification scripts run automatically in GitHub Actions (`verify.yml`):
 3. Selector hash verification (against Lean specs and solc output)
 4. Yul compilation check
 5. Storage layout consistency validation
-6. Documentation count validation
-7. Coverage reports in workflow summary
+6. Contract file structure validation
+7. Documentation count validation
+8. Coverage reports in workflow summary
 
 ## Adding New Property Tests
 

@@ -6,6 +6,26 @@ title: Add a Contract
 
 This is the shortest reliable path to add a new contract end-to-end, anchored to SimpleStorage.
 
+## Quick Start: Scaffold Generator
+
+Use the scaffold generator to create all boilerplate files at once:
+
+```bash
+# Simple contract with one uint256 field
+python3 scripts/generate_contract.py MyContract
+
+# Contract with typed fields
+python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
+
+# Contract with custom functions
+python3 scripts/generate_contract.py MyToken --fields "balances:mapping" --functions "deposit,withdraw,getBalance"
+
+# Preview without creating files
+python3 scripts/generate_contract.py MyContract --dry-run
+```
+
+This creates 6 scaffold files (EDSL, Spec, Invariants, Basic proofs, Correctness proofs, Property tests) and prints the manual steps for `All.lean` and `Compiler/Specs.lean`.
+
 ## Checklist
 
 1. **Spec**
