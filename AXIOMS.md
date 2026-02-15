@@ -26,7 +26,7 @@ In these cases, we use axioms with strong soundness arguments.
 
 ### 1. `evalIRExpr_eq_evalYulExpr`
 
-**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:107`
+**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:43`
 
 **Statement**:
 ```lean
@@ -66,7 +66,7 @@ To eliminate this axiom, we would need to:
 
 ### 2. `evalIRExprs_eq_evalYulExprs`
 
-**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:111`
+**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:47`
 
 **Statement**:
 ```lean

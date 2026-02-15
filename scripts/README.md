@@ -78,7 +78,8 @@ These CI-critical scripts validate cross-layer consistency:
 
 - **`check_property_manifest_sync.py`** - Ensures `property_manifest.json` stays in sync with actual Lean theorems (detects added/removed theorems)
 - **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, and Compiler layers; detects intra-contract slot collisions
-- **`check_doc_counts.py`** - Validates theorem, axiom, category, test, and suite counts in README.md, llms.txt, and TRUST_ASSUMPTIONS.md against actual codebase data
+- **`check_doc_counts.py`** - Validates theorem, axiom, category, test, suite counts and core size in README.md, llms.txt, core.mdx, index.mdx, and TRUST_ASSUMPTIONS.md against actual codebase data
+- **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
 
 ```bash
@@ -136,7 +137,8 @@ All verification scripts run automatically in GitHub Actions (`verify.yml`):
 4. Yul compilation check
 5. Storage layout consistency validation
 6. Contract file structure validation
-7. Documentation count validation
+7. Axiom location validation
+8. Documentation count validation
 8. Coverage reports in workflow summary
 
 ## Adding New Property Tests

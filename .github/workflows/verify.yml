@@ -147,6 +147,9 @@ jobs:
       - name: Check contract file structure
         run: python3 scripts/check_contract_structure.py
 
+      - name: Check axiom locations in AXIOMS.md
+        run: python3 scripts/check_axiom_locations.py
+
       - name: Check documentation counts
         run: python3 scripts/check_doc_counts.py
 

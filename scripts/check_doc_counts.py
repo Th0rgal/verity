@@ -52,6 +52,12 @@ def get_test_counts() -> tuple[int, int]:
     return test_count, suite_count
 
 
+def get_core_line_count() -> int:
+    """Count lines in DumbContracts/Core.lean."""
+    core = ROOT / "DumbContracts" / "Core.lean"
+    return len(core.read_text(encoding="utf-8").splitlines())
+
+
 def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[str]:
     """Check a file for expected patterns. Returns list of errors."""
     if not path.exists():
@@ -73,6 +79,7 @@ def main() -> None:
     total_theorems, num_categories, _ = get_manifest_counts()
     axiom_count = get_axiom_count()
     test_count, suite_count = get_test_counts()
+    core_lines = get_core_line_count()
 
     errors: list[str] = []
 
@@ -166,6 +173,34 @@ def main() -> None:
                     "axiom count in verification chain",
                     re.compile(r"FULLY VERIFIED, (\d+) axioms"),
                     str(axiom_count),
+                ),
+            ],
+        )
+    )
+
+    # Check core size claims
+    core_mdx = ROOT / "docs-site" / "content" / "core.mdx"
+    errors.extend(
+        check_file(
+            core_mdx,
+            [
+                (
+                    "core line count",
+                    re.compile(r"the (\d+)-line core"),
+                    str(core_lines),
+                ),
+            ],
+        )
+    )
+    index_mdx = ROOT / "docs-site" / "content" / "index.mdx"
+    errors.extend(
+        check_file(
+            index_mdx,
+            [
+                (
+                    "core line count",
+                    re.compile(r"the (\d+)-line EDSL"),
+                    str(core_lines),
                 ),
             ],
         )
