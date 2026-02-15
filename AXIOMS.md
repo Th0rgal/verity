@@ -150,6 +150,62 @@ This axiom assumes that:
 
 ---
 
+### 4. `keccak256_first_4_bytes`
+
+**Location**: `Compiler/Selectors.lean:43`
+
+**Statement**:
+```lean
+axiom keccak256_first_4_bytes (sig : String) : Nat
+```
+
+**Purpose**: Computes the first 4 bytes (32 bits) of keccak256(sig) as a Solidity function selector.
+
+**Why Axiom?**:
+- Keccak256 cannot be implemented in Lean's pure logic (external cryptographic hash)
+- Function selectors require matching Solidity's selector convention
+- The hash is a primitive that must be assumed, not computed
+
+**Soundness Argument**:
+1. **CI validation**: `scripts/check_selectors.py` validates computed selectors against keccak256 specs
+2. **Fixture testing**: `scripts/check_selector_fixtures.py` cross-validates against `solc --hashes` output
+3. **Standard convention**: Matches Ethereum ABI specification exactly
+4. **Differential testing**: All compiled contracts are tested with correct selector dispatch
+
+**Risk**: **Low** - Validated by CI against both Python keccak256 and solc output.
+
+---
+
+### 5. `addressToNat_injective`
+
+**Location**: `DumbContracts/Proofs/Stdlib/Automation.lean:156`
+
+**Statement**:
+```lean
+axiom addressToNat_injective :
+    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
+```
+
+**Purpose**: Asserts that address-to-number conversion is injective (no two different addresses map to the same number).
+
+**Why Axiom?**:
+- Models Ethereum address encoding behavior
+- Full formalization of address string parsing/normalization is substantial
+- Used in proof automation for mapping operations
+
+**Soundness Argument**:
+1. **Ethereum model**: Addresses are 20-byte values with unique numeric encodings
+2. **Consistent with axiom #3**: Same property as `addressToNat_injective_valid` but without the `isValidAddress` precondition
+3. **Differential testing**: Validated by 70,000+ tests against EVM execution
+4. **Mathematical foundation**: String-to-number conversion on fixed-width encodings is inherently injective
+
+**Risk**: **Low** - Standard assumption about Ethereum address encoding.
+
+**Future Work**:
+- [ ] Unify with `addressToNat_injective_valid` (axiom #3) to eliminate redundancy
+
+---
+
 ## Axiom Usage Summary
 
 | Axiom | File | Risk | Validated By | Future Work |
@@ -157,8 +213,10 @@ This axiom assumes that:
 | `evalIRExpr_eq_evalYulExpr` | StatementEquivalence.lean | Low | Differential tests (70k+) | Fuel-based refactor |
 | `evalIRExprs_eq_evalYulExprs` | StatementEquivalence.lean | Low | Differential tests (70k+) | Prove from axiom #1 |
 | `addressToNat_injective_valid` | Conversions.lean | Low | Differential tests (70k+) | Formalize hex parsing |
+| `keccak256_first_4_bytes` | Selectors.lean | Low | CI selector checks + solc | Verified keccak FFI |
+| `addressToNat_injective` | Automation.lean | Low | Differential tests (70k+) | Unify with axiom #3 |
 
-**Total Axioms**: 3
+**Total Axioms**: 5
 **Production Blockers**: 0 (all have low risk with strong validation)
 
 ---
@@ -199,19 +257,19 @@ If you need to add an axiom:
 
 ```
 User Code (EDSL)
-    ↓ [Proven]
+    ↓ [Proven, 1 axiom: addressToNat_injective]
 ContractSpec
-    ↓ [Proven]
+    ↓ [Proven, 1 axiom: addressToNat_injective_valid]
 IR
-    ↓ [Proven, 3 axioms]
-Yul
+    ↓ [Proven, 2 axioms: evalIRExpr/Exprs equivalence]
+Yul (1 axiom: keccak256_first_4_bytes for selectors)
     ↓ [TRUSTED: solc compiler]
 EVM Bytecode
 ```
 
 **Trust Assumptions**:
 1. Lean 4 type checker is sound (foundational)
-2. The 3 axioms documented above are sound
+2. The 5 axioms documented above are sound
 3. Solidity compiler (solc) correctly compiles Yul → Bytecode
 
 See `TRUST_ASSUMPTIONS.md` (issue #68) for complete trust model.
@@ -221,14 +279,14 @@ See `TRUST_ASSUMPTIONS.md` (issue #68) for complete trust model.
 ## CI Validation
 
 The CI workflow (`.github/workflows/verify.yml`) automatically:
-- Detects all axioms in `Compiler/Proofs/` directory
+- Detects all axioms in `Compiler/` and `DumbContracts/` directories
 - Fails if any axiom is not documented in this file
 - Reports axiom count in build logs
 
 To check locally:
 ```bash
 # Find all axioms
-grep -r "axiom " Compiler/Proofs/ --include="*.lean" | grep -v "^--"
+grep -rn "^axiom " Compiler/ DumbContracts/ --include="*.lean"
 
 # Verify this file documents them all
 cat AXIOMS.md
@@ -236,6 +294,6 @@ cat AXIOMS.md
 
 ---
 
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-15
 **Next Review**: When new axioms added or existing ones eliminated
 **Maintainer**: Document all changes to axioms in git commit messages

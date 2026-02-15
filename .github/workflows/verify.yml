@@ -55,13 +55,13 @@ jobs:
 
       - name: Check for axioms in proof files
         run: |
-          echo "Checking for axioms in proof files..."
+          echo "Checking for axioms in Compiler/ and DumbContracts/..."
 
-          # Find all axioms (excluding commented lines)
-          grep -r "axiom " Compiler/Proofs/ --include="*.lean" | grep -v "^--" | grep -v "TRUST ASSUMPTION" | grep -v "This is an axiom" | grep -v "List version" | grep -v "Usage.*axiom" | tee axioms.txt || true
+          # Find all axioms across both directories (excluding commented lines)
+          grep -rn "^axiom " Compiler/ DumbContracts/ --include="*.lean" | tee axioms.txt || true
 
-          # Count axioms (look for actual axiom declarations)
-          AXIOM_COUNT=$(grep -c "^[^:]*:axiom " axioms.txt 2>/dev/null || echo 0)
+          # Count axioms
+          AXIOM_COUNT=$(wc -l < axioms.txt 2>/dev/null | tr -d ' ')
 
           echo "Found $AXIOM_COUNT axiom declaration(s)"
 
@@ -79,7 +79,7 @@ jobs:
             echo "Verifying all axioms are documented..."
 
             # Extract axiom names from grep output
-            AXIOM_NAMES=$(grep "^[^:]*:axiom " axioms.txt | sed 's/.*:axiom \([a-zA-Z0-9_]*\).*/\1/' | sort -u)
+            AXIOM_NAMES=$(sed 's/.*:axiom \([a-zA-Z0-9_]*\).*/\1/' axioms.txt | sort -u)
 
             UNDOCUMENTED=""
             for axiom_name in $AXIOM_NAMES; do
