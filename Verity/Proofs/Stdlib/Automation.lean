@@ -6,8 +6,7 @@
   This module provides proven lemmas for Contract monad operations,
   storage operations, and common proof patterns.
 
-  Status: Foundational lemmas - many require additional list reasoning.
-  These lemmas establish the patterns needed for filling in Layer 1 proofs.
+  Status: All lemmas fully proven with zero sorry.
 -/
 
 import Verity.Core
@@ -301,14 +300,6 @@ theorem address_beq_eq_true_iff_eq (a b : Address) :
   -- Address is String, so we can use String's BEq properties
   -- Use the decidable equality property
   simp only [beq_iff_eq]
-
-/-!
-## SpecStorage Lemmas
-
-Reusable facts about `SpecStorage` updates and lookups.
-These are the small list-reasoning primitives used throughout the
-spec-correctness proofs.
--/
 
 /-!
 ## Uint256 Arithmetic Lemmas
@@ -612,24 +603,6 @@ theorem add_one_preserves_order_iff_no_overflow (a : Verity.Core.Uint256) :
       rw [h_mod]
       omega
 
-/-!
-## Notes on Completing These Proofs
-
-To fill in the placeholders above, we need:
-
-1. **List Lemmas**: Lemmas about `List.lookup`, `List.filter`, and their interactions
-2. **SpecStorage Reasoning**: Understanding how the nested list structure works
-3. **Case Analysis**: Systematic case splitting on list operations
-
-The proven lemmas above (without placeholders) provide the foundation for:
-- Simple storage proofs (SimpleStorage, Counter)
-- Address storage proofs (Owned, OwnedCounter, SimpleToken)
-- Mapping proofs will require the SpecStorage lemmas to be completed
-
-Recommended approach:
-1. Start with SimpleStorage proofs using the basic storage lemmas
-2. Develop list reasoning library for SpecStorage
-3. Complete mapping-based contract proofs (Ledger, SimpleToken)
--/
+-- All lemmas in this file are fully proven with zero sorry.
 
 end Verity.Proofs.Stdlib.Automation

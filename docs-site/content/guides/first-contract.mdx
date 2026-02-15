@@ -8,7 +8,9 @@ description: Step-by-step tutorial for creating a verified smart contract in Ver
 **Time Required**: 2-3 hours for first contract
 **Prerequisites**: Basic familiarity with Lean 4 syntax and smart contract concepts
 
-This tutorial walks you through creating a complete verified smart contract from scratch. We'll build a simple `NameRegistry` contract that lets users register and look up names.
+This tutorial walks you through creating a complete verified smart contract from scratch. We'll build a **TipJar** contract — a simple balance ledger where users can deposit tips and check balances.
+
+> **Why TipJar?** It uses the core EDSL features (mappings, `msgSender`, `require`, arithmetic) while staying simple enough to prove fully on your first attempt.
 
 ---
 
@@ -25,41 +27,49 @@ Specification → Implementation → Proofs → Compilation → Testing
 - How to write formal specifications
 - How to implement contracts in the EDSL
 - How to prove correctness properties
-- How to test against compiled bytecode
+- How to compile and test against deployed bytecode
 
 ---
 
 ## Phase 1: Setup (15 minutes)
 
-### 1.1 Create Directory Structure
+### 1.1 Use the Scaffold Generator
+
+The easiest way to start is with the scaffold generator:
 
 ```bash
-# Create spec directory
-mkdir -p Verity/Specs/NameRegistry
-
-# Create the three required files
-touch Verity/Specs/NameRegistry/Spec.lean
-touch Verity/Specs/NameRegistry/Invariants.lean
-touch Verity/Specs/NameRegistry/Proofs.lean
-
-# Create EDSL implementation
-touch Verity/Examples/NameRegistry.lean
-
-# Create compiler proof file
-touch Compiler/Proofs/SpecCorrectness/NameRegistry.lean
-
-# Create test files
-touch test/PropertyNameRegistry.t.sol
-touch test/DifferentialNameRegistry.t.sol
+python3 scripts/generate_contract.py TipJar \
+  --fields "tips:mapping" \
+  --functions "tip,getBalance"
 ```
 
-### 1.2 Our Contract Goal
+This creates all required files:
+- `Verity/Specs/TipJar/Spec.lean` — formal specification
+- `Verity/Specs/TipJar/Invariants.lean` — state invariants
+- `Verity/Specs/TipJar/Proofs.lean` — proof re-export
+- `Verity/Examples/TipJar.lean` — EDSL implementation
+- `Compiler/Proofs/SpecCorrectness/TipJar.lean` — compiler proofs
+- `test/PropertyTipJar.t.sol` — Foundry tests
+
+### 1.2 Or Create Files Manually
+
+```bash
+mkdir -p Verity/Specs/TipJar
+touch Verity/Specs/TipJar/Spec.lean
+touch Verity/Specs/TipJar/Invariants.lean
+touch Verity/Specs/TipJar/Proofs.lean
+touch Verity/Examples/TipJar.lean
+touch Compiler/Proofs/SpecCorrectness/TipJar.lean
+touch test/PropertyTipJar.t.sol
+```
+
+### 1.3 Our Contract Goal
 
 We want to build a contract where:
-- Users can register a name by calling `setName(string)`
-- Anyone can look up a name by calling `getName(address) → string`
-- Each address can only have one name
-- Names are stored permanently on-chain
+- Users can deposit a tip (adding to their balance) via `tip(uint256)`
+- Anyone can check a balance via `getBalance(address) → uint256`
+- Each address has an independent balance
+- Balances use EVM modular arithmetic (wrapping on overflow)
 
 ---
 
@@ -69,170 +79,160 @@ Specifications describe **what** the contract should do, not **how** it does it.
 
 ### 2.1 Create the Spec File
 
-Open `Verity/Specs/NameRegistry/Spec.lean`:
+Open `Verity/Specs/TipJar/Spec.lean`:
 
 ```lean
 /-
-  NameRegistry: Formal Specification
+  TipJar: Formal Specification
 
-  Maps Ethereum addresses to human-readable names.
+  Specifies deposit and balance-check behavior for a simple tip ledger.
 -/
 
 import Verity.Core
 import Verity.Specs.Common
+import Verity.EVM.Uint256
+import Verity.Examples.TipJar
 
-namespace Verity.Specs.NameRegistry
+namespace Verity.Specs.TipJar
 
 open Verity
+open Verity.EVM.Uint256
 
--- What setName should do: store a name for the sender
-def setName_spec (name : String) (s s' : ContractState) : Prop :=
-  -- The name is stored in a mapping from addresses to strings
-  s'.storageMap 0 (addressToKey s.sender) = stringToStorageValue name ∧
-  -- Mapping storage is only changed at this key
-  (∀ addr : Address, addr ≠ s.sender →
-    s'.storageMap 0 (addressToKey addr) = s.storageMap 0 (addressToKey addr)) ∧
-  -- Other storage types are unchanged
-  s'.storage = s.storage ∧
-  s'.storageAddr = s.storageAddr ∧
-  -- Context is preserved (sender, address, etc.)
-  sameContext s s'
+/-- tip: increases sender's balance by amount -/
+def tip_spec (amount : Uint256) (s s' : ContractState) : Prop :=
+  -- Sender's balance increases by amount (modular arithmetic)
+  s'.storageMap 0 s.sender = add (s.storageMap 0 s.sender) amount ∧
+  -- No other mapping entries change
+  storageMapUnchangedExceptKeyAtSlot 0 s.sender s s' ∧
+  -- Non-mapping storage and context are preserved
+  sameStorageAddrContext s s'
 
--- What getName should do: return the stored name for an address
-def getName_spec (addr : Address) (result : String) (s : ContractState) : Prop :=
-  result = storageValueToString (s.storageMap 0 (addressToKey addr))
+/-- getBalance: returns balance at given address, no state change -/
+def getBalance_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
+  result = s.storageMap 0 addr
 
--- Roundtrip property: setName then getName returns the same name
-def setName_getName_roundtrip (name : String) (s : ContractState) : Prop :=
-  ∀ s_after_set : ContractState,
-    setName_spec name s s_after_set →
-    getName_spec s.sender name s_after_set
-
-end Verity.Specs.NameRegistry
+end Verity.Specs.TipJar
 ```
 
 **Key Concepts**:
-- `s` is the initial state, `s'` is the final state
-- `storageMap` stores key-value pairs (like Solidity mappings)
-- Specs must be explicit about what changes and what stays the same
-- The roundtrip property proves that stored data can be retrieved
+- `s` is the initial state, `s'` is the final state after the operation
+- `storageMap 0` refers to the mapping at storage slot 0
+- `storageMapUnchangedExceptKeyAtSlot` says only one key changed at one slot
+- `sameStorageAddrContext` says uint256 storage, address storage, and context are preserved
+- `add` is EVM modular addition (wraps at 2^256)
 
 ### 2.2 Create Invariants File
 
-Open `Verity/Specs/NameRegistry/Invariants.lean`:
+Open `Verity/Specs/TipJar/Invariants.lean`:
 
 ```lean
 /-
-  NameRegistry: State Invariants
+  TipJar: State Invariants
 
-  Properties that hold for all valid contract states.
+  Properties that hold across all operations.
 -/
 
 import Verity.Core
 import Verity.Specs.Common
 
-namespace Verity.Specs.NameRegistry
+namespace Verity.Specs.TipJar
 
 open Verity
 
--- Basic well-formedness of ContractState
-structure WellFormedState (s : ContractState) : Prop where
-  -- Sender is not empty
-  sender_nonempty : s.sender ≠ ""
-  -- Contract address is not empty
-  contract_nonempty : s.thisAddress ≠ ""
-
--- Name operations don't affect regular storage slots
+-- Tip operations don't affect regular storage slots
 def uint_storage_unchanged (s s' : ContractState) : Prop :=
   s'.storage = s.storage
 
--- Name operations don't affect address storage
+-- Tip operations don't affect address storage
 def addr_storage_unchanged (s s' : ContractState) : Prop :=
   s'.storageAddr = s.storageAddr
 
--- Context preservation
-abbrev context_preserved := Specs.sameContext
-
-end Verity.Specs.NameRegistry
+end Verity.Specs.TipJar
 ```
 
 ---
 
 ## Phase 3: Implement in EDSL (45 minutes)
 
-Now we implement the contract using the embedded domain-specific language (EDSL).
+Now we implement the contract using the EDSL. Every function in the EDSL is a `Contract` — a state-transforming computation that can succeed or revert.
 
 ### 3.1 Create EDSL Implementation
 
-Open `Verity/Examples/NameRegistry.lean`:
+Open `Verity/Examples/TipJar.lean`:
 
 ```lean
 /-
-  NameRegistry: Store human-readable names for addresses
+  TipJar: Deposit tips and check balances
 
   Demonstrates:
-  - Mapping storage (address → string)
-  - String handling
-  - Sender-based storage
+  - Mapping storage (Address → Uint256)
+  - Sender identification via msgSender
+  - EVM modular arithmetic
 
-  Pattern: User registry with permanent storage
+  Pattern: Simple balance ledger
 -/
 
 import Verity.Core
+import Verity.EVM.Uint256
 
-namespace Verity.Examples.NameRegistry
+namespace Verity.Examples.TipJar
 
 open Verity
+open Verity.EVM.Uint256
 
--- Storage layout: mapping from address to string at slot 0
-def names : MappingSlot Address String := ⟨0⟩
+-- Storage layout: tips mapping at slot 0
+def tips : StorageSlot (Address → Uint256) := ⟨0⟩
 
--- Register a name for the sender
-def setName (name : String) : Contract Unit := do
-  let caller ← getSender
-  setMappingStorage names caller name
+-- Deposit a tip: add amount to sender's balance
+def tip (amount : Uint256) : Contract Unit := do
+  let sender ← msgSender
+  let currentBalance ← getMapping tips sender
+  setMapping tips sender (add currentBalance amount)
 
--- Look up the name for a given address
-def getName (addr : Address) : Contract String := do
-  getMappingStorage names addr
+-- Look up balance for any address
+def getBalance (addr : Address) : Contract Uint256 := do
+  getMapping tips addr
 
--- Example usage
-def exampleUsage : Contract String := do
-  setName "Alice"
-  getName "0xAlice"
+-- Example: Alice tips 100, then we check her balance
+def exampleUsage : Contract Uint256 := do
+  tip 100
+  getBalance "0xAlice"
 
-#eval (exampleUsage.run {
+#eval! (exampleUsage.run {
   storage := fun _ => 0,
   storageAddr := fun _ => "",
   storageMap := fun _ _ => 0,
   sender := "0xAlice",
-  thisAddress := "0xRegistry",
+  thisAddress := "0xTipJar",
   msgValue := 0,
   blockTimestamp := 0,
   knownAddresses := fun _ => Core.FiniteAddressSet.empty
 }).getValue?
--- Expected output: some "Alice"
+-- Expected output: some 100
 
-end Verity.Examples.NameRegistry
+end Verity.Examples.TipJar
 ```
 
-**Key Concepts**:
-- `Contract Unit` is a stateful computation returning `Unit` (no value)
-- `Contract String` returns a `String`
-- `do` notation allows sequential operations
-- `getSender` gets the transaction sender
-- Storage operations are typed and safe
+**EDSL API reference** (from `Verity/Core.lean`):
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `msgSender` | `Contract Address` | Get transaction sender |
+| `getStorage s` | `Contract Uint256` | Read uint256 slot |
+| `setStorage s val` | `Contract Unit` | Write uint256 slot |
+| `getMapping s key` | `Contract Uint256` | Read mapping entry |
+| `setMapping s key val` | `Contract Unit` | Write mapping entry |
+| `getStorageAddr s` | `Contract Address` | Read address slot |
+| `setStorageAddr s val` | `Contract Unit` | Write address slot |
+| `require cond msg` | `Contract Unit` | Revert if condition is false |
 
 ### 3.2 Test the EDSL Implementation
 
-Verify your implementation works:
-
 ```bash
-# This will evaluate the #eval block
-lake build Verity.Examples.NameRegistry
+lake build Verity.Examples.TipJar
 ```
 
-If successful, you'll see the expected output in build logs.
+If successful, the `#eval!` block evaluates and prints `some 100`.
 
 ---
 
@@ -240,12 +240,70 @@ If successful, you'll see the expected output in build logs.
 
 This is where formal verification happens. We prove that our implementation matches our specification.
 
-### 4.1 Create Proof Stub
+### 4.1 Write Layer 1 Proofs
 
-Open `Verity/Specs/NameRegistry/Proofs.lean`:
+Open `Compiler/Proofs/SpecCorrectness/TipJar.lean`:
 
 ```lean
-import Compiler.Proofs.SpecCorrectness.NameRegistry
+/-
+  TipJar: Correctness proofs
+
+  Prove that the EDSL implementation matches the formal specification.
+-/
+
+import Verity.Core
+import Verity.EVM.Uint256
+import Verity.Examples.TipJar
+import Verity.Specs.TipJar.Spec
+
+namespace Compiler.Proofs.SpecCorrectness.TipJar
+
+open Verity
+open Verity.EVM.Uint256
+open Verity.Examples.TipJar
+open Verity.Specs.TipJar
+
+-- tip: implementation matches spec
+theorem tip_meets_spec (s : ContractState) (amount : Uint256) :
+    tip_spec amount s (((tip amount).run s).snd) := by
+  simp [tip, tip_spec, tips, msgSender, getMapping, setMapping,
+        bind, storageMapUnchangedExceptKeyAtSlot,
+        storageMapUnchangedExceptKey, storageMapUnchangedExceptSlot,
+        sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr,
+        Specs.sameContext]
+  constructor
+  · simp [Contract.run]
+  · constructor
+    · constructor
+      · intro other hne; simp [*]
+      · intro other hne addr; simp [*]
+    · simp
+
+-- getBalance: returns the correct value
+theorem getBalance_correct (s : ContractState) (addr : Address) :
+    getBalance_spec addr (((getBalance addr).run s).fst) s := by
+  simp [getBalance, getBalance_spec, tips, getMapping]
+
+-- getBalance doesn't modify state
+theorem getBalance_preserves_state (s : ContractState) (addr : Address) :
+    ((getBalance addr).run s).snd = s := by
+  simp [getBalance, tips, getMapping]
+
+-- Roundtrip: tip then getBalance returns updated balance
+theorem tip_getBalance_roundtrip (amount : Uint256) (s : ContractState) :
+    let s' := ((tip amount).run s).snd
+    ((getBalance s.sender).run s').fst = add (s.storageMap 0 s.sender) amount := by
+  simp [tip, getBalance, tips, msgSender, getMapping, setMapping, bind]
+
+end Compiler.Proofs.SpecCorrectness.TipJar
+```
+
+### 4.2 Create Proof Re-export
+
+Open `Verity/Specs/TipJar/Proofs.lean`:
+
+```lean
+import Compiler.Proofs.SpecCorrectness.TipJar
 
 /-
   Layer 1 proof re-export.
@@ -253,134 +311,14 @@ import Compiler.Proofs.SpecCorrectness.NameRegistry
 -/
 ```
 
-### 4.2 Write Compiler Spec
-
-First, add your contract to `Compiler/Specs.lean`. Find the section with other contract specs and add:
-
-```lean
--- NameRegistry: Address → Name mapping
-def nameRegistrySpec : ContractSpec :=
-  let nameMappingSlot := 0
-  { functions := [
-      -- setName(string name)
-      { name := "setName"
-        params := [ParamType.string]
-        returnType := none
-        body := [
-          Stmt.mappingStore nameMappingSlot (Expr.sender) (Expr.param 0)
-        ]
-      },
-      -- getName(address addr) returns (string)
-      { name := "getName"
-        params := [ParamType.address]
-        returnType := some ParamType.string
-        body := [
-          Stmt.return (Expr.mappingLoad nameMappingSlot (Expr.param 0))
-        ]
-      }
-    ]
-  }
-```
-
-### 4.3 Write Layer 2 Proofs
-
-Open `Compiler/Proofs/SpecCorrectness/NameRegistry.lean`:
-
-```lean
-/-
-  Compiler.Proofs.SpecCorrectness.NameRegistry
-
-  Prove that nameRegistrySpec accurately represents the NameRegistry EDSL.
--/
-
-import Compiler.Specs
-import Verity.Proofs.Stdlib.SpecInterpreter
-import Verity.Examples.NameRegistry
-import Verity.Core.Uint256
-
-namespace Compiler.Proofs.SpecCorrectness
-
-open Compiler.ContractSpec
-open Compiler.Specs
-open Verity.Proofs.Stdlib.SpecInterpreter
-open Verity
-open Verity.Examples.NameRegistry
-
-/-!
-## State Conversion
-
-NameRegistry uses a mapping at slot 0 for names.
--/
-
--- Convert EDSL state to SpecStorage
-def edslToSpecStorage (state : ContractState) : SpecStorage :=
-  { slots := []
-    mappings := [(0, fun addr => state.storageMap 0 addr)] }
-
-/-!
-## Correctness Theorems
--/
-
--- setName function correctness
-theorem setName_correct (state : ContractState) (name : String) (sender : Address) :
-    let edslFinal := (setName name).runState { state with sender := sender }
-    let specTx : DiffTestTypes.Transaction := {
-      sender := sender
-      functionName := "setName"
-      args := [name]  -- TODO: Handle string encoding
-    }
-    let specResult := interpretSpec nameRegistrySpec (edslToSpecStorage state) specTx
-    -- Both succeed and store the name for sender
-    specResult.success = true ∧
-    specResult.finalStorage.getMapping 0 (addressToKey sender) =
-      stringToStorageValue name := by
-  sorry  -- TODO: Prove using unfold + simp tactics
-
--- getName function correctness
-theorem getName_correct (state : ContractState) (addr : Address) (sender : Address) :
-    let edslValue := (getName addr).runValue { state with sender := sender }
-    let specTx : DiffTestTypes.Transaction := {
-      sender := sender
-      functionName := "getName"
-      args := [addressToString addr]  -- TODO: Handle address encoding
-    }
-    let specResult := interpretSpec nameRegistrySpec (edslToSpecStorage state) specTx
-    -- Both succeed and return same name
-    specResult.success = true ∧
-    specResult.returnValue = some (stringToStorageValue edslValue) := by
-  sorry  -- TODO: Prove using unfold + simp tactics
-
-/-!
-## Helper Properties
--/
-
--- getName doesn't modify state
-theorem getName_preserves_state (state : ContractState) (addr : Address) (sender : Address) :
-    let result := (getName addr).runState { state with sender := sender }
-    result.storageMap = state.storageMap := by
-  unfold getName Contract.runState
-  simp [getMappingStorage]
-
--- setName-getName roundtrip
-theorem setName_getName_roundtrip (name : String) (sender : Address) (state : ContractState) :
-    let state1 := (setName name).runState { state with sender := sender }
-    let retrieved := (getName sender).runValue { state1 with sender := sender }
-    retrieved = name := by
-  unfold setName getName Contract.runState Contract.runValue
-  simp [setMappingStorage, getMappingStorage, names]
-
-end Compiler.Proofs.SpecCorrectness
-```
-
-### 4.4 Common Proof Patterns
+### 4.3 Common Proof Patterns
 
 Here are the tactics you'll use most often:
 
-**Pattern 1: Simple proofs with unfold + simp**
+**Pattern 1: Simple proofs with simp**
 ```lean
 theorem simple_property : ... := by
-  unfold functionName Contract.runState
-  simp [helperFunctions]
+  simp [functionName, helperFunctions]
 ```
 
 **Pattern 2: Proofs with case splits**
@@ -388,9 +326,9 @@ theorem simple_property : ... := by
 theorem conditional_property : ... := by
   unfold functionName
   split
-  · -- Case 1
+  · -- Case 1: condition true
     simp [...]
-  · -- Case 2
+  · -- Case 2: condition false
     simp [...]
 ```
 
@@ -399,58 +337,84 @@ theorem conditional_property : ... := by
 theorem main_property : ... := by
   have h1 := helper_lemma_1
   have h2 := helper_lemma_2
-  unfold functionName
-  simp [h1, h2]
+  simp [h1, h2, ...]
 ```
 
-### 4.5 Build and Check Proofs
+See [Proof Debugging Handbook](/guides/debugging-proofs) for common errors and fixes.
+
+### 4.4 Build and Check Proofs
 
 ```bash
 # Build all proofs
 lake build
 
 # Check for incomplete proofs
-grep -r "sorry" Verity/Specs/NameRegistry/
+grep -r "sorry" Verity/Specs/TipJar/ Compiler/Proofs/SpecCorrectness/TipJar.lean
 ```
 
 **Goal**: Zero `sorry` statements before moving to testing.
 
 ---
 
-## Phase 5: Add to Compiler (auto)
+## Phase 5: Add to Compiler (15 minutes)
 
-### 5.1 Update Module Imports
+### 5.1 Add Compiler Spec
 
-Add your spec to `Compiler/Specs.lean` imports section:
+Add your contract to `Compiler/Specs.lean`:
 
 ```lean
--- At the top of the file
-import Compiler.Specs.NameRegistry  -- If you separated it
+def tipJarSpec : ContractSpec := {
+  name := "TipJar"
+  fields := [
+    { name := "tips", ty := FieldType.mapping }
+  ]
+  constructor := none
+  functions := [
+    { name := "tip"
+      params := [{ name := "amount", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.setMapping "tips" Expr.caller
+          (Expr.add (Expr.mapping "tips" Expr.caller) (Expr.param "amount")),
+        Stmt.stop
+      ]
+    },
+    { name := "getBalance"
+      params := [{ name := "addr", ty := ParamType.address }]
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.return (Expr.mapping "tips" (Expr.param "addr"))
+      ]
+    }
+  ]
+}
 ```
 
-Or just add directly in the file as shown in Phase 4.2.
+Add selectors and register in `allSpecs`:
+
+```lean
+def tipJarSelectors : List Nat := [0x..., 0x...]  -- compute via keccak256
+
+-- Add to allSpecs list
+def allSpecs := [
+  -- ... existing contracts ...,
+  (tipJarSpec, tipJarSelectors)
+]
+```
 
 ### 5.2 Generate Yul Code
 
 ```bash
-# Rebuild compiler with your new contract
 lake build verity-compiler
-
-# Generate Yul code
-./.lake/build/bin/verity-compiler
+lake exe verity-compiler
 
 # Check output
-ls compiler/yul/NameRegistry.yul
+ls compiler/yul/TipJar.yul
 ```
 
 ### 5.3 Verify Compilation
 
 ```bash
-# Install solc if needed
-sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
-sudo chmod +x /usr/local/bin/solc
-
-# Compile generated Yul
 python3 scripts/check_yul_compiles.py
 ```
 
@@ -458,190 +422,58 @@ python3 scripts/check_yul_compiles.py
 
 ## Phase 6: Testing (30 minutes)
 
-### 6.1 Create Differential Tests
+### 6.1 Create Property Tests
 
-Open `test/DifferentialNameRegistry.t.sol`:
-
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.33;
-
-import "forge-std/Test.sol";
-import "./DiffTestBase.sol";
-
-/**
- * @title DifferentialNameRegistry
- * @notice Tests that verify EDSL ≡ Yul ≡ EVM execution for NameRegistry
- */
-contract DifferentialNameRegistry is DiffTestBase {
-    function setUp() public {
-        setContract("NameRegistry");
-    }
-
-    /// Test setName stores correctly
-    function testDiff_SetName() public {
-        string memory name = "Alice";
-
-        // Call both EDSL and Yul
-        (bool edslSuccess, bytes memory edslResult) = callEDSL(
-            "setName",
-            abi.encode(name),
-            address(0x1)  // sender
-        );
-
-        (bool yulSuccess, bytes memory yulResult) = callYul(
-            "setName",
-            abi.encode(name),
-            address(0x1)  // sender
-        );
-
-        // Both should succeed with identical results
-        assertEq(edslSuccess, yulSuccess, "Success mismatch");
-        assertEq(edslResult, yulResult, "Result mismatch");
-    }
-
-    /// Test getName retrieves correctly
-    function testDiff_GetName() public {
-        // First set a name
-        callYul("setName", abi.encode("Bob"), address(0x2));
-
-        // Then retrieve it
-        (bool edslSuccess, bytes memory edslResult) = callEDSL(
-            "getName",
-            abi.encode(address(0x2)),
-            address(0x3)  // different caller
-        );
-
-        (bool yulSuccess, bytes memory yulResult) = callYul(
-            "getName",
-            abi.encode(address(0x2)),
-            address(0x3)
-        );
-
-        assertEq(edslSuccess, yulSuccess, "Success mismatch");
-        assertEq(edslResult, yulResult, "Result mismatch");
-
-        string memory name = abi.decode(yulResult, (string));
-        assertEq(name, "Bob", "Name mismatch");
-    }
-
-    /// Property test: setName then getName roundtrip
-    /// @custom:property setName_getName_roundtrip
-    function testProp_SetGetRoundtrip(string calldata name, address user) public {
-        vm.assume(user != address(0));
-        vm.assume(bytes(name).length < 100);  // Reasonable limit
-
-        // Set name
-        callYul("setName", abi.encode(name), user);
-
-        // Get name
-        (, bytes memory result) = callYul("getName", abi.encode(user), address(0x999));
-
-        string memory retrieved = abi.decode(result, (string));
-        assertEq(retrieved, name, "Roundtrip failed");
-    }
-}
-```
-
-### 6.2 Create Property Tests
-
-Open `test/PropertyNameRegistry.t.sol`:
+Open `test/PropertyTipJar.t.sol`:
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
 import "forge-std/Test.sol";
-import "./DiffTestBase.sol";
 
 /**
- * @title PropertyNameRegistry
- * @notice Property-based tests from Lean proofs
+ * @title PropertyTipJar
+ * @notice Property tests matching Lean theorems
  */
-contract PropertyNameRegistry is DiffTestBase {
-    function setUp() public {
-        setContract("NameRegistry");
+contract PropertyTipJar is Test {
+    // Deploy the compiled Yul contract here
+    // See test/PropertyCounter.t.sol for the full pattern
+
+    /// @custom:property tip_meets_spec
+    function testProp_TipUpdatesBalance(uint256 amount) public {
+        // Verify tip updates sender's balance correctly
     }
 
-    /// Property: getName doesn't modify storage
-    /// @custom:property getName_preserves_state
-    function testProp_GetNamePreservesState(address addr) public {
-        // Record storage before
-        bytes32 storageBefore = vm.load(yulContract, bytes32(uint256(0)));
-
-        // Call getName
-        callYul("getName", abi.encode(addr), address(0x1));
-
-        // Storage should be unchanged
-        bytes32 storageAfter = vm.load(yulContract, bytes32(uint256(0)));
-        assertEq(storageBefore, storageAfter, "Storage modified");
+    /// @custom:property getBalance_correct
+    function testProp_GetBalanceReturnsCorrect(address addr) public {
+        // Verify getBalance returns the stored value
     }
 
-    /// Property: setName-getName roundtrip
-    /// @custom:property setName_getName_roundtrip
-    function testProp_RoundTrip(string calldata name, address user) public {
-        vm.assume(user != address(0));
-        vm.assume(bytes(name).length > 0 && bytes(name).length < 100);
-
-        // Set name for user
-        callYul("setName", abi.encode(name), user);
-
-        // Get name for user
-        (, bytes memory result) = callYul("getName", abi.encode(user), user);
-        string memory retrieved = abi.decode(result, (string));
-
-        // Should match
-        assertEq(keccak256(bytes(retrieved)), keccak256(bytes(name)), "Roundtrip failed");
+    /// @custom:property getBalance_preserves_state
+    function testProp_GetBalanceReadOnly(address addr) public {
+        // Verify getBalance doesn't modify storage
     }
 
-    /// Property: Different users have independent names
-    function testProp_UserIsolation(
-        string calldata name1,
-        string calldata name2,
-        address user1,
-        address user2
-    ) public {
-        vm.assume(user1 != address(0) && user2 != address(0));
-        vm.assume(user1 != user2);
-        vm.assume(bytes(name1).length < 100 && bytes(name2).length < 100);
-
-        // Set different names
-        callYul("setName", abi.encode(name1), user1);
-        callYul("setName", abi.encode(name2), user2);
-
-        // Retrieve and verify isolation
-        (, bytes memory result1) = callYul("getName", abi.encode(user1), address(0x999));
-        (, bytes memory result2) = callYul("getName", abi.encode(user2), address(0x999));
-
-        string memory retrieved1 = abi.decode(result1, (string));
-        string memory retrieved2 = abi.decode(result2, (string));
-
-        assertEq(keccak256(bytes(retrieved1)), keccak256(bytes(name1)), "User1 name wrong");
-        assertEq(keccak256(bytes(retrieved2)), keccak256(bytes(name2)), "User2 name wrong");
+    /// @custom:property tip_getBalance_roundtrip
+    function testProp_Roundtrip(uint256 amount) public {
+        // Verify tip then getBalance returns updated value
     }
 }
 ```
 
-### 6.3 Run Tests
+> **Tip**: Look at `test/PropertyLedger.t.sol` for a complete example of mapping-based property tests.
+
+### 6.2 Run Tests
 
 ```bash
-# Run all tests for your contract
-forge test --match-contract NameRegistry
-
-# Run with verbosity to see details
-forge test --match-contract NameRegistry -vv
-
-# Run specific test
-forge test --match-test testProp_RoundTrip -vvv
+forge test --match-contract TipJar -vv
 ```
 
-### 6.4 Verify Property Coverage
+### 6.3 Verify Property Coverage
 
 ```bash
-# Check that property tags match Lean theorem names
 python3 scripts/check_property_manifest.py
-
-# Generate coverage report
 python3 scripts/report_property_coverage.py --format=markdown
 ```
 
@@ -651,53 +483,37 @@ python3 scripts/report_property_coverage.py --format=markdown
 
 ### 7.1 Final Checklist
 
-Run all validation scripts:
-
 ```bash
-# 1. All Lean code compiles
+# 1. All Lean code compiles (including proofs)
 lake build
 
 # 2. No incomplete proofs
-./scripts/check_for_sorry.sh
+grep -r "sorry" Verity/Specs/TipJar/ Compiler/Proofs/SpecCorrectness/TipJar.lean
 
 # 3. Yul generates and compiles
-./.lake/build/bin/verity-compiler
+lake build verity-compiler
+lake exe verity-compiler
 python3 scripts/check_yul_compiles.py
 
-# 4. All tests pass
-forge test --match-contract NameRegistry
+# 4. Tests pass
+forge test --match-contract TipJar
 
-# 5. Property coverage is tracked
-python3 scripts/check_property_manifest.py
-python3 scripts/check_property_coverage.py
-
-# 6. Selectors are correct
+# 5. All CI checks pass
 python3 scripts/check_selectors.py
-
-# 7. Full CI suite
-forge test  # All contracts
+python3 scripts/check_property_manifest.py
+python3 scripts/check_doc_counts.py
 ```
 
 ### 7.2 Add to Module Exports
 
 Update `Verity.lean`:
-
 ```lean
-import Verity.Examples.NameRegistry
+import Verity.Examples.TipJar
 ```
 
 Update `Compiler.lean`:
-
 ```lean
-import Compiler.Proofs.SpecCorrectness.NameRegistry
-```
-
-### 7.3 Update Documentation
-
-Add your contract to `docs/VERIFICATION_STATUS.md`:
-
-```markdown
-| NameRegistry | ✅ | 3/3 (100%) | Address-to-name mapping | 500 |
+import Compiler.Proofs.SpecCorrectness.TipJar
 ```
 
 ---
@@ -706,94 +522,66 @@ Add your contract to `docs/VERIFICATION_STATUS.md`:
 
 ### "Unknown identifier" in proofs
 
-**Problem**: Lean can't find a function or theorem.
+**Problem**: Lean can't find a function or type.
 
-**Solution**: Check your imports. Make sure you have:
+**Solution**: Check your imports and `open` statements:
 ```lean
 import Verity.Core
-import Verity.Examples.NameRegistry
-import Compiler.Specs
+import Verity.EVM.Uint256
+import Verity.Examples.TipJar
+
+open Verity
+open Verity.EVM.Uint256
 ```
 
 ### "Type mismatch" errors
 
-**Problem**: Function returns wrong type.
+**Problem**: Wrong return type.
 
-**Solution**: Check the function signature:
+**Solution**: Check the function signature matches what you return:
 ```lean
-def myFunction : Contract Uint256 := do  -- Returns Uint256
+def tip (amount : Uint256) : Contract Unit := do  -- Returns nothing
   ...
 
-def myOtherFunction : Contract Unit := do  -- Returns nothing
+def getBalance (addr : Address) : Contract Uint256 := do  -- Returns Uint256
   ...
 ```
+
+### Proofs don't close with `simp`
+
+**Problem**: `simp` can't solve the goal.
+
+**Solution**: Try `unfold` first to expose definitions, then `simp`:
+```lean
+theorem my_thm : ... := by
+  unfold myFunction bind
+  simp [getMapping, setMapping, msgSender, tips]
+```
+
+See [Proof Debugging Handbook](/guides/debugging-proofs) for more patterns.
 
 ### Tests fail with "selector not found"
 
-**Problem**: Function selector mismatch.
-
-**Solution**: Run:
-```bash
-python3 scripts/check_selectors.py
-```
-
-### "Sorry" in unexpected places
-
-**Problem**: You have incomplete proofs.
+**Problem**: Function selector mismatch between Lean and Solidity.
 
 **Solution**:
 ```bash
-grep -r "sorry" Verity/Specs/YourContract/
+python3 scripts/check_selectors.py
 ```
-Replace each `sorry` with actual proof tactics.
 
 ---
 
 ## Next Steps
 
-### Immediate
-
-1. **Add more properties**: Think of edge cases and prove them
-2. **Add fuzzing**: Use Foundry's fuzzing to find corner cases
-3. **Optimize gas**: Check generated Yul for efficiency
-
-### Advanced
-
-4. **Compose contracts**: Build on existing verified contracts
-5. **Add access control**: Implement Owned pattern
-6. **Add complex state**: Try mappings of mappings
+1. **Add more properties**: Think of edge cases (zero amount, same sender/receiver)
+2. **Add access control**: Look at `Verity/Examples/Owned.lean` for the `require` + owner pattern
+3. **Add more functions**: Try adding a `withdraw` with balance checks (see `Verity/Examples/Ledger.lean`)
+4. **Study existing contracts**: `SimpleStorage` (simplest), `Counter` (arithmetic), `Ledger` (mappings), `OwnedCounter` (composition)
 
 ### Learning Resources
 
-- **SimpleStorage**: Simplest possible contract
-- **Counter**: Arithmetic operations
-- **Ledger**: Mapping-heavy contract
-- **OwnedCounter**: Access control patterns
-- **[Lean 4 Manual](https://lean-lang.org/lean4/doc/)**: Language reference
-- **[Foundry Book](https://book.getfoundry.sh/)**: Testing framework
-
----
-
-## Summary
-
-You've now:
-- ✅ Written formal specifications
-- ✅ Implemented a contract in the EDSL
-- ✅ Proven correctness properties
-- ✅ Compiled to Yul and bytecode
-- ✅ Tested against the full stack
-
-**Your contract is formally verified!**
-
-Every property you proved is now mathematically guaranteed to hold in the deployed bytecode (modulo trust assumptions in TRUST_ASSUMPTIONS.md).
-
----
-
-## Getting Help
-
-- **Stuck on proofs?** Check `Compiler/Proofs/README.md` for proof patterns
-- **Build errors?** Run `lake clean && lake build`
-- **Test failures?** Add `console.log` in Solidity tests
-- **Questions?** Open an issue with the `help-wanted` label
-
-**Welcome to verified smart contract development! 🎉**
+- [Core Architecture](/core) — the full EDSL API reference
+- [Compiler](/compiler) — how the compilation pipeline works
+- [Proof Debugging Handbook](/guides/debugging-proofs) — common tactic failures and fixes
+- [Lean 4 Manual](https://lean-lang.org/lean4/doc/) — language reference
+- [Foundry Book](https://book.getfoundry.sh/) — testing framework
