@@ -117,6 +117,9 @@ jobs:
       - name: Check selector hashing against specs
         run: python3 scripts/check_selectors.py
 
+      - name: Validate Selectors.lean axiom definitions
+        run: python3 scripts/validate_selectors.py
+
       - name: Install solc
         run: |
           sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
