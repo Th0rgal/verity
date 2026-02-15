@@ -1,8 +1,5 @@
 /-
-  Formal specifications for Ledger contract operations.
-
-  Ledger uses mapping storage (slot 0: Address → Uint256) for balances.
-  Operations: deposit, withdraw, transfer, getBalance.
+  Formal specifications for Ledger operations.
 -/
 
 import DumbContracts.Core
@@ -32,9 +29,7 @@ def withdraw_spec (amount : Uint256) (s s' : ContractState) : Prop :=
   storageMapUnchangedExceptKeyAtSlot 0 s.sender s s' ∧
   sameStorageAddrContext s s'
 
-/-- transfer (when sufficient balance):
-    decreases sender balance, increases recipient balance
-    (if sender == recipient, balances are unchanged) -/
+/-- transfer: moves amount from sender to recipient -/
 def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   (if s.sender == to
     then s'.storageMap 0 s.sender = s.storageMap 0 s.sender
@@ -51,11 +46,7 @@ def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Pro
 def getBalance_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
   result = s.storageMap 0 addr
 
-/-! ## Sum Properties
-
-These properties relate the total supply (sum of all balances) across operations.
-They require finite address tracking via knownAddresses field.
--/
+/-! ## Sum Properties -/
 
 /-- The sum of all balances at slot 0 -/
 def totalBalance (s : ContractState) : Uint256 :=
@@ -78,9 +69,7 @@ def Spec_deposit_sum_singleton_sender (amount : Uint256) (s s' : ContractState) 
   (∀ addr, addr ≠ s.sender → s.storageMap 0 addr = 0) →
     totalBalance s' = add (s.storageMap 0 s.sender) amount
 
-/-- Spec: Sum preserved for deposit followed by withdraw.
-    Note: This is derivable from the sum equations by add/sub cancellation,
-    but documents the important round-trip property. -/
+/-- Spec: deposit followed by withdraw preserves sum -/
 def Spec_deposit_withdraw_sum_cancel (amount : Uint256) (s s' s'' : ContractState) : Prop :=
   Spec_deposit_sum_equation amount s s' →
   Spec_withdraw_sum_equation amount s' s'' →

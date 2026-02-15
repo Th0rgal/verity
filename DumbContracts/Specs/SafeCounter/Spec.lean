@@ -1,11 +1,5 @@
 /-
-  Formal specifications for SafeCounter contract operations.
-
-  SafeCounter uses checked arithmetic (safeAdd/safeSub) to prevent
-  overflow/underflow. Operations revert when bounds are exceeded.
-
-  Storage layout:
-  - Slot 0 (Uint256): count
+  Formal specifications for SafeCounter operations.
 -/
 
 import DumbContracts.Core
@@ -22,19 +16,19 @@ open DumbContracts.EVM.Uint256
 
 /-! ## Operation Specifications -/
 
-/-- increment (when no overflow): count increases by 1, everything else preserved -/
+/-- increment: increases count by 1 (with overflow check) -/
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = add (s.storage 0) 1 ∧
   storageUnchangedExcept 0 s s' ∧
   sameAddrMapContext s s'
 
-/-- decrement (when no underflow): count decreases by 1, everything else preserved -/
+/-- decrement: decreases count by 1 (with underflow check) -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 0 = sub (s.storage 0) 1 ∧
   storageUnchangedExcept 0 s s' ∧
   sameAddrMapContext s s'
 
-/-- getCount: returns current count, no state change -/
+/-- getCount: returns current count -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage 0
 
