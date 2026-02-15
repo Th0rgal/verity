@@ -355,27 +355,7 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig {
      * @notice Execute N random transactions via random-gen
      */
     function _runRandomDifferentialTests(uint256 startIndex, uint256 count, uint256 seed) internal {
-        // Generate random transactions via Lean random-gen (disabled - use inline PRNG for CI)
-        // string[] memory inputs = new string[](3);
-        // inputs[0] = "bash";
-        // inputs[1] = "-c";
-        // inputs[2] = string.concat(
-        //     "export PATH=\"$HOME/.elan/bin:$PATH\" && lake exe random-gen SimpleStorage ",
-        //     vm.toString(count),
-        //     " ",
-        //     vm.toString(seed)
-        // );
-        // bytes memory txJsonBytes = vm.ffi(inputs);
-        // string memory txJson = string(txJsonBytes);
-
         console2.log("Generated", count, "random transactions");
-
-        // Parse JSON array and execute each transaction
-        // JSON format: [{"sender":"0xAlice","function":"store","args":[42]}, ...]
-        // For simplicity, we'll just split by transactions and parse manually
-
-        // For now, execute a simpler approach: generate them one-by-one inline
-        // This avoids complex JSON parsing in Solidity
 
         uint256 prng = _skipRandom(seed, startIndex);
         vm.pauseGasMetering();

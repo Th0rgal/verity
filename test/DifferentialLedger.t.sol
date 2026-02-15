@@ -566,11 +566,10 @@ contract DifferentialLedger is YulTestBase, DiffTestConfig {
         pure
         returns (string memory funcName, address sender, address recipient, uint256 amount)
     {
-        // PRNG (simple LCG)
-        uint256 rand1 = (seed * 1103515245 + 12345) % (2**31);
-        uint256 rand2 = (rand1 * 1103515245 + 12345) % (2**31);
-        uint256 rand3 = (rand2 * 1103515245 + 12345) % (2**31);
-        uint256 rand4 = (rand3 * 1103515245 + 12345) % (2**31);
+        uint256 rand1 = _lcg(seed);
+        uint256 rand2 = _lcg(rand1);
+        uint256 rand3 = _lcg(rand2);
+        uint256 rand4 = _lcg(rand3);
 
         // Choose function (40% deposit, 20% withdraw, 30% transfer, 10% getBalance)
         uint256 funcChoice = rand1 % 100;

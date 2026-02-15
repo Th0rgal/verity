@@ -212,26 +212,6 @@ abstract contract DifferentialTestBase {
     }
 
     /**
-     * @notice Linear congruential generator for pseudo-random numbers
-     * @dev Used for deterministic random test generation
-     */
-    function _prng(uint256 seed) internal pure returns (uint256) {
-        // LCG parameters — matches DiffTestConfig._lcg() for consistency
-        return (1103515245 * seed + 12345) % (2 ** 31);
-    }
-
-    /**
-     * @notice Skip forward N iterations of PRNG
-     */
-    function _skipRandom(uint256 seed, uint256 iterations) internal pure returns (uint256) {
-        uint256 current = seed;
-        for (uint i = 0; i < iterations; i++) {
-            current = _prng(current);
-        }
-        return current;
-    }
-
-    /**
      * @notice Convert index to deterministic address
      */
     function _indexToAddress(uint256 index) internal pure returns (address) {

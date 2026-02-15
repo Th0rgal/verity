@@ -614,10 +614,9 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
         view
         returns (string memory funcName, address sender, uint256 arg)
     {
-        // PRNG (simple LCG)
-        uint256 rand1 = (seed * 1103515245 + 12345) % (2**31);
-        uint256 rand2 = (rand1 * 1103515245 + 12345) % (2**31);
-        uint256 rand3 = (rand2 * 1103515245 + 12345) % (2**31);
+        uint256 rand1 = _lcg(seed);
+        uint256 rand2 = _lcg(rand1);
+        uint256 rand3 = _lcg(rand2);
 
         // Choose function (30% increment, 25% decrement, 20% getCount, 15% getOwner, 10% transferOwnership)
         uint256 funcChoice = rand1 % 100;
