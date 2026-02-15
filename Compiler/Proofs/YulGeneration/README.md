@@ -1,6 +1,6 @@
 # Layer 3: Yul Code Generation Proofs
 
-This directory contains the verification proofs for Layer 3 (IR → Yul) of the DumbContracts compiler pipeline.
+This directory contains the verification proofs for Layer 3 (IR → Yul) of the Verity compiler pipeline.
 
 **Status**: Complete (PR #42). All statement equivalence proofs proven, universal dispatcher proven.
 

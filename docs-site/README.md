@@ -1,6 +1,6 @@
-# Dumb Contracts Documentation Site
+# Verity Documentation Site
 
-Documentation website for Dumb Contracts - built with [Next.js](https://nextjs.org) and [Nextra](https://nextra.site).
+Documentation website for Verity - built with [Next.js](https://nextjs.org) and [Nextra](https://nextra.site).
 
 ## Features
 

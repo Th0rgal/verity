@@ -1,6 +1,6 @@
 # Trust Assumptions and Verification Boundaries
 
-This document provides a comprehensive overview of what is formally verified in DumbContracts and what components are trusted without formal proof. Understanding these boundaries is essential for security audits and production deployments.
+This document provides a comprehensive overview of what is formally verified in Verity and what components are trusted without formal proof. Understanding these boundaries is essential for security audits and production deployments.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides a comprehensive overview of what is formally verified in 
 
 ## Overview
 
-DumbContracts provides **end-to-end verification** from high-level contract specifications down to Yul intermediate representation, with a small trusted computing base (TCB).
+Verity provides **end-to-end verification** from high-level contract specifications down to Yul intermediate representation, with a small trusted computing base (TCB).
 
 ### Verification Chain
 
@@ -257,7 +257,7 @@ These components are **not formally verified** but are trusted based on testing,
 
 ### 4. External Library Code
 
-**Role**: External contracts or libraries called by DumbContracts
+**Role**: External contracts or libraries called by Verity
 
 **Assumption**: External libraries behave as specified in their interfaces.
 
@@ -305,7 +305,7 @@ These components are **not formally verified** but are trusted based on testing,
 
 ## Axioms
 
-DumbContracts uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
+Verity uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
 
 **See**: [AXIOMS.md](AXIOMS.md) for complete details.
 
@@ -333,7 +333,7 @@ DumbContracts uses **5 axioms** across the verification codebase. All axioms are
 
 ## Security Audit Checklist
 
-Use this checklist when performing security audits of DumbContracts-verified contracts.
+Use this checklist when performing security audits of Verity-verified contracts.
 
 ### 1. Verification Review
 - [ ] Review Layer 1 proofs for the specific contract
@@ -435,7 +435,7 @@ EDSL → Spec → IR → Yul → Bytecode
 
 ## Conclusion
 
-DumbContracts provides **strong formal verification** with a **small trusted computing base**:
+Verity provides **strong formal verification** with a **small trusted computing base**:
 
 ### What is Guaranteed (Proven)
 ✅ Contract implementations match specifications (Layer 1)
@@ -456,7 +456,7 @@ DumbContracts provides **strong formal verification** with a **small trusted com
 - **Not Recommended**: Contracts requiring zero trust (not achievable without full EVM verification)
 
 ### For Auditors
-DumbContracts offers **substantially higher assurance** than traditional Solidity contracts:
+Verity offers **substantially higher assurance** than traditional Solidity contracts:
 - Formal proofs replace manual code review for core logic
 - Differential testing validates entire compilation pipeline
 - Explicit trust boundaries enable focused auditing

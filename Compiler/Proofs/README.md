@@ -1,6 +1,6 @@
 # Compiler Verification Proofs
 
-Formal verification proofs for the DumbContracts compiler, proving correctness across three layers.
+Formal verification proofs for the Verity compiler, proving correctness across three layers.
 
 ## Verification Layers
 
@@ -19,11 +19,11 @@ Layer 1 proofs live alongside each contract spec in `Verity/Specs/<Name>/Proofs.
 ## Build
 
 ```bash
-lake build                                           # Build everything
-lake build DumbContracts.Specs.SimpleStorage.Proofs  # Build one contract's proofs
+lake build                                      # Build everything
+lake build Verity.Specs.SimpleStorage.Proofs    # Build one contract's proofs
 ```
 
-Expected warnings: `sorry` from `DumbContracts.Specs.Ledger.SumProofs` and `DumbContracts.Specs.Common.Sum` (sum property proofs, Issue #65).
+Expected warnings: `sorry` from `Verity.Specs.Ledger.SumProofs` and `Verity.Specs.Common.Sum` (sum property proofs, Issue #65).
 
 ## Infrastructure
 

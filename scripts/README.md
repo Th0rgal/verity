@@ -1,6 +1,6 @@
-# DumbContracts Scripts
+# Verity Scripts
 
-This directory contains verification and testing scripts for the DumbContracts project.
+This directory contains verification and testing scripts for the Verity project.
 
 ## Property Test Coverage Scripts
 

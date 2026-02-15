@@ -1,6 +1,6 @@
 # External Library Examples
 
-This directory contains example Yul library files that can be linked with DumbContracts at compile time.
+This directory contains example Yul library files that can be linked with Verity at compile time.
 
 ## Files
 
@@ -12,7 +12,7 @@ This directory contains example Yul library files that can be linked with DumbCo
 Compile a contract with external library linking:
 
 ```bash
-lake exec dumbcontracts-compiler \
+lake exec verity-compiler \
     --link examples/external-libs/PoseidonT3.yul \
     --link examples/external-libs/PoseidonT4.yul \
     -o compiler/yul

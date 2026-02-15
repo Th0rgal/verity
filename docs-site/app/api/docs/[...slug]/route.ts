@@ -83,7 +83,7 @@ export async function GET(
     try {
       const docs = await listDocs();
       return NextResponse.json({
-        description: "Dumb Contracts Documentation Index",
+        description: "Verity Documentation Index",
         docs: docs.map((doc) => ({
           path: doc,
           url: `/api/docs/${doc}`,
@@ -100,7 +100,7 @@ export async function GET(
     try {
       const docs = await listDocs();
       const contents: string[] = [
-        "# Dumb Contracts - Complete Documentation",
+        "# Verity - Complete Documentation",
         "",
         "> Minimal Lean EDSL for Smart Contracts - All documentation concatenated for AI agent consumption.",
         "",
