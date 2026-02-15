@@ -83,12 +83,16 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 ## Adding a Contract (Checklist)
 
+Use `python3 scripts/generate_contract.py <Name>` to scaffold all boilerplate files, then:
+
 1. Write a small, human-readable spec in `DumbContracts/Specs/<Name>/Spec.lean`.
 2. Add any invariants in `DumbContracts/Specs/<Name>/Invariants.lean` (optional but encouraged).
 3. Implement the contract in `DumbContracts/Examples/<Name>.lean` using the EDSL.
 4. Prove the implementation meets the spec in `DumbContracts/Specs/<Name>/Proofs.lean`.
 5. Add compiler-level spec glue in `Compiler/Specs.lean` and any IR/Yul proofs in `Compiler/Proofs/` if new patterns are introduced.
 6. Add tests in `test/` (unit + property + differential if applicable).
+
+See [Add a Contract](/add-contract) for the full guide.
 
 ## Example Contracts
 

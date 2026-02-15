@@ -48,6 +48,7 @@ lake build  # Must pass
 - `docs/VERIFICATION_STATUS.md` — Contract table and coverage stats
 - `docs-site/public/llms.txt` — Quick Facts and theorem breakdown table
 - `docs-site/content/verification.mdx` — Snapshot section
+- Run `python3 scripts/check_contract_structure.py` to verify file structure is complete
 - Run `python3 scripts/check_doc_counts.py` to verify all counts are synchronized
 
 ## Code Style
@@ -199,7 +200,7 @@ Tag format: `/// Property: exact_theorem_name`
 
 **Layer 3 proofs**: Read [Compiler/Proofs/README.md](Compiler/Proofs/README.md), study completed proofs (`assign_equiv`, `storageLoad_equiv`), use templates
 
-**New contracts**: Follow `SimpleStorage` pattern: Spec → Invariants → Implementation → Proofs → Tests
+**New contracts**: Use `python3 scripts/generate_contract.py <Name>` to scaffold all boilerplate files, then follow the `SimpleStorage` pattern: Spec → Invariants → Implementation → Proofs → Tests
 
 **Compiler changes**: Check [Compiler/Specs.lean](Compiler/Specs.lean), ensure proofs still build
 

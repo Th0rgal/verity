@@ -82,7 +82,8 @@ The GitHub Actions workflow validates:
 - Storage layout consistency across EDSL/Spec/Compiler layers
 - Selector hashes match specs
 - Generated Yul compiles with solc
-- Foundry tests pass (8 shards, 6 seeds)
+- Contract file structure validation
+- Foundry tests pass (8 shards, 7 seeds)
 
 ## Documentation URLs
 
@@ -100,7 +101,7 @@ Add `.md` to any URL for raw markdown (saves tokens).
 
 See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
 - **Verified**: EDSL -> ContractSpec -> IR -> Yul
-- **Trusted**: Yul -> Bytecode (via solc, validated by 10,000+ differential tests)
+- **Trusted**: Yul -> Bytecode (via solc, validated by 70k+ differential tests)
 - **Axioms**: 5 documented, all with soundness justification
 - **External**: Lean 4 kernel, EVM specification alignment
 

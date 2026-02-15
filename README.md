@@ -55,7 +55,7 @@ def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
 | Ledger | 32 | Deposit/withdraw/transfer with balance conservation |
 | SimpleToken | 56 | Mint/transfer, supply conservation, storage isolation |
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal (inline proofs) |
-| CryptoHash | — | External cryptographic library linking (no specs) |
+| CryptoHash | — | External cryptographic library linking (no specs, no tests) |
 
 **Verification snapshot**: 296 theorems across 9 categories, 207 covered by property tests (70% coverage), 89 proof-only exclusions. 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/dumbcontracts/issues/65)). 290 Foundry tests across 23 test suites.
 
@@ -83,6 +83,12 @@ test/                                # Foundry tests (unit, property, differenti
 ```
 
 ## Adding a Contract
+
+Use the scaffold generator to create all boilerplate files:
+```bash
+python3 scripts/generate_contract.py MyContract
+python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
+```
 
 **File Layout (Spec → Impl → Proof):**
 1. **Spec**: `DumbContracts/Specs/<Name>/Spec.lean` — Human-readable function specifications
@@ -137,6 +143,8 @@ python3 scripts/check_property_coverage.py       # Ensure all theorems have test
 python3 scripts/check_property_manifest_sync.py  # Verify manifest matches proofs
 python3 scripts/check_selectors.py               # Verify keccak256 selector hashing
 python3 scripts/check_storage_layout.py          # Verify storage slot consistency across layers
+python3 scripts/check_contract_structure.py      # Verify contract file structure is complete
+python3 scripts/check_doc_counts.py              # Verify documentation counts match codebase
 ```
 
 ## Documentation
