@@ -58,6 +58,43 @@ def get_core_line_count() -> int:
     return len(core.read_text(encoding="utf-8").splitlines())
 
 
+def get_sorry_count() -> int:
+    """Count sorry statements in Lean proof files."""
+    count = 0
+    for d in [ROOT / "Compiler", ROOT / "Verity"]:
+        if not d.exists():
+            continue
+        for lean in d.rglob("*.lean"):
+            text = lean.read_text(encoding="utf-8")
+            for line in text.splitlines():
+                if re.match(r"^\s*sorry\b", line):
+                    count += 1
+    return count
+
+
+def get_exclusion_count() -> int:
+    """Count total property exclusions from property_exclusions.json."""
+    exclusions = ROOT / "test" / "property_exclusions.json"
+    if not exclusions.exists():
+        return 0
+    data = json.loads(exclusions.read_text(encoding="utf-8"))
+    return sum(len(v) for v in data.values())
+
+
+def get_covered_count(total_theorems: int) -> tuple[int, int]:
+    """Compute covered property count and coverage percentage.
+
+    Returns (covered_count, coverage_percent).
+    """
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from property_utils import collect_covered
+
+    covered = collect_covered()
+    covered_count = sum(len(v) for v in covered.values())
+    pct = round(covered_count * 100 / total_theorems) if total_theorems else 0
+    return covered_count, pct
+
+
 def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[str]:
     """Check a file for expected patterns. Returns list of errors."""
     if not path.exists():
@@ -80,6 +117,10 @@ def main() -> None:
     axiom_count = get_axiom_count()
     test_count, suite_count = get_test_counts()
     core_lines = get_core_line_count()
+    sorry_count = get_sorry_count()
+    exclusion_count = get_exclusion_count()
+    covered_count, coverage_pct = get_covered_count(total_theorems)
+    proven_count = total_theorems - sorry_count
 
     errors: list[str] = []
 
@@ -114,6 +155,26 @@ def main() -> None:
                     re.compile(r"Foundry tests across (\d+) test suites"),
                     str(suite_count),
                 ),
+                (
+                    "covered count",
+                    re.compile(r"(\d+) covered by property tests"),
+                    str(covered_count),
+                ),
+                (
+                    "coverage percentage",
+                    re.compile(r"(\d+)% coverage"),
+                    str(coverage_pct),
+                ),
+                (
+                    "exclusion count",
+                    re.compile(r"(\d+) proof-only exclusions"),
+                    str(exclusion_count),
+                ),
+                (
+                    "sorry count",
+                    re.compile(r"(\d+) `sorry`"),
+                    str(sorry_count),
+                ),
             ],
         )
     )
@@ -138,6 +199,16 @@ def main() -> None:
                     "test count",
                     re.compile(r"\*\*Tests\*\*: (\d+) Foundry"),
                     str(test_count),
+                ),
+                (
+                    "proven count",
+                    re.compile(r"(\d+) fully proven"),
+                    str(proven_count),
+                ),
+                (
+                    "sorry count",
+                    re.compile(r"(\d+) `sorry` placeholders"),
+                    str(sorry_count),
                 ),
             ],
         )
@@ -214,7 +285,10 @@ def main() -> None:
         print(
             f"Actual counts: {total_theorems} theorems, "
             f"{num_categories} categories, {axiom_count} axioms, "
-            f"{test_count} tests, {suite_count} suites",
+            f"{test_count} tests, {suite_count} suites, "
+            f"{sorry_count} sorry, {proven_count} proven, "
+            f"{covered_count} covered ({coverage_pct}%), "
+            f"{exclusion_count} exclusions",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -222,7 +296,8 @@ def main() -> None:
     print(
         f"Documentation count check passed "
         f"({total_theorems} theorems, {num_categories} categories, "
-        f"{axiom_count} axioms, {test_count} tests, {suite_count} suites)."
+        f"{axiom_count} axioms, {test_count} tests, {suite_count} suites, "
+        f"{sorry_count} sorry, {covered_count}/{total_theorems} covered)."
     )
 
 

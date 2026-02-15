@@ -13,7 +13,7 @@ export const metadata = {
 
 const banner = (
   <Banner storageKey="verification-status">
-    284/296 theorems proven — 96% formal verification (12 sorry in Ledger sum proofs)
+    286/296 theorems proven — 97% formal verification (10 sorry in Ledger sum proofs)
   </Banner>
 )
 
