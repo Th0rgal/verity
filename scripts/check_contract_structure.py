@@ -64,11 +64,13 @@ def check_all_lean_imports(contracts: list[str]) -> list[str]:
     if not all_lean.exists():
         return [f"DumbContracts/All.lean not found"]
 
-    content = all_lean.read_text()
+    lines = all_lean.read_text().splitlines()
     missing = []
     for name in contracts:
         expected_import = f"import DumbContracts.Examples.{name}"
-        if expected_import not in content:
+        # Use exact line matching to avoid prefix collisions
+        # (e.g., "Owned" matching "OwnedCounter")
+        if not any(line.strip() == expected_import for line in lines):
             missing.append(f"DumbContracts/All.lean missing: {expected_import}")
     return missing
 

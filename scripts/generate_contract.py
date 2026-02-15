@@ -116,7 +116,6 @@ def parse_functions(spec: str, fields: List[Field]) -> List[Function]:
 def gen_example(cfg: ContractConfig) -> str:
     """Generate DumbContracts/Examples/{Name}.lean"""
     has_mapping = any(f.is_mapping for f in cfg.fields)
-    has_address = any(f.ty == "address" for f in cfg.fields)
 
     imports = ["import DumbContracts.Core"]
     if has_mapping or len(cfg.fields) > 1:
@@ -199,9 +198,18 @@ end DumbContracts.Specs.{cfg.name}
 def gen_invariants(cfg: ContractConfig) -> str:
     """Generate DumbContracts/Specs/{Name}/Invariants.lean"""
     # Build isolation predicates based on fields
+    # Address fields use storageAddr, uint256 fields use storage
     slot_isolation = []
     for i, f in enumerate(cfg.fields):
-        if not f.is_mapping:
+        if f.is_mapping:
+            continue
+        if f.ty == "address":
+            slot_isolation.append(
+                f"-- Address storage slot isolation for {f.name} (slot {i})\n"
+                f"def {f.name}_isolated (s s' : ContractState) (slot : Nat) : Prop :=\n"
+                f"  slot ≠ {i} → s'.storageAddr slot = s.storageAddr slot"
+            )
+        else:
             slot_isolation.append(
                 f"-- Storage slot isolation for {f.name} (slot {i})\n"
                 f"def {f.name}_isolated (s s' : ContractState) (slot : Nat) : Prop :=\n"
