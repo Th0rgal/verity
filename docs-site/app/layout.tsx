@@ -5,22 +5,22 @@ import 'nextra-theme-docs/style.css'
 
 export const metadata = {
   title: {
-    default: 'Dumb Contracts',
-    template: '%s – Dumb Contracts',
+    default: 'Verity',
+    template: '%s – Verity',
   },
   description: 'Minimal Lean 4 EDSL for Smart Contracts with Formal Verification',
 }
 
 const banner = (
-  <Banner storageKey="verification-complete">
-    252/252 theorems proven — 100% formal verification achieved
+  <Banner storageKey="verification-status">
+    284/296 theorems proven — 96% formal verification (12 sorry in Ledger sum proofs)
   </Banner>
 )
 
 const navbar = (
   <Navbar
-    logo={<strong>Dumb Contracts</strong>}
-    projectLink="https://github.com/Th0rgal/dumbcontracts"
+    logo={<strong>Verity</strong>}
+    projectLink="https://github.com/Th0rgal/verity"
   />
 )
 
@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           banner={banner}
           navbar={navbar}
           pageMap={await getPageMap()}
-          docsRepositoryBase="https://github.com/Th0rgal/dumbcontracts/tree/main/docs-site"
+          docsRepositoryBase="https://github.com/Th0rgal/verity/tree/main/docs-site"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
           toc={{ backToTop: true }}
         >

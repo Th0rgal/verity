@@ -1,4 +1,4 @@
-# Agent Guide for DumbContracts
+# Agent Guide for Verity
 
 Quick reference for AI agents. Humans: see [README.md](README.md).
 

@@ -15,9 +15,9 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
     match remaining with
     | [] => pure (outDir, libs.reverse, verbose)
     | "--help" :: _ | "-h" :: _ => do
-        IO.println "DumbContracts Compiler"
+        IO.println "Verity Compiler"
         IO.println ""
-        IO.println "Usage: dumbcontracts-compiler [options]"
+        IO.println "Usage: verity-compiler [options]"
         IO.println ""
         IO.println "Options:"
         IO.println "  --link <path>      Link external Yul library (can be used multiple times)"
@@ -29,7 +29,7 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
         IO.println "  -h                 Short form of --help"
         IO.println ""
         IO.println "Example:"
-        IO.println "  dumbcontracts-compiler --link libs/Poseidon.yul --link libs/Groth16.yul -o out/"
+        IO.println "  verity-compiler --link libs/Poseidon.yul --link libs/Groth16.yul -o out/"
         throw (IO.userError "help")
     | "--link" :: path :: rest =>
         go rest outDir (path :: libs) verbose

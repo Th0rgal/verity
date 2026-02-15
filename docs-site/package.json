@@ -1,9 +1,9 @@
 {
-  "name": "dumbcontracts-docs",
+  "name": "verity-docs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dumb Contracts documentation website - Minimal Lean EDSL for smart contracts",
+  "description": "Verity documentation website - Minimal Lean EDSL for smart contracts",
   "scripts": {
     "dev": "next dev -p 3003",
     "build": "next build && pagefind --site .next/server/app --output-path public/_pagefind",

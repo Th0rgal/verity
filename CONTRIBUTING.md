@@ -1,4 +1,4 @@
-# Contributing to DumbContracts
+# Contributing to Verity
 
 Quick conventions for contributing. See [README.md](README.md) for project overview, [docs/ROADMAP.md](docs/ROADMAP.md) for status.
 
