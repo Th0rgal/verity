@@ -136,6 +136,26 @@ def main() -> None:
         )
     )
 
+    # Check compiler.mdx
+    compiler_mdx = ROOT / "docs-site" / "content" / "compiler.mdx"
+    errors.extend(
+        check_file(
+            compiler_mdx,
+            [
+                (
+                    "theorem count",
+                    re.compile(r"(\d+) EDSL theorems"),
+                    str(total_theorems),
+                ),
+                (
+                    "theorem count in links",
+                    re.compile(r"Verification.+ — (\d+) proven theorems"),
+                    str(total_theorems),
+                ),
+            ],
+        )
+    )
+
     # Check TRUST_ASSUMPTIONS.md
     trust = ROOT / "TRUST_ASSUMPTIONS.md"
     errors.extend(
