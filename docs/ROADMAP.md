@@ -173,4 +173,4 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 ---
 
 **Last Updated**: 2026-02-15
-**Status**: Layers 1-3 complete, trust reduction in progress
+**Status**: Layers 1-3 complete. Trust reduction 1/3 done. Sum properties infrastructure complete, 7 proofs pending.
