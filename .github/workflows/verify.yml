@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/verify.yml'
       - 'Verity/**'
       - 'Verity.lean'
       - 'Compiler/**'
@@ -13,9 +14,11 @@ on:
       - 'scripts/**'
       - 'lakefile.lean'
       - 'lean-toolchain'
+      - 'foundry.toml'
       - 'AXIOMS.md'
   pull_request:
     paths:
+      - '.github/workflows/verify.yml'
       - 'Verity/**'
       - 'Verity.lean'
       - 'Compiler/**'
@@ -25,6 +28,7 @@ on:
       - 'scripts/**'
       - 'lakefile.lean'
       - 'lean-toolchain'
+      - 'foundry.toml'
       - 'AXIOMS.md'
   workflow_dispatch:
 

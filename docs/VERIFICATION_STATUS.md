@@ -153,13 +153,13 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
-**Status**: 70% coverage (207/296), 89 remaining exclusions all proof-only
+**Status**: 73% coverage (216/296), 80 remaining exclusions all proof-only
 
 ### Current Coverage
 
 - **Total Properties**: 296
-- **Covered**: 207 (70%)
-- **Excluded**: 89 (all proof-only)
+- **Covered**: 216 (73%)
+- **Excluded**: 80 (all proof-only)
 - **Missing**: 0
 
 ### Coverage by Contract
@@ -171,21 +171,19 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 | SimpleStorage | 95% (19/20) | 1 proof-only | ✅ Near-complete |
 | Owned | 91% (20/22) | 2 proof-only | ✅ Near-complete |
 | OwnedCounter | 98% (44/45) | 1 proof-only | ✅ Near-complete |
-| SimpleToken | 84% (47/56) | 9 proof-only | ✅ High coverage |
+| SimpleToken | 88% (49/56) | 7 proof-only | ✅ High coverage |
 | Counter | 82% (23/28) | 5 proof-only | ✅ High coverage |
-| Ledger | 78% (25/32) | 7 modeling limit | ⚠️ Limited |
+| Ledger | 100% (32/32) | 0 | ✅ Complete |
 | Stdlib | 0% (0/64) | 64 proof-only | — Internal |
 
 ### Exclusion Categories
 
-**Proof-Only Properties (82 exclusions)**: Internal proof machinery that cannot be tested in Foundry
+**Proof-Only Properties (80 exclusions)**: Internal proof machinery that cannot be tested in Foundry
 - Storage helpers: `setStorage_*`, `getStorage_*`, `setMapping_*`, `getMapping_*`
 - Internal helpers: `isOwner_*` functions tested implicitly
 - Low-level operations used only in proofs
 
-**Modeling Limitations (7 exclusions)**: Properties requiring features not yet modeled
-- Sum equations: Require finite address set modeling (e.g., total supply invariants)
-- Currently affects Ledger contract
+> **Note**: Sum conservation properties (previously excluded as "modeling limitations") were resolved in PR #135 by testing with fixed address sets.
 
 ## Differential Testing ✅ **PRODUCTION READY**
 
@@ -236,7 +234,7 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 ### Short Term (1-2 months)
 
 - [x] Add finite address set modeling for Ledger sum properties (Issue #39, closed)
-- [ ] Complete Ledger sum property proofs — 12 `sorry` remaining (Issue #65)
+- [ ] Complete Ledger sum property proofs — 10 `sorry` remaining (Issue #65)
 
 ### Medium Term (3-6 months)
 
