@@ -28,6 +28,10 @@ on:
       - 'AXIOMS.md'
   workflow_dispatch:
 
+env:
+  SOLC_VERSION: "0.8.33"
+  SOLC_URL: "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -122,11 +126,21 @@ jobs:
       - name: Validate Selectors.lean axiom definitions
         run: python3 scripts/validate_selectors.py
 
+      - name: Cache solc binary
+        id: cache-solc
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/solc
+          key: solc-${{ env.SOLC_VERSION }}
+
       - name: Install solc
+        if: steps.cache-solc.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          sudo curl -L "$SOLC_URL" -o /usr/local/bin/solc
           sudo chmod +x /usr/local/bin/solc
-          solc --version
+
+      - name: Verify solc
+        run: solc --version
 
       - name: Compile generated Yul with solc
         run: python3 scripts/check_yul_compiles.py
@@ -207,11 +221,21 @@ jobs:
         with:
           version: v1.5.0
 
+      - name: Cache solc binary
+        id: cache-solc
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/solc
+          key: solc-${{ env.SOLC_VERSION }}
+
       - name: Install solc
+        if: steps.cache-solc.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          sudo curl -L "$SOLC_URL" -o /usr/local/bin/solc
           sudo chmod +x /usr/local/bin/solc
-          solc --version
+
+      - name: Verify solc
+        run: solc --version
 
       - name: Run Foundry tests with seed 42
         env:
@@ -259,11 +283,21 @@ jobs:
         with:
           version: v1.5.0
 
+      - name: Cache solc binary
+        id: cache-solc
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/solc
+          key: solc-${{ env.SOLC_VERSION }}
+
       - name: Install solc
+        if: steps.cache-solc.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21 -o /usr/local/bin/solc
+          sudo curl -L "$SOLC_URL" -o /usr/local/bin/solc
           sudo chmod +x /usr/local/bin/solc
-          solc --version
+
+      - name: Verify solc
+        run: solc --version
 
       - name: Run tests with seed ${{ matrix.seed }}
         env:
