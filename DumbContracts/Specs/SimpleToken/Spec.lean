@@ -1,8 +1,5 @@
 /-
-  Formal specifications for SimpleToken operations
-
-  This file defines the expected behavior of each SimpleToken operation
-  in terms of state transitions and return values.
+  Formal specifications for SimpleToken operations.
 -/
 
 import DumbContracts.Core
@@ -20,17 +17,9 @@ def owner : StorageSlot Address := ⟨0⟩
 def balances : StorageSlot (Address → Uint256) := ⟨1⟩
 def totalSupply : StorageSlot Uint256 := ⟨2⟩
 
-/-! ## Operation Specifications
+/-! ## Operation Specifications -/
 
-These define the expected behavior of each SimpleToken operation.
--/
-
-/-- Specification for constructor operation:
-    - Sets the owner to the provided address
-    - Initializes total supply to 0
-    - Preserves balances mapping (implicitly 0)
-    - Preserves contract context
--/
+/-- Constructor: sets owner and initializes total supply to 0 -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
   s'.storage 2 = 0 ∧
@@ -39,12 +28,7 @@ def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   sameStorageMap s s' ∧
   sameContext s s'
 
-/-- Specification for mint operation (when caller is owner):
-    - Increases balance of 'to' address by 'amount'
-    - Increases total supply by 'amount'
-    - Preserves other balances
-    - Preserves owner
--/
+/-- Mint: increases balance and total supply by amount (owner only) -/
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s'.storageMap 1 to = add (s.storageMap 1 to) amount ∧
   s'.storage 2 = add (s.storage 2) amount ∧
@@ -53,14 +37,7 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   storageUnchangedExcept 2 s s' ∧
   sameContext s s'
 
-/-- Specification for transfer operation (when sender has sufficient balance):
-    - Decreases sender's balance by 'amount'
-    - Increases recipient's balance by 'amount'
-    - If sender == recipient, balances are unchanged
-    - Preserves total supply
-    - Preserves other balances
-    - Preserves owner
--/
+/-- Transfer: moves amount from sender to recipient, preserves total supply -/
 def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s.storageMap 1 sender ≥ amount ∧
   (if sender == to
@@ -75,31 +52,19 @@ def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState
   s'.storageAddr 0 = s.storageAddr 0 ∧
   sameStorageAddrContext s s'
 
-/-- Specification for balanceOf operation:
-    - Returns the balance of the given address
-    - Does not modify state
--/
+/-- balanceOf: returns the balance of the given address -/
 def balanceOf_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
   result = s.storageMap 1 addr
 
-/-- Specification for getTotalSupply operation:
-    - Returns the current total supply
-    - Does not modify state
--/
+/-- getTotalSupply: returns the current total supply -/
 def getTotalSupply_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage 2
 
-/-- Specification for getOwner operation:
-    - Returns the current owner address
-    - Does not modify state
--/
+/-- getOwner: returns the current owner address -/
 def getOwner_spec (result : Address) (s : ContractState) : Prop :=
   result = s.storageAddr 0
 
-/-! ## Combined Specifications
-
-Properties about sequences of operations.
--/
+/-! ## Combined Specifications -/
 
 /-- Constructor followed by getTotalSupply returns 0 -/
 def constructor_getTotalSupply_spec (_initialOwner : Address) (_s : ContractState) (result : Uint256) : Prop :=
