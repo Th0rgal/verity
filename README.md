@@ -57,7 +57,7 @@ def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal (inline proofs) |
 | CryptoHash | — | External cryptographic library linking (no specs) |
 
-**Verification snapshot**: 296 theorems across 9 categories, 207 covered by property tests (70% coverage), 89 proof-only exclusions. 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/dumbcontracts/issues/65)). 311 Foundry tests across 30 test suites.
+**Verification snapshot**: 296 theorems across 9 categories, 207 covered by property tests (70% coverage), 89 proof-only exclusions. 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/dumbcontracts/issues/65)). 290 Foundry tests across 23 test suites.
 
 ## What's Verified
 

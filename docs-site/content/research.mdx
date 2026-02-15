@@ -172,7 +172,7 @@ def ownedSpec : ContractSpec := {
 **Metrics**:
 - Manual IR eliminated in favor of generated IR from the spec
 - Time to add contract dropped significantly in practice
-- Test results: Foundry tests pass (311/311 as of 2026-02-15), Lean proofs verify (252/252 as of 2026-02-13)
+- Test results: Foundry tests pass (290/290 as of 2026-02-15), Lean proofs verify (252/252 as of 2026-02-13)
 - Code quality: More concise, optimized (expression inlining)
 
 **Features Achieved**:
@@ -186,7 +186,7 @@ def ownedSpec : ContractSpec := {
 ```bash
 lake build dumbcontracts-compiler    # Build compiler
 lake exe dumbcontracts-compiler      # Generate all contracts
-forge test  # 311/311 tests pass (as of 2026-02-15)
+forge test  # 290/290 tests pass (as of 2026-02-15)
 ```
 
 ### Differential Testing (Completed 2026-02-10)
@@ -223,7 +223,7 @@ forge test  # 311/311 tests pass (as of 2026-02-15)
 - 10,000+ random transactions pass per contract in CI (large suite)
 - Large suite is sharded across 8 CI jobs to stay within per-test gas limits
 - Zero mismatches detected
-- All Foundry tests passing (311/311 as of 2026-02-15)
+- All Foundry tests passing (290/290 as of 2026-02-15)
 - CI: All checks passing
 
 **Usage**:

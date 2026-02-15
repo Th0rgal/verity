@@ -41,6 +41,17 @@ def get_axiom_count() -> int:
     return count
 
 
+def get_test_counts() -> tuple[int, int]:
+    """Count test functions and test suite files."""
+    test_dir = ROOT / "test"
+    suite_count = len(list(test_dir.glob("*.t.sol")))
+    test_count = 0
+    for sol in test_dir.glob("*.t.sol"):
+        text = sol.read_text(encoding="utf-8")
+        test_count += len(re.findall(r"function\s+test", text))
+    return test_count, suite_count
+
+
 def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[str]:
     """Check a file for expected patterns. Returns list of errors."""
     if not path.exists():
@@ -61,6 +72,7 @@ def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[st
 def main() -> None:
     total_theorems, num_categories, _ = get_manifest_counts()
     axiom_count = get_axiom_count()
+    test_count, suite_count = get_test_counts()
 
     errors: list[str] = []
 
@@ -85,6 +97,16 @@ def main() -> None:
                     re.compile(r"verified with (\d+) axioms"),
                     str(axiom_count),
                 ),
+                (
+                    "test count",
+                    re.compile(r"(\d+) Foundry tests across"),
+                    str(test_count),
+                ),
+                (
+                    "test suite count",
+                    re.compile(r"Foundry tests across (\d+) test suites"),
+                    str(suite_count),
+                ),
             ],
         )
     )
@@ -104,6 +126,11 @@ def main() -> None:
                     "category count",
                     re.compile(r"Theorems\*\*: \d+ across (\d+) categor"),
                     str(num_categories),
+                ),
+                (
+                    "test count",
+                    re.compile(r"\*\*Tests\*\*: (\d+) Foundry"),
+                    str(test_count),
                 ),
             ],
         )
@@ -131,7 +158,8 @@ def main() -> None:
         print("", file=sys.stderr)
         print(
             f"Actual counts: {total_theorems} theorems, "
-            f"{num_categories} categories, {axiom_count} axioms",
+            f"{num_categories} categories, {axiom_count} axioms, "
+            f"{test_count} tests, {suite_count} suites",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -139,7 +167,7 @@ def main() -> None:
     print(
         f"Documentation count check passed "
         f"({total_theorems} theorems, {num_categories} categories, "
-        f"{axiom_count} axioms)."
+        f"{axiom_count} axioms, {test_count} tests, {suite_count} suites)."
     )
 
 
