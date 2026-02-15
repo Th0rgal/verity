@@ -48,6 +48,7 @@ lake build  # Must pass
 - `docs/VERIFICATION_STATUS.md` — Contract table and coverage stats
 - `docs-site/public/llms.txt` — Quick Facts and theorem breakdown table
 - `docs-site/content/verification.mdx` — Snapshot section
+- Run `python3 scripts/check_doc_counts.py` to verify all counts are synchronized
 
 ## Code Style
 

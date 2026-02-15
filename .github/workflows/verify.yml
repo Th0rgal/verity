@@ -218,7 +218,7 @@ jobs:
     strategy:
       fail-fast: false  # Test all seeds even if one fails
       matrix:
-        seed: [0, 1, 123, 999, 12345, 67890]
+        seed: [0, 1, 42, 123, 999, 12345, 67890]
     steps:
       - uses: actions/checkout@v4
         with:
