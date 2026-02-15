@@ -1,8 +1,8 @@
 # Verity
 
-**Verity** (formerly DumbContracts) is a Lean 4 framework enabling developers to write smart contracts in a domain-specific language, formally verify their correctness, and compile them to EVM bytecode.
+**Verity** is a Lean 4 framework enabling developers to write smart contracts in a domain-specific language, formally verify their correctness, and compile them to EVM bytecode.
 
-The philosophy: focus on simple rules - easy to understand and trust for humans - while leaving implementation up to agentic developers. Thanks to formal verification, the code is mathematically guaranteed to match the specs, which don't require any understanding of algorithmics.
+The philosophy: focus on simple rules, easy to understand and trust for humans, while leaving implementation up to agentic developers. Thanks to formal verification, the code is mathematically guaranteed to match the specs, which don't require any understanding of algorithmics.
 
 ## Example
 
@@ -49,9 +49,9 @@ def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
 
 Verity enables **separation of concerns** for trustless agentic development:
 
-- **Humans write specs** - Simple, auditable rules (10 lines)
-- **Agents write implementations** - Complex, optimized code (1000 lines)
-- **Math proves correctness** - No trust required
+- **Humans write specs**, simple, auditable rules (10 lines)
+- **Agents write implementations**, complex, optimized code (1000 lines)
+- **Math proves correctness**, no trust required
 
 ### One Spec, Many Implementations
 
@@ -122,12 +122,12 @@ python3 scripts/generate_contract.py MyContract
 python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
 ```
 
-**File Layout (Spec → Impl → Proof):**
-1. **Spec**: `Verity/Specs/<Name>/Spec.lean` — Human-readable function specifications
-2. **Invariants**: `Verity/Specs/<Name>/Invariants.lean` — State properties (optional but encouraged)
-3. **Implementation**: `Verity/Examples/<Name>.lean` — EDSL contract code
-4. **EDSL Proofs**: `Verity/Specs/<Name>/Proofs.lean` — Layer 1 correctness proofs
-5. **Compiler Spec**: `Compiler/Specs.lean` — ContractSpec for code generation
+**File Layout (Spec, Impl, Proof):**
+1. **Spec**: `Verity/Specs/<Name>/Spec.lean`, human-readable function specifications
+2. **Invariants**: `Verity/Specs/<Name>/Invariants.lean`, state properties (optional but encouraged)
+3. **Implementation**: `Verity/Examples/<Name>.lean`, EDSL contract code
+4. **EDSL Proofs**: `Verity/Specs/<Name>/Proofs.lean`, Layer 1 correctness proofs
+5. **Compiler Spec**: `Compiler/Specs.lean`, ContractSpec for code generation
 6. **Tests**: `test/Property<Name>.t.sol` + differential tests
 
 **Post-generation**: Fill in spec bodies, implement contract, write proofs, add properties. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -173,20 +173,20 @@ See [`test/README.md`](test/README.md) for details.
 
 ## Documentation
 
-- [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) — What's verified, what's trusted, trust reduction roadmap
-- [`AXIOMS.md`](AXIOMS.md) — All 5 axioms with soundness justifications
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Coding conventions, workflow, PR guidelines
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Verification progress, planned features
-- [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) — Per-theorem status
-- [`docs-site/`](docs-site/) — Full documentation site
+- [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md), what's verified, what's trusted, trust reduction roadmap
+- [`AXIOMS.md`](AXIOMS.md), all 5 axioms with soundness justifications
+- [`CONTRIBUTING.md`](CONTRIBUTING.md), coding conventions, workflow, PR guidelines
+- [`docs/ROADMAP.md`](docs/ROADMAP.md), verification progress, planned features
+- [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md), per-theorem status
+- [`docs-site/`](docs-site/), full documentation site
 
 ## Philosophy: "Dumb Contracts"
 
 The name **"dumb contracts"** captures our approach: write contracts so simple they can't be wrong.
 
-- **Simple specs** - No algorithmic knowledge required
-- **Human auditable** - Trust the rules, not the implementation
-- **Mathematically proven** - Correctness guaranteed by Lean
+- **Simple specs**, no algorithmic knowledge required
+- **Human auditable**, trust the rules, not the implementation
+- **Mathematically proven**, correctness guaranteed by Lean
 
 In the agentic era, agents will write most code. Verity ensures their implementations are trustworthy by default.
 
