@@ -39,6 +39,8 @@ EVM Bytecode
 | ReentrancyExample | 4 | ✅ Complete | `DumbContracts/Examples/ReentrancyExample.lean` |
 | **Total** | **232** | **✅ 100%** | — |
 
+> **Note**: Stdlib (64 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (296 total properties).
+
 ### Example Property
 
 ```lean
