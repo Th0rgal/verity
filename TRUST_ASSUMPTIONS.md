@@ -25,7 +25,7 @@ User's Contract Code (EDSL)
 ContractSpec (High-level specification)
     ↓ [Layer 2: FULLY VERIFIED]
 IR (Intermediate representation)
-    ↓ [Layer 3: FULLY VERIFIED, 3 axioms]
+    ↓ [Layer 3: FULLY VERIFIED, 5 axioms]
 Yul (Ethereum intermediate language)
     ↓ [TRUSTED: Solidity compiler]
 EVM Bytecode
@@ -37,7 +37,7 @@ EVM Bytecode
 |-----------|--------|------------|
 | Layer 1 (EDSL → Spec) | ✅ Verified | None |
 | Layer 2 (Spec → IR) | ✅ Verified | None |
-| Layer 3 (IR → Yul) | ✅ Verified (3 axioms) | Very Low |
+| Layer 3 (IR → Yul) | ✅ Verified (5 axioms) | Very Low |
 | Axioms | ⚠️ Documented | Low |
 | Solidity Compiler (solc) | ⚠️ Trusted | Medium |
 | Keccak256 Hashing | ⚠️ Trusted | Low |
@@ -73,7 +73,7 @@ theorem increment_correct (state : ContractState) :
     finalState.storage countSlot = add (state.storage countSlot) 1
 ```
 
-**Coverage**: 203 properties proven across 7 contracts (70% coverage)
+**Coverage**: 207 properties tested across 9 contracts (70% coverage, 296 total theorems)
 
 **What this guarantees**:
 - Contract behavior matches specification
@@ -115,7 +115,7 @@ theorem execStmt_preserves_properties :
 
 ### Layer 3: IR → Yul
 
-**Status**: ✅ **Verified (with 3 axioms)**
+**Status**: ✅ **Verified (with 5 axioms)**
 
 **What is proven**: IR execution is equivalent to Yul execution when states are properly aligned.
 
@@ -138,7 +138,7 @@ theorem storageStore_equiv : ...
 theorem if_equiv : ...
 ```
 
-**Dependencies**: Relies on 3 axioms (see [Axioms](#axioms) section)
+**Dependencies**: Relies on 5 axioms (see [Axioms](#axioms) section)
 
 **What this guarantees**:
 - Yul code correctly implements IR semantics
@@ -305,7 +305,7 @@ These components are **not formally verified** but are trusted based on testing,
 
 ## Axioms
 
-DumbContracts uses **3 axioms** in Layer 3 (IR → Yul) proofs. All axioms are documented with soundness justifications.
+DumbContracts uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
 
 **See**: [AXIOMS.md](AXIOMS.md) for complete details.
 
@@ -316,6 +316,8 @@ DumbContracts uses **3 axioms** in Layer 3 (IR → Yul) proofs. All axioms are d
 | `evalIRExpr_eq_evalYulExpr` | Expression evaluation equivalence | Low | Differential tests, code inspection |
 | `evalIRExprs_eq_evalYulExprs` | List version of above | Low | Differential tests, code inspection |
 | `addressToNat_injective_valid` | Ethereum address injectivity | Low | Differential tests, EVM semantics |
+| `keccak256_first_4_bytes` | Function selector computation | Low | CI validation against solc --hashes |
+| `addressToNat_injective` | Address-to-Nat mapping injectivity | Low | EVM address semantics |
 
 **Key Points**:
 - All axioms have **low risk** with strong soundness arguments
@@ -405,7 +407,7 @@ Use this checklist when performing security audits of DumbContracts-verified con
 
 2. **Axiom Elimination**
    - Refactor expression evaluation to fuel-based
-   - Removes 2 of 3 axioms
+   - Removes 2 of 5 axioms
    - Effort: ~500 LOC refactoring
 
 3. **Gas Cost Verification** (Issue #80)
@@ -439,13 +441,13 @@ DumbContracts provides **strong formal verification** with a **small trusted com
 ✅ Contract implementations match specifications (Layer 1)
 ✅ Specifications preserved through compilation (Layer 2)
 ✅ IR semantics equivalent to Yul semantics (Layer 3)
-✅ 203 properties proven across 7 contracts
+✅ 296 theorems across 9 contracts (207 covered by property tests)
 
 ### What is Trusted (Validated but Not Proven)
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
 ⚠️ Keccak256 hashing - Validated against solc
 ⚠️ EVM semantics - Industry standard, billions in TVL
-⚠️ 3 axioms - Low risk, extensively validated
+⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
 
 ### Risk Profile
 - **Overall**: Low to Medium risk
@@ -469,7 +471,7 @@ Trust assumptions are **documented and minimized**:
 
 ---
 
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-15
 **Next Review**: After completing issue #76 (Yul → Bytecode verification)
 **Maintainer**: Update when trust boundaries change or new components are verified
 
