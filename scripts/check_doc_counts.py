@@ -59,7 +59,10 @@ def get_core_line_count() -> int:
 
 
 def get_sorry_count() -> int:
-    """Count sorry statements in Lean proof files."""
+    """Count sorry statements in Lean proof files.
+
+    Matches both plain ``sorry`` and focus-bullet ``· sorry`` syntax.
+    """
     count = 0
     for d in [ROOT / "Compiler", ROOT / "Verity"]:
         if not d.exists():
@@ -67,7 +70,7 @@ def get_sorry_count() -> int:
         for lean in d.rglob("*.lean"):
             text = lean.read_text(encoding="utf-8")
             for line in text.splitlines():
-                if re.match(r"^\s*sorry\b", line):
+                if re.match(r"^\s*(·\s*)?sorry\b", line):
                     count += 1
     return count
 

@@ -17,7 +17,7 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 - **Language**: Lean 4.15.0
 - **Core Size**: 249 lines
 - **Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, CryptoHash, ReentrancyExample
-- **Theorems**: 296 across 9 categories (286 fully proven, 10 `sorry` placeholders in Ledger sum proofs)
+- **Theorems**: 296 across 9 categories (284 fully proven, 12 `sorry` placeholders in Ledger sum proofs)
 - **Axioms**: 5 documented axioms (see AXIOMS.md) — keccak256, expression evaluation, address injectivity
 - **Tests**: 299 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
@@ -107,7 +107,7 @@ See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
 
 ## Known Limitations
 
-- 10 `sorry` placeholders in Ledger sum property proofs (issue #65)
+- 12 `sorry` placeholders in Ledger sum property proofs (issue #65)
 - No events, no gas modeling
 - No nested mappings (can't express ERC-20 allowances yet)
 - Self-transfer handled via delta-zero pattern (not separate logic)

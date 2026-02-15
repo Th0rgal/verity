@@ -6,10 +6,10 @@
   to be used with formally verified contract logic.
 
   Usage:
-    lake exec compiler --target yul \
-        --link libs/PoseidonT4.yul \
-        --link libs/Groth16.yul \
-        -o output.yul
+    lake exe verity-compiler \
+        --link examples/external-libs/PoseidonT3.yul \
+        --link examples/external-libs/PoseidonT4.yul \
+        -o compiler/yul
 -/
 
 import Compiler.Yul.Ast

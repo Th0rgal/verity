@@ -21,7 +21,7 @@ The Verity compiler transforms high-level, verified contract specifications into
 
 ### What's Verified (Zero Trust Required)
 - **EDSL + compiler proofs**: Lean theorems for contract specs, IR generation, and Yul codegen
-- **Machine-checked proofs**: 5 documented axioms (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)), 10 sorry in Ledger sum proofs
+- **Machine-checked proofs**: 5 documented axioms (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)), 12 sorry in Ledger sum proofs
 - **Interpreter semantics**: Spec, IR, and Yul semantics defined and linked in Lean
 
 ### What's Tested (High Confidence)
@@ -177,6 +177,12 @@ forge create SimpleStorage --from 0x... --private-key ...
 - Mapping slot computation helper
 - Deploy code + runtime code separation
 
+**`Compiler/Linker.lean`**
+- External Yul library linking
+- Line-based parser for extracting function definitions from `.yul` files
+- Injection of library functions into runtime code section
+- Validation of external references (`validateExternalReferences`)
+
 **`Compiler/Yul/*.lean`** (Yul AST + pretty printer)
 - Yul abstract syntax tree
 - Pretty printer (Yul → text)
@@ -253,6 +259,31 @@ sstore(0, add(sload(0), 1))
 
 Automatic expression inlining reduces bytecode size and gas costs.
 
+### External Library Linking ✅
+
+Link production cryptographic libraries (or any external Yul functions) into compiled contracts using the `--link` flag:
+
+```bash
+lake exe verity-compiler \
+    --link examples/external-libs/PoseidonT3.yul \
+    --link examples/external-libs/PoseidonT4.yul \
+    -o compiler/yul
+```
+
+**How it works**: The linker parses `.yul` files, extracts function definitions, and injects them into the runtime `code {}` section of each compiled contract. This lets you prove properties about contract logic using simple placeholder functions in Lean, then swap in production-grade implementations at compile time.
+
+**Library file format**: External libraries should contain plain Yul function definitions (no `object` wrapper):
+```yul
+function PoseidonT3_hash(a, b) -> result {
+    // Production implementation here
+    result := /* ... */
+}
+```
+
+**Validation**: The `validateExternalReferences` function checks that all non-builtin function calls in the contract are satisfied by linked libraries, catching missing dependencies at compile time.
+
+See [`examples/external-libs/`](https://github.com/Th0rgal/verity/tree/main/examples/external-libs) for example library files.
+
 ## Usage
 
 ### Compile All Contracts
@@ -274,7 +305,7 @@ lake exe verity-compiler
 # Run all Foundry tests
 forge test
 
-# Expected: 290/290 tests pass (as of 2026-02-15)
+# Expected: 299/299 tests pass (as of 2026-02-15)
 ```
 
 ### Add New Contract
@@ -317,10 +348,10 @@ $ lake build
 Build completed successfully.
 ```
 
-**Foundry Tests**: 290/290 passing (100%, as of 2026-02-15)
+**Foundry Tests**: 299/299 passing (100%, as of 2026-02-15)
 ```bash
 $ forge test
-Ran 23 test suites: 290 tests passed, 0 failed, 0 skipped (290 total tests)
+Ran 23 test suites: 299 tests passed, 0 failed, 0 skipped (299 total tests)
 ```
 
 **Coverage**: Unit, property, and differential tests across EDSL and compiled Yul. See `test/` for suites.

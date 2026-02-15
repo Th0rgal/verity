@@ -61,11 +61,23 @@ jobs:
 
       - name: Check for sorry
         run: |
-          if grep -r "sorry" Verity/Proofs/ --include="*.lean" | grep -v "^--" | grep -v "zero sorry" | grep -v "Summary"; then
-            echo "ERROR: Found 'sorry' in proof files"
+          # Count sorry across all Lean files (matching both 'sorry' and '· sorry')
+          EXPECTED_SORRY=12  # Tracked in issue #65 (Ledger sum proofs)
+          ACTUAL_SORRY=$(grep -rn "sorry" Verity/ Compiler/ --include="*.lean" \
+            | grep -v "^--" | grep -v "zero sorry" | grep -v "Summary" \
+            | grep -v "SORRY" | grep -v "sorry_count" | grep -v "sorry placeholder" \
+            | grep -v "No sorry" | grep -v "all proofs are complete" \
+            | wc -l)
+          echo "Found $ACTUAL_SORRY sorry statement(s) (expected $EXPECTED_SORRY)"
+          if [ "$ACTUAL_SORRY" -gt "$EXPECTED_SORRY" ]; then
+            echo "ERROR: New sorry introduced ($ACTUAL_SORRY found, $EXPECTED_SORRY expected)"
+            grep -rn "sorry" Verity/ Compiler/ --include="*.lean" \
+              | grep -v "^--" | grep -v "zero sorry" | grep -v "Summary" \
+              | grep -v "SORRY" | grep -v "sorry_count" | grep -v "sorry placeholder" \
+              | grep -v "No sorry" | grep -v "all proofs are complete"
             exit 1
           fi
-          echo "No sorry found — all proofs are complete"
+          echo "✓ Sorry count ($ACTUAL_SORRY) within expected limit ($EXPECTED_SORRY)"
 
       - name: Check for axioms in proof files
         run: |
