@@ -6,7 +6,7 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertySimpleStorageTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from DumbContracts/Proofs/SimpleStorage/ to executable tests
+ * @dev Maps theorems from Verity/Proofs/SimpleStorage/ to executable tests
  *
  * This file contains property tests corresponding to 19 proven theorems:
  *

@@ -6,7 +6,7 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertySimpleTokenTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from DumbContracts/Proofs/SimpleToken/*.lean to executable tests
+ * @dev Maps theorems from Verity/Proofs/SimpleToken/*.lean to executable tests
  *
  * This file extracts 57 proven theorems into Foundry property tests:
  * - Basic properties (constructor, mint, transfer, getters)

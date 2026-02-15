@@ -6,7 +6,7 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertyCounterTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from DumbContracts/Proofs/Counter/Correctness.lean to executable tests
+ * @dev Maps theorems from Verity/Proofs/Counter/Correctness.lean to executable tests
  *
  * This file contains 10 property tests corresponding to 10 proven theorems:
  * 1. increment_state_preserved_except_count

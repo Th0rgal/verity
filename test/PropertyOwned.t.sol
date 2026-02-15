@@ -6,7 +6,7 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertyOwnedTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from DumbContracts/Proofs/Owned/ to executable tests
+ * @dev Maps theorems from Verity/Proofs/Owned/ to executable tests
  *
  * This file contains property tests corresponding to 22 proven theorems:
  *

@@ -7,7 +7,7 @@ import "../examples/solidity/ReentrancyExample.sol";
 /**
  * @title PropertyReentrancyExampleTest
  * @notice Property-based tests for the reentrancy example contracts
- * @dev Maps theorems from DumbContracts/Examples/ReentrancyExample.lean to executable tests
+ * @dev Maps theorems from Verity/Examples/ReentrancyExample.lean to executable tests
  *
  * These tests validate proven Lean theorems against Solidity implementations:
  *

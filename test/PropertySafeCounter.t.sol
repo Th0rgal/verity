@@ -6,7 +6,7 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertySafeCounterTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from DumbContracts/Proofs/SafeCounter/*.lean to executable tests
+ * @dev Maps theorems from Verity/Proofs/SafeCounter/*.lean to executable tests
  *
  * This file contains property tests for SafeCounter's 25 proven theorems:
  *

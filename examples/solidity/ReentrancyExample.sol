@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 /// @notice Demonstrates a reentrancy vulnerability where totalSupply is
 ///         decremented twice (modeling a reentrant callback) before the
 ///         balance is updated once. This breaks the supply invariant.
-/// @dev Matches the Lean EDSL model in DumbContracts/Examples/ReentrancyExample.lean
+/// @dev Matches the Lean EDSL model in Verity/Examples/ReentrancyExample.lean
 contract VulnerableBank {
     // Storage layout matches EDSL:
     // slot 0: reentrancyLock (unused in vulnerable version)

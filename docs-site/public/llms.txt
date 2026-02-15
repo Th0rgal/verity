@@ -87,13 +87,13 @@ The GitHub Actions workflow validates:
 
 ## Documentation URLs
 
-- Main: https://dumbcontracts.thomasm.ar/
-- Verification: https://dumbcontracts.thomasm.ar/verification
-- Research: https://dumbcontracts.thomasm.ar/research
-- Examples: https://dumbcontracts.thomasm.ar/examples
-- Core: https://dumbcontracts.thomasm.ar/core
-- Compiler: https://dumbcontracts.thomasm.ar/compiler
-- Guides: https://dumbcontracts.thomasm.ar/guides/first-contract
+- Main: https://verity.thomasm.ar/
+- Verification: https://verity.thomasm.ar/verification
+- Research: https://verity.thomasm.ar/research
+- Examples: https://verity.thomasm.ar/examples
+- Core: https://verity.thomasm.ar/core
+- Compiler: https://verity.thomasm.ar/compiler
+- Guides: https://verity.thomasm.ar/guides/first-contract
 
 Add `.md` to any URL for raw markdown (saves tokens).
 

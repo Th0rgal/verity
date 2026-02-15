@@ -6,7 +6,7 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertyLedgerTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from DumbContracts/Proofs/Ledger/*.lean to executable tests
+ * @dev Maps theorems from Verity/Proofs/Ledger/*.lean to executable tests
  *
  * This file contains property tests for Ledger's 31 proven theorems:
  *

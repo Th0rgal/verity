@@ -1,5 +1,5 @@
 /-
-  Dumb Contracts: Minimal EDSL Core
+  Verity: Minimal EDSL Core
 
   This module defines the essential types and primitives for smart contracts.
   Philosophy: Keep it minimal - only add what examples actually need.
