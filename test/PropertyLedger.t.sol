@@ -38,9 +38,14 @@ import "./yul/YulTestBase.sol";
  * 23. transfer_getBalance_recipient_correct - Transfer->read recipient
  * 24. deposit_withdraw_cancel - Deposit->withdraw cancels
  *
- * Conservation.lean (7 theorems) - Advanced balance conservation properties
- * Note: Some conservation theorems involve complex sum invariants that are
- * better validated through differential testing rather than individual property tests.
+ * Conservation.lean (7 theorems) - Balance sum conservation properties:
+ * 25. deposit_sum_equation - Deposit increases sum by amount
+ * 26. deposit_sum_singleton_sender - Singleton deposit sum increase
+ * 27. withdraw_sum_equation - Withdraw decreases sum by amount
+ * 28. withdraw_sum_singleton_sender - Singleton withdraw sum decrease
+ * 29. transfer_sum_equation - Transfer preserves total sum
+ * 30. transfer_sum_preserved_unique - Unique pair sum preservation
+ * 31. deposit_withdraw_sum_cancel - Deposit-withdraw returns sum to original
  */
 contract PropertyLedgerTest is YulTestBase {
     address ledger;
@@ -497,6 +502,207 @@ contract PropertyLedgerTest is YulTestBase {
         require(success2, "withdraw failed");
 
         assertEq(getBalanceFromStorage(sender), before, "deposit->withdraw didn't cancel");
+    }
+
+    //═══════════════════════════════════════════════════════════════════════════
+    // Conservation Properties (Sum Invariants)
+    // Maps theorems from Verity/Proofs/Ledger/Conservation.lean
+    //═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Property 25: deposit_sum_equation
+     * Theorem: For a list of unique addresses, deposit increases the total
+     *          balance sum by exactly `amount` (when sender appears once).
+     */
+    function testProperty_Deposit_SumEquation(address sender, uint256 amount) public {
+        vm.assume(amount > 0 && amount <= type(uint256).max / 4);
+        vm.assume(sender != bob && sender != charlie);
+
+        // Set up known balances
+        setBalance(sender, 100);
+        setBalance(bob, 200);
+        setBalance(charlie, 300);
+
+        uint256 sumBefore = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(bob)
+            + getBalanceFromStorage(charlie);
+
+        vm.prank(sender);
+        (bool success,) = ledger.call(abi.encodeWithSignature("deposit(uint256)", amount));
+        require(success, "deposit failed");
+
+        uint256 sumAfter = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(bob)
+            + getBalanceFromStorage(charlie);
+
+        // Sum increases by exactly `amount` (sender appears once in the list)
+        assertEq(sumAfter, sumBefore + amount, "deposit_sum_equation: sum should increase by amount");
+    }
+
+    /**
+     * Property 26: deposit_sum_singleton_sender
+     * Theorem: When the address list contains only the sender,
+     *          the sum increases by exactly `amount`.
+     */
+    function testProperty_Deposit_SumSingletonSender(address sender, uint256 amount) public {
+        vm.assume(amount > 0 && amount <= type(uint256).max / 4);
+
+        uint256 before = getBalanceFromStorage(sender);
+        vm.assume(before + amount <= type(uint256).max);
+
+        vm.prank(sender);
+        (bool success,) = ledger.call(abi.encodeWithSignature("deposit(uint256)", amount));
+        require(success, "deposit failed");
+
+        uint256 after_ = getBalanceFromStorage(sender);
+
+        // Singleton list: sum is just the single balance
+        assertEq(after_, before + amount, "deposit_sum_singleton: balance should increase by amount");
+    }
+
+    /**
+     * Property 27: withdraw_sum_equation
+     * Theorem: For a list of unique addresses, withdraw decreases the total
+     *          balance sum by exactly `amount` (when sender appears once).
+     */
+    function testProperty_Withdraw_SumEquation(address sender, uint256 amount) public {
+        vm.assume(amount > 0 && amount <= 100);
+        vm.assume(sender != bob && sender != charlie);
+
+        setBalance(sender, 200);
+        setBalance(bob, 300);
+        setBalance(charlie, 400);
+
+        uint256 sumBefore = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(bob)
+            + getBalanceFromStorage(charlie);
+
+        vm.prank(sender);
+        (bool success,) = ledger.call(abi.encodeWithSignature("withdraw(uint256)", amount));
+        require(success, "withdraw failed");
+
+        uint256 sumAfter = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(bob)
+            + getBalanceFromStorage(charlie);
+
+        // Sum decreases by exactly `amount`
+        assertEq(sumAfter + amount, sumBefore, "withdraw_sum_equation: sum should decrease by amount");
+    }
+
+    /**
+     * Property 28: withdraw_sum_singleton_sender
+     * Theorem: When the address list contains only the sender,
+     *          the sum decreases by exactly `amount`.
+     */
+    function testProperty_Withdraw_SumSingletonSender(address sender, uint256 initialBalance, uint256 amount) public {
+        vm.assume(amount > 0 && amount <= initialBalance);
+        vm.assume(initialBalance <= type(uint256).max / 2);
+
+        setBalance(sender, initialBalance);
+
+        vm.prank(sender);
+        (bool success,) = ledger.call(abi.encodeWithSignature("withdraw(uint256)", amount));
+        require(success, "withdraw failed");
+
+        uint256 after_ = getBalanceFromStorage(sender);
+
+        // Singleton: balance decreases by exactly amount
+        assertEq(after_ + amount, initialBalance, "withdraw_sum_singleton: balance should decrease by amount");
+    }
+
+    /**
+     * Property 29: transfer_sum_equation
+     * Theorem: Transfer conserves the total balance sum across unique addresses.
+     *          When sender and recipient each appear once, the sum is preserved.
+     */
+    function testProperty_Transfer_SumEquation(address sender, address recipient, uint256 senderBalance, uint256 amount) public {
+        vm.assume(sender != recipient);
+        vm.assume(sender != charlie && recipient != charlie);
+        vm.assume(amount > 0 && amount <= senderBalance);
+        vm.assume(senderBalance <= type(uint256).max / 4);
+
+        setBalance(sender, senderBalance);
+        setBalance(recipient, 100);
+        setBalance(charlie, 200);
+
+        uint256 recipientBefore = getBalanceFromStorage(recipient);
+        vm.assume(recipientBefore + amount <= type(uint256).max);
+
+        uint256 sumBefore = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(recipient)
+            + getBalanceFromStorage(charlie);
+
+        vm.prank(sender);
+        (bool success,) = ledger.call(abi.encodeWithSignature("transfer(address,uint256)", recipient, amount));
+        require(success, "transfer failed");
+
+        uint256 sumAfter = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(recipient)
+            + getBalanceFromStorage(charlie);
+
+        // Sum is preserved exactly (sender and recipient each appear once)
+        assertEq(sumAfter, sumBefore, "transfer_sum_equation: total sum should be preserved");
+    }
+
+    /**
+     * Property 30: transfer_sum_preserved_unique
+     * Theorem: When sender and recipient each appear exactly once in the
+     *          address list, the sum is exactly preserved.
+     */
+    function testProperty_Transfer_SumPreservedUnique(address sender, address recipient, uint256 senderBalance, uint256 amount) public {
+        vm.assume(sender != recipient);
+        vm.assume(amount > 0 && amount <= senderBalance);
+        vm.assume(senderBalance <= type(uint256).max / 4);
+
+        setBalance(sender, senderBalance);
+        uint256 recipientBefore = getBalanceFromStorage(recipient);
+        vm.assume(recipientBefore + amount <= type(uint256).max);
+
+        uint256 sumBefore = getBalanceFromStorage(sender) + recipientBefore;
+
+        vm.prank(sender);
+        (bool success,) = ledger.call(abi.encodeWithSignature("transfer(address,uint256)", recipient, amount));
+        require(success, "transfer failed");
+
+        uint256 sumAfter = getBalanceFromStorage(sender) + getBalanceFromStorage(recipient);
+
+        // Unique addresses: sum exactly preserved
+        assertEq(sumAfter, sumBefore, "transfer_sum_preserved_unique: pairwise sum must be exact");
+    }
+
+    /**
+     * Property 31: deposit_withdraw_sum_cancel
+     * Theorem: Depositing then withdrawing the same amount returns the
+     *          balance sum to its original value.
+     */
+    function testProperty_Deposit_Withdraw_SumCancel(address sender, uint256 amount) public {
+        vm.assume(amount > 0 && amount <= type(uint256).max / 4);
+        vm.assume(sender != bob && sender != charlie);
+
+        setBalance(sender, 500);
+        setBalance(bob, 200);
+        setBalance(charlie, 300);
+
+        uint256 sumBefore = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(bob)
+            + getBalanceFromStorage(charlie);
+
+        // Deposit
+        vm.prank(sender);
+        (bool success1,) = ledger.call(abi.encodeWithSignature("deposit(uint256)", amount));
+        require(success1, "deposit failed");
+
+        // Withdraw same amount
+        vm.prank(sender);
+        (bool success2,) = ledger.call(abi.encodeWithSignature("withdraw(uint256)", amount));
+        require(success2, "withdraw failed");
+
+        uint256 sumAfter = getBalanceFromStorage(sender)
+            + getBalanceFromStorage(bob)
+            + getBalanceFromStorage(charlie);
+
+        // Sum returns to original value
+        assertEq(sumAfter, sumBefore, "deposit_withdraw_sum_cancel: sum should return to original");
     }
 
     //═══════════════════════════════════════════════════════════════════════════

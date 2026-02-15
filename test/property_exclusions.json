@@ -6,15 +6,7 @@
     "setStorage_preserves_map_storage",
     "setStorage_updates_count"
   ],
-  "Ledger": [
-    "deposit_sum_equation",
-    "deposit_sum_singleton_sender",
-    "deposit_withdraw_sum_cancel",
-    "transfer_sum_equation",
-    "transfer_sum_preserved_unique",
-    "withdraw_sum_equation",
-    "withdraw_sum_singleton_sender"
-  ],
+  "Ledger": [],
   "Owned": [
     "isOwner_meets_spec",
     "isOwner_returns_correct_value"
@@ -29,12 +21,10 @@
     "getMapping_reads_balance",
     "getStorageAddr_reads_owner",
     "getStorage_reads_supply",
-    "mint_sum_equation",
     "setMapping_preserves_other_addresses",
     "setMapping_updates_balance",
     "setStorageAddr_updates_owner",
-    "setStorage_updates_supply",
-    "transfer_sum_equation"
+    "setStorage_updates_supply"
   ],
   "Stdlib": [
     "SpecStorage_getMapping_setMapping_diff_slot",

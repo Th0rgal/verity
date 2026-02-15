@@ -737,6 +737,81 @@ contract PropertySimpleTokenTest is YulTestBase {
         assertFalse(success, "Non-owner cannot mint (isOwner check fails)");
     }
 
+    //═══════════════════════════════════════════════════════════════════════════
+    // Conservation Properties (Sum Invariants)
+    // Maps theorems from Verity/Proofs/SimpleToken/Supply.lean
+    //═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Property: mint_sum_equation
+     * Theorem: For a list of unique addresses, minting to `to` increases the
+     *          total balance sum by exactly `amount` (when `to` appears once).
+     */
+    function testProperty_Mint_SumEquation(uint256 amount) public {
+        vm.assume(amount > 0 && amount <= type(uint256).max / 4);
+
+        // Mint initial balances
+        vm.prank(owner);
+        (bool s1,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, 200));
+        require(s1);
+        vm.prank(owner);
+        (bool s2,) = token.call(abi.encodeWithSignature("mint(address,uint256)", charlie, 300));
+        require(s2);
+
+        // Read balances before
+        uint256 sumBefore = getBalance(alice) + getBalance(bob) + getBalance(charlie);
+
+        // Mint to alice
+        vm.prank(owner);
+        (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, amount));
+        require(success, "mint failed");
+
+        uint256 sumAfter = getBalance(alice) + getBalance(bob) + getBalance(charlie);
+
+        // Sum increases by exactly `amount` (alice appears once)
+        assertEq(sumAfter, sumBefore + amount, "mint_sum_equation: sum should increase by amount");
+    }
+
+    /**
+     * Property: transfer_sum_equation
+     * Theorem: Transfer preserves the total balance sum across unique addresses.
+     *          When sender and recipient each appear once, the sum is preserved.
+     */
+    function testProperty_Transfer_SumEquation(uint256 aliceAmount, uint256 transferAmount) public {
+        vm.assume(aliceAmount > 0 && aliceAmount <= type(uint256).max / 4);
+        vm.assume(transferAmount > 0 && transferAmount <= aliceAmount);
+
+        // Set up balances via minting
+        vm.prank(owner);
+        (bool s1,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, aliceAmount));
+        require(s1);
+        vm.prank(owner);
+        (bool s2,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, 200));
+        require(s2);
+        vm.prank(owner);
+        (bool s3,) = token.call(abi.encodeWithSignature("mint(address,uint256)", charlie, 300));
+        require(s3);
+
+        uint256 sumBefore = getBalance(alice) + getBalance(bob) + getBalance(charlie);
+
+        // Transfer from alice to bob
+        vm.prank(alice);
+        (bool success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, transferAmount));
+        require(success, "transfer failed");
+
+        uint256 sumAfter = getBalance(alice) + getBalance(bob) + getBalance(charlie);
+
+        // Sum is preserved exactly
+        assertEq(sumAfter, sumBefore, "transfer_sum_equation: total sum should be preserved");
+    }
+
+    // Helper: read balance via contract call
+    function getBalance(address addr) internal returns (uint256) {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSignature("balanceOf(address)", addr));
+        require(success, "balanceOf failed");
+        return abi.decode(data, (uint256));
+    }
+
     // Helper functions
     function readStorageAddr(uint256 slot) internal view returns (address) {
         return readStorageAddr(token, slot);
