@@ -1,11 +1,5 @@
 /-
-  Formal specifications for OwnedCounter contract operations.
-
-  OwnedCounter composes ownership and counter patterns:
-  - Slot 0 (Address): owner
-  - Slot 1 (Uint256): count
-  - Owner-only guard on increment/decrement/transferOwnership
-  - Public reads for getCount and getOwner
+  Formal specifications for OwnedCounter operations.
 -/
 
 import DumbContracts.Core
@@ -21,33 +15,33 @@ open DumbContracts.EVM.Uint256
 
 /-! ## Operation Specifications -/
 
-/-- Constructor: sets owner, does not touch count slot -/
+/-- Constructor: sets owner -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
   storageAddrUnchangedExcept 0 s s' ∧
   sameStorageMapContext s s'
 
-/-- getCount: returns count from slot 1, no state change -/
+/-- getCount: returns current count -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage 1
 
-/-- getOwner: returns owner from addr slot 0, no state change -/
+/-- getOwner: returns current owner -/
 def getOwner_spec (result : Address) (s : ContractState) : Prop :=
   result = s.storageAddr 0
 
-/-- increment (when owner): count increases by 1, owner unchanged, context preserved -/
+/-- increment: increases count by 1 (owner only) -/
 def increment_spec (s s' : ContractState) : Prop :=
   s'.storage 1 = add (s.storage 1) 1 ∧
   storageUnchangedExcept 1 s s' ∧
   sameAddrMapContext s s'
 
-/-- decrement (when owner): count decreases by 1, owner unchanged, context preserved -/
+/-- decrement: decreases count by 1 (owner only) -/
 def decrement_spec (s s' : ContractState) : Prop :=
   s'.storage 1 = sub (s.storage 1) 1 ∧
   storageUnchangedExcept 1 s s' ∧
   sameAddrMapContext s s'
 
-/-- transferOwnership (when owner): changes owner, count unchanged -/
+/-- transferOwnership: changes owner (owner only) -/
 def transferOwnership_spec (newOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = newOwner ∧
   storageAddrUnchangedExcept 0 s s' ∧
