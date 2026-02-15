@@ -14,6 +14,7 @@ MANIFEST = ROOT / "test" / "property_manifest.json"
 EXCLUSIONS = ROOT / "test" / "property_exclusions.json"
 TEST_DIR = ROOT / "test"
 PROOFS_DIR = ROOT / "DumbContracts" / "Proofs"
+EXAMPLES_DIR = ROOT / "DumbContracts" / "Examples"
 
 # Regex patterns for extracting property tags from test files
 PROPERTY_WITH_NUM_RE = re.compile(
@@ -130,6 +131,9 @@ def collect_theorems(path: Path) -> list[str]:
 def extract_manifest_from_proofs() -> dict[str, list[str]]:
     """Extract theorem names from Lean proof files.
 
+    Scans DumbContracts/Proofs/ directories and DumbContracts/Examples/ files
+    that contain inline theorems (e.g., ReentrancyExample).
+
     Returns:
         Dictionary mapping contract names to sorted, deduplicated lists of theorem names.
     """
@@ -145,6 +149,17 @@ def extract_manifest_from_proofs() -> dict[str, list[str]]:
             theorems.extend(collect_theorems(lean))
         if theorems:
             manifest[contract] = sorted(dict.fromkeys(theorems))
+
+    # Also scan Examples/ for contracts with inline theorems (no separate Proofs dir)
+    if EXAMPLES_DIR.exists():
+        for lean in sorted(EXAMPLES_DIR.glob("*.lean")):
+            contract = lean.stem
+            if contract in manifest:
+                continue  # Already found via Proofs/
+            theorems = collect_theorems(lean)
+            if theorems:
+                manifest[contract] = sorted(dict.fromkeys(theorems))
+
     return manifest
 
 
