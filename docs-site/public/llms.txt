@@ -4,20 +4,33 @@
 
 ## Project Overview
 
-Lean 4 EDSL for smart contracts with machine-checked proofs. Zero sorry, zero axioms.
+Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer verified compilation pipeline: EDSL -> ContractSpec -> IR -> Yul -> EVM bytecode.
 
 **Core**: Models contract state, storage operations, and `require` guards using explicit success/revert result type (`ContractResult`).
 
-**Contracts**: 7 examples with full formal verification covering correctness, conservation laws, and storage isolation.
+**Contracts**: 9 example contracts with formal verification covering correctness, conservation laws, and storage isolation.
+
+**Compiler**: Declarative `ContractSpec` DSL compiles to Yul with verified IR generation. Solidity-compatible function selectors via keccak256.
 
 ## Quick Facts
 
 - **Language**: Lean 4.15.0
 - **Core Size**: Small (few hundred lines)
-- **Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter
-- **Theorems**: Fully proven (no sorry, no axioms)
+- **Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, CryptoHash, ReentrancyExample
+- **Theorems**: 292 across 8 categories (280 fully proven, 12 `sorry` placeholders in Ledger sum proofs)
+- **Axioms**: 5 documented axioms (see AXIOMS.md) — keccak256, expression evaluation, address injectivity
+- **Tests**: 264 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
 - **Repository**: https://github.com/Th0rgal/dumbcontracts
+
+## Architecture
+
+```
+Layer 1: EDSL Proofs     — Lean theorems about contract behavior
+Layer 2: Compiler Proofs — ContractSpec -> IR preservation
+Layer 3: IR -> Yul       — Statement/expression equivalence proofs
+Trust:   Yul -> Bytecode — Via solc (validated by differential testing)
+```
 
 ## Key Design
 
@@ -36,16 +49,16 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 
 ## Theorem Breakdown
 
-| Contract | Key Properties |
-|----------|----------------|
-| SimpleStorage | Store/retrieve roundtrip, state isolation |
-| Counter | Arithmetic, composition, decrement-at-zero |
-| Owned | Access control, ownership transfer |
-| SimpleToken | Mint/transfer, supply conservation, storage isolation |
-| OwnedCounter | Cross-pattern composition, lockout proofs |
-| Ledger | Deposit/withdraw/transfer, balance conservation |
-| SafeCounter | Overflow/underflow revert proofs |
-| Stdlib/Math | safeMul/safeDiv correctness |
+| Contract | Count | Key Properties |
+|----------|-------|----------------|
+| SimpleStorage | 20 | Store/retrieve roundtrip, state isolation |
+| Counter | 28 | Arithmetic, composition, decrement-at-zero |
+| Owned | 22 | Access control, ownership transfer |
+| SimpleToken | 56 | Mint/transfer, supply conservation, storage isolation |
+| OwnedCounter | 45 | Cross-pattern composition, lockout proofs |
+| Ledger | 32 | Deposit/withdraw/transfer, balance conservation |
+| SafeCounter | 25 | Overflow/underflow revert proofs |
+| Stdlib | 64 | safeMul/safeDiv correctness, automation lemmas |
 
 ## Proof Techniques
 
@@ -57,6 +70,19 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 
 **No Mathlib**: Manual `Nat.*` lemma chains replace `omega`, `ring`, `linarith`.
 
+## CI Validation
+
+The GitHub Actions workflow validates:
+- All Lean proofs compile (`lake build`)
+- No `sorry` in proof files (except documented Sum.lean/SumProofs.lean)
+- All axioms documented in AXIOMS.md
+- Property manifest in sync with Lean proofs
+- All manifest theorems have tests (or documented exclusions)
+- Storage layout consistency across EDSL/Spec/Compiler layers
+- Selector hashes match specs
+- Generated Yul compiles with solc
+- Foundry tests pass (8 shards, 6 seeds)
+
 ## Documentation URLs
 
 - Main: https://dumbcontracts.thomasm.ar/
@@ -64,20 +90,30 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 - Research: https://dumbcontracts.thomasm.ar/research
 - Examples: https://dumbcontracts.thomasm.ar/examples
 - Core: https://dumbcontracts.thomasm.ar/core
+- Compiler: https://dumbcontracts.thomasm.ar/compiler
+- Guides: https://dumbcontracts.thomasm.ar/guides/first-contract
 
 Add `.md` to any URL for raw markdown (saves tokens).
 
+## Trust Assumptions
+
+See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
+- **Verified**: EDSL -> ContractSpec -> IR -> Yul
+- **Trusted**: Yul -> Bytecode (via solc, validated by 10,000+ differential tests)
+- **Axioms**: 5 documented, all with soundness justification
+- **External**: Lean 4 kernel, EVM specification alignment
+
 ## Known Limitations
 
-- Self-transfer requires `sender != to` (implementation ordering)
-- Supply = sum(balances) requires finite address model
+- 12 `sorry` placeholders in Ledger sum property proofs (issue #65)
 - No events, no gas modeling
-- No nested mappings (can't express ERC-20 allowances)
+- No nested mappings (can't express ERC-20 allowances yet)
+- Self-transfer handled via delta-zero pattern (not separate logic)
 
 ## What's Next
 
-1. Self-transfer handling
-2. Finite address set for full supply = sum(balances)
-3. ERC-20 allowances (nested mapping support)
-4. Gas consumption tracking
-5. Cross-contract call modeling
+1. Complete Ledger sum proofs (#65)
+2. EVMYulLean UInt256 integration (#67)
+3. ERC-20 standard token (#69)
+4. Storage layout formalization (#84)
+5. Gas cost modeling (#80)
