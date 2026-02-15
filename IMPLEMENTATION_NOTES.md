@@ -98,9 +98,11 @@ The proofs will be verified by:
 
 ## Impact
 
-**Before**: 70% property coverage (203/292), 7 sum properties unprovable
+**Before** (at time of this refactoring): 70% property coverage (203/292), 7 sum properties unprovable
 
-**After**: ~72% property coverage (210/292), Ledger contract at 100% completeness
+**After** (projected): ~72% property coverage (210/292), Ledger contract at 100% completeness
+
+**Current** (as of 2026-02-15): 70% property coverage (207/296) — ReentrancyExample added 4 theorems (PR #102)
 - ✅ All invariants provable
 - ✅ Complete verification of supply properties
 - ✅ Stronger correctness guarantees

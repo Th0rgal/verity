@@ -6,10 +6,10 @@
 
 ## Current Status
 
-- ✅ **Layer 1 Complete**: 228 properties proven across 7 contracts (EDSL ≡ ContractSpec)
+- ✅ **Layer 1 Complete**: 296 theorems across 9 contracts (EDSL ≡ ContractSpec)
 - ✅ **Layer 2 Complete**: All IR generation with preservation proofs (ContractSpec → IR)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
-- ✅ **Property Testing**: 70% coverage (203/292), all testable properties covered
+- ✅ **Property Testing**: 70% coverage (207/296), all testable properties covered
 - ✅ **Differential Testing**: Production-ready with 10k+ tests
 - ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
 - ✅ **External Linking**: Cryptographic library support (PR #49)
@@ -172,5 +172,5 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 
 ---
 
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-15
 **Status**: Layers 1-3 complete, trust reduction in progress
