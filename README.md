@@ -1,81 +1,49 @@
-# Verity
+<p align="center">
+  <img src="verity.svg" alt="Verity" width="200" />
+</p>
 
-**Verity** is a Lean 4 framework enabling developers to write smart contracts in a domain-specific language, formally verify their correctness, and compile them to EVM bytecode.
+<h1 align="center">Verity</h1>
 
-The philosophy: focus on simple rules, easy to understand and trust for humans, while leaving implementation up to agentic developers. Thanks to formal verification, the code is mathematically guaranteed to match the specs, which don't require any understanding of algorithmics.
+<p align="center">
+  <strong>Formally verified smart contracts. From spec to bytecode.</strong><br>
+  <em>Write simple rules. Let agents implement. Math proves the rest.</em>
+</p>
 
-## Example
+<p align="center">
+  <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
+  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-296-brightgreen.svg" alt="296 Theorems"></a>
+  <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
+</p>
 
-```lean
--- Implementation
-def storedData : StorageSlot Uint256 := ⟨0⟩
+---
 
-def store (value : Uint256) : Contract Unit := do
-  setStorage storedData value
+Verity is a Lean 4 framework that lets you write smart contracts in a domain-specific language, formally verify their correctness, and compile them to EVM bytecode.
 
-def retrieve : Contract Uint256 := do
-  getStorage storedData
+**The idea is simple:** humans review 10-line specs that are easy to audit. Agents write 1000-line implementations. Lean proves the implementation matches the spec - no trust required.
 
--- Proof: retrieve returns what store stored
-theorem store_retrieve_correct (s : ContractState) (value : Uint256) :
-  let s' := ((store value).run s).snd
-  let result := ((retrieve).run s').fst
-  result = value := by
-  have h_store := store_meets_spec s value
-  have h_retrieve := retrieve_meets_spec ((store value).run s |>.2)
-  simp [store_spec] at h_store
-  simp [retrieve_spec] at h_retrieve
-  simp only [h_retrieve, h_store.1]
-```
-
-## Spec Example (Human-Friendly Rules)
-
-Specs are small, readable rules about what a function must do.
-Here is the SimpleStorage spec from `Verity/Specs/SimpleStorage/Spec.lean`:
+## How It Works
 
 ```lean
--- store updates slot 0, keeps everything else unchanged
+-- 1. Write a spec (human-readable, ~10 lines)
 def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
   s'.storage 0 = value ∧
   storageUnchangedExcept 0 s s' ∧
   sameAddrMapContext s s'
 
--- retrieve returns slot 0
-def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
-  result = s.storage 0
+-- 2. Write an implementation
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+-- 3. Prove correctness - math guarantees the match
+theorem store_meets_spec (s : ContractState) (value : Uint256) :
+  store_spec value s (((store value).run s).snd) := by
+  simp [store, store_spec, storedData, setStorage, storageUnchangedExcept, sameAddrMapContext]
 ```
 
-## Vision: Built for the Agentic Era
+One spec can have many competing implementations - naive, gas-optimized, packed storage - all proven correct against the same rules.
 
-Verity enables **separation of concerns** for trustless agentic development:
-
-- **Humans write specs**, simple, auditable rules (10 lines)
-- **Agents write implementations**, complex, optimized code (1000 lines)
-- **Math proves correctness**, no trust required
-
-### One Spec, Many Implementations
-
-```lean
--- Human audits once:
-def transfer_spec : Spec Bool := ...
-
--- Agents compete on implementations:
-def transfer_v1 : Contract Bool := ... // naive
-def transfer_v2 : Contract Bool := ... // gas-optimized
-def transfer_v3 : Contract Bool := ... // packed storage
-
-// All proven correct:
-theorem v1_correct : semantics transfer_v1 = transfer_spec
-theorem v2_correct : semantics transfer_v2 = transfer_spec
-theorem v3_correct : semantics transfer_v3 = transfer_spec
-```
-
-### Verified Intent Over Trusted Code
-
-- **Traditional**: "Can we trust this code?" (audit 1000 lines)
-- **Verity**: "Can we trust this spec?" (audit 10 lines, math proves the rest)
-
-## Contracts
+## Verified Contracts
 
 | Contract | Theorems | Description |
 |----------|----------|-------------|
@@ -86,53 +54,24 @@ theorem v3_correct : semantics transfer_v3 = transfer_spec
 | OwnedCounter | 45 | Cross-pattern composition, lockout proofs |
 | Ledger | 32 | Deposit/withdraw/transfer with balance conservation |
 | SimpleToken | 56 | Mint/transfer, supply conservation, storage isolation |
-| ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal (inline proofs) |
-| CryptoHash | — | External cryptographic library linking (no specs, no tests) |
+| ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
+| CryptoHash | - | External cryptographic library linking |
 
-**Verification snapshot**: 296 theorems across 9 categories, 216 covered by property tests (73% coverage), 80 proof-only exclusions. 5 documented axioms, 10 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)). 299 Foundry tests across 23 test suites.
+**296 theorems** across 9 categories. **299 Foundry tests** across 23 suites. 5 documented axioms, 10 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
-- **EDSL correctness**: Each contract satisfies its specification in Lean (Layer 1).
-- **Compiler correctness**: IR generation preserves ContractSpec semantics (Layer 2). Yul codegen preserves IR semantics (Layer 3).
-- **End-to-end pipeline**: EDSL → ContractSpec → IR → Yul fully verified with 5 axioms.
-- **Trust boundary**: Yul → EVM bytecode via solc (validated by 70k+ differential tests).
+- **EDSL correctness** - each contract satisfies its spec in Lean (Layer 1)
+- **Compiler correctness** - IR generation preserves semantics (Layer 2), Yul codegen preserves IR (Layer 3)
+- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 5 axioms
+- **Trust boundary** - Yul -> EVM bytecode via solc (validated by 70k+ differential tests)
 
-See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for detailed trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
+See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
 
-## Repository Structure
+## Getting Started
 
-```
-Verity/                              # EDSL core + stdlib + examples/specs/proofs
-Compiler/                            # Compiler (spec DSL, IR, codegen, selector, Yul AST)
-Compiler/Proofs/                     # Compiler correctness proofs (3 layers)
-compiler/                            # Generated Yul output + fixtures (used in tests/docs)
-docs/                                # Design notes and verification summaries
-docs-site/                           # Documentation site (MDX)
-examples/solidity/                   # Solidity/Yul fixtures and test outputs
-scripts/                             # build/test scripts
-test/                                # Foundry tests (unit, property, differential)
-```
-
-## Adding a Contract
-
-Use the scaffold generator to create all boilerplate files:
-```bash
-python3 scripts/generate_contract.py MyContract
-python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
-```
-
-**File Layout (Spec, Impl, Proof):**
-1. **Spec**: `Verity/Specs/<Name>/Spec.lean`, human-readable function specifications
-2. **Invariants**: `Verity/Specs/<Name>/Invariants.lean`, state properties (optional but encouraged)
-3. **Implementation**: `Verity/Examples/<Name>.lean`, EDSL contract code
-4. **EDSL Proofs**: `Verity/Specs/<Name>/Proofs.lean`, Layer 1 correctness proofs
-5. **Compiler Spec**: `Compiler/Specs.lean`, ContractSpec for code generation
-6. **Tests**: `test/Property<Name>.t.sol` + differential tests
-
-**Post-generation**: Fill in spec bodies, implement contract, write proofs, add properties. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Building
+<details>
+<summary><strong>Building</strong></summary>
 
 ```bash
 # Install Lean 4 via elan
@@ -142,54 +81,63 @@ source ~/.profile
 # Build the project
 lake build
 
-# Build the compiler binary
+# Build and run the compiler
 lake build verity-compiler
-
-# Generate Yul from Lean contracts
 lake exe verity-compiler
 
-# Run Foundry tests (requires foundry)
+# Run Foundry tests
 forge test
 ```
 
-## Testing
+</details>
 
-**Property Testing**: 290 tests across 23 test suites validate EDSL ≡ Yul ≡ EVM execution.
+<details>
+<summary><strong>Testing</strong></summary>
+
+**Property tests** (290 tests) validate EDSL = Yul = EVM execution:
 
 ```bash
-# Run property tests
-forge test
-
-# Run with verbosity
-forge test -vvv
-
-# Run specific test file
-forge test --match-path test/PropertyCounter.t.sol
+forge test                                          # run all
+forge test -vvv                                     # verbose
+forge test --match-path test/PropertyCounter.t.sol  # specific file
 ```
 
-**Differential Testing**: Tests compare EDSL interpreter output against Solidity-compiled EVM execution to catch compiler bugs.
+**Differential tests** compare EDSL interpreter output against Solidity-compiled EVM to catch compiler bugs. See [`test/README.md`](test/README.md).
 
-See [`test/README.md`](test/README.md) for details.
+</details>
+
+<details>
+<summary><strong>Adding a contract</strong></summary>
+
+```bash
+python3 scripts/generate_contract.py MyContract
+python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
+```
+
+This scaffolds the full file layout:
+
+1. **Spec** - `Verity/Specs/<Name>/Spec.lean`
+2. **Invariants** - `Verity/Specs/<Name>/Invariants.lean`
+3. **Implementation** - `Verity/Examples/<Name>.lean`
+4. **Proofs** - `Verity/Specs/<Name>/Proofs.lean`
+5. **Compiler Spec** - `Compiler/Specs.lean`
+6. **Tests** - `test/Property<Name>.t.sol`
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for conventions and workflow.
+
+</details>
 
 ## Documentation
 
-- [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md), what's verified, what's trusted, trust reduction roadmap
-- [`AXIOMS.md`](AXIOMS.md), all 5 axioms with soundness justifications
-- [`CONTRIBUTING.md`](CONTRIBUTING.md), coding conventions, workflow, PR guidelines
-- [`docs/ROADMAP.md`](docs/ROADMAP.md), verification progress, planned features
-- [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md), per-theorem status
-- [`docs-site/`](docs-site/), full documentation site
-
-## Philosophy: "Dumb Contracts"
-
-The name **"dumb contracts"** captures our approach: write contracts so simple they can't be wrong.
-
-- **Simple specs**, no algorithmic knowledge required
-- **Human auditable**, trust the rules, not the implementation
-- **Mathematically proven**, correctness guaranteed by Lean
-
-In the agentic era, agents will write most code. Verity ensures their implementations are trustworthy by default.
+| | |
+|---|---|
+| [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
+| [`AXIOMS.md`](AXIOMS.md) | All 5 axioms with soundness justifications |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Verification progress, planned features |
+| [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) | Per-theorem status |
+| [`docs-site/`](docs-site/) | Full documentation site |
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) file for details.
+MIT - See [LICENSE.md](LICENSE.md) for details.

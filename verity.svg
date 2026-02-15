@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 507 441" width="507" height="441">
+  <g shape-rendering="crispEdges">
+    <!-- Left arm outer -->
+    <polygon points="0,0 169,0 84.5,147" fill="#6e6e6e" stroke="#6e6e6e" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Left arm inner -->
+    <polygon points="169,0 84.5,147 253.5,147" fill="#3c3c3c" stroke="#3c3c3c" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Right arm outer -->
+    <polygon points="338,0 507,0 422.5,147" fill="#5c5c5c" stroke="#5c5c5c" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Right arm inner -->
+    <polygon points="338,0 422.5,147 253.5,147" fill="#666666" stroke="#666666" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Bottom left -->
+    <polygon points="84.5,147 253.5,147 169,294" fill="#1c1c1c" stroke="#1c1c1c" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Bottom right -->
+    <polygon points="253.5,147 422.5,147 338,294" fill="#525252" stroke="#525252" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Bottom center (up-pointing gap fill) - blends with bottom point -->
+    <polygon points="253.5,147 169,294 338,294" fill="#2e2e2e" stroke="#2e2e2e" stroke-width="1" stroke-linejoin="round"/>
+    <!-- Bottom point -->
+    <polygon points="169,294 338,294 253.5,441" fill="#2e2e2e" stroke="#2e2e2e" stroke-width="1" stroke-linejoin="round"/>
+  </g>
+</svg>
