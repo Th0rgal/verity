@@ -33,8 +33,10 @@ contract Ledger {
         if (balances[msg.sender] < amount) {
             revert InsufficientBalance();
         }
-        balances[msg.sender] -= amount;
-        balances[to] += amount;
+        if (msg.sender != to) {
+            balances[msg.sender] -= amount;
+            balances[to] += amount;
+        }
     }
 
     /// @notice Get balance of any address

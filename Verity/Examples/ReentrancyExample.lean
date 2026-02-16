@@ -58,6 +58,14 @@ by subtracting totalSupply twice while only decrementing balance once.
 
 namespace VulnerableBank
 
+-- Deposit (mirrors SafeBank — reentrancy is only relevant on withdraw)
+def deposit (amount : Uint256) : Contract Unit := fun s =>
+  let bal := s.storageMap balances.slot s.sender
+  let supply := s.storage totalSupply.slot
+  let s1 := setMappingSlot balances s.sender (bal + amount) s
+  let s2 := setStorageSlot totalSupply (supply + amount) s1
+  ContractResult.success () s2
+
 -- Vulnerable withdraw (single reentrant attempt modeled inline)
 def withdraw (amount : Uint256) : Contract Unit := fun s =>
   let bal := s.storageMap balances.slot s.sender

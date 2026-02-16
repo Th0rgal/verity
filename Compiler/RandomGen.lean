@@ -36,29 +36,59 @@ def RNG.init (seed : Nat) : RNG := { seed := seed }
 
 /-!
 ## Random Value Generation
+
+Values are drawn from a mix of edge cases and bounded random values
+so that differential tests exercise overflow, underflow, and boundary
+conditions alongside typical small-value scenarios.
 -/
 
--- Generate random uint256 (bounded for practical testing)
+-- Edge-case uint256 values that trigger overflow/underflow/boundary bugs
+private def edgeUint256Values : List Nat :=
+  [ 0
+  , 1
+  , 2
+  , 2^128
+  , 2^255
+  , 2^256 - 2  -- type(uint256).max - 1
+  , 2^256 - 1  -- type(uint256).max
+  ]
+
+-- Generate random uint256 with edge-case injection.
+-- ~7/16 of the time an edge-case value is returned; otherwise a
+-- bounded random value is used (range 0..999999).
 def genUint256 (rng : RNG) : RNG × Nat :=
   let (rng', n) := rng.next
-  (rng', n % 1000000)  -- Keep values reasonable for testing
+  let selector := n % 16
+  if selector < edgeUint256Values.length then
+    (rng', edgeUint256Values.get! selector)
+  else
+    (rng', n % 1000000)
 
 -- Convert Address to Nat for calldata args (keeps parity with Interpreter)
 private def addressToNatNormalized (addr : Address) : Nat :=
   addressToNat (normalizeAddress addr)
 
--- Generate random address (from a small pool for collision testing)
+-- Address pool including edge-case addresses (zero address, high address)
+private def addressPool : List Address :=
+  [ "0xalice"
+  , "0xbob"
+  , "0xcarol"
+  , "0xdave"
+  , "0xeve"
+  , "0x0000000000000000000000000000000000000000"  -- zero address
+  , "0xffffffffffffffffffffffffffffffffffffffff"  -- max address
+  , "0x0000000000000000000000000000000000000001"  -- address(1)
+  ]
+
+-- Generate random address from an expanded pool that includes edge cases
 def genAddress (rng : RNG) : RNG × Address :=
   let (rng', n) := rng.next
-  let addresses := ["0xalice", "0xbob", "0xcarol", "0xdave", "0xeve"]
-  (rng', normalizeAddress (addresses.get! (n % addresses.length)))
+  (rng', normalizeAddress (addressPool.get! (n % addressPool.length)))
 
 -- Generate random bool
 def genBool (rng : RNG) : RNG × Bool :=
   let (rng', n) := rng.next
   (rng', n % 2 == 0)
-
--- Convert Address to Nat for calldata args (keeps parity with Interpreter)
 
 /-!
 ## Contract-Specific Transaction Generation
