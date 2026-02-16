@@ -6,4 +6,5 @@ export default {
   guides: 'Guides',
   'add-contract': 'Add a Contract',
   core: 'Core Architecture',
+  compiler: 'Compiler',
 };

@@ -1,0 +1,226 @@
+---
+title: Linking External Libraries
+description: How to use external Yul libraries (Poseidon, Groth16, etc.) with verified contracts
+---
+
+# Linking External Libraries
+
+**Time Required**: 30 minutes
+**Prerequisites**: Verity project builds (`lake build` passes)
+
+Use the Linker to inject production cryptographic libraries (or any Yul functions) into your verified contracts. You prove properties against simple placeholders in Lean, then swap in real implementations at compile time.
+
+---
+
+## When to Use This
+
+- You need **cryptographic primitives** (Poseidon hash, Groth16 verification, etc.) that are impractical to implement in Lean
+- You want to **reuse audited Yul libraries** without re-implementing them
+- You want to **prove contract logic** independently of complex library internals
+
+## Quick Start
+
+### 1. Write your library as a `.yul` file
+
+Create a file with plain Yul function definitions (no `object` wrapper):
+
+```yul
+// libs/MyHash.yul
+function myHash(a, b) -> result {
+    // Your implementation here
+    result := add(xor(a, b), 0x42)
+}
+```
+
+### 2. Write a placeholder in your Lean contract
+
+In your EDSL contract, define a placeholder that models the same interface:
+
+```lean
+-- Placeholder for proofs: models the hash as addition
+-- At compile time, replaced by the real myHash from MyHash.yul
+def myHash (a b : Uint256) : Contract Uint256 := do
+  return add a b
+```
+
+### 3. Add the external call to your ContractSpec
+
+In `Compiler/Specs.lean`, use `Expr.externalCall` to reference the library function:
+
+```lean
+-- Inside your contract spec's function body:
+Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param 0, Expr.param 1])
+```
+
+The compiler generates a Yul `myHash(arg0, arg1)` call that will be resolved by the linked library.
+
+### 4. Compile with `--link`
+
+```bash
+lake exe verity-compiler --link libs/MyHash.yul -o compiler/yul
+```
+
+The compiler validates that:
+- No duplicate function names across libraries
+- Library functions don't shadow generated code or Yul builtins
+- All external calls in contracts are satisfied by linked libraries
+
+If validation fails, you get a clear error message:
+
+```
+Unresolved external references: myHash
+```
+
+This means you forgot to pass `--link libs/MyHash.yul`.
+
+---
+
+## Complete Example: CryptoHash Contract
+
+Verity includes a working example in [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/CryptoHash.lean) with libraries in [`examples/external-libs/`](https://github.com/Th0rgal/verity/tree/main/examples/external-libs).
+
+**EDSL placeholder** (`Verity/Examples/CryptoHash.lean`):
+```lean
+-- Placeholder: just adds the inputs (for proving logic)
+def hashTwo (a b : Uint256) : Contract Uint256 := do
+  return add a b
+
+def storeHashTwo (a b : Uint256) : Contract Unit := do
+  let h <- hashTwo a b
+  setStorage lastHash h
+```
+
+**External library** (`examples/external-libs/PoseidonT3.yul`):
+```yul
+function PoseidonT3_hash(a, b) -> result {
+    result := add(xor(a, b), 0x1234...)
+}
+```
+
+**Compile with linking**:
+```bash
+lake exe verity-compiler \
+    --link examples/external-libs/PoseidonT3.yul \
+    --link examples/external-libs/PoseidonT4.yul \
+    -o compiler/yul
+```
+
+---
+
+## How the Linker Works
+
+The linking process has three stages:
+
+### Stage 1: Parse libraries
+
+The linker reads each `.yul` file and extracts function definitions using a line-based parser. It tracks brace depth to capture complete function bodies:
+
+```
+Input file:           Parsed output:
+function foo() {  ->  LibraryFunction { name: "foo", body: [...] }
+    sstore(0, 1)
+}
+```
+
+### Stage 2: Validate
+
+Three safety checks run before any code is injected:
+
+| Check | What it catches |
+|-------|-----------------|
+| `validateNoDuplicateNames` | Two libraries defining the same function |
+| `validateNoNameCollisions` | Library function shadowing `mappingSlot` or Yul builtins like `add`, `sstore` |
+| `validateExternalReferences` | Contract calling a function not provided by any library |
+
+### Stage 3: Inject
+
+Library functions are injected into the runtime `code {}` section of each compiled Yul contract, with proper indentation:
+
+```yul
+object "MyContract" {
+    code { /* deploy */ }
+    object "runtime" {
+        code {
+            // ... generated contract code ...
+
+            // Injected from MyHash.yul:
+            function myHash(a, b) -> result {
+                result := add(xor(a, b), 0x42)
+            }
+        }
+    }
+}
+```
+
+---
+
+## Library File Format
+
+External library files must contain **plain Yul function definitions**:
+
+```yul
+// Good: plain function definitions
+function foo(x) -> y {
+    y := add(x, 1)
+}
+
+function bar(a, b) -> c {
+    c := mul(a, b)
+}
+```
+
+Do **not** wrap them in an `object` block:
+
+```yul
+// Bad: object wrapper not supported
+object "MyLib" {
+    code {
+        function foo(x) -> y { y := add(x, 1) }
+    }
+}
+```
+
+---
+
+## Trust Model
+
+External libraries are **outside the formal verification boundary**. The Linker validates structural properties (no shadowing, all references resolved) but does not verify the library's correctness.
+
+Your proofs establish: *"If the library functions behave like the placeholders, then the contract is correct."*
+
+To increase confidence in linked libraries:
+- Use audited, battle-tested implementations
+- Add Foundry fuzz tests that exercise the linked contract end-to-end
+- Document the trust assumption explicitly (see [`TRUST_ASSUMPTIONS.md`](https://github.com/Th0rgal/verity/blob/main/TRUST_ASSUMPTIONS.md))
+
+---
+
+## CLI Reference
+
+```bash
+lake exe verity-compiler [options]
+
+Options:
+  --link <path>      Link external Yul library (can be used multiple times)
+  --output <dir>     Output directory (default: compiler/yul)
+  -o <dir>           Short form of --output
+  --verbose          Enable verbose output
+  -v                 Short form of --verbose
+  --help             Show help message
+```
+
+**Examples**:
+```bash
+# Compile without libraries
+lake exe verity-compiler
+
+# Compile with one library
+lake exe verity-compiler --link libs/Poseidon.yul
+
+# Compile with multiple libraries, verbose output
+lake exe verity-compiler \
+    --link libs/PoseidonT3.yul \
+    --link libs/PoseidonT4.yul \
+    --link libs/Groth16.yul \
+    -v -o output/
+```

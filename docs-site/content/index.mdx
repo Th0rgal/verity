@@ -120,7 +120,7 @@ See [/verification](/verification) for the complete, always-current theorem list
 
 **What's a proof?** A step-by-step logical argument that shows why a theorem must be true. Lean checks every step.
 
-**What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project has 10 `sorry` in Ledger sum proofs — all other claims are fully proven.
+**What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project has 12 `sorry` in Ledger sum proofs — all other claims are fully proven.
 
 **What are axioms?** Statements assumed true without proof. This project uses 5 documented axioms for keccak256 hashing, expression evaluation equivalence, and address injectivity — each with soundness justification in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
@@ -137,7 +137,7 @@ theorem store_retrieve : store 42 >> retrieve = pure 42 := by
 
 - **[Verification](/verification)** — Full theorem list by contract
 - **[Examples](/examples)** — The 9 contracts and what they demonstrate
-- **[Core](/core)** — How the 249-line EDSL works
+- **[Core](/core)** — How the 257-line EDSL works
 - **[Research](/research)** — Design decisions and proof techniques
 
 ## Learning Resources

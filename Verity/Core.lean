@@ -49,16 +49,23 @@ inductive ContractResult (α : Type) where
 
 namespace ContractResult
 
--- Projections for backward compatibility with proofs
--- fst extracts the value from success; for revert, uses default
--- (proofs that use fst always show the result is success)
+-- Projections for backward compatibility with proofs.
+-- WARNING: `fst` returns `default` on revert — proofs using `fst` must
+-- independently establish that the result is `success`.
+-- Prefer `getValue?` for new code.
 def fst {α : Type} [Inhabited α] : ContractResult α → α
   | success a _ => a
   | revert _ _ => default
 
+-- WARNING: On revert, returns the state at the point of revert, which may
+-- include mutations from operations that executed before the revert.
+-- This differs from EVM semantics where REVERT discards all state changes.
+-- Current contracts are safe because `require` is always called before any
+-- state-modifying operations, but future contracts must be careful.
+-- See issue #175 for details.
 def snd {α : Type} : ContractResult α → ContractState
   | success _ s => s
-  | revert _ s => s  -- Return original state on revert
+  | revert _ s => s
 
 end ContractResult
 
@@ -88,7 +95,8 @@ def ContractResult.getValue? {α : Type} : ContractResult α → Option α
   | success a _ => some a
   | revert _ _ => none
 
--- Helper: extract state from result
+-- Helper: extract state from result.
+-- WARNING: On revert, returns the state at point of revert (see `snd`).
 def ContractResult.getState {α : Type} : ContractResult α → ContractState
   | success _ s => s
   | revert _ s => s
