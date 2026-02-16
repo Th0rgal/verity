@@ -479,8 +479,8 @@ This mirrors how Solidity computes event signatures: keccak256("EventName(type1,
 At compile time we use a placeholder; CI validates the selector matches solc output.
 -/
 
--- Map ParamType to its Solidity type string for event signature
-private def paramTypeToSolidityString : ParamType → String
+-- Map ParamType to its Solidity type string (used for event and function signatures)
+def paramTypeToSolidityString : ParamType → String
   | ParamType.uint256 => "uint256"
   | ParamType.address => "address"
   | ParamType.bytes32 => "bytes32"
@@ -591,13 +591,14 @@ private def compileStmt (fields : List Field) : Stmt → Except String (List Yul
         -- Simple if (no else)
         pure [YulStmt.if_ condExpr thenStmts]
       else
-        -- If/else: cache condition in a local to avoid re-evaluation
-        -- after then-branch may have mutated state
-        pure [
+        -- If/else: cache condition in a block-scoped local to avoid re-evaluation
+        -- after then-branch may have mutated state.
+        -- Wrapped in block { } so __ite_cond doesn't collide with other ite statements.
+        pure [YulStmt.block [
           YulStmt.let_ "__ite_cond" condExpr,
           YulStmt.if_ (YulExpr.ident "__ite_cond") thenStmts,
           YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__ite_cond"]) elseStmts
-        ]
+        ]]
 
   | Stmt.forEach varName count body => do
       -- Bounded loop: for { let i := 0 } lt(i, count) { i := add(i, 1) } { body } (#179)
@@ -613,10 +614,8 @@ private def compileStmt (fields : List Field) : Stmt → Except String (List Yul
       -- Topic0 = keccak256(eventSignature), resolved by linker at link time.
       -- Indexed args become additional topics; unindexed args go into LOG data.
       -- Use free memory pointer (0x40) to avoid clobbering scratch space.
+      -- Wrapped in block { } so __evt_ptr doesn't collide with other emit statements.
       let topic0 := YulExpr.call s!"__event_{eventName}" []
-      -- All args are unindexed data for now (indexed topic support requires
-      -- the EventDef to be threaded here; callers should use Stmt.emit only
-      -- for unindexed data args — indexed values are passed as extra topics).
       let freeMemPtr := YulExpr.call "mload" [YulExpr.lit 0x40]
       let storePtr := YulStmt.let_ "__evt_ptr" freeMemPtr
       let argStores ← args.enum.mapM fun (idx, arg) => do
@@ -631,7 +630,7 @@ private def compileStmt (fields : List Field) : Stmt → Except String (List Yul
         YulExpr.lit dataSize,
         topic0
       ])
-      pure ([storePtr] ++ argStores ++ [logStmt])
+      pure [YulStmt.block ([storePtr] ++ argStores ++ [logStmt])]
 
   | Stmt.internalCall functionName args => do
       -- Internal function call as statement (#181)
@@ -639,9 +638,13 @@ private def compileStmt (fields : List Field) : Stmt → Except String (List Yul
       pure [YulStmt.expr (YulExpr.call s!"internal_{functionName}" argExprs)]
 end
 
+-- ABI head size: fixed arrays occupy n*32 bytes inline; everything else is 32 bytes.
+private def paramHeadSize : ParamType → Nat
+  | ParamType.fixedArray _ n => n * 32
+  | _ => 32
+
 -- Generate parameter loading code (from calldata)
 private def genParamLoads (params : List Param) : List YulStmt :=
-  -- First pass: compute which params are dynamic and calculate head offsets
   let rec go (paramList : List Param) (headOffset : Nat) : List YulStmt :=
     match paramList with
     | [] => []
@@ -673,9 +676,16 @@ private def genParamLoads (params : List Param) : List YulStmt :=
               YulExpr.lit 32
             ])
           [offsetLoad, lengthLoad, dataOffsetLoad]
-        | ParamType.fixedArray _ _ =>
-          -- Fixed arrays are inline in calldata (no offset indirection)
-          [YulStmt.let_ param.name (YulExpr.call "calldataload" [YulExpr.lit headOffset])]
+        | ParamType.fixedArray _ n =>
+          -- Fixed arrays are inline in calldata: load first element at headOffset,
+          -- remaining elements at headOffset + 32, headOffset + 64, etc.
+          -- Expose the first element as the param name for backward compatibility.
+          if n == 0 then []
+          else
+            let firstElem := [YulStmt.let_ param.name (YulExpr.call "calldataload" [YulExpr.lit headOffset])]
+            let restElems := (List.range (n - 1)).map fun i =>
+              YulStmt.let_ s!"{param.name}_{i + 1}" (YulExpr.call "calldataload" [YulExpr.lit (headOffset + (i + 1) * 32)])
+            firstElem ++ restElems
         | ParamType.bytes =>
           -- Dynamic bytes: same encoding as dynamic array
           let offsetLoad := YulStmt.let_ s!"{param.name}_offset"
@@ -690,19 +700,49 @@ private def genParamLoads (params : List Param) : List YulStmt :=
               YulExpr.lit 32
             ])
           [offsetLoad, lengthLoad, dataOffsetLoad]
-      stmts ++ go rest (headOffset + 32)
+      stmts ++ go rest (headOffset + paramHeadSize param.ty)
   go params 4  -- Start after 4-byte selector
 
 -- Rewrite Stmt.return to assign __ret instead of EVM RETURN for internal functions.
 -- EVM RETURN terminates the entire call; internal Yul functions should assign __ret
--- and fall through.
+-- and fall through. This must be recursive to handle returns nested inside ite/forEach.
+mutual
+private def compileStmtForInternalList (fields : List Field) : List Stmt → Except String (List YulStmt)
+  | [] => pure []
+  | s :: ss => do
+      let head ← compileStmtForInternal fields s
+      let tail ← compileStmtForInternalList fields ss
+      pure (head ++ tail)
+
 private def compileStmtForInternal (fields : List Field) (stmt : Stmt) :
     Except String (List YulStmt) :=
   match stmt with
   | Stmt.return value => do
       let valueExpr ← compileExpr fields value
       pure [YulStmt.assign "__ret" valueExpr]
+  | Stmt.ite cond thenBranch elseBranch => do
+      -- Recursively rewrite returns in both branches
+      let condExpr ← compileExpr fields cond
+      let thenStmts ← compileStmtForInternalList fields thenBranch
+      let elseStmts ← compileStmtForInternalList fields elseBranch
+      if elseBranch.isEmpty then
+        pure [YulStmt.if_ condExpr thenStmts]
+      else
+        pure [YulStmt.block [
+          YulStmt.let_ "__ite_cond" condExpr,
+          YulStmt.if_ (YulExpr.ident "__ite_cond") thenStmts,
+          YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__ite_cond"]) elseStmts
+        ]]
+  | Stmt.forEach varName count body => do
+      -- Recursively rewrite returns in loop body
+      let countExpr ← compileExpr fields count
+      let bodyStmts ← compileStmtForInternalList fields body
+      let initStmts := [YulStmt.let_ varName (YulExpr.lit 0)]
+      let condExpr := YulExpr.call "lt" [YulExpr.ident varName, countExpr]
+      let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
+      pure [YulStmt.for_ initStmts condExpr postStmts bodyStmts]
   | other => compileStmt fields other
+end
 
 -- Compile internal function to a Yul function definition (#181)
 private def compileInternalFunction (fields : List Field) (spec : FunctionSpec) :
@@ -711,8 +751,8 @@ private def compileInternalFunction (fields : List Field) (spec : FunctionSpec) 
   let retNames := match spec.returnType with
     | some _ => ["__ret"]
     | none => []
-  let bodyChunks ← spec.body.mapM (compileStmtForInternal fields)
-  pure (YulStmt.funcDef s!"internal_{spec.name}" paramNames retNames bodyChunks.flatten)
+  let bodyStmts ← compileStmtForInternalList fields spec.body
+  pure (YulStmt.funcDef s!"internal_{spec.name}" paramNames retNames bodyStmts)
 
 -- Compile function spec to IR function
 private def compileFunctionSpec (fields : List Field) (selector : Nat) (spec : FunctionSpec) :

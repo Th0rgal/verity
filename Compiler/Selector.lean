@@ -7,16 +7,8 @@ namespace Compiler.Selector
 open Compiler.ContractSpec
 open Compiler.Hex
 
-private def paramTypeToSol : ParamType -> String
-  | ParamType.uint256 => "uint256"
-  | ParamType.address => "address"
-  | ParamType.bytes32 => "bytes32"
-  | ParamType.array t => paramTypeToSol t ++ "[]"
-  | ParamType.fixedArray t n => paramTypeToSol t ++ "[" ++ toString n ++ "]"
-  | ParamType.bytes => "bytes"
-
 private def functionSignature (fn : FunctionSpec) : String :=
-  let params := fn.params.map (fun p => paramTypeToSol p.ty)
+  let params := fn.params.map (fun p => paramTypeToSolidityString p.ty)
   let paramStr := String.intercalate "," params
   s!"{fn.name}({paramStr})"
 
@@ -39,9 +31,11 @@ private def runKeccak (sigs : List String) : IO (List Nat) := do
     throw (IO.userError s!"Failed to parse selector output: {result.stdout}")
   return selectors.map Option.get!
 
-/-- Compute Solidity-compatible selectors for all functions in a spec. -/
+/-- Compute Solidity-compatible selectors for external functions in a spec.
+    Internal functions are not dispatched via selector, so they are excluded. -/
 def computeSelectors (spec : ContractSpec) : IO (List Nat) := do
-  let sigs := spec.functions.map functionSignature
+  let externalFns := spec.functions.filter (!·.isInternal)
+  let sigs := externalFns.map functionSignature
   runKeccak sigs
 
 end Compiler.Selector
