@@ -138,7 +138,8 @@ def specStorageToIRState (storage : SpecStorage) (sender : Address) : IRState :=
     memory := fun _ => 0
     calldata := []
     returnValue := none
-    sender := addressToNat sender }
+    sender := addressToNat sender
+    selector := 0 }
 
 @[simp] theorem specStorageToIRState_storage (storage : SpecStorage) (sender : Address) (slot : Nat) :
     (specStorageToIRState storage sender).storage slot = storage.getSlot slot := by

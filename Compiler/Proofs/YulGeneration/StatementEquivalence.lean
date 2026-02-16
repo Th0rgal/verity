@@ -29,9 +29,14 @@ making it opaque to Lean's kernel. `evalYulExpr` is total (structural recursion)
 Lean cannot unfold the `partial` IR side to prove equality. This axiom is sound because:
 
 1. Both functions have **identical** source code (see IRInterpreter.lean and Semantics.lean)
-2. `yulStateOfIR` just copies all IRState fields to YulState
-3. The only difference is the `selector` field, which doesn't affect expression evaluation
+2. `yulStateOfIR` copies all IRState fields to YulState (including `selector`)
+3. Both evaluators handle `calldataload(0)` identically: returning `selectorWord(state.selector)`
 4. This is a structural equality, not a semantic one
+
+**History**: Prior to PR #205, the IR evaluator returned 0 for `calldataload(0)` while
+the Yul evaluator returned `selectorWord(selector)`. This made the axiom provably false
+for expressions containing `calldataload(0)`. The fix added a `selector` field to
+`IRState` and aligned the `calldataload` implementations.
 
 **Alternative**: To avoid this axiom, only the IR evaluator needs refactoring to use
 fuel parameters (matching the pattern already used by `evalYulExpr`). The Yul side is
