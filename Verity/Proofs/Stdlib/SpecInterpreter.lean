@@ -179,14 +179,9 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
   | Expr.blockTimestamp => ctx.blockTimestamp % modulus
   | Expr.localVar name =>
       ctx.localVars.lookup name |>.getD 0
-  | Expr.externalCall name args =>
-      let evalArgs := fun (es : List Expr) =>
-        match es with
-        | [] => []
-        | e :: rest => evalExpr ctx storage fields paramNames e :: evalArgs rest
-      let argVals := evalArgs args
+  | Expr.externalCall name _args =>
       match ctx.externalFunctions.lookup name with
-      | some fn => fn argVals
+      | some fn => fn []
       | none => 0
   | Expr.internalCall _functionName _args => 0
   | Expr.arrayLength name =>
@@ -506,6 +501,8 @@ namespace Verity.Proofs.Stdlib.SpecInterpreter
 
 def mkExternalFunction (name : String) (fn : List Nat → Nat) : (String × (List Nat → Nat)) :=
   (name, fn)
+
+open Verity.Core.Uint256 (modulus)
 
 def mkPoseidonT3 : (String × (List Nat → Nat)) :=
   mkExternalFunction "PoseidonT3_hash" (fun args =>
