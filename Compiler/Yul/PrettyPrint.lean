@@ -10,7 +10,7 @@ private def hexDigit (n : Nat) : Char :=
   else
     Char.ofNat (n - 10 + 97)
 
-partial def toHex (n : Nat) : String :=
+def toHex (n : Nat) : String :=
   if n == 0 then
     "0"
   else
@@ -20,21 +20,31 @@ partial def toHex (n : Nat) : String :=
         let d := x % 16
         let acc' := hexDigit d :: acc
         loop (x / 16) acc'
+    termination_by x
+    decreasing_by
+      simp_wf
+      simp [Nat.beq_eq] at *
+      exact Nat.div_lt_self (by omega) (by omega)
     String.mk (loop n [])
 
 private def indentStr (n : Nat) : String :=
   String.mk (List.replicate (n * 4) ' ')
 
-partial def ppExpr : YulExpr → String
+mutual
+def ppExpr : YulExpr → String
   | lit n => toString n
   | hex n => "0x" ++ toHex n
   | str s => "\"" ++ s ++ "\""
   | ident name => name
   | call func args =>
-      let rendered := args.map ppExpr |>.intersperse ", " |>.foldl (· ++ ·) ""
+      let rendered := ppExprs args |>.intersperse ", " |>.foldl (· ++ ·) ""
       s!"{func}({rendered})"
 
-partial def ppStmt (indent : Nat) : YulStmt → List String
+def ppExprs : List YulExpr → List String
+  | [] => []
+  | e :: es => ppExpr e :: ppExprs es
+
+def ppStmt (indent : Nat) : YulStmt → List String
   | YulStmt.comment text =>
       [s!"{indentStr indent}/* {text} */"]
   | YulStmt.let_ name value =>
@@ -45,29 +55,24 @@ partial def ppStmt (indent : Nat) : YulStmt → List String
       [s!"{indentStr indent}{ppExpr e}"]
   | YulStmt.if_ cond body =>
       let header := indentStr indent ++ "if " ++ ppExpr cond ++ " {"
-      let bodyLines := body.flatMap (ppStmt (indent + 1))
+      let bodyLines := ppStmts (indent + 1) body
       let footer := s!"{indentStr indent}}"
       header :: bodyLines ++ [footer]
   | YulStmt.switch expr cases defaultCase =>
       let header := indentStr indent ++ "switch " ++ ppExpr expr
-      let caseLines := cases.flatMap (fun (c, body) =>
-        let caseHeader := indentStr indent ++ "case 0x" ++ toHex c ++ " {"
-        let bodyLines := body.flatMap (ppStmt (indent + 1))
-        let footer := s!"{indentStr indent}}"
-        caseHeader :: bodyLines ++ [footer]
-      )
+      let caseLines := ppCases indent cases
       let defaultLines :=
         match defaultCase with
         | none => []
         | some body =>
             let defaultHeader := indentStr indent ++ "default {"
-            let bodyLines := body.flatMap (ppStmt (indent + 1))
+            let bodyLines := ppStmts (indent + 1) body
             let footer := s!"{indentStr indent}}"
             defaultHeader :: bodyLines ++ [footer]
       header :: caseLines ++ defaultLines
   | YulStmt.block stmts =>
       let header := indentStr indent ++ "{"
-      let bodyLines := stmts.flatMap (ppStmt (indent + 1))
+      let bodyLines := ppStmts (indent + 1) stmts
       let footer := s!"{indentStr indent}}"
       header :: bodyLines ++ [footer]
   | YulStmt.funcDef name params rets body =>
@@ -77,18 +82,31 @@ partial def ppStmt (indent : Nat) : YulStmt → List String
         | [] => ""
         | _ => " -> " ++ (rets.intersperse ", " |>.foldl (· ++ ·) "")
       let header := indentStr indent ++ "function " ++ name ++ "(" ++ paramsStr ++ ")" ++ retsStr ++ " {"
-      let bodyLines := body.flatMap (ppStmt (indent + 1))
+      let bodyLines := ppStmts (indent + 1) body
       let footer := s!"{indentStr indent}}"
       header :: bodyLines ++ [footer]
+
+def ppStmts (indent : Nat) : List YulStmt → List String
+  | [] => []
+  | s :: ss => ppStmt indent s ++ ppStmts indent ss
+
+def ppCases (indent : Nat) : List (Nat × List YulStmt) → List String
+  | [] => []
+  | (c, body) :: rest =>
+      let caseHeader := indentStr indent ++ "case 0x" ++ toHex c ++ " {"
+      let bodyLines := ppStmts (indent + 1) body
+      let footer := s!"{indentStr indent}}"
+      (caseHeader :: bodyLines ++ [footer]) ++ ppCases indent rest
+end
 
 private def ppObject (obj : YulObject) : List String :=
   let header := "object \"" ++ obj.name ++ "\" {"
   let deployHeader := "    code {"
-  let deployBody := obj.deployCode.flatMap (ppStmt 2)
+  let deployBody := ppStmts 2 obj.deployCode
   let deployFooter := "    }"
   let runtimeHeader := "    object \"runtime\" {"
   let runtimeCodeHeader := "        code {"
-  let runtimeBody := obj.runtimeCode.flatMap (ppStmt 3)
+  let runtimeBody := ppStmts 3 obj.runtimeCode
   let runtimeFooter := "        }"
   let runtimeClose := "    }"
   let footer := "}"
@@ -97,7 +115,7 @@ private def ppObject (obj : YulObject) : List String :=
     ++ [runtimeHeader] ++ [runtimeCodeHeader] ++ runtimeBody ++ [runtimeFooter] ++ [runtimeClose]
     ++ [footer]
 
-partial def render (obj : YulObject) : String :=
+def render (obj : YulObject) : String :=
   (ppObject obj).intersperse "\n" |>.foldl (· ++ ·) ""
 
 end Compiler.Yul

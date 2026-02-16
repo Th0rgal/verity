@@ -143,10 +143,14 @@ private def uint256Modulus : Nat := 2 ^ 256
 
 -- Compile expression to Yul (using mutual recursion for lists)
 mutual
-private partial def compileExprList (fields : List Field) (exprs : List Expr) : Except String (List YulExpr) :=
-  exprs.mapM fun e => compileExpr fields e
+private def compileExprList (fields : List Field) : List Expr → Except String (List YulExpr)
+  | [] => pure []
+  | e :: es => do
+      let head ← compileExpr fields e
+      let tail ← compileExprList fields es
+      pure (head :: tail)
 
-private partial def compileExpr (fields : List Field) : Expr → Except String YulExpr
+private def compileExpr (fields : List Field) : Expr → Except String YulExpr
   | Expr.literal n => pure (YulExpr.lit (n % uint256Modulus))
   | Expr.param name => pure (YulExpr.ident name)
   | Expr.constructorArg idx => pure (YulExpr.ident s!"arg{idx}")  -- Constructor args loaded as argN
@@ -220,8 +224,7 @@ private partial def compileExpr (fields : List Field) : Expr → Except String Y
       let aExpr ← compileExpr fields a
       let bExpr ← compileExpr fields b
       pure (YulExpr.call "eq" [aExpr, bExpr])
-  | Expr.ge a b =>
-    do
+  | Expr.ge a b => do
       let aExpr ← compileExpr fields a
       let bExpr ← compileExpr fields b
       pure (YulExpr.call "iszero" [YulExpr.call "lt" [aExpr, bExpr]])
@@ -233,8 +236,7 @@ private partial def compileExpr (fields : List Field) : Expr → Except String Y
       let aExpr ← compileExpr fields a
       let bExpr ← compileExpr fields b
       pure (YulExpr.call "lt" [aExpr, bExpr])
-  | Expr.le a b =>
-    do
+  | Expr.le a b => do
       let aExpr ← compileExpr fields a
       let bExpr ← compileExpr fields b
       pure (YulExpr.call "iszero" [YulExpr.call "gt" [aExpr, bExpr]])

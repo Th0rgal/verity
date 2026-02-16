@@ -196,14 +196,14 @@ def genTransaction (contractType : ContractType) (rng : RNG) : Except String (RN
 -/
 
 -- Generate N random transactions
-partial def genTransactions (contractType : ContractType) (count : Nat) (rng : RNG) : Except String (List Transaction) :=
-  if count == 0 then
-    Except.ok []
-  else
+def genTransactions (contractType : ContractType) (count : Nat) (rng : RNG) : Except String (List Transaction) :=
+  match count with
+  | 0 => Except.ok []
+  | n + 1 =>
     match genTransaction contractType rng with
     | Except.error msg => Except.error msg
     | Except.ok (rng', tx) =>
-        match genTransactions contractType (count - 1) rng' with
+        match genTransactions contractType n rng' with
         | Except.ok rest => Except.ok (tx :: rest)
         | Except.error msg => Except.error msg
 
