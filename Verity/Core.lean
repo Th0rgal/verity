@@ -292,4 +292,34 @@ instance : Monad Contract where
   pure := pure
   bind := bind
 
+/-!
+## Contract Monad Laws
+
+The Contract monad satisfies all three monad laws, ensuring that do-notation
+rewrites performed by Lean during elaboration preserve program semantics.
+This eliminates a trust assumption noted in issue #146.
+-/
+
+-- Left identity: bind (pure a) f = f a
+@[simp] theorem Contract.bind_pure_left (a : α) (f : α → Contract β) :
+    bind (pure a) f = f a := by rfl
+
+-- Right identity: bind m pure = m
+@[simp] theorem Contract.bind_pure_right (m : Contract α) :
+    bind m pure = m := by
+  funext s
+  simp only [bind, pure]
+  cases m s with
+  | success a s' => rfl
+  | revert msg s' => rfl
+
+-- Associativity: bind (bind m f) g = bind m (fun x => bind (f x) g)
+@[simp] theorem Contract.bind_assoc (m : Contract α) (f : α → Contract β) (g : β → Contract γ) :
+    bind (bind m f) g = bind m (fun x => bind (f x) g) := by
+  funext s
+  simp only [bind]
+  cases m s with
+  | success a s' => rfl
+  | revert msg s' => rfl
+
 end Verity
