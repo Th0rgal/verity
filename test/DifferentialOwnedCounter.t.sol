@@ -565,6 +565,31 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
         assertTrue(success2, "GetOwner failed");
     }
 
+    /**
+     * @notice Edge value tests: increment and decrement at every boundary count
+     */
+    function testDifferential_EdgeValues() public {
+        uint256[] memory values = _edgeUintValues();
+        address owner = address(this);
+
+        for (uint256 i = 0; i < values.length; i++) {
+            // Seed count (slot 1) to edge value
+            vm.store(ownedCounter, bytes32(uint256(1)), bytes32(values[i]));
+            edslStorage[1] = values[i];
+
+            // Increment from edge value
+            bool s1 = executeDifferentialTest("increment", owner, 0);
+            assertTrue(s1, "Edge increment test failed");
+
+            // Reset and decrement from edge value
+            vm.store(ownedCounter, bytes32(uint256(1)), bytes32(values[i]));
+            edslStorage[1] = values[i];
+
+            bool s2 = executeDifferentialTest("decrement", owner, 0);
+            assertTrue(s2, "Edge decrement test failed");
+        }
+    }
+
     function testDifferential_Random100() public {
         address[] memory actors = new address[](3);
         actors[0] = address(this);  // Owner

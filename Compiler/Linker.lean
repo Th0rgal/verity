@@ -182,6 +182,18 @@ private partial def collectExternalCalls (stmts : List YulStmt) : List String :=
 private def collectLibraryFunctions (libs : List LibraryFunction) : List String :=
   libs.map (·.name)
 
+-- Validate that no two library functions share the same name
+def validateNoDuplicateNames (libraries : List LibraryFunction) : Except String Unit := do
+  let names := libraries.map (·.name)
+  let rec findDup : List String → List String → Option String
+    | [], _ => none
+    | n :: rest, seen =>
+        if seen.contains n then some n
+        else findDup rest (n :: seen)
+  match findDup names [] with
+  | some dup => throw s!"Duplicate library function name: {dup}"
+  | none => pure ()
+
 -- Validate that all external calls are provided by libraries
 def validateExternalReferences (obj : YulObject) (libraries : List LibraryFunction) : Except String Unit := do
   let externalCalls := (collectExternalCalls obj.runtimeCode).eraseDups

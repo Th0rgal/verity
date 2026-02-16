@@ -329,6 +329,31 @@ contract DifferentialSafeCounter is YulTestBase, DiffTestConfig {
     }
 
     /**
+     * @notice Edge value tests: increment and decrement at every boundary value
+     */
+    function testDifferential_EdgeValues() public {
+        uint256[] memory values = _edgeUintValues();
+        address sender = address(0xA11CE);
+
+        for (uint256 i = 0; i < values.length; i++) {
+            // Seed storage to edge value
+            vm.store(safeCounter, bytes32(uint256(0)), bytes32(values[i]));
+            edslStorage[0] = values[i];
+
+            // Increment from edge value (may revert at MAX)
+            bool s1 = executeDifferentialTest("increment", sender);
+            assertTrue(s1, "Edge increment test failed");
+
+            // Reset and decrement from edge value (may revert at 0)
+            vm.store(safeCounter, bytes32(uint256(0)), bytes32(values[i]));
+            edslStorage[0] = values[i];
+
+            bool s2 = executeDifferentialTest("decrement", sender);
+            assertTrue(s2, "Edge decrement test failed");
+        }
+    }
+
+    /**
      * @notice Run 100 random differential tests
      */
     function testDifferential_Random100() public {
