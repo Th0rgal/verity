@@ -137,8 +137,13 @@ Evaluate ContractSpec expressions to natural numbers.
 All arithmetic is modular (mod 2^256) to match EVM semantics.
 -/
 
+mutual
+def evalExprList (args : List Expr) : List Nat :=
+  match args with
+  | [] => []
+  | e :: rest => evalExpr ctx storage fields paramNames e :: evalExprList rest
+
 def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) : Expr → Nat
- termination_by expr => expr
   | Expr.literal n => n % modulus
   | Expr.param name =>
       match paramNames.findIdx? (· == name) with
@@ -182,7 +187,7 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
   | Expr.localVar name =>
       ctx.localVars.lookup name |>.getD 0
   | Expr.externalCall name args =>
-      let argVals := args.map (fun e => evalExpr ctx storage fields paramNames e)
+      let argVals := evalExprList args
       match ctx.externalFunctions.lookup name with
       | some fn => fn argVals
       | none => 0
@@ -245,6 +250,7 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
       if evalExpr ctx storage fields paramNames a ≠ 0 || evalExpr ctx storage fields paramNames b ≠ 0 then 1 else 0
   | Expr.logicalNot a =>
       if evalExpr ctx storage fields paramNames a == 0 then 1 else 0
+end
 
 /-!
 ## Statement Execution
