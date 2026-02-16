@@ -390,10 +390,21 @@ def tipJarSpec : ContractSpec := {
 }
 ```
 
-Add selectors and register in `allSpecs`:
+### 5.2 Compute Function Selectors
+
+Solidity function selectors are the first 4 bytes of `keccak256("functionName(paramTypes)")`. Verity computes them automatically at compile time using `scripts/keccak256.py`:
+
+```bash
+# Compute selectors for your functions
+python3 scripts/keccak256.py "tip(uint256)" "getBalance(address)"
+# Output: two hex values like 0xd3e5769a 0xf8b2cb4f
+```
+
+Add the selectors and register in `allSpecs`:
 
 ```lean
-def tipJarSelectors : List Nat := [0x..., 0x...]  -- compute via keccak256
+-- Selectors must match the order of functions in tipJarSpec.functions
+def tipJarSelectors : List Nat := [0xd3e5769a, 0xf8b2cb4f]
 
 -- Add to allSpecs list
 def allSpecs := [
@@ -402,7 +413,9 @@ def allSpecs := [
 ]
 ```
 
-### 5.2 Generate Yul Code
+> **Important**: The selector list must be in the same order as the functions list. `#guard` statements in `Specs.lean` enforce that the counts match, but order correctness is the developer's responsibility. Run `python3 scripts/check_selectors.py` to validate.
+
+### 5.3 Generate Yul Code
 
 ```bash
 lake build verity-compiler
@@ -412,7 +425,7 @@ lake exe verity-compiler
 ls compiler/yul/TipJar.yul
 ```
 
-### 5.3 Verify Compilation
+### 5.4 Verify Compilation
 
 ```bash
 python3 scripts/check_yul_compiles.py

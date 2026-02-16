@@ -7,17 +7,17 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
 
-**Status**: 296 theorems across 9 categories. 286 fully proven, 10 `sorry` placeholders in Ledger sum property proofs ([#65](https://github.com/Th0rgal/verity/issues/65)). 5 axioms documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**Status**: 300 theorems across 9 categories. 288 fully proven, 12 `sorry` placeholders in Ledger sum property proofs ([#65](https://github.com/Th0rgal/verity/issues/65)). 5 axioms documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
-## Snapshot (2026-02-15)
+## Snapshot (2026-02-16)
 
-- EDSL theorems: 296 across 9 categories (7 contracts + ReentrancyExample + Stdlib).
+- EDSL theorems: 300 across 9 categories (7 contracts + ReentrancyExample + Stdlib).
 - SimpleStorage: 20 total (Basic 12, Correctness 7, Spec 1).
 - Counter: 28 total (Basic 19, Correctness 10).
 - Owned: 22 total (Basic 18, Correctness 4).
-- SimpleToken: 56 total (Basic 34, Correctness 12, Supply 6, Isolation 9).
+- SimpleToken: 59 total (Basic 34, Correctness 12, Supply 6, Isolation 9).
 - OwnedCounter: 45 total (Basic 29, Correctness 6, Isolation 14).
-- Ledger: 32 total (Basic 21, Correctness 6, Conservation 13 — 10 sorry).
+- Ledger: 33 total (Basic 21, Correctness 6, Conservation 13 — 12 sorry).
 - SafeCounter: 25 total (Basic 22, Correctness 9).
 - ReentrancyExample: 4 total (inline proofs: vulnerability existence, supply invariant).
 - Stdlib: 64 theorems (Math 25, Automation 39).
