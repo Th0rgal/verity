@@ -63,9 +63,8 @@ structure EvalContext where
   arrayParams : List (String × (Nat × List Nat))
   -- External functions: name → (args) → result (#172)
   -- Allows modeling linked library functions for spec verification
-  -- Note: Cannot derive Repr for this structure because List Nat → Nat has no Repr instance
+  -- Note: Cannot derive Repr because List Nat → Nat has no Repr instance
   externalFunctions : List (String × (List Nat → Nat))
-
 
 /-!
 ## Storage State
@@ -137,16 +136,7 @@ Evaluate ContractSpec expressions to natural numbers.
 All arithmetic is modular (mod 2^256) to match EVM semantics.
 -/
 
-mutual termination_by
-  evalExprList _ _ _ _ args := args.size
-  evalExpr _ _ _ _ expr := expr
-
-def evalExprList (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) (args : List Expr) : List Nat :=
-  match args with
-  | [] => []
-  | e :: rest => evalExpr ctx storage fields paramNames e :: evalExprList ctx storage fields paramNames rest
-
-def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) (expr : Expr) : Nat
+def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) : Expr → Nat
   | Expr.literal n => n % modulus
   | Expr.param name =>
       match paramNames.findIdx? (· == name) with
@@ -190,7 +180,11 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
   | Expr.localVar name =>
       ctx.localVars.lookup name |>.getD 0
   | Expr.externalCall name args =>
-      let argVals := evalExprList ctx storage fields paramNames args
+      let evalArgs := fun (es : List Expr) =>
+        match es with
+        | [] => []
+        | e :: rest => evalExpr ctx storage fields paramNames e :: evalArgs rest
+      let argVals := evalArgs args
       match ctx.externalFunctions.lookup name with
       | some fn => fn argVals
       | none => 0
@@ -253,7 +247,6 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
       if evalExpr ctx storage fields paramNames a ≠ 0 || evalExpr ctx storage fields paramNames b ≠ 0 then 1 else 0
   | Expr.logicalNot a =>
       if evalExpr ctx storage fields paramNames a == 0 then 1 else 0
-end
 
 /-!
 ## Statement Execution
@@ -513,8 +506,6 @@ namespace Verity.Proofs.Stdlib.SpecInterpreter
 
 def mkExternalFunction (name : String) (fn : List Nat → Nat) : (String × (List Nat → Nat)) :=
   (name, fn)
-
-open Verity.Core.Uint256 (modulus)
 
 def mkPoseidonT3 : (String × (List Nat → Nat)) :=
   mkExternalFunction "PoseidonT3_hash" (fun args =>
