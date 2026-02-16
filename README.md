@@ -57,13 +57,13 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 | CryptoHash | - | External cryptographic library linking |
 
-300 theorems across 9 categories. 349 Foundry tests across 25 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 4 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
+300 theorems across 9 categories. 349 Foundry tests across 25 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
 - **EDSL correctness** - each contract satisfies its spec in Lean (Layer 1)
 - **Compiler correctness** - IR generation preserves semantics (Layer 2), Yul codegen preserves IR (Layer 3)
-- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 4 axioms
+- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 5 axioms
 - **Trust boundary** - Yul -> EVM bytecode via solc (validated by 70k+ differential tests)
 
 See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
@@ -134,7 +134,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for conventions and workflow.
 | | |
 |---|---|
 | [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
-| [`AXIOMS.md`](AXIOMS.md) | All 4 axioms with soundness justifications |
+| [`AXIOMS.md`](AXIOMS.md) | All 5 axioms with soundness justifications |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Verification progress, planned features |
 | [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) | Per-theorem status |

@@ -105,7 +105,40 @@ theorem evalIRExprs_eq_evalYulExprs : ... := by
 
 ---
 
-### 3. `keccak256_first_4_bytes`
+### 3. `execIRStmtsFuel_adequate`
+
+**Location**: `Compiler/Proofs/YulGeneration/Equivalence.lean:666`
+
+**Statement**:
+```lean
+axiom execIRStmtsFuel_adequate (state : IRState) (stmts : List YulStmt) :
+    execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts state stmts
+```
+
+**Purpose**: Bridges the fuel-parametric `execIRStmtsFuel` (usable in proofs) with the `partial` `execIRStmts` (used by `execIRFunction` and `interpretIR`).
+
+**Why Axiom?**:
+- `execIRStmts` is defined as `partial` (not provably terminating), making it opaque to Lean's kernel
+- `execIRStmtsFuel` is the same function with an explicit fuel counter, making it total
+- Lean cannot unfold a `partial` definition to prove it equals the fuel-based version
+- This is the standard "adequacy" axiom pattern for fuel-based verification
+
+**Soundness Argument**:
+1. **Structural identity**: Both functions have identical pattern-matching structure
+2. **Sufficient fuel**: `sizeOf stmts + 1` provides at least as many steps as the statement list depth
+3. **Validation**: Both execution paths are exercised by 70,000+ differential tests
+4. **Standard pattern**: This is a well-known verification technique (fuel adequacy)
+
+**Alternative Approach**:
+To eliminate this axiom, refactor `execIRStmts` to use fuel directly (making it total). This would also eliminate axioms #1 and #2 since `evalIRExpr` would become total as well. Estimated effort: ~500 lines.
+
+**Risk**: **Low** - Standard adequacy axiom validated by extensive testing.
+
+**Usage**: Used by `ir_function_body_equiv` (Preservation.lean) to discharge the `hbody` hypothesis in the Layer 3 preservation theorem.
+
+---
+
+### 4. `keccak256_first_4_bytes`
 
 **Location**: `Compiler/Selectors.lean:43`
 
@@ -131,7 +164,7 @@ axiom keccak256_first_4_bytes (sig : String) : Nat
 
 ---
 
-### 4. `addressToNat_injective`
+### 5. `addressToNat_injective`
 
 **Location**: `Verity/Proofs/Stdlib/Automation.lean:155`
 
@@ -195,10 +228,11 @@ theorem addressToNat_injective_valid :
 |-------|------|------|--------------|-------------|
 | `evalIRExpr_eq_evalYulExpr` | StatementEquivalence.lean | Low | Differential tests (70k+) | Fuel-based refactor |
 | `evalIRExprs_eq_evalYulExprs` | StatementEquivalence.lean | Low | Differential tests (70k+) | Prove from axiom #1 |
+| `execIRStmtsFuel_adequate` | Equivalence.lean | Low | Differential tests (70k+) | Fuel-based refactor |
 | `keccak256_first_4_bytes` | Selectors.lean | Low | CI selector checks + solc | Verified keccak FFI |
 | `addressToNat_injective` | Automation.lean | Low | Differential tests (70k+) | Formalize hex parsing |
 
-**Total Axioms**: 4
+**Total Axioms**: 5
 **Production Blockers**: 0 (all have low risk with strong validation)
 
 ---
@@ -243,7 +277,7 @@ User Code (EDSL)
 ContractSpec
     ↓ [Proven, no additional axioms]
 IR
-    ↓ [Proven, 2 axioms: evalIRExpr/Exprs equivalence]
+    ↓ [Proven, 3 axioms: evalIRExpr/Exprs equivalence + fuel adequacy]
 Yul (1 axiom: keccak256_first_4_bytes for selectors)
     ↓ [TRUSTED: solc compiler]
 EVM Bytecode
@@ -251,7 +285,7 @@ EVM Bytecode
 
 **Trust Assumptions**:
 1. Lean 4 type checker is sound (foundational)
-2. The 4 axioms documented above are sound
+2. The 5 axioms documented above are sound
 3. Solidity compiler (solc) correctly compiles Yul → Bytecode
 
 See `TRUST_ASSUMPTIONS.md` (issue #68) for complete trust model.
