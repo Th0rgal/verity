@@ -91,6 +91,18 @@ def snd {α : Type} : ContractResult α → ContractState
   | success _ s => s
   | revert _ s => s
 
+-- Reduction rules for projections applied to constructors.
+-- These ensure that when simp produces `ContractResult.success ...`, further
+-- `.fst`/`.snd` applications are automatically reduced.
+@[simp] theorem fst_success [Inhabited α] (a : α) (s : ContractState) :
+  (ContractResult.success a s).fst = a := by rfl
+
+@[simp] theorem snd_success (a : α) (s : ContractState) :
+  (ContractResult.success a s).snd = s := by rfl
+
+@[simp] theorem snd_revert (msg : String) (s : ContractState) :
+  (ContractResult.revert (α := α) msg s).snd = s := by rfl
+
 end ContractResult
 
 -- The contract monad with explicit success/failure
@@ -108,6 +120,9 @@ def bind {α β : Type} (ma : Contract α) (f : α → Contract β) : Contract �
 -- Convenience: run a Contract and extract result/state
 def Contract.run {α : Type} (c : Contract α) (s : ContractState) : ContractResult α :=
   c s
+
+@[simp] theorem pure_run (a : α) (state : ContractState) :
+  (pure a : Contract α).run state = ContractResult.success a state := by rfl
 
 -- Helper: check if result is success
 def ContractResult.isSuccess {α : Type} : ContractResult α → Bool
@@ -150,7 +165,17 @@ def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
     storage := fun slot => if slot == s.slot then value else state.storage slot
   }
 
--- Simp lemmas for storage operations
+-- Full-result simp lemmas: prove success + value + state in one shot.
+-- These subsume the `_fst` and `_snd` variants below. Prefer these for new proofs.
+@[simp] theorem getStorage_run (s : StorageSlot Uint256) (state : ContractState) :
+  (getStorage s).run state = ContractResult.success (state.storage s.slot) state := by rfl
+
+@[simp] theorem setStorage_run (s : StorageSlot Uint256) (value : Uint256) (state : ContractState) :
+  (setStorage s value).run state = ContractResult.success () { state with
+    storage := fun slot => if slot == s.slot then value else state.storage slot
+  } := by rfl
+
+-- Legacy projection lemmas (derive from the full-result versions above).
 @[simp] theorem getStorage_run_fst (s : StorageSlot Uint256) (state : ContractState) :
   ((getStorage s).run state).fst = state.storage s.slot := by rfl
 
@@ -171,7 +196,16 @@ def setStorageAddr (s : StorageSlot Address) (value : Address) : Contract Unit :
     storageAddr := fun slot => if slot == s.slot then value else state.storageAddr slot
   }
 
--- Simp lemmas for address storage operations
+-- Full-result simp lemmas for address storage
+@[simp] theorem getStorageAddr_run (s : StorageSlot Address) (state : ContractState) :
+  (getStorageAddr s).run state = ContractResult.success (state.storageAddr s.slot) state := by rfl
+
+@[simp] theorem setStorageAddr_run (s : StorageSlot Address) (value : Address) (state : ContractState) :
+  (setStorageAddr s value).run state = ContractResult.success () { state with
+    storageAddr := fun slot => if slot == s.slot then value else state.storageAddr slot
+  } := by rfl
+
+-- Legacy projection lemmas
 @[simp] theorem getStorageAddr_run_fst (s : StorageSlot Address) (state : ContractState) :
   ((getStorageAddr s).run state).fst = state.storageAddr s.slot := by rfl
 
@@ -199,7 +233,23 @@ def setMapping (s : StorageSlot (Address → Uint256)) (key : Address) (value : 
         state.knownAddresses slot
   }
 
--- Simp lemmas for mapping operations
+-- Full-result simp lemmas for mapping operations
+@[simp] theorem getMapping_run (s : StorageSlot (Address → Uint256)) (key : Address) (state : ContractState) :
+  (getMapping s key).run state = ContractResult.success (state.storageMap s.slot key) state := by rfl
+
+@[simp] theorem setMapping_run (s : StorageSlot (Address → Uint256)) (key : Address) (value : Uint256) (state : ContractState) :
+  (setMapping s key value).run state = ContractResult.success () { state with
+    storageMap := fun slot addr =>
+      if slot == s.slot && addr == key then value
+      else state.storageMap slot addr,
+    knownAddresses := fun slot =>
+      if slot == s.slot then
+        (state.knownAddresses slot).insert key
+      else
+        state.knownAddresses slot
+  } := by rfl
+
+-- Legacy projection lemmas
 @[simp] theorem getMapping_run_fst (s : StorageSlot (Address → Uint256)) (key : Address) (state : ContractState) :
   ((getMapping s key).run state).fst = state.storageMap s.slot key := by rfl
 
@@ -229,6 +279,17 @@ def setMapping2 (s : StorageSlot (Address → Address → Uint256)) (key1 key2 :
       else state.storageMap2 slot addr1 addr2
   }
 
+-- Full-result simp lemmas for double mappings
+@[simp] theorem getMapping2_run (s : StorageSlot (Address → Address → Uint256)) (key1 key2 : Address) (state : ContractState) :
+  (getMapping2 s key1 key2).run state = ContractResult.success (state.storageMap2 s.slot key1 key2) state := by rfl
+
+@[simp] theorem setMapping2_run (s : StorageSlot (Address → Address → Uint256)) (key1 key2 : Address) (value : Uint256) (state : ContractState) :
+  (setMapping2 s key1 key2 value).run state = ContractResult.success () { state with
+    storageMap2 := fun slot addr1 addr2 =>
+      if slot == s.slot && addr1 == key1 && addr2 == key2 then value
+      else state.storageMap2 slot addr1 addr2
+  } := by rfl
+
 -- Uint256-keyed mapping operations (#154)
 def getMappingUint (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) : Contract Uint256 :=
   fun state => ContractResult.success (state.storageMapUint s.slot key) state
@@ -240,11 +301,27 @@ def setMappingUint (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (valu
       else state.storageMapUint slot k
   }
 
+-- Full-result simp lemmas for uint mappings
+@[simp] theorem getMappingUint_run (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (state : ContractState) :
+  (getMappingUint s key).run state = ContractResult.success (state.storageMapUint s.slot key) state := by rfl
+
+@[simp] theorem setMappingUint_run (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (value : Uint256) (state : ContractState) :
+  (setMappingUint s key value).run state = ContractResult.success () { state with
+    storageMapUint := fun slot k =>
+      if slot == s.slot && k == key then value
+      else state.storageMapUint slot k
+  } := by rfl
+
 -- Event emission (#153)
 def emitEvent (name : String) (args : List Uint256) (indexedArgs : List Uint256 := []) : Contract Unit :=
   fun state => ContractResult.success () { state with
     events := state.events ++ [{ name := name, args := args, indexedArgs := indexedArgs }]
   }
+
+@[simp] theorem emitEvent_run (name : String) (args : List Uint256) (indexedArgs : List Uint256) (state : ContractState) :
+  (emitEvent name args indexedArgs).run state = ContractResult.success () { state with
+    events := state.events ++ [{ name := name, args := args, indexedArgs := indexedArgs }]
+  } := by rfl
 
 -- Read-only context accessors
 def msgSender : Contract Address :=
@@ -259,7 +336,20 @@ def msgValue : Contract Uint256 :=
 def blockTimestamp : Contract Uint256 :=
   fun state => ContractResult.success state.blockTimestamp state
 
--- Simp lemmas for context accessors
+-- Full-result simp lemmas for context accessors
+@[simp] theorem msgSender_run (state : ContractState) :
+  msgSender.run state = ContractResult.success state.sender state := by rfl
+
+@[simp] theorem contractAddress_run (state : ContractState) :
+  contractAddress.run state = ContractResult.success state.thisAddress state := by rfl
+
+@[simp] theorem msgValue_run (state : ContractState) :
+  msgValue.run state = ContractResult.success state.msgValue state := by rfl
+
+@[simp] theorem blockTimestamp_run (state : ContractState) :
+  blockTimestamp.run state = ContractResult.success state.blockTimestamp state := by rfl
+
+-- Legacy projection lemmas
 @[simp] theorem msgSender_run_fst (state : ContractState) :
   (msgSender.run state).fst = state.sender := by rfl
 

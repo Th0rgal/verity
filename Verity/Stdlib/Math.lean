@@ -60,4 +60,11 @@ def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
     -- Return 0 as a fallback for type checking
     return 0
 
+-- Full-result simp lemmas for requireSomeUint
+@[simp] theorem requireSomeUint_some (v : Uint256) (msg : String) (s : ContractState) :
+  (requireSomeUint (some v) msg).run s = ContractResult.success v s := by rfl
+
+@[simp] theorem requireSomeUint_none (msg : String) (s : ContractState) :
+  (requireSomeUint none msg).run s = ContractResult.revert msg s := by rfl
+
 end Verity.Stdlib.Math
