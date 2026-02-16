@@ -37,7 +37,9 @@ and SpecStorage (which stores Nat).
 -- Convert EDSL state to SpecStorage
 def edslToSpecStorage (state : ContractState) : SpecStorage :=
   { slots := [(0, (state.storage 0).val)]
-    mappings := [] }
+    mappings := []
+    mappings2 := []
+    events := [] }
 
 /-!
 ## Correctness Theorems

@@ -35,7 +35,9 @@ open Verity.Stdlib.Math
 /-- Convert EDSL ContractState to SpecStorage for SafeCounter -/
 def safeCounterEdslToSpecStorage (state : ContractState) : SpecStorage :=
   { slots := [(0, (state.storage 0).val)]
-    mappings := [] }
+    mappings := []
+    mappings2 := []
+    events := [] }
 
 /- Helper Lemmas -/
 

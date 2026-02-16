@@ -26,16 +26,26 @@ structure StorageSlot (α : Type) where
   slot : Nat
   deriving Repr
 
+-- Event type for ERC20/ERC721 compliance (#153)
+structure Event where
+  name : String
+  args : List Uint256           -- Unindexed data arguments
+  indexedArgs : List Uint256    -- Indexed topic arguments
+  deriving Repr
+
 -- State monad for contract execution
 structure ContractState where
   storage : Nat → Uint256                -- Uint256 storage mapping
   storageAddr : Nat → Address            -- Address storage mapping
   storageMap : Nat → Address → Uint256  -- Mapping storage (Address → Uint256)
+  storageMapUint : Nat → Uint256 → Uint256  -- Uint256-keyed mapping storage (#154)
+  storageMap2 : Nat → Address → Address → Uint256  -- Double mapping storage (#154)
   sender : Address
   thisAddress : Address
   msgValue : Uint256
   blockTimestamp : Uint256
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
+  events : List Event := []  -- Emitted events, append-only log (#153)
 
 -- Repr instance for ContractState (simplified for readability)
 instance : Repr ContractState where
@@ -193,6 +203,34 @@ def setMapping (s : StorageSlot (Address → Uint256)) (key : Address) (value : 
       else
         state.knownAddresses slot
   } := by rfl
+
+-- Double mapping operations (Address → Address → Uint256) (#154)
+def getMapping2 (s : StorageSlot (Address → Address → Uint256)) (key1 key2 : Address) : Contract Uint256 :=
+  fun state => ContractResult.success (state.storageMap2 s.slot key1 key2) state
+
+def setMapping2 (s : StorageSlot (Address → Address → Uint256)) (key1 key2 : Address) (value : Uint256) : Contract Unit :=
+  fun state => ContractResult.success () { state with
+    storageMap2 := fun slot addr1 addr2 =>
+      if slot == s.slot && addr1 == key1 && addr2 == key2 then value
+      else state.storageMap2 slot addr1 addr2
+  }
+
+-- Uint256-keyed mapping operations (#154)
+def getMappingUint (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) : Contract Uint256 :=
+  fun state => ContractResult.success (state.storageMapUint s.slot key) state
+
+def setMappingUint (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (value : Uint256) : Contract Unit :=
+  fun state => ContractResult.success () { state with
+    storageMapUint := fun slot k =>
+      if slot == s.slot && k == key then value
+      else state.storageMapUint slot k
+  }
+
+-- Event emission (#153)
+def emitEvent (name : String) (args : List Uint256) (indexedArgs : List Uint256 := []) : Contract Unit :=
+  fun state => ContractResult.success () { state with
+    events := state.events ++ [{ name := name, args := args, indexedArgs := indexedArgs }]
+  }
 
 -- Read-only context accessors
 def msgSender : Contract Address :=

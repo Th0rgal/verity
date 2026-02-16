@@ -649,11 +649,14 @@ def main (args : List String) : IO Unit := do
       storage := storageState
       storageAddr := storageAddrState
       storageMap := storageMapState
+      storageMapUint := fun _ _ => 0
+      storageMap2 := fun _ _ _ => 0
       sender := normalizeAddress senderAddr
       thisAddress := "0xContract"
       msgValue := valueOpt.getD 0
       blockTimestamp := timestampOpt.getD 0
       knownAddresses := fun _ => Verity.Core.FiniteAddressSet.empty
+      events := []
     }
     let contractTypeEnum? : Option ContractType := match contractType with
       | "SimpleStorage" => some ContractType.simpleStorage

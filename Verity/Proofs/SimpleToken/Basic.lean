@@ -152,13 +152,16 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       storageMap := fun slot addr =>
         if (slot == 1 && addr == to) = true then EVM.Uint256.add (s.storageMap 1 to) amount
         else s.storageMap slot addr,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       knownAddresses := fun slot =>
         if slot == 1 then (s.knownAddresses slot).insert to
-        else s.knownAddresses slot } := by
+        else s.knownAddresses slot,
+      events := s.events } := by
   have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
   have h_safe_sup := safeAdd_some (s.storage 2) amount h_no_sup_overflow
   simp only [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner,
@@ -290,13 +293,16 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
         if (slot == 1 && addr == to) = true then EVM.Uint256.add (s.storageMap 1 to) amount
         else if (slot == 1 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 1 s.sender) amount
         else s.storageMap slot addr,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       knownAddresses := fun slot =>
         if slot == 1 then ((s.knownAddresses slot).insert s.sender).insert to
-        else s.knownAddresses slot } := by
+        else s.knownAddresses slot,
+      events := s.events } := by
   have h_balance' : amount.val ≤ (s.storageMap 1 s.sender).val := by
     have h_balance'' : amount ≤ s.storageMap 1 s.sender := by
       simpa using h_balance

@@ -50,7 +50,8 @@ def buildSwitch (funcs : List IRFunction) : YulStmt :=
 
 def runtimeCode (contract : IRContract) : List YulStmt :=
   let mapping := if contract.usesMapping then [mappingSlotFunc] else []
-  mapping ++ [buildSwitch contract.functions]
+  let internals := contract.internalFunctions
+  mapping ++ internals ++ [buildSwitch contract.functions]
 
 private def deployCode (contract : IRContract) : List YulStmt :=
   contract.deploy ++ [yulDatacopy, yulReturnRuntime]
