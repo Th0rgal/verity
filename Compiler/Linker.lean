@@ -47,7 +47,7 @@ private def countBraces (line : String) : Int :=
   opens - closes
 
 -- Extract a complete function definition from lines
-private partial def extractFunction (lines : List String) : Option (String × List String × List String) :=
+private def extractFunction (lines : List String) : Option (String × List String × List String) :=
   match lines with
   | [] => none
   | firstLine :: rest =>
@@ -69,19 +69,24 @@ private partial def extractFunction (lines : List String) : Option (String × Li
           some (name, bodyLines, remaining)
 
 -- Extract all function definitions from library lines
-private partial def extractAllFunctions (lines : List String) : List (String × List String) :=
-  let rec go (remaining : List String) (acc : List (String × List String)) : List (String × List String) :=
-    match remaining with
-    | [] => acc.reverse
-    | line :: rest =>
-        if isFunctionStart line then
-          match extractFunction (line :: rest) with
-          | none => go rest acc
-          | some (name, body, remaining') =>
-              go remaining' ((name, body) :: acc)
-        else
-          go rest acc
-  go lines []
+-- Uses fuel bounded by line count to guarantee termination
+private def extractAllFunctions (lines : List String) : List (String × List String) :=
+  go lines [] lines.length
+where
+  go (remaining : List String) (acc : List (String × List String)) (fuel : Nat) : List (String × List String) :=
+    match fuel with
+    | 0 => acc.reverse
+    | fuel' + 1 =>
+      match remaining with
+      | [] => acc.reverse
+      | line :: rest =>
+          if isFunctionStart line then
+            match extractFunction (line :: rest) with
+            | none => go rest acc fuel'
+            | some (name, body, remaining') =>
+                go remaining' ((name, body) :: acc) fuel'
+          else
+            go rest acc fuel'
 
 /-!
 ## Library Loading
@@ -164,40 +169,72 @@ private def yulBuiltins : List String :=
    "datasize", "dataoffset", "datacopy"]
 
 -- Collect all function calls from Yul statements
-private partial def collectAllCalls (stmts : List YulStmt) : List String :=
-  let rec fromExpr : YulExpr → List String
-    | YulExpr.call name args => name :: args.flatMap fromExpr
-    | YulExpr.lit _ => []
-    | YulExpr.hex _ => []
-    | YulExpr.str _ => []
-    | YulExpr.ident _ => []
+mutual
+private def callsFromExpr : YulExpr → List String
+  | YulExpr.call name args => name :: callsFromExprs args
+  | YulExpr.lit _ => []
+  | YulExpr.hex _ => []
+  | YulExpr.str _ => []
+  | YulExpr.ident _ => []
 
-  let rec fromStmt : YulStmt → List String
-    | YulStmt.comment _ => []
-    | YulStmt.let_ _ value => fromExpr value
-    | YulStmt.assign _ value => fromExpr value
-    | YulStmt.expr e => fromExpr e
-    | YulStmt.if_ cond body => fromExpr cond ++ body.flatMap fromStmt
-    | YulStmt.switch expr cases default =>
-        fromExpr expr ++
-        cases.flatMap (fun (_, body) => body.flatMap fromStmt) ++
-        (default.map (·.flatMap fromStmt)).getD []
-    | YulStmt.block stmts => stmts.flatMap fromStmt
-    | YulStmt.funcDef _ _ _ body => body.flatMap fromStmt
+private def callsFromExprs : List YulExpr → List String
+  | [] => []
+  | e :: es => callsFromExpr e ++ callsFromExprs es
 
-  stmts.flatMap fromStmt
+private def callsFromStmt : YulStmt → List String
+  | YulStmt.comment _ => []
+  | YulStmt.let_ _ value => callsFromExpr value
+  | YulStmt.assign _ value => callsFromExpr value
+  | YulStmt.expr e => callsFromExpr e
+  | YulStmt.if_ cond body => callsFromExpr cond ++ callsFromStmts body
+  | YulStmt.switch expr cases defaultCase =>
+      callsFromExpr expr ++
+      callsFromCases cases ++
+      callsFromDefault defaultCase
+  | YulStmt.block stmts => callsFromStmts stmts
+  | YulStmt.funcDef _ _ _ body => callsFromStmts body
+
+private def callsFromStmts : List YulStmt → List String
+  | [] => []
+  | s :: ss => callsFromStmt s ++ callsFromStmts ss
+
+private def callsFromCases : List (Nat × List YulStmt) → List String
+  | [] => []
+  | (_, body) :: rest => callsFromStmts body ++ callsFromCases rest
+
+private def callsFromDefault : Option (List YulStmt) → List String
+  | none => []
+  | some body => callsFromStmts body
+end
+
+private def collectAllCalls (stmts : List YulStmt) : List String :=
+  callsFromStmts stmts
 
 -- Collect all function definitions from Yul statements
-private partial def collectFuncDefs (stmts : List YulStmt) : List String :=
-  let rec go : YulStmt → List String
-    | YulStmt.funcDef name _ _ body => name :: body.flatMap go
-    | YulStmt.if_ _ body => body.flatMap go
-    | YulStmt.switch _ cases default =>
-        cases.flatMap (fun (_, body) => body.flatMap go) ++
-        (default.map (·.flatMap go)).getD []
-    | YulStmt.block stmts => stmts.flatMap go
-    | _ => []
-  stmts.flatMap go
+mutual
+private def defsFromStmt : YulStmt → List String
+  | YulStmt.funcDef name _ _ body => name :: defsFromStmts body
+  | YulStmt.if_ _ body => defsFromStmts body
+  | YulStmt.switch _ cases defaultCase =>
+      defsFromCases cases ++ defsFromDefault defaultCase
+  | YulStmt.block stmts => defsFromStmts stmts
+  | _ => []
+
+private def defsFromStmts : List YulStmt → List String
+  | [] => []
+  | s :: ss => defsFromStmt s ++ defsFromStmts ss
+
+private def defsFromCases : List (Nat × List YulStmt) → List String
+  | [] => []
+  | (_, body) :: rest => defsFromStmts body ++ defsFromCases rest
+
+private def defsFromDefault : Option (List YulStmt) → List String
+  | none => []
+  | some body => defsFromStmts body
+end
+
+private def collectFuncDefs (stmts : List YulStmt) : List String :=
+  defsFromStmts stmts
 
 -- Collect all function names defined in library
 private def collectLibraryFunctions (libs : List LibraryFunction) : List String :=
