@@ -426,10 +426,12 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
         (uint256 startIndex, uint256 numTransactions) = _diffRandomSmallRange();
         uint256 seed = _diffRandomSeed("Owned");
 
-        address[] memory testAddresses = new address[](3);
+        address[] memory testAddresses = new address[](5);
         testAddresses[0] = address(this);
         testAddresses[1] = address(0xa11ce);
         testAddresses[2] = address(0xb0b);
+        testAddresses[3] = address(0xCA401);
+        testAddresses[4] = address(0xDABE);
 
         console2.log("Generated", numTransactions, "random transactions");
 
@@ -474,10 +476,12 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
         (uint256 startIndex, uint256 numTransactions) = _diffRandomLargeRange();
         uint256 seed = _diffRandomSeed("Owned");
 
-        address[] memory testAddresses = new address[](3);
+        address[] memory testAddresses = new address[](5);
         testAddresses[0] = address(this);
         testAddresses[1] = address(0xa11ce);
         testAddresses[2] = address(0xb0b);
+        testAddresses[3] = address(0xCA401);
+        testAddresses[4] = address(0xDABE);
 
         console2.log("Generated", numTransactions, "random transactions");
 

@@ -4,14 +4,19 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 
 abstract contract YulTestBase is Test {
+    // Edge-case values matching Lean's edgeUint256Values and DiffTestConfig._edgeUintValues():
+    //   [0, 1, 2, 2^128, 2^255, 2^256-2, 2^256-1]
+    // Selectors 0-6 return these edge values (~7/16 probability);
+    // selectors 7-15 return prng % smallMod (~9/16 probability).
     function _coerceRandomUint256(uint256 prng, uint256 smallMod) internal pure returns (uint256) {
         uint256 selector = prng % 16;
         if (selector == 0) return 0;
         if (selector == 1) return 1;
-        if (selector == 2) return type(uint256).max;
-        if (selector == 3) return type(uint256).max - 1;
-        if (selector == 4) return 2 ** 128;
-        if (selector == 5) return 2 ** 255;
+        if (selector == 2) return 2;
+        if (selector == 3) return 2 ** 128;
+        if (selector == 4) return 2 ** 255;
+        if (selector == 5) return type(uint256).max - 1;
+        if (selector == 6) return type(uint256).max;
         if (smallMod == 0) return prng;
         return prng % smallMod;
     }

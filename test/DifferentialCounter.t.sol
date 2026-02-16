@@ -281,8 +281,8 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig, DifferentialTestBas
             // Simple PRNG
             prng = _lcg(prng);
 
-            // Generate address
-            address sender = _indexToAddress(prng);
+            // Generate address from bounded pool (5 actors)
+            address sender = _indexToAddress(prng % 5);
 
             // Determine function (3 options: increment, decrement, getCount)
             prng = _lcg(prng);

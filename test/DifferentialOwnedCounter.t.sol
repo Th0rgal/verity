@@ -591,10 +591,12 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
     }
 
     function testDifferential_Random100() public {
-        address[] memory actors = new address[](3);
+        address[] memory actors = new address[](5);
         actors[0] = address(this);  // Owner
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
+        actors[3] = address(0xCA401);
+        actors[4] = address(0xDABE);
 
         (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
         uint256 seed = _diffRandomSeed("OwnedCounter");
@@ -613,10 +615,12 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
     }
 
     function testDifferential_Random10000() public {
-        address[] memory actors = new address[](3);
+        address[] memory actors = new address[](5);
         actors[0] = address(this);  // Owner
         actors[1] = address(0xA11CE);
         actors[2] = address(0xB0B);
+        actors[3] = address(0xCA401);
+        actors[4] = address(0xDABE);
 
         (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
         uint256 seed = _diffRandomSeed("OwnedCounter");
