@@ -145,19 +145,28 @@ def renderWithLibraries (obj : YulObject) (libraries : List LibraryFunction) : S
 ## Validation
 -/
 
--- Collect all external function calls from Yul statements
-private partial def collectExternalCalls (stmts : List YulStmt) : List String :=
+-- EVM/Yul built-in opcodes (not user-defined functions)
+private def yulBuiltins : List String :=
+  ["add", "sub", "mul", "div", "sdiv", "mod", "smod", "exp",
+   "not", "lt", "gt", "slt", "sgt", "eq", "iszero", "and", "or", "xor",
+   "byte", "shl", "shr", "sar", "addmod", "mulmod", "signextend",
+   "keccak256",
+   "address", "balance", "selfbalance", "origin", "caller", "callvalue",
+   "calldataload", "calldatasize", "calldatacopy", "codesize", "codecopy",
+   "gasprice", "extcodesize", "extcodecopy", "returndatasize", "returndatacopy",
+   "extcodehash", "blockhash", "coinbase", "timestamp", "number", "difficulty",
+   "prevrandao", "gaslimit", "chainid", "basefee",
+   "pop", "mload", "mstore", "mstore8", "sload", "sstore",
+   "msize", "gas",
+   "log0", "log1", "log2", "log3", "log4",
+   "create", "create2", "call", "callcode", "delegatecall", "staticcall",
+   "return", "revert", "selfdestruct", "invalid", "stop",
+   "datasize", "dataoffset", "datacopy"]
+
+-- Collect all function calls from Yul statements
+private partial def collectAllCalls (stmts : List YulStmt) : List String :=
   let rec fromExpr : YulExpr → List String
-    | YulExpr.call name args =>
-        -- Consider it external if it's not a builtin Yul opcode
-        let builtins := ["add", "sub", "mul", "div", "mod", "sload", "sstore",
-                        "caller", "callvalue", "timestamp", "mstore", "mload",
-                        "keccak256", "return", "revert", "stop", "eq", "lt",
-                        "gt", "iszero", "and", "or", "xor", "not", "shl", "shr",
-                        "calldataload", "datacopy", "dataoffset", "datasize",
-                        "codecopy", "codesize"]
-        let childCalls := args.flatMap fromExpr
-        if builtins.contains name then childCalls else name :: childCalls
+    | YulExpr.call name args => name :: args.flatMap fromExpr
     | YulExpr.lit _ => []
     | YulExpr.hex _ => []
     | YulExpr.str _ => []
@@ -178,6 +187,18 @@ private partial def collectExternalCalls (stmts : List YulStmt) : List String :=
 
   stmts.flatMap fromStmt
 
+-- Collect all function definitions from Yul statements
+private partial def collectFuncDefs (stmts : List YulStmt) : List String :=
+  let rec go : YulStmt → List String
+    | YulStmt.funcDef name _ _ body => name :: body.flatMap go
+    | YulStmt.if_ _ body => body.flatMap go
+    | YulStmt.switch _ cases default =>
+        cases.flatMap (fun (_, body) => body.flatMap go) ++
+        (default.map (·.flatMap go)).getD []
+    | YulStmt.block stmts => stmts.flatMap go
+    | _ => []
+  stmts.flatMap go
+
 -- Collect all function names defined in library
 private def collectLibraryFunctions (libs : List LibraryFunction) : List String :=
   libs.map (·.name)
@@ -195,11 +216,15 @@ def validateNoDuplicateNames (libraries : List LibraryFunction) : Except String 
   | none => pure ()
 
 -- Validate that all external calls are provided by libraries
+-- Excludes Yul builtins and locally-defined functions
 def validateExternalReferences (obj : YulObject) (libraries : List LibraryFunction) : Except String Unit := do
-  let externalCalls := (collectExternalCalls obj.runtimeCode).eraseDups
+  let allCode := obj.deployCode ++ obj.runtimeCode
+  let allCalls := (collectAllCalls allCode).eraseDups
+  let localDefs := (collectFuncDefs allCode).eraseDups
   let providedFunctions := collectLibraryFunctions libraries
-  let missingFunctions := externalCalls.filter fun call =>
-    !providedFunctions.contains call
+  let known := yulBuiltins ++ localDefs ++ providedFunctions
+  let missingFunctions := allCalls.filter fun call =>
+    !known.contains call
   if missingFunctions.isEmpty then
     pure ()
   else
