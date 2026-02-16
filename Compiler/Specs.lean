@@ -33,10 +33,12 @@ def requireOwner : Stmt :=
   Stmt.letVar "sameAddr" (Expr.eq Expr.caller (Expr.param "to")),
   Stmt.letVar "delta" (Expr.sub (Expr.literal 1) (Expr.localVar "sameAddr")),
   Stmt.letVar "amountDelta" (Expr.mul (Expr.param "amount") (Expr.localVar "delta")),
+  -- Overflow check: newRecipientBal must be >= recipientBal (wrapping add overflow detection)
+  Stmt.letVar "newRecipientBal" (Expr.add (Expr.localVar "recipientBal") (Expr.localVar "amountDelta")),
+  Stmt.require (Expr.ge (Expr.localVar "newRecipientBal") (Expr.localVar "recipientBal")) "Recipient balance overflow",
   Stmt.setMapping mappingName Expr.caller
     (Expr.sub (Expr.localVar "senderBal") (Expr.localVar "amountDelta")),
-  Stmt.setMapping mappingName (Expr.param "to")
-    (Expr.add (Expr.localVar "recipientBal") (Expr.localVar "amountDelta")),
+  Stmt.setMapping mappingName (Expr.param "to") (Expr.localVar "newRecipientBal"),
   Stmt.stop
 ]
 
@@ -287,11 +289,13 @@ def simpleTokenSpec : ContractSpec := {
       body := [
         requireOwner,
         Stmt.letVar "recipientBal" (Expr.mapping "balances" (Expr.param "to")),
+        Stmt.letVar "newBalance" (Expr.add (Expr.localVar "recipientBal") (Expr.param "amount")),
+        Stmt.require (Expr.ge (Expr.localVar "newBalance") (Expr.localVar "recipientBal")) "Balance overflow",
+        Stmt.setMapping "balances" (Expr.param "to") (Expr.localVar "newBalance"),
         Stmt.letVar "supply" (Expr.storage "totalSupply"),
-        Stmt.setMapping "balances" (Expr.param "to")
-          (Expr.add (Expr.localVar "recipientBal") (Expr.param "amount")),
-        Stmt.setStorage "totalSupply"
-          (Expr.add (Expr.localVar "supply") (Expr.param "amount")),
+        Stmt.letVar "newSupply" (Expr.add (Expr.localVar "supply") (Expr.param "amount")),
+        Stmt.require (Expr.ge (Expr.localVar "newSupply") (Expr.localVar "supply")) "Supply overflow",
+        Stmt.setStorage "totalSupply" (Expr.localVar "newSupply"),
         Stmt.stop
       ]
     },

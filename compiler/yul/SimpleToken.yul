@@ -28,9 +28,25 @@ object "SimpleToken" {
                     revert(0, 100)
                 }
                 let recipientBal := sload(mappingSlot(1, to))
+                let newBalance := add(recipientBal, amount)
+                if lt(newBalance, recipientBal) {
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 16)
+                    mstore(68, 0x42616c616e6365206f766572666c6f7700000000000000000000000000000000)
+                    revert(0, 100)
+                }
+                sstore(mappingSlot(1, to), newBalance)
                 let supply := sload(2)
-                sstore(mappingSlot(1, to), add(recipientBal, amount))
-                sstore(2, add(supply, amount))
+                let newSupply := add(supply, amount)
+                if lt(newSupply, supply) {
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 15)
+                    mstore(68, 0x537570706c79206f766572666c6f770000000000000000000000000000000000)
+                    revert(0, 100)
+                }
+                sstore(2, newSupply)
                 stop()
             }
             case 0xa9059cbb {
@@ -49,8 +65,16 @@ object "SimpleToken" {
                 let sameAddr := eq(caller(), to)
                 let delta := sub(1, sameAddr)
                 let amountDelta := mul(amount, delta)
+                let newRecipientBal := add(recipientBal, amountDelta)
+                if lt(newRecipientBal, recipientBal) {
+                    mstore(0, 0x8c379a000000000000000000000000000000000000000000000000000000000)
+                    mstore(4, 32)
+                    mstore(36, 26)
+                    mstore(68, 0x526563697069656e742062616c616e6365206f766572666c6f77000000000000)
+                    revert(0, 100)
+                }
                 sstore(mappingSlot(1, caller()), sub(senderBal, amountDelta))
-                sstore(mappingSlot(1, to), add(recipientBal, amountDelta))
+                sstore(mappingSlot(1, to), newRecipientBal)
                 stop()
             }
             case 0x70a08231 {

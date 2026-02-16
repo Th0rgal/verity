@@ -34,7 +34,7 @@ EVM Bytecode
 | Owned | 22 | ✅ Complete | `Verity/Specs/Owned/Proofs.lean` |
 | OwnedCounter | 45 | ✅ Complete | `Verity/Specs/OwnedCounter/Proofs.lean` |
 | Ledger | 32 | ✅ Complete | `Verity/Specs/Ledger/Proofs.lean` |
-| SimpleToken | 57 | ✅ Complete | `Verity/Specs/SimpleToken/Proofs.lean` |
+| SimpleToken | 59 | ✅ Complete | `Verity/Specs/SimpleToken/Proofs.lean` |
 | CryptoHash | 0 | ⬜ No specs | `Verity/Examples/CryptoHash.lean` |
 | ReentrancyExample | 4 | ✅ Complete | `Verity/Examples/ReentrancyExample.lean` |
 | **Total** | **233** | **✅ 100%** | — |
@@ -153,12 +153,12 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
-**Status**: 73% coverage (216/296), 80 remaining exclusions all proof-only
+**Status**: 73% coverage (219/299), 80 remaining exclusions all proof-only
 
 ### Current Coverage
 
-- **Total Properties**: 296
-- **Covered**: 216 (73%)
+- **Total Properties**: 299
+- **Covered**: 219 (73%)
 - **Excluded**: 80 (all proof-only)
 - **Missing**: 0
 
@@ -171,7 +171,7 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 | SimpleStorage | 95% (19/20) | 1 proof-only | ✅ Near-complete |
 | Owned | 91% (20/22) | 2 proof-only | ✅ Near-complete |
 | OwnedCounter | 98% (44/45) | 1 proof-only | ✅ Near-complete |
-| SimpleToken | 86% (49/57) | 8 proof-only | ✅ High coverage |
+| SimpleToken | 88% (52/59) | 7 proof-only | ✅ High coverage |
 | Counter | 82% (23/28) | 5 proof-only | ✅ High coverage |
 | Ledger | 100% (32/32) | 0 | ✅ Complete |
 | Stdlib | 0% (0/64) | 64 proof-only | — Internal |

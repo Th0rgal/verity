@@ -220,6 +220,38 @@ contract PropertySimpleTokenTest is YulTestBase {
     }
 
     /**
+     * Property: mint_reverts_balance_overflow
+     * Theorem: mint reverts when recipient balance + amount would overflow uint256
+     */
+    function testProperty_Mint_RevertsBalanceOverflow() public {
+        // First mint near-max to bob
+        vm.prank(owner);
+        (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, MAX_UINT256));
+        require(success, "First mint should succeed");
+
+        // Second mint to bob should overflow the balance
+        vm.prank(owner);
+        (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, 1));
+        assertFalse(success, "Mint should revert on balance overflow");
+    }
+
+    /**
+     * Property: mint_reverts_supply_overflow
+     * Theorem: mint reverts when totalSupply + amount would overflow uint256
+     */
+    function testProperty_Mint_RevertsSupplyOverflow() public {
+        // Mint max to alice (balance = MAX, supply = MAX)
+        vm.prank(owner);
+        (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, MAX_UINT256));
+        require(success, "First mint should succeed");
+
+        // Mint 1 to bob — bob's balance won't overflow, but totalSupply will
+        vm.prank(owner);
+        (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, 1));
+        assertFalse(success, "Mint should revert on supply overflow");
+    }
+
+    /**
      * Property: mint_preserves_owner
      * Theorem: mint doesn't change the owner address
      */
@@ -370,6 +402,30 @@ contract PropertySimpleTokenTest is YulTestBase {
         uint256 supplyAfter = abi.decode(data, (uint256));
 
         assertEq(supplyAfter, supplyBefore, "Total supply should be preserved");
+    }
+
+    /**
+     * Property: transfer_reverts_recipient_overflow
+     * Theorem: transfer reverts when recipient balance + amount would overflow uint256
+     */
+    function testProperty_Transfer_RevertsRecipientOverflow() public {
+        // Use a fresh token to control total supply
+        address freshToken = deployYulWithArgs("SimpleToken", abi.encode(owner));
+        require(freshToken != address(0), "Deploy failed");
+
+        // Mint MAX to bob so his balance is at max
+        vm.prank(owner);
+        (bool success,) = freshToken.call(abi.encodeWithSignature("mint(address,uint256)", bob, MAX_UINT256));
+        require(success, "Mint to bob should succeed");
+
+        // Directly set alice's balance via storage (bypass supply overflow check)
+        bytes32 aliceSlot = keccak256(abi.encode(alice, uint256(1)));
+        vm.store(freshToken, aliceSlot, bytes32(uint256(1)));
+
+        // Alice tries to transfer 1 to bob — bob's balance would overflow
+        vm.prank(alice);
+        (success,) = freshToken.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 1));
+        assertFalse(success, "Transfer should revert on recipient overflow");
     }
 
     /**
