@@ -25,7 +25,7 @@ User's Contract Code (EDSL)
 ContractSpec (High-level specification)
     ↓ [Layer 2: FULLY VERIFIED]
 IR (Intermediate representation)
-    ↓ [Layer 3: FULLY VERIFIED, 4 axioms]
+    ↓ [Layer 3: FULLY VERIFIED, 5 axioms]
 Yul (Ethereum intermediate language)
     ↓ [TRUSTED: Solidity compiler]
 EVM Bytecode
@@ -37,7 +37,7 @@ EVM Bytecode
 |-----------|--------|------------|
 | Layer 1 (EDSL → Spec) | ✅ Verified | None |
 | Layer 2 (Spec → IR) | ✅ Verified | None |
-| Layer 3 (IR → Yul) | ✅ Verified (4 axioms) | Very Low |
+| Layer 3 (IR → Yul) | ✅ Verified (5 axioms) | Very Low |
 | Axioms | ⚠️ Documented | Low |
 | Solidity Compiler (solc) | ⚠️ Trusted | Medium |
 | Keccak256 Hashing | ⚠️ Trusted | Low |
@@ -116,7 +116,7 @@ theorem execStmt_preserves_properties :
 
 ### Layer 3: IR → Yul
 
-**Status**: ✅ **Verified (with 4 axioms)**
+**Status**: ✅ **Verified (with 5 axioms)**
 
 **What is proven**: IR execution is equivalent to Yul execution when states are properly aligned.
 
@@ -139,7 +139,7 @@ theorem storageStore_equiv : ...
 theorem if_equiv : ...
 ```
 
-**Dependencies**: Relies on 4 axioms (see [Axioms](#axioms) section)
+**Dependencies**: Relies on 5 axioms (see [Axioms](#axioms) section)
 
 **What this guarantees**:
 - Yul code correctly implements IR semantics
@@ -353,7 +353,7 @@ Two files use `set_option allowUnsafeReducibility true`:
 
 ## Axioms
 
-Verity uses **4 axioms** across the verification codebase. All axioms are documented with soundness justifications.
+Verity uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
 
 **See**: [AXIOMS.md](AXIOMS.md) for complete details.
 
@@ -453,8 +453,8 @@ Use this checklist when performing security audits of Verity-verified contracts.
    - Effort: 3-4 months
 
 2. **Axiom Elimination**
-   - Refactor expression evaluation to fuel-based
-   - Removes 2 of 4 axioms
+   - Refactor IR execution to fuel-based (expressions + statements)
+   - Removes 3 of 5 axioms (evalIRExpr, evalIRExprs, execIRStmtsFuel adequacy)
    - Effort: ~500 LOC refactoring
 
 3. **Gas Cost Verification** (Issue #80)
@@ -494,7 +494,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
 ⚠️ Keccak256 hashing - Validated against solc
 ⚠️ EVM semantics - Industry standard, billions in TVL
-⚠️ 4 axioms - Low risk, extensively validated (see AXIOMS.md)
+⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
 
 ### Risk Profile
 - **Overall**: Low to Medium risk
