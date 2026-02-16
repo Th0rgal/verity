@@ -58,7 +58,7 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 
 **Unverified examples**: [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.
 
-300 theorems across 9 categories. 352 Foundry tests across 25 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
+300 theorems across 9 categories. 352 Foundry tests across 25 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 5 documented axioms, 6 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
