@@ -73,12 +73,14 @@ abstract contract DiffTestConfig is Test {
     }
 
     function _edgeUintValues() internal pure returns (uint256[] memory) {
-        uint256[] memory values = new uint256[](5);
+        uint256[] memory values = new uint256[](7);
         values[0] = 0;
         values[1] = 1;
         values[2] = 2;
-        values[3] = type(uint256).max - 1;
-        values[4] = type(uint256).max;
+        values[3] = 2 ** 128;
+        values[4] = 2 ** 255;
+        values[5] = type(uint256).max - 1;
+        values[6] = type(uint256).max;
         return values;
     }
 

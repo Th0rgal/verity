@@ -21,11 +21,23 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
       IO.println s!"  Loading library: {path}"
     loadLibrary path
 
+  let allLibFunctions := libraries.flatten
+
+  -- Validate: no duplicate function names across libraries
+  if !allLibFunctions.isEmpty then
+    match validateNoDuplicateNames allLibFunctions with
+    | .error err => throw (IO.userError err)
+    | .ok () => pure ()
+
+  -- Validate: all external calls in the contract are provided by libraries
+  match validateExternalReferences yulObj allLibFunctions with
+  | .error err => throw (IO.userError err)
+  | .ok () => pure ()
+
   let text :=
-    if libraries.isEmpty then
+    if allLibFunctions.isEmpty then
       Yul.render yulObj
     else
-      let allLibFunctions := libraries.flatten
       renderWithLibraries yulObj allLibFunctions
 
   let path := s!"{outDir}/{contract.name}.yul"

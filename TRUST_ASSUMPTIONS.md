@@ -42,6 +42,7 @@ EVM Bytecode
 | Solidity Compiler (solc) | ⚠️ Trusted | Medium |
 | Keccak256 Hashing | ⚠️ Trusted | Low |
 | EVM Semantics | ⚠️ Trusted | Low |
+| Linked Libraries (Linker) | ⚠️ Trusted | Varies |
 | Lean 4 Type Checker | ⚠️ Foundational | Very Low |
 | `allowUnsafeReducibility` | ⚠️ Documented | Low |
 
@@ -74,7 +75,7 @@ theorem increment_correct (state : ContractState) :
     finalState.storage countSlot = add (state.storage countSlot) 1
 ```
 
-**Coverage**: 216 properties tested across 9 contracts (73% coverage, 296 total theorems)
+**Coverage**: 220 properties tested across 9 contracts (73% coverage, 300 total theorems)
 
 **What this guarantees**:
 - Contract behavior matches specification
@@ -263,29 +264,35 @@ These components are **not formally verified** but are trusted based on testing,
 
 ---
 
-### 4. External Library Code
+### 4. External Library Code (Linker)
 
-**Role**: External contracts or libraries called by Verity
+**Role**: The [Linker](Compiler/Linker.lean) injects external Yul library functions into compiled contracts at code-generation time, enabling production cryptographic implementations (e.g., Poseidon hash) to replace placeholder stubs.
 
-**Assumption**: External libraries behave as specified in their interfaces.
+**Assumption**: Linked library functions behave as specified in their interfaces and are semantically compatible with the placeholder stubs used during formal verification.
 
-**Examples**:
-- Cryptographic libraries (signatures, hashing)
-- Standard precompiled contracts (ecrecover, sha256, etc.)
-- External contract calls
+**How It Works**:
+```
+ContractSpec → IR → Yul AST → Yul text → [Linker injects library text] → final .yul
+```
+Library functions are provided via `--link <path.yul>` flags to the compiler CLI. The Linker parses function definitions from library files and injects them as raw text into the rendered Yul output.
 
-**Mitigation Strategies**:
-1. **Explicit Interfaces**: Define clear contract interfaces
-2. **Property Testing**: Test external call behavior
-3. **Precompile Preference**: Use verified precompiled contracts when possible
+**Safety Checks** (enabled in `CompileDriver.lean`):
+1. **External reference validation**: All non-builtin function calls in the contract must be resolved by a linked library
+2. **Duplicate name detection**: No two library functions may share the same name
 
-**Risk Assessment**: **Varies**
+**Remaining Gaps**:
+- Injection is text-level, not AST-level — no syntax or arity checking of library code
+- Library code is entirely outside the formal proof boundary
+- The `SpecInterpreter` returns 0 for `Expr.externalCall`, so linked library return values are untested in differential tests (issue #172)
+
+**Risk Assessment**: **Medium to High** (depends on library)
 - Precompiled contracts: Low (EVM-native, well-tested)
-- Third-party libraries: Medium to High (depends on library)
-- Recommendation: Minimize external dependencies
+- Third-party Yul libraries: Medium to High
+- Recommendation: Minimize external dependencies, audit linked libraries independently
 
 **Future Work**:
 - Issue #71: Integrate EVMYulLean precompiled contracts
+- Issue #172: Model linked library functions in SpecInterpreter for differential testing
 - Formal interface specifications for external calls
 
 ---
@@ -488,12 +495,13 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ✅ Contract implementations match specifications (Layer 1)
 ✅ Specifications preserved through compilation (Layer 2)
 ✅ IR semantics equivalent to Yul semantics (Layer 3)
-✅ 296 theorems across 9 contracts (216 covered by property tests)
+✅ 300 theorems across 9 contracts (220 covered by property tests)
 
 ### What is Trusted (Validated but Not Proven)
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
 ⚠️ Keccak256 hashing - Validated against solc
 ⚠️ EVM semantics - Industry standard, billions in TVL
+⚠️ Linked libraries - Outside proof boundary, validated by compile-time reference checks
 ⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
 
 ### Risk Profile
