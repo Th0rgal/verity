@@ -604,7 +604,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
           Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
           h_balance_u, h_ne]
-        exact Verity.Core.Uint256.add_comm _ _
       have h_edsl_val :
           ((ContractResult.getState
               ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
@@ -901,7 +900,6 @@ theorem token_transfer_preserves_total_balance (state : ContractState) (to : Add
       Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
       Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
       h_balance_u, h]
-    exact Verity.Core.Uint256.add_comm _ _
   have h_sender_val :
       ((ContractResult.getState
         ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
