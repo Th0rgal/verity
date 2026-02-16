@@ -21,6 +21,8 @@ structure Transaction where
   sender : Address
   functionName : String
   args : List Nat  -- Simplified: all args as uint256 for now
+  msgValue : Nat := 0
+  blockTimestamp : Nat := 0
 
 /-!
 ## Contract Type

@@ -180,9 +180,17 @@ def genSimpleTokenTx (rng : RNG) : RNG × Transaction :=
   | _ =>
       (rng, { sender := sender, functionName := "owner", args := [] })
 
+-- Generate random block timestamp (range: 0 to ~year 2100 in seconds)
+def genTimestamp (rng : RNG) : RNG × Nat :=
+  let (rng', n) := rng.next
+  (rng', n % 4102444800)
+
 -- Generate random transaction for any contract
+-- Attaches a random blockTimestamp to each transaction.
+-- msgValue is 0 for all current contracts (none are payable).
 def genTransaction (contractType : ContractType) (rng : RNG) : Except String (RNG × Transaction) :=
-  match contractType with
+  let (rng, timestamp) := genTimestamp rng
+  let result := match contractType with
   | ContractType.simpleStorage => Except.ok (genSimpleStorageTx rng)
   | ContractType.counter => Except.ok (genCounterTx rng)
   | ContractType.safeCounter => Except.ok (genSafeCounterTx rng)
@@ -190,6 +198,7 @@ def genTransaction (contractType : ContractType) (rng : RNG) : Except String (RN
   | ContractType.ledger => Except.ok (genLedgerTx rng)
   | ContractType.ownedCounter => Except.ok (genOwnedCounterTx rng)
   | ContractType.simpleToken => Except.ok (genSimpleTokenTx rng)
+  result.map fun (rng', tx) => (rng', { tx with blockTimestamp := timestamp })
 
 /-!
 ## Generate Test Sequence
@@ -249,7 +258,7 @@ def main (args : List String) : IO Unit := do
           for tx in txs do
             if !isFirst then IO.println ","
             let argsStr := String.intercalate "," (tx.args.map toString)
-            let jsonStr := "  {" ++ "\"sender\":\"" ++ tx.sender ++ "\",\"function\":\"" ++ tx.functionName ++ "\",\"args\":[" ++ argsStr ++ "]}"
+            let jsonStr := "  {" ++ "\"sender\":\"" ++ tx.sender ++ "\",\"function\":\"" ++ tx.functionName ++ "\",\"args\":[" ++ argsStr ++ "],\"msgValue\":" ++ toString tx.msgValue ++ ",\"blockTimestamp\":" ++ toString tx.blockTimestamp ++ "}"
             IO.print jsonStr
             isFirst := false
           IO.println ""

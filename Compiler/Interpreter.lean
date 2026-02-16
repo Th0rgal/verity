@@ -631,6 +631,8 @@ def main (args : List String) : IO Unit := do
       sender := normalizeAddress senderAddr
       functionName := functionName
       args := argsNat
+      msgValue := valueOpt.getD 0
+      blockTimestamp := timestampOpt.getD 0
     }
     -- Parse storage from optional arg (format: "slot:value,...")
     let storageState := match storageOpt with
