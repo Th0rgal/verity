@@ -326,8 +326,8 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
     -- Constructor execution
     let ctx : EvalContext := {
       sender := tx.sender
-      msgValue := 0
-      blockTimestamp := 0
+      msgValue := tx.msgValue
+      blockTimestamp := tx.blockTimestamp
       params := []
       paramTypes := []
       constructorArgs := tx.args  -- Constructor args go here
@@ -349,8 +349,8 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
     -- Regular function execution
     let ctx : EvalContext := {
       sender := tx.sender
-      msgValue := 0  -- Not exposed in current specs
-      blockTimestamp := 0  -- Not exposed in current specs
+      msgValue := tx.msgValue
+      blockTimestamp := tx.blockTimestamp
       params := tx.args
       paramTypes := []
       constructorArgs := []  -- Not used for regular functions
