@@ -183,7 +183,16 @@ Proofs cover: existential attack witness (vulnerability is provably exploitable)
 
 ## CryptoHash
 
-Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs — it exists to show how external Yul helper functions integrate with compiled output.
+Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs — it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
+
+```lean
+-- Hash two values using an external Poseidon library
+def storeHashTwo (a b : Uint256) : Contract Unit := do
+  let hash ← externalCall "PoseidonT3_hash" [a, b]
+  setStorage lastHash hash
+```
+
+Source: [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/CryptoHash.lean)
 
 ## Pattern progression
 
