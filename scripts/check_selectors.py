@@ -37,6 +37,7 @@ class SpecInfo:
     def_name: str
     contract_name: str
     signatures: List[str]
+    has_externals: bool = False
 
 
 @dataclass
@@ -73,7 +74,8 @@ def extract_specs(text: str) -> List[SpecInfo]:
             die(f"Missing name for spec {def_name}")
         contract_name = name_match.group(1)
         signatures = extract_functions(block)
-        specs.append(SpecInfo(def_name, contract_name, signatures))
+        has_externals = bool(re.search(r"externals\s*:=\s*\[", block))
+        specs.append(SpecInfo(def_name, contract_name, signatures, has_externals))
     return specs
 
 
@@ -190,6 +192,9 @@ def check_yul_selectors(specs: List[SpecInfo], yul_label: str, yul_dir: Path) ->
     for spec in specs:
         yul_path = yul_dir / f"{spec.contract_name}.yul"
         if not yul_path.exists():
+            # Specs with external dependencies are only compiled with --link
+            if spec.has_externals:
+                continue
             errors.append(f"Missing {yul_label} output for {spec.contract_name}: {yul_path}")
             continue
         yul_text = yul_path.read_text(encoding="utf-8")
