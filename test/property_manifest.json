@@ -63,12 +63,6 @@
     "withdraw_sum_equation",
     "withdraw_sum_singleton_sender"
   ],
-  "ReentrancyExample": [
-    "deposit_maintains_supply",
-    "vulnerable_attack_exists",
-    "withdraw_maintains_supply",
-    "withdraw_maintains_supply_UNPROVABLE"
-  ],
   "Owned": [
     "constructor_getOwner_correct",
     "constructor_meets_spec",
@@ -139,6 +133,12 @@
     "transfer_then_decrement_reverts",
     "transfer_then_increment_reverts",
     "transfer_then_transfer_reverts"
+  ],
+  "ReentrancyExample": [
+    "deposit_maintains_supply",
+    "vulnerable_attack_exists",
+    "withdraw_maintains_supply",
+    "withdraw_maintains_supply_UNPROVABLE"
   ],
   "SafeCounter": [
     "decrement_getCount_correct",
@@ -223,6 +223,8 @@
     "mint_owner_addr_isolated",
     "mint_preserves_owner",
     "mint_preserves_wellformedness",
+    "mint_reverts_balance_overflow",
+    "mint_reverts_supply_overflow",
     "mint_reverts_when_not_owner",
     "mint_sum_equation",
     "mint_supply_storage_isolated",

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
-  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-296-brightgreen.svg" alt="296 Theorems"></a>
+  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-298-brightgreen.svg" alt="298 Theorems"></a>
   <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
@@ -57,7 +57,7 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 | CryptoHash | - | External cryptographic library linking |
 
-296 theorems across 9 categories. 299 Foundry tests across 23 test suites. 216 covered by property tests (73% coverage, 80 proof-only exclusions). 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
+298 theorems across 9 categories. 299 Foundry tests across 23 test suites. 216 covered by property tests (72% coverage, 80 proof-only exclusions). 5 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
