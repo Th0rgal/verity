@@ -109,8 +109,10 @@ Use the Linker to inject production Yul libraries (Poseidon, Groth16, etc.) into
 - Examples: https://verity.thomasm.ar/examples
 - Core: https://verity.thomasm.ar/core
 - Compiler: https://verity.thomasm.ar/compiler
-- Guides: https://verity.thomasm.ar/guides/first-contract
-- Linking Libraries: https://verity.thomasm.ar/guides/linking-libraries
+- Guides (First Contract): https://verity.thomasm.ar/guides/first-contract
+- Guides (Linking Libraries): https://verity.thomasm.ar/guides/linking-libraries
+- Guides (Debugging Proofs): https://verity.thomasm.ar/guides/debugging-proofs
+- Add a Contract: https://verity.thomasm.ar/add-contract
 
 Add `.md` to any URL for raw markdown (saves tokens).
 
