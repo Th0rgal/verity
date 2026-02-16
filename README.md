@@ -85,8 +85,8 @@ lake build
 lake build verity-compiler
 lake exe verity-compiler
 
-# Run Foundry tests
-forge test
+# Run Foundry tests (requires difftest profile for FFI access)
+FOUNDRY_PROFILE=difftest forge test
 ```
 
 </details>
@@ -97,10 +97,12 @@ forge test
 **Property tests** (325 tests) validate EDSL = Yul = EVM execution:
 
 ```bash
-forge test                                          # run all
-forge test -vvv                                     # verbose
-forge test --match-path test/PropertyCounter.t.sol  # specific file
+FOUNDRY_PROFILE=difftest forge test                                          # run all
+FOUNDRY_PROFILE=difftest forge test -vvv                                     # verbose
+FOUNDRY_PROFILE=difftest forge test --match-path test/PropertyCounter.t.sol  # specific file
 ```
+
+> **Note**: Tests require `FOUNDRY_PROFILE=difftest` because they compile Yul via `solc` using `vm.ffi()`. The default profile has FFI disabled for security. See [foundry.toml](foundry.toml).
 
 **Differential tests** compare EDSL interpreter output against Solidity-compiled EVM to catch compiler bugs. See [`test/README.md`](test/README.md).
 

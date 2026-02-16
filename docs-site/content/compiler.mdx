@@ -302,8 +302,8 @@ lake exe verity-compiler
 
 ### Test Compiled Contracts
 ```bash
-# Run all Foundry tests
-forge test
+# Run all Foundry tests (difftest profile enables FFI for Yul compilation)
+FOUNDRY_PROFILE=difftest forge test
 
 # Expected: 325/325 tests pass (as of 2026-02-16)
 ```

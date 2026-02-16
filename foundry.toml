@@ -4,11 +4,17 @@ out = "out"
 libs = ["lib"]
 test = "test"
 cache_path = "cache"
-ffi = true
+ffi = false
 solc_version = "0.8.33"
 via_ir = true
 optimizer = true
 optimizer_runs = 200
 fs_permissions = [{ access = "read", path = "./compiler/yul" }]
+
+# Differential testing profile: enables FFI for vm.ffi() calls to difftest-interpreter.
+# Only differential tests (test/Differential*.t.sol) and Yul tests (test/yul/) use FFI.
+# Usage: FOUNDRY_PROFILE=difftest forge test
+[profile.difftest]
+ffi = true
 
 [rpc_endpoints]

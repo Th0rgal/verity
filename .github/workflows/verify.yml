@@ -258,6 +258,7 @@ jobs:
 
       - name: Run Foundry tests with seed 42
         env:
+          FOUNDRY_PROFILE: difftest
           DIFFTEST_RANDOM_SMALL: "100"
           DIFFTEST_RANDOM_LARGE: "10000"
           DIFFTEST_RANDOM_SEED: "42"
@@ -320,6 +321,7 @@ jobs:
 
       - name: Run tests with seed ${{ matrix.seed }}
         env:
+          FOUNDRY_PROFILE: difftest
           DIFFTEST_RANDOM_SMALL: "100"
           DIFFTEST_RANDOM_LARGE: "10000"
           DIFFTEST_RANDOM_SEED: "${{ matrix.seed }}"
