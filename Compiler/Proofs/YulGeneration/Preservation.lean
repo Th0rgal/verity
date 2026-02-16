@@ -38,13 +38,13 @@ theorem yulCodegen_preserves_semantics
     (hselector : tx.functionSelector < selectorModulus)
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
-        (execIRFunction fn tx.args { initialState with sender := tx.sender, calldata := tx.args })
-        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args })) :
+        (execIRFunction fn tx.args { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
     resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
-  -- Normalize the initial IR state with sender/calldata.
-  let irState := { initialState with sender := tx.sender, calldata := tx.args }
+  -- Normalize the initial IR state with sender/calldata/selector.
+  let irState := { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
   let yulTx : YulTransaction := {
     sender := tx.sender
     functionSelector := tx.functionSelector

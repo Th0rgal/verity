@@ -39,6 +39,8 @@ structure IRState where
   returnValue : Option Nat
   /-- Sender address -/
   sender : Nat
+  /-- Function selector (4-byte value used by calldataload(0)) -/
+  selector : Nat
   deriving Nonempty
 
 /-- Initial state for IR execution -/
@@ -49,7 +51,8 @@ def IRState.initial (sender : Nat) : IRState :=
     memory := fun _ => 0
     calldata := []
     returnValue := none
-    sender := sender }
+    sender := sender
+    selector := 0 }
 
 /-- Lookup variable in state -/
 def IRState.getVar (s : IRState) (name : String) : Option Nat :=
@@ -125,9 +128,12 @@ partial def evalIRCall (state : IRState) (func : String) : List YulExpr → Opti
       | "caller", [] => some state.sender
       | "calldataload", [offset] =>
           -- calldataload retrieves 32-byte word from calldata at given offset.
-          -- We model calldata as 32-byte words aligned after the 4-byte selector.
+          -- offset=0 returns the selector word (selector << 224), matching EVM semantics.
           -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
-          if offset < 4 then
+          if offset = 0 then
+            -- Selector occupies the high 4 bytes of the 32-byte word
+            some ((state.selector % (2 ^ 32)) * (2 ^ 224))
+          else if offset < 4 then
             some 0
           else
             let wordOffset := offset - 4
@@ -292,8 +298,8 @@ def execIRFunction (fn : IRFunction) (args : List Nat) (initialState : IRState) 
 
 /-- Interpret an entire IR contract execution -/
 def interpretIR (contract : IRContract) (tx : IRTransaction) (initialState : IRState) : IRResult :=
-  -- Execution sender must come from the transaction (matches SpecInterpreter)
-  let initialState := { initialState with sender := tx.sender, calldata := tx.args }
+  -- Execution sender and selector come from the transaction (matches SpecInterpreter)
+  let initialState := { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
 
   -- Find matching function by selector
   match contract.functions.find? (·.selector == tx.functionSelector) with

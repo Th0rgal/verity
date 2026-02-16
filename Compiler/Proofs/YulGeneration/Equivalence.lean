@@ -13,13 +13,13 @@ attribute [local reducible] execIRStmt execIRStmts
 
 /-! ## IR ↔ Yul State Alignment -/
 
-def yulStateOfIR (selector : Nat) (state : IRState) : YulState :=
+def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
   { vars := state.vars
     storage := state.storage
     mappings := state.mappings
     memory := state.memory
     calldata := state.calldata
-    selector := selector
+    selector := state.selector
     returnValue := state.returnValue
     sender := state.sender }
 
@@ -186,15 +186,15 @@ def ir_yul_function_equiv_goal
     (fn : IRFunction) (tx : IRTransaction) (state : IRState) : Prop :=
     tx.functionSelector < selectorModulus →
     resultsMatch
-      (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args })
-      (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args })
+      (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+      (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
 
 theorem ir_yul_function_equiv_goal_of_resultsMatch
     (fn : IRFunction) (tx : IRTransaction) (state : IRState)
     (hMatch :
       resultsMatch
-        (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args })
-        (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args })) :
+        (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+        (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
     ir_yul_function_equiv_goal fn tx state := by
   intro _
   simpa [ir_yul_function_equiv_goal] using hMatch

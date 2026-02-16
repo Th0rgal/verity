@@ -26,7 +26,7 @@ In these cases, we use axioms with strong soundness arguments.
 
 ### 1. `evalIRExpr_eq_evalYulExpr`
 
-**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:43`
+**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:48`
 
 **Statement**:
 ```lean
@@ -45,8 +45,8 @@ axiom evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : Yul
 **Soundness Argument**:
 1. **Source code inspection**: Both functions have structurally identical implementations
 2. **Asymmetry**: Only the IR side is `partial`; the Yul side is already total
-3. **State translation**: `yulStateOfIR` simply copies all fields from IRState to YulState
-4. **Selector field**: Only difference is the `selector` field, which doesn't affect expression evaluation
+3. **State translation**: `yulStateOfIR` copies all fields from IRState to YulState (including `selector`)
+4. **calldataload(0)**: Both evaluators return `selectorWord(state.selector)` for offset=0 (fixed in PR #205)
 5. **Differential testing**: 70,000+ property tests validate this equivalence holds in practice
 
 **Alternative Approach**:
@@ -68,7 +68,7 @@ To eliminate this axiom, only the IR evaluator needs refactoring:
 
 ### 2. `evalIRExprs_eq_evalYulExprs`
 
-**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:47`
+**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:52`
 
 **Statement**:
 ```lean
