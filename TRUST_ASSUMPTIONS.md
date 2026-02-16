@@ -43,6 +43,7 @@ EVM Bytecode
 | Keccak256 Hashing | ⚠️ Trusted | Low |
 | EVM Semantics | ⚠️ Trusted | Low |
 | Linked Libraries (Linker) | ⚠️ Trusted | Varies |
+| Mapping Slot Collision Freedom | ⚠️ Trusted | Low |
 | Lean 4 Type Checker | ⚠️ Foundational | Very Low |
 | `allowUnsafeReducibility` | ⚠️ Documented | Low |
 
@@ -231,7 +232,33 @@ These components are **not formally verified** but are trusted based on testing,
 
 ---
 
-### 3. EVM Semantics
+### 3. Mapping Slot Collision Freedom
+
+**Role**: Storage slot derivation for mappings via `keccak256(key ++ slot)`
+
+**Assumption**: The keccak256-based storage slot calculation used by Solidity (and Verity's compiled Yul) for mapping entries is collision-free in practice — distinct `(key, baseSlot)` pairs produce distinct storage slot addresses.
+
+**Details**:
+- **Lean model**: Mappings are modeled as pure functions (`storageMap : Nat → Address → Uint256`). Reading `storageMap slot addr` is a direct function application — no hash computation.
+- **Yul implementation**: Mappings use `keccak256(abi.encodePacked(key, baseSlot))` to derive a storage slot address, then read/write via `sload`/`sstore`.
+- **The gap**: The Lean proofs reason about an idealized mapping model. The Yul code uses hash-based slot derivation. These are equivalent only if keccak256 mapping slots never collide with each other or with direct storage slots (0, 1, 2, ...).
+
+**Why this is safe**:
+1. This is a [standard Ethereum assumption](https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html) — all Solidity contracts rely on it
+2. Keccak256 outputs are 256 bits; collision probability is negligible (~2^-128 for birthday attacks)
+3. Direct storage slots (small integers) are astronomically unlikely to collide with keccak256 outputs
+4. No real-world collision has ever been observed in the Ethereum ecosystem
+
+**Risk Assessment**: **Low**
+- Universal assumption in Ethereum smart contract development
+- Would affect all Solidity contracts equally if violated
+- Formally equivalent to assuming keccak256 is a random oracle for these inputs
+
+**Related**: Issue #157, Issue #84 (storage layout formalization)
+
+---
+
+### 4. EVM Semantics
 
 **Role**: The Ethereum Virtual Machine executes bytecode
 
@@ -264,7 +291,7 @@ These components are **not formally verified** but are trusted based on testing,
 
 ---
 
-### 4. External Library Code (Linker)
+### 5. External Library Code (Linker)
 
 **Role**: The [Linker](Compiler/Linker.lean) injects external Yul library functions into compiled contracts at code-generation time, enabling production cryptographic implementations (e.g., Poseidon hash) to replace placeholder stubs.
 
@@ -297,7 +324,7 @@ Library functions are provided via `--link <path.yul>` flags to the compiler CLI
 
 ---
 
-### 5. Lean 4 Type Checker
+### 6. Lean 4 Type Checker
 
 **Role**: Verifies all Lean proofs are correct
 
@@ -318,7 +345,7 @@ Library functions are provided via `--link <path.yul>` flags to the compiler CLI
 
 ---
 
-### 6. `allowUnsafeReducibility` Usage
+### 7. `allowUnsafeReducibility` Usage
 
 **Role**: Allows Lean's `simp` and `rfl` tactics to unfold `partial` function definitions
 
@@ -370,6 +397,7 @@ Verity uses **5 axioms** across the verification codebase. All axioms are docume
 |-------|---------|------|------------|
 | `evalIRExpr_eq_evalYulExpr` | Expression evaluation equivalence | Low | Differential tests, code inspection |
 | `evalIRExprs_eq_evalYulExprs` | List version of above | Low | Differential tests, code inspection |
+| `execIRStmtsFuel_adequate` | Fuel-parametric ↔ partial IR bridge | Low | Structural fuel argument |
 | `keccak256_first_4_bytes` | Function selector computation | Low | CI validation against solc --hashes |
 | `addressToNat_injective` | Address-to-Nat mapping injectivity | Low | EVM address semantics |
 
@@ -500,6 +528,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ### What is Trusted (Validated but Not Proven)
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
 ⚠️ Keccak256 hashing - Validated against solc
+⚠️ Mapping slot collision freedom - Standard Ethereum assumption
 ⚠️ EVM semantics - Industry standard, billions in TVL
 ⚠️ Linked libraries - Outside proof boundary, validated by compile-time reference checks
 ⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
@@ -526,7 +555,7 @@ Trust assumptions are **documented and minimized**:
 
 ---
 
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-02-16
 **Next Review**: After completing issue #76 (Yul → Bytecode verification)
 **Maintainer**: Update when trust boundaries change or new components are verified
 
