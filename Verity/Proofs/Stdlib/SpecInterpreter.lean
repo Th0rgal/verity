@@ -14,6 +14,7 @@
   - If/else branching (#179)
   - Double mappings and uint256-keyed mappings (#154)
   - Event emission recording (#153)
+  - External function calls via externalFunctions parameter (#172)
 
   Known limitations (basic execStmts path):
   - forEach loops are no-ops — use execStmtsFuel for contracts with loops (#179)
@@ -60,7 +61,9 @@ structure EvalContext where
   localVars : List (String × Nat)
   -- Array parameters: name → (length, elements) (#180)
   arrayParams : List (String × (Nat × List Nat))
-  deriving Repr
+  -- External functions: name → (args) → result (#172)
+  -- Allows modeling linked library functions for spec verification
+  externalFunctions : List (String × (List Nat → Nat))
 
 /-!
 ## Storage State
@@ -132,7 +135,8 @@ Evaluate ContractSpec expressions to natural numbers.
 All arithmetic is modular (mod 2^256) to match EVM semantics.
 -/
 
-def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) : Expr → Nat
+def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) (expr : Expr) : Nat :=
+  match expr with
   | Expr.literal n => n % modulus
   | Expr.param name =>
       match paramNames.findIdx? (· == name) with
@@ -175,7 +179,10 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
   | Expr.blockTimestamp => ctx.blockTimestamp % modulus
   | Expr.localVar name =>
       ctx.localVars.lookup name |>.getD 0
-  | Expr.externalCall _name _args => 0
+  | Expr.externalCall name _args =>
+      match ctx.externalFunctions.lookup name with
+      | some fn => fn [] % modulus
+      | none => 0
   | Expr.internalCall _functionName _args => 0
   | Expr.arrayLength name =>
       match ctx.arrayParams.lookup name with
@@ -438,7 +445,8 @@ structure SpecResult where
   finalStorage : SpecStorage
   deriving Repr
 
-def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Transaction) : SpecResult :=
+def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Transaction)
+    (externalFunctions : List (String × (List Nat → Nat)) := []) : SpecResult :=
   if tx.functionName == "" then
     let ctx : EvalContext := {
       sender := tx.sender
@@ -450,6 +458,7 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
       constructorParamTypes := []
       localVars := []
       arrayParams := []
+      externalFunctions := externalFunctions
     }
     match execConstructor spec ctx initialStorage with
     | none =>
@@ -469,6 +478,7 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
       constructorParamTypes := []
       localVars := []
       arrayParams := []
+      externalFunctions := externalFunctions
     }
     match execFunction spec tx.functionName ctx initialStorage with
     | none =>
