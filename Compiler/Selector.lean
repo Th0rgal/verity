@@ -26,10 +26,10 @@ private def runKeccak (sigs : List String) : IO (List Nat) := do
   let lines := result.stdout.trim.splitOn "\n"
   if lines.length != sigs.length then
     throw (IO.userError s!"keccak256.py returned {lines.length} lines for {sigs.length} signatures: {result.stdout}")
-  let selectors := lines.map parseSelectorLine
-  if selectors.any (·.isNone) then
+  let selectors := lines.filterMap parseSelectorLine
+  if selectors.length != sigs.length then
     throw (IO.userError s!"Failed to parse selector output: {result.stdout}")
-  return selectors.map Option.get!
+  return selectors
 
 /-- Compute Solidity-compatible selectors for external functions in a spec.
     Internal functions are not dispatched via selector, so they are excluded. -/

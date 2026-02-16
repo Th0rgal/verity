@@ -87,21 +87,23 @@ private def gen256Bits (rng : RNG) : RNG × Nat :=
 def genUint256 (rng : RNG) : RNG × Nat :=
   let (rng, n) := rng.next
   let selector := n % 32
-  if selector < edgeUint256Values.length then
+  match edgeUint256Values.get? selector with
+  | some v =>
     -- Deterministic edge case
-    (rng, edgeUint256Values.get! selector)
-  else if selector < 20 then
-    -- Small value band
-    let (rng, v) := rng.next
-    (rng, v % 1000000)
-  else if selector < 24 then
-    -- Medium value band (up to 2^128)
-    let (rng, v) := rng.next
-    let (rng, w) := rng.next
-    (rng, ((v &&& mask64) <<< 64) + (w &&& mask64))
-  else
-    -- Full 256-bit range
-    gen256Bits rng
+    (rng, v)
+  | none =>
+    if selector < 20 then
+      -- Small value band
+      let (rng, v) := rng.next
+      (rng, v % 1000000)
+    else if selector < 24 then
+      -- Medium value band (up to 2^128)
+      let (rng, v) := rng.next
+      let (rng, w) := rng.next
+      (rng, ((v &&& mask64) <<< 64) + (w &&& mask64))
+    else
+      -- Full 256-bit range
+      gen256Bits rng
 
 -- Convert Address to Nat for calldata args (keeps parity with Interpreter)
 private def addressToNatNormalized (addr : Address) : Nat :=
@@ -122,7 +124,10 @@ private def addressPool : List Address :=
 -- Generate random address from an expanded pool that includes edge cases
 def genAddress (rng : RNG) : RNG × Address :=
   let (rng', n) := rng.next
-  (rng', normalizeAddress (addressPool.get! (n % addressPool.length)))
+  let addr := match addressPool.get? (n % addressPool.length) with
+    | some a => a
+    | none   => "0xalice"  -- fallback; unreachable when addressPool is non-empty
+  (rng', normalizeAddress addr)
 
 -- Generate random bool
 def genBool (rng : RNG) : RNG × Bool :=
@@ -274,8 +279,12 @@ open Compiler.DiffTestTypes
 def main (args : List String) : IO Unit := do
   match args with
   | [contractType, countStr, seedStr] =>
-    let count := countStr.toNat!
-    let seed := seedStr.toNat!
+    let count := match countStr.toNat? with
+      | some n => n
+      | none => throw <| IO.userError s!"Invalid count: {countStr}"
+    let seed := match seedStr.toNat? with
+      | some n => n
+      | none => throw <| IO.userError s!"Invalid seed: {seedStr}"
     let contractTypeEnum? : Option ContractType := match contractType with
       | "SimpleStorage" => some ContractType.simpleStorage
       | "Counter" => some ContractType.counter
