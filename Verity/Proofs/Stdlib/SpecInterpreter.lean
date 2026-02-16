@@ -138,10 +138,10 @@ All arithmetic is modular (mod 2^256) to match EVM semantics.
 -/
 
 mutual
-def evalExprList (args : List Expr) : List Nat :=
+def evalExprList (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) (args : List Expr) : List Nat :=
   match args with
   | [] => []
-  | e :: rest => evalExpr ctx storage fields paramNames e :: evalExprList rest
+  | e :: rest => evalExpr ctx storage fields paramNames e :: evalExprList ctx storage fields paramNames rest
 
 def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) : Expr → Nat
   | Expr.literal n => n % modulus
@@ -187,7 +187,7 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
   | Expr.localVar name =>
       ctx.localVars.lookup name |>.getD 0
   | Expr.externalCall name args =>
-      let argVals := evalExprList args
+      let argVals := evalExprList ctx storage fields paramNames args
       match ctx.externalFunctions.lookup name with
       | some fn => fn argVals
       | none => 0
