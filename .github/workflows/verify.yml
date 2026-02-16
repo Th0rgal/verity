@@ -35,6 +35,7 @@ on:
 env:
   SOLC_VERSION: "0.8.33"
   SOLC_URL: "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21"
+  SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
 
 jobs:
   build:
@@ -45,8 +46,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install elan
+        env:
+          ELAN_VERSION: "v4.1.2"
+          ELAN_INIT_SHA256: "4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264"
         run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/${ELAN_VERSION}/elan-init.sh" -o elan-init.sh
+          echo "${ELAN_INIT_SHA256}  elan-init.sh" | sha256sum -c -
+          bash elan-init.sh -y --default-toolchain none
+          rm elan-init.sh
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
       - name: Cache Lake packages
@@ -155,7 +162,9 @@ jobs:
       - name: Install solc
         if: steps.cache-solc.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L "$SOLC_URL" -o /usr/local/bin/solc
+          curl -sSfL "$SOLC_URL" -o solc
+          echo "${SOLC_SHA256}  solc" | sha256sum -c -
+          sudo mv solc /usr/local/bin/solc
           sudo chmod +x /usr/local/bin/solc
 
       - name: Verify solc
@@ -250,7 +259,9 @@ jobs:
       - name: Install solc
         if: steps.cache-solc.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L "$SOLC_URL" -o /usr/local/bin/solc
+          curl -sSfL "$SOLC_URL" -o solc
+          echo "${SOLC_SHA256}  solc" | sha256sum -c -
+          sudo mv solc /usr/local/bin/solc
           sudo chmod +x /usr/local/bin/solc
 
       - name: Verify solc
@@ -313,7 +324,9 @@ jobs:
       - name: Install solc
         if: steps.cache-solc.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L "$SOLC_URL" -o /usr/local/bin/solc
+          curl -sSfL "$SOLC_URL" -o solc
+          echo "${SOLC_SHA256}  solc" | sha256sum -c -
+          sudo mv solc /usr/local/bin/solc
           sudo chmod +x /usr/local/bin/solc
 
       - name: Verify solc
