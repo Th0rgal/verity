@@ -167,7 +167,7 @@ All axioms **must** be documented inline **and** in AXIOMS.md:
 ```lean
 /-- AXIOM: Expression evaluation equivalence
 
-This is an axiom because both evalIRExpr and evalYulExpr are partial functions.
+This is an axiom because evalIRExpr is partial (evalYulExpr is total).
 See AXIOMS.md for full soundness justification.
 -/
 axiom evalIRExpr_eq_evalYulExpr : ...

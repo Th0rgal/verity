@@ -24,18 +24,18 @@ Individual statement proofs compose via `execIRStmtsFuel_equiv_execYulStmtsFuel_
 
 /-- IR and Yul expression evaluation are identical when states are aligned.
 
-This is an axiom because both `evalIRExpr` and `evalYulExpr` are defined as `partial`
-functions, making them unprovable in Lean's logic. However, this axiom is sound because:
+This is an axiom because `evalIRExpr` is defined as `partial` (not provably terminating),
+making it opaque to Lean's kernel. `evalYulExpr` is total (structural recursion), but
+Lean cannot unfold the `partial` IR side to prove equality. This axiom is sound because:
 
 1. Both functions have **identical** source code (see IRInterpreter.lean and Semantics.lean)
 2. `yulStateOfIR` just copies all IRState fields to YulState
 3. The only difference is the `selector` field, which doesn't affect expression evaluation
 4. This is a structural equality, not a semantic one
 
-**Alternative**: To avoid this axiom, we would need to refactor both eval functions
-to use fuel parameters (similar to what we did for execIRStmtFuel). This would be
-a significant undertaking (~500+ lines of code) for relatively little benefit, since
-the functions are already known to be identical by inspection.
+**Alternative**: To avoid this axiom, only the IR evaluator needs refactoring to use
+fuel parameters (matching the pattern already used by `evalYulExpr`). The Yul side is
+already total and requires no changes. Estimated effort: ~300 lines.
 
 **Usage**: This axiom is used by all statement equivalence proofs to show that
 evaluating expressions gives the same results in both IR and Yul contexts.

@@ -39,7 +39,7 @@ Two expression evaluation axioms in `StatementEquivalence.lean`:
 1. `evalIRExpr_eq_evalYulExpr` - IR and Yul expression evaluation are identical when states are aligned
 2. `evalIRExprs_eq_evalYulExprs` - List version of the above
 
-These are sound because both eval functions have identical source code and `yulStateOfIR` copies all fields. Making them theorems would require refactoring both `partial` functions to use fuel parameters (~500+ lines).
+These are sound because both eval functions have identical source code and `yulStateOfIR` copies all fields. The axiom exists because `evalIRExpr` is `partial` (opaque to Lean's kernel) while `evalYulExpr` is total. Eliminating the axiom requires only refactoring the IR evaluator to use fuel parameters (~300 lines).
 
 ## References
 

@@ -37,21 +37,23 @@ axiom evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : Yul
 **Purpose**: Proves that expression evaluation produces identical results in IR and Yul contexts when states are aligned.
 
 **Why Axiom?**:
-- Both `evalIRExpr` and `evalYulExpr` are defined as `partial` functions (not provably terminating in Lean)
-- Lean cannot prove equality between partial functions
+- `evalIRExpr` is defined as `partial` (not provably terminating in Lean), making it opaque to the kernel
+- `evalYulExpr` is **total** (no `partial` annotation) — it uses structural recursion
+- Lean cannot unfold a `partial` definition inside a proof, so equality between the IR and Yul evaluators cannot be proven even though their source code is structurally identical
 - Functions have identical source code structure but different state type parameters
 
 **Soundness Argument**:
 1. **Source code inspection**: Both functions have structurally identical implementations
-2. **State translation**: `yulStateOfIR` simply copies all fields from IRState to YulState
-3. **Selector field**: Only difference is the `selector` field, which doesn't affect expression evaluation
-4. **Differential testing**: 70,000+ property tests validate this equivalence holds in practice
+2. **Asymmetry**: Only the IR side is `partial`; the Yul side is already total
+3. **State translation**: `yulStateOfIR` simply copies all fields from IRState to YulState
+4. **Selector field**: Only difference is the `selector` field, which doesn't affect expression evaluation
+5. **Differential testing**: 70,000+ property tests validate this equivalence holds in practice
 
 **Alternative Approach**:
-To eliminate this axiom, we would need to:
-- Refactor both eval functions to use fuel parameters (like `execIRStmtFuel`)
-- Prove termination for all expression types
-- **Effort**: ~500+ lines of refactoring
+To eliminate this axiom, only the IR evaluator needs refactoring:
+- Refactor `evalIRExpr` (and `evalIRExprs`, `evalIRCall`) to use fuel parameters or well-founded recursion on expression depth, matching the total pattern already used by `evalYulExpr`
+- The Yul side is already total and requires no changes
+- **Effort**: ~300 lines of refactoring (simpler than previously estimated since only one side needs work)
 
 **Trade-off**: Given that the functions are structurally identical by inspection and validated by extensive testing, the axiom is a pragmatic choice.
 
@@ -76,7 +78,7 @@ axiom evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : 
 
 **Purpose**: List version of `evalIRExpr_eq_evalYulExpr` for multiple expressions.
 
-**Why Axiom?**: Same reasoning as axiom #1 (partial functions).
+**Why Axiom?**: Same reasoning as axiom #1 — `evalIRExprs` is `partial` while `evalYulExprs` is total.
 
 **Soundness Argument**:
 - Follows directly from axiom #1 via structural induction on lists
