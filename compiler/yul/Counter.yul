@@ -11,6 +11,9 @@ object "Counter" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 4) {
+                    revert(0, 0)
+                }
                 sstore(0, add(sload(0), 1))
                 stop()
             }
@@ -19,12 +22,18 @@ object "Counter" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 4) {
+                    revert(0, 0)
+                }
                 sstore(0, sub(sload(0), 1))
                 stop()
             }
             case 0xa87d942c {
                 /* getCount() */
                 if callvalue() {
+                    revert(0, 0)
+                }
+                if lt(calldatasize(), 4) {
                     revert(0, 0)
                 }
                 mstore(0, sload(0))

@@ -57,7 +57,7 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 | CryptoHash | - | External cryptographic library linking |
 
-300 theorems across 9 categories. 325 Foundry tests across 24 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 4 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
+300 theorems across 9 categories. 349 Foundry tests across 25 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 4 documented axioms, 12 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
@@ -94,7 +94,7 @@ FOUNDRY_PROFILE=difftest forge test
 <details>
 <summary><strong>Testing</strong></summary>
 
-**Property tests** (325 tests) validate EDSL = Yul = EVM execution:
+**Property tests** (349 tests) validate EDSL = Yul = EVM execution:
 
 ```bash
 FOUNDRY_PROFILE=difftest forge test                                          # run all

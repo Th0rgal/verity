@@ -73,7 +73,8 @@ theorem yulCodegen_preserves_semantics
       -- The switch cases align with `find?` on selectors.
       have hcase :
           (switchCases contract.functions).find? (fun (c, _) => c = tx.functionSelector) =
-            some (fn.selector, [YulStmt.comment s!"{fn.name}()"] ++ [Compiler.callvalueGuard] ++ fn.body) := by
+            some (fn.selector, [YulStmt.comment s!"{fn.name}()"] ++
+              [Compiler.callvalueGuard] ++ [Compiler.calldatasizeGuard fn.params.length] ++ fn.body) := by
         exact find_switch_case_of_find_function contract.functions tx.functionSelector fn hFind
       -- Apply switch rule.
       have hsel :

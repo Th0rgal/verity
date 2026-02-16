@@ -11,6 +11,9 @@ object "SimpleStorage" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 36) {
+                    revert(0, 0)
+                }
                 let value := calldataload(4)
                 sstore(0, value)
                 stop()
@@ -18,6 +21,9 @@ object "SimpleStorage" {
             case 0x2e64cec1 {
                 /* retrieve() */
                 if callvalue() {
+                    revert(0, 0)
+                }
+                if lt(calldatasize(), 4) {
                     revert(0, 0)
                 }
                 mstore(0, sload(0))

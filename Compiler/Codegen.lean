@@ -30,10 +30,18 @@ def callvalueGuard : YulStmt :=
   YulStmt.if_ (YulExpr.call "callvalue" [])
     [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
 
+/-- Revert if calldata is shorter than expected (4-byte selector + 32 bytes per param). -/
+def calldatasizeGuard (numParams : Nat) : YulStmt :=
+  YulStmt.if_ (YulExpr.call "lt" [
+    YulExpr.call "calldatasize" [],
+    YulExpr.lit (4 + numParams * 32)])
+    [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+
 def buildSwitch (funcs : List IRFunction) : YulStmt :=
   let selectorExpr := YulExpr.call "shr" [YulExpr.lit 224, YulExpr.call "calldataload" [YulExpr.lit 0]]
   let cases := funcs.map (fun fn =>
-    let body := [YulStmt.comment s!"{fn.name}()"] ++ [callvalueGuard] ++ fn.body
+    let body := [YulStmt.comment s!"{fn.name}()"] ++
+      [callvalueGuard] ++ [calldatasizeGuard fn.params.length] ++ fn.body
     (fn.selector, body)
   )
   YulStmt.switch selectorExpr cases (some [

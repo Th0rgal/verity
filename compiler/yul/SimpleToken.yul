@@ -21,6 +21,9 @@ object "SimpleToken" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 68) {
+                    revert(0, 0)
+                }
                 let to := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                 let amount := calldataload(36)
                 if iszero(eq(caller(), sload(0))) {
@@ -57,6 +60,9 @@ object "SimpleToken" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 68) {
+                    revert(0, 0)
+                }
                 let to := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                 let amount := calldataload(36)
                 let senderBal := sload(mappingSlot(1, caller()))
@@ -88,6 +94,9 @@ object "SimpleToken" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 36) {
+                    revert(0, 0)
+                }
                 let addr := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
                 mstore(0, sload(mappingSlot(1, addr)))
                 return(0, 32)
@@ -97,12 +106,18 @@ object "SimpleToken" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 4) {
+                    revert(0, 0)
+                }
                 mstore(0, sload(2))
                 return(0, 32)
             }
             case 0x8da5cb5b {
                 /* owner() */
                 if callvalue() {
+                    revert(0, 0)
+                }
+                if lt(calldatasize(), 4) {
                     revert(0, 0)
                 }
                 mstore(0, sload(0))

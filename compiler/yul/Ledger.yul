@@ -16,6 +16,9 @@ object "Ledger" {
                 if callvalue() {
                     revert(0, 0)
                 }
+                if lt(calldatasize(), 36) {
+                    revert(0, 0)
+                }
                 let amount := calldataload(4)
                 let senderBal := sload(mappingSlot(0, caller()))
                 sstore(mappingSlot(0, caller()), add(senderBal, amount))
@@ -24,6 +27,9 @@ object "Ledger" {
             case 0x2e1a7d4d {
                 /* withdraw() */
                 if callvalue() {
+                    revert(0, 0)
+                }
+                if lt(calldatasize(), 36) {
                     revert(0, 0)
                 }
                 let amount := calldataload(4)
@@ -41,6 +47,9 @@ object "Ledger" {
             case 0xa9059cbb {
                 /* transfer() */
                 if callvalue() {
+                    revert(0, 0)
+                }
+                if lt(calldatasize(), 68) {
                     revert(0, 0)
                 }
                 let to := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
@@ -72,6 +81,9 @@ object "Ledger" {
             case 0xf8b2cb4f {
                 /* getBalance() */
                 if callvalue() {
+                    revert(0, 0)
+                }
+                if lt(calldatasize(), 36) {
                     revert(0, 0)
                 }
                 let addr := and(calldataload(4), 0xffffffffffffffffffffffffffffffffffffffff)
