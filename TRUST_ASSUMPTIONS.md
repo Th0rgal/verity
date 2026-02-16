@@ -310,7 +310,6 @@ Library functions are provided via `--link <path.yul>` flags to the compiler CLI
 **Remaining Gaps**:
 - Injection is text-level, not AST-level — no syntax or arity checking of library code
 - Library code is entirely outside the formal proof boundary
-- The `SpecInterpreter` returns 0 for `Expr.externalCall`, so linked library return values are untested in differential tests (issue #172)
 
 **Risk Assessment**: **Medium to High** (depends on library)
 - Precompiled contracts: Low (EVM-native, well-tested)
@@ -319,7 +318,6 @@ Library functions are provided via `--link <path.yul>` flags to the compiler CLI
 
 **Future Work**:
 - Issue #71: Integrate EVMYulLean precompiled contracts
-- Issue #172: Model linked library functions in SpecInterpreter for differential testing
 - Formal interface specifications for external calls
 
 ---

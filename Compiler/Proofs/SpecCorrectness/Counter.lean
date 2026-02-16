@@ -61,6 +61,7 @@ private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address)
       { slots := [(0, (state.storage 0).val)], mappings := [], mappings2 := [], events := [] }
       [{ name := "count", ty := FieldType.uint256 }]
       []
+      []
       ((Expr.storage "count").sub (Expr.literal 1)) =
     (sub (state.storage 0) 1).val := by
   -- Both evalExpr and Uint256.sub use the same conditional on val >= 1.
