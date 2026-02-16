@@ -50,13 +50,16 @@ private theorem deposit_unfold (s : ContractState) (amount : Uint256) :
       storageMap := fun slot addr =>
         if (slot == 0 && addr == s.sender) = true then EVM.Uint256.add (s.storageMap 0 s.sender) amount
         else s.storageMap slot addr,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       knownAddresses := fun slot =>
         if slot == 0 then (s.knownAddresses slot).insert s.sender
-        else s.knownAddresses slot } := by
+        else s.knownAddresses slot,
+      events := s.events } := by
   simp only [deposit, msgSender, getMapping, setMapping, balances,
     Verity.bind, Bind.bind, Verity.pure, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst]
@@ -99,13 +102,16 @@ private theorem withdraw_unfold (s : ContractState) (amount : Uint256)
       storageMap := fun slot addr =>
         if (slot == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
         else s.storageMap slot addr,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       knownAddresses := fun slot =>
         if slot == 0 then (s.knownAddresses slot).insert s.sender
-        else s.knownAddresses slot } := by
+        else s.knownAddresses slot,
+      events := s.events } := by
   simp only [withdraw, msgSender, getMapping, setMapping, balances,
     Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst]
@@ -170,13 +176,16 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
         if (slot == 0 && addr == to) = true then EVM.Uint256.add (s.storageMap 0 to) amount
         else if (slot == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
         else s.storageMap slot addr,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       knownAddresses := fun slot =>
         if slot == 0 then ((s.knownAddresses slot).insert s.sender).insert to
-        else s.knownAddresses slot } := by
+        else s.knownAddresses slot,
+      events := s.events } := by
   have h_balance' : amount.val ≤ (s.storageMap 0 s.sender).val := by
     have h_balance'' : amount ≤ s.storageMap 0 s.sender := by
       simpa using h_balance

@@ -49,7 +49,9 @@ def ownedCounterEdslToSpecStorage (state : ContractState) : SpecStorage :=
       (0, addressToNat (state.storageAddr 0)),  -- owner at slot 0
       (1, (state.storage 1).val)                -- count at slot 1
     ]
-    mappings := [] }
+    mappings := []
+    mappings2 := []
+    events := [] }
 
 /- Correctness Theorems -/
 

@@ -86,11 +86,14 @@ private theorem increment_unfold (s : ContractState)
     { storage := fun slot => if (slot == 1) = true then EVM.Uint256.add (s.storage 1) 1 else s.storage slot,
       storageAddr := s.storageAddr,
       storageMap := s.storageMap,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := s.knownAddresses,
+      events := s.events } := by
   simp only [increment, onlyOwner, isOwner, owner, count,
     msgSender, getStorageAddr, getStorage, setStorage,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
@@ -134,11 +137,14 @@ private theorem decrement_unfold (s : ContractState)
     { storage := fun slot => if (slot == 1) = true then EVM.Uint256.sub (s.storage 1) 1 else s.storage slot,
       storageAddr := s.storageAddr,
       storageMap := s.storageMap,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := s.knownAddresses,
+      events := s.events } := by
   simp only [decrement, onlyOwner, isOwner, owner, count,
     msgSender, getStorageAddr, getStorage, setStorage,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
@@ -181,11 +187,14 @@ private theorem transferOwnership_unfold (s : ContractState) (newOwner : Address
     { storage := s.storage,
       storageAddr := fun slot => if (slot == 0) = true then newOwner else s.storageAddr slot,
       storageMap := s.storageMap,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := s.knownAddresses,
+      events := s.events } := by
   simp only [transferOwnership, onlyOwner, isOwner, owner,
     msgSender, getStorageAddr, setStorageAddr,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,

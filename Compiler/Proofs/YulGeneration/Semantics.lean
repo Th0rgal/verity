@@ -314,6 +314,23 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                       | some body => execYulFuel fuel state (.stmts body)
                       | none => .continue state
               | none => .revert state
+          | .for_ init cond post body =>
+              -- Execute init, then loop: check cond, run body, run post, repeat
+              match execYulFuel fuel state (.stmts init) with
+              | .continue s' =>
+                  match evalYulExpr s' cond with
+                  | some v =>
+                      if v = 0 then .continue s'
+                      else
+                        match execYulFuel fuel s' (.stmts body) with
+                        | .continue s'' =>
+                            match execYulFuel fuel s'' (.stmts post) with
+                            | .continue s''' =>
+                                execYulFuel fuel s''' (.stmt (.for_ [] cond post body))
+                            | other => other
+                        | other => other
+                  | none => .revert s'
+              | other => other
           | .block stmts => execYulFuel fuel state (.stmts stmts)
           | .funcDef _ _ _ _ => .continue state
       | .stmts [] => .continue state

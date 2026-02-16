@@ -14,6 +14,7 @@ inductive YulStmt
   | assign (name : String) (value : YulExpr)
   | expr (e : YulExpr)
   | if_ (cond : YulExpr) (body : List YulStmt)
+  | for_ (init : List YulStmt) (cond : YulExpr) (post : List YulStmt) (body : List YulStmt)
   | switch (expr : YulExpr) (cases : List (Nat × List YulStmt)) (default : Option (List YulStmt))
   | block (stmts : List YulStmt)
   | funcDef (name : String) (params : List String) (rets : List String) (body : List YulStmt)

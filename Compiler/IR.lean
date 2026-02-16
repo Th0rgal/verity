@@ -29,6 +29,7 @@ structure IRContract where
   deploy : List IRStmt
   functions : List IRFunction
   usesMapping : Bool
+  internalFunctions : List IRStmt := []  -- Yul function definitions for internal calls (#181)
   deriving Repr
 
 end Compiler

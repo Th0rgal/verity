@@ -36,7 +36,9 @@ open Verity.Examples.Owned
 /-- Convert EDSL ContractState to SpecStorage for Owned -/
 def ownedEdslToSpecStorage (state : ContractState) : SpecStorage :=
   { slots := [(0, addressToNat (state.storageAddr 0))]
-    mappings := [] }
+    mappings := []
+    mappings2 := []
+    events := [] }
 
 -- Address encoding lemmas are provided by Automation.
 

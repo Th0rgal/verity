@@ -238,6 +238,22 @@ partial def execIRStmt (state : IRState) : YulStmt → IRExecResult
         | some body => execIRStmts state body
         | none => .continue state
     | none => .revert state
+  | .for_ init cond post body =>
+    -- Execute init, then loop: check cond, run body, run post, repeat
+    match execIRStmts state init with
+    | .continue s' =>
+        match evalIRExpr s' cond with
+        | some v =>
+            if v ≠ 0 then
+              match execIRStmts s' body with
+              | .continue s'' =>
+                  match execIRStmts s'' post with
+                  | .continue s''' => execIRStmt s''' (.for_ [] cond post body)
+                  | other => other
+              | other => other
+            else .continue s'
+        | none => .revert s'
+    | other => other
   | .block stmts => execIRStmts state stmts
   | .funcDef _ _ _ _ => .continue state  -- Function definitions don't execute
 /-- Execute a sequence of IR statements -/

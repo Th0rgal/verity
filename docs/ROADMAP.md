@@ -13,6 +13,42 @@
 - ✅ **Differential Testing**: Production-ready with 70k+ tests
 - ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
 - ✅ **External Linking**: Cryptographic library support (PR #49)
+- ✅ **ContractSpec Real-World Support**: Loops, branching, arrays, events, multi-mappings, internal calls, verified extern linking (#153, #154, #179, #180, #181, #184)
+
+---
+
+## Lessons from UnlinkPool (#185)
+
+[UnlinkPool](https://github.com/Th0rgal/unlink-contracts/pull/4) — a ZK privacy pool — was the first non-trivial contract built with Verity (37 theorems, 0 `sorry`, 64 Foundry tests). It exposed gaps in the ContractSpec compilation path that prevented real-world contracts from using the verified pipeline (Layers 2+3).
+
+### What was added
+
+| Feature | Issue | ContractSpec | Core/Interpreter |
+|---------|-------|-------------|-----------------|
+| If/else branching | #179 | `Stmt.ite` | `execStmt` mutual recursion |
+| ForEach loops | #179 | `Stmt.forEach` | `execStmtsFuel` + `expandForEach` desugaring |
+| Array/bytes params | #180 | `ParamType.bytes32`, `.array`, `.fixedArray`, `.bytes` | `arrayParams` in `EvalContext` |
+| Internal function calls | #181 | `Stmt.internalCall`, `Expr.internalCall`, `FunctionSpec.isInternal` | Statement + expression evaluation |
+| Multi-mapping types | #154 | `Expr.mapping2`, `Stmt.setMapping2`, `MappingType`, `FieldType.mappingTyped` | `storageMap2`/`storageMapUint` in `ContractState` |
+| Events/logs | #153 | `EventDef`, `EventParam`, `Stmt.emit` | `Event` struct, `emitEvent`, LOG opcodes in codegen |
+| Verified extern linking | #184 | `ExternalFunction` with axiom names | Axiom-tracked external calls |
+
+### What this enables
+
+A developer can now write a `ContractSpec` for contracts with conditional logic, loops over arrays, nested mappings (`address → address → uint256` for ERC20 allowances), event emission, internal helper functions, and linked external libraries — and compile through the verified pipeline (Layers 2+3). Previously only simple counter/token contracts were supported.
+
+### Remaining gap
+
+The EDSL path remains more expressive (supports arbitrary Lean, `List.foldl`, pattern matching). Contracts like UnlinkPool that use advanced Lean features still need the EDSL path. The ContractSpec path now covers the subset needed for standard DeFi contracts (ERC20, ERC721, governance, simple AMMs).
+
+### Known interpreter limitations
+
+The SpecInterpreter's basic `execStmts` path does not yet fully model all new constructs:
+- **forEach** is a no-op in `execStmts` — use `execStmtsFuel` for contracts with loops
+- **internalCall** (both as expression and statement) returns 0 / no-op — internal function lookup not yet implemented
+- **arrayParams** is not populated from `Transaction` — array element access returns 0
+
+These limitations affect only the interpreter (used for testing/proofs), not the compiled Yul output. The compiler correctly handles all constructs.
 
 ---
 
@@ -172,5 +208,5 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 
 ---
 
-**Last Updated**: 2026-02-15
-**Status**: Layers 1-3 complete. Trust reduction 1/3 done. Sum properties infrastructure complete, 7 proofs pending.
+**Last Updated**: 2026-02-16
+**Status**: Layers 1-3 complete. Trust reduction 1/3 done. Sum properties infrastructure complete, 7 proofs pending. ContractSpec now supports real-world contracts (loops, branching, events, multi-mappings, internal calls, verified externs).

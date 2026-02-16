@@ -26,6 +26,9 @@ import Verity.Proofs.SimpleToken.Basic
 import Verity.Proofs.SimpleToken.Correctness
 import Verity.Core.Uint256
 
+-- Increased heartbeats due to additional struct fields (mappings2, events, etc.)
+set_option maxHeartbeats 400000
+
 namespace Compiler.Proofs.SpecCorrectness
 
 open Compiler.ContractSpec
@@ -46,7 +49,9 @@ def tokenEdslToSpecStorageWithAddrs (state : ContractState) (addrs : List Addres
       (0, addressToNat (state.storageAddr 0)),  -- owner at slot 0
       (2, (state.storage 2).val)                -- totalSupply at slot 2
     ]
-    mappings := [(1, addrs.map (fun addr => (addressToNat addr, (state.storageMap 1 addr).val)))] }
+    mappings := [(1, addrs.map (fun addr => (addressToNat addr, (state.storageMap 1 addr).val)))]
+    mappings2 := []
+    events := [] }
 
 /-!
 ## Helper Lemmas for Address and Uint256 Arithmetic

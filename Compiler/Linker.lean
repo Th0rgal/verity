@@ -187,6 +187,9 @@ private def callsFromStmt : YulStmt → List String
   | YulStmt.assign _ value => callsFromExpr value
   | YulStmt.expr e => callsFromExpr e
   | YulStmt.if_ cond body => callsFromExpr cond ++ callsFromStmts body
+  | YulStmt.for_ init cond post body =>
+      callsFromStmts init ++ callsFromExpr cond ++
+      callsFromStmts post ++ callsFromStmts body
   | YulStmt.switch expr cases defaultCase =>
       callsFromExpr expr ++
       callsFromCases cases ++
@@ -215,6 +218,8 @@ mutual
 private def defsFromStmt : YulStmt → List String
   | YulStmt.funcDef name _ _ body => name :: defsFromStmts body
   | YulStmt.if_ _ body => defsFromStmts body
+  | YulStmt.for_ init _ post body =>
+      defsFromStmts init ++ defsFromStmts post ++ defsFromStmts body
   | YulStmt.switch _ cases defaultCase =>
       defsFromCases cases ++ defsFromDefault defaultCase
   | YulStmt.block stmts => defsFromStmts stmts

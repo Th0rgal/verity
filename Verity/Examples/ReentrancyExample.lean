@@ -99,6 +99,8 @@ theorem vulnerable_attack_exists :
     , storageAddr := fun _ => ""
     , storageMap := fun slot addr =>
         if slot == balances.slot && addr == "attacker" then (Verity.EVM.MAX_UINT256 : Uint256) else 0
+    , storageMapUint := fun _ _ => 0
+    , storageMap2 := fun _ _ _ => 0
     , sender := "attacker"
     , thisAddress := "this"
     , msgValue := 0

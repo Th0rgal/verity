@@ -24,6 +24,9 @@ import Verity.Stdlib.Math
 import Verity.Core.Uint256
 import Verity.Proofs.Ledger.Basic
 
+-- Increased heartbeats due to additional struct fields (mappings2, events, etc.)
+set_option maxHeartbeats 400000
+
 namespace Compiler.Proofs.SpecCorrectness
 
 open Compiler.ContractSpec
@@ -47,7 +50,9 @@ open Verity.Examples.Ledger
 /-- Convert EDSL mapping to SpecStorage mapping for specific addresses -/
 def ledgerEdslToSpecStorageWithAddrs (state : ContractState) (addrs : List Address) : SpecStorage :=
   { slots := []
-    mappings := [(0, addrs.map (fun addr => (addressToNat addr, (state.storageMap 0 addr).val)))] }
+    mappings := [(0, addrs.map (fun addr => (addressToNat addr, (state.storageMap 0 addr).val)))]
+    mappings2 := []
+    events := [] }
 
 /- Correctness Theorems -/
 

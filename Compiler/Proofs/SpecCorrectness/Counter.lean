@@ -32,7 +32,9 @@ open Verity.Core.Uint256 (modulus val_ofNat ofNat)
 /-- Convert EDSL ContractState to SpecStorage for Counter -/
 def counterEdslToSpecStorage (state : ContractState) : SpecStorage :=
   { slots := [(0, (state.storage 0).val)]
-    mappings := [] }
+    mappings := []
+    mappings2 := []
+    events := [] }
 
 /- Helper Lemmas -/
 
@@ -54,8 +56,9 @@ private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address)
         paramTypes := [],
         constructorArgs := [],
         constructorParamTypes := [],
-        localVars := [] }
-      { slots := [(0, (state.storage 0).val)], mappings := [] }
+        localVars := [],
+        arrayParams := [] }
+      { slots := [(0, (state.storage 0).val)], mappings := [], mappings2 := [], events := [] }
       [{ name := "count", ty := FieldType.uint256 }]
       []
       ((Expr.storage "count").sub (Expr.literal 1)) =

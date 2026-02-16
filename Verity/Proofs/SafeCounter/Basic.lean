@@ -54,11 +54,14 @@ private theorem increment_unfold (s : ContractState)
     { storage := fun slot => if (slot == 0) = true then s.storage 0 + 1 else s.storage slot,
       storageAddr := s.storageAddr,
       storageMap := s.storageMap,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := s.knownAddresses,
+      events := s.events } := by
   have h_safe := safeAdd_some (s.storage 0) 1 h_no_overflow
   simp only [increment, getStorage, setStorage, count, requireSomeUint,
     Verity.bind, Bind.bind, Verity.pure, Pure.pure,
@@ -114,11 +117,14 @@ private theorem decrement_unfold (s : ContractState)
     { storage := fun slot => if (slot == 0) = true then s.storage 0 - 1 else s.storage slot,
       storageAddr := s.storageAddr,
       storageMap := s.storageMap,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := s.knownAddresses } := by
+      knownAddresses := s.knownAddresses,
+      events := s.events } := by
   have h_safe := safeSub_some (s.storage 0) 1 h_no_underflow
   simp only [decrement, getStorage, setStorage, count, requireSomeUint,
     Verity.bind, Bind.bind, Verity.pure, Pure.pure,
