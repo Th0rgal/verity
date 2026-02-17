@@ -75,7 +75,7 @@ import Verity.Proofs.OwnedCounter.Basic
 import Verity.Proofs.OwnedCounter.Correctness
 import Verity.Proofs.OwnedCounter.Isolation
 
--- Ledger: Spec, Invariants, Proofs (includes sum proofs with sorry)
+-- Ledger: Spec, Invariants, Proofs (sum proofs incomplete, see issue #65)
 import Verity.Specs.Ledger.Spec
 import Verity.Specs.Ledger.Invariants
 import Verity.Specs.Ledger.Proofs
