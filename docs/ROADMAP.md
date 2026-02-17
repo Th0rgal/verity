@@ -45,10 +45,11 @@ The EDSL path remains more expressive (supports arbitrary Lean, `List.foldl`, pa
 
 The SpecInterpreter's basic `execStmts` path does not yet fully model all new constructs:
 - **forEach** is a no-op in `execStmts` — use `execStmtsFuel` for contracts with loops
-- **internalCall** (both as expression and statement) returns 0 / no-op — internal function lookup not yet implemented
+- **Stmt.internalCall** is a no-op in `execStmts` — use `execStmtsFuel` with `functions` parameter for contracts with internal calls
+- **Expr.internalCall** always returns 0 — internal function lookup as expression not yet implemented (requires threading `functions` through the mutual recursion block)
 - **arrayParams** is not populated from `Transaction` — array element access returns 0
 
-These limitations affect only the interpreter (used for testing/proofs), not the compiled Yul output. The compiler correctly handles all constructs.
+These limitations affect only the basic interpreter path (used for proofs). The fuel-based `execStmtsFuel` supports forEach and Stmt.internalCall. The compiler correctly handles all constructs.
 
 ---
 

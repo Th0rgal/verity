@@ -19,9 +19,10 @@
   Known limitations (basic execStmts path):
   - forEach loops are no-ops — use execStmtsFuel for contracts with loops (#179)
   - Expr.internalCall always returns 0 — internal function lookup not yet implemented (#181)
-  - Stmt.internalCall is a no-op — side effects of internal functions not modeled (#181)
+  - Stmt.internalCall is a no-op — use execStmtsFuel with functions parameter (#181)
   - arrayParams is never populated from Transaction — array element access returns 0 (#180)
-  These limitations affect only the interpreter, not the compiled Yul output.
+  These limitations affect only the basic interpreter path, not the compiled Yul output.
+  The fuel-based execStmtsFuel supports both forEach and Stmt.internalCall.
 -/
 
 import Compiler.ContractSpec
@@ -254,8 +255,9 @@ Execute ContractSpec statements, updating storage and context.
 Returns None if execution reverts.
 
 The basic `execStmt` / `execStmts` handle all constructs that don't introduce
-unbounded recursion (everything except forEach). They are kept simple for
-proof automation. For forEach, we provide `execStmtsFuel` with explicit fuel.
+unbounded recursion (everything except forEach and internalCall). They are kept
+simple for proof automation. For contracts with forEach or internalCall, use
+`execStmtsFuel` which provides fuel-based execution with function lookup.
 -/
 
 -- Execution state
@@ -361,10 +363,14 @@ def execStmts (ctx : EvalContext) (fields : List Field) (paramNames : List Strin
 end
 
 /-!
-### Fuel-based execution for contracts with loops
+### Fuel-based execution for contracts with loops and internal calls
 
-For contracts that use `forEach`, we provide a fuel-based interpreter
-that properly handles bounded loops. The fuel decreases at each recursive step.
+For contracts that use `forEach` or `internalCall`, we provide a fuel-based
+interpreter that properly handles bounded loops and recursive function calls.
+The fuel decreases at each recursive step.
+
+The `functions` parameter carries the full list of `FunctionSpec` entries from
+the `ContractSpec`, enabling lookup and execution of internal functions (#181).
 -/
 
 -- Helper: Expand a forEach into N copies of the loop body with let bindings
@@ -377,6 +383,7 @@ private def expandForEach (varName : String) (count : Nat) (body : List Stmt) : 
   go 0 []
 
 def execStmtsFuel (fuel : Nat) (ctx : EvalContext) (fields : List Field) (paramNames : List String) (externalFns : List (String × (List Nat → Nat)))
+    (functions : List FunctionSpec)
     (state : ExecState) (stmts : List Stmt) : Option (EvalContext × ExecState) :=
   match fuel with
   | 0 => none
@@ -391,17 +398,30 @@ def execStmtsFuel (fuel : Nat) (ctx : EvalContext) (fields : List Field) (paramN
               -- Desugar forEach into expanded statements
               let countVal := evalExpr ctx state.storage fields paramNames externalFns count
               let expanded := expandForEach varName countVal body
-              execStmtsFuel fuel' ctx fields paramNames externalFns state expanded
+              execStmtsFuel fuel' ctx fields paramNames externalFns functions state expanded
           | Stmt.ite cond thenBranch elseBranch =>
               let condVal := evalExpr ctx state.storage fields paramNames externalFns cond
               if condVal ≠ 0 then
-                execStmtsFuel fuel' ctx fields paramNames externalFns state thenBranch
+                execStmtsFuel fuel' ctx fields paramNames externalFns functions state thenBranch
               else
-                execStmtsFuel fuel' ctx fields paramNames externalFns state elseBranch
+                execStmtsFuel fuel' ctx fields paramNames externalFns functions state elseBranch
+          | Stmt.internalCall functionName args =>
+              -- Look up the internal function and execute its body (#181)
+              match functions.find? (·.name == functionName) with
+              | none => none  -- Unknown function → revert
+              | some func =>
+                  -- Evaluate arguments in the caller's context
+                  let argVals := evalExprs ctx state.storage fields paramNames externalFns args
+                  -- Set up callee context: args become params, inherit caller's locals
+                  let calleeParamNames := func.params.map (·.name)
+                  let calleeLocals := List.zip calleeParamNames argVals ++ ctx.localVars
+                  let calleeCtx := { ctx with localVars := calleeLocals }
+                  -- Execute callee body (sharing storage, using callee's param names)
+                  execStmtsFuel fuel' calleeCtx fields calleeParamNames externalFns functions state func.body
           | other => execStmt ctx fields paramNames externalFns state other
         match result with
         | none => none
-        | some (ctx', state') => execStmtsFuel fuel' ctx' fields paramNames externalFns state' rest
+        | some (ctx', state') => execStmtsFuel fuel' ctx' fields paramNames externalFns functions state' rest
 termination_by fuel
 
 /-!
