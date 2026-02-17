@@ -43,13 +43,15 @@ def constructor (initialOwner : Address) : Contract Unit := do
   setStorage totalSupply 0
 
 -- Mint tokens to an address (owner-only, with overflow protection)
+-- Follows checks-before-effects: all require guards execute before state mutations,
+-- so revert always carries the original (unmodified) state.
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
   onlyOwner
   let currentBalance ← getMapping balances to
   let newBalance ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
-  setMapping balances to newBalance
   let currentSupply ← getStorage totalSupply
   let newSupply ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
+  setMapping balances to newBalance
   setStorage totalSupply newSupply
 
 -- Transfer tokens from caller to another address (with overflow protection)
