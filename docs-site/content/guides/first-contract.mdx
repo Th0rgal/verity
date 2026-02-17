@@ -8,6 +8,11 @@ description: Step-by-step tutorial for creating a verified smart contract in Ver
 **Time Required**: 2-3 hours for first contract
 **Prerequisites**: Basic familiarity with Lean 4 syntax and smart contract concepts
 
+> **New to Lean 4?** You'll need to understand `do` notation, `def`/`theorem`, and basic tactic proofs (`simp`, `intro`, `constructor`). Start with:
+> - [Lean 4 Manual — Basics](https://lean-lang.org/lean4/doc/) — language overview
+> - [Theorem Proving in Lean 4](https://leanprover.github.io/theorem_proving_in_lean4/) — chapters 1–5 cover everything needed here
+> - [Functional Programming in Lean](https://lean-lang.org/functional_programming_in_lean/) — `do` notation and monads (chapter 4)
+
 This tutorial walks you through creating a complete verified smart contract from scratch. We'll build a **TipJar** contract — a simple balance ledger where users can deposit tips and check balances.
 
 > **Why TipJar?** It uses the core EDSL features (mappings, `msgSender`, `require`, arithmetic) while staying simple enough to prove fully on your first attempt.
@@ -46,8 +51,10 @@ python3 scripts/generate_contract.py TipJar \
 This creates all required files:
 - `Verity/Specs/TipJar/Spec.lean` — formal specification
 - `Verity/Specs/TipJar/Invariants.lean` — state invariants
+- `Verity/Specs/TipJar/Proofs.lean` — Layer 2 proof re-export
 - `Verity/Examples/TipJar.lean` — EDSL implementation
-- `Verity/Proofs/TipJar/Basic.lean` — correctness proofs (EDSL matches spec)
+- `Verity/Proofs/TipJar/Basic.lean` — basic correctness proofs (EDSL matches spec)
+- `Verity/Proofs/TipJar/Correctness.lean` — advanced correctness proofs
 - `test/PropertyTipJar.t.sol` — Foundry tests
 
 ### 1.2 Or Create Files Manually
@@ -624,12 +631,12 @@ python3 scripts/check_doc_counts.py
 
 ### 7.2 Add to Module Exports
 
-Update `Verity.lean`:
+Update `Verity/All.lean` to include your new contract:
 ```lean
 import Verity.Examples.TipJar
 ```
 
-Update `Verity.lean` to also export the proofs:
+Also add the proof imports to `Verity/All.lean`:
 ```lean
 import Verity.Proofs.TipJar.Basic
 ```

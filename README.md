@@ -23,7 +23,7 @@
 ```bash
 # 1. Install Lean 4
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-source ~/.profile
+source ~/.elan/env
 
 # 2. Clone and build
 git clone https://github.com/Th0rgal/verity.git
@@ -142,7 +142,7 @@ See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for trust boundaries, [`AXIOM
 ```bash
 # Install Lean 4 via elan
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-source ~/.profile
+source ~/.elan/env
 
 # Build the project
 lake build
@@ -184,12 +184,13 @@ python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSup
 
 This scaffolds the full file layout:
 
-1. **Spec** - `Verity/Specs/<Name>/Spec.lean`
-2. **Invariants** - `Verity/Specs/<Name>/Invariants.lean`
-3. **Implementation** - `Verity/Examples/<Name>.lean`
-4. **Proofs** - `Verity/Specs/<Name>/Proofs.lean`
-5. **Compiler Spec** - `Compiler/Specs.lean`
-6. **Tests** - `test/Property<Name>.t.sol`
+1. **Implementation** - `Verity/Examples/<Name>.lean`
+2. **Spec** - `Verity/Specs/<Name>/Spec.lean`
+3. **Invariants** - `Verity/Specs/<Name>/Invariants.lean`
+4. **Spec Proofs** - `Verity/Specs/<Name>/Proofs.lean`
+5. **Basic Proofs** - `Verity/Proofs/<Name>/Basic.lean`
+6. **Correctness Proofs** - `Verity/Proofs/<Name>/Correctness.lean`
+7. **Tests** - `test/Property<Name>.t.sol`
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for conventions and workflow.
 
