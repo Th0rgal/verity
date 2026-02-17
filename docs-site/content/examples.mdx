@@ -117,6 +117,7 @@ Proofs cover cross-pattern composition, ownership transfer locking out old owner
 Mapping storage for per-address balances with deposit, withdraw, and transfer.
 
 ```lean
+-- Simplified — full code includes self-transfer guard and safeAdd overflow checks
 def balances : StorageSlot (Address → Uint256) := ⟨0⟩
 
 def deposit (amount : Uint256) : Contract Unit := do
@@ -140,6 +141,7 @@ Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposi
 Composes Owned and Ledger. Adds owner-controlled minting and supply tracking.
 
 ```lean
+-- Simplified — full code includes safeAdd overflow checks and self-transfer guard
 def owner : StorageSlot Address := ⟨0⟩
 def balances : StorageSlot (Address → Uint256) := ⟨1⟩
 def totalSupply : StorageSlot Uint256 := ⟨2⟩

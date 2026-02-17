@@ -11,9 +11,6 @@ pragma solidity ^0.8.0;
 contract SafeCounter {
     uint256 private count;
 
-    error Overflow();
-    error Underflow();
-
     function increment() public {
         // Solidity 0.8+ reverts on overflow automatically
         count = count + 1;

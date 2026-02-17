@@ -3,8 +3,7 @@
 
   This file contains proofs of basic correctness properties for SimpleStorage.
 
-  Status: Initial proofs with some axioms. These establish the foundation
-  for more rigorous proofs as we develop proof tactics.
+  Status: Complete — all 13 proofs proven with zero axioms and zero sorry.
 -/
 
 import Verity.Core
