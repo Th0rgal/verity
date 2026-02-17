@@ -57,7 +57,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_GetCount_ReturnsStorageValue() public {
         uint256 storageValue = readStorage(1);
         (bool success, bytes memory data) = ownedCounter.call(abi.encodeWithSignature("getCount()"));
-        require(success);
+        require(success, "getCount failed");
         uint256 returned = abi.decode(data, (uint256));
         assertEq(returned, storageValue, "getCount should return storage[1]");
     }
@@ -71,7 +71,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
         address ownerBefore = readStorageAddr(0);
 
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("getCount()"));
-        require(success);
+        require(success, "getCount failed");
 
         assertEq(readStorage(1), countBefore, "Count unchanged");
         assertEq(readStorageAddr(0), ownerBefore, "Owner unchanged");
@@ -85,7 +85,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_GetOwner_ReturnsStorageValue() public {
         address storageOwner = readStorageAddr(0);
         (bool success, bytes memory data) = ownedCounter.call(abi.encodeWithSignature("getOwner()"));
-        require(success);
+        require(success, "getOwner failed");
         address returned = abi.decode(data, (address));
         assertEq(returned, storageOwner, "getOwner should return storage[0]");
     }
@@ -99,7 +99,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
         address ownerBefore = readStorageAddr(0);
 
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("getOwner()"));
-        require(success);
+        require(success, "getOwner failed");
 
         assertEq(readStorage(1), countBefore, "Count unchanged");
         assertEq(readStorageAddr(0), ownerBefore, "Owner unchanged");
@@ -140,7 +140,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Owner should be preserved");
     }
@@ -154,7 +154,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Setup: increment first to have non-zero count
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         uint256 countBefore = readStorage(1);
 
@@ -184,13 +184,13 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Setup: increment first
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         address ownerBefore = readStorageAddr(0);
 
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Owner should be preserved");
     }
@@ -228,7 +228,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         assertEq(readStorage(1), countBefore, "Count should be preserved");
     }
@@ -240,7 +240,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_TransferThenIncrement_Reverts() public {
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
@@ -254,7 +254,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_TransferThenDecrement_Reverts() public {
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("decrement()"));
@@ -271,17 +271,17 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Alice increments
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         // Alice transfers to Bob
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         // Bob increments
         vm.prank(bob);
         (success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         assertEq(readStorage(1), initialCount + 2, "Count should increase by 2 across ownership transfer");
     }
@@ -295,11 +295,11 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = newContract.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         bytes memory data;
         (success, data) = newContract.call(abi.encodeWithSignature("getCount()"));
-        require(success);
+        require(success, "getCount failed");
         uint256 count = abi.decode(data, (uint256));
 
         assertEq(count, 1, "Count should be 1 after construction + increment");
@@ -337,7 +337,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_Increment_PreservesWellformedness() public {
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         address owner = readStorageAddr(0);
         uint256 count = readStorage(1);
@@ -353,11 +353,11 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Setup: increment first
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         address owner = readStorageAddr(0);
         uint256 count = readStorage(1);
@@ -372,7 +372,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_TransferOwnership_PreservesWellformedness() public {
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         address owner = readStorageAddr(0);
         uint256 count = readStorage(1);
@@ -388,11 +388,11 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_GetCount_ContextPreserved() public {
         vm.prank(alice);
         (bool success1, bytes memory data1) = ownedCounter.call(abi.encodeWithSignature("getCount()"));
-        require(success1);
+        require(success1, "getCount failed");
 
         vm.prank(bob);
         (bool success2, bytes memory data2) = ownedCounter.call(abi.encodeWithSignature("getCount()"));
-        require(success2);
+        require(success2, "getCount failed");
 
         assertEq(data1, data2, "getCount returns same value regardless of caller");
     }
@@ -404,11 +404,11 @@ contract PropertyOwnedCounterTest is YulTestBase {
     function testProperty_GetOwner_ContextPreserved() public {
         vm.prank(alice);
         (bool success1, bytes memory data1) = ownedCounter.call(abi.encodeWithSignature("getOwner()"));
-        require(success1);
+        require(success1, "getOwner failed");
 
         vm.prank(bob);
         (bool success2, bytes memory data2) = ownedCounter.call(abi.encodeWithSignature("getOwner()"));
-        require(success2);
+        require(success2, "getOwner failed");
 
         assertEq(data1, data2, "getOwner returns same value regardless of caller");
     }
@@ -437,7 +437,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         // Only count should change, owner (which is the stored context) unchanged
         assertEq(readStorageAddr(0), ownerBefore, "Context (owner) preserved");
@@ -451,13 +451,13 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Setup
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         address ownerBefore = readStorageAddr(0);
 
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Context (owner) preserved");
     }
@@ -471,7 +471,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         assertEq(readStorage(1), countBefore, "Count (context) preserved");
     }
@@ -500,7 +500,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         uint256 afterValue = uint256(vm.load(ownedCounter, mappingSlot));
         assertEq(afterValue, before, "Mapping storage unchanged");
@@ -514,14 +514,14 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Setup
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         bytes32 mappingSlot = keccak256(abi.encode(alice, uint256(0)));
         uint256 before = uint256(vm.load(ownedCounter, mappingSlot));
 
         vm.prank(alice);
         (success,) = ownedCounter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         uint256 afterValue = uint256(vm.load(ownedCounter, mappingSlot));
         assertEq(afterValue, before, "Mapping storage unchanged");
@@ -537,7 +537,7 @@ contract PropertyOwnedCounterTest is YulTestBase {
 
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         uint256 afterValue = uint256(vm.load(ownedCounter, mappingSlot));
         assertEq(afterValue, before, "Mapping storage unchanged");
@@ -551,13 +551,13 @@ contract PropertyOwnedCounterTest is YulTestBase {
         // Alice transfers to Bob
         vm.prank(alice);
         (bool success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", bob));
-        require(success);
+        require(success, "transferOwnership failed");
 
         // Bob transfers to alice (alice is original owner)
         address charlie = address(0xCC);
         vm.prank(bob);
         (success,) = ownedCounter.call(abi.encodeWithSignature("transferOwnership(address)", charlie));
-        require(success);
+        require(success, "transferOwnership failed");
 
         // Alice (now non-owner) tries to transfer - should revert
         vm.prank(alice);

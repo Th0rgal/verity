@@ -92,7 +92,7 @@ contract PropertyOwnedTest is YulTestBase {
         (bool success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
-        require(success);
+        require(success, "transferOwnership failed");
 
         // Verify only owner changed, no side effects
         assertEq(readOwner(), BOB, "New owner set");
@@ -189,7 +189,7 @@ contract PropertyOwnedTest is YulTestBase {
         (bool success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
-        require(success);
+        require(success, "transferOwnership failed");
 
         // Assert: Owner is now BOB
         assertEq(readOwner(), BOB, "Owner updated to BOB");
@@ -199,7 +199,7 @@ contract PropertyOwnedTest is YulTestBase {
         (success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", CAROL)
         );
-        require(success);
+        require(success, "transferOwnership failed");
 
         // Assert: Owner is now CAROL
         assertEq(readOwner(), CAROL, "Owner updated to CAROL");
@@ -238,7 +238,7 @@ contract PropertyOwnedTest is YulTestBase {
         (bool success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
-        require(success);
+        require(success, "transferOwnership failed");
 
         address owner2 = readOwner();
         assertTrue(owner2 != address(0), "Owner after transfer non-zero");
@@ -357,7 +357,7 @@ contract PropertyOwnedTest is YulTestBase {
         (bool success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
-        require(success);
+        require(success, "transferOwnership failed");
         assertEq(readOwner(), BOB, "BOB is new owner");
 
         // Previous owner (ALICE) tries to transfer again
@@ -380,7 +380,7 @@ contract PropertyOwnedTest is YulTestBase {
         (bool success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
-        require(success);
+        require(success, "transferOwnership failed");
         assertEq(readOwner(), BOB, "Owner is BOB after first transfer");
 
         // Transfer: BOB -> CAROL
@@ -388,7 +388,7 @@ contract PropertyOwnedTest is YulTestBase {
         (success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", CAROL)
         );
-        require(success);
+        require(success, "transferOwnership failed");
         assertEq(readOwner(), CAROL, "Owner is CAROL after second transfer");
 
         // Assert: All previous owners cannot transfer

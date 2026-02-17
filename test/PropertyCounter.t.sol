@@ -66,7 +66,7 @@ contract PropertyCounterTest is YulTestBase {
     function testProperty_Decrement_OnlyModifiesCount() public {
         // Setup: Increment to have non-zero count
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         uint256 countBefore = readStorage(0);
         uint256 slot1Before = readStorage(1);
@@ -74,7 +74,7 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Decrement
         (success,) = counter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         // Assert: Only slot 0 changed
         uint256 countAfter = readStorage(0);
@@ -117,7 +117,7 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Increment
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         // Action: GetCount
         (, bytes memory data) = counter.call(abi.encodeWithSignature("getCount()"));
@@ -136,13 +136,13 @@ contract PropertyCounterTest is YulTestBase {
     function testProperty_Decrement_GetCount_ReturnsDecremented() public {
         // Setup: Start with count > 0
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         uint256 countBefore = readStorage(0);
 
         // Action: Decrement
         (success,) = counter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         // Action: GetCount
         (, bytes memory data) = counter.call(abi.encodeWithSignature("getCount()"));
@@ -162,9 +162,9 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Increment twice
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
         (success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         uint256 countAfter = readStorage(0);
 
@@ -184,9 +184,9 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Increment then decrement
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
         (success,) = counter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         uint256 countAfter = readStorage(0);
 
@@ -217,7 +217,7 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Decrement then getCount
         (bool success,) = counter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         (, bytes memory data) = counter.call(abi.encodeWithSignature("getCount()"));
         uint256 result = abi.decode(data, (uint256));
@@ -238,7 +238,7 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Decrement
         (bool success,) = counter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         // Assert: Count wrapped to MAX_UINT256
         assertEq(readStorage(0), type(uint256).max, "Decrement at 0 wraps to MAX");
@@ -255,9 +255,9 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Increment then decrement
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
         (success,) = counter.call(abi.encodeWithSignature("decrement()"));
-        require(success);
+        require(success, "decrement failed");
 
         // Assert: Returns to initial
         assertEq(readStorage(0), initialCount, "Inc-dec cancels for any count");
@@ -274,9 +274,9 @@ contract PropertyCounterTest is YulTestBase {
 
         // Action: Increment twice
         (bool success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
         (success,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(success);
+        require(success, "increment failed");
 
         // Assert
         assertEq(readStorage(0), initialCount + 2, "Two increments always add 2");

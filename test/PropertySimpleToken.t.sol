@@ -38,7 +38,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Constructor_SetsOwner() public {
         address newToken = deployYulWithArgs("SimpleToken", abi.encode(bob));
         (bool success, bytes memory data) = newToken.call(abi.encodeWithSignature("owner()"));
-        require(success);
+        require(success, "owner failed");
         address tokenOwner = abi.decode(data, (address));
         assertEq(tokenOwner, bob, "Owner should be bob");
     }
@@ -50,7 +50,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Constructor_InitializesSupplyToZero() public {
         address newToken = deployYulWithArgs("SimpleToken", abi.encode(alice));
         (bool success, bytes memory data) = newToken.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supply = abi.decode(data, (uint256));
         assertEq(supply, 0, "Initial supply should be 0");
     }
@@ -62,7 +62,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Constructor_GetTotalSupplyReturnsZero() public {
         address newToken = deployYulWithArgs("SimpleToken", abi.encode(owner));
         (bool success, bytes memory data) = newToken.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supply = abi.decode(data, (uint256));
         assertEq(supply, 0, "getTotalSupply should return 0 after construction");
     }
@@ -74,7 +74,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Constructor_GetOwnerCorrect() public {
         address newToken = deployYulWithArgs("SimpleToken", abi.encode(bob));
         (bool success, bytes memory data) = newToken.call(abi.encodeWithSignature("owner()"));
-        require(success);
+        require(success, "owner failed");
         address tokenOwner = abi.decode(data, (address));
         assertEq(tokenOwner, bob, "getOwner should return initial owner");
     }
@@ -87,7 +87,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_GetTotalSupply_ReturnsStorageValue() public {
         uint256 storageSupply = readStorage(2);
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 returned = abi.decode(data, (uint256));
         assertEq(returned, storageSupply, "getTotalSupply should return storage[2]");
     }
@@ -101,7 +101,7 @@ contract PropertySimpleTokenTest is YulTestBase {
         address ownerBefore = readStorageAddr(0);
 
         (bool success,) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
 
         assertEq(readStorage(2), supplyBefore, "Supply unchanged");
         assertEq(readStorageAddr(0), ownerBefore, "Owner unchanged");
@@ -115,7 +115,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_GetOwner_ReturnsStorageValue() public {
         address storageOwner = readStorageAddr(0);
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("owner()"));
-        require(success);
+        require(success, "owner failed");
         address returned = abi.decode(data, (address));
         assertEq(returned, storageOwner, "getOwner should return storage[0]");
     }
@@ -129,7 +129,7 @@ contract PropertySimpleTokenTest is YulTestBase {
         address ownerBefore = readStorageAddr(0);
 
         (bool success,) = token.call(abi.encodeWithSignature("owner()"));
-        require(success);
+        require(success, "owner failed");
 
         assertEq(readStorage(2), supplyBefore, "Supply unchanged");
         assertEq(readStorageAddr(0), ownerBefore, "Owner unchanged");
@@ -144,11 +144,11 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Mint some tokens to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balance = abi.decode(data, (uint256));
         assertEq(balance, 100, "balanceOf should return minted amount");
     }
@@ -162,7 +162,7 @@ contract PropertySimpleTokenTest is YulTestBase {
         address ownerBefore = readStorageAddr(0);
 
         (bool success,) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
 
         assertEq(readStorage(2), supplyBefore, "Supply unchanged");
         assertEq(readStorageAddr(0), ownerBefore, "Owner unchanged");
@@ -175,15 +175,15 @@ contract PropertySimpleTokenTest is YulTestBase {
      */
     function testProperty_Mint_IncreasesBalance() public {
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("balanceOf(address)", bob));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balanceBefore = abi.decode(data, (uint256));
 
         vm.prank(owner);
         (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, 50));
-        require(success);
+        require(success, "mint failed");
 
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", bob));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balanceAfter = abi.decode(data, (uint256));
 
         assertEq(balanceAfter, balanceBefore + 50, "Balance should increase by mint amount");
@@ -195,15 +195,15 @@ contract PropertySimpleTokenTest is YulTestBase {
      */
     function testProperty_Mint_IncreasesTotalSupply() public {
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supplyBefore = abi.decode(data, (uint256));
 
         vm.prank(owner);
         (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 75));
-        require(success);
+        require(success, "mint failed");
 
         (success, data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supplyAfter = abi.decode(data, (uint256));
 
         assertEq(supplyAfter, supplyBefore + 75, "Total supply should increase by mint amount");
@@ -260,7 +260,7 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Owner should be preserved");
     }
@@ -272,11 +272,11 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_MintThenBalanceOf_Correct() public {
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", charlie, 200));
-        require(success);
+        require(success, "mint failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", charlie));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balance = abi.decode(data, (uint256));
 
         assertEq(balance, 200, "balanceOf should return minted amount");
@@ -288,15 +288,15 @@ contract PropertySimpleTokenTest is YulTestBase {
      */
     function testProperty_MintThenGetTotalSupply_Correct() public {
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supplyBefore = abi.decode(data, (uint256));
 
         vm.prank(owner);
         (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 150));
-        require(success);
+        require(success, "mint failed");
 
         (success, data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supplyAfter = abi.decode(data, (uint256));
 
         assertEq(supplyAfter, supplyBefore + 150, "Total supply should reflect mint");
@@ -311,20 +311,20 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup: mint to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balanceBefore = abi.decode(data, (uint256));
 
         // Transfer from alice to bob
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 30));
-        require(success);
+        require(success, "transfer failed");
 
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balanceAfter = abi.decode(data, (uint256));
 
         assertEq(balanceAfter, balanceBefore - 30, "Sender balance should decrease");
@@ -338,20 +338,20 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup: mint to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", bob));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 bobBalanceBefore = abi.decode(data, (uint256));
 
         // Transfer from alice to bob
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 40));
-        require(success);
+        require(success, "transfer failed");
 
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", bob));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 bobBalanceAfter = abi.decode(data, (uint256));
 
         assertEq(bobBalanceAfter, bobBalanceBefore + 40, "Recipient balance should increase");
@@ -364,15 +364,15 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Transfer_Self_PreservesBalance() public {
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", alice, 40));
-        require(success);
+        require(success, "transfer failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balance = abi.decode(data, (uint256));
         assertEq(balance, 100, "Self-transfer should not change balance");
     }
@@ -385,20 +385,20 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup: mint to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supplyBefore = abi.decode(data, (uint256));
 
         // Transfer
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 50));
-        require(success);
+        require(success, "transfer failed");
 
         (success, data) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
         uint256 supplyAfter = abi.decode(data, (uint256));
 
         assertEq(supplyAfter, supplyBefore, "Total supply should be preserved");
@@ -447,14 +447,14 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup: mint to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         address ownerBefore = readStorageAddr(0);
 
         // Transfer
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 20));
-        require(success);
+        require(success, "transfer failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Owner should be preserved");
     }
@@ -467,16 +467,16 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Mint 100 to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         // Transfer 25 to bob
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 25));
-        require(success);
+        require(success, "transfer failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balance = abi.decode(data, (uint256));
 
         assertEq(balance, 75, "Alice balance should be 75 after transfer");
@@ -490,16 +490,16 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Mint 100 to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         // Transfer 60 to charlie
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", charlie, 60));
-        require(success);
+        require(success, "transfer failed");
 
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", charlie));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 balance = abi.decode(data, (uint256));
 
         assertEq(balance, 60, "Charlie balance should be 60 after transfer");
@@ -535,7 +535,7 @@ contract PropertySimpleTokenTest is YulTestBase {
      */
     function testProperty_GetTotalSupply_PreservesWellformedness() public {
         (bool success,) = token.call(abi.encodeWithSignature("totalSupply()"));
-        require(success);
+        require(success, "totalSupply failed");
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
@@ -549,7 +549,7 @@ contract PropertySimpleTokenTest is YulTestBase {
      */
     function testProperty_GetOwner_PreservesWellformedness() public {
         (bool success,) = token.call(abi.encodeWithSignature("owner()"));
-        require(success);
+        require(success, "owner failed");
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
@@ -563,7 +563,7 @@ contract PropertySimpleTokenTest is YulTestBase {
      */
     function testProperty_BalanceOf_PreservesWellformedness() public {
         (bool success,) = token.call(abi.encodeWithSignature("balanceOf(address)", alice));
-        require(success);
+        require(success, "balanceOf failed");
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
@@ -578,7 +578,7 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Mint_PreservesWellformedness() public {
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
@@ -594,12 +594,12 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup: mint to alice
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         // Transfer
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 50));
-        require(success);
+        require(success, "transfer failed");
 
         address tokenOwner = readStorageAddr(0);
         uint256 supply = readStorage(2);
@@ -660,7 +660,7 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Owner storage isolated");
     }
@@ -674,7 +674,7 @@ contract PropertySimpleTokenTest is YulTestBase {
 
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", bob, 50));
-        require(success);
+        require(success, "mint failed");
 
         // Owner slot should be unchanged
         assertEq(readStorageAddr(0), ownerBefore, "Non-supply storage isolated");
@@ -687,17 +687,17 @@ contract PropertySimpleTokenTest is YulTestBase {
     function testProperty_Mint_BalanceMappingIsolated() public {
         // Get charlie's balance before
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("balanceOf(address)", charlie));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 charlieBefore = abi.decode(data, (uint256));
 
         // Mint to alice
         vm.prank(owner);
         (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         // Charlie's balance should be unchanged
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", charlie));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 charlieAfter = abi.decode(data, (uint256));
 
         assertEq(charlieAfter, charlieBefore, "Other balances isolated");
@@ -711,14 +711,14 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         address ownerBefore = readStorageAddr(0);
 
         // Transfer
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 30));
-        require(success);
+        require(success, "transfer failed");
 
         assertEq(readStorageAddr(0), ownerBefore, "Owner storage isolated");
     }
@@ -731,14 +731,14 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         uint256 supplyBefore = readStorage(2);
 
         // Transfer
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 40));
-        require(success);
+        require(success, "transfer failed");
 
         assertEq(readStorage(2), supplyBefore, "Supply storage isolated");
     }
@@ -751,26 +751,26 @@ contract PropertySimpleTokenTest is YulTestBase {
         // Setup: mint to alice and charlie
         vm.prank(owner);
         (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", alice, 100));
-        require(success);
+        require(success, "mint failed");
 
         vm.prank(owner);
         (success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", charlie, 50));
-        require(success);
+        require(success, "mint failed");
 
         // Get charlie's balance before
         bytes memory data;
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", charlie));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 charlieBefore = abi.decode(data, (uint256));
 
         // Transfer from alice to bob
         vm.prank(alice);
         (success,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 30));
-        require(success);
+        require(success, "transfer failed");
 
         // Charlie's balance should be unchanged
         (success, data) = token.call(abi.encodeWithSignature("balanceOf(address)", charlie));
-        require(success);
+        require(success, "balanceOf failed");
         uint256 charlieAfter = abi.decode(data, (uint256));
 
         assertEq(charlieAfter, charlieBefore, "Third party balances isolated");

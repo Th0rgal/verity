@@ -51,7 +51,7 @@ contract CallValueGuardTest is YulTestBase {
     function testCallValueGuard_Counter_Decrement() public {
         // First increment so decrement doesn't underflow
         (bool s,) = counter.call(abi.encodeWithSignature("increment()"));
-        require(s);
+        require(s, "setup increment failed");
 
         vm.prank(alice);
         (bool reverted,) = counter.call{value: 1 wei}(abi.encodeWithSignature("decrement()"));
@@ -131,7 +131,7 @@ contract CallValueGuardTest is YulTestBase {
     function testCallValueGuard_SafeCounter_Decrement() public {
         // First increment
         (bool s,) = safeCounter.call(abi.encodeWithSignature("increment()"));
-        require(s);
+        require(s, "setup increment failed");
 
         vm.prank(alice);
         (bool reverted,) = safeCounter.call{value: 1 wei}(

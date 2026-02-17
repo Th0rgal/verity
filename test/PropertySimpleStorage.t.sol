@@ -91,7 +91,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value)
         );
-        require(success);
+        require(success, "store failed");
 
         // Assert: Other slots unchanged
         assertEq(readStorage(1), slot1Before, "Slot 1 should be unchanged");
@@ -115,7 +115,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value)
         );
-        require(success);
+        require(success, "store failed");
 
         (, bytes memory data) = simpleStorage.call(
             abi.encodeWithSignature("retrieve()")
@@ -134,7 +134,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value)
         );
-        require(success);
+        require(success, "store failed");
 
         assertEq(readStorage(0), value, "store_spec: slot 0 = value");
     }
@@ -193,7 +193,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value)
         );
-        require(success);
+        require(success, "store failed");
 
         (, bytes memory data) = simpleStorage.call(
             abi.encodeWithSignature("retrieve()")
@@ -213,7 +213,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value)
         );
-        require(success);
+        require(success, "store failed");
 
         // Action: Retrieve twice
         (, bytes memory data1) = simpleStorage.call(
@@ -246,7 +246,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value)
         );
-        require(success);
+        require(success, "store failed");
 
         // Assert: Other slot unchanged
         assertEq(
@@ -267,12 +267,12 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value1)
         );
-        require(success);
+        require(success, "store failed");
 
         (success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value2)
         );
-        require(success);
+        require(success, "store failed");
 
         // Verify final state
         assertEq(readStorage(0), value2, "Final value correct");
@@ -310,7 +310,7 @@ contract PropertySimpleStorageTest is YulTestBase {
             (bool success,) = simpleStorage.call(
                 abi.encodeWithSignature("store(uint256)", values[i])
             );
-            require(success);
+            require(success, "store failed");
         }
 
         // Verify last value is stored
@@ -332,7 +332,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value1)
         );
-        require(success);
+        require(success, "store failed");
 
         (, bytes memory data1) = simpleStorage.call(
             abi.encodeWithSignature("retrieve()")
@@ -342,7 +342,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value2)
         );
-        require(success);
+        require(success, "store failed");
 
         (, bytes memory data2) = simpleStorage.call(
             abi.encodeWithSignature("retrieve()")
@@ -352,7 +352,7 @@ contract PropertySimpleStorageTest is YulTestBase {
         (success,) = simpleStorage.call(
             abi.encodeWithSignature("store(uint256)", value3)
         );
-        require(success);
+        require(success, "store failed");
 
         (, bytes memory data3) = simpleStorage.call(
             abi.encodeWithSignature("retrieve()")
