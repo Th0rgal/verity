@@ -215,7 +215,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-yul
-          path: compiler/yul/yul
+          path: compiler/yul
 
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v4
