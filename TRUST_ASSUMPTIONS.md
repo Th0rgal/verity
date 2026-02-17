@@ -45,6 +45,7 @@ EVM Bytecode
 | Linked Libraries (Linker) | ⚠️ Trusted | Varies |
 | Mapping Slot Collision Freedom | ⚠️ Trusted | Low |
 | Arithmetic Semantics | ⚠️ Documented | Low |
+| Address Type | ⚠️ Documented | Low |
 | Lean 4 Type Checker | ⚠️ Foundational | Very Low |
 | `allowUnsafeReducibility` | ⚠️ Documented | Low |
 
@@ -442,6 +443,57 @@ uint256 x = type(uint256).max + 1;  // reverts with overflow
 **Future Work**:
 - Add a `CheckedUint256` type that automatically validates on each operation
 - Issue tracking: #162
+
+---
+
+### 9. Address Type: String Without Validation
+
+**Role**: Ethereum addresses are represented as plain `String` throughout the codebase (`Verity/Core.lean:19`):
+
+```lean
+abbrev Address := String
+```
+
+**Assumption**: Contract specifications and proofs assume addresses are well-formed 20-byte hex strings (with `0x` prefix), but no validation is enforced at the type level.
+
+**Details**:
+
+Two axioms depend on address injectivity:
+- `addressToNat_injective` (Automation.lean): Claims `addressToNat a = addressToNat b → a = b`
+- `addressToNat_injective_valid` (Conversions.lean): Same but requires `isValidAddress` pre-condition
+
+Since `Address = String`, any string can be used as an address. The axiom `addressToNat_injective` (without validity check) is technically unsound for arbitrary strings — `addressToNat "0xFF"` might equal `addressToNat "0xff"` while the strings are different.
+
+**Impact**:
+
+| Issue | Description | Risk |
+|-------|-------------|------|
+| Type Safety | No compile-time protection against invalid addresses | Low |
+| Case Sensitivity | String equality is case-sensitive, but Ethereum addresses are case-insensitive (EIP-55) | Low |
+| Axiom Soundness | `addressToNat_injective` may not hold for invalid strings | Low |
+
+**Mitigation Strategies**:
+
+1. **Use Valid Addresses**: Always use properly formatted Ethereum addresses (e.g., `"0x1234...abcd"`)
+
+2. **Case Consistency**: Use consistent casing when comparing addresses (both uppercase or both lowercase)
+
+3. **EDSL Validation**: The EDSL does not validate address format - this is a trust assumption
+
+**Risk Assessment**: **Low**
+- This is documented here as a known limitation
+- The stronger axiom with `isValidAddress` guard is more defensible
+- In practice, addresses used in tests and examples are well-formed
+
+**Recommendation for Developers**:
+- Use consistently cased addresses in proofs and tests
+- When comparing addresses, normalize to lowercase first
+- For production use, validate addresses before using them in contracts
+
+**Future Work**:
+- Create a validated Address type: `structure Address where hex : String, isValid : ...`
+- Use `Fin (2^160)` or `ByteArray` of length 20 for type-safe address representation
+- Issue tracking: #150
 
 ---
 
