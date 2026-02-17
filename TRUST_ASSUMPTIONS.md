@@ -79,7 +79,7 @@ theorem increment_correct (state : ContractState) :
     finalState.storage countSlot = add (state.storage countSlot) 1
 ```
 
-**Coverage**: 220 properties tested across 9 contracts (72% coverage, 305 total theorems)
+**Coverage**: All 305 theorems are formally proven (100% proof coverage). Additionally, 220 theorems have corresponding Foundry property tests (72% runtime test coverage).
 
 **What this guarantees**:
 - Contract behavior matches specification

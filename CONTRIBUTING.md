@@ -35,7 +35,10 @@ Closes #X, addresses #Y
 
 **Before submitting**:
 ```bash
-lake build  # Must pass
+lake build  # Must pass — verifies all proofs
+FOUNDRY_PROFILE=difftest forge test  # Must pass — runs all Foundry tests
+# FOUNDRY_PROFILE=difftest is required because property and differential
+# tests use vm.ffi() to invoke the Lean-based interpreter
 # No new `sorry` without documentation
 # No new `axiom` without documenting in AXIOMS.md
 # Update docs/ROADMAP.md if architectural changes
