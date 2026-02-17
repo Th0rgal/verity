@@ -79,7 +79,7 @@ theorem increment_correct (state : ContractState) :
     finalState.storage countSlot = add (state.storage countSlot) 1
 ```
 
-**Coverage**: 220 properties tested across 9 contracts (73% coverage, 305 total theorems)
+**Coverage**: 220 properties tested across 9 contracts (72% coverage, 305 total theorems)
 
 **What this guarantees**:
 - Contract behavior matches specification
@@ -677,7 +677,7 @@ Use this checklist when performing security audits of Verity-verified contracts.
    - Effort: 3-4 months
 
 2. **Further Axiom Elimination**
-   - 3 of 5 axioms already eliminated (PR #241: evalIRExpr, evalIRExprs, execIRStmtsFuel adequacy)
+   - 4 of 6 axioms already eliminated (3 via Issue #148, 1 via PR #202)
    - Remaining: formalize hex string parsing for `addressToNat_injective`
    - Remaining: prove `keccak256_first_4_bytes` via a Lean keccak256 implementation
 

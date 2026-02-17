@@ -18,6 +18,8 @@ on:
       - 'lean-toolchain'
       - 'foundry.toml'
       - 'AXIOMS.md'
+      - 'README.md'
+      - 'TRUST_ASSUMPTIONS.md'
   pull_request:
     paths:
       - '.github/workflows/verify.yml'
@@ -34,6 +36,8 @@ on:
       - 'lean-toolchain'
       - 'foundry.toml'
       - 'AXIOMS.md'
+      - 'README.md'
+      - 'TRUST_ASSUMPTIONS.md'
   workflow_dispatch:
 
 env:

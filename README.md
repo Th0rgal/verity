@@ -41,7 +41,7 @@ lake exe verity-compiler                      # Output in compiler/yul/
 **With external libraries (e.g., Poseidon hash):**
 ```bash
 # Link your Yul library at compile time
-lake exe verity-compiler --link libs/MyLib.yul -o compiler/yul
+lake exe verity-compiler --link examples/external-libs/MyLib.yul -o compiler/yul
 ```
 
 **Run tests:**
@@ -118,7 +118,7 @@ def myHash (a b : Uint256) : Contract Uint256 := do
 -- 2. ContractSpec calls the real library
 Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 
--- 3. Compile with: lake exe verity-compiler --link libs/MyHash.yul
+-- 3. Compile with: lake exe verity-compiler --link examples/external-libs/MyHash.yul
 ```
 
 See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
@@ -215,7 +215,7 @@ Stmt.letVar "h" (Expr.externalCall "poseidonHash" [Expr.param "a", Expr.param "b
 
 3. **Compile with linking**:
 ```bash
-lake exe verity-compiler --link libs/MyHash.yul -o compiler/yul
+lake exe verity-compiler --link examples/external-libs/MyHash.yul -o compiler/yul
 ```
 
 The compiler validates function names, arities, and prevents name collisions. See [`examples/external-libs/README.md`](examples/external-libs/README.md) for detailed guidance.

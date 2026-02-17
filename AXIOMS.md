@@ -85,7 +85,7 @@ axiom addressToNat_injective :
 
 ### `evalIRExpr_eq_evalYulExpr` (formerly axiom #1)
 
-**Eliminated in**: This PR (Issue #148)
+**Eliminated in**: Issue #148
 
 **Previous statement**:
 ```lean
@@ -99,7 +99,7 @@ axiom evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : Yul
 
 ### `evalIRExprs_eq_evalYulExprs` (formerly axiom #2)
 
-**Eliminated in**: This PR (Issue #148)
+**Eliminated in**: Issue #148
 
 **Previous statement**:
 ```lean
@@ -111,7 +111,7 @@ axiom evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : 
 
 ### `execIRStmtsFuel_adequate` (formerly axiom #3)
 
-**Eliminated in**: This PR (Issue #148)
+**Eliminated in**: Issue #148
 
 **Previous statement**:
 ```lean
@@ -123,7 +123,7 @@ axiom execIRStmtsFuel_adequate (state : IRState) (stmts : List YulStmt) :
 
 **Impact**: Eliminated the fuel adequacy axiom entirely. `execIRFunction` and `interpretIR` now use the total, fuel-based definitions directly.
 
-### `addressToNat_injective_valid` (formerly axiom #3, eliminated earlier)
+### `addressToNat_injective_valid` (formerly axiom #4)
 
 **Eliminated in**: PR #202 (2026-02-16)
 
