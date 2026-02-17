@@ -184,25 +184,25 @@ contract PropertyOwnedTest is YulTestBase {
     function testProperty_TransferOwnership_UpdatesOwner() public {
         address currentOwner = readOwner();
 
-        // Transfer to ALICE
+        // Transfer to BOB (currentOwner is ALICE from setUp)
         vm.prank(currentOwner);
         (bool success,) = owned.call(
-            abi.encodeWithSignature("transferOwnership(address)", ALICE)
-        );
-        require(success);
-
-        // Assert: Owner is now ALICE
-        assertEq(readOwner(), ALICE, "Owner updated to ALICE");
-
-        // Transfer to BOB
-        vm.prank(ALICE);
-        (success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
         require(success);
 
         // Assert: Owner is now BOB
         assertEq(readOwner(), BOB, "Owner updated to BOB");
+
+        // Transfer to CAROL
+        vm.prank(BOB);
+        (success,) = owned.call(
+            abi.encodeWithSignature("transferOwnership(address)", CAROL)
+        );
+        require(success);
+
+        // Assert: Owner is now CAROL
+        assertEq(readOwner(), CAROL, "Owner updated to CAROL");
     }
 
     /**
@@ -372,37 +372,26 @@ contract PropertyOwnedTest is YulTestBase {
     }
 
     function testProperty_ExclusiveOwnership_ChainedTransfer() public {
-        address owner0 = readOwner();
-
-        // Transfer: owner0 -> ALICE
-        vm.prank(owner0);
-        (bool success,) = owned.call(
-            abi.encodeWithSignature("transferOwnership(address)", ALICE)
-        );
-        require(success);
+        // setUp deploys with ALICE as owner — chain: ALICE -> BOB -> CAROL
+        assertEq(readOwner(), ALICE, "Initial owner is ALICE");
 
         // Transfer: ALICE -> BOB
         vm.prank(ALICE);
-        (success,) = owned.call(
+        (bool success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", BOB)
         );
         require(success);
+        assertEq(readOwner(), BOB, "Owner is BOB after first transfer");
 
-        // Assert: Only BOB can transfer now
+        // Transfer: BOB -> CAROL
         vm.prank(BOB);
         (success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", CAROL)
         );
-        assertTrue(success, "Current owner can transfer");
-        assertEq(readOwner(), CAROL, "Ownership transferred to CAROL");
+        require(success);
+        assertEq(readOwner(), CAROL, "Owner is CAROL after second transfer");
 
-        // Assert: Previous owners cannot transfer
-        vm.prank(owner0);
-        (success,) = owned.call(
-            abi.encodeWithSignature("transferOwnership(address)", owner0)
-        );
-        assertFalse(success, "owner0 cannot transfer");
-
+        // Assert: All previous owners cannot transfer
         vm.prank(ALICE);
         (success,) = owned.call(
             abi.encodeWithSignature("transferOwnership(address)", ALICE)
