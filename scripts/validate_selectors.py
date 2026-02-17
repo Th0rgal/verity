@@ -13,14 +13,13 @@ Used in CI to ensure selector axiom usage is correct.
 
 import re
 import sys
-import os
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict
 
 ROOT = Path(__file__).resolve().parent.parent
 
 # Import the existing keccak256 implementation
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from keccak256 import keccak_256
 
 

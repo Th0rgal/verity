@@ -7,8 +7,6 @@ import argparse
 from pathlib import Path
 
 from property_utils import (
-    EXCLUSIONS,
-    MANIFEST,
     collect_covered,
     load_exclusions,
     load_manifest,

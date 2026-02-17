@@ -29,8 +29,8 @@ def get_manifest_counts() -> tuple[int, int, dict[str, int]]:
     return total, len(data), per_contract
 
 
-def get_axiom_count() -> int:
-    """Count axiom declarations in Lean files."""
+def _count_lean_lines(pattern: str) -> int:
+    """Count lines matching *pattern* across all Lean files in Compiler/ and Verity/."""
     count = 0
     for d in [ROOT / "Compiler", ROOT / "Verity"]:
         if not d.exists():
@@ -38,9 +38,14 @@ def get_axiom_count() -> int:
         for lean in d.rglob("*.lean"):
             text = lean.read_text(encoding="utf-8")
             for line in text.splitlines():
-                if re.match(r"^axiom\s+", line):
+                if re.match(pattern, line):
                     count += 1
     return count
+
+
+def get_axiom_count() -> int:
+    """Count axiom declarations in Lean files."""
+    return _count_lean_lines(r"^axiom\s+")
 
 
 def get_test_counts() -> tuple[int, int]:
@@ -61,20 +66,8 @@ def get_core_line_count() -> int:
 
 
 def get_sorry_count() -> int:
-    """Count sorry statements in Lean proof files.
-
-    Matches both plain ``sorry`` and focus-bullet ``· sorry`` syntax.
-    """
-    count = 0
-    for d in [ROOT / "Compiler", ROOT / "Verity"]:
-        if not d.exists():
-            continue
-        for lean in d.rglob("*.lean"):
-            text = lean.read_text(encoding="utf-8")
-            for line in text.splitlines():
-                if re.match(r"^\s*(·\s*)?sorry\b", line):
-                    count += 1
-    return count
+    """Count sorry statements in Lean proof files."""
+    return _count_lean_lines(r"^\s*(·\s*)?sorry\b")
 
 
 def get_exclusion_count() -> int:
