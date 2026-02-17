@@ -73,18 +73,19 @@ This lets proofs reason about both the success path and the revert path of guard
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `store_retrieve_correct` | After storing v, retrieve returns v |
-| 2 | `store_meets_spec` | Store satisfies formal specification |
-| 3 | `retrieve_meets_spec` | Retrieve satisfies formal specification |
-| 4 | `setStorage_updates_slot` | Updates the correct storage slot |
-| 5 | `setStorage_preserves_other_slots` | Other slots unchanged |
+| 1 | `setStorage_updates_slot` | Updates the correct storage slot |
+| 2 | `getStorage_reads_slot` | Reads the correct storage slot |
+| 3 | `setStorage_preserves_other_slots` | Other slots unchanged |
+| 4 | `setStorage_preserves_sender` | msg.sender preserved |
+| 5 | `setStorage_preserves_address` | Contract address preserved |
 | 6 | `setStorage_preserves_addr_storage` | Address storage unaffected |
 | 7 | `setStorage_preserves_map_storage` | Mapping storage unaffected |
-| 8 | `setStorage_preserves_sender` | msg.sender preserved |
-| 9 | `setStorage_preserves_address` | Contract address preserved |
-| 10 | `store_preserves_wellformedness` | Well-formed state maintained |
-| 11 | `retrieve_preserves_state` | Read doesn't modify state |
-| 12 | `store_retrieve_spec_composition` | Spec composition correctness |
+| 8 | `store_meets_spec` | Store satisfies formal specification |
+| 9 | `retrieve_meets_spec` | Retrieve satisfies formal specification |
+| 10 | `store_retrieve_correct` | After storing v, retrieve returns v |
+| 11 | `store_preserves_wellformedness` | Well-formed state maintained |
+| 12 | `retrieve_preserves_state` | Read doesn't modify state |
+| 13 | `retrieve_twice_idempotent` | Two consecutive retrieves are idempotent |
 
 **Correctness:**
 
@@ -104,25 +105,25 @@ This lets proofs reason about both the success path and the revert path of guard
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `constructor_meets_spec` | Constructor sets count to 0 |
-| 2 | `constructor_sets_count_zero` | Initial count is zero |
-| 3 | `getValue_meets_spec` | getValue reads correct slot |
-| 4 | `getValue_returns_count` | Returns stored count |
-| 5 | `increment_meets_spec` | Increment satisfies spec |
-| 6 | `increment_adds_one` | Count increases by exactly 1 |
-| 7 | `increment_preserves_other_slots` | Other slots unchanged |
-| 8 | `decrement_meets_spec` | Decrement satisfies spec |
-| 9 | `decrement_subtracts_one` | Count decreases by exactly 1 |
-| 10 | `increment_decrement_inverse` | Increment then decrement equals identity |
-| 11 | `decrement_increment_inverse` | Decrement then increment equals identity |
-| 12 | `increment_twice_adds_two` | Two increments add 2 |
-| 13 | `increment_preserves_sender` | Sender preserved |
-| 14 | `increment_preserves_address` | Contract address preserved |
-| 15 | `increment_preserves_wellformedness` | Well-formedness maintained |
-| 16 | `constructor_increment_gives_one` | Constructor then increment equals 1 |
-| 17 | `constructor_getValue_gives_zero` | Constructor then getValue equals 0 |
-| 18 | `decrement_preserves_other_slots` | Other slots unchanged |
-| 19 | `decrement_preserves_wellformedness` | Well-formedness maintained |
+| 1 | `setStorage_updates_count` | Updates the count storage slot |
+| 2 | `getStorage_reads_count` | Reads the count storage slot |
+| 3 | `setStorage_preserves_other_slots` | Other slots unchanged |
+| 4 | `setStorage_preserves_context` | Sender and contract address preserved |
+| 5 | `setStorage_preserves_addr_storage` | Address storage unaffected |
+| 6 | `setStorage_preserves_map_storage` | Mapping storage unaffected |
+| 7 | `increment_meets_spec` | Increment satisfies formal specification |
+| 8 | `increment_adds_one` | Count increases by exactly 1 |
+| 9 | `decrement_meets_spec` | Decrement satisfies formal specification |
+| 10 | `decrement_subtracts_one` | Count decreases by exactly 1 |
+| 11 | `getCount_meets_spec` | getCount satisfies formal specification |
+| 12 | `getCount_reads_count_value` | Returns stored count value |
+| 13 | `increment_getCount_correct` | Increment then getCount returns count + 1 |
+| 14 | `decrement_getCount_correct` | Decrement then getCount returns count - 1 |
+| 15 | `increment_twice_adds_two` | Two increments add 2 |
+| 16 | `increment_decrement_cancel` | Increment then decrement equals identity |
+| 17 | `increment_preserves_wellformedness` | Well-formedness maintained |
+| 18 | `decrement_preserves_wellformedness` | Well-formedness maintained |
+| 19 | `getCount_preserves_state` | Read doesn't modify state |
 
 **Correctness:**
 
@@ -137,7 +138,7 @@ This lets proofs reason about both the success path and the revert path of guard
 | 7 | `increment_decrement_meets_cancel` | Cancellation property |
 | 8 | `getCount_preserves_wellformedness` | Read-only well-formedness |
 | 9 | `decrement_getCount_correct` | Decrement then getCount equals count - 1 |
-| 10 | `decrement_at_zero_stays_zero` | Decrementing at zero saturates to zero |
+| 10 | `decrement_at_zero_wraps_max` | Decrementing at zero wraps to MAX_UINT256 |
 
 ### Owned
 

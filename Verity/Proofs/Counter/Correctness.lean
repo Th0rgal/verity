@@ -145,6 +145,9 @@ Read-only preservation:
 
 Composition:
 9. decrement_getCount_correct
+
+EVM edge cases:
+10. decrement_at_zero_wraps_max
 -/
 
 end Verity.Proofs.Counter.Correctness
