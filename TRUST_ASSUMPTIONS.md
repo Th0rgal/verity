@@ -242,9 +242,9 @@ These components are **not formally verified** but are trusted based on testing,
 **Assumption**: The keccak256-based storage slot calculation used by Solidity (and Verity's compiled Yul) for mapping entries is collision-free in practice — distinct `(key, baseSlot)` pairs produce distinct storage slot addresses.
 
 **Details**:
-- **Lean model**: Mappings are modeled as pure functions (`storageMap : Nat → Address → Uint256`). Reading `storageMap slot addr` is a direct function application — no hash computation.
+- **Lean proof model**: Mapping slots use `mappingTag = 2^256` (defined in `Compiler/Proofs/MappingEncoding.lean:14`) as an out-of-range tag to route mapping storage. A mapping access `storageMap[slot][addr]` is encoded as slot `mappingTag + baseSlot * maxKeys + addressToNat(addr)`. Since `mappingTag = 2^256` exceeds the EVM word range (0 to 2^256-1), mapping slots are guaranteed to never collide with direct storage slots in the proof model.
 - **Yul implementation**: Mappings use `keccak256(abi.encodePacked(key, baseSlot))` to derive a storage slot address, then read/write via `sload`/`sstore`.
-- **The gap**: The Lean proofs reason about an idealized mapping model. The Yul code uses hash-based slot derivation. These are equivalent only if keccak256 mapping slots never collide with each other or with direct storage slots (0, 1, 2, ...).
+- **The gap**: The Lean proofs reason about a tag-based separation model. The Yul code uses hash-based slot derivation. These are equivalent only if (1) keccak256 mapping slots never collide with each other or with direct storage slots (0, 1, 2, ...), and (2) the tag-based Lean encoding is injective (distinct `(slot, addr)` pairs produce distinct encoded values).
 
 **Why this is safe**:
 1. This is a [standard Ethereum assumption](https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html) — all Solidity contracts rely on it
@@ -488,7 +488,7 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
 **Future Work**:
 - Create a validated Address type: `structure Address where hex : String, isValid : ...`
 - Use `Fin (2^160)` or `ByteArray` of length 20 for type-safe address representation
-- Issue tracking: #150
+- Issue tracking: #150, #253
 
 ---
 
@@ -585,7 +585,7 @@ Verity uses **2 axioms** across the verification codebase. All axioms are docume
 | Axiom | Purpose | Risk | Validation |
 |-------|---------|------|------------|
 | `keccak256_first_4_bytes` | Function selector computation | Low | CI validation against solc --hashes |
-| `addressToNat_injective` | Address-to-Nat mapping injectivity | Low | EVM address semantics |
+| `addressToNat_injective` | Address-to-Nat mapping injectivity | Low | EVM address semantics (see #253) |
 
 **Key Points**:
 - All axioms have **low risk** with strong soundness arguments
