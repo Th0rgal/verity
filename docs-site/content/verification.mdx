@@ -146,20 +146,24 @@ This lets proofs reason about both the success path and the revert path of guard
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `constructor_meets_spec` | Constructor sets owner to sender |
-| 2 | `constructor_sets_owner` | Owner equals deployer |
-| 3 | `getOwner_meets_spec` | getOwner reads correct slot |
-| 4 | `getOwner_returns_owner` | Returns stored owner |
-| 5 | `isOwner_correct_when_owner` | isOwner returns true for owner |
-| 6 | `isOwner_correct_when_not_owner` | isOwner returns false for non-owner |
-| 7 | `constructor_getOwner_composition` | Constructor then getOwner equals sender |
-| 8-12 | Storage preservation theorems | Slots, sender, address preserved |
-| 13 | `constructor_preserves_wellformedness` | Well-formedness maintained |
-| 14 | `transferOwnership_preserves_other_slots` | Other slots unchanged |
-| 15 | `transferOwnership_preserves_wellformedness` | Well-formedness maintained |
-| 16 | `transferOwnership_reverts_when_not_owner` | Non-owner calls revert |
-| 17 | `transferOwnership_meets_spec_when_owner` | Owner transfer satisfies spec |
-| 18 | `transferOwnership_changes_owner_when_allowed` | Owner successfully changed |
+| 1 | `setStorageAddr_updates_owner` | setStorageAddr writes owner slot |
+| 2 | `getStorageAddr_reads_owner` | getStorageAddr reads owner slot |
+| 3 | `setStorageAddr_preserves_other_slots` | Other address slots unchanged |
+| 4 | `setStorageAddr_preserves_uint_storage` | Uint256 storage unchanged |
+| 5 | `setStorageAddr_preserves_map_storage` | Mapping storage unchanged |
+| 6 | `setStorageAddr_preserves_context` | Context unchanged |
+| 7 | `constructor_meets_spec` | Constructor sets owner to sender |
+| 8 | `constructor_sets_owner` | Owner equals deployer |
+| 9 | `getOwner_meets_spec` | getOwner reads correct slot |
+| 10 | `getOwner_returns_owner` | Returns stored owner |
+| 11 | `getOwner_preserves_state` | getOwner is read-only |
+| 12 | `isOwner_meets_spec` | isOwner meets specification |
+| 13 | `isOwner_returns_correct_value` | isOwner returns correct boolean |
+| 14 | `transferOwnership_meets_spec_when_owner` | Owner transfer satisfies spec |
+| 15 | `transferOwnership_changes_owner_when_allowed` | Owner successfully changed |
+| 16 | `constructor_getOwner_correct` | Constructor then getOwner equals sender |
+| 17 | `constructor_preserves_wellformedness` | Well-formedness maintained |
+| 18 | `getOwner_preserves_wellformedness` | getOwner preserves well-formedness |
 
 **Correctness:**
 
@@ -176,21 +180,43 @@ This lets proofs reason about both the success path and the revert path of guard
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1-4 | Constructor theorems | Sets owner, zero supply, zero balances |
-| 5-8 | Read operation theorems | balanceOf, getTotalSupply, getOwner correct |
-| 9-12 | Composition theorems | Constructor then read operations |
-| 13-16 | Storage preservation | Constructor preserves other state |
-| 17 | Well-formedness | Constructor maintains well-formedness |
-| 18 | `mint_meets_spec_when_owner` | Owner mint satisfies full spec |
-| 19 | `mint_increases_balance` | Recipient balance increases by amount |
-| 20 | `mint_increases_supply` | Total supply increases by amount |
-| 21 | `mint_reverts_when_not_owner` | Non-owner mint reverts |
-| 22-25 | Mint preservation | Mint preserves sender, address, other state |
-| 26 | `transfer_meets_spec_when_sufficient` | Transfer satisfies spec (sender != to) |
-| 27 | `transfer_preserves_supply_when_sufficient` | Transfer doesn't change supply |
-| 28 | `transfer_decreases_sender_balance` | Sender balance decreases |
-| 29 | `transfer_increases_recipient_balance` | Recipient balance increases |
-| 30-36 | Transfer preservation | Transfer preserves sender, address, other state |
+| 1 | `setStorageAddr_updates_owner` | setStorageAddr writes owner slot |
+| 2 | `setStorage_updates_supply` | setStorage writes supply slot |
+| 3 | `setMapping_updates_balance` | setMapping writes balance entry |
+| 4 | `getMapping_reads_balance` | getMapping reads balance entry |
+| 5 | `getStorage_reads_supply` | getStorage reads supply slot |
+| 6 | `getStorageAddr_reads_owner` | getStorageAddr reads owner slot |
+| 7 | `setMapping_preserves_other_addresses` | setMapping doesn't change other keys |
+| 8 | `constructor_meets_spec` | Constructor meets full specification |
+| 9 | `constructor_sets_owner` | Owner equals deployer |
+| 10 | `constructor_sets_supply_zero` | Initial supply is zero |
+| 11 | `isOwner_true_when_owner` | isOwner returns true for owner |
+| 12 | `mint_meets_spec_when_owner` | Owner mint satisfies full spec |
+| 13 | `mint_increases_balance` | Recipient balance increases by amount |
+| 14 | `mint_increases_supply` | Total supply increases by amount |
+| 15 | `mint_reverts_balance_overflow` | Mint reverts on balance overflow |
+| 16 | `mint_reverts_supply_overflow` | Mint reverts on supply overflow |
+| 17 | `transfer_meets_spec_when_sufficient` | Transfer satisfies spec |
+| 18 | `transfer_preserves_supply_when_sufficient` | Transfer doesn't change supply |
+| 19 | `transfer_decreases_sender_balance` | Sender balance decreases |
+| 20 | `transfer_increases_recipient_balance` | Recipient balance increases |
+| 21 | `transfer_self_preserves_balance` | Self-transfer is a no-op |
+| 22 | `transfer_reverts_recipient_overflow` | Transfer reverts on recipient overflow |
+| 23 | `balanceOf_meets_spec` | balanceOf meets specification |
+| 24 | `balanceOf_returns_balance` | balanceOf returns stored value |
+| 25 | `balanceOf_preserves_state` | balanceOf is read-only |
+| 26 | `getTotalSupply_meets_spec` | getTotalSupply meets specification |
+| 27 | `getTotalSupply_returns_supply` | getTotalSupply returns stored value |
+| 28 | `getTotalSupply_preserves_state` | getTotalSupply is read-only |
+| 29 | `getOwner_meets_spec` | getOwner meets specification |
+| 30 | `getOwner_returns_owner` | getOwner returns stored value |
+| 31 | `getOwner_preserves_state` | getOwner is read-only |
+| 32 | `constructor_getTotalSupply_correct` | Constructor then getTotalSupply correct |
+| 33 | `constructor_getOwner_correct` | Constructor then getOwner correct |
+| 34 | `constructor_preserves_wellformedness` | Constructor preserves well-formedness |
+| 35 | `balanceOf_preserves_wellformedness` | balanceOf preserves well-formedness |
+| 36 | `getTotalSupply_preserves_wellformedness` | getTotalSupply preserves well-formedness |
+| 37 | `getOwner_preserves_wellformedness` | getOwner preserves well-formedness |
 
 **Correctness:**
 
@@ -214,8 +240,6 @@ This lets proofs reason about both the success path and the revert path of guard
 | 1 | `constructor_establishes_supply_bounds` | Constructor establishes supply invariant |
 | 2 | `mint_sum_equation` | `new_sum = old_sum + count(to) * amount` |
 | 3 | `transfer_sum_equation` | `new_sum + count(sender)*amt = old_sum + count(to)*amt` |
-| 4 | `transfer_sum_bounded` | `new_sum <= old_sum + count(to) * amount` |
-| 5-9 | Helper lemmas | countOcc, map_sum_point_update, map_sum_transfer_eq |
 
 Transfer proofs now handle self-transfer by modeling it as a no-op (preloading balances and applying a zero delta), so `sender != to` is no longer required. Supply conservation still uses exact sum equations rather than the `supply_bounds_balances` invariant, which cannot be preserved for lists with duplicate addresses.
 
