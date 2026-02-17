@@ -53,7 +53,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache elan + Lean toolchain
+        id: cache-elan
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ hashFiles('lean-toolchain') }}
+
       - name: Install elan
+        if: steps.cache-elan.outputs.cache-hit != 'true'
         env:
           ELAN_VERSION: "v4.1.2"
           ELAN_INIT_SHA256: "4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264"
@@ -62,16 +70,23 @@ jobs:
           echo "${ELAN_INIT_SHA256}  elan-init.sh" | sha256sum -c -
           bash elan-init.sh -y --default-toolchain none
           rm elan-init.sh
-          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Add elan to PATH
+        run: echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
       - name: Cache Lake packages
         uses: actions/cache@v4
         with:
           path: .lake
-          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}
-          restore-keys: lake-${{ hashFiles('lean-toolchain') }}-
+          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ github.sha }}
+          restore-keys: |
+            lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
+            lake-${{ hashFiles('lean-toolchain') }}-
+          save-always: true
 
       - name: Build and verify all proofs
+        env:
+          LEAN_NUM_THREADS: 2
         run: lake build
 
       - name: Check for sorry
