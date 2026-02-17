@@ -58,6 +58,20 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 
 **Unverified examples**: [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.
 
+### Using External Libraries (Linker)
+
+Verity supports linking external Yul libraries (e.g., cryptographic libraries) to your verified contracts:
+
+```bash
+# Compile with external libraries
+lake exe verity-compiler \
+    --link examples/external-libs/PoseidonT3.yul \
+    --link examples/external-libs/PoseidonT4.yul \
+    -o compiler/yul
+```
+
+This lets you prove contract logic with simple placeholders, then swap in production cryptographic implementations at compile time. See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide.
+
 300 theorems across 9 categories. 352 Foundry tests across 25 test suites. 220 covered by property tests (73% coverage, 80 proof-only exclusions). 5 documented axioms, 6 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
@@ -127,6 +141,32 @@ This scaffolds the full file layout:
 6. **Tests** - `test/Property<Name>.t.sol`
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for conventions and workflow.
+
+</details>
+
+<details>
+<summary><strong>Linking external libraries</strong></summary>
+
+Use the Linker to integrate production cryptographic libraries (Poseidon, Groth16, etc.) with formally verified contract logic:
+
+1. **Write a placeholder** in your Lean contract:
+```lean
+-- Placeholder: simple addition for proofs
+def hash (a b : Uint256) : Contract Uint256 := do
+  return add a b
+```
+
+2. **Add external call** in `Compiler/Specs.lean`:
+```lean
+Stmt.letVar "h" (Expr.externalCall "poseidonHash" [Expr.param 0, Expr.param 1])
+```
+
+3. **Compile with linking**:
+```bash
+lake exe verity-compiler --link libs/MyHash.yul -o compiler/yul
+```
+
+The compiler validates function names, arities, and prevents name collisions. See [`examples/external-libs/README.md`](examples/external-libs/README.md) for detailed guidance.
 
 </details>
 
