@@ -5,9 +5,11 @@
   lists, together with the operations and theorems needed for proving
   balance-conservation properties (e.g. Ledger sum proofs, issue #65).
 
-  Key operations: empty, insert, remove, contains, union, filter, sum.
-  Key theorems:  insert_of_mem, insert_of_not_mem, mem_elements_insert,
-                 card_insert_of_not_mem, card_insert_of_mem.
+  Key operations: empty, insert, remove, contains, union, inter, filter, sum,
+                  subset, member, toList, fromList.
+  Key types: FiniteSet α, FiniteAddressSet, FiniteNatSet.
+  Key theorems: insert_of_mem, insert_of_not_mem, mem_elements_insert,
+                card_insert_of_not_mem, card_insert_of_mem, sum_empty.
 -/
 
 namespace Verity.Core
@@ -70,6 +72,14 @@ def toList (s : FiniteSet α) : List α :=
 def fromList [DecidableEq α] (l : List α) : FiniteSet α :=
   l.foldl (fun acc x => acc.insert x) empty
 
+/-- Check if one set is a subset of another -/
+def subset [DecidableEq α] (s₁ s₂ : FiniteSet α) : Bool :=
+  s₁.elements.all (fun x => s₂.contains x)
+
+/-- Check if an element is a member (alias for contains, returns Prop for proofs) -/
+def member [DecidableEq α] (a : α) (s : FiniteSet α) : Prop :=
+  a ∈ s.elements
+
 /-!
 ### Theorems
 
@@ -127,6 +137,20 @@ theorem card_insert_of_mem [DecidableEq α] (a : α) (s : FiniteSet α) (h : a �
   unfold insert card
   simp [dif_pos h]
 
+/-- Sum of empty set is zero -/
+@[simp] theorem sum_empty [Add β] [OfNat β 0] (f : α → β) :
+    (empty : FiniteSet α).sum f = 0 := rfl
+
+/-- Subset is reflexive -/
+theorem subset_refl [DecidableEq α] (s : FiniteSet α) : s.subset s = true := by
+  unfold subset
+  simp [List.all_eq_true, contains]
+
+/-- Empty set is subset of any set -/
+theorem empty_subset [DecidableEq α] (s : FiniteSet α) : (empty : FiniteSet α).subset s = true := by
+  unfold subset
+  simp
+
 end FiniteSet
 
 /-- Finite set of addresses -/
@@ -157,5 +181,38 @@ def card (s : FiniteAddressSet) : Nat :=
   s.addresses.card
 
 end FiniteAddressSet
+
+/-- Finite set of natural numbers (for ERC721 token ID tracking, issue #73) -/
+structure FiniteNatSet where
+  nats : FiniteSet Nat
+  deriving Repr
+
+namespace FiniteNatSet
+
+/-- Create an empty nat set -/
+def empty : FiniteNatSet :=
+  ⟨FiniteSet.empty⟩
+
+/-- Insert a nat into the set -/
+def insert (n : Nat) (s : FiniteNatSet) : FiniteNatSet :=
+  ⟨s.nats.insert n⟩
+
+/-- Check if a nat is in the set -/
+def contains (n : Nat) (s : FiniteNatSet) : Bool :=
+  s.nats.contains n
+
+/-- Remove a nat from the set -/
+def remove (n : Nat) (s : FiniteNatSet) : FiniteNatSet :=
+  ⟨s.nats.remove n⟩
+
+/-- Get the number of nats in the set -/
+def card (s : FiniteNatSet) : Nat :=
+  s.nats.card
+
+/-- Check if one set is a subset of another -/
+def subset (s₁ s₂ : FiniteNatSet) : Bool :=
+  s₁.nats.subset s₂.nats
+
+end FiniteNatSet
 
 end Verity.Core
