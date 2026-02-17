@@ -3,7 +3,8 @@
 
 Validates counts in README.md, test/README.md, docs/VERIFICATION_STATUS.md,
 docs/ROADMAP.md, TRUST_ASSUMPTIONS.md, docs-site llms.txt, compiler.mdx,
-core.mdx, and index.mdx against the actual property manifest and codebase.
+verification.mdx, core.mdx, and index.mdx against the actual property
+manifest and codebase.
 
 Usage:
     python3 scripts/check_doc_counts.py
@@ -394,6 +395,46 @@ def main() -> None:
             ],
         )
     )
+
+    # Check verification.mdx
+    verification_mdx = ROOT / "docs-site" / "content" / "verification.mdx"
+    verification_checks = [
+        (
+            "theorem count in Status",
+            re.compile(r"\*\*Status\*\*: (\d+) theorems across"),
+            str(total_theorems),
+        ),
+        (
+            "category count in Status",
+            re.compile(r"\*\*Status\*\*: \d+ theorems across (\d+) categor"),
+            str(num_categories),
+        ),
+        (
+            "theorem count in Snapshot",
+            re.compile(r"EDSL theorems: (\d+) across"),
+            str(total_theorems),
+        ),
+        (
+            "category count in Snapshot",
+            re.compile(r"EDSL theorems: \d+ across (\d+) categor"),
+            str(num_categories),
+        ),
+        (
+            "Stdlib count",
+            re.compile(r"Stdlib: (\d+) theorems"),
+            str(stdlib_count),
+        ),
+    ]
+    # Add per-contract total checks
+    for contract, count in per_contract.items():
+        if contract == "Stdlib":
+            continue  # Handled separately above
+        verification_checks.append((
+            f"{contract} total",
+            re.compile(rf"- {contract}: (\d+) total"),
+            str(count),
+        ))
+    errors.extend(check_file(verification_mdx, verification_checks))
 
     # Check core size claims
     core_mdx = ROOT / "docs-site" / "content" / "core.mdx"
