@@ -46,20 +46,18 @@ python3 scripts/generate_contract.py TipJar \
 This creates all required files:
 - `Verity/Specs/TipJar/Spec.lean` — formal specification
 - `Verity/Specs/TipJar/Invariants.lean` — state invariants
-- `Verity/Specs/TipJar/Proofs.lean` — proof re-export
 - `Verity/Examples/TipJar.lean` — EDSL implementation
-- `Compiler/Proofs/SpecCorrectness/TipJar.lean` — compiler proofs
+- `Verity/Proofs/TipJar/Basic.lean` — correctness proofs (EDSL matches spec)
 - `test/PropertyTipJar.t.sol` — Foundry tests
 
 ### 1.2 Or Create Files Manually
 
 ```bash
-mkdir -p Verity/Specs/TipJar
+mkdir -p Verity/Specs/TipJar Verity/Proofs/TipJar
 touch Verity/Specs/TipJar/Spec.lean
 touch Verity/Specs/TipJar/Invariants.lean
-touch Verity/Specs/TipJar/Proofs.lean
 touch Verity/Examples/TipJar.lean
-touch Compiler/Proofs/SpecCorrectness/TipJar.lean
+touch Verity/Proofs/TipJar/Basic.lean
 touch test/PropertyTipJar.t.sol
 ```
 
@@ -246,11 +244,11 @@ This is where formal verification happens. We prove that our implementation matc
 
 ### 4.1 Write Layer 1 Proofs
 
-Open `Compiler/Proofs/SpecCorrectness/TipJar.lean`:
+Open `Verity/Proofs/TipJar/Basic.lean`:
 
 ```lean
 /-
-  TipJar: Correctness proofs
+  TipJar: Basic Correctness Proofs
 
   Prove that the EDSL implementation matches the formal specification.
 -/
@@ -260,7 +258,7 @@ import Verity.EVM.Uint256
 import Verity.Examples.TipJar
 import Verity.Specs.TipJar.Spec
 
-namespace Compiler.Proofs.SpecCorrectness.TipJar
+namespace Verity.Proofs.TipJar
 
 open Verity
 open Verity.EVM.Uint256
@@ -299,23 +297,10 @@ theorem tip_getBalance_roundtrip (amount : Uint256) (s : ContractState) :
     ((getBalance s.sender).run s').fst = add (s.storageMap 0 s.sender) amount := by
   simp [tip, getBalance, tips, msgSender, getMapping, setMapping, bind]
 
-end Compiler.Proofs.SpecCorrectness.TipJar
+end Verity.Proofs.TipJar
 ```
 
-### 4.2 Create Proof Re-export
-
-Open `Verity/Specs/TipJar/Proofs.lean`:
-
-```lean
-import Compiler.Proofs.SpecCorrectness.TipJar
-
-/-
-  Layer 1 proof re-export.
-  This keeps the user-facing path stable while reusing the core proof module.
--/
-```
-
-### 4.3 Common Proof Patterns
+### 4.2 Common Proof Patterns
 
 Here are the tactics you'll use most often:
 
@@ -346,14 +331,14 @@ theorem main_property : ... := by
 
 See [Proof Debugging Handbook](/guides/debugging-proofs) for common errors and fixes.
 
-### 4.4 Build and Check Proofs
+### 4.3 Build and Check Proofs
 
 ```bash
 # Build all proofs
 lake build
 
 # Check for incomplete proofs
-grep -r "sorry" Verity/Specs/TipJar/ Compiler/Proofs/SpecCorrectness/TipJar.lean
+grep -r "sorry" Verity/Specs/TipJar/ Verity/Proofs/TipJar/
 ```
 
 **Goal**: Zero `sorry` statements before moving to testing.
@@ -441,45 +426,162 @@ python3 scripts/check_yul_compiles.py
 
 ### 6.1 Create Property Tests
 
-Open `test/PropertyTipJar.t.sol`:
+Open `test/PropertyTipJar.t.sol`. This is a complete, working test file you can copy-paste:
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
-import "forge-std/Test.sol";
+import "./yul/YulTestBase.sol";
 
 /**
- * @title PropertyTipJar
- * @notice Property tests matching Lean theorems
+ * @title PropertyTipJarTest
+ * @notice Property tests matching Lean theorems from Verity/Proofs/TipJar/Basic.lean
+ *
+ * Tests 4 proven theorems:
+ * 1. tip_meets_spec - Tip increases sender balance by amount
+ * 2. getBalance_correct - getBalance returns correct value
+ * 3. getBalance_preserves_state - getBalance is read-only
+ * 4. tip_getBalance_roundtrip - Tip then getBalance returns updated balance
  */
-contract PropertyTipJar is Test {
-    // Deploy the compiled Yul contract here
-    // See test/PropertyCounter.t.sol for the full pattern
+contract PropertyTipJarTest is YulTestBase {
+    address tipjar;
+    address alice = address(0x1111);
+    address bob = address(0x2222);
 
-    /// @custom:property tip_meets_spec
-    function testProp_TipUpdatesBalance(uint256 amount) public {
-        // Verify tip updates sender's balance correctly
+    function setUp() public {
+        tipjar = deployYul("TipJar");
+        require(tipjar != address(0), "Deploy failed");
     }
 
-    /// @custom:property getBalance_correct
-    function testProp_GetBalanceReturnsCorrect(address addr) public {
-        // Verify getBalance returns the stored value
+    //═══════════════════════════════════════════════════════════════════════
+    // Property 1: tip_meets_spec (fuzz test)
+    // Theorem: Tip increases sender's balance by the given amount
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// Property: tip_meets_spec
+    function testProperty_Tip_MeetsSpec(address sender, uint256 amount) public {
+        // Constrain to avoid overflow in our assertion
+        vm.assume(amount > 0 && amount <= type(uint256).max / 2);
+        uint256 before = getBalanceFromStorage(sender);
+        vm.assume(before + amount <= type(uint256).max);
+
+        // Call tip(uint256) as sender
+        vm.prank(sender);
+        (bool success,) = tipjar.call(abi.encodeWithSignature("tip(uint256)", amount));
+        require(success, "tip failed");
+
+        // Assert: sender's balance increased by exactly `amount`
+        assertEq(
+            getBalanceFromStorage(sender),
+            before + amount,
+            "tip_meets_spec: balance should increase by amount"
+        );
     }
 
-    /// @custom:property getBalance_preserves_state
-    function testProp_GetBalanceReadOnly(address addr) public {
-        // Verify getBalance doesn't modify storage
+    //═══════════════════════════════════════════════════════════════════════
+    // Property 2: getBalance_correct (fuzz test)
+    // Theorem: getBalance returns the stored value
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// Property: getBalance_correct
+    function testProperty_GetBalance_Correct(address addr, uint256 amount) public {
+        // Set a known balance directly in storage
+        setBalance(addr, amount);
+
+        // Call getBalance(address)
+        (bool success, bytes memory data) = tipjar.call(
+            abi.encodeWithSignature("getBalance(address)", addr)
+        );
+        require(success, "getBalance failed");
+        uint256 result = abi.decode(data, (uint256));
+
+        // Assert: returned value matches storage
+        assertEq(result, amount, "getBalance_correct: should return stored balance");
     }
 
-    /// @custom:property tip_getBalance_roundtrip
-    function testProp_Roundtrip(uint256 amount) public {
-        // Verify tip then getBalance returns updated value
+    //═══════════════════════════════════════════════════════════════════════
+    // Property 3: getBalance_preserves_state
+    // Theorem: getBalance doesn't modify storage
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// Property: getBalance_preserves_state
+    function testProperty_GetBalance_PreservesState(address addr) public {
+        // Set up some state
+        setBalance(addr, 42);
+        uint256 balanceBefore = getBalanceFromStorage(addr);
+
+        // Call getBalance — should be read-only
+        (bool success,) = tipjar.call(
+            abi.encodeWithSignature("getBalance(address)", addr)
+        );
+        require(success, "getBalance failed");
+
+        // Assert: storage unchanged
+        assertEq(
+            getBalanceFromStorage(addr),
+            balanceBefore,
+            "getBalance_preserves_state: storage should not change"
+        );
+    }
+
+    //═══════════════════════════════════════════════════════════════════════
+    // Property 4: tip_getBalance_roundtrip (fuzz test)
+    // Theorem: Tip then getBalance returns the updated balance
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// Property: tip_getBalance_roundtrip
+    function testProperty_Tip_GetBalance_Roundtrip(uint256 amount) public {
+        vm.assume(amount <= type(uint256).max / 2);
+
+        uint256 before = getBalanceFromStorage(alice);
+
+        // Tip as alice
+        vm.prank(alice);
+        (bool success1,) = tipjar.call(abi.encodeWithSignature("tip(uint256)", amount));
+        require(success1, "tip failed");
+
+        // Read back via getBalance
+        (bool success2, bytes memory data) = tipjar.call(
+            abi.encodeWithSignature("getBalance(address)", alice)
+        );
+        require(success2, "getBalance failed");
+        uint256 result = abi.decode(data, (uint256));
+
+        // Assert: roundtrip gives before + amount
+        assertEq(
+            result,
+            before + amount,
+            "tip_getBalance_roundtrip: should return before + amount"
+        );
+    }
+
+    //═══════════════════════════════════════════════════════════════════════
+    // Utility functions (reusable pattern for mapping-based contracts)
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// @notice Read a mapping(address => uint256) entry directly from storage
+    /// @dev TipJar uses slot 0 for the tips mapping.
+    ///      Solidity/Yul mapping layout: keccak256(abi.encode(key, baseSlot))
+    function getBalanceFromStorage(address addr) internal view returns (uint256) {
+        bytes32 slot = keccak256(abi.encode(addr, uint256(0)));
+        return uint256(vm.load(tipjar, slot));
+    }
+
+    /// @notice Write a mapping entry directly (for test setup)
+    function setBalance(address addr, uint256 amount) internal {
+        bytes32 slot = keccak256(abi.encode(addr, uint256(0)));
+        vm.store(tipjar, slot, bytes32(amount));
     }
 }
 ```
 
-> **Tip**: Look at `test/PropertyLedger.t.sol` for a complete example of mapping-based property tests.
+**Key patterns to understand**:
+- `deployYul("TipJar")` compiles and deploys your `compiler/yul/TipJar.yul` contract
+- `vm.prank(sender)` sets `msg.sender` for the next call (Foundry cheatcode)
+- `vm.load`/`vm.store` read/write raw storage slots (for assertions and test setup)
+- Mapping slot formula: `keccak256(abi.encode(key, baseSlot))` — this is the standard Solidity storage layout
+- `vm.assume(...)` constrains fuzz inputs to avoid false failures (e.g., overflow)
 
 ### 6.2 Run Tests
 
@@ -505,7 +607,7 @@ python3 scripts/report_property_coverage.py --format=markdown
 lake build
 
 # 2. No incomplete proofs
-grep -r "sorry" Verity/Specs/TipJar/ Compiler/Proofs/SpecCorrectness/TipJar.lean
+grep -r "sorry" Verity/Specs/TipJar/ Verity/Proofs/TipJar/
 
 # 3. Yul generates and compiles
 lake build verity-compiler
@@ -528,9 +630,9 @@ Update `Verity.lean`:
 import Verity.Examples.TipJar
 ```
 
-Update `Compiler.lean`:
+Update `Verity.lean` to also export the proofs:
 ```lean
-import Compiler.Proofs.SpecCorrectness.TipJar
+import Verity.Proofs.TipJar.Basic
 ```
 
 ---
