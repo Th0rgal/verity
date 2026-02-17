@@ -195,6 +195,39 @@ To increase confidence in linked libraries:
 
 ---
 
+## Common Issues and Debugging
+
+### Function name mismatch
+
+If you see `Unresolved external references: myFunc`, check that:
+- The function name in your ContractSpec matches the Yul library exactly (case-sensitive)
+- The library file is properly formatted with plain function definitions
+
+### Arity mismatch
+
+If you see `Arity mismatch: myFunc called with N args but library defines M params`:
+- The number of parameters in your `Expr.externalCall` must match the library function
+- Remember: return values don't count as parameters
+
+### Runtime errors with linked contracts
+
+If your verified contract works with placeholders but fails with linked libraries:
+1. **Check gas requirements**: Linked functions may use more gas than placeholders
+2. **Verify return types**: Ensure the library returns the expected type
+3. **Test with Foundry**: Add property tests that run against the linked contract
+
+### Debugging tips
+
+```bash
+# Generate Yul output to see how external calls are rendered
+lake exe verity-compiler --link libs/MyLib.yul -o compiler/yul -v
+
+# Check the generated Yul in compiler/yul/
+cat compiler/yul/*.yul
+```
+
+---
+
 ## CLI Reference
 
 ```bash
