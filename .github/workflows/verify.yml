@@ -46,10 +46,53 @@ env:
   SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '.github/workflows/verify.yml'
+              - 'Verity/**'
+              - 'Verity.lean'
+              - 'Compiler/**'
+              - 'Compiler.lean'
+              - 'examples/solidity/**'
+              - 'test/**'
+              - 'scripts/**'
+              - 'lakefile.lean'
+              - 'lean-toolchain'
+              - 'foundry.toml'
+
+  # Python-only checks (fast, ~5s, always run)
+  checks:
+    runs-on: ubuntu-latest
+    needs: changes
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check property manifest references
+        run: python3 scripts/check_property_manifest.py
+
+      - name: Check property coverage
+        run: python3 scripts/check_property_coverage.py
+
+      - name: Check contract file structure
+        run: python3 scripts/check_contract_structure.py
+
+      - name: Check documentation counts
+        run: python3 scripts/check_doc_counts.py
+
   build:
     runs-on: ubuntu-latest
-    # Skip verification for draft PRs
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -240,7 +283,8 @@ jobs:
 
   foundry:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -305,7 +349,8 @@ jobs:
   # Multi-seed testing to detect flakiness and seed-dependent failures
   foundry-multi-seed:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false  # Test all seeds even if one fails
       matrix:
