@@ -60,19 +60,30 @@ def check_contract(name: str) -> list[str]:
 
 
 def check_all_lean_imports(contracts: list[str]) -> list[str]:
-    """Check that All.lean imports all contracts."""
+    """Check that All.lean imports all required modules for each contract.
+
+    For each contract, verifies the Examples import and all imports
+    corresponding to EXPECTED_STRUCTURE (Spec, Invariants, Proofs, Basic,
+    Correctness).
+    """
     all_lean = ROOT / "Verity" / "All.lean"
     if not all_lean.exists():
         return [f"Verity/All.lean not found"]
 
-    lines = all_lean.read_text().splitlines()
+    line_set = {line.strip() for line in all_lean.read_text().splitlines()}
     missing = []
     for name in contracts:
-        expected_import = f"import Verity.Examples.{name}"
-        # Use exact line matching to avoid prefix collisions
-        # (e.g., "Owned" matching "OwnedCounter")
-        if not any(line.strip() == expected_import for line in lines):
-            missing.append(f"Verity/All.lean missing: {expected_import}")
+        # Check Examples import
+        examples_import = f"import Verity.Examples.{name}"
+        if examples_import not in line_set:
+            missing.append(f"Verity/All.lean missing: {examples_import}")
+        # Check imports for each file in EXPECTED_STRUCTURE
+        for template in EXPECTED_STRUCTURE:
+            path = template.format(name=name)
+            import_path = path.replace("/", ".").removesuffix(".lean")
+            expected_import = f"import {import_path}"
+            if expected_import not in line_set:
+                missing.append(f"Verity/All.lean missing: {expected_import}")
     return missing
 
 

@@ -6,7 +6,6 @@
     "setStorage_preserves_map_storage",
     "setStorage_updates_count"
   ],
-  "Ledger": [],
   "Owned": [
     "isOwner_meets_spec",
     "isOwner_returns_correct_value"
