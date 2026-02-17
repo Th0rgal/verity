@@ -69,7 +69,9 @@ We want to build a contract where:
 - Users can deposit a tip (adding to their balance) via `tip(uint256)`
 - Anyone can check a balance via `getBalance(address) → uint256`
 - Each address has an independent balance
-- Balances use EVM modular arithmetic (wrapping on overflow)
+- Balances use EVM modular arithmetic (wrapping on overflow) — this matches EVM opcodes, not Solidity's default checked arithmetic
+
+> **Tip**: For contracts that should match Solidity ^0.8 behavior, add `require` guards (see `SafeCounter` example).
 
 ---
 
