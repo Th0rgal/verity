@@ -123,13 +123,13 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param 0, Expr.param 1])
 
 See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
 
-305 theorems across 9 categories. 352 Foundry tests across 25 test suites. 220 covered by property tests (72% coverage, 85 proof-only exclusions). 5 documented axioms, 6 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
+305 theorems across 9 categories. 352 Foundry tests across 25 test suites. 220 covered by property tests (72% coverage, 85 proof-only exclusions). 2 documented axioms, 6 `sorry` in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
 - **EDSL correctness** - each contract satisfies its spec in Lean (Layer 1)
 - **Compiler correctness** - IR generation preserves semantics (Layer 2), Yul codegen preserves IR (Layer 3)
-- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 5 axioms
+- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 2 axioms
 - **Trust boundary** - Yul -> EVM bytecode via solc (validated by 70k+ differential tests)
 
 See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
@@ -226,7 +226,7 @@ The compiler validates function names, arities, and prevents name collisions. Se
 | | |
 |---|---|
 | [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
-| [`AXIOMS.md`](AXIOMS.md) | All 5 axioms with soundness justifications |
+| [`AXIOMS.md`](AXIOMS.md) | All 2 axioms with soundness justifications |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Verification progress, planned features |
 | [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) | Per-theorem status |

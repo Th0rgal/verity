@@ -14,9 +14,8 @@ Axioms should be **avoided whenever possible** as they introduce trust assumptio
 ## Why Axioms Are Sometimes Necessary
 
 Lean's proof assistant requires all functions to be provably terminating. However, some functions in Verity:
-- Use partial recursion (fuel-based)
+- Represent external system behavior (Ethereum addresses, cryptographic hashes)
 - Have structural equality that's obvious by inspection but hard to formally prove
-- Represent external system behavior (Ethereum addresses)
 
 In these cases, we use axioms with strong soundness arguments.
 
@@ -24,121 +23,7 @@ In these cases, we use axioms with strong soundness arguments.
 
 ## Current Axioms
 
-### 1. `evalIRExpr_eq_evalYulExpr`
-
-**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:48`
-
-**Statement**:
-```lean
-axiom evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
-    evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr
-```
-
-**Purpose**: Proves that expression evaluation produces identical results in IR and Yul contexts when states are aligned.
-
-**Why Axiom?**:
-- `evalIRExpr` is defined as `partial` (not provably terminating in Lean), making it opaque to the kernel
-- `evalYulExpr` is **total** (no `partial` annotation) — it uses structural recursion
-- Lean cannot unfold a `partial` definition inside a proof, so equality between the IR and Yul evaluators cannot be proven even though their source code is structurally identical
-- Functions have identical source code structure but different state type parameters
-
-**Soundness Argument**:
-1. **Source code inspection**: Both functions have structurally identical implementations
-2. **Asymmetry**: Only the IR side is `partial`; the Yul side is already total
-3. **State translation**: `yulStateOfIR` copies all fields from IRState to YulState (including `selector`)
-4. **calldataload(0)**: Both evaluators return `selectorWord(state.selector)` for offset=0 (fixed in PR #205)
-5. **Differential testing**: 70,000+ property tests validate this equivalence holds in practice
-
-**Alternative Approach**:
-To eliminate this axiom, only the IR evaluator needs refactoring:
-- Refactor `evalIRExpr` (and `evalIRExprs`, `evalIRCall`) to use fuel parameters or well-founded recursion on expression depth, matching the total pattern already used by `evalYulExpr`
-- The Yul side is already total and requires no changes
-- **Effort**: ~300 lines of refactoring (simpler than previously estimated since only one side needs work)
-
-**Trade-off**: Given that the functions are structurally identical by inspection and validated by extensive testing, the axiom is a pragmatic choice.
-
-**Risk**: **Low** - If implementations diverge during refactoring, differential tests would catch the discrepancy immediately.
-
-**Future Work**:
-- [ ] Add CI check that `evalIRExpr` and `evalYulExpr` source code structure remains identical
-- [ ] Consider refactoring to fuel-based evaluation (long-term)
-- [ ] Issue tracking: #82
-
----
-
-### 2. `evalIRExprs_eq_evalYulExprs`
-
-**Location**: `Compiler/Proofs/YulGeneration/StatementEquivalence.lean:52`
-
-**Statement**:
-```lean
-axiom evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
-    evalIRExprs irState exprs = evalYulExprs (yulStateOfIR selector irState) exprs
-```
-
-**Purpose**: List version of `evalIRExpr_eq_evalYulExpr` for multiple expressions.
-
-**Why Axiom?**: Same reasoning as axiom #1 — `evalIRExprs` is `partial` while `evalYulExprs` is total.
-
-**Soundness Argument**:
-- Follows directly from axiom #1 via structural induction on lists
-- Could be proven from axiom #1 if that were a theorem
-- Both implementations use `List.map` with the respective eval function
-
-**Alternative Approach**:
-If axiom #1 were eliminated, this would become a provable theorem via:
-```lean
-theorem evalIRExprs_eq_evalYulExprs : ... := by
-  induction exprs with
-  | nil => rfl
-  | cons hd tl ih =>
-      simp [evalIRExprs, evalYulExprs]
-      rw [evalIRExpr_eq_evalYulExpr]  -- Uses axiom #1
-      rw [ih]
-```
-
-**Risk**: **Low** - Same as axiom #1.
-
-**Future Work**:
-- [ ] If axiom #1 is eliminated, prove this as theorem
-- [ ] Issue tracking: #82
-
----
-
-### 3. `execIRStmtsFuel_adequate`
-
-**Location**: `Compiler/Proofs/YulGeneration/Equivalence.lean:666`
-
-**Statement**:
-```lean
-axiom execIRStmtsFuel_adequate (state : IRState) (stmts : List YulStmt) :
-    execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts state stmts
-```
-
-**Purpose**: Bridges the fuel-parametric `execIRStmtsFuel` (usable in proofs) with the `partial` `execIRStmts` (used by `execIRFunction` and `interpretIR`).
-
-**Why Axiom?**:
-- `execIRStmts` is defined as `partial` (not provably terminating), making it opaque to Lean's kernel
-- `execIRStmtsFuel` is the same function with an explicit fuel counter, making it total
-- Lean cannot unfold a `partial` definition to prove it equals the fuel-based version
-- This is the standard "adequacy" axiom pattern for fuel-based verification
-
-**Soundness Argument**:
-1. **Structural identity**: Both functions have identical pattern-matching structure
-2. **Sufficient fuel**: `sizeOf stmts + 1` provides at least as many steps as the statement list depth
-3. **Validation**: Both execution paths are exercised by 70,000+ differential tests
-4. **Standard pattern**: This is a well-known verification technique (fuel adequacy)
-
-**Alternative Approach**:
-To eliminate this axiom, refactor `execIRStmts` to use fuel directly (making it total). This would also eliminate axioms #1 and #2 since `evalIRExpr` would become total as well. Estimated effort: ~500 lines.
-
-**Risk**: **Low** - Standard adequacy axiom validated by extensive testing.
-
-**Usage**: Used by `ir_function_body_equiv` (Preservation.lean) to discharge the `hbody` hypothesis in the Layer 3 preservation theorem.
-
----
-
-### 4. `keccak256_first_4_bytes`
+### 1. `keccak256_first_4_bytes`
 
 **Location**: `Compiler/Selectors.lean:43`
 
@@ -164,7 +49,7 @@ axiom keccak256_first_4_bytes (sig : String) : Nat
 
 ---
 
-### 5. `addressToNat_injective`
+### 2. `addressToNat_injective`
 
 **Location**: `Verity/Proofs/Stdlib/Automation.lean:155`
 
@@ -198,7 +83,47 @@ axiom addressToNat_injective :
 
 ## Eliminated Axioms
 
-### `addressToNat_injective_valid` (formerly axiom #3)
+### `evalIRExpr_eq_evalYulExpr` (formerly axiom #1)
+
+**Eliminated in**: This PR (Issue #148)
+
+**Previous statement**:
+```lean
+axiom evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
+    evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr
+```
+
+**How eliminated**: Refactored `evalIRExpr`, `evalIRExprs`, and `evalIRCall` from `partial def` to total functions using `termination_by` with `exprSize`/`exprsSize` measures (matching the pattern already used by `evalYulExpr` in Semantics.lean). Restructured `evalIRCall` to evaluate all arguments first via `evalIRExprs` (matching `evalYulCall`), making the two functions structurally identical. The axiom became a provable theorem by mutual structural induction.
+
+**Impact**: Eliminated 2 axioms (`evalIRExpr_eq_evalYulExpr` and `evalIRExprs_eq_evalYulExprs`) with zero changes to proof structure.
+
+### `evalIRExprs_eq_evalYulExprs` (formerly axiom #2)
+
+**Eliminated in**: This PR (Issue #148)
+
+**Previous statement**:
+```lean
+axiom evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
+    evalIRExprs irState exprs = evalYulExprs (yulStateOfIR selector irState) exprs
+```
+
+**How eliminated**: Follows from `evalIRExpr_eq_evalYulExpr` being a theorem — proved by structural induction on the expression list.
+
+### `execIRStmtsFuel_adequate` (formerly axiom #3)
+
+**Eliminated in**: This PR (Issue #148)
+
+**Previous statement**:
+```lean
+axiom execIRStmtsFuel_adequate (state : IRState) (stmts : List YulStmt) :
+    execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts state stmts
+```
+
+**How eliminated**: Refactored `execIRStmt` and `execIRStmts` from `partial def` to total functions using an explicit fuel parameter (matching the pattern already used by `execYulFuel` in Semantics.lean). Since the canonical definitions are now fuel-based, `execIRStmtFuel`/`execIRStmtsFuel` became aliases and the adequacy relationship is `rfl`.
+
+**Impact**: Eliminated the fuel adequacy axiom entirely. `execIRFunction` and `interpretIR` now use the total, fuel-based definitions directly.
+
+### `addressToNat_injective_valid` (formerly axiom #3, eliminated earlier)
 
 **Eliminated in**: PR #202 (2026-02-16)
 
@@ -209,7 +134,7 @@ axiom addressToNat_injective_valid :
     addressToNat a = addressToNat b → a = b
 ```
 
-**How eliminated**: This axiom was a strictly weaker version of `addressToNat_injective` (axiom #4), which doesn't require `isValidAddress` preconditions. It was converted to a theorem derived from axiom #4:
+**How eliminated**: This axiom was a strictly weaker version of `addressToNat_injective` (axiom #2), which doesn't require `isValidAddress` preconditions. It was converted to a theorem derived from axiom #2:
 
 ```lean
 theorem addressToNat_injective_valid :
@@ -226,13 +151,11 @@ theorem addressToNat_injective_valid :
 
 | Axiom | File | Risk | Validated By | Future Work |
 |-------|------|------|--------------|-------------|
-| `evalIRExpr_eq_evalYulExpr` | StatementEquivalence.lean | Low | Differential tests (70k+) | Fuel-based refactor |
-| `evalIRExprs_eq_evalYulExprs` | StatementEquivalence.lean | Low | Differential tests (70k+) | Prove from axiom #1 |
-| `execIRStmtsFuel_adequate` | Equivalence.lean | Low | Differential tests (70k+) | Fuel-based refactor |
 | `keccak256_first_4_bytes` | Selectors.lean | Low | CI selector checks + solc | Verified keccak FFI |
 | `addressToNat_injective` | Automation.lean | Low | Differential tests (70k+) | Formalize hex parsing |
 
-**Total Axioms**: 5
+**Total Axioms**: 2
+**Eliminated**: 4 (3 via Issue #148 refactor, 1 via PR #202)
 **Production Blockers**: 0 (all have low risk with strong validation)
 
 ---
@@ -277,7 +200,7 @@ User Code (EDSL)
 ContractSpec
     ↓ [Proven, no additional axioms]
 IR
-    ↓ [Proven, 3 axioms: evalIRExpr/Exprs equivalence + fuel adequacy]
+    ↓ [Proven, no additional axioms — previously 3 axioms, now eliminated]
 Yul (1 axiom: keccak256_first_4_bytes for selectors)
     ↓ [TRUSTED: solc compiler]
 EVM Bytecode
@@ -285,7 +208,7 @@ EVM Bytecode
 
 **Trust Assumptions**:
 1. Lean 4 type checker is sound (foundational)
-2. The 5 axioms documented above are sound
+2. The 2 axioms documented above are sound
 3. Solidity compiler (solc) correctly compiles Yul → Bytecode
 
 See `TRUST_ASSUMPTIONS.md` (issue #68) for complete trust model.
@@ -310,6 +233,6 @@ cat AXIOMS.md
 
 ---
 
-**Last Updated**: 2026-02-16
+**Last Updated**: 2026-02-17
 **Next Review**: When new axioms added or existing ones eliminated
 **Maintainer**: Document all changes to axioms in git commit messages

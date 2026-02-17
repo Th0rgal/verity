@@ -25,7 +25,7 @@ User's Contract Code (EDSL)
 ContractSpec (High-level specification)
     ↓ [Layer 2: FULLY VERIFIED]
 IR (Intermediate representation)
-    ↓ [Layer 3: FULLY VERIFIED, 5 axioms]
+    ↓ [Layer 3: FULLY VERIFIED, 2 axioms]
 Yul (Ethereum intermediate language)
     ↓ [TRUSTED: Solidity compiler]
 EVM Bytecode
@@ -37,7 +37,7 @@ EVM Bytecode
 |-----------|--------|------------|
 | Layer 1 (EDSL → Spec) | ✅ Verified | None |
 | Layer 2 (Spec → IR) | ✅ Verified | None |
-| Layer 3 (IR → Yul) | ✅ Verified (5 axioms) | Very Low |
+| Layer 3 (IR → Yul) | ✅ Verified (2 axioms) | Very Low |
 | Axioms | ⚠️ Documented | Low |
 | Solidity Compiler (solc) | ⚠️ Trusted | Medium |
 | Keccak256 Hashing | ⚠️ Trusted | Low |
@@ -121,7 +121,7 @@ theorem execStmt_preserves_properties :
 
 ### Layer 3: IR → Yul
 
-**Status**: ✅ **Verified (with 5 axioms)**
+**Status**: ✅ **Verified (with 2 axioms)**
 
 **What is proven**: IR execution is equivalent to Yul execution when states are properly aligned.
 
@@ -144,7 +144,7 @@ theorem storageStore_equiv : ...
 theorem if_equiv : ...
 ```
 
-**Dependencies**: Relies on 5 axioms (see [Axioms](#axioms) section)
+**Dependencies**: Relies on 2 axioms (see [Axioms](#axioms) section)
 
 **What this guarantees**:
 - Yul code correctly implements IR semantics
@@ -381,7 +381,7 @@ Two files use `set_option allowUnsafeReducibility true`:
 - `execIRStmt`/`execIRStmts` are used locally and their termination is validated by 70,000+ differential tests
 
 **Elimination Path**:
-- Same fuel-based refactoring that would eliminate axioms #1 and #2 (`evalIRExpr`/`evalIRExprs`) would also eliminate the need for `allowUnsafeReducibility` on the IR side
+- The IR interpreter is now total, so `evalIRExpr`/`evalIRExprs` axioms have been eliminated. The `allowUnsafeReducibility` on the IR side may also be removable
 - The Yul side (`execYulFuel`) already uses fuel and could potentially be proven terminating with well-founded recursion
 
 ---
@@ -582,7 +582,7 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
 
 ## Axioms
 
-Verity uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
+Verity uses **2 axioms** across the verification codebase. All axioms are documented with soundness justifications.
 
 **See**: [AXIOMS.md](AXIOMS.md) for complete details.
 
@@ -590,9 +590,6 @@ Verity uses **5 axioms** across the verification codebase. All axioms are docume
 
 | Axiom | Purpose | Risk | Validation |
 |-------|---------|------|------------|
-| `evalIRExpr_eq_evalYulExpr` | Expression evaluation equivalence | Low | Differential tests, code inspection |
-| `evalIRExprs_eq_evalYulExprs` | List version of above | Low | Differential tests, code inspection |
-| `execIRStmtsFuel_adequate` | Fuel-parametric ↔ partial IR bridge | Low | Structural fuel argument |
 | `keccak256_first_4_bytes` | Function selector computation | Low | CI validation against solc --hashes |
 | `addressToNat_injective` | Address-to-Nat mapping injectivity | Low | EVM address semantics |
 
@@ -603,7 +600,7 @@ Verity uses **5 axioms** across the verification codebase. All axioms are docume
 - CI enforces documentation (see AXIOMS.md)
 
 **Future Work**:
-- Eliminate expression evaluation axioms via fuel-based refactoring (~500 LOC)
+- Expression evaluation axioms eliminated (IR interpreter is now total)
 - Formalize hex string parsing for address injectivity
 
 ---
@@ -686,9 +683,9 @@ Use this checklist when performing security audits of Verity-verified contracts.
    - Effort: 3-4 months
 
 2. **Axiom Elimination**
-   - Refactor IR execution to fuel-based (expressions + statements)
-   - Removes 3 of 5 axioms (evalIRExpr, evalIRExprs, execIRStmtsFuel adequacy)
-   - Effort: ~500 LOC refactoring
+   - IR interpreter refactored to be total (expressions + statements now axiom-free)
+   - Removed — IR interpreter is now total (evalIRExpr, evalIRExprs, execIRStmtsFuel eliminated)
+   - Status: Completed
 
 3. **Gas Cost Verification** (Issue #80)
    - Formally verify gas bounds
@@ -730,7 +727,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ⚠️ Arithmetic semantics - Wrapping (Lean) vs checked (Solidity), see section 8
 ⚠️ EVM semantics - Industry standard, billions in TVL
 ⚠️ Linked libraries - Outside proof boundary, validated by compile-time reference checks
-⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
+⚠️ 2 axioms - Low risk, extensively validated (see AXIOMS.md)
 ⚠️ Gas modeling - Not verified, assume infinite gas (see section 10)
 
 ### Risk Profile

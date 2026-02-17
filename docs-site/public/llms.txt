@@ -18,7 +18,7 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 - **Core Size**: 429 lines
 - **Verified Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, ReentrancyExample (+ CryptoHash as unverified linker demo)
 - **Theorems**: 305 across 9 categories (299 fully proven, 6 `sorry` placeholders in Ledger sum proofs)
-- **Axioms**: 5 documented axioms (see AXIOMS.md) — keccak256, expression evaluation, fuel adequacy, address injectivity
+- **Axioms**: 2 documented axioms (see AXIOMS.md) — keccak256, address injectivity
 - **Tests**: 352 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
 - **Repository**: https://github.com/Th0rgal/verity
@@ -121,7 +121,7 @@ Add `.md` to any URL for raw markdown (saves tokens).
 See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
 - **Verified**: EDSL -> ContractSpec -> IR -> Yul
 - **Trusted**: Yul -> Bytecode (via solc, validated by 70k+ differential tests)
-- **Axioms**: 5 documented, all with soundness justification
+- **Axioms**: 2 documented, all with soundness justification
 - **External**: Lean 4 kernel, EVM specification alignment
 
 ## Known Limitations

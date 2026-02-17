@@ -34,7 +34,7 @@ This project uses Lean to:
 - Implement the contracts (executable code)
 - Prove the implementations satisfy the specifications (theorems)
 
-**Current status**: A compact EDSL core, 9 example contracts, 300 machine-checked theorems across the EDSL and compiler, and automatic compilation to EVM bytecode. 352 Foundry tests across 25 suites. 5 documented axioms (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)), 12 `sorry` placeholders remaining in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)). Foundry tests include unit, property, and differential checks with multi-seed coverage.
+**Current status**: A compact EDSL core, 9 example contracts, 300 machine-checked theorems across the EDSL and compiler, and automatic compilation to EVM bytecode. 352 Foundry tests across 25 suites. 2 documented axioms (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)), 12 `sorry` placeholders remaining in Ledger sum proofs ([#65](https://github.com/Th0rgal/verity/issues/65)). Foundry tests include unit, property, and differential checks with multi-seed coverage.
 
 ## The Three-Layer Structure
 
@@ -123,7 +123,7 @@ See [/verification](/verification) for the complete, always-current theorem list
 
 **What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project has 12 `sorry` in Ledger sum proofs — all other claims are fully proven.
 
-**What are axioms?** Statements assumed true without proof. This project uses 5 documented axioms for keccak256 hashing, expression evaluation equivalence, and address injectivity — each with soundness justification in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**What are axioms?** Statements assumed true without proof. This project uses 2 documented axioms for keccak256 hashing, and address injectivity — each with soundness justification in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
 Example proof technique (simplified):
 ```lean

@@ -18,39 +18,71 @@ Individual statement proofs compose via `execIRStmtsFuel_equiv_execYulStmtsFuel_
 (Equivalence.lean) to complete the `hbody` hypothesis in `Preservation.lean`.
 -/
 
-/-! ### Variable Assignment Equivalence -/
+/-! ### Expression Equivalence (Now Proven — Previously Axioms)
 
-/-! ## Helper Lemmas -/
+With the IR expression evaluators refactored to be total and structurally
+identical to the Yul evaluators, these are now **proven theorems**.
+
+Previously these were axioms:
+  axiom evalIRExpr_eq_evalYulExpr : ...
+  axiom evalIRExprs_eq_evalYulExprs : ...
+
+Eliminated by making `evalIRExpr`/`evalIRExprs`/`evalIRCall` total (using
+`termination_by` with `exprSize`/`exprsSize`) and restructuring `evalIRCall`
+to evaluate all arguments first (matching `evalYulCall`). See Issue #148.
+-/
+
+open Compiler.Proofs.YulGeneration in
+mutual
 
 /-- IR and Yul expression evaluation are identical when states are aligned.
 
-This is an axiom because `evalIRExpr` is defined as `partial` (not provably terminating),
-making it opaque to Lean's kernel. `evalYulExpr` is total (structural recursion), but
-Lean cannot unfold the `partial` IR side to prove equality. This axiom is sound because:
+PROVEN (previously axiom #1). Both evaluators are now total with identical
+structure — the proof proceeds by mutual structural induction on expression size. -/
+theorem evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
+    evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr := by
+  match expr with
+  | .lit n => rfl
+  | .hex n => rfl
+  | .str _ => rfl
+  | .ident name =>
+      simp [evalIRExpr, evalYulExpr, IRState.getVar, YulState.getVar, yulStateOfIR]
+  | .call func args =>
+      simp only [evalIRExpr, evalYulExpr]
+      exact evalIRCall_eq_evalYulCall selector irState func args
+termination_by exprSize expr
+decreasing_by
+  simp [exprSize, exprsSize]
 
-1. Both functions have **identical** source code (see IRInterpreter.lean and Semantics.lean)
-2. `yulStateOfIR` copies all IRState fields to YulState (including `selector`)
-3. Both evaluators handle `calldataload(0)` identically: returning `selectorWord(state.selector)`
-4. This is a structural equality, not a semantic one
+/-- List version: IR and Yul list evaluation are identical when states are aligned.
 
-**History**: Prior to PR #205, the IR evaluator returned 0 for `calldataload(0)` while
-the Yul evaluator returned `selectorWord(selector)`. This made the axiom provably false
-for expressions containing `calldataload(0)`. The fix added a `selector` field to
-`IRState` and aligned the `calldataload` implementations.
+PROVEN (previously axiom #2). Follows from `evalIRExpr_eq_evalYulExpr` by
+structural induction on the expression list. -/
+theorem evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
+    evalIRExprs irState exprs = evalYulExprs (yulStateOfIR selector irState) exprs := by
+  match exprs with
+  | [] => rfl
+  | e :: es =>
+      simp only [evalIRExprs, evalYulExprs]
+      rw [evalIRExpr_eq_evalYulExpr selector irState e]
+      rw [evalIRExprs_eq_evalYulExprs selector irState es]
+termination_by exprsSize exprs
+decreasing_by
+  all_goals
+    simp [exprsSize, exprSize]
+    omega
 
-**Alternative**: To avoid this axiom, only the IR evaluator needs refactoring to use
-fuel parameters (matching the pattern already used by `evalYulExpr`). The Yul side is
-already total and requires no changes. Estimated effort: ~300 lines.
+/-- Call version: IR and Yul call evaluation are identical when states are aligned. -/
+theorem evalIRCall_eq_evalYulCall (selector : Nat) (irState : IRState) (func : String) (args : List YulExpr) :
+    evalIRCall irState func args = evalYulCall (yulStateOfIR selector irState) func args := by
+  simp only [evalIRCall, evalYulCall]
+  rw [evalIRExprs_eq_evalYulExprs selector irState args]
+  simp [yulStateOfIR, selectorWord]
+termination_by exprsSize args + 1
+decreasing_by
+  simp [exprsSize, exprSize]
 
-**Usage**: This axiom is used by all statement equivalence proofs to show that
-evaluating expressions gives the same results in both IR and Yul contexts.
--/
-axiom evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
-    evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr
-
-/-- List version of the above axiom -/
-axiom evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
-    evalIRExprs irState exprs = evalYulExprs (yulStateOfIR selector irState) exprs
+end
 
 /-! ## Proven Theorems -/
 
@@ -68,7 +100,7 @@ theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       -- Use lemma: evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr
       rw [evalIRExpr_eq_evalYulExpr]
       -- Now both sides are identical
@@ -98,7 +130,7 @@ theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       rw [evalIRExpr_eq_evalYulExpr]
       cases evalYulExpr (yulStateOfIR selector irState) (.call "sload" [slotExpr]) with
       | none =>
@@ -124,8 +156,8 @@ theorem storageStore_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
-      -- Both eval the same expressions using our axiom
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
+      -- Both eval the same expressions using our theorem
       simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
       -- Now both sides are syntactically identical
       unfold execResultsAligned statesAligned yulStateOfIR
@@ -149,7 +181,7 @@ theorem mappingLoad_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       rw [evalIRExpr_eq_evalYulExpr]
       cases evalYulExpr (yulStateOfIR selector irState) (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]]) with
       | none =>
@@ -177,7 +209,7 @@ theorem mappingStore_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
@@ -204,7 +236,7 @@ theorem conditional_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       rw [evalIRExpr_eq_evalYulExpr]
       cases h : evalYulExpr (yulStateOfIR selector irState) condExpr with
       | none =>
@@ -239,7 +271,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
       unfold execIRStmt_equiv_execYulStmt_goal
       intro _
       unfold execResultsAligned
-      cases stmt <;> simp [execIRStmtFuel, execYulStmtFuel, execYulFuel]
+      cases stmt <;> simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel]
   | succ fuel' =>
       -- Dispatch to specific theorem based on statement type
       cases stmt with
@@ -249,7 +281,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
           intro hAlign
           unfold statesAligned at hAlign
           subst hAlign
-          simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR]
+          simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR]
       | let_ name value =>
           exact assign_equiv selector (fuel' + 1) name value irState yulState halign (by omega)
       | assign name value =>
@@ -273,7 +305,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
                           intro hAlign
                           unfold statesAligned at hAlign
                           subst hAlign
-                          simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
+                          simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
                   | _ =>
                       exact storageStore_equiv selector (fuel' + 1) slotExpr valExpr irState yulState halign (by omega)
               | "return", [offsetExpr, sizeExpr] =>
@@ -286,28 +318,28 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
                   intro hAlign
                   unfold statesAligned at hAlign
                   subst hAlign
-                  simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR]
+                  simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR]
               | "mstore", [offsetExpr, valExpr] =>
                   -- Memory store - both handle identically
                   unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
                   intro hAlign
                   unfold statesAligned at hAlign
                   subst hAlign
-                  simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
+                  simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
               | _, _ =>
                   -- Other expression statements - generic handling
                   unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
                   intro hAlign
                   unfold statesAligned at hAlign
                   subst hAlign
-                  simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
+                  simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
           | _ =>
               -- Non-call expressions - generic handling
               unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
               intro hAlign
               unfold statesAligned at hAlign
               subst hAlign
-              simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr]
+              simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr]
       | if_ cond body =>
           exact conditional_equiv selector (fuel' + 1) cond body irState yulState halign (by omega)
       | switch expr cases default =>
@@ -316,7 +348,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
           intro hAlign
           unfold statesAligned at hAlign
           subst hAlign
-          unfold execIRStmtFuel execYulStmtFuel execYulFuel
+          unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
           rw [evalIRExpr_eq_evalYulExpr]
           cases h : evalYulExpr (yulStateOfIR selector irState) expr with
           | none =>
@@ -352,7 +384,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
           intro hAlign
           unfold statesAligned at hAlign
           subst hAlign
-          simp [execIRStmtFuel, execYulStmtFuel, execYulFuel]
+          simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel]
           exact execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
             (fun sel f st irSt yulSt => all_stmts_equiv sel f st irSt yulSt)
             selector fuel' stmts irState (yulStateOfIR selector irState) rfl
@@ -362,7 +394,7 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
           intro hAlign
           unfold statesAligned at hAlign
           subst hAlign
-          simp [execIRStmtFuel, execYulStmtFuel, execYulFuel, yulStateOfIR]
+          simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR]
 
 end
 
@@ -382,7 +414,7 @@ theorem return_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
@@ -403,7 +435,7 @@ theorem revert_equiv (selector : Nat) (fuel : Nat)
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      unfold execIRStmtFuel execYulStmtFuel execYulFuel
+      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
       -- Both return .revert regardless of evaluation
       unfold execResultsAligned statesAligned yulStateOfIR
       rfl

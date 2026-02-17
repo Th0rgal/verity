@@ -8,9 +8,6 @@ open Compiler
 open Compiler.Proofs.IRGeneration
 open Compiler.Yul
 
-set_option allowUnsafeReducibility true in
-attribute [local reducible] execIRStmt execIRStmts
-
 /-! ## IR ↔ Yul State Alignment -/
 
 def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
@@ -231,101 +228,15 @@ theorem execYulStmtsFuel_cons
       | .revert s => .revert s := by
   rfl
 
-/-! ## Fuel-Parametric IR Statement Execution
+/-! ## Backward-Compatible Aliases
 
-This is the key missing piece! We need a fuel-parametric version of `execIRStmt`
-to make it provable. The `partial` version in IRInterpreter.lean cannot be
-reasoned about in proofs.
-
-These must be defined as mutual functions since they call each other.
+Since `execIRStmt` and `execIRStmts` in IRInterpreter.lean are now total
+(fuel-parametric), the previously separate `execIRStmtFuel`/`execIRStmtsFuel`
+definitions are now just aliases. This preserves the API for downstream proofs.
 -/
 
-mutual
-  def execIRStmtFuel : Nat → IRState → YulStmt → IRExecResult
-    | 0, state, _ => .revert state  -- Out of fuel
-    | Nat.succ fuel, state, stmt =>
-        match stmt with
-        | .comment _ => .continue state
-        | .let_ name value =>
-            match evalIRExpr state value with
-            | some v => .continue (state.setVar name v)
-            | none => .revert state
-        | .assign name value =>
-            match evalIRExpr state value with
-            | some v => .continue (state.setVar name v)
-            | none => .revert state
-        | .expr e =>
-            match e with
-            | .call "sstore" [slotExpr, valExpr] =>
-                match slotExpr with
-                | .call "mappingSlot" [baseExpr, keyExpr] =>
-                    match evalIRExpr state baseExpr, evalIRExpr state keyExpr, evalIRExpr state valExpr with
-                    | some baseSlot, some key, some val =>
-                        .continue {
-                          state with
-                          mappings := fun b k =>
-                            if b = baseSlot ∧ k = key then val else state.mappings b k
-                        }
-                    | _, _, _ => .revert state
-                | _ =>
-                    match evalIRExpr state slotExpr, evalIRExpr state valExpr with
-                    | some slot, some val =>
-                      match decodeMappingSlot slot with
-                      | some (baseSlot, key) =>
-                          .continue {
-                            state with
-                            mappings := fun b k =>
-                              if b = baseSlot ∧ k = key then val else state.mappings b k
-                          }
-                      | none =>
-                          .continue { state with storage := fun s => if s = slot then val else state.storage s }
-                    | _, _ => .revert state
-            | .call "mstore" [offsetExpr, valExpr] =>
-                match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
-                | some offset, some val =>
-                  .continue { state with memory := fun o => if o = offset then val else state.memory o }
-                | _, _ => .revert state
-            | .call "stop" [] => .stop state
-            | .call "revert" _ => .revert state
-            | .call "return" [offsetExpr, sizeExpr] =>
-                match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
-                | some offset, some size =>
-                  if size = 32 then
-                    .return (state.memory offset) state
-                  else
-                    .return 0 state
-                | _, _ => .revert state
-            | _ => .continue state  -- Other expressions are no-ops
-        | .if_ cond body =>
-            match evalIRExpr state cond with
-            | some c => if c ≠ 0 then execIRStmtsFuel fuel state body else .continue state
-            | none => .revert state
-        | .switch expr cases default =>
-            match evalIRExpr state expr with
-            | some v =>
-              match cases.find? (·.1 == v) with
-              | some (_, body) => execIRStmtsFuel fuel state body
-              | none =>
-                match default with
-                | some body => execIRStmtsFuel fuel state body
-                | none => .continue state
-            | none => .revert state
-        | .block stmts => execIRStmtsFuel fuel state stmts
-        | .funcDef _ _ _ _ => .continue state
-
-  def execIRStmtsFuel (fuel : Nat) (state : IRState) (stmts : List YulStmt) : IRExecResult :=
-    match stmts with
-    | [] => .continue state
-    | stmt :: rest =>
-        match fuel with
-        | 0 => .revert state
-        | Nat.succ fuel =>
-            match execIRStmtFuel fuel state stmt with
-            | .continue s' => execIRStmtsFuel fuel s' rest
-            | .return v s => .return v s
-            | .stop s => .stop s
-            | .revert s => .revert s
-end
+abbrev execIRStmtFuel := @execIRStmt
+abbrev execIRStmtsFuel := @execIRStmts
 
 /-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
 def execIRStmt_equiv_execYulStmt_goal
@@ -341,7 +252,7 @@ def execIRStmts_equiv_execYulStmts_goal
 
 theorem execIRStmtsFuel_nil (fuel : Nat) (state : IRState) :
     execIRStmtsFuel fuel state [] = .continue state := by
-  simp [execIRStmtsFuel]
+  simp [execIRStmtsFuel, execIRStmts]
 
 theorem execIRStmtsFuel_cons
     (fuel : Nat) (state : IRState) (stmt : YulStmt) (rest : List YulStmt) :
@@ -411,14 +322,14 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
   induction stmts with
   | nil =>
       intro fuel irState yulState hAligned
-      simp [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execYulStmtsFuel_nil,
-        execResultsAligned, hAligned]
+      simp [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execIRStmts,
+        execYulStmtsFuel_nil, execResultsAligned, hAligned]
   | cons stmt rest ih =>
       intro fuel irState yulState hAligned
       cases fuel with
       | zero =>
-          simp [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execYulStmtsFuel,
-            execYulFuel, execResultsAligned, hAligned]
+          simp [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execIRStmts,
+            execYulStmtsFuel, execYulFuel, execResultsAligned, hAligned]
       | succ fuel =>
           have hStmt := stmt_equiv selector fuel stmt irState yulState hAligned
           cases hIR : execIRStmtFuel fuel irState stmt with
@@ -428,7 +339,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
                   have hAligned' : statesAligned selector ir' y' := by
                     simpa [execResultsAligned, hIR, hYul] using hStmt
                   have hRest := ih (irState := ir') (yulState := y') (fuel := fuel) hAligned'
-                  simpa [execIRStmtsFuel, execYulStmtsFuel_cons, hIR, hYul] using hRest
+                  simpa [execIRStmtsFuel, execIRStmts, execYulStmtsFuel_cons, hIR, hYul] using hRest
               | «return» v y' =>
                   have : False := by
                     simpa [execResultsAligned, hIR, hYul] using hStmt
@@ -444,7 +355,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
           | «return» v ir' =>
               cases hYul : execYulStmtFuel fuel yulState stmt with
               | «return» v' y' =>
-                  simpa [execIRStmtsFuel, execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
+                  simpa [execIRStmtsFuel, execIRStmts, execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
               | «continue» y' =>
                   have : False := by
                     simpa [execResultsAligned, hIR, hYul] using hStmt
@@ -460,7 +371,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
           | «stop» ir' =>
               cases hYul : execYulStmtFuel fuel yulState stmt with
               | «stop» y' =>
-                  simpa [execIRStmtsFuel, execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
+                  simpa [execIRStmtsFuel, execIRStmts, execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
               | «continue» y' =>
                   have : False := by
                     simpa [execResultsAligned, hIR, hYul] using hStmt
@@ -476,7 +387,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
           | «revert» ir' =>
               cases hYul : execYulStmtFuel fuel yulState stmt with
               | «revert» y' =>
-                  simpa [execIRStmtsFuel, execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
+                  simpa [execIRStmtsFuel, execIRStmts, execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
               | «continue» y' =>
                   have : False := by
                     simpa [execResultsAligned, hIR, hYul] using hStmt
@@ -544,32 +455,36 @@ theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv stmt_equiv
       selector fn args initialState)
 
+/-! ## Fuel Adequacy (Now Trivial)
+
+Since `execIRStmt`/`execIRStmts` are now total (fuel-based) and
+`execIRStmtFuel`/`execIRStmtsFuel` are aliases for them, the adequacy
+relationship is trivially `rfl`. No axiom needed.
+
+Previously this required:
+  axiom execIRStmtsFuel_adequate : ...
+This axiom has been **eliminated** by making the IR interpreter total.
+-/
+
 theorem execIRFunctionFuel_eq_execIRFunction
-    (fn : IRFunction) (args : List Nat) (initialState : IRState)
-    (hFuel :
-      execIRStmtsFuel (sizeOf fn.body + 1)
-        (fn.params.zip args |>.foldl
-          (fun s (p, v) => s.setVar p.name v)
-          initialState)
-        fn.body =
-      execIRStmts
-        (fn.params.zip args |>.foldl
-          (fun s (p, v) => s.setVar p.name v)
-          initialState)
-        fn.body) :
+    (fn : IRFunction) (args : List Nat) (initialState : IRState) :
     execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
       execIRFunction fn args initialState := by
-  dsimp [execIRFunctionFuel, execIRFunction]
-  simp [hFuel]
   rfl
 
 def execIRStmtsFuel_adequate_goal (state : IRState) (stmts : List YulStmt) : Prop :=
-  execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts state stmts
+  execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts (sizeOf stmts + 1) state stmts
 
 def execIRFunctionFuel_adequate_goal
     (fn : IRFunction) (args : List Nat) (initialState : IRState) : Prop :=
   execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
     execIRFunction fn args initialState
+
+/-- Fuel adequacy is now trivially true (aliases). -/
+theorem execIRFunctionFuel_adequate
+    (fn : IRFunction) (args : List Nat) (initialState : IRState) :
+    execIRFunctionFuel_adequate_goal fn args initialState := by
+  rfl
 
 theorem execIRFunctionFuel_adequate_goal_of_stmts_adequate
     (fn : IRFunction) (args : List Nat) (initialState : IRState)
@@ -580,21 +495,7 @@ theorem execIRFunctionFuel_adequate_goal_of_stmts_adequate
           initialState)
         fn.body) :
     execIRFunctionFuel_adequate_goal fn args initialState := by
-  let stateWithParams :=
-    fn.params.zip args |>.foldl
-      (fun s (p, v) => s.setVar p.name v)
-      initialState
-  have hAdequacy' :
-      execIRStmtsFuel (sizeOf fn.body + 1) stateWithParams fn.body =
-        execIRStmts stateWithParams fn.body := by
-    simpa [execIRStmtsFuel_adequate_goal, stateWithParams] using hAdequacy
-  have h :
-      execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
-        execIRFunction fn args initialState := by
-    dsimp [execIRFunctionFuel, execIRFunction, stateWithParams]
-    rw [hAdequacy']
-    rfl
-  simpa [execIRFunctionFuel_adequate_goal] using h
+  rfl
 
 theorem ir_yul_function_equiv_from_state_of_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
@@ -645,32 +546,5 @@ theorem ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
   exact
     ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
       fn selector args initialState hAdequacy hFuelGoal
-
-/-! ## Fuel Adequacy Axiom
-
-The fuel-parametric `execIRStmtsFuel` and the `partial` `execIRStmts` compute the same result
-when given sufficient fuel. This cannot be proven in Lean because `partial` definitions are
-opaque to the kernel — the compiler implements them via a fixpoint that Lean's logic cannot unfold.
-
-**Soundness argument**:
-1. `execIRStmtsFuel` is structurally identical to `execIRStmts` except for the fuel counter
-2. With `sizeOf stmts + 1` fuel, the fuel-based version has at least as many steps as
-   the statement list is deep — sufficient for any terminating execution
-3. Both functions are defined by the same pattern-matching structure over the same AST types
-4. Validated by all smoke tests and 70,000+ differential tests which exercise both paths
-
-**Alternative**: Refactor `execIRStmts` to use fuel (matching the pattern used by `execYulFuel`).
-This would make it total and eliminate both this axiom and the `evalIRExpr` axioms.
-Estimated effort: ~500 lines (extends the ~300 line estimate for the expression evaluator refactor).
--/
-axiom execIRStmtsFuel_adequate (state : IRState) (stmts : List YulStmt) :
-    execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts state stmts
-
-/-- Fuel adequacy for full function execution. -/
-theorem execIRFunctionFuel_adequate
-    (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    execIRFunctionFuel_adequate_goal fn args initialState :=
-  execIRFunctionFuel_adequate_goal_of_stmts_adequate fn args initialState
-    (execIRStmtsFuel_adequate _ _)
 
 end Compiler.Proofs.YulGeneration

@@ -7,6 +7,13 @@
   - IR uses Yul expressions (ident, call) instead of high-level Spec expressions (storage, param)
   - IR has explicit variables and assignment instead of automatic scoping
   - IR is lower-level but simpler to reason about than full spec interpreter
+
+  All functions in this module are **total** (no `partial` annotations):
+  - Expression evaluators use structural recursion on expression size (exprSize/exprsSize)
+  - Statement executors use an explicit fuel parameter
+
+  This eliminates 3 axioms that were previously needed to bridge partial and total definitions.
+  See Issue #148 for the full motivation.
 -/
 
 import Compiler.IR
@@ -62,7 +69,12 @@ def IRState.getVar (s : IRState) (name : String) : Option Nat :=
 def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
   { s with vars := (name, value) :: s.vars.filter (·.1 != name) }
 
-/-! ## IR Expression Evaluation -/
+/-! ## IR Expression Evaluation (Total)
+
+Expression evaluators use structural recursion on expression size, matching the
+pattern already used by `evalYulExpr` in `Semantics.lean`. The `exprSize`/`exprsSize`
+measures from Semantics.lean are reused.
+-/
 
 abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
 
@@ -76,57 +88,117 @@ abbrev mappingTag : Nat := Compiler.Proofs.mappingTag
 abbrev encodeMappingSlot := Compiler.Proofs.encodeMappingSlot
 abbrev decodeMappingSlot := Compiler.Proofs.decodeMappingSlot
 
+open Compiler.Proofs.YulGeneration in
 mutual
 
-/-- Evaluate a list of Yul expressions in the IR context -/
-partial def evalIRExprs (state : IRState) : List YulExpr → Option (List Nat)
+/-- Evaluate a list of Yul expressions in the IR context.
+
+Total: uses `exprsSize` for termination (structural recursion on expression tree). -/
+def evalIRExprs (state : IRState) : List YulExpr → Option (List Nat)
   | [] => some []
   | e :: es => do
     let v ← evalIRExpr state e
     let vs ← evalIRExprs state es
     pure (v :: vs)
-partial def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
+termination_by es => exprsSize es
+decreasing_by
+  all_goals
+    simp [exprsSize, exprSize]
+    omega
+
+/-- Evaluate an IR function call by evaluating all arguments first, then dispatching.
+
+Total: uses `exprsSize args + 1` for termination. Evaluating args decreases the measure.
+
+NOTE: This function always evaluates all arguments via `evalIRExprs` before dispatching,
+matching the structure of `evalYulCall` in Semantics.lean. For `sload`, mapping slot
+routing uses `decodeMappingSlot` on the evaluated slot value (not pattern-matching on
+the argument expression). This makes the function structurally identical to the Yul
+version, enabling direct equivalence proofs without axioms. -/
+def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
   | args => do
-    match func, args with
-  | "mappingSlot", [baseExpr, keyExpr] => do
-      let base ← evalIRExpr state baseExpr
-      let key ← evalIRExpr state keyExpr
-      pure (encodeMappingSlot base key)
-  | "sload", [slotExpr] => do
-      match slotExpr with
-      | .call "mappingSlot" [baseExpr, keyExpr] => do
-          let base ← evalIRExpr state baseExpr
-          let key ← evalIRExpr state keyExpr
-          pure (state.mappings base key)
-      | _ => do
-          let slot ← evalIRExpr state slotExpr
+    let argVals ← evalIRExprs state args
+    if func = "mappingSlot" then
+      match argVals with
+      | [base, key] => some (encodeMappingSlot base key)
+      | _ => none
+    else if func = "sload" then
+      match argVals with
+      | [slot] =>
           match decodeMappingSlot slot with
-          | some (baseSlot, key) => pure (state.mappings baseSlot key)
-          | none => pure (state.storage slot)
-  | _, _ =>
-      let argVals ← evalIRExprs state args
-      match func, argVals with
-      | "add", [a, b] => some ((a + b) % evmModulus)  -- EVM modular arithmetic
-      | "sub", [a, b] =>
-          -- EVM SUB uses modular two's-complement wrapping, not truncating subtraction
-          -- If a >= b: result is a - b
-          -- If a < b: result wraps around: 2^256 - (b - a) = 2^256 + a - b
-          some ((evmModulus + a - b) % evmModulus)
-      | "mul", [a, b] => some ((a * b) % evmModulus)
-      | "div", [a, b] => if b = 0 then some 0 else some (a / b)
-      | "mod", [a, b] => if b = 0 then some 0 else some (a % b)
-      | "lt", [a, b] => some (if a < b then 1 else 0)
-      | "gt", [a, b] => some (if a > b then 1 else 0)
-      | "eq", [a, b] => some (if a = b then 1 else 0)
-      | "iszero", [a] => some (if a = 0 then 1 else 0)
-      | "and", [a, b] => some (a &&& b)  -- Bitwise AND
-      | "or", [a, b] => some (a ||| b)   -- Bitwise OR
-      | "xor", [a, b] => some (Nat.xor a b)
-      | "not", [a] => some (Nat.xor a (evmModulus - 1))
-      | "shl", [shift, value] => some ((value * (2 ^ shift)) % evmModulus)
-      | "shr", [shift, value] => some (value / (2 ^ shift))
-      | "caller", [] => some state.sender
-      | "calldataload", [offset] =>
+          | some (baseSlot, key) => some (state.mappings baseSlot key)
+          | none => some (state.storage slot)
+      | _ => none
+    else if func = "add" then
+      match argVals with
+      | [a, b] => some ((a + b) % evmModulus)  -- EVM modular arithmetic
+      | _ => none
+    else if func = "sub" then
+      match argVals with
+      -- EVM SUB uses modular two's-complement wrapping, not truncating subtraction
+      -- If a >= b: result is a - b
+      -- If a < b: result wraps around: 2^256 - (b - a) = 2^256 + a - b
+      | [a, b] => some ((evmModulus + a - b) % evmModulus)
+      | _ => none
+    else if func = "mul" then
+      match argVals with
+      | [a, b] => some ((a * b) % evmModulus)
+      | _ => none
+    else if func = "div" then
+      match argVals with
+      | [a, b] => if b = 0 then some 0 else some (a / b)
+      | _ => none
+    else if func = "mod" then
+      match argVals with
+      | [a, b] => if b = 0 then some 0 else some (a % b)
+      | _ => none
+    else if func = "lt" then
+      match argVals with
+      | [a, b] => some (if a < b then 1 else 0)
+      | _ => none
+    else if func = "gt" then
+      match argVals with
+      | [a, b] => some (if a > b then 1 else 0)
+      | _ => none
+    else if func = "eq" then
+      match argVals with
+      | [a, b] => some (if a = b then 1 else 0)
+      | _ => none
+    else if func = "iszero" then
+      match argVals with
+      | [a] => some (if a = 0 then 1 else 0)
+      | _ => none
+    else if func = "and" then
+      match argVals with
+      | [a, b] => some (a &&& b)  -- Bitwise AND
+      | _ => none
+    else if func = "or" then
+      match argVals with
+      | [a, b] => some (a ||| b)   -- Bitwise OR
+      | _ => none
+    else if func = "xor" then
+      match argVals with
+      | [a, b] => some (Nat.xor a b)
+      | _ => none
+    else if func = "not" then
+      match argVals with
+      | [a] => some (Nat.xor a (evmModulus - 1))
+      | _ => none
+    else if func = "shl" then
+      match argVals with
+      | [shift, value] => some ((value * (2 ^ shift)) % evmModulus)
+      | _ => none
+    else if func = "shr" then
+      match argVals with
+      | [shift, value] => some (value / (2 ^ shift))
+      | _ => none
+    else if func = "caller" then
+      match argVals with
+      | [] => some state.sender
+      | _ => none
+    else if func = "calldataload" then
+      match argVals with
+      | [offset] =>
           -- calldataload retrieves 32-byte word from calldata at given offset.
           -- offset=0 returns the selector word (selector << 224), matching EVM semantics.
           -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
@@ -142,18 +214,35 @@ partial def evalIRCall (state : IRState) (func : String) : List YulExpr → Opti
             else
               let idx := wordOffset / 32
               some (state.calldata.getD idx 0 % evmModulus)
-      | _, _ => none  -- Unknown or invalid function call
-/-- Evaluate a Yul expression in the IR context -/
-partial def evalIRExpr (state : IRState) : YulExpr → Option Nat
+      | _ => none
+    else
+      none
+termination_by args => exprsSize args + 1
+decreasing_by
+  simp [exprsSize, exprSize]
+
+/-- Evaluate a Yul expression in the IR context.
+
+Total: uses `exprSize` for termination (structural recursion on expression tree). -/
+def evalIRExpr (state : IRState) : YulExpr → Option Nat
   | .lit n => some n
   | .hex n => some n
   | .str _ => none  -- Strings not supported in our IR subset
   | .ident name => state.getVar name
   | .call func args => evalIRCall state func args
+termination_by e => exprSize e
+decreasing_by
+  simp [exprsSize, exprSize]
 
 end -- mutual
 
-/-! ## IR Statement Execution -/
+/-! ## IR Statement Execution (Fuel-Based, Total)
+
+Statement executors use an explicit fuel parameter to ensure totality.
+This eliminates the need for `partial def` and the corresponding
+`execIRStmtsFuel_adequate` axiom. The fuel-based versions are now the
+canonical definitions.
+-/
 
 /-- Result of executing IR statements -/
 inductive IRExecResult
@@ -165,106 +254,112 @@ inductive IRExecResult
 
 mutual
 
-/-- Execute a single Yul statement -/
-partial def execIRStmt (state : IRState) : YulStmt → IRExecResult
-  | .comment _ => .continue state
-  | .let_ name value =>
-    match evalIRExpr state value with
-    | some v => .continue (state.setVar name v)
-    | none => .revert state
-  | .assign name value =>
-    match evalIRExpr state value with
-    | some v => .continue (state.setVar name v)
-    | none => .revert state
-  | .expr e =>
-    -- Expression statements for side effects (like sstore)
-    match e with
-    | .call "sstore" [slotExpr, valExpr] =>
-      match slotExpr with
-      | .call "mappingSlot" [baseExpr, keyExpr] =>
-          match evalIRExpr state baseExpr, evalIRExpr state keyExpr, evalIRExpr state valExpr with
-          | some baseSlot, some key, some val =>
-              .continue {
-                state with
-                mappings := fun b k =>
-                  if b = baseSlot ∧ k = key then val else state.mappings b k
-              }
-          | _, _, _ => .revert state
-      | _ =>
-          match evalIRExpr state slotExpr, evalIRExpr state valExpr with
-          | some slot, some val =>
-            match decodeMappingSlot slot with
-            | some (baseSlot, key) =>
-                .continue {
-                  state with
-                  mappings := fun b k =>
-                    if b = baseSlot ∧ k = key then val else state.mappings b k
-                }
+/-- Execute a single Yul statement with fuel bound.
+
+Total: uses explicit fuel parameter for recursion control.
+When fuel is 0, execution reverts (safe fallback). -/
+def execIRStmt : Nat → IRState → YulStmt → IRExecResult
+  | 0, state, _ => .revert state  -- Out of fuel
+  | Nat.succ fuel, state, stmt =>
+      match stmt with
+      | .comment _ => .continue state
+      | .let_ name value =>
+          match evalIRExpr state value with
+          | some v => .continue (state.setVar name v)
+          | none => .revert state
+      | .assign name value =>
+          match evalIRExpr state value with
+          | some v => .continue (state.setVar name v)
+          | none => .revert state
+      | .expr e =>
+          match e with
+          | .call "sstore" [slotExpr, valExpr] =>
+              match slotExpr with
+              | .call "mappingSlot" [baseExpr, keyExpr] =>
+                  match evalIRExpr state baseExpr, evalIRExpr state keyExpr, evalIRExpr state valExpr with
+                  | some baseSlot, some key, some val =>
+                      .continue {
+                        state with
+                        mappings := fun b k =>
+                          if b = baseSlot ∧ k = key then val else state.mappings b k
+                      }
+                  | _, _, _ => .revert state
+              | _ =>
+                  match evalIRExpr state slotExpr, evalIRExpr state valExpr with
+                  | some slot, some val =>
+                    match decodeMappingSlot slot with
+                    | some (baseSlot, key) =>
+                        .continue {
+                          state with
+                          mappings := fun b k =>
+                            if b = baseSlot ∧ k = key then val else state.mappings b k
+                        }
+                    | none =>
+                        .continue { state with storage := fun s => if s = slot then val else state.storage s }
+                  | _, _ => .revert state
+          | .call "mstore" [offsetExpr, valExpr] =>
+              match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
+              | some offset, some val =>
+                .continue { state with memory := fun o => if o = offset then val else state.memory o }
+              | _, _ => .revert state
+          | .call "stop" [] => .stop state
+          | .call "revert" _ => .revert state
+          | .call "return" [offsetExpr, sizeExpr] =>
+              match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
+              | some offset, some size =>
+                if size = 32 then
+                  .return (state.memory offset) state
+                else
+                  .return 0 state
+              | _, _ => .revert state
+          | _ => .continue state  -- Other expressions are no-ops
+      | .if_ cond body =>
+          match evalIRExpr state cond with
+          | some c => if c ≠ 0 then execIRStmts fuel state body else .continue state
+          | none => .revert state
+      | .switch expr cases default =>
+          match evalIRExpr state expr with
+          | some v =>
+            match cases.find? (·.1 == v) with
+            | some (_, body) => execIRStmts fuel state body
             | none =>
-                .continue { state with storage := fun s => if s = slot then val else state.storage s }
-          | _, _ => .revert state
-    | .call "mstore" [offsetExpr, valExpr] =>
-      match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
-      | some offset, some val =>
-        .continue { state with memory := fun o => if o = offset then val else state.memory o }
-      | _, _ => .revert state
-    | .call "stop" [] => .stop state
-    | .call "revert" _ => .revert state
-    | .call "return" [offsetExpr, sizeExpr] =>
-      -- Yul return(offset, size) returns memory[offset:offset+size]
-      -- For our IR subset focusing on single values, we interpret this as:
-      -- return(0, 32) means return a 32-byte (256-bit) value stored at memory offset 0
-      match evalIRExpr state offsetExpr, evalIRExpr state sizeExpr with
-      | some offset, some size =>
-        -- For return values, we expect size=32 (single 256-bit value)
-        -- Return the word stored at the requested offset.
-        if size = 32 then
-          .return (state.memory offset) state
-        else
-          .return 0 state
-      | _, _ => .revert state
-    | _ => .continue state  -- Other expressions are no-ops
-  | .if_ cond body =>
-    match evalIRExpr state cond with
-    | some c => if c ≠ 0 then execIRStmts state body else .continue state
-    | none => .revert state
-  | .switch expr cases default =>
-    match evalIRExpr state expr with
-    | some v =>
-      match cases.find? (·.1 == v) with
-      | some (_, body) => execIRStmts state body
-      | none =>
-        match default with
-        | some body => execIRStmts state body
-        | none => .continue state
-    | none => .revert state
-  | .for_ init cond post body =>
-    -- Execute init, then loop: check cond, run body, run post, repeat
-    match execIRStmts state init with
-    | .continue s' =>
-        match evalIRExpr s' cond with
-        | some v =>
-            if v ≠ 0 then
-              match execIRStmts s' body with
-              | .continue s'' =>
-                  match execIRStmts s'' post with
-                  | .continue s''' => execIRStmt s''' (.for_ [] cond post body)
-                  | other => other
-              | other => other
-            else .continue s'
-        | none => .revert s'
-    | other => other
-  | .block stmts => execIRStmts state stmts
-  | .funcDef _ _ _ _ => .continue state  -- Function definitions don't execute
-/-- Execute a sequence of IR statements -/
-partial def execIRStmts (state : IRState) : List YulStmt → IRExecResult
+              match default with
+              | some body => execIRStmts fuel state body
+              | none => .continue state
+          | none => .revert state
+      | .for_ init cond post body =>
+          -- Execute init, then loop: check cond, run body, run post, repeat
+          match execIRStmts fuel state init with
+          | .continue s' =>
+              match evalIRExpr s' cond with
+              | some v =>
+                  if v ≠ 0 then
+                    match execIRStmts fuel s' body with
+                    | .continue s'' =>
+                        match execIRStmts fuel s'' post with
+                        | .continue s''' => execIRStmt fuel s''' (.for_ [] cond post body)
+                        | other => other
+                    | other => other
+                  else .continue s'
+              | none => .revert s'
+          | other => other
+      | .block stmts => execIRStmts fuel state stmts
+      | .funcDef _ _ _ _ => .continue state
+
+/-- Execute a sequence of IR statements with fuel bound.
+
+Total: uses explicit fuel parameter for recursion control. -/
+def execIRStmts (fuel : Nat) (state : IRState) : List YulStmt → IRExecResult
   | [] => .continue state
   | stmt :: rest =>
-    match execIRStmt state stmt with
-    | .continue s' => execIRStmts s' rest
-    | .return v s => .return v s
-    | .stop s => .stop s
-    | .revert s => .revert s
+      match fuel with
+      | 0 => .revert state
+      | Nat.succ fuel =>
+          match execIRStmt fuel state stmt with
+          | .continue s' => execIRStmts fuel s' rest
+          | .return v s => .return v s
+          | .stop s => .stop s
+          | .revert s => .revert s
 
 end -- mutual
 
@@ -282,14 +377,16 @@ structure IRResult where
   finalStorage : Nat → Nat
   finalMappings : Nat → Nat → Nat
 
-/-- Execute an IR function with given arguments -/
+/-- Execute an IR function with given arguments.
+Uses `sizeOf fn.body + 1` fuel, which is sufficient for any terminating execution
+of a non-looping function body. -/
 def execIRFunction (fn : IRFunction) (args : List Nat) (initialState : IRState) : IRResult :=
   -- Initialize parameters as variables
   let stateWithParams := fn.params.zip args |>.foldl
     (fun s (p, v) => s.setVar p.name v)
     initialState
 
-  match execIRStmts stateWithParams fn.body with
+  match execIRStmts (sizeOf fn.body + 1) stateWithParams fn.body with
   | .continue s =>
     { success := true
       returnValue := s.returnValue
