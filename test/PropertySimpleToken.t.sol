@@ -17,7 +17,7 @@ import "./yul/YulTestBase.sol";
 contract PropertySimpleTokenTest is YulTestBase {
     address token;
     address owner = address(0xA11CE);
-    address alice = address(0xA11CE);
+    address alice = address(0xA1);
     address bob = address(0xB0B);
     address charlie = address(0xC4A12);
 
