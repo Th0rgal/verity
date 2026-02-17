@@ -622,15 +622,17 @@ python3 scripts/check_doc_counts.py
 
 ### 7.2 Add to Module Exports
 
-Update `Verity/All.lean` to include your new contract:
+Update `Verity/All.lean` to include all your new contract modules:
 ```lean
 import Verity.Examples.TipJar
+import Verity.Specs.TipJar.Spec
+import Verity.Specs.TipJar.Invariants
+import Verity.Specs.TipJar.Proofs
+import Verity.Proofs.TipJar.Basic
+import Verity.Proofs.TipJar.Correctness
 ```
 
-Also add the proof imports to `Verity/All.lean`:
-```lean
-import Verity.Proofs.TipJar.Basic
-```
+> **Tip**: The scaffold generator prints these exact lines when you run it — copy them directly.
 
 ---
 
