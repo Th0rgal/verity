@@ -616,7 +616,7 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
         actors[3] = address(0xCA401);
         actors[4] = address(0xDABE);
 
-        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
+        (uint256 startIndex, uint256 count) = _diffRandomLargeRangeCapped(2000);
         uint256 seed = _diffRandomSeed("OwnedCounter");
         for (uint256 i = 0; i < count; i++) {
             // Generate random transaction

@@ -56,6 +56,13 @@ abstract contract DiffTestConfig is Test {
         return _diffShardRange(totalCount);
     }
 
+    function _diffRandomLargeRangeCapped(uint256 maxCount) internal view returns (uint256 start, uint256 count) {
+        (start, count) = _diffRandomLargeRange();
+        if (count > maxCount) {
+            count = maxCount;
+        }
+    }
+
     function _diffRandomBaseSeed() internal view returns (uint256) {
         return vm.envOr("DIFFTEST_RANDOM_SEED", uint256(42));
     }

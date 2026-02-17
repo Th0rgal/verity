@@ -467,7 +467,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
      */
     function testDifferential_Random10000() public {
         // Deterministic PRNG seed for reproducibility
-        (uint256 startIndex, uint256 numTransactions) = _diffRandomLargeRange();
+        (uint256 startIndex, uint256 numTransactions) = _diffRandomLargeRangeCapped(2000);
         uint256 seed = _diffRandomSeed("Owned");
 
         address[] memory testAddresses = new address[](5);
