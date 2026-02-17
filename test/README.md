@@ -26,7 +26,7 @@ Compare EDSL interpreter output against Yul-compiled EVM execution to catch comp
 **Files**: `DifferentialTestBase.sol` (shared utilities), `DiffTestConfig.sol` (configuration)
 
 ### Unit Tests
-**Pattern**: `Unit<Contract>.t.sol`
+**Pattern**: `<Contract>.t.sol` (e.g., `Counter.t.sol`, `Ledger.t.sol`)
 
 Basic contract behavior validation without formal property mapping.
 
@@ -58,13 +58,17 @@ bash scripts/test_multiple_seeds.sh
 
 ```
 test/
-├── Property*.t.sol          # Property tests (220 tests)
-├── Differential*.t.sol      # Differential tests
-├── Unit*.t.sol              # Unit tests
-├── DifferentialTestBase.sol # Shared differential test utilities
-├── DiffTestConfig.sol       # Test configuration
-├── property_manifest.json   # All Lean theorems (auto-generated)
-└── property_exclusions.json # Proof-only theorems (manual)
+├── Property*.t.sol           # Property tests (220 tests)
+├── Differential*.t.sol       # Differential tests
+├── <Contract>.t.sol          # Unit tests (Counter, Ledger, Owned, etc.)
+├── CallValueGuard.t.sol      # Call value rejection tests
+├── CalldataSizeGuard.t.sol   # Calldata size validation tests
+├── SelectorSanity.t.sol      # Selector verification tests
+├── DifferentialTestBase.sol  # Shared differential test utilities
+├── DiffTestConfig.sol        # Test configuration
+├── yul/                      # Yul test utilities (YulTestBase.sol)
+├── property_manifest.json    # All Lean theorems (auto-generated)
+└── property_exclusions.json  # Proof-only theorems (manual)
 ```
 
 ## Coverage Validation

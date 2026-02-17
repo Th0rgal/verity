@@ -58,9 +58,9 @@ The coverage report shows:
 Example output:
 ```
 ✅ SimpleToken
-   Total:      56 properties
-   Covered:    47 ( 84.0%)
-   Excluded:     9 (proof-only)
+   Total:      59 properties
+   Covered:    52 ( 88.1%)
+   Excluded:     7 (proof-only)
 
 Overall: 72.1% coverage (220/305 properties)
 ```
