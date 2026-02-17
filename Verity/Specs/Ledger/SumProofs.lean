@@ -134,8 +134,8 @@ Composition property: deposit increases total by amount, withdraw decreases by a
 so net change is zero. Uses EVM.Uint256.sub_add_cancel for the arithmetic.
 Requires deposit_sum_equation and withdraw_sum_equation. -/
 theorem deposit_withdraw_sum_cancel (amount : Uint256) (s : ContractState)
-    (h_balance : s.storageMap 0 s.sender >= amount)
-    (h_finite : balancesFinite 0 s) :
+    (_h_balance : s.storageMap 0 s.sender >= amount)
+    (_h_finite : balancesFinite 0 s) :
     let s' := (deposit amount).runState s
     let s'' := (withdraw amount).runState s'
     Spec_deposit_withdraw_sum_cancel amount s s' s'' := by
