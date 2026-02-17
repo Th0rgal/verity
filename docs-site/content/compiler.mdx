@@ -156,8 +156,8 @@ forge create SimpleStorage --from 0x... --private-key ...
 
 **`Compiler/ContractSpec.lean`**
 - Declarative contract DSL
-- Expression language: `literal`, `param`, `storage`, `mapping`, `caller`, `msgValue`, `blockTimestamp`, `localVar`, `externalCall`, arithmetic, bitwise, comparisons
-- Statement language: `letVar`, `setStorage`, `setMapping`, `require`, `return`, `stop`
+- Expression language: `literal`, `param`, `storage`, `mapping`, `mapping2`, `mappingUint`, `caller`, `msgValue`, `blockTimestamp`, `localVar`, `externalCall`, `internalCall`, `arrayLength`, `arrayElement`, arithmetic, bitwise, comparisons, logical operators
+- Statement language: `letVar`, `assignVar`, `setStorage`, `setMapping`, `setMapping2`, `setMappingUint`, `require`, `return`, `stop`, `ite`, `forEach`, `emit`, `internalCall`
 - Automatic IR generation from specs
 - Constructor parameter handling (bytecode argument loading)
 - Storage slot inference (field order → slots 0, 1, 2, ...)
@@ -234,7 +234,7 @@ Pre-computed from Solidity keccak256. Extensible for new functions.
 
 The ContractSpec DSL provides a complete expression and statement language for specifying contract behavior.
 
-**Expressions** (`Expr`) — 27 constructors:
+**Expressions** (`Expr`) — 34 constructors:
 
 | Constructor | Description | Yul Output |
 |-------------|-------------|------------|
@@ -243,11 +243,16 @@ The ContractSpec DSL provides a complete expression and statement language for s
 | `constructorArg i` | Deploy-time argument | `argN` (from bytecode) |
 | `storage "f"` | Read storage field | `sload(slot)` |
 | `mapping "f" key` | Read mapping entry | `sload(mappingSlot(slot, key))` |
+| `mapping2 "f" k1 k2` | Read nested mapping (e.g., allowances) | `sload(mappingSlot(mappingSlot(slot, k1), k2))` |
+| `mappingUint "f" key` | Read uint256-keyed mapping | `sload(mappingSlot(slot, key))` |
 | `caller` | Transaction sender | `caller()` |
 | `msgValue` | Sent ETH value | `callvalue()` |
 | `blockTimestamp` | Current block timestamp | `timestamp()` |
 | `localVar "x"` | Reference local variable | `x` |
 | `externalCall "f" args` | Call linked library function | `f(args...)` |
+| `internalCall "f" args` | Call internal contract function | `internal_f(args...)` |
+| `arrayLength "arr"` | Length of dynamic array parameter | `arr_length` |
+| `arrayElement "arr" idx` | Element of dynamic array parameter | `calldataload(arr_data_offset + idx*32)` |
 | `add a b` | Addition | `add(a, b)` |
 | `sub a b` | Subtraction | `sub(a, b)` |
 | `mul a b` | Multiplication | `mul(a, b)` |
@@ -264,24 +269,49 @@ The ContractSpec DSL provides a complete expression and statement language for s
 | `lt a b` | Less than | `lt(a, b)` |
 | `ge a b` | Greater or equal | `iszero(lt(a, b))` |
 | `le a b` | Less or equal | `iszero(gt(a, b))` |
+| `logicalAnd a b` | Short-circuit logical AND | `and(iszero(iszero(a)), iszero(iszero(b)))` |
+| `logicalOr a b` | Short-circuit logical OR | `or(iszero(iszero(a)), iszero(iszero(b)))` |
+| `logicalNot a` | Logical NOT | `iszero(a)` |
 
-**Statements** (`Stmt`) — 6 constructors:
+**Statements** (`Stmt`) — 13 constructors:
 
 | Constructor | Description | Yul Output |
 |-------------|-------------|------------|
 | `letVar "x" expr` | Declare local variable | `let x := expr` |
+| `assignVar "x" expr` | Reassign existing variable | `x := expr` |
 | `setStorage "f" expr` | Write storage field | `sstore(slot, expr)` |
 | `setMapping "f" key val` | Write mapping entry | `sstore(mappingSlot(slot, key), val)` |
+| `setMapping2 "f" k1 k2 val` | Write nested mapping entry | `sstore(mappingSlot(mappingSlot(slot, k1), k2), val)` |
+| `setMappingUint "f" key val` | Write uint256-keyed mapping | `sstore(mappingSlot(slot, key), val)` |
 | `require cond "msg"` | Guard with revert message | `if iszero(cond) { revert(...) }` |
 | `return expr` | Return value | `mstore(0, expr) return(0, 32)` |
 | `stop` | End execution | `stop()` |
+| `ite cond then else` | If/else branching | `if cond { then } if iszero(cond) { else }` |
+| `forEach "i" count body` | Bounded loop | `for { let i := 0 } lt(i, count) { i := add(i,1) } { body }` |
+| `emit "Event" args` | Emit event | `log1(ptr, size, topic0)` |
+| `internalCall "f" args` | Call internal function (statement) | `internal_f(args...)` |
 
 **Example** — combining multiple features:
 ```lean
+-- Balance check with require
 Stmt.require (Expr.ge (Expr.mapping "balances" Expr.caller) (Expr.param "amount")) "Insufficient",
 Stmt.setMapping "balances" Expr.caller
   (Expr.sub (Expr.mapping "balances" Expr.caller) (Expr.param "amount")),
 Stmt.stop
+```
+
+```lean
+-- If/else branching
+Stmt.ite (Expr.eq Expr.caller (Expr.storage "owner"))
+  [Stmt.setStorage "paused" (Expr.literal 1), Stmt.stop]
+  [Stmt.stop]  -- non-owner: no-op
+```
+
+```lean
+-- Bounded loop over array
+Stmt.forEach "i" (Expr.arrayLength "recipients")
+  [Stmt.setMapping "balances" (Expr.arrayElement "recipients" (Expr.localVar "i"))
+    (Expr.param "amount")]
 ```
 
 ### Code Optimization ✅
@@ -320,6 +350,192 @@ function PoseidonT3_hash(a, b) -> result {
 **Validation**: The `validateExternalReferences` function checks that all non-builtin function calls in the contract are satisfied by linked libraries, catching missing dependencies at compile time.
 
 See [`examples/external-libs/`](https://github.com/Th0rgal/verity/tree/main/examples/external-libs) for example library files.
+
+### If/Else Branching
+
+Conditional logic for contract functions:
+
+```lean
+-- Simple if (no else)
+Stmt.ite (Expr.eq Expr.caller (Expr.storage "owner"))
+  [Stmt.setStorage "paused" (Expr.literal 1)]
+  []
+
+-- If/else with both branches
+Stmt.ite (Expr.gt (Expr.param "amount") (Expr.literal 0))
+  [Stmt.setMapping "balances" Expr.caller
+    (Expr.add (Expr.mapping "balances" Expr.caller) (Expr.param "amount"))]
+  [-- else: revert on zero amount
+   Stmt.require (Expr.literal 0) "Amount must be positive"]
+```
+
+Compiles to a block-scoped condition variable to avoid re-evaluation after state mutation:
+```yul
+{
+    let __ite_cond := eq(caller(), sload(0))
+    if __ite_cond { sstore(1, 1) }
+    if iszero(__ite_cond) { /* else branch */ }
+}
+```
+
+### Bounded Loops
+
+Iterate over array parameters or fixed counts:
+
+```lean
+-- Iterate over a dynamic array
+Stmt.forEach "i" (Expr.arrayLength "recipients")
+  [Stmt.setMapping "balances"
+    (Expr.arrayElement "recipients" (Expr.localVar "i"))
+    (Expr.add
+      (Expr.mapping "balances" (Expr.arrayElement "recipients" (Expr.localVar "i")))
+      (Expr.param "amount"))]
+```
+
+Compiles to a Yul `for` loop:
+```yul
+for { let i := 0 } lt(i, recipients_length) { i := add(i, 1) } {
+    sstore(mappingSlot(0, calldataload(add(recipients_data_offset, mul(i, 32)))),
+           add(sload(mappingSlot(0, calldataload(add(recipients_data_offset, mul(i, 32))))), amount))
+}
+```
+
+### Internal Functions
+
+Define reusable logic shared across multiple external functions. Internal functions compile to Yul `function` definitions and are **not** exposed via selector dispatch:
+
+```lean
+def mySpec : ContractSpec := {
+  name := "MyContract"
+  fields := [{ name := "balances", ty := FieldType.mapping }]
+  functions := [
+    -- Internal helper (not exposed)
+    { name := "addBalance"
+      params := [{ name := "addr", ty := ParamType.address },
+                 { name := "amt", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.setMapping "balances" (Expr.param "addr")
+          (Expr.add (Expr.mapping "balances" (Expr.param "addr"))
+                    (Expr.param "amt"))
+      ]
+      isInternal := true  -- Not dispatched externally
+    },
+    -- External function that calls the helper
+    { name := "deposit"
+      params := []
+      returnType := none
+      body := [
+        Stmt.internalCall "addBalance" [Expr.caller, Expr.msgValue],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+```
+
+Internal functions that return values use `__ret` assignment instead of EVM `RETURN`:
+```lean
+-- Internal function returning a value
+{ name := "getBalance"
+  params := [{ name := "addr", ty := ParamType.address }]
+  returnType := some FieldType.uint256
+  body := [Stmt.return (Expr.mapping "balances" (Expr.param "addr"))]
+  isInternal := true
+}
+
+-- Call it from an expression context
+Stmt.letVar "bal" (Expr.internalCall "getBalance" [Expr.caller])
+```
+
+### Event Emission
+
+Emit EVM events for standards compliance (ERC20 Transfer/Approval, etc.):
+
+```lean
+def tokenSpec : ContractSpec := {
+  name := "Token"
+  fields := [{ name := "balances", ty := FieldType.mapping }]
+  events := [
+    { name := "Transfer"
+      params := [
+        { name := "from", ty := ParamType.address, kind := EventParamKind.indexed },
+        { name := "to", ty := ParamType.address, kind := EventParamKind.indexed },
+        { name := "amount", ty := ParamType.uint256, kind := EventParamKind.unindexed }
+      ]
+    }
+  ]
+  functions := [
+    { name := "transfer"
+      params := [{ name := "to", ty := ParamType.address },
+                 { name := "amount", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        -- ... transfer logic ...
+        Stmt.emit "Transfer" [Expr.caller, Expr.param "to", Expr.param "amount"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+```
+
+Event topic0 is computed from the event signature (e.g., `keccak256("Transfer(address,address,uint256)")`). The compiler generates `log1` opcodes for events.
+
+### Nested Mappings (Double Mappings)
+
+For ERC20 allowances and similar patterns requiring `mapping(address => mapping(address => uint256))`:
+
+```lean
+fields := [
+  { name := "allowances", ty := FieldType.mappingTyped (MappingType.nested .address .address) }
+]
+
+-- Read: allowances[owner][spender]
+Expr.mapping2 "allowances" (Expr.param "owner") (Expr.param "spender")
+
+-- Write: allowances[owner][spender] = amount
+Stmt.setMapping2 "allowances" (Expr.param "owner") (Expr.param "spender") (Expr.param "amount")
+```
+
+Storage layout: `keccak256(spender . keccak256(owner . slot))` — matches Solidity nested mapping layout.
+
+### Uint256-Keyed Mappings
+
+For mappings keyed by numeric values instead of addresses:
+
+```lean
+fields := [
+  { name := "data", ty := FieldType.mappingTyped (MappingType.simple .uint256) }
+]
+
+-- Read: data[tokenId]
+Expr.mappingUint "data" (Expr.param "tokenId")
+
+-- Write: data[tokenId] = value
+Stmt.setMappingUint "data" (Expr.param "tokenId") (Expr.param "value")
+```
+
+### Array and Bytes Parameters
+
+Dynamic arrays, fixed arrays, and bytes parameters for batch operations:
+
+```lean
+-- Dynamic array parameter
+{ name := "recipients", ty := ParamType.array ParamType.address }
+
+-- Fixed-size array parameter
+{ name := "values", ty := ParamType.fixedArray ParamType.uint256 3 }
+
+-- Dynamic bytes parameter
+{ name := "data", ty := ParamType.bytes }
+
+-- Access array elements in function body
+Expr.arrayLength "recipients"          -- number of elements
+Expr.arrayElement "recipients" (Expr.localVar "i")  -- element at index i
+```
+
+Dynamic arrays use ABI offset-based decoding. The compiler generates `_length` and `_data_offset` local variables automatically.
 
 ## Usage
 
