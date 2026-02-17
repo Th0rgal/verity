@@ -133,6 +133,11 @@ Evaluate ContractSpec expressions to natural numbers.
 All arithmetic is modular (mod 2^256) to match EVM semantics.
 -/
 
+mutual
+def evalExprs (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) (externalFns : List (String × (List Nat → Nat))) : List Expr → List Nat
+  | [] => []
+  | e :: es => evalExpr ctx storage fields paramNames externalFns e :: evalExprs ctx storage fields paramNames externalFns es
+
 def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (paramNames : List String) (externalFns : List (String × (List Nat → Nat))) : Expr → Nat
   | Expr.literal n => n % modulus
   | Expr.param name =>
@@ -176,9 +181,10 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
   | Expr.blockTimestamp => ctx.blockTimestamp % modulus
   | Expr.localVar name =>
       ctx.localVars.lookup name |>.getD 0
-  | Expr.externalCall name _args =>
+  | Expr.externalCall name args =>
+      let argVals := evalExprs ctx storage fields paramNames externalFns args
       match externalFns.lookup name with
-      | some fn => fn [] % modulus
+      | some fn => fn argVals % modulus
       | none => 0
   | Expr.internalCall _functionName _args => 0
   | Expr.arrayLength name =>
@@ -239,6 +245,7 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
       if evalExpr ctx storage fields paramNames externalFns a ≠ 0 || evalExpr ctx storage fields paramNames externalFns b ≠ 0 then 1 else 0
   | Expr.logicalNot a =>
       if evalExpr ctx storage fields paramNames externalFns a == 0 then 1 else 0
+end
 
 /-!
 ## Statement Execution
