@@ -412,12 +412,24 @@ def execStmtsFuel (fuel : Nat) (ctx : EvalContext) (fields : List Field) (paramN
               | some func =>
                   -- Evaluate arguments in the caller's context
                   let argVals := evalExprs ctx state.storage fields paramNames externalFns args
-                  -- Set up callee context: args become params, inherit caller's locals
+                  -- Set up callee context with proper parameter binding:
+                  -- params/paramTypes hold the callee's arguments (for Expr.param lookup),
+                  -- localVars is fresh (callee has its own scope)
                   let calleeParamNames := func.params.map (·.name)
-                  let calleeLocals := List.zip calleeParamNames argVals ++ ctx.localVars
-                  let calleeCtx := { ctx with localVars := calleeLocals }
-                  -- Execute callee body (sharing storage, using callee's param names)
-                  execStmtsFuel fuel' calleeCtx fields calleeParamNames externalFns functions state func.body
+                  let calleeCtx : EvalContext := {
+                    ctx with
+                    params := argVals
+                    paramTypes := func.params.map (·.ty)
+                    localVars := []
+                  }
+                  -- Execute callee body with unhaltable state (callee's return/stop
+                  -- should not terminate the caller)
+                  let calleeState := { state with halted := false, returnValue := none }
+                  match execStmtsFuel fuel' calleeCtx fields calleeParamNames externalFns functions calleeState func.body with
+                  | none => none
+                  | some (_, calleeResult) =>
+                      -- Propagate only storage and events; restore caller's halted/return state
+                      some (ctx, { state with storage := calleeResult.storage })
           | other => execStmt ctx fields paramNames externalFns state other
         match result with
         | none => none
