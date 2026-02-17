@@ -164,22 +164,22 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       events := s.events } := by
   have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
   have h_safe_sup := safeAdd_some (s.storage 2) amount h_no_sup_overflow
+  -- Unfold mint (checks-before-effects ordering: both requireSomeUint before mutations)
   simp only [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner,
     Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
     msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
     h_owner, beq_self_eq_true, ite_true]
-  -- Now requireSomeUint is still folded; unfold and rewrite safeAdd results one at a time
+  -- Unfold and rewrite safeAdd results for both checks
   unfold requireSomeUint
   rw [h_safe_bal]
-  -- Reduce the outer match on (some ...) to expose the inner safeAdd
   simp only [Verity.pure, Pure.pure, Verity.bind, Bind.bind,
-    Contract.run, ContractResult.snd, ContractResult.fst]
+    getStorage, Contract.run, ContractResult.snd, ContractResult.fst]
   rw [h_safe_sup]
   simp only [Verity.pure, Pure.pure, Verity.bind, Bind.bind,
+    setMapping, setStorage,
     Contract.run, ContractResult.snd, ContractResult.fst]
-  -- Remaining: HAdd.hAdd = EVM.Uint256.add (definitional) and sender = storageAddr 0
   simp only [HAdd.hAdd, Add.add, h_owner]
 
 -- Mint correctness when caller is owner and no overflow
@@ -236,12 +236,14 @@ theorem mint_reverts_balance_overflow (s : ContractState) (to : Address) (amount
     Contract.run, ContractResult.snd, ContractResult.fst,
     h_none, h_owner]
 
--- Mint reverts on supply overflow (even if balance doesn't overflow)
+-- Mint reverts on supply overflow (even if balance doesn't overflow).
+-- With checks-before-effects ordering, the revert happens before any state
+-- mutations, so the revert state equals the original state `s`.
 theorem mint_reverts_supply_overflow (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
   (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_overflow : (s.storage 2 : Nat) + (amount : Nat) > MAX_UINT256) :
-  ∃ msg s', (mint to amount).run s = ContractResult.revert msg s' := by
+  ∃ msg, (mint to amount).run s = ContractResult.revert msg s := by
   have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
   have h_none := safeAdd_none (s.storage 2) amount h_overflow
   unfold mint Verity.Examples.SimpleToken.onlyOwner isOwner requireSomeUint
@@ -250,7 +252,7 @@ theorem mint_reverts_supply_overflow (s : ContractState) (to : Address) (amount 
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
     h_safe_bal, h_none, h_owner, beq_self_eq_true, ite_true]
-  exact ⟨_, _, rfl⟩
+  exact ⟨_, rfl⟩
 
 /-! ## Transfer Correctness
 

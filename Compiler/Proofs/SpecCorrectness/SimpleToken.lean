@@ -139,7 +139,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
     simp only [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt]
     simp [Nat.not_lt.mpr h_no_sup_overflow]
   constructor
-  · -- EDSL success
+  · -- EDSL success (checks-before-effects: both requireSomeUint before setMapping/setStorage)
     simp only [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner, Contract.run,
       msgSender, getStorageAddr, getMapping, setMapping, getStorage, setStorage,
       Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
@@ -149,9 +149,10 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
     unfold requireSomeUint
     rw [h_bal_safe]
     simp only [Verity.pure, Pure.pure, Verity.bind, Bind.bind,
-      Contract.run, ContractResult.snd, ContractResult.fst]
+      getStorage, Contract.run, ContractResult.snd, ContractResult.fst]
     rw [h_sup_safe]
     simp [Verity.pure, Pure.pure, Verity.bind, Bind.bind,
+      setMapping, setStorage,
       Contract.run, ContractResult.snd, ContractResult.fst, ContractResult.isSuccess]
   -- Helper: modular add equals plain add when no overflow
   have h_bal_mod_eq : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount := by

@@ -84,9 +84,9 @@ def fst {α : Type} [Inhabited α] : ContractResult α → α
 -- WARNING: On revert, returns the state at the point of revert, which may
 -- include mutations from operations that executed before the revert.
 -- This differs from EVM semantics where REVERT discards all state changes.
--- Current contracts are safe because `require` is always called before any
--- state-modifying operations, but future contracts must be careful.
--- See issue #175 for details.
+-- Contracts MUST follow the checks-before-effects pattern (all `require`
+-- guards before any `setStorage`/`setMapping` calls) to ensure the revert
+-- state equals the original input state. See issue #254 for details.
 def snd {α : Type} : ContractResult α → ContractState
   | success _ s => s
   | revert _ s => s
@@ -134,8 +134,7 @@ def ContractResult.getValue? {α : Type} : ContractResult α → Option α
   | success a _ => some a
   | revert _ _ => none
 
--- Helper: extract state from result.
--- WARNING: On revert, returns the state at point of revert (see `snd`).
+-- Helper: extract state from result (see `snd` warning re: revert state).
 def ContractResult.getState {α : Type} : ContractResult α → ContractState
   | success _ s => s
   | revert _ s => s

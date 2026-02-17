@@ -288,13 +288,15 @@ def simpleTokenSpec : ContractSpec := {
       returnType := none
       body := [
         requireOwner,
+        -- Checks-before-effects: compute and validate both new values before any mutations
         Stmt.letVar "recipientBal" (Expr.mapping "balances" (Expr.param "to")),
         Stmt.letVar "newBalance" (Expr.add (Expr.localVar "recipientBal") (Expr.param "amount")),
         Stmt.require (Expr.ge (Expr.localVar "newBalance") (Expr.localVar "recipientBal")) "Balance overflow",
-        Stmt.setMapping "balances" (Expr.param "to") (Expr.localVar "newBalance"),
         Stmt.letVar "supply" (Expr.storage "totalSupply"),
         Stmt.letVar "newSupply" (Expr.add (Expr.localVar "supply") (Expr.param "amount")),
         Stmt.require (Expr.ge (Expr.localVar "newSupply") (Expr.localVar "supply")) "Supply overflow",
+        -- Effects: all checks passed, now apply state mutations
+        Stmt.setMapping "balances" (Expr.param "to") (Expr.localVar "newBalance"),
         Stmt.setStorage "totalSupply" (Expr.localVar "newSupply"),
         Stmt.stop
       ]
