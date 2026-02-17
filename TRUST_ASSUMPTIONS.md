@@ -97,7 +97,7 @@ theorem increment_correct (state : ContractState) :
 
 **Files**:
 - `Compiler/Proofs/IRGeneration/*`
-- Key file: `Compiler/Proofs/IRGeneration/Preservation.lean`
+- Key file: `Compiler/Proofs/IRGeneration/Conversions.lean`
 
 **Example Theorems**:
 ```lean
@@ -538,7 +538,7 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
    - `transfer()`: ~60k gas (3 SSTORE, 2 SLOAD)
    ```
 
-2. **Use Foundry Gas Reports**: Run `forge test --gas-report` to estimate deployment and function call costs
+2. **Use Foundry Gas Reports**: Run `FOUNDRY_PROFILE=difftest forge test --gas-report` to estimate deployment and function call costs
 
 3. **Add Gas Benchmarks**: Use differential tests to measure gas consumption:
    ```solidity
@@ -561,7 +561,7 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
 - Differential tests validate execution against deployed bytecode but not gas behavior
 
 **Recommendation for Developers**:
-- Always run gas estimates before deployment (`forge test --gas-report`)
+- Always run gas estimates before deployment (`FOUNDRY_PROFILE=difftest forge test --gas-report`)
 - Add explicit gas bounds to property tests for critical functions
 - Document gas assumptions in contract README
 - For high-value contracts: consider formal gas verification (future work)
@@ -633,7 +633,7 @@ Use this checklist when performing security audits of Verity-verified contracts.
 - [ ] Check function selectors against specifications
 - [ ] Validate storage layout (issue #84)
 - [ ] Confirm gas costs are acceptable (issue #80)
-- [ ] Run gas estimates: `forge test --gas-report`
+- [ ] Run gas estimates: `FOUNDRY_PROFILE=difftest forge test --gas-report`
 - [ ] Add gas bounds to property tests for critical functions
 
 ### 6. Documentation Review
@@ -691,13 +691,13 @@ Use this checklist when performing security audits of Verity-verified contracts.
 **Current State**:
 ```
 EDSL → Spec → IR → Yul → [solc] → Bytecode
-              ✅    ✅    ⚠️ TRUSTED
+     ✅     ✅    ✅      ⚠️ TRUSTED
 ```
 
 **After Issue #76**:
 ```
 EDSL → Spec → IR → Yul → Bytecode
-              ✅    ✅    ✅
+     ✅     ✅    ✅    ✅
 ```
 
 **Impact**: Complete end-to-end verification, minimal trust assumptions

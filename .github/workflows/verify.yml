@@ -239,7 +239,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: generated-yul
-          path: compiler
+          path: compiler/yul
 
       - name: Download difftest interpreter
         uses: actions/download-artifact@v4
@@ -304,7 +304,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: generated-yul
-          path: compiler
+          path: compiler/yul
 
       - name: Download difftest interpreter
         uses: actions/download-artifact@v4

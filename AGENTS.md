@@ -100,7 +100,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed status.
 
 ```bash
 lake build                           # Required before commits
-forge test                           # All tests
+FOUNDRY_PROFILE=difftest forge test  # All tests (FFI needed for property/differential tests)
 ```
 
 ## Resources

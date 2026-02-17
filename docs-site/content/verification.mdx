@@ -12,13 +12,13 @@ The compiler is verified with IR preservation proofs and Yul equivalence proofs 
 ## Snapshot (2026-02-16)
 
 - EDSL theorems: 305 across 9 categories (7 contracts + ReentrancyExample + Stdlib).
-- SimpleStorage: 20 total (Basic 12, Correctness 7, Spec 1).
-- Counter: 28 total (Basic 19, Correctness 10).
+- SimpleStorage: 20 total (Basic 13, Correctness 7).
+- Counter: 28 total (Basic 19, Correctness 10; 1 shared between Basic and Correctness).
 - Owned: 22 total (Basic 18, Correctness 4).
-- SimpleToken: 59 total (Basic 34, Correctness 12, Supply 6, Isolation 9).
-- OwnedCounter: 45 total (Basic 29, Correctness 6, Isolation 14).
-- Ledger: 33 total (Basic 21, Correctness 6, Conservation 13 — all proven).
-- SafeCounter: 25 total (Basic 22, Correctness 9).
+- SimpleToken: 59 total (Basic 37, Correctness 10, Supply 3, Isolation 9).
+- OwnedCounter: 45 total (Basic 26, Correctness 5, Isolation 14).
+- Ledger: 33 total (Basic 20, Correctness 6, Conservation 7 — all proven).
+- SafeCounter: 25 total (Basic 17, Correctness 8).
 - ReentrancyExample: 4 total (inline proofs: vulnerability existence, supply invariant).
 - Stdlib: 69 theorems (Math 25, Automation 39, MappingAutomation 7; 2 shared between Automation and MappingAutomation).
 

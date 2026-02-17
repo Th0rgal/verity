@@ -62,9 +62,12 @@ This creates 7 scaffold files (EDSL, Spec, Invariants, Proofs re-export shim, Ba
 Verity/Specs/<Name>/
   ├── Spec.lean        # Function specifications
   ├── Invariants.lean  # State invariants (optional)
-  └── Proofs.lean      # Layer 1 correctness proofs
+  └── Proofs.lean      # Re-export shim (imports from Verity/Proofs/)
 
 Verity/Examples/<Name>.lean     # EDSL implementation
+Verity/Proofs/<Name>/
+  ├── Basic.lean       # Basic correctness proofs (Layer 1)
+  └── Correctness.lean # Advanced correctness proofs
 Compiler/Proofs/SpecCorrectness/<Name>.lean  # Layer 2 proofs
 test/Differential<Name>.t.sol          # Differential tests
 test/Property<Name>.t.sol              # Property tests

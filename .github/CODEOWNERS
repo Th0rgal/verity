@@ -21,8 +21,8 @@ Verity/Core.lean @Th0rgal
 
 # Compiler trusted code — bugs here break soundness
 Compiler/Specs.lean @Th0rgal
-Compiler/IRGen.lean @Th0rgal
-Compiler/YulGen.lean @Th0rgal
+Compiler/IR.lean @Th0rgal
+Compiler/Codegen.lean @Th0rgal
 Compiler/Interpreter.lean @Th0rgal
 
 # CI pipeline — governs what gets checked
