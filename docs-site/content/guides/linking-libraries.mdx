@@ -8,7 +8,23 @@ description: How to use external Yul libraries (Poseidon, Groth16, etc.) with ve
 **Time Required**: 30 minutes
 **Prerequisites**: Verity project builds (`lake build` passes)
 
-Use the Linker to inject production cryptographic libraries (or any Yul functions) into your verified contracts. You prove properties against simple placeholders in Lean, then swap in real implementations at compile time.
+## TL;DR
+
+```bash
+# 1. Write your Yul library (plain functions, no object wrapper)
+echo 'function myHash(a, b) -> result { result := add(xor(a, b), 0x42) }' > libs/MyHash.yul
+
+# 2. Use a placeholder in your Lean EDSL (for proofs)
+def myHash (a b : Uint256) : Contract Uint256 := return add a b
+
+# 3. Reference it in your ContractSpec
+Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param 0, Expr.param 1])
+
+# 4. Compile with linking
+lake exe verity-compiler --link libs/MyHash.yul -o compiler/yul
+```
+
+Your proofs verify the contract logic (using placeholders). Real implementations are injected at compile time.
 
 ---
 

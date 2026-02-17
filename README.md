@@ -18,6 +18,39 @@
 
 ---
 
+## 5-Minute Quick Start
+
+```bash
+# 1. Install Lean 4
+curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
+source ~/.profile
+
+# 2. Clone and build
+git clone https://github.com/Th0rgal/verity.git
+cd verity
+lake build                                    # Verifies all 300 theorems
+
+# 3. Generate a new contract
+python3 scripts/generate_contract.py MyContract
+
+# 4. Compile to Yul/EVM
+lake build verity-compiler
+lake exe verity-compiler                      # Output in compiler/yul/
+```
+
+**With external libraries (e.g., Poseidon hash):**
+```bash
+# Link your Yul library at compile time
+lake exe verity-compiler --link libs/MyLib.yul -o compiler/yul
+```
+
+**Run tests:**
+```bash
+FOUNDRY_PROFILE=difftest forge test           # 352 tests across 25 suites
+```
+
+---
+
 Verity is a Lean 4 framework that lets you write smart contracts in a domain-specific language, formally verify their correctness, and compile them to EVM bytecode.
 
 **The idea is simple:** humans review 10-line specs that are easy to audit. Agents write 1000-line implementations. Lean proves the implementation matches the spec - no trust required.
