@@ -52,7 +52,9 @@ inductive ContractResult (α : Type) where
   | revert : String → ContractState → ContractResult α
 ```
 
-Every contract operation returns either `success` with a value and updated state, or `revert` with an error message and unchanged state. This makes `require` failures part of the type, so proofs can reason about both paths.
+Every contract operation returns either `success` with a value and updated state, or `revert` with an error message and the state at the point of failure.
+
+> **Important**: On revert, the returned state may include mutations from operations that executed *before* the revert. This differs from EVM semantics where REVERT discards all state changes. Contracts must follow the **checks-before-effects pattern** — all `require` guards before any `setStorage`/`setMapping` calls — to ensure the revert state equals the original input state. See [TRUST_ASSUMPTIONS.md](https://github.com/Th0rgal/verity/blob/main/TRUST_ASSUMPTIONS.md) and [#254](https://github.com/Th0rgal/verity/issues/254) for details.
 
 ## Contract monad
 
@@ -73,6 +75,18 @@ This gives do-notation with automatic failure propagation. A failed `require` st
 
 ## Storage operations
 
+Five pairs of get/set functions, one per storage type:
+
+| Storage type | Get | Set | Slot type |
+|---|---|---|---|
+| Uint256 | `getStorage` | `setStorage` | `StorageSlot Uint256` |
+| Address | `getStorageAddr` | `setStorageAddr` | `StorageSlot Address` |
+| Mapping (address-keyed) | `getMapping` | `setMapping` | `StorageSlot (Address → Uint256)` |
+| Mapping (uint256-keyed) | `getMappingUint` | `setMappingUint` | `StorageSlot (Uint256 → Uint256)` |
+| Double mapping | `getMapping2` | `setMapping2` | `StorageSlot (Address → Address → Uint256)` |
+
+All follow the same pattern — read from or write to the corresponding `ContractState` field:
+
 ```lean
 def getStorage (s : StorageSlot Uint256) : Contract Uint256 :=
   fun state => ContractResult.success (state.storage s.slot) state
@@ -83,7 +97,44 @@ def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
         if slot == s.slot then value else state.storage slot }
 ```
 
-Address storage (`getStorageAddr`/`setStorageAddr`) and mapping storage (`getMapping`/`setMapping`) follow the same pattern with their respective state fields.
+Mapping operations take key arguments:
+
+```lean
+-- Address-keyed mapping (e.g., balances[owner])
+let bal ← getMapping balances owner
+setMapping balances owner newBal
+
+-- Uint256-keyed mapping
+let val ← getMappingUint prices tokenId
+setMappingUint prices tokenId newPrice
+
+-- Double mapping (e.g., allowances[owner][spender])
+let allow ← getMapping2 allowances owner spender
+setMapping2 allowances owner spender newAllow
+```
+
+> `setMapping` also inserts the key into `knownAddresses` for that slot, enabling conservation proofs that sum over all balances.
+
+## Context accessors
+
+Read-only functions for accessing transaction context:
+
+```lean
+let sender ← msgSender           -- Transaction sender address
+let self ← contractAddress        -- This contract's address
+let value ← msgValue             -- ETH value sent with call
+let time ← blockTimestamp         -- Current block timestamp
+```
+
+These return values from `ContractState` without modifying state.
+
+## Event emission
+
+```lean
+emitEvent "Transfer" [fromBal, toBal] [addressToNat from, addressToNat to]
+```
+
+`emitEvent name args indexedArgs` appends to the `events` log. The `indexedArgs` parameter is optional (defaults to `[]`).
 
 ## Require guard
 
@@ -98,20 +149,21 @@ Returns `success` when the condition holds, `revert` with the message when it do
 
 ## Simp lemmas
 
-The core includes `@[simp]` lemmas for every storage operation:
+Every storage operation, context accessor, and event function has a full-result `@[simp]` lemma:
 
 ```lean
+-- Full-result form (preferred for new proofs):
+@[simp] theorem getStorage_run (s : StorageSlot Uint256) (state : ContractState) :
+  (getStorage s).run state = ContractResult.success (state.storage s.slot) state := by rfl
+
 @[simp] theorem require_true (msg : String) (s : ContractState) :
   (require true msg).run s = ContractResult.success () s := by rfl
 
 @[simp] theorem require_false (msg : String) (s : ContractState) :
   (require false msg).run s = ContractResult.revert msg s := by rfl
-
-@[simp] theorem getStorage_run_fst (slot : StorageSlot Uint256) (s : ContractState) :
-  (getStorage slot).run s |>.fst = s.storage slot.slot := by rfl
 ```
 
-These power the proofs. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
+Legacy `_fst`/`_snd` projection lemmas also exist but the full-result forms above are preferred — they prove success, value, and state in one shot. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
 
 ## Why ContractResult instead of StateM
 
@@ -142,11 +194,15 @@ The `StorageSlot α` type parameter prevents mixing storage types:
 def owner : StorageSlot Address := ⟨0⟩
 def count : StorageSlot Uint256 := ⟨1⟩
 def balances : StorageSlot (Address → Uint256) := ⟨2⟩
+def prices : StorageSlot (Uint256 → Uint256) := ⟨3⟩
+def allowances : StorageSlot (Address → Address → Uint256) := ⟨4⟩
 
 -- These compile:
 let value ← getStorage count              -- Uint256
 let addr ← getStorageAddr owner           -- Address
 let bal ← getMapping balances "0xAlice"   -- Uint256
+let price ← getMappingUint prices tokenId -- Uint256
+let allow ← getMapping2 allowances owner spender -- Uint256
 
 -- This doesn't:
 let wrong ← getStorage owner  -- Type error: owner is Address, not Uint256
