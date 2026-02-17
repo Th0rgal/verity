@@ -119,8 +119,9 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 - **Self-transfer**: Modeled as a no-op; transfer theorems no longer require `sender != to`.
 - **Supply = sum of balances**: Requires finite address model. Proven as exact sum equations with `countOcc`, not as global invariant over all addresses.
 - **`ContractResult.fst`**: Returns `default` on revert, requiring `[Inhabited a]`. Proofs using `.fst` always show result is `success` first.
-- **No events, no gas**: EDSL models storage and control flow only.
-- **No nested mappings**: Slot encoding helpers and smoke tests exist, but core storage semantics and proofs still lack full nested mapping support (`mapping(address => mapping(address => uint256))`).
+- **No gas modeling**: EDSL models storage and control flow only; verification assumes infinite gas.
+- **Events**: The ContractSpec DSL supports event emission (`Stmt.emit`), but the EDSL core does not yet model events in proofs.
+- **Nested mappings**: The ContractSpec DSL supports double mappings (`mapping2`/`setMapping2`), but EDSL-level proofs for nested mapping semantics are still limited.
 
 ## Compiler Development
 
@@ -186,7 +187,7 @@ def ownedSpec : ContractSpec := {
 ```bash
 lake build verity-compiler    # Build compiler
 lake exe verity-compiler      # Generate all contracts
-forge test  # 290/290 tests pass (as of 2026-02-15)
+FOUNDRY_PROFILE=difftest forge test  # 352/352 tests pass (as of 2026-02-17)
 ```
 
 ### Differential Testing (Completed 2026-02-10)

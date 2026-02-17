@@ -223,14 +223,16 @@ The compiler validates function names, arities, and prevents name collisions. Se
 
 ## Documentation
 
+**Full documentation**: [verity.thomasm.ar](https://verity.thomasm.ar/) — guides, DSL reference, examples, and verification details.
+
 | | |
 |---|---|
+| [Docs Site](https://verity.thomasm.ar/) | Full documentation site with guides and DSL reference |
 | [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
 | [`AXIOMS.md`](AXIOMS.md) | All 2 axioms with soundness justifications |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Verification progress, planned features |
 | [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) | Per-theorem status |
-| [`docs-site/`](docs-site/) | Full documentation site |
 
 ## License
 

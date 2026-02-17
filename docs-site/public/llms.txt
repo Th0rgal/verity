@@ -54,12 +54,12 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 | SimpleStorage | 20 | Store/retrieve roundtrip, state isolation |
 | Counter | 28 | Arithmetic, composition, decrement-at-zero |
 | Owned | 22 | Access control, ownership transfer |
-| SimpleToken | 57 | Mint/transfer, supply conservation, storage isolation |
+| SimpleToken | 59 | Mint/transfer, supply conservation, storage isolation |
 | OwnedCounter | 45 | Cross-pattern composition, lockout proofs |
 | Ledger | 33 | Deposit/withdraw/transfer, balance conservation |
 | SafeCounter | 25 | Overflow/underflow revert proofs |
 | ReentrancyExample | 4 | Reentrancy vulnerability proof, supply invariant |
-| Stdlib | 64 | safeMul/safeDiv correctness, automation lemmas |
+| Stdlib | 69 | safeMul/safeDiv correctness, automation lemmas |
 
 ## Proof Techniques
 
@@ -127,9 +127,12 @@ See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
 ## Known Limitations
 
 - 6 `sorry` placeholders in Ledger sum property proofs (issue #65)
-- No events, no gas modeling
-- No nested mappings (can't express ERC-20 allowances yet)
+- No gas modeling
 - Self-transfer handled via delta-zero pattern (not separate logic)
+
+## DSL Capabilities (ContractSpec)
+
+The ContractSpec DSL supports: if/else branching (`Stmt.ite`), bounded loops (`Stmt.forEach`), event emission (`Stmt.emit`), nested/double mappings (`Expr.mapping2`, `Stmt.setMapping2`), uint256-keyed mappings (`Expr.mappingUint`, `Stmt.setMappingUint`), internal function composition (`Stmt.internalCall`, `Expr.internalCall`), dynamic array/bytes parameters, and external library linking (`Expr.externalCall`).
 
 ## What's Next
 
