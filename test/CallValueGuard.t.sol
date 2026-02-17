@@ -44,8 +44,8 @@ contract CallValueGuardTest is YulTestBase {
 
         // With ETH: should revert
         vm.prank(alice);
-        (bool reverted,) = counter.call{value: 1 wei}(abi.encodeWithSignature("increment()"));
-        assertFalse(reverted, "increment with value should revert");
+        (bool sent,) = counter.call{value: 1 wei}(abi.encodeWithSignature("increment()"));
+        assertFalse(sent, "increment with value should revert");
     }
 
     function testCallValueGuard_Counter_Decrement() public {
@@ -54,14 +54,14 @@ contract CallValueGuardTest is YulTestBase {
         require(s, "setup increment failed");
 
         vm.prank(alice);
-        (bool reverted,) = counter.call{value: 1 wei}(abi.encodeWithSignature("decrement()"));
-        assertFalse(reverted, "decrement with value should revert");
+        (bool sent,) = counter.call{value: 1 wei}(abi.encodeWithSignature("decrement()"));
+        assertFalse(sent, "decrement with value should revert");
     }
 
     function testCallValueGuard_Counter_GetCount() public {
         vm.prank(alice);
-        (bool reverted,) = counter.call{value: 1 wei}(abi.encodeWithSignature("getCount()"));
-        assertFalse(reverted, "getCount with value should revert");
+        (bool sent,) = counter.call{value: 1 wei}(abi.encodeWithSignature("getCount()"));
+        assertFalse(sent, "getCount with value should revert");
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -70,30 +70,30 @@ contract CallValueGuardTest is YulTestBase {
 
     function testCallValueGuard_Ledger_Deposit() public {
         vm.prank(alice);
-        (bool reverted,) = ledger.call{value: 1 wei}(abi.encodeWithSignature("deposit(uint256)", 100));
-        assertFalse(reverted, "deposit with value should revert");
+        (bool sent,) = ledger.call{value: 1 wei}(abi.encodeWithSignature("deposit(uint256)", 100));
+        assertFalse(sent, "deposit with value should revert");
     }
 
     function testCallValueGuard_Ledger_Withdraw() public {
         vm.prank(alice);
-        (bool reverted,) = ledger.call{value: 1 wei}(abi.encodeWithSignature("withdraw(uint256)", 0));
-        assertFalse(reverted, "withdraw with value should revert");
+        (bool sent,) = ledger.call{value: 1 wei}(abi.encodeWithSignature("withdraw(uint256)", 0));
+        assertFalse(sent, "withdraw with value should revert");
     }
 
     function testCallValueGuard_Ledger_Transfer() public {
         vm.prank(alice);
-        (bool reverted,) = ledger.call{value: 1 wei}(
+        (bool sent,) = ledger.call{value: 1 wei}(
             abi.encodeWithSignature("transfer(address,uint256)", address(0xB0B), 0)
         );
-        assertFalse(reverted, "transfer with value should revert");
+        assertFalse(sent, "transfer with value should revert");
     }
 
     function testCallValueGuard_Ledger_GetBalance() public {
         vm.prank(alice);
-        (bool reverted,) = ledger.call{value: 1 wei}(
+        (bool sent,) = ledger.call{value: 1 wei}(
             abi.encodeWithSignature("getBalance(address)", alice)
         );
-        assertFalse(reverted, "getBalance with value should revert");
+        assertFalse(sent, "getBalance with value should revert");
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -102,18 +102,18 @@ contract CallValueGuardTest is YulTestBase {
 
     function testCallValueGuard_SimpleStorage_Store() public {
         vm.prank(alice);
-        (bool reverted,) = simpleStorage.call{value: 1 wei}(
+        (bool sent,) = simpleStorage.call{value: 1 wei}(
             abi.encodeWithSignature("store(uint256)", 42)
         );
-        assertFalse(reverted, "store with value should revert");
+        assertFalse(sent, "store with value should revert");
     }
 
     function testCallValueGuard_SimpleStorage_Retrieve() public {
         vm.prank(alice);
-        (bool reverted,) = simpleStorage.call{value: 1 wei}(
+        (bool sent,) = simpleStorage.call{value: 1 wei}(
             abi.encodeWithSignature("retrieve()")
         );
-        assertFalse(reverted, "retrieve with value should revert");
+        assertFalse(sent, "retrieve with value should revert");
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -122,10 +122,10 @@ contract CallValueGuardTest is YulTestBase {
 
     function testCallValueGuard_SafeCounter_Increment() public {
         vm.prank(alice);
-        (bool reverted,) = safeCounter.call{value: 1 wei}(
+        (bool sent,) = safeCounter.call{value: 1 wei}(
             abi.encodeWithSignature("increment()")
         );
-        assertFalse(reverted, "safeCounter increment with value should revert");
+        assertFalse(sent, "safeCounter increment with value should revert");
     }
 
     function testCallValueGuard_SafeCounter_Decrement() public {
@@ -134,18 +134,18 @@ contract CallValueGuardTest is YulTestBase {
         require(s, "setup increment failed");
 
         vm.prank(alice);
-        (bool reverted,) = safeCounter.call{value: 1 wei}(
+        (bool sent,) = safeCounter.call{value: 1 wei}(
             abi.encodeWithSignature("decrement()")
         );
-        assertFalse(reverted, "safeCounter decrement with value should revert");
+        assertFalse(sent, "safeCounter decrement with value should revert");
     }
 
     function testCallValueGuard_SafeCounter_GetCount() public {
         vm.prank(alice);
-        (bool reverted,) = safeCounter.call{value: 1 wei}(
+        (bool sent,) = safeCounter.call{value: 1 wei}(
             abi.encodeWithSignature("getCount()")
         );
-        assertFalse(reverted, "safeCounter getCount with value should revert");
+        assertFalse(sent, "safeCounter getCount with value should revert");
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -154,18 +154,18 @@ contract CallValueGuardTest is YulTestBase {
 
     function testCallValueGuard_Owned_GetOwner() public {
         vm.prank(alice);
-        (bool reverted,) = owned.call{value: 1 wei}(
+        (bool sent,) = owned.call{value: 1 wei}(
             abi.encodeWithSignature("getOwner()")
         );
-        assertFalse(reverted, "getOwner with value should revert");
+        assertFalse(sent, "getOwner with value should revert");
     }
 
     function testCallValueGuard_Owned_TransferOwnership() public {
         vm.prank(alice);
-        (bool reverted,) = owned.call{value: 1 wei}(
+        (bool sent,) = owned.call{value: 1 wei}(
             abi.encodeWithSignature("transferOwnership(address)", address(0xB0B))
         );
-        assertFalse(reverted, "transferOwnership with value should revert");
+        assertFalse(sent, "transferOwnership with value should revert");
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -174,26 +174,26 @@ contract CallValueGuardTest is YulTestBase {
 
     function testCallValueGuard_OwnedCounter_Increment() public {
         vm.prank(alice);
-        (bool reverted,) = ownedCounter.call{value: 1 wei}(
+        (bool sent,) = ownedCounter.call{value: 1 wei}(
             abi.encodeWithSignature("increment()")
         );
-        assertFalse(reverted, "ownedCounter increment with value should revert");
+        assertFalse(sent, "ownedCounter increment with value should revert");
     }
 
     function testCallValueGuard_OwnedCounter_GetCount() public {
         vm.prank(alice);
-        (bool reverted,) = ownedCounter.call{value: 1 wei}(
+        (bool sent,) = ownedCounter.call{value: 1 wei}(
             abi.encodeWithSignature("getCount()")
         );
-        assertFalse(reverted, "ownedCounter getCount with value should revert");
+        assertFalse(sent, "ownedCounter getCount with value should revert");
     }
 
     function testCallValueGuard_OwnedCounter_GetOwner() public {
         vm.prank(alice);
-        (bool reverted,) = ownedCounter.call{value: 1 wei}(
+        (bool sent,) = ownedCounter.call{value: 1 wei}(
             abi.encodeWithSignature("getOwner()")
         );
-        assertFalse(reverted, "ownedCounter getOwner with value should revert");
+        assertFalse(sent, "ownedCounter getOwner with value should revert");
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -202,41 +202,41 @@ contract CallValueGuardTest is YulTestBase {
 
     function testCallValueGuard_SimpleToken_Mint() public {
         vm.prank(alice);
-        (bool reverted,) = simpleToken.call{value: 1 wei}(
+        (bool sent,) = simpleToken.call{value: 1 wei}(
             abi.encodeWithSignature("mint(address,uint256)", address(0xB0B), 100)
         );
-        assertFalse(reverted, "mint with value should revert");
+        assertFalse(sent, "mint with value should revert");
     }
 
     function testCallValueGuard_SimpleToken_Transfer() public {
         vm.prank(alice);
-        (bool reverted,) = simpleToken.call{value: 1 wei}(
+        (bool sent,) = simpleToken.call{value: 1 wei}(
             abi.encodeWithSignature("transfer(address,uint256)", address(0xB0B), 0)
         );
-        assertFalse(reverted, "token transfer with value should revert");
+        assertFalse(sent, "token transfer with value should revert");
     }
 
     function testCallValueGuard_SimpleToken_BalanceOf() public {
         vm.prank(alice);
-        (bool reverted,) = simpleToken.call{value: 1 wei}(
+        (bool sent,) = simpleToken.call{value: 1 wei}(
             abi.encodeWithSignature("balanceOf(address)", alice)
         );
-        assertFalse(reverted, "balanceOf with value should revert");
+        assertFalse(sent, "balanceOf with value should revert");
     }
 
     function testCallValueGuard_SimpleToken_TotalSupply() public {
         vm.prank(alice);
-        (bool reverted,) = simpleToken.call{value: 1 wei}(
+        (bool sent,) = simpleToken.call{value: 1 wei}(
             abi.encodeWithSignature("totalSupply()")
         );
-        assertFalse(reverted, "totalSupply with value should revert");
+        assertFalse(sent, "totalSupply with value should revert");
     }
 
     function testCallValueGuard_SimpleToken_Owner() public {
         vm.prank(alice);
-        (bool reverted,) = simpleToken.call{value: 1 wei}(
+        (bool sent,) = simpleToken.call{value: 1 wei}(
             abi.encodeWithSignature("owner()")
         );
-        assertFalse(reverted, "token owner with value should revert");
+        assertFalse(sent, "token owner with value should revert");
     }
 }
