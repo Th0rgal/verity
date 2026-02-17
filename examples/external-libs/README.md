@@ -11,7 +11,7 @@ This directory contains example Yul library files that can be linked with Verity
 
 Want to add a cryptographic hash function to your contract? Here's the minimum you need:
 
-### Step 1: Create your Yul library (`libs/MyHash.yul`)
+### Step 1: Create your Yul library (`examples/external-libs/MyHash.yul`)
 
 ```yul
 function myHash(a, b) -> result {
@@ -29,7 +29,7 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 ### Step 3: Compile with linking
 
 ```bash
-lake exe verity-compiler --link libs/MyHash.yul -o compiler/yul
+lake exe verity-compiler --link examples/external-libs/MyHash.yul -o compiler/yul
 ```
 
 That's it! The compiler validates your library and injects it into the generated Yul.
@@ -58,14 +58,14 @@ The key benefit: **prove with simple placeholders, deploy with real code**.
 
 | Error | Solution |
 |-------|----------|
-| `Unresolved external references: myFunc` | Add `--link libs/MyFunc.yul` to your command |
+| `Unresolved external references: myFunc` | Add `--link examples/external-libs/MyFunc.yul` to your command |
 | `Arity mismatch` | Check parameter count in `Expr.externalCall` matches Yul function |
 | `Function shadows Yul builtin` | Rename your function (e.g., `myAdd` instead of `add`) |
 | `Duplicate function names` | Each library must have unique function names |
 
 ## Step-by-Step Example
 
-### 1. Create Your Library (e.g., `libs/MyHash.yul`)
+### 1. Create Your Library (e.g., `examples/external-libs/MyHash.yul`)
 
 ```yul
 // Simple hash function for demonstration
@@ -95,7 +95,7 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 ### 4. Compile with Linking
 
 ```bash
-lake exe verity-compiler --link libs/MyHash.yul -o compiler/yul
+lake exe verity-compiler --link examples/external-libs/MyHash.yul -o compiler/yul
 ```
 
 ## Complete Guide
