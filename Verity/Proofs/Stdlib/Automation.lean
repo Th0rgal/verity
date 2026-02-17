@@ -6,6 +6,19 @@
   This module provides proven lemmas for Contract monad operations,
   storage operations, and common proof patterns.
 
+  ## Sections
+
+  - Contract Result Lemmas: `isSuccess`, `getState` for success/revert
+  - Basic Storage Operation Lemmas: `getStorage`/`setStorage` runState/runValue
+  - Address Storage Lemmas: `getStorageAddr`/`setStorageAddr` runState/runValue
+  - Mapping Storage Lemmas: `getMapping`/`setMapping` runState/runValue
+  - Require Lemmas: `require_true/false_isSuccess`, `require_state`
+  - Address Equality: `address_beq` lemmas
+  - Spec Storage Helpers: slot/mapping field access
+  - Uint256 Arithmetic: `add`/`sub` value lemmas, `safeSub`/`safeAdd`
+  - Well-Formedness Preservation: `wf_of_state_eq` for read-only ops
+  - Generic Storage Preservation: cross-type preservation for setStorage/setStorageAddr/setMapping
+
   Status: All lemmas fully proven with zero sorry.
 -/
 
@@ -602,6 +615,108 @@ theorem add_one_preserves_order_iff_no_overflow (a : Verity.Core.Uint256) :
         exact Nat.mod_eq_of_lt h_sum_lt
       rw [h_mod]
       omega
+
+/-!
+## Well-Formedness Preservation
+-/
+
+/-- Generic: any state predicate is preserved when the operation does not change state.
+    Eliminates the repeated 3-line pattern:
+    `have h_pres := op_preserves_state s; rw [h_pres]; exact h`
+    found in every read-only `*_preserves_wellformedness` proof. -/
+theorem wf_of_state_eq (P : ContractState → Prop)
+    (s s' : ContractState) (h_eq : s' = s) (h : P s) : P s' := by
+  rw [h_eq]; exact h
+
+/-!
+## Generic setStorage Preservation
+
+Facts about `setStorage` that hold for ANY slot — not specific to a named slot
+like `count` or `storedData`. These eliminate per-contract duplication of
+`setStorage_preserves_addr_storage`, `setStorage_preserves_map_storage`, etc.
+-/
+
+/-- setStorage on any uint256 slot preserves the address storage. -/
+theorem setStorage_preserves_storageAddr (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.storageAddr = state.storageAddr := by
+  simp [setStorage]
+
+/-- setStorage on any uint256 slot preserves the mapping storage. -/
+theorem setStorage_preserves_storageMap (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.storageMap = state.storageMap := by
+  simp [setStorage]
+
+/-- setStorage on any uint256 slot preserves the sender. -/
+theorem setStorage_preserves_sender (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.sender = state.sender := by
+  simp [setStorage]
+
+/-- setStorage on any uint256 slot preserves the contract address. -/
+theorem setStorage_preserves_thisAddress (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.thisAddress = state.thisAddress := by
+  simp [setStorage]
+
+/-- setStorage on any uint256 slot preserves other uint256 slots. -/
+theorem setStorage_preserves_other_storage (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) (n : Nat) (h : n ≠ slot.slot) :
+    ((setStorage slot value).run state).snd.storage n = state.storage n := by
+  simp [setStorage, h]
+
+/-- setStorageAddr on any address slot preserves the uint256 storage. -/
+theorem setStorageAddr_preserves_storage (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.storage = state.storage := by
+  simp [setStorageAddr]
+
+/-- setStorageAddr on any address slot preserves the mapping storage. -/
+theorem setStorageAddr_preserves_storageMap (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.storageMap = state.storageMap := by
+  simp [setStorageAddr]
+
+/-- setStorageAddr on any address slot preserves the sender. -/
+theorem setStorageAddr_preserves_sender (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.sender = state.sender := by
+  simp [setStorageAddr]
+
+/-- setStorageAddr on any address slot preserves the contract address. -/
+theorem setStorageAddr_preserves_thisAddress (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.thisAddress = state.thisAddress := by
+  simp [setStorageAddr]
+
+/-!
+## Generic setMapping Preservation
+-/
+
+/-- setMapping preserves the uint256 storage. -/
+theorem setMapping_preserves_storage (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.storage = state.storage := by
+  simp [setMapping]
+
+/-- setMapping preserves the address storage. -/
+theorem setMapping_preserves_storageAddr (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.storageAddr = state.storageAddr := by
+  simp [setMapping]
+
+/-- setMapping preserves the sender. -/
+theorem setMapping_preserves_sender (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.sender = state.sender := by
+  simp [setMapping]
+
+/-- setMapping preserves the contract address. -/
+theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.thisAddress = state.thisAddress := by
+  simp [setMapping]
 
 -- All lemmas in this file are fully proven with zero sorry.
 

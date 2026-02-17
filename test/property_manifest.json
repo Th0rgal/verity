@@ -314,12 +314,26 @@
     "safeSub_some_val",
     "safeSub_zero",
     "setMapping_getMapping_same",
+    "setMapping_preserves_sender",
+    "setMapping_preserves_storage",
+    "setMapping_preserves_storageAddr",
+    "setMapping_preserves_thisAddress",
+    "setStorageAddr_preserves_sender",
+    "setStorageAddr_preserves_storage",
+    "setStorageAddr_preserves_storageMap",
+    "setStorageAddr_preserves_thisAddress",
     "setStorageAddr_runState",
     "setStorage_getStorage",
     "setStorage_getStorage_diff",
+    "setStorage_preserves_other_storage",
+    "setStorage_preserves_sender",
+    "setStorage_preserves_storageAddr",
+    "setStorage_preserves_storageMap",
+    "setStorage_preserves_thisAddress",
     "setStorage_runState",
     "uint256_add_val",
     "uint256_sub_val",
-    "uint256_sub_val_of_le"
+    "uint256_sub_val_of_le",
+    "wf_of_state_eq"
   ]
 }

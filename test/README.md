@@ -16,7 +16,7 @@ function testProperty_StoreRetrieve() public {
 }
 ```
 
-**Coverage**: 220/305 theorems tested (72%), 85 proof-only exclusions documented in `property_exclusions.json`.
+**Coverage**: 220/319 theorems tested (69%), 99 proof-only exclusions documented in `property_exclusions.json`.
 
 ### Differential Tests
 **Pattern**: `Differential<Contract>.t.sol`
