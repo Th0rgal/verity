@@ -10,14 +10,18 @@ A small set of contracts, each introducing a new pattern. They build on each oth
 ## How to organize a contract
 
 - **Spec**: `Verity/Specs/<Name>/Spec.lean`
+- **Invariants**: `Verity/Specs/<Name>/Invariants.lean`
 - **Implementation**: `Verity/Examples/<Name>.lean`
-- **Proof**: `Verity/Specs/<Name>/Proofs.lean`
+- **Basic proofs**: `Verity/Proofs/<Name>/Basic.lean`
+- **Advanced proofs**: `Verity/Proofs/<Name>/Correctness.lean`
+- **Proof re-export**: `Verity/Specs/<Name>/Proofs.lean` (imports from `Compiler/Proofs/`)
 - **Reusable proof infra**: `Verity/Proofs/Stdlib/`
 
 Example (SimpleStorage):
 - Spec: `Verity/Specs/SimpleStorage/Spec.lean`
 - Implementation: `Verity/Examples/SimpleStorage.lean`
-- Proof: `Verity/Specs/SimpleStorage/Proofs.lean`
+- Basic proofs: `Verity/Proofs/SimpleStorage/Basic.lean`
+- Correctness proofs: `Verity/Proofs/SimpleStorage/Correctness.lean`
 
 ## Authoring checklist
 
@@ -168,7 +172,7 @@ Two parallel bank contracts — one vulnerable, one safe — demonstrating that 
 theorem vulnerable_attack_exists :
   ∃ (s : ContractState),
     supplyInvariant s ["attacker"] ∧
-    ¬ supplyInvariant (withdraw MAX_UINT256).runState s) ["attacker"]
+    ¬ supplyInvariant ((withdraw MAX_UINT256).runState s) ["attacker"]
 
 -- Safe: state update before external call
 -- The supply invariant is universally provable

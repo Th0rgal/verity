@@ -592,8 +592,10 @@ contract PropertyTipJarTest is YulTestBase {
 ### 6.2 Run Tests
 
 ```bash
-forge test --match-contract TipJar -vv
+FOUNDRY_PROFILE=difftest forge test --match-contract TipJar -vv
 ```
+
+> **Note**: The `difftest` profile is required because `deployYul()` uses `vm.ffi()` to compile Yul via `solc`. The default Foundry profile has FFI disabled for security. See [foundry.toml](https://github.com/Th0rgal/verity/blob/main/foundry.toml).
 
 ### 6.3 Verify Property Coverage
 
@@ -620,8 +622,8 @@ lake build verity-compiler
 lake exe verity-compiler
 python3 scripts/check_yul_compiles.py
 
-# 4. Tests pass
-forge test --match-contract TipJar
+# 4. Tests pass (difftest profile required for Yul compilation via vm.ffi)
+FOUNDRY_PROFILE=difftest forge test --match-contract TipJar
 
 # 5. All CI checks pass
 python3 scripts/check_selectors.py

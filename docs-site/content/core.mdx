@@ -27,16 +27,20 @@ structure StorageSlot (α : Type) where
 
 ```lean
 structure ContractState where
-  storage : Nat → Uint256                -- Uint256 storage
-  storageAddr : Nat → Address            -- Address storage
-  storageMap : Nat → Address → Uint256  -- Mapping storage
+  storage : Nat → Uint256                          -- Uint256 storage
+  storageAddr : Nat → Address                      -- Address storage
+  storageMap : Nat → Address → Uint256             -- Mapping storage (Address → Uint256)
+  storageMapUint : Nat → Uint256 → Uint256         -- Uint256-keyed mapping storage
+  storageMap2 : Nat → Address → Address → Uint256  -- Double mapping storage
   sender : Address
   thisAddress : Address
   msgValue : Uint256
   blockTimestamp : Uint256
+  knownAddresses : Nat → FiniteAddressSet          -- Tracked addresses per slot (for sum proofs)
+  events : List Event := []                         -- Emitted events log
 ```
 
-Three independent storage spaces: Uint256 slots, Address slots, and Mapping slots. Each is indexed by a natural number (the slot). The state also carries the sender address, the contract's own address, and the EVM context fields `msg.value` and `block.timestamp`.
+Five independent storage spaces: Uint256 slots, Address slots, Address-keyed mappings, Uint256-keyed mappings, and double mappings (Address → Address → Uint256). Each is indexed by a natural number (the slot). The state also carries the sender address, the contract's own address, EVM context fields (`msg.value`, `block.timestamp`), a per-slot address tracker for sum property proofs, and an append-only event log.
 
 ## ContractResult
 
@@ -77,7 +81,17 @@ def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
         if slot == s.slot then value else state.storage slot }
 ```
 
-Address storage (`getStorageAddr`/`setStorageAddr`) and mapping storage (`getMapping`/`setMapping`) follow the same pattern with their respective state fields.
+All storage types follow the same pattern:
+
+| Operation | Type | State field |
+|-----------|------|-------------|
+| `getStorageAddr`/`setStorageAddr` | Address slots | `storageAddr` |
+| `getMapping`/`setMapping` | Address-keyed mappings | `storageMap` |
+| `getMappingUint`/`setMappingUint` | Uint256-keyed mappings | `storageMapUint` |
+| `getMapping2`/`setMapping2` | Double mappings | `storageMap2` |
+| `emitEvent` | Event emission | `events` |
+
+Context accessors (`msgSender`, `msgValue`, `contractAddress`, `blockTimestamp`) read from the state without modifying it.
 
 ## Require guard
 

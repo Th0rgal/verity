@@ -33,26 +33,26 @@ Basic contract behavior validation without formal property mapping.
 ## Running Tests
 
 ```bash
-# All tests (unit + property tests only)
-forge test
-
-# All tests INCLUDING differential and Yul tests (requires FFI)
+# All tests (requires FFI for property tests and differential tests)
 FOUNDRY_PROFILE=difftest forge test
 
+# Unit tests only (no FFI needed)
+forge test --no-match-path "test/Property*" --no-match-path "test/Differential*" --no-match-path "test/CallValue*" --no-match-path "test/CalldataSize*"
+
 # Single contract
-forge test --match-path test/PropertyCounter.t.sol
+FOUNDRY_PROFILE=difftest forge test --match-path test/PropertyCounter.t.sol
 
 # Specific test
-forge test --match-test testProperty_StoreRetrieve
+FOUNDRY_PROFILE=difftest forge test --match-test testProperty_StoreRetrieve
 
 # With verbosity
-forge test -vvv
+FOUNDRY_PROFILE=difftest forge test -vvv
 
 # Multi-seed testing (detects flakiness)
 bash scripts/test_multiple_seeds.sh
 ```
 
-> **Note**: Plain `forge test` skips differential and Yul tests because FFI is disabled in the default profile. Use `FOUNDRY_PROFILE=difftest` to run the full test suite including tests that shell out to `lake exe difftest-interpreter`.
+> **Note**: Property tests (`Property*.t.sol`) deploy Yul contracts via `vm.ffi()`, and differential tests shell out to `lake exe difftest-interpreter`. Both require `FOUNDRY_PROFILE=difftest`. Plain `forge test` will fail on these suites because FFI is disabled in the default profile. See [foundry.toml](../foundry.toml).
 
 ## Test Organization
 

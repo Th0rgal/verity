@@ -572,14 +572,14 @@ def myContractSpec : ContractSpec := {
   functions := [/* ... */]
 }
 
-def myContractSelectors : List Nat := [0x..., 0x...]
-
 -- Add to allSpecs
-def allSpecs := [
-  /* ... */,
-  (myContractSpec, myContractSelectors)
+def allSpecs : List ContractSpec := [
+  /* ... existing contracts ... */,
+  myContractSpec
 ]
 ```
+
+Function selectors are computed automatically by `computeSelectors` during compilation — you do not need to list them manually.
 
 2. **Recompile**:
 ```bash

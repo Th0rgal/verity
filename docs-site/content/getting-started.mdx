@@ -51,14 +51,13 @@ The first build downloads Mathlib and compiles everything — expect **5–15 mi
 ## 4. Run the test suite
 
 ```bash
-# Property tests (no FFI needed)
-forge test
-
-# Differential tests (compares EDSL interpreter output against compiled Yul on EVM)
+# All tests (property tests + differential tests)
 FOUNDRY_PROFILE=difftest forge test
 ```
 
-The `difftest` profile enables `vm.ffi()` calls so that Foundry can invoke the Lean-based interpreter. This requires `lake build` to have completed successfully.
+The `difftest` profile enables `vm.ffi()` calls, which is required for **all** test suites — property tests use `deployYul()` to compile Yul via `solc`, and differential tests invoke the Lean interpreter. This requires `lake build` to have completed successfully.
+
+> **Note**: Running `forge test` without `FOUNDRY_PROFILE=difftest` will fail because FFI is disabled in the default profile. See [foundry.toml](https://github.com/Th0rgal/verity/blob/main/foundry.toml).
 
 ## 5. Generate your first contract
 
