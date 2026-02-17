@@ -136,13 +136,14 @@ def _is_getter_name(name: str) -> bool:
 def gen_example(cfg: ContractConfig) -> str:
     """Generate Verity/Examples/{Name}.lean"""
     has_mapping = any(f.is_mapping for f in cfg.fields)
+    has_uint256 = any(f.ty == "uint256" for f in cfg.fields)
 
     imports = ["import Verity.Core"]
-    if has_mapping or len(cfg.fields) > 1:
+    if has_mapping or has_uint256:
         imports.append("import Verity.EVM.Uint256")
 
     opens = ["open Verity"]
-    if has_mapping or len(cfg.fields) > 1:
+    if has_mapping or has_uint256:
         opens.append("open Verity.EVM.Uint256")
 
     # Storage definitions
