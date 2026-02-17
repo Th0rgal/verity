@@ -263,13 +263,32 @@ Transfer proofs now handle self-transfer by modeling it as a no-op (preloading b
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1-3 | Constructor | Sets owner, preserves count |
-| 4-10 | Read operations | getCount, getOwner, isOwner correctness |
-| 11-14 | Increment (owner-guarded) | Spec, adds one, reverts for non-owner |
-| 15-18 | Decrement (owner-guarded) | Spec, subtracts one, reverts for non-owner |
-| 19-22 | TransferOwnership (owner-guarded) | Spec, changes owner, reverts for non-owner |
-| 23-25 | Isolation | increment/decrement preserve owner, transfer preserves count |
-| 26-29 | Composition/preservation | constructor then increment, well-formedness |
+| 1 | `constructor_meets_spec` | Constructor meets specification |
+| 2 | `constructor_sets_owner` | Constructor sets owner correctly |
+| 3 | `constructor_preserves_count` | Constructor preserves count slot |
+| 4 | `getCount_meets_spec` | getCount meets specification |
+| 5 | `getCount_returns_count` | getCount returns stored count |
+| 6 | `getCount_preserves_state` | getCount is read-only |
+| 7 | `getOwner_meets_spec` | getOwner meets specification |
+| 8 | `getOwner_returns_owner` | getOwner returns stored owner |
+| 9 | `getOwner_preserves_state` | getOwner is read-only |
+| 10 | `isOwner_correct` | isOwner returns correct boolean |
+| 11 | `increment_meets_spec_when_owner` | Owner increment meets specification |
+| 12 | `increment_adds_one_when_owner` | Owner increment adds exactly 1 |
+| 13 | `increment_reverts_when_not_owner` | Non-owner increment reverts |
+| 14 | `decrement_meets_spec_when_owner` | Owner decrement meets specification |
+| 15 | `decrement_subtracts_one_when_owner` | Owner decrement subtracts exactly 1 |
+| 16 | `decrement_reverts_when_not_owner` | Non-owner decrement reverts |
+| 17 | `transferOwnership_meets_spec_when_owner` | Owner transfer meets specification |
+| 18 | `transferOwnership_changes_owner` | Owner successfully changed |
+| 19 | `transferOwnership_reverts_when_not_owner` | Non-owner transfer reverts |
+| 20 | `increment_preserves_owner` | Increment preserves owner |
+| 21 | `decrement_preserves_owner` | Decrement preserves owner |
+| 22 | `transferOwnership_preserves_count` | Transfer preserves count |
+| 23 | `constructor_preserves_wellformedness` | Constructor preserves well-formedness |
+| 24 | `increment_preserves_wellformedness` | Increment preserves well-formedness |
+| 25 | `decrement_preserves_wellformedness` | Decrement preserves well-formedness |
+| 26 | `constructor_increment_getCount` | Constructor then increment then getCount |
 
 **Correctness:**
 
@@ -287,11 +306,26 @@ Transfer proofs now handle self-transfer by modeling it as a no-op (preloading b
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1-3 | getBalance | Spec, returns balance, read-only |
-| 4-7 | Deposit | Spec, increases balance, preserves others |
-| 8-11 | Withdraw | Spec, decreases balance, reverts insufficient |
-| 12-16 | Transfer | Spec, decreases sender, increases recipient, reverts insufficient |
-| 17-21 | Preservation | Non-mapping storage, well-formedness, deposit-getBalance composition |
+| 1 | `getBalance_meets_spec` | getBalance meets specification |
+| 2 | `getBalance_returns_balance` | getBalance returns stored balance |
+| 3 | `getBalance_preserves_state` | getBalance is read-only |
+| 4 | `deposit_meets_spec` | Deposit meets specification |
+| 5 | `deposit_increases_balance` | Deposit increases sender balance |
+| 6 | `deposit_preserves_other_balances` | Deposit preserves other balances |
+| 7 | `withdraw_meets_spec` | Withdraw meets specification |
+| 8 | `withdraw_decreases_balance` | Withdraw decreases sender balance |
+| 9 | `withdraw_reverts_insufficient` | Withdraw reverts on insufficient balance |
+| 10 | `transfer_meets_spec` | Transfer meets specification |
+| 11 | `transfer_self_preserves_balance` | Self-transfer is a no-op |
+| 12 | `transfer_decreases_sender` | Transfer decreases sender balance |
+| 13 | `transfer_increases_recipient` | Transfer increases recipient balance |
+| 14 | `transfer_reverts_insufficient` | Transfer reverts on insufficient balance |
+| 15 | `transfer_reverts_recipient_overflow` | Transfer reverts on recipient overflow |
+| 16 | `deposit_preserves_non_mapping` | Deposit preserves non-mapping storage |
+| 17 | `withdraw_preserves_non_mapping` | Withdraw preserves non-mapping storage |
+| 18 | `deposit_preserves_wellformedness` | Deposit preserves well-formedness |
+| 19 | `withdraw_preserves_wellformedness` | Withdraw preserves well-formedness |
+| 20 | `deposit_getBalance_correct` | Deposit then getBalance returns updated balance |
 
 **Correctness:**
 
@@ -314,9 +348,7 @@ Transfer proofs now handle self-transfer by modeling it as a no-op (preloading b
 | 4 | `withdraw_sum_singleton_sender` | For unique sender: `new_sum + amount = old_sum` |
 | 5 | `transfer_sum_equation` | `new_sum + count(sender)*amt = old_sum + count(to)*amt` |
 | 6 | `transfer_sum_preserved_unique` | For unique sender & to: `new_sum = old_sum` |
-| 7 | `transfer_sum_bounded` | `new_sum <= old_sum + count(to) * amount` |
-| 8 | `deposit_withdraw_sum_cancel` | Deposit then withdraw preserves total sum |
-| 9-13 | Helper lemmas | countOcc, map_sum_point_update/decrease, map_sum_transfer_eq |
+| 7 | `deposit_withdraw_sum_cancel` | Deposit then withdraw preserves total sum |
 
 ### SafeCounter
 
@@ -324,41 +356,66 @@ Transfer proofs now handle self-transfer by modeling it as a no-op (preloading b
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1-3 | getCount | Spec, returns count, read-only |
-| 4-7 | Increment | Spec, adds one, preserves slots, reverts overflow |
-| 8-11 | Decrement | Spec, subtracts one, preserves slots, reverts underflow |
-| 12-13 | Well-formedness | Increment/decrement preserve well-formedness |
-| 14-15 | Bounds | Increment/decrement preserve count bounds |
-| 16-22 | Composition/preservation | increment then getCount, various preservation |
+| 1 | `getCount_meets_spec` | getCount meets its specification |
+| 2 | `getCount_returns_count` | getCount returns the stored count |
+| 3 | `getCount_preserves_state` | getCount is read-only |
+| 4 | `evm_add_eq_of_no_overflow` | EVM addition equals natural addition when no overflow |
+| 5 | `increment_meets_spec` | increment meets its specification |
+| 6 | `increment_adds_one` | increment adds one to count |
+| 7 | `increment_preserves_other_slots` | increment preserves other storage slots |
+| 8 | `increment_reverts_overflow` | increment reverts on overflow |
+| 9 | `decrement_meets_spec` | decrement meets its specification |
+| 10 | `decrement_subtracts_one` | decrement subtracts one from count |
+| 11 | `decrement_preserves_other_slots` | decrement preserves other storage slots |
+| 12 | `decrement_reverts_underflow` | decrement reverts on underflow |
+| 13 | `increment_preserves_wellformedness` | increment preserves well-formedness |
+| 14 | `decrement_preserves_wellformedness` | decrement preserves well-formedness |
+| 15 | `increment_preserves_bounds` | increment preserves count bounds |
+| 16 | `decrement_preserves_bounds` | decrement preserves count bounds |
+| 17 | `increment_getCount_correct` | increment then getCount returns count + 1 |
 
 **Correctness:**
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1-2 | Context preservation | increment/decrement preserve context |
-| 3-4 | Storage isolation | increment/decrement preserve storage isolation |
-| 5-6 | Read-only | getCount preserves context, well-formedness |
-| 7 | `increment_decrement_cancel` | Increment then decrement cancellation |
-| 8 | `decrement_getCount_correct` | Decrement then getCount equals count - 1 |
+| 1 | `increment_preserves_context` | increment preserves context |
+| 2 | `decrement_preserves_context` | decrement preserves context |
+| 3 | `increment_preserves_storage_isolated` | increment preserves storage isolation |
+| 4 | `decrement_preserves_storage_isolated` | decrement preserves storage isolation |
+| 5 | `getCount_preserves_context` | getCount preserves context |
+| 6 | `getCount_preserves_wellformedness` | getCount preserves well-formedness |
+| 7 | `increment_decrement_cancel` | increment then decrement cancellation |
+| 8 | `decrement_getCount_correct` | decrement then getCount equals count - 1 |
 
 ### Stdlib/Math
 
 | # | Theorem | Property |
 |---|---------|----------|
-| 1 | `safeMul_some` | Returns product when no overflow |
-| 2 | `safeMul_none` | Returns none on overflow |
-| 3 | `safeMul_zero_left` | 0 * b equals 0, always safe |
-| 4 | `safeMul_zero_right` | a * 0 equals 0, always safe |
-| 5 | `safeMul_one_left` | 1 * b equals b when bounded |
-| 6 | `safeMul_one_right` | a * 1 equals a when bounded |
-| 7 | `safeMul_comm` | Commutativity |
-| 8 | `safeMul_result_bounded` | Successful result less than or equal to MAX_UINT256 |
-| 9 | `safeDiv_some` | Returns quotient when divisor nonzero |
-| 10 | `safeDiv_none` | Returns none on division by zero |
-| 11 | `safeDiv_zero_numerator` | 0 / b equals 0 |
-| 12 | `safeDiv_by_one` | a / 1 equals a |
-| 13 | `safeDiv_self` | a / a equals 1 (when a > 0) |
-| 14 | `safeDiv_result_le_numerator` | Result never exceeds numerator |
+| 1 | `safeAdd_some` | Returns sum when no overflow |
+| 2 | `safeAdd_none` | Returns none on overflow |
+| 3 | `safeAdd_zero_left` | 0 + b equals b when bounded |
+| 4 | `safeAdd_zero_right` | a + 0 equals a when bounded |
+| 5 | `safeAdd_comm` | Commutativity |
+| 6 | `safeAdd_result_bounded` | Successful result less than or equal to MAX_UINT256 |
+| 7 | `safeSub_some` | Returns difference when no underflow |
+| 8 | `safeSub_none` | Returns none on underflow |
+| 9 | `safeSub_zero` | a - 0 equals a |
+| 10 | `safeSub_self` | a - a equals 0 |
+| 11 | `safeSub_result_le` | Result never exceeds minuend |
+| 12 | `safeMul_some` | Returns product when no overflow |
+| 13 | `safeMul_none` | Returns none on overflow |
+| 14 | `safeMul_zero_left` | 0 * b equals 0, always safe |
+| 15 | `safeMul_zero_right` | a * 0 equals 0, always safe |
+| 16 | `safeMul_one_left` | 1 * b equals b when bounded |
+| 17 | `safeMul_one_right` | a * 1 equals a when bounded |
+| 18 | `safeMul_comm` | Commutativity |
+| 19 | `safeMul_result_bounded` | Successful result less than or equal to MAX_UINT256 |
+| 20 | `safeDiv_some` | Returns quotient when divisor nonzero |
+| 21 | `safeDiv_none` | Returns none on division by zero |
+| 22 | `safeDiv_zero_numerator` | 0 / b equals 0 |
+| 23 | `safeDiv_by_one` | a / 1 equals a |
+| 24 | `safeDiv_self` | a / a equals 1 (when a > 0) |
+| 25 | `safeDiv_result_le_numerator` | Result never exceeds numerator |
 
 ## Proof techniques
 
