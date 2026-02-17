@@ -14,7 +14,6 @@ def main() -> None:
     covered = collect_covered()
 
     errors: list[str] = []
-    warnings: list[str] = []
 
     for contract, names in exclusions.items():
         if contract not in manifest:
@@ -41,11 +40,6 @@ def main() -> None:
             )
 
     report_errors(errors, "Property coverage check failed")
-
-    if warnings:
-        for item in warnings:
-            print(f"Warning: {item}")
-
     print("Property coverage check passed.")
 
 

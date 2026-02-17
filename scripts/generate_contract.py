@@ -191,8 +191,10 @@ def gen_spec(cfg: ContractConfig) -> str:
     spec_defs = []
     for fn in cfg.functions:
         spec_defs.append(f"-- What {fn.name} should do")
+        spec_defs.append(f"-- For mutating ops:   def {fn.name}_spec (params...) (s s' : ContractState) : Prop")
+        spec_defs.append(f"-- For read-only ops:  def {fn.name}_spec (result : Uint256) (s : ContractState) : Prop")
         spec_defs.append(f"def {fn.name}_spec (s s' : ContractState) : Prop :=")
-        spec_defs.append(f"  -- TODO: Define specification")
+        spec_defs.append(f"  -- TODO: Add function parameters before (s s'), define postconditions")
         spec_defs.append(f"  True")
         spec_defs.append("")
 
@@ -443,25 +445,18 @@ def _gen_single_test(
 
     /// Property: {fn.name}_meets_spec
     function testProperty_{camel}_MeetsSpec() public {{
-        // Read storage before the operation
         uint256 slot0Before = readStorage(0);
 
-        // Execute the function
         vm.prank(alice);
         (bool success,) = target.call(
             abi.encodeWithSignature("{fn.name}()")
         );
         require(success, "{fn.name} call failed");
 
-        // Verify the operation's effect on storage.
-        // TODO: Replace this with assertions matching {fn.name}'s specification.
-        // For example, if {fn.name} increments slot 0:
+        // TODO: Add assertions matching {fn.name}'s formal spec.
+        // Examples:
         //   assertEq(readStorage(0), slot0Before + 1, "should increment");
-        uint256 slot0After = readStorage(0);
-        assertTrue(
-            slot0After != slot0Before,
-            "{fn.name}_meets_spec: storage should change"
-        );
+        //   assertEq(readStorage(1), expectedValue, "should update slot 1");
     }}
 """
 
@@ -513,8 +508,8 @@ def gen_compiler_spec(cfg: ContractConfig) -> str:
     func_strs = []
     for fn in cfg.functions:
         func_strs.append(f"""    {{ name := "{fn.name}"
-      params := []  -- TODO: Add parameters
-      returnType := none  -- TODO: Set return type
+      params := []  -- TODO: e.g. [{{ name := "value", ty := ParamType.uint256 }}]
+      returnType := none  -- TODO: e.g. some FieldType.uint256
       body := [
         Stmt.stop  -- TODO: Implement body
       ]
