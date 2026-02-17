@@ -10,18 +10,24 @@ description: How to use external Yul libraries (Poseidon, Groth16, etc.) with ve
 
 ## TL;DR
 
+**Step 1** — Write your Yul library (plain functions, no `object` wrapper):
 ```bash
-# 1. Write your Yul library (plain functions, no object wrapper)
 mkdir -p examples/external-libs
 echo 'function myHash(a, b) -> result { result := add(xor(a, b), 0x42) }' > examples/external-libs/MyHash.yul
+```
 
-# 2. Use a placeholder in your Lean EDSL (for proofs)
+**Step 2** — Use a placeholder in your Lean EDSL (for proofs):
+```lean
 def myHash (a b : Uint256) : Contract Uint256 := return add a b
+```
 
-# 3. Reference it in your ContractSpec
+**Step 3** — Reference it in your ContractSpec:
+```lean
 Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
+```
 
-# 4. Compile with linking
+**Step 4** — Compile with linking:
+```bash
 lake exe verity-compiler --link examples/external-libs/MyHash.yul -o compiler/yul
 ```
 

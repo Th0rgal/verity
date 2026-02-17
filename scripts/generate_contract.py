@@ -46,7 +46,7 @@ class Field:
         if self.ty == "address":
             return "Address"
         if self.ty == "mapping":
-            return "Uint256"  # mapping storage uses storageMap
+            return "Address → Uint256"
         return "Uint256"
 
     @property
@@ -58,7 +58,7 @@ class Field:
         if self.ty == "address":
             return "StorageSlot Address"
         if self.ty == "mapping":
-            return "Nat"  # mapping slot is just a Nat
+            return "StorageSlot (Address → Uint256)"
         return "StorageSlot Uint256"
 
 
@@ -148,12 +148,7 @@ def gen_example(cfg: ContractConfig) -> str:
     # Storage definitions
     storage_lines = []
     for i, f in enumerate(cfg.fields):
-        if f.is_mapping:
-            storage_lines.append(f"def {f.name}Slot : Nat := {i}")
-        elif f.ty == "address":
-            storage_lines.append(f"def {f.name} : StorageSlot Address := ⟨{i}⟩")
-        else:
-            storage_lines.append(f"def {f.name} : StorageSlot Uint256 := ⟨{i}⟩")
+        storage_lines.append(f"def {f.name} : {f.storage_kind} := ⟨{i}⟩")
 
     # Function stubs — detect getters to use the correct return type.
     # We require the prefix to be followed by an uppercase letter (camelCase
@@ -194,6 +189,8 @@ end Verity.Examples.{cfg.name}
 
 def gen_spec(cfg: ContractConfig) -> str:
     """Generate Verity/Specs/{Name}/Spec.lean"""
+    has_mapping = any(f.is_mapping for f in cfg.fields)
+
     spec_defs = []
     for fn in cfg.functions:
         spec_defs.append(f"-- What {fn.name} should do")
@@ -204,6 +201,12 @@ def gen_spec(cfg: ContractConfig) -> str:
         spec_defs.append(f"  True")
         spec_defs.append("")
 
+    imports = ["import Verity.Core", "import Verity.Specs.Common"]
+    opens = ["open Verity"]
+    if has_mapping:
+        imports.append("import Verity.EVM.Uint256")
+        opens.append("open Verity.EVM.Uint256")
+
     return f"""/-
   {cfg.name}: Formal Specification
 
@@ -211,12 +214,11 @@ def gen_spec(cfg: ContractConfig) -> str:
   should do, separate from how it's implemented.
 -/
 
-import Verity.Core
-import Verity.Specs.Common
+{chr(10).join(imports)}
 
 namespace Verity.Specs.{cfg.name}
 
-open Verity
+{chr(10).join(opens)}
 
 {chr(10).join(spec_defs)}
 end Verity.Specs.{cfg.name}
@@ -298,6 +300,8 @@ def gen_spec_proofs(cfg: ContractConfig) -> str:
 
 def gen_basic_proofs(cfg: ContractConfig) -> str:
     """Generate Verity/Proofs/{Name}/Basic.lean"""
+    has_mapping = any(f.is_mapping for f in cfg.fields)
+
     proof_stubs = []
     for fn in cfg.functions:
         proof_stubs.append(f"-- TODO: Prove {fn.name} meets its specification")
@@ -307,6 +311,21 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
         proof_stubs.append(f"  sorry")
         proof_stubs.append("")
 
+    imports = [
+        "import Verity.Core",
+        f"import Verity.Examples.{cfg.name}",
+        f"import Verity.Specs.{cfg.name}.Spec",
+        f"import Verity.Specs.{cfg.name}.Invariants",
+    ]
+    opens = [
+        "open Verity",
+        f"open Verity.Examples.{cfg.name}",
+        f"open Verity.Specs.{cfg.name}",
+    ]
+    if has_mapping:
+        imports.insert(1, "import Verity.EVM.Uint256")
+        opens.append("open Verity.EVM.Uint256")
+
     return f"""/-
   {cfg.name}: Basic Correctness Proofs
 
@@ -315,16 +334,11 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
   Status: Scaffold — proofs need implementation.
 -/
 
-import Verity.Core
-import Verity.Examples.{cfg.name}
-import Verity.Specs.{cfg.name}.Spec
-import Verity.Specs.{cfg.name}.Invariants
+{chr(10).join(imports)}
 
 namespace Verity.Proofs.{cfg.name}
 
-open Verity
-open Verity.Examples.{cfg.name}
-open Verity.Specs.{cfg.name}
+{chr(10).join(opens)}
 
 {chr(10).join(proof_stubs)}
 end Verity.Proofs.{cfg.name}

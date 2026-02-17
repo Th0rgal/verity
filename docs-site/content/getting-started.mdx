@@ -72,7 +72,9 @@ The `difftest` profile enables `vm.ffi()` calls so that Foundry can invoke the L
 ## 5. Generate your first contract
 
 ```bash
-python3 scripts/generate_contract.py TipJar --fields "balance:uint256,owner:address" --functions "deposit,withdraw,getBalance"
+python3 scripts/generate_contract.py TipJar \
+  --fields "tips:mapping" \
+  --functions "tip,getBalance"
 ```
 
 This creates all the scaffold files you need:
