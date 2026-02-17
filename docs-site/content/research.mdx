@@ -231,11 +231,11 @@ FOUNDRY_PROFILE=difftest forge test  # 361/361 tests pass (as of 2026-02-17)
 ```bash
 lake build Compiler.Interpreter           # Build interpreter
 lake exe difftest-interpreter simpleStorage store 0 100  # Run single tx
-forge test --match-contract Differential  # Run default (100) random tests
+FOUNDRY_PROFILE=difftest forge test --match-contract Differential  # Run default (100) random tests
 # Scale the large suite (used in CI):
-DIFFTEST_RANDOM_LARGE=10000 forge test --match-contract Differential
+FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_LARGE=10000 forge test --match-contract Differential
 # Shard the large suite (CI uses 8 shards):
-DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
+FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_LARGE=10000 \
   forge test --match-contract Differential
 ```
 

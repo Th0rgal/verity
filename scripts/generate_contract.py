@@ -651,7 +651,7 @@ Examples:
 
     print("4. Run validation:")
     print("   lake build")
-    print(f"   forge test --match-contract Property{name}")
+    print(f"   FOUNDRY_PROFILE=difftest forge test --match-contract Property{name}")
     print("   python3 scripts/check_property_coverage.py")
     print()
 

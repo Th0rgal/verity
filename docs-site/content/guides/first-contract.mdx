@@ -583,7 +583,7 @@ contract PropertyTipJarTest is YulTestBase {
 ### 6.2 Run Tests
 
 ```bash
-forge test --match-contract TipJar -vv
+FOUNDRY_PROFILE=difftest forge test --match-contract TipJar -vv
 ```
 
 ### 6.3 Verify Property Coverage
@@ -612,7 +612,7 @@ lake exe verity-compiler
 python3 scripts/check_yul_compiles.py
 
 # 4. Tests pass
-forge test --match-contract TipJar
+FOUNDRY_PROFILE=difftest forge test --match-contract TipJar
 
 # 5. All CI checks pass
 python3 scripts/check_selectors.py

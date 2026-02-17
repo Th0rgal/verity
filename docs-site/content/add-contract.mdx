@@ -84,10 +84,10 @@ test/Property<Name>.t.sol              # Property tests
 lake build
 
 # 2. Differential tests pass
-forge test --match-contract Differential<Name>
+FOUNDRY_PROFILE=difftest forge test --match-contract Differential<Name>
 
 # 3. Property tests pass
-forge test --match-contract Property<Name>
+FOUNDRY_PROFILE=difftest forge test --match-contract Property<Name>
 
 # 4. Property manifest is in sync
 python3 scripts/check_property_manifest.py
