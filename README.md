@@ -28,7 +28,7 @@ source ~/.profile
 # 2. Clone and build
 git clone https://github.com/Th0rgal/verity.git
 cd verity
-lake build                                    # Verifies all 300 theorems
+lake build                                    # Verifies all 305 theorems
 
 # 3. Generate a new contract
 python3 scripts/generate_contract.py MyContract
@@ -86,7 +86,7 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | Owned | 22 | Access control and ownership transfer |
 | OwnedCounter | 45 | Cross-pattern composition, lockout proofs |
 | Ledger | 33 | Deposit/withdraw/transfer with balance conservation |
-| SimpleToken | 57 | Mint/transfer, supply conservation, storage isolation |
+| SimpleToken | 59 | Mint/transfer, supply conservation, storage isolation |
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 
 **Unverified examples**: [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.

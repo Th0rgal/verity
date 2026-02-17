@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Check that documentation files have accurate theorem/test/axiom counts.
 
-Validates counts in README.md, VERIFICATION_STATUS.md, llms.txt, and other
-documentation against the actual property manifest and codebase.
+Validates counts in README.md, test/README.md, docs/VERIFICATION_STATUS.md,
+docs/ROADMAP.md, TRUST_ASSUMPTIONS.md, docs-site llms.txt, compiler.mdx,
+core.mdx, and index.mdx against the actual property manifest and codebase.
 
 Usage:
     python3 scripts/check_doc_counts.py
@@ -116,7 +117,7 @@ def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[st
 
 
 def main() -> None:
-    total_theorems, num_categories, _ = get_manifest_counts()
+    total_theorems, num_categories, per_contract = get_manifest_counts()
     axiom_count = get_axiom_count()
     test_count, suite_count = get_test_counts()
     core_lines = get_core_line_count()
@@ -124,6 +125,8 @@ def main() -> None:
     exclusion_count = get_exclusion_count()
     covered_count, coverage_pct = get_covered_count(total_theorems)
     proven_count = total_theorems - sorry_count
+    stdlib_count = per_contract.get("Stdlib", 0)
+    non_stdlib_total = total_theorems - stdlib_count
 
     errors: list[str] = []
 
@@ -177,6 +180,11 @@ def main() -> None:
                     "sorry count",
                     re.compile(r"(\d+) `sorry`"),
                     str(sorry_count),
+                ),
+                (
+                    "inline theorem count",
+                    re.compile(r"Verifies all (\d+) theorems"),
+                    str(total_theorems),
                 ),
             ],
         )
@@ -282,6 +290,106 @@ def main() -> None:
                     "property test count in tree",
                     re.compile(r"Property tests \((\d+) tests\)"),
                     str(covered_count),
+                ),
+            ],
+        )
+    )
+
+    # Check docs/VERIFICATION_STATUS.md
+    verification_status = ROOT / "docs" / "VERIFICATION_STATUS.md"
+    errors.extend(
+        check_file(
+            verification_status,
+            [
+                (
+                    "non-stdlib total",
+                    re.compile(r"\*\*Total\*\* \| \*\*(\d+)\*\*"),
+                    str(non_stdlib_total),
+                ),
+                (
+                    "stdlib count in note",
+                    re.compile(r"Stdlib \((\d+) internal"),
+                    str(stdlib_count),
+                ),
+                (
+                    "total properties in note",
+                    re.compile(r"(\d+) total properties"),
+                    str(total_theorems),
+                ),
+                (
+                    "coverage percentage",
+                    re.compile(r"(\d+)% coverage"),
+                    str(coverage_pct),
+                ),
+                (
+                    "covered/total in status",
+                    re.compile(r"coverage \((\d+)/"),
+                    str(covered_count),
+                ),
+                (
+                    "total in coverage status",
+                    re.compile(r"coverage \(\d+/(\d+)\)"),
+                    str(total_theorems),
+                ),
+                (
+                    "exclusion count in status",
+                    re.compile(r"(\d+) remaining exclusions"),
+                    str(exclusion_count),
+                ),
+                (
+                    "total properties field",
+                    re.compile(r"Total Properties\*\*: (\d+)"),
+                    str(total_theorems),
+                ),
+                (
+                    "excluded count",
+                    re.compile(r"Excluded\*\*: (\d+)"),
+                    str(exclusion_count),
+                ),
+                (
+                    "stdlib coverage",
+                    re.compile(r"Stdlib \| 0% \(0/(\d+)\)"),
+                    str(stdlib_count),
+                ),
+                (
+                    "stdlib exclusions",
+                    re.compile(r"Stdlib \| 0% \(0/\d+\) \| (\d+) proof-only"),
+                    str(stdlib_count),
+                ),
+                (
+                    "exclusion header count",
+                    re.compile(r"Proof-Only Properties \((\d+) exclusions\)"),
+                    str(exclusion_count),
+                ),
+                (
+                    "sorry count",
+                    re.compile(r"(\d+) `sorry` remaining"),
+                    str(sorry_count),
+                ),
+            ],
+        )
+    )
+
+    # Check docs/ROADMAP.md
+    roadmap = ROOT / "docs" / "ROADMAP.md"
+    errors.extend(
+        check_file(
+            roadmap,
+            [
+                (
+                    "coverage percentage",
+                    re.compile(r"Property Testing\*\*: (\d+)% coverage"),
+                    str(coverage_pct),
+                ),
+                (
+                    "covered count",
+                    re.compile(r"Property Testing\*\*: \d+% coverage \((\d+)/"),
+                    str(covered_count),
+                ),
+                (
+                    "total in coverage",
+                    re.compile(r"Property Testing\*\*: \d+% coverage \(\d+/(\d+)\)"),
+                    str(total_theorems),
                 ),
             ],
         )

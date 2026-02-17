@@ -37,9 +37,9 @@ EVM Bytecode
 | SimpleToken | 59 | ✅ Complete | `Verity/Specs/SimpleToken/Proofs.lean` |
 | CryptoHash | 0 | ⬜ No specs | `Verity/Examples/CryptoHash.lean` |
 | ReentrancyExample | 4 | ✅ Complete | `Verity/Examples/ReentrancyExample.lean` |
-| **Total** | **234** | **✅ 100%** | — |
+| **Total** | **236** | **✅ 100%** | — |
 
-> **Note**: Stdlib (64 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (298 total properties).
+> **Note**: Stdlib (69 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (305 total properties).
 
 ### Example Property
 
@@ -153,13 +153,13 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
-**Status**: 73% coverage (220/300), 80 remaining exclusions all proof-only
+**Status**: 72% coverage (220/305), 85 remaining exclusions all proof-only
 
 ### Current Coverage
 
-- **Total Properties**: 300
-- **Covered**: 220 (73%)
-- **Excluded**: 80 (all proof-only)
+- **Total Properties**: 305
+- **Covered**: 220 (72%)
+- **Excluded**: 85 (all proof-only)
 - **Missing**: 0
 
 ### Coverage by Contract
@@ -174,11 +174,11 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 | SimpleToken | 88% (52/59) | 7 proof-only | ✅ High coverage |
 | Counter | 82% (23/28) | 5 proof-only | ✅ High coverage |
 | Ledger | 100% (33/33) | 0 | ✅ Complete |
-| Stdlib | 0% (0/64) | 64 proof-only | — Internal |
+| Stdlib | 0% (0/69) | 69 proof-only | — Internal |
 
 ### Exclusion Categories
 
-**Proof-Only Properties (80 exclusions)**: Internal proof machinery that cannot be tested in Foundry
+**Proof-Only Properties (85 exclusions)**: Internal proof machinery that cannot be tested in Foundry
 - Storage helpers: `setStorage_*`, `getStorage_*`, `setMapping_*`, `getMapping_*`
 - Internal helpers: `isOwner_*` functions tested implicitly
 - Low-level operations used only in proofs
@@ -234,7 +234,7 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 ### Short Term (1-2 months)
 
 - [x] Add finite address set modeling for Ledger sum properties (Issue #39, closed)
-- [ ] Complete Ledger sum property proofs — 12 `sorry` remaining (Issue #65)
+- [ ] Complete Ledger sum property proofs — 6 `sorry` remaining (Issue #65)
 
 ### Medium Term (3-6 months)
 
@@ -270,5 +270,5 @@ See `scripts/README.md` for:
 
 ---
 
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-02-17
 **Status Summary**: Layers 1-3 complete, trust reduction in progress
