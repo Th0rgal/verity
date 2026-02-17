@@ -85,13 +85,19 @@ def parse_fields(spec: str) -> List[Field]:
     fields = []
     for part in spec.split(","):
         part = part.strip()
+        if not part:
+            continue
         if ":" in part:
             name, ty = part.split(":", 1)
+            name = name.strip()
             ty = ty.strip().lower()
+            if not name:
+                print("Error: Field name cannot be empty (got ':<type>')", file=sys.stderr)
+                sys.exit(1)
             if ty not in ("uint256", "address", "mapping"):
                 print(f"Warning: Unknown type '{ty}', defaulting to uint256", file=sys.stderr)
                 ty = "uint256"
-            fields.append(Field(name.strip(), ty))
+            fields.append(Field(name, ty))
         else:
             fields.append(Field(part.strip(), "uint256"))
     return fields
@@ -598,6 +604,9 @@ Examples:
 
     # Validate name
     name = args.name
+    if not name:
+        print("Error: Contract name cannot be empty", file=sys.stderr)
+        sys.exit(1)
     if not name[0].isupper():
         print(f"Error: Contract name must be PascalCase (got '{name}')", file=sys.stderr)
         sys.exit(1)

@@ -64,7 +64,7 @@ The first build downloads Mathlib and compiles everything — expect **20–45 m
 FOUNDRY_PROFILE=difftest forge test
 
 # Unit tests only (no FFI needed)
-forge test --no-match-path "test/Property*" --no-match-path "test/Differential*"
+forge test --no-match-path "test/Property*" --no-match-path "test/Differential*" --no-match-path "test/CallValue*" --no-match-path "test/CalldataSize*"
 ```
 
 The `difftest` profile enables `vm.ffi()` calls so that Foundry can invoke the Lean-based interpreter. This requires `lake build` to have completed successfully.

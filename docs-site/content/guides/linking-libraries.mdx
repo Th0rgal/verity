@@ -150,13 +150,14 @@ function foo() {  ->  LibraryFunction { name: "foo", body: [...] }
 
 ### Stage 2: Validate
 
-Three safety checks run before any code is injected:
+Four safety checks run before any code is injected:
 
 | Check | What it catches |
 |-------|-----------------|
 | `validateNoDuplicateNames` | Two libraries defining the same function |
 | `validateNoNameCollisions` | Library function shadowing `mappingSlot` or Yul builtins like `add`, `sstore` |
 | `validateExternalReferences` | Contract calling a function not provided by any library |
+| `validateCallArity` | Library function called with wrong number of arguments |
 
 ### Stage 3: Inject
 
@@ -231,7 +232,7 @@ If you see `Unresolved external references: myFunc`, check that:
 
 ### Arity mismatch
 
-If you see `Arity mismatch: myFunc called with N args but library defines M params`:
+If you see `Arity mismatch: myFunc: called with N args but library defines M params`:
 - The number of parameters in your `Expr.externalCall` must match the library function
 - Remember: return values don't count as parameters
 

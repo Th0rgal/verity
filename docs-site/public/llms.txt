@@ -97,7 +97,7 @@ Use the Linker to inject production Yul libraries (Poseidon, Groth16, etc.) into
 - Library: `examples/external-libs/PoseidonT3.yul`
 - Compile: `lake exe verity-compiler --link examples/external-libs/PoseidonT3.yul --link examples/external-libs/PoseidonT4.yul`
 
-**Validation**: The Linker checks for duplicate names, builtin shadowing, and unresolved external references before injecting.
+**Validation**: The Linker checks for duplicate names, builtin shadowing, unresolved external references, and call-site arity mismatches before injecting.
 
 **Trust model**: Linked libraries are outside the proof boundary. Proofs establish: "If the library behaves like the placeholder, the contract is correct."
 
