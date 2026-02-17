@@ -1,8 +1,6 @@
 import Verity.Core
 
-namespace Verity.Specs
-
-/--
+/-!
   Multi-Transaction Invariant Framework
 
   This module provides utilities for proving that state invariants hold
@@ -44,11 +42,13 @@ namespace Verity.Specs
 
   -- Use the main theorem
   theorem all_transactions_preserve_invariant 
-    (s₀ : ContractState) (h₀ : MyContractInvariant s₀)
-    (txs : List (Contract Unit)) :
-    MyContractInvariant (executeAll txs s₀) := ...
+      (s₀ : ContractState) (h₀ : MyContractInvariant s₀)
+      (txs : List (Contract Unit)) :
+      MyContractInvariant (executeAll txs s₀) := ...
   ```
 -/
+
+namespace Verity.Specs
 
 open Verity
 
@@ -74,45 +74,19 @@ theorem invariant_holds_for_all_transactions
     (h_preserves : ∀ (s : ContractState) (f : Contract Unit), I s → I (f.run s).snd) :
     I (executeAll txs s₀) :=
   by
-    induction txs with
+    induction txs generalizing s₀ with
     | nil => exact h_init
     | cons f rest ih =>
       have : I ((f.run s₀).snd) := h_preserves s₀ f h_init
-      exact ih this
+      exact ih ((f.run s₀).snd) this
 
-/-- Variant: prove invariant holds for all successful transaction sequences.
-  
-  Useful when some functions can revert - we only care about paths where
-  all transactions succeed.
--/
+/-- Execute transactions and collect success/failure results. -/
 def executeAllWithResults (txs : List (Contract Unit)) (s₀ : ContractState) : List (ContractState × Bool) :=
   match txs with
   | [] => []
   | f :: rest =>
       let result := f.run s₀
-      let success := match result.fst with | .success _ _ => true | .revert _ _ => false
+      let success := ContractResult.isSuccess result
       (result.snd, success) :: executeAllWithResults rest result.snd
-
-/-- Helper to check if all transactions in a sequence succeeded. -/
-def allSuccessful (results : List (ContractState × Bool)) : Bool :=
-  results.all fun (_, success) => success
-
-theorem invariant_holds_for_successful_transactions
-    (I : ContractState → Prop)
-    (s₀ : ContractState)
-    (h_init : I s₀)
-    (txs : List (Contract Unit))
-    (h_preserves : ∀ (s : ContractState) (f : Contract Unit), I s → I (f.run s).snd)
-    (h_all_success : allSuccessful (executeAllWithResults txs s₀) = true) :
-    I (executeAll txs s₀) :=
-  by
-    induction txs generalizing s₀ with
-    | nil => exact h_init
-    | cons f rest ih =>
-      have : I ((f.run s₀).snd) := h_preserves s₀ f h_init
-      have h_succ : (f.run s₀).fst.isSuccess = true := by
-        simp [executeAllWithResults, allSuccessful] at h_all_success
-        exact h_all_success
-      exact ih this
 
 end Verity.Specs
