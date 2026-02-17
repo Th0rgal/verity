@@ -117,6 +117,56 @@ def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[st
     return errors
 
 
+def check_verification_theorem_names(
+    path: Path, per_contract: dict[str, int]
+) -> list[str]:
+    """Validate backtick-quoted theorem names in verification.mdx tables.
+
+    Parses each ``### ContractName`` section, extracts theorem names from
+    table rows (``| N | `theorem_name` | ...``), and checks that each name
+    exists in the property manifest for the corresponding contract.
+    """
+    if not path.exists():
+        return []
+    text = path.read_text(encoding="utf-8")
+    manifest = json.loads(
+        (ROOT / "test" / "property_manifest.json").read_text(encoding="utf-8")
+    )
+    errors: list[str] = []
+
+    # Map verification.mdx section headers to manifest contract names
+    section_to_contract = {
+        "Stdlib/Math": "Stdlib",
+    }
+
+    # Split into sections by ### headers
+    section_pat = re.compile(r"^### (.+)$", re.MULTILINE)
+    sections = list(section_pat.finditer(text))
+    for i, match in enumerate(sections):
+        section_name = match.group(1).strip()
+        contract = section_to_contract.get(section_name, section_name)
+        if contract not in manifest:
+            continue
+
+        # Get section text (from this header to next header or end)
+        start = match.end()
+        end = sections[i + 1].start() if i + 1 < len(sections) else len(text)
+        section_text = text[start:end]
+
+        # Extract backtick-quoted theorem names from table rows
+        theorem_pat = re.compile(r"^\|\s*\d+\s*\|\s*`([^`]+)`", re.MULTILINE)
+        manifest_names = set(manifest[contract])
+        for m in theorem_pat.finditer(section_text):
+            name = m.group(1)
+            if name not in manifest_names:
+                errors.append(
+                    f"verification.mdx: `{name}` in {section_name} table "
+                    f"not found in property manifest for {contract}"
+                )
+
+    return errors
+
+
 def main() -> None:
     total_theorems, num_categories, per_contract = get_manifest_counts()
     axiom_count = get_axiom_count()
@@ -440,6 +490,11 @@ def main() -> None:
             str(count),
         ))
     errors.extend(check_file(verification_mdx, verification_checks))
+
+    # Validate theorem names in verification.mdx tables against manifest
+    errors.extend(
+        check_verification_theorem_names(verification_mdx, per_contract)
+    )
 
     # Check research.mdx
     research_mdx = ROOT / "docs-site" / "content" / "research.mdx"
