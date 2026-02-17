@@ -441,6 +441,11 @@ def safeCounterSpec : ContractSpec := {
 
 /-!
 ## Generate All Contracts
+
+`allSpecs` lists every contract that compiles without external dependencies.
+`cryptoHashSpec` is excluded because it requires `--link` flags for external
+Yul libraries (PoseidonT3/T4). Use `lake exe verity-compiler --link ...` to
+compile it separately.
 -/
 
 def allSpecs : List ContractSpec := [

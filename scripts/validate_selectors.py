@@ -14,7 +14,10 @@ Used in CI to ensure selector axiom usage is correct.
 import re
 import sys
 import os
+from pathlib import Path
 from typing import Dict, Tuple
+
+ROOT = Path(__file__).resolve().parent.parent
 
 # Import the existing keccak256 implementation
 sys.path.insert(0, os.path.dirname(__file__))
@@ -52,7 +55,7 @@ def extract_selectors_from_lean(filepath: str) -> Dict[str, str]:
 
 
 def main():
-    lean_file = 'Compiler/Selectors.lean'
+    lean_file = str(ROOT / 'Compiler' / 'Selectors.lean')
 
     print("🔍 Extracting selectors from Lean code...")
     selectors = extract_selectors_from_lean(lean_file)
