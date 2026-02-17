@@ -202,7 +202,7 @@ FOUNDRY_PROFILE=difftest forge test  # 361/361 tests pass (as of 2026-02-17)
 - `Compiler/Interpreter.lean` — EDSL interpreter for differential testing
   - Executes EDSL contracts on abstract state
   - Returns JSON results for comparison with EVM
-  - Supports SimpleStorage and Counter (extensible to all contracts)
+  - Supports all 7 compiled contracts (Counter, SafeCounter, SimpleStorage, Ledger, Owned, OwnedCounter, SimpleToken)
 - `Compiler/RandomGen.lean` — Random transaction generator
   - Generates random addresses, values, and function calls
   - Contract-specific transaction generation (store/retrieve for SimpleStorage)
@@ -250,7 +250,7 @@ FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_
 - Reduce exclusions. Add property tests contract‑by‑contract. Keep coverage script green.
 
 **C. Address Known Limitations (Core Modeling)**:
-- Full "supply = sum balances" proof over a finite address set (PR #47 foundation, PR #51 infrastructure).
+- ~~Full "supply = sum balances" proof over a finite address set~~ (PR #47 foundation, PR #51 infrastructure — all 7/7 sum properties proven in `Conservation.lean`).
 - Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`).
 
 **D. Reduce Remaining Trust Assumptions**:

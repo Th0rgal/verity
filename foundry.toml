@@ -11,8 +11,8 @@ optimizer = true
 optimizer_runs = 200
 fs_permissions = [{ access = "read", path = "./compiler/yul" }]
 
-# Differential testing profile: enables FFI for vm.ffi() calls to difftest-interpreter.
-# Only differential tests (test/Differential*.t.sol) and Yul tests (test/yul/) use FFI.
+# Testing profile: enables FFI for vm.ffi() calls (solc compilation, difftest-interpreter).
+# Required by: Differential*, Property*, CallValueGuard, CalldataSizeGuard, SelectorSanity, and Yul tests.
 # Usage: FOUNDRY_PROFILE=difftest forge test
 [profile.difftest]
 ffi = true

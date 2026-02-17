@@ -70,20 +70,19 @@ These limitations affect only the basic interpreter path (used for proofs). The 
 
 **EVM Semantics**: Mitigated by differential testing against actual EVM execution (Foundry). Likely remains a documented fundamental assumption.
 
-### 🟢 **Ledger Sum Properties** (6 Remaining)
+### ✅ **Ledger Sum Properties** (Complete)
 **What**: Prove total supply equals sum of all balances
-**Status**: Infrastructure complete (PR #47, #51, Issue #39 closed), 1/7 proven, 6 proofs pending (Issue #65)
-**Remaining**: Complete 6 theorem proofs (~10-14 days Lean expertise)
+**Status**: All 7/7 proven with zero `sorry` (PR #47, #51, Issue #65 resolved)
 
 | # | Property | Description |
 |---|----------|-------------|
-| 1 | `Spec_deposit_sum_equation` | Deposit increases total by amount |
-| 2 | `Spec_withdraw_sum_equation` | Withdraw decreases total by amount |
-| 3 | `Spec_transfer_sum_preservation` | Transfer preserves total |
-| 4 | `Spec_deposit_sum_singleton_sender` | Singleton set deposit property |
-| 5 | `Spec_withdraw_sum_singleton_sender` | Singleton set withdraw property |
-| 6 | `Spec_transfer_sum_preserved_unique` | Transfer with unique addresses preserves sum |
-| 7 | ~~`Spec_deposit_withdraw_sum_cancel`~~ | ✅ Deposit then withdraw cancels out (proven) |
+| 1 | ~~`Spec_deposit_sum_equation`~~ | ✅ Deposit increases total by amount |
+| 2 | ~~`Spec_withdraw_sum_equation`~~ | ✅ Withdraw decreases total by amount |
+| 3 | ~~`Spec_transfer_sum_preservation`~~ | ✅ Transfer preserves total |
+| 4 | ~~`Spec_deposit_sum_singleton_sender`~~ | ✅ Singleton set deposit property |
+| 5 | ~~`Spec_withdraw_sum_singleton_sender`~~ | ✅ Singleton set withdraw property |
+| 6 | ~~`Spec_transfer_sum_preserved_unique`~~ | ✅ Transfer with unique addresses preserves sum |
+| 7 | ~~`Spec_deposit_withdraw_sum_cancel`~~ | ✅ Deposit then withdraw cancels out |
 
 ---
 
@@ -151,7 +150,7 @@ These limitations affect only the basic interpreter path (used for proofs). The 
 - ✅ Complete Layer 3 statement-level proofs (PR #42)
 - ✅ Function selector verification (PR #43, #46)
 - ✅ Ledger sum properties infrastructure (PR #47, #51)
-- 🔄 Complete sum property proofs (Issue #65 - requires Lean expertise)
+- ✅ Complete sum property proofs (Issue #65 - all 7/7 proven)
 - 🔄 Yul → EVM bridge investigation
 
 **Success Metrics**:
@@ -195,7 +194,7 @@ These limitations affect only the basic interpreter path (used for proofs). The 
 
 1. **Should we prioritize Yul → EVM bridge or accept it as trust assumption?**
    - Tradeoff: 1-3 months of effort vs. documented trust
-   - Recommendation: Start with documented trust, revisit after ledger sum properties are complete
+   - Recommendation: Start with documented trust (ledger sum properties now complete — revisit when resources allow)
 
 2. **Should we support multiple smart contract languages (Solidity, Vyper, Fe)?**
    - Current: EDSL only
@@ -210,4 +209,4 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 ---
 
 **Last Updated**: 2026-02-17
-**Status**: Layers 1-3 complete. Trust reduction 1/3 done. Sum properties infrastructure complete, 1/7 proven, 6 proofs pending. ContractSpec now supports real-world contracts (loops, branching, events, multi-mappings, internal calls, verified externs).
+**Status**: Layers 1-3 complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). ContractSpec now supports real-world contracts (loops, branching, events, multi-mappings, internal calls, verified externs).

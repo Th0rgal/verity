@@ -130,7 +130,7 @@ Proves IR statement execution is equivalent to Yul statement execution
 when states are aligned.
 
 **Status**: Complete - All statement types proven
-**Dependencies**: Requires expression evaluation axioms (see AXIOMS.md)
+**Dependencies**: Uses keccak256 axiom (see AXIOMS.md)
 -/
 ```
 
@@ -165,12 +165,13 @@ def execIRStmtFuel (fuel : Nat) : ... := ...
 All axioms **must** be documented inline **and** in AXIOMS.md:
 
 ```lean
-/-- AXIOM: Expression evaluation equivalence
+/-- AXIOM: keccak256 selector computation
 
-This is an axiom because evalIRExpr is partial (evalYulExpr is total).
+This is an axiom because Lean cannot natively compute keccak256.
+Validated by CI fixture checks against solc-computed selectors.
 See AXIOMS.md for full soundness justification.
 -/
-axiom evalIRExpr_eq_evalYulExpr : ...
+axiom keccak256_first_4_bytes (sig : String) : Nat
 ```
 
 ### Property Test Tags

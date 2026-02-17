@@ -1,5 +1,7 @@
 # Sum Properties Proof Strategy
 
+> **Status**: ✅ Complete — all 7/7 sum properties proven with zero `sorry` in `Verity/Proofs/Ledger/Conservation.lean`.
+
 ## Overview
 
 The 7 sum properties in `Verity/Proofs/Ledger/Conservation.lean` prove invariants like "total supply = sum of all balances" using `List.countOcc` for exact sum equations.
@@ -22,7 +24,7 @@ All sum-preserving properties follow from basic operations:
 4. **Composition**: Properties compose via substitution
    - Example: `deposit_withdraw_sum_cancel` uses `sub_add_cancel`
 
-## Required Helper Lemmas
+## Helper Lemmas (all proven)
 
 ### Straightforward
 - `sumBalances_insert_existing` - Sum preserved when re-inserting existing address
@@ -32,5 +34,3 @@ All sum-preserving properties follow from basic operations:
 ### Medium Complexity
 - `sumBalances_insert_new` - Properties about `List.foldl` with addition
 - `sumBalances_update_existing` - Splitting sum and recombining
-
-Once helper lemmas are proven, main theorems follow directly from `deposit_increases_balance`, `withdraw_decreases_balance`, and arithmetic cancellation.
