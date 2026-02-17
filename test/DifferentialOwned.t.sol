@@ -459,7 +459,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
         console2.log("All random tests passed!");
         console2.log("Tests passed:", testsPassed);
         console2.log("Tests failed:", testsFailed);
-        require(testsFailed == 0, "Some tests failed");
+        assertEq(testsFailed, 0, "Some random tests failed");
     }
 
     /**
@@ -509,7 +509,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig {
         console2.log("All random tests passed!");
         console2.log("Tests passed:", testsPassed);
         console2.log("Tests failed:", testsFailed);
-        require(testsFailed == 0, "Some tests failed");
+        assertEq(testsFailed, 0, "Some random tests failed");
     }
 
     // ========== Helper Functions ==========

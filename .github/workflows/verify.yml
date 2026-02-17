@@ -356,4 +356,4 @@ jobs:
         if: failure()
         run: |
           echo "::error::Tests failed with seed ${{ matrix.seed }}"
-          echo "::notice::Reproduce locally: DIFFTEST_RANDOM_SEED=${{ matrix.seed }} forge test"
+          echo "::notice::Reproduce locally: FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=${{ matrix.seed }} forge test --no-match-test \"Random10000\" -vv"
