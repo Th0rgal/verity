@@ -48,6 +48,7 @@ EVM Bytecode
 | Address Type | ⚠️ Documented | Low |
 | Lean 4 Type Checker | ⚠️ Foundational | Very Low |
 | `allowUnsafeReducibility` | ⚠️ Documented | Low |
+| Gas Modeling | ⚠️ Documented | Medium |
 
 ---
 
@@ -497,6 +498,88 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
 
 ---
 
+### 10. No Gas Modeling
+
+**Role**: The verification framework operates without any gas cost modeling.
+
+**Assumption**: Contract specifications and proofs assume sufficient gas for execution. Verified properties hold in an infinite-gas model.
+
+**Details**:
+
+1. **EDSL Semantics**: The `Contract` monad (`ContractState → ContractResult α`) has no gas accounting:
+   ```lean
+   def run (c : Contract α) (s : ContractState) : ContractResult α
+   ```
+   There is no gas parameter in the execution model.
+
+2. **IR/Yul Semantics**: The Yul semantics model (`Compiler/Proofs/YulGeneration/Semantics.lean`) uses a fuel parameter, but this is a **termination bound**, not EVM gas:
+   ```lean
+   def execYulFuel (fuel : Nat) (stmt : YulStmt) (s : YulState) : YulState
+   ```
+   Fuel bounds ensure the interpreter terminates, but does not model EVM gas costs.
+
+3. **Compiled Contracts**: No gas optimization or estimation is performed during compilation.
+
+**Impact**:
+
+| Concern | Description | Risk |
+|---------|-------------|------|
+| Deployment Gas | Large contracts may exceed block gas limits — not verified | Medium |
+| Runtime Gas | Operations may run out of gas mid-execution — not verified | Medium |
+| DoS Vulnerability | Loops over large mappings could be proven correct but DoS on-chain | Medium |
+| View Functions | No `view`/`pure` annotations — callers can't know gas requirements | Low |
+
+**Specific Examples**:
+- `transfer` in SimpleToken does 2 SSTORE + 2 SLOAD + mapping slot computation (~50k gas minimum)
+- Sum property proofs iterate over all known addresses — O(n) gas on-chain
+- No way to specify gas limits for external calls
+
+**Mitigation Strategies**:
+
+1. **Document Gas Assumptions**: Include gas analysis in contract documentation
+   ```markdown
+   ## Gas Analysis
+   - `deposit()`: ~50k gas (2 SSTORE, 2 SLOAD, mapping computation)
+   - `withdraw()`: ~50k gas
+   - `transfer()`: ~60k gas (3 SSTORE, 2 SLOAD)
+   ```
+
+2. **Use Foundry Gas Reports**: Run `forge test --gas-report` to estimate deployment and function call costs
+
+3. **Add Gas Benchmarks**: Use differential tests to measure gas consumption:
+   ```solidity
+   function testGas_deposit() public {
+       uint256 gasBefore = gasleft();
+       contract.deposit{value: 1 ether}();
+       uint256 gasUsed = gasBefore - gasleft();
+       assertTrue(gasUsed <= 50000);  // Add gas bounds to tests
+   }
+   ```
+
+4. **Keep Contracts Simple**: Minimize storage operations per function
+   - Batch storage reads before writes
+   - Use events instead of storage for historical data
+   - Consider cold vs. warm storage access costs
+
+**Risk Assessment**: **Medium**
+- Verified properties assume infinite gas
+- Real-world execution may fail due to gas limits
+- Differential tests validate execution against deployed bytecode but not gas behavior
+
+**Recommendation for Developers**:
+- Always run gas estimates before deployment (`forge test --gas-report`)
+- Add explicit gas bounds to property tests for critical functions
+- Document gas assumptions in contract README
+- For high-value contracts: consider formal gas verification (future work)
+
+**Future Work** (Issue #80, #174):
+- Add gas cost annotations to ContractSpec
+- Model gas in Yul semantics
+- Prove gas bounds for critical functions
+- Integrate with gas analysis tools
+
+---
+
 ## Axioms
 
 Verity uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
@@ -559,6 +642,8 @@ Use this checklist when performing security audits of Verity-verified contracts.
 - [ ] Check function selectors against specifications
 - [ ] Validate storage layout (issue #84)
 - [ ] Confirm gas costs are acceptable (issue #80)
+- [ ] Run gas estimates: `forge test --gas-report`
+- [ ] Add gas bounds to property tests for critical functions
 
 ### 6. Documentation Review
 - [ ] Check README for accurate description
@@ -646,6 +731,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ⚠️ EVM semantics - Industry standard, billions in TVL
 ⚠️ Linked libraries - Outside proof boundary, validated by compile-time reference checks
 ⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
+⚠️ Gas modeling - Not verified, assume infinite gas (see section 10)
 
 ### Risk Profile
 - **Overall**: Low to Medium risk
