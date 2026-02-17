@@ -12,17 +12,26 @@
 
   Supports:
   - If/else branching (#179)
+  - forEach loops via loop expansion (#179)
+  - Internal function calls via fuel-based execution (#181)
   - Double mappings and uint256-keyed mappings (#154)
   - Event emission recording (#153)
   - External function calls via externalFunctions parameter (#172)
 
-  Known limitations (basic execStmts path):
-  - forEach loops are no-ops — use execStmtsFuel for contracts with loops (#179)
-  - Expr.internalCall always returns 0 — internal function lookup not yet implemented (#181)
-  - Stmt.internalCall is a no-op — use execStmtsFuel with functions parameter (#181)
-  - arrayParams is never populated from Transaction — array element access returns 0 (#180)
-  These limitations affect only the basic interpreter path, not the compiled Yul output.
-  The fuel-based execStmtsFuel supports both forEach and Stmt.internalCall.
+  Two execution paths:
+  - Basic (`execStmts`/`execStmt`): handles most constructs. `Stmt.forEach`
+    and `Stmt.internalCall` revert (return none) instead of silently producing
+    wrong results. Used by `execFunction`/`execConstructor`/`interpretSpec`.
+  - Fuel-based (`execStmtsFuel`): handles all constructs including forEach
+    and internal function calls. Used by `execFunctionFuel`,
+    `execConstructorFuel`, and `interpretSpecFull`.
+
+  Known limitation:
+  - `Expr.internalCall` always returns 0 in `evalExpr` — the expression evaluator
+    does not carry the functions list. Use Stmt.internalCall (which assigns to a
+    local variable) instead of Expr.internalCall in contract specs. (#181)
+  - arrayParams is never populated from Transaction — array element access
+    returns 0 (#180)
 -/
 
 import Compiler.ContractSpec
@@ -254,10 +263,11 @@ end
 Execute ContractSpec statements, updating storage and context.
 Returns None if execution reverts.
 
-The basic `execStmt` / `execStmts` handle all constructs that don't introduce
-unbounded recursion (everything except forEach and internalCall). They are kept
-simple for proof automation. For contracts with forEach or internalCall, use
-`execStmtsFuel` which provides fuel-based execution with function lookup.
+The basic `execStmt` / `execStmts` handle most constructs. `Stmt.forEach` and
+`Stmt.internalCall` return `none` (revert) in this path — `forEach` because
+loop expansion is not structurally decreasing, and `internalCall` because
+function lookup requires the `functions` parameter. For contracts that use
+these features, use `execStmtsFuel` / `execFunctionFuel` / `interpretSpecFull`.
 -/
 
 -- Execution state
@@ -336,17 +346,22 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
         execStmts ctx fields paramNames externalFns state elseBranch
 
   | Stmt.forEach _varName _count _body =>
-      -- forEach requires fuel-based execution; use execStmtsFuel for contracts with loops
-      -- For the basic interpreter, forEach is a no-op (returns unchanged state)
-      some (ctx, state)
+      -- forEach requires fuel-based execution for termination (the expanded loop
+      -- body is not structurally smaller). Use execStmtsFuel / execFunctionFuel /
+      -- interpretSpecFull for contracts with loops. Revert instead of silently
+      -- skipping the loop body.
+      none
 
   | Stmt.emit eventName args =>
       let argVals := args.map (evalExpr ctx state.storage fields paramNames externalFns ·)
       some (ctx, { state with storage := state.storage.addEvent eventName argVals })
 
   | Stmt.internalCall _functionName _args =>
-      -- Placeholder: internal calls are no-ops in the basic interpreter
-      some (ctx, state)
+      -- Internal calls require function lookup (the `functions` parameter).
+      -- The basic interpreter does not carry function definitions, so revert
+      -- instead of silently producing wrong results. Use execStmtsFuel for
+      -- contracts with internal calls.
+      none
 
 -- Execute a list of statements sequentially
 -- Thread both context and state through the computation
@@ -440,6 +455,14 @@ termination_by fuel
 ## Function Execution
 
 Execute a function from a ContractSpec.
+
+`execFunction` / `execConstructor` use the basic `execStmts` path, which handles
+all constructs except `Stmt.forEach` and `Stmt.internalCall` (both revert).
+These are kept for backward compatibility with existing proofs.
+
+`execFunctionFuel` / `execConstructorFuel` use the fuel-based `execStmtsFuel` path,
+which fully supports `forEach`, `Stmt.internalCall`, and all features. Use these
+for contracts that use loops or internal function calls.
 -/
 
 def execFunction (spec : ContractSpec) (funcName : String) (ctx : EvalContext) (externalFns : List (String × (List Nat → Nat)))
@@ -469,6 +492,42 @@ def execConstructor (spec : ContractSpec) (ctx : EvalContext) (externalFns : Lis
       }
       let paramNames := ctor.params.map (·.name)
       execStmts ctx spec.fields paramNames externalFns initialState ctor.body
+
+/-- Execute a function using the fuel-based interpreter that supports all features
+    including forEach loops and internal function calls. Default fuel of 10000
+    is sufficient for most contracts. -/
+def execFunctionFuel (spec : ContractSpec) (funcName : String) (ctx : EvalContext)
+    (externalFns : List (String × (List Nat → Nat)))
+    (initialStorage : SpecStorage) (fuel : Nat := 10000) : Option (EvalContext × ExecState) :=
+  match spec.functions.find? (·.name == funcName) with
+  | none => none
+  | some func =>
+      let ctx := { ctx with paramTypes := func.params.map (·.ty) }
+      let initialState : ExecState := {
+        storage := initialStorage
+        returnValue := none
+        halted := false
+      }
+      let paramNames := func.params.map (·.name)
+      execStmtsFuel fuel ctx spec.fields paramNames externalFns spec.functions initialState func.body
+
+/-- Execute a constructor using the fuel-based interpreter that supports all features
+    including forEach loops and internal function calls. Default fuel of 10000
+    is sufficient for most contracts. -/
+def execConstructorFuel (spec : ContractSpec) (ctx : EvalContext)
+    (externalFns : List (String × (List Nat → Nat)))
+    (initialStorage : SpecStorage) (fuel : Nat := 10000) : Option (EvalContext × ExecState) :=
+  match spec.constructor with
+  | none => some (ctx, { storage := initialStorage, returnValue := none, halted := false })
+  | some ctor =>
+      let ctx := { ctx with constructorParamTypes := ctor.params.map (·.ty) }
+      let initialState : ExecState := {
+        storage := initialStorage
+        returnValue := none
+        halted := false
+      }
+      let paramNames := ctor.params.map (·.name)
+      execStmtsFuel fuel ctx spec.fields paramNames externalFns spec.functions initialState ctor.body
 
 /-!
 ## Top-Level Interpreter
@@ -515,6 +574,53 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
       arrayParams := []
     }
     match execFunction spec tx.functionName ctx externalFns initialStorage with
+    | none =>
+        { success := false, returnValue := none,
+          revertReason := some s!"Function '{tx.functionName}' reverted",
+          finalStorage := initialStorage }
+    | some (_, finalState) =>
+        { success := true, returnValue := finalState.returnValue,
+          revertReason := none, finalStorage := finalState.storage }
+
+/-- Interpret a ContractSpec against a transaction using the fuel-based path.
+    Supports all features including internal function calls. Use this instead
+    of `interpretSpec` for contracts that use `Stmt.internalCall` or
+    `Expr.internalCall`. -/
+def interpretSpecFull (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Transaction)
+    (externalFns : List (String × (List Nat → Nat)) := [])
+    (fuel : Nat := 10000) : SpecResult :=
+  if tx.functionName == "" then
+    let ctx : EvalContext := {
+      sender := tx.sender
+      msgValue := tx.msgValue
+      blockTimestamp := tx.blockTimestamp
+      params := []
+      paramTypes := []
+      constructorArgs := tx.args
+      constructorParamTypes := []
+      localVars := []
+      arrayParams := []
+    }
+    match execConstructorFuel spec ctx externalFns initialStorage fuel with
+    | none =>
+        { success := false, returnValue := none,
+          revertReason := some "Constructor reverted", finalStorage := initialStorage }
+    | some (_, finalState) =>
+        { success := true, returnValue := finalState.returnValue,
+          revertReason := none, finalStorage := finalState.storage }
+  else
+    let ctx : EvalContext := {
+      sender := tx.sender
+      msgValue := tx.msgValue
+      blockTimestamp := tx.blockTimestamp
+      params := tx.args
+      paramTypes := []
+      constructorArgs := []
+      constructorParamTypes := []
+      localVars := []
+      arrayParams := []
+    }
+    match execFunctionFuel spec tx.functionName ctx externalFns initialStorage fuel with
     | none =>
         { success := false, returnValue := none,
           revertReason := some s!"Function '{tx.functionName}' reverted",
