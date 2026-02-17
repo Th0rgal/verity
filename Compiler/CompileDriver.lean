@@ -76,7 +76,9 @@ def compileAll (outDir : String) (verbose : Bool := false) (libraryPaths : List 
     let selectors ← computeSelectors spec
     match compile spec selectors with
     | .ok contract =>
-      writeContract outDir contract libraryPaths verbose
+      -- Only pass libraries to contracts that declare external functions
+      let contractLibs := if spec.externals.isEmpty then [] else libraryPaths
+      writeContract outDir contract contractLibs verbose
       if verbose then
         IO.println s!"✓ Compiled {contract.name}"
     | .error err =>
