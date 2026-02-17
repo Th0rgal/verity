@@ -44,6 +44,7 @@ EVM Bytecode
 | EVM Semantics | ⚠️ Trusted | Low |
 | Linked Libraries (Linker) | ⚠️ Trusted | Varies |
 | Mapping Slot Collision Freedom | ⚠️ Trusted | Low |
+| Arithmetic Semantics | ⚠️ Documented | Low |
 | Lean 4 Type Checker | ⚠️ Foundational | Very Low |
 | `allowUnsafeReducibility` | ⚠️ Documented | Low |
 
@@ -383,6 +384,67 @@ Two files use `set_option allowUnsafeReducibility true`:
 
 ---
 
+### 8. Arithmetic Semantics: Wrapping vs Checked
+
+**Role**: The Lean EDSL uses **wrapping (modular) arithmetic** for `Uint256` operations, while Solidity `^0.8` uses **checked arithmetic** that reverts on overflow/underflow.
+
+**Assumption**: Contract specifications and proofs reason about EVM-level wrapping arithmetic semantics, which matches raw EVM opcodes but differs from Solidity's default checked arithmetic.
+
+**Details**:
+
+The Lean EDSL in `Verity/Core/Uint256.lean` defines:
+```lean
+def add (a b : Uint256) : Uint256 := ⟨(a.val + b.val) % 2^256⟩
+def sub (a b : Uint256) : Uint256 := ⟨(a.val + 2^256 - b.val) % 2^256⟩
+```
+
+This matches the EVM's `add` and `sub` opcodes which wrap on overflow/underflow.
+
+Solidity `^0.8.0` by default uses checked arithmetic:
+```solidity
+uint256 x = type(uint256).max + 1;  // reverts with overflow
+```
+
+**Impact**:
+
+| Contract | Lean Model | Solidity Reference | Implication |
+|----------|-----------|-------------------|-------------|
+| Counter | `increment()` at MAX wraps to 0 | `count += 1` reverts | Wrapping states unreachable in Solidity |
+| Ledger | `credit()` wraps on overflow | `balances[addr] += amount` reverts | Same |
+| SimpleToken | `transfer()` underflow wraps | `balances[from] -= amount` reverts | Same |
+
+**Mitigation Strategies**:
+
+1. **SafeCounter Pattern**: Use `require` guards to prevent overflow/underflow:
+   ```lean
+   def increment (c : Counter) : Contract Unit := do
+     let current ← getStorage countSlot
+     require (current + 1 > current) "overflow"
+     setStorage countSlot (current + 1)
+   ```
+   This matches Solidity's checked semantics and is proven correct in `SafeCounter`.
+
+2. **Explicit Wrapping Semantics**: For contracts that intentionally use wrapping (e.g., `Counter`), document that proofs cover EVM-level wrapping behavior, not Solidity's revert-on-overflow.
+
+3. **Solidity Reference Alignment**: Use `unchecked { }` blocks in Solidity reference contracts to match Lean wrapping semantics, or add explicit `require` guards in Lean contracts.
+
+**Risk Assessment**: **Low**
+- This is a well-known semantic difference documented here
+- The `SafeCounter` contract demonstrates the correct pattern for checked arithmetic
+- Differential tests execute against compiled Yul (wrapping), so behavior is validated end-to-end
+- Users can choose wrapping or checked semantics by adding/removing `require` guards
+
+**Recommendation for Developers**:
+- For contracts intended to match Solidity `^0.8` behavior: add `require` guards (see `SafeCounter` as reference)
+- For contracts using intentional wrapping (e.g., counters, tokens with explicit overflow handling): document this in the spec
+- When comparing to Solidity reference contracts: ensure both use the same arithmetic model
+
+**Future Work**:
+- Add a `CheckedUint256` type that automatically validates on each operation
+- Issue tracking: #162
+
+---
+
 ## Axioms
 
 Verity uses **5 axioms** across the verification codebase. All axioms are documented with soundness justifications.
@@ -426,6 +488,7 @@ Use this checklist when performing security audits of Verity-verified contracts.
 - [ ] Assess axiom soundness arguments
 - [ ] Check solc version is pinned and tested
 - [ ] Verify differential tests cover contract functionality
+- [ ] Verify arithmetic semantics: wrapping (EDSL) vs checked (Solidity reference)
 
 ### 3. Testing Validation
 - [ ] Confirm all Foundry tests pass
@@ -527,6 +590,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
 ⚠️ Keccak256 hashing - Validated against solc
 ⚠️ Mapping slot collision freedom - Standard Ethereum assumption
+⚠️ Arithmetic semantics - Wrapping (Lean) vs checked (Solidity), see section 8
 ⚠️ EVM semantics - Industry standard, billions in TVL
 ⚠️ Linked libraries - Outside proof boundary, validated by compile-time reference checks
 ⚠️ 5 axioms - Low risk, extensively validated (see AXIOMS.md)
@@ -553,7 +617,7 @@ Trust assumptions are **documented and minimized**:
 
 ---
 
-**Last Updated**: 2026-02-16
+**Last Updated**: 2026-02-17
 **Next Review**: After completing issue #76 (Yul → Bytecode verification)
 **Maintainer**: Update when trust boundaries change or new components are verified
 
