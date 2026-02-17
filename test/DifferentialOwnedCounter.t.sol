@@ -30,16 +30,10 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig {
     mapping(uint256 => address) edslStorageAddr;  // Slot 0: owner address
 
     function setUp() public {
-        // Deploy OwnedCounter from Yul using YulTestBase helper
-        ownedCounter = deployYul("OwnedCounter");
-        require(ownedCounter != address(0), "Deploy failed");
-
-        // Initialize owner to the test contract (msg.sender)
+        // Deploy OwnedCounter from Yul with constructor arg (initialOwner)
         address initialOwner = address(this);
-
-        // Set EVM state
-        bytes32 ownerSlot = bytes32(uint256(0));
-        vm.store(ownedCounter, ownerSlot, bytes32(uint256(uint160(initialOwner))));
+        ownedCounter = deployYulWithArgs("OwnedCounter", abi.encode(initialOwner));
+        require(ownedCounter != address(0), "Deploy failed");
 
         // Set EDSL state
         edslStorageAddr[0] = initialOwner;

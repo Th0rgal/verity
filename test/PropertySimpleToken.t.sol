@@ -82,14 +82,14 @@ contract PropertySimpleTokenTest is YulTestBase {
     /**
      * Property: getTotalSupply_returns_supply
      * Property: getTotalSupply_meets_spec
-     * Theorem: getTotalSupply returns storage slot 0 (total supply)
+     * Theorem: getTotalSupply returns storage slot 2 (total supply)
      */
     function testProperty_GetTotalSupply_ReturnsStorageValue() public {
         uint256 storageSupply = readStorage(2);
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("totalSupply()"));
         require(success);
         uint256 returned = abi.decode(data, (uint256));
-        assertEq(returned, storageSupply, "getTotalSupply should return storage[0]");
+        assertEq(returned, storageSupply, "getTotalSupply should return storage[2]");
     }
 
     /**
@@ -110,14 +110,14 @@ contract PropertySimpleTokenTest is YulTestBase {
     /**
      * Property: getOwner_returns_owner
      * Property: getOwner_meets_spec
-     * Theorem: getOwner returns storage slot 1 (owner address)
+     * Theorem: getOwner returns storage slot 0 (owner address)
      */
     function testProperty_GetOwner_ReturnsStorageValue() public {
         address storageOwner = readStorageAddr(0);
         (bool success, bytes memory data) = token.call(abi.encodeWithSignature("owner()"));
         require(success);
         address returned = abi.decode(data, (address));
-        assertEq(returned, storageOwner, "getOwner should return storage[1]");
+        assertEq(returned, storageOwner, "getOwner should return storage[0]");
     }
 
     /**

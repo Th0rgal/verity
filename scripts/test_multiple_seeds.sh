@@ -35,7 +35,7 @@ for seed in "${SEEDS[@]}"; do
     echo "--------------------------------------"
 
     # Skip Random10000 tests to avoid out-of-gas errors (see issue #96)
-    if DIFFTEST_RANDOM_SEED=$seed forge test --no-match-test "Random10000"; then
+    if FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=$seed forge test --no-match-test "Random10000"; then
         echo "✅ Seed $seed: PASSED"
     else
         echo "❌ Seed $seed: FAILED"

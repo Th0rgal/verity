@@ -31,18 +31,10 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig {
     mapping(uint256 => uint256) edslStorage;       // Slot 2: totalSupply
 
     function setUp() public {
-        // Deploy SimpleToken from Yul using YulTestBase helper
-        simpleToken = deployYul("SimpleToken");
-        require(simpleToken != address(0), "Deploy failed");
-
-        // Initialize owner to the test contract (msg.sender)
+        // Deploy SimpleToken from Yul with constructor arg (initialOwner)
         address initialOwner = address(this);
-
-        // Set EVM state
-        bytes32 ownerSlot = bytes32(uint256(0));
-        vm.store(simpleToken, ownerSlot, bytes32(uint256(uint160(initialOwner))));
-        bytes32 totalSupplySlot = bytes32(uint256(2));
-        vm.store(simpleToken, totalSupplySlot, bytes32(uint256(0)));
+        simpleToken = deployYulWithArgs("SimpleToken", abi.encode(initialOwner));
+        require(simpleToken != address(0), "Deploy failed");
 
         // Set EDSL state
         edslStorageAddr[0] = initialOwner;
