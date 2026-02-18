@@ -61,6 +61,16 @@ def get_test_counts() -> tuple[int, int]:
     return test_count, suite_count
 
 
+def get_property_test_function_count() -> int:
+    """Count test functions in Property*.t.sol files only."""
+    test_dir = ROOT / "test"
+    count = 0
+    for sol in sorted(test_dir.glob("Property*.t.sol")):
+        text = sol.read_text(encoding="utf-8")
+        count += len(re.findall(r"function\s+test", text))
+    return count
+
+
 def get_core_line_count() -> int:
     """Count lines in Verity/Core.lean."""
     core = ROOT / "Verity" / "Core.lean"
@@ -193,6 +203,7 @@ def main() -> None:
     stdlib_count = per_contract.get("Stdlib", 0)
     non_stdlib_total = total_theorems - stdlib_count
     contract_count = get_contract_count()
+    property_fn_count = get_property_test_function_count()
 
     errors: list[str] = []
 
@@ -416,6 +427,11 @@ def main() -> None:
                     "property test coverage in tree",
                     re.compile(r"covering (\d+)/\d+ theorems"),
                     str(covered_count),
+                ),
+                (
+                    "property test function count",
+                    re.compile(r"(\d+) functions, covering"),
+                    str(property_fn_count),
                 ),
             ],
         )
