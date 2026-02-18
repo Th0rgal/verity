@@ -100,7 +100,6 @@ Open `Verity/Specs/TipJar/Spec.lean`:
 import Verity.Core
 import Verity.Specs.Common
 import Verity.EVM.Uint256
-import Verity.Examples.TipJar
 
 namespace Verity.Specs.TipJar
 
@@ -207,7 +206,7 @@ def exampleUsage : Contract Uint256 := do
   tip 100
   getBalance "0xAlice"
 
-#eval! (exampleUsage.run { defaultState with
+#eval (exampleUsage.run { defaultState with
   sender := "0xAlice",
   thisAddress := "0xTipJar"
 }).getValue?
@@ -233,7 +232,7 @@ end Verity.Examples.TipJar
 
 > **Tip**: Use `defaultState` to create a zero-initialized state for testing:
 > ```lean
-> #eval! (myContract.run { defaultState with sender := "0xAlice" }).getValue?
+> #eval (myContract.run { defaultState with sender := "0xAlice" }).getValue?
 > ```
 > This avoids spelling out every field and stays valid when new fields are added.
 
@@ -243,7 +242,7 @@ end Verity.Examples.TipJar
 lake build Verity.Examples.TipJar
 ```
 
-If successful, the `#eval!` block evaluates and prints `some 100`.
+If successful, the `#eval` block evaluates and prints `some 100`.
 
 ---
 
@@ -277,10 +276,10 @@ open Verity.Specs.TipJar
 -- tip: implementation matches spec
 theorem tip_meets_spec (s : ContractState) (amount : Uint256) :
     tip_spec amount s (((tip amount).run s).snd) := by
-  simp [tip, tip_spec, tips, msgSender, getMapping, setMapping,
-        bind, storageMapUnchangedExceptKeyAtSlot,
+  simp [tip, tip_spec, tips, msgSender, getMapping, setMapping, bind,
+        storageMapUnchangedExceptKeyAtSlot,
         storageMapUnchangedExceptKey, storageMapUnchangedExceptSlot,
-        sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr,
+        Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr,
         Specs.sameContext]
   constructor
   · simp [Contract.run]

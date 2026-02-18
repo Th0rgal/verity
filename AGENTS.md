@@ -45,16 +45,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full conventions.
 
 ## Task Workflows
 
-**Layer 3 Proofs**:
-1. Read docs/ROADMAP.md for Layer 3 status
-2. Read Compiler/Proofs/README.md for patterns
-3. Study completed proofs: `assign_equiv`, `storageLoad_equiv`
-4. Use template: `.github/ISSUE_TEMPLATE/layer3-statement-proof.md`
+**Layer 3 Proofs**: ✅ Complete (all 8 statement proofs + universal dispatcher). No further work needed.
 
 **New Contracts**:
-1. Read README.md - "Adding a Contract"
-2. Follow SimpleStorage pattern
-3. Spec → Invariants → Implementation → Proofs → Tests
+1. Run `python3 scripts/generate_contract.py <Name>` to create scaffold
+2. Read [add-contract.mdx](/add-contract) for the full checklist
+3. Follow SimpleStorage pattern: Spec → EDSL → Proofs → Compiler → Tests
 
 **Compiler Changes**:
 1. Read Compiler/Specs.lean
