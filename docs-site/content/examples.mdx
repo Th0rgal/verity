@@ -55,11 +55,11 @@ def count : StorageSlot Uint256 := ⟨0⟩
 
 def increment : Contract Unit := do
   let current ← getStorage count
-  setStorage count (current + 1)
+  setStorage count (add current 1)
 
 def decrement : Contract Unit := do
   let current ← getStorage count
-  setStorage count (current - 1)
+  setStorage count (sub current 1)
 ```
 
 Proofs cover arithmetic, composition (two increments add 2), and decrement-at-zero behavior.
@@ -107,7 +107,7 @@ def count : StorageSlot Uint256 := ⟨1⟩
 def increment : Contract Unit := do
   onlyOwner
   let current ← getStorage count
-  setStorage count (current + 1)
+  setStorage count (add current 1)
 ```
 
 Proofs cover cross-pattern composition, ownership transfer locking out old owner, and counter value surviving ownership transfer.
@@ -117,21 +117,21 @@ Proofs cover cross-pattern composition, ownership transfer locking out old owner
 Mapping storage for per-address balances with deposit, withdraw, and transfer.
 
 ```lean
--- Simplified — full code includes self-transfer guard and safeAdd overflow checks
+-- Simplified — full code includes self-transfer guard and safeAdd overflow check on transfer
 def balances : StorageSlot (Address → Uint256) := ⟨0⟩
 
 def deposit (amount : Uint256) : Contract Unit := do
   let sender ← msgSender
   let currentBalance ← getMapping balances sender
-  setMapping balances sender (currentBalance + amount)
+  setMapping balances sender (add currentBalance amount)
 
 def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   let sender ← msgSender
   let senderBalance ← getMapping balances sender
   require (senderBalance >= amount) "Insufficient balance"
   let recipientBalance ← getMapping balances to
-  setMapping balances sender (senderBalance - amount)
-  setMapping balances to (recipientBalance + amount)
+  setMapping balances sender (sub senderBalance amount)
+  setMapping balances to (add recipientBalance amount)
 ```
 
 Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposit-withdraw cancellation.
@@ -141,7 +141,7 @@ Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposi
 Composes Owned and Ledger. Adds owner-controlled minting and supply tracking.
 
 ```lean
--- Simplified — full code includes safeAdd overflow checks and self-transfer guard
+-- Simplified — full code uses safeAdd for overflow checks and self-transfer guard
 def owner : StorageSlot Address := ⟨0⟩
 def balances : StorageSlot (Address → Uint256) := ⟨1⟩
 def totalSupply : StorageSlot Uint256 := ⟨2⟩
@@ -149,17 +149,19 @@ def totalSupply : StorageSlot Uint256 := ⟨2⟩
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
   onlyOwner
   let currentBalance ← getMapping balances to
-  setMapping balances to (currentBalance + amount)
+  let newBalance ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
   let currentSupply ← getStorage totalSupply
-  setStorage totalSupply (currentSupply + amount)
+  let newSupply ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
+  setMapping balances to newBalance
+  setStorage totalSupply newSupply
 
 def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   let sender ← msgSender
   let senderBalance ← getMapping balances sender
   require (senderBalance >= amount) "Insufficient balance"
   let recipientBalance ← getMapping balances to
-  setMapping balances sender (senderBalance - amount)
-  setMapping balances to (recipientBalance + amount)
+  setMapping balances sender (sub senderBalance amount)
+  setMapping balances to (add recipientBalance amount)
 ```
 
 Proofs cover mint/transfer correctness, supply conservation equations, and storage isolation across all three slot types.
@@ -173,8 +175,11 @@ Two parallel bank contracts — one vulnerable, one safe — demonstrating that 
 -- Modeled by subtracting totalSupply twice, balance once
 theorem vulnerable_attack_exists :
   ∃ (s : ContractState),
+    s.storageMap balances.slot "attacker" = (Verity.EVM.MAX_UINT256 : Uint256) ∧
+    s.storage totalSupply.slot = (Verity.EVM.MAX_UINT256 : Uint256) ∧
     supplyInvariant s ["attacker"] ∧
-    ¬ supplyInvariant ((withdraw MAX_UINT256).runState s) ["attacker"]
+    let s' := (withdraw (Verity.EVM.MAX_UINT256 : Uint256)).runState s;
+    ¬ supplyInvariant s' ["attacker"]
 
 -- Safe: state update before external call
 -- The supply invariant is universally provable

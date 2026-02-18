@@ -366,8 +366,8 @@ def main() -> None:
                     str(exclusion_count),
                 ),
                 (
-                    "property test count in tree",
-                    re.compile(r"Property tests \((\d+) tests\)"),
+                    "property test coverage in tree",
+                    re.compile(r"covering (\d+)/\d+ theorems"),
                     str(covered_count),
                 ),
             ],
