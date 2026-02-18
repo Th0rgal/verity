@@ -4,9 +4,9 @@ Formal verification proofs for the Verity compiler, proving correctness across t
 
 ## Verification Layers
 
-- **Layer 1: EDSL ≡ ContractSpec** — User contracts satisfy their specs.
-- **Layer 2: ContractSpec → IR** — IR generation preserves spec semantics.
-- **Layer 3: IR → Yul** — All statement equivalence proofs proven (PR #42).
+- **Layer 1: EDSL ≡ ContractSpec** — User contracts satisfy their specs (`Verity/Proofs/<Name>/` + `Compiler/Proofs/SpecCorrectness/`).
+- **Layer 2: ContractSpec → IR** — IR generation preserves spec semantics (`Compiler/Proofs/IRGeneration/`).
+- **Layer 3: IR → Yul** — All statement equivalence proofs proven (`Compiler/Proofs/YulGeneration/`).
 
 Key entry points:
 
@@ -14,7 +14,7 @@ Key entry points:
 - IR generation and proofs: `Compiler/Proofs/IRGeneration/`
 - Yul semantics and preservation: `Compiler/Proofs/YulGeneration/`
 
-Layer 1 proofs live in `Verity/Proofs/<Name>/Basic.lean` and `Correctness.lean`. The re-export shim at `Verity/Specs/<Name>/Proofs.lean` imports Layer 2 proofs from `Compiler/Proofs/SpecCorrectness/<Name>.lean`.
+Layer 1 proofs live in `Verity/Proofs/<Name>/Basic.lean` and `Correctness.lean`. The re-export shim at `Verity/Specs/<Name>/Proofs.lean` imports Layer 1 spec-correctness proofs from `Compiler/Proofs/SpecCorrectness/<Name>.lean`.
 
 ## Build
 
@@ -31,7 +31,7 @@ All proofs complete — no `sorry` warnings expected.
 
 Execution semantics for the ContractSpec language.
 
-**Key Types**: `EvalContext` (execution environment), `SpecStorage` (abstract storage), `ExecutionResult` (success or revert with final state).
+**Key Types**: `EvalContext` (execution environment), `SpecStorage` (abstract storage), `ExecState` (execution state with storage, return value, and halt flag).
 
 **Key Functions**: `evalExpr` (expression evaluation), `execStmt` (statement execution), `interpretSpec` (top-level interpreter).
 

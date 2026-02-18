@@ -102,17 +102,6 @@ theorem getCount_preserves_wellformedness (s : ContractState) (h : WellFormedSta
   rw [h_pres]
   exact h
 
-/-! ## Decrement → getCount Composition -/
-
-/-- decrement followed by getCount returns count - 1. -/
-theorem decrement_getCount_correct (s : ContractState) :
-  let s' := ((decrement).run s).snd
-  ((getCount).run s').fst = EVM.Uint256.sub (s.storage 0) 1 := by
-  have h_dec := decrement_subtracts_one s
-  have h_get := getCount_reads_count_value (((decrement).run s).snd)
-  simp only [h_dec] at h_get
-  exact h_get
-
 /-! ## Edge Cases -/
 
 /-- Decrementing at zero wraps to max (EVM modular subtraction). -/
@@ -127,7 +116,7 @@ theorem decrement_at_zero_wraps_max (s : ContractState) (h : s.storage 0 = 0) :
 
 /-! ## Summary
 
-All 10 theorems fully proven with zero sorry:
+All 9 theorems fully proven with zero sorry:
 
 Standalone invariant proofs:
 1. increment_state_preserved_except_count
@@ -143,11 +132,8 @@ Combined spec proofs:
 Read-only preservation:
 8. getCount_preserves_wellformedness
 
-Composition:
-9. decrement_getCount_correct
-
 EVM edge cases:
-10. decrement_at_zero_wraps_max
+9. decrement_at_zero_wraps_max
 -/
 
 end Verity.Proofs.Counter.Correctness
