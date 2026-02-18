@@ -273,30 +273,8 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download generated Yul
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
-      - name: Download difftest interpreter
-        uses: actions/download-artifact@v4
-        with:
-          name: difftest-interpreter
-          path: .lake/build/bin
-
-      - name: Make difftest interpreter executable
-        run: |
-          chmod +x .lake/build/bin/difftest-interpreter
-          ls -l .lake/build/bin/difftest-interpreter
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: v1.5.0
-
-      - name: Setup solc
-        uses: ./.github/actions/setup-solc
+      - name: Setup Foundry environment
+        uses: ./.github/actions/setup-foundry
 
       - name: Run Foundry tests with seed 42
         env:
@@ -324,30 +302,8 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download generated Yul
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
-      - name: Download difftest interpreter
-        uses: actions/download-artifact@v4
-        with:
-          name: difftest-interpreter
-          path: .lake/build/bin
-
-      - name: Make difftest interpreter executable
-        run: |
-          chmod +x .lake/build/bin/difftest-interpreter
-          ls -l .lake/build/bin/difftest-interpreter
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: v1.5.0
-
-      - name: Setup solc
-        uses: ./.github/actions/setup-solc
+      - name: Setup Foundry environment
+        uses: ./.github/actions/setup-foundry
 
       - name: Run tests with seed ${{ matrix.seed }}
         env:
