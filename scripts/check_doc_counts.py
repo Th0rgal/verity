@@ -3,8 +3,9 @@
 
 Validates counts in README.md, test/README.md, docs/VERIFICATION_STATUS.md,
 docs/ROADMAP.md, TRUST_ASSUMPTIONS.md, docs-site llms.txt, compiler.mdx,
-verification.mdx, research.mdx, core.mdx, examples.mdx, and index.mdx
-against the actual property manifest and codebase.
+verification.mdx, research.mdx, core.mdx, examples.mdx, index.mdx,
+getting-started.mdx, and layout.tsx against the actual property manifest
+and codebase. Also validates theorem counts in Property*.t.sol file headers.
 
 Usage:
     python3 scripts/check_doc_counts.py

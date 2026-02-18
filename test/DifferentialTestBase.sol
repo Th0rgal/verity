@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
-import {console2} from "forge-std/Test.sol";
-
 /**
  * @title DifferentialTestBase
  * @notice Shared utilities for differential testing contracts
