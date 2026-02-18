@@ -400,23 +400,6 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig, DifferentialTes
         return 0;
     }
 
-    function _extractNumber(string memory json, uint256 startIdx) internal pure override returns (uint256) {
-        bytes memory jsonBytes = bytes(json);
-        uint256 result = 0;
-        bool foundDigit = false;
-
-        for (uint i = startIdx; i < jsonBytes.length; i++) {
-            bytes1 c = jsonBytes[i];
-            if (c >= '0' && c <= '9') {
-                unchecked { result = result * 10 + uint8(c) - uint8(bytes1('0')); }
-                foundDigit = true;
-            } else if (foundDigit) {
-                break;
-            }
-        }
-        return result;
-    }
-
     // ============ Test Cases ============
 
     function testDifferential_Mint() public {
