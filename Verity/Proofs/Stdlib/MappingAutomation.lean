@@ -183,18 +183,18 @@ theorem setMapping2_getMapping2_same (slot : StorageSlot (Address → Address �
 
 /-- setMapping2 with different first key preserves getMapping2. -/
 theorem setMapping2_getMapping2_diff_key1 (slot : StorageSlot (Address → Address → Uint256))
-    (k1 k1' key2 : Address) (value : Uint256) (state : ContractState) (h : k1 ≠ k1') :
-    (getMapping2 slot k1' key2).runValue ((setMapping2 slot k1 key2 value).runState state) =
-    state.storageMap2 slot.slot k1' key2 := by
+    (k1 k1' k2 k2' : Address) (value : Uint256) (state : ContractState) (h : k1 ≠ k1') :
+    (getMapping2 slot k1' k2').runValue ((setMapping2 slot k1 k2 value).runState state) =
+    state.storageMap2 slot.slot k1' k2' := by
   simp only [getMapping2, setMapping2, Contract.runState, Contract.runValue]
   have : (k1' == k1) = false := beq_eq_false_iff_ne.mpr (Ne.symm h)
   simp [this]
 
 /-- setMapping2 with different second key preserves getMapping2. -/
 theorem setMapping2_getMapping2_diff_key2 (slot : StorageSlot (Address → Address → Uint256))
-    (key1 k2 k2' : Address) (value : Uint256) (state : ContractState) (h : k2 ≠ k2') :
-    (getMapping2 slot key1 k2').runValue ((setMapping2 slot key1 k2 value).runState state) =
-    state.storageMap2 slot.slot key1 k2' := by
+    (k1 k2 k2' : Address) (value : Uint256) (state : ContractState) (h : k2 ≠ k2') :
+    (getMapping2 slot k1 k2').runValue ((setMapping2 slot k1 k2 value).runState state) =
+    state.storageMap2 slot.slot k1 k2' := by
   simp only [getMapping2, setMapping2, Contract.runState, Contract.runValue]
   have : (k2' == k2) = false := beq_eq_false_iff_ne.mpr (Ne.symm h)
   simp [this]
