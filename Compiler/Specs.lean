@@ -448,6 +448,11 @@ def safeCounterSpec : ContractSpec := {
 `cryptoHashSpec` is excluded because it requires `--link` flags for external
 Yul libraries (PoseidonT3/T4). Use `lake exe verity-compiler --link ...` to
 compile it separately.
+
+**Adding a new contract**: After adding `myContractSpec` here, also ensure
+each function's selector is pre-computed in `Compiler/Selectors.lean` via
+`computeSelectors`. The compiler will fail at runtime if a function has no
+matching selector.
 -/
 
 def allSpecs : List ContractSpec := [

@@ -67,7 +67,7 @@ FOUNDRY_PROFILE=difftest forge test
 forge test --no-match-path "test/Property*" --no-match-path "test/Differential*" --no-match-path "test/CallValue*" --no-match-path "test/CalldataSize*" --no-match-path "test/yul/*"
 ```
 
-The `difftest` profile enables `vm.ffi()` calls so that Foundry can invoke the Lean-based interpreter. This requires `lake build` to have completed successfully.
+The `difftest` profile enables `vm.ffi()` calls needed by property tests (to invoke `solc` for Yul compilation), differential tests (to invoke the Lean-based interpreter), and Yul end-to-end tests. This requires `lake build` to have completed successfully.
 
 ## 5. Generate your first contract
 

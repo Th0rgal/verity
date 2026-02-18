@@ -305,6 +305,21 @@ def main() -> None:
                     re.compile(r"Verification.+ — (\d+) proven theorems"),
                     str(total_theorems),
                 ),
+                (
+                    "expected test count",
+                    re.compile(r"Expected: (\d+)/\d+ tests pass"),
+                    str(test_count),
+                ),
+                (
+                    "Foundry test count",
+                    re.compile(r"\*\*Foundry Tests\*\*: (\d+)/"),
+                    str(test_count),
+                ),
+                (
+                    "test suite count",
+                    re.compile(r"Ran (\d+) test suites:"),
+                    str(suite_count),
+                ),
             ],
         )
     )
