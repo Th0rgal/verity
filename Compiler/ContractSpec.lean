@@ -724,9 +724,7 @@ def compileFunctionSpec (fields : List Field) (selector : Nat) (spec : FunctionS
 
 -- Check if contract uses mappings
 def usesMapping (fields : List Field) : Bool :=
-  fields.any fun f => f.ty == FieldType.mapping || match f.ty with
-    | FieldType.mappingTyped _ => true
-    | _ => false
+  fields.any fun f => isMapping fields f.name
 
 -- Generate constructor argument loading code (from end of bytecode)
 def genConstructorArgLoads (params : List Param) : List YulStmt :=

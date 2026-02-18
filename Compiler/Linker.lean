@@ -222,9 +222,6 @@ private def defsFromDefault : Option (List YulStmt) → List String
   | some body => defsFromStmts body
 end
 
-private def collectFuncDefs (stmts : List YulStmt) : List String :=
-  defsFromStmts stmts
-
 -- Collect all function names defined in library
 private def collectLibraryFunctions (libs : List LibraryFunction) : List String :=
   libs.map (·.name)
@@ -249,7 +246,7 @@ def validateNoDuplicateNames (libraries : List LibraryFunction) : Except String 
 -- Catches bugs where a library redefines e.g. `mappingSlot` or a Yul builtin.
 def validateNoNameCollisions (obj : YulObject) (libraries : List LibraryFunction) : Except String Unit := do
   let allCode := obj.deployCode ++ obj.runtimeCode
-  let localDefs := (collectFuncDefs allCode).eraseDups
+  let localDefs := (defsFromStmts allCode).eraseDups
   let libNames := collectLibraryFunctions libraries
   -- Check library names vs locally-defined functions
   let localCollisions := libNames.filter fun name => localDefs.contains name
@@ -309,7 +306,7 @@ end
 def validateExternalReferences (obj : YulObject) (libraries : List LibraryFunction) : Except String Unit := do
   let allCode := obj.deployCode ++ obj.runtimeCode
   let allCalls := (callsWithArityFromStmts allCode |>.map Prod.fst).eraseDups
-  let localDefs := (collectFuncDefs allCode).eraseDups
+  let localDefs := (defsFromStmts allCode).eraseDups
   let providedFunctions := collectLibraryFunctions libraries
   let known := yulBuiltins ++ localDefs ++ providedFunctions
   let missingFunctions := allCalls.filter fun call =>
