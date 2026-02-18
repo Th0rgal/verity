@@ -81,8 +81,8 @@ The GitHub Actions workflow validates:
 - All manifest theorems have tests (or documented exclusions)
 - Storage layout consistency across EDSL/Spec/Compiler layers
 - Selector hashes match specs
-- Generated Yul compiles with solc
-- Contract file structure validation
+- Generated Yul compiles with solc (including CryptoHash with linked libraries)
+- Contract file structure and All.lean import validation
 - Foundry tests pass (8 shards, 7 seeds)
 
 ## External Library Linking
@@ -136,7 +136,7 @@ The ContractSpec DSL supports: if/else branching (`Stmt.ite`), bounded loops (`S
 
 ## What's Next
 
-1. EVMYulLean UInt256 integration (#67)
+1. EVMYulLean integration: upgrade Lean, replace Yul semantics (#294)
 2. ERC-20 standard token (#69)
 3. Storage layout formalization (#84)
-4. Gas cost modeling (#80)
+4. Address soundness: replace String with ByteArray (#253)
