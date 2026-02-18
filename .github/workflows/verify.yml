@@ -10,12 +10,13 @@ on:
       - 'Verity.lean'
       - 'Compiler/**'
       - 'Compiler.lean'
-      - 'examples/solidity/**'
+      - 'examples/**'
       - 'test/**'
       - 'scripts/**'
       - 'docs/**'
       - 'docs-site/**'
       - 'lakefile.lean'
+      - 'lake-manifest.json'
       - 'lean-toolchain'
       - 'foundry.toml'
       - 'AXIOMS.md'
@@ -29,18 +30,23 @@ on:
       - 'Verity.lean'
       - 'Compiler/**'
       - 'Compiler.lean'
-      - 'examples/solidity/**'
+      - 'examples/**'
       - 'test/**'
       - 'scripts/**'
       - 'docs/**'
       - 'docs-site/**'
       - 'lakefile.lean'
+      - 'lake-manifest.json'
       - 'lean-toolchain'
       - 'foundry.toml'
       - 'AXIOMS.md'
       - 'README.md'
       - 'TRUST_ASSUMPTIONS.md'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   SOLC_VERSION: "0.8.33"
@@ -66,17 +72,17 @@ jobs:
               - 'Verity.lean'
               - 'Compiler/**'
               - 'Compiler.lean'
-              - 'examples/solidity/**'
+              - 'examples/**'
               - 'test/**'
               - 'scripts/**'
               - 'lakefile.lean'
+              - 'lake-manifest.json'
               - 'lean-toolchain'
               - 'foundry.toml'
 
   # Python-only checks (fast, ~5s, always run)
   checks:
     runs-on: ubuntu-latest
-    needs: changes
     steps:
       - uses: actions/checkout@v4
 

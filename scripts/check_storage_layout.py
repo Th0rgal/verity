@@ -167,7 +167,7 @@ def check_cross_layer(
 
     for contract, compiler_fields in compiler.items():
         if contract not in edsl:
-            # Not all compiler specs have EDSL counterparts (e.g., CryptoHash only in EDSL)
+            # Not all compiler specs have matching EDSL implementations
             continue
 
         edsl_fields = edsl[contract]
