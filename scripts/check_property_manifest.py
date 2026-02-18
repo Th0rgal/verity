@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import sys
-
 from property_utils import (
     FILE_RE,
     TEST_DIR,

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 from keccak256 import selector as compute_selector

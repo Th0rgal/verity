@@ -8,7 +8,6 @@ that all generated Yul can be compiled to bytecode by solc.
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 from property_utils import report_errors
