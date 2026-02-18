@@ -300,6 +300,25 @@ Transfer proofs now handle self-transfer by modeling it as a no-op (preloading b
 | 4 | `transferOwnership_preserves_wellformedness` | Well-formedness preservation |
 | 5 | `increment_survives_transfer` | Counter value survives ownership transfer |
 
+**Isolation:**
+
+| # | Theorem | Property |
+|---|---------|----------|
+| 1 | `increment_count_preserves_owner` | Increment preserves owner address storage |
+| 2 | `decrement_count_preserves_owner` | Decrement preserves owner address storage |
+| 3 | `constructor_owner_preserves_count` | Constructor preserves counter storage |
+| 4 | `transferOwnership_owner_preserves_count` | Transfer preserves counter storage |
+| 5 | `constructor_context_preserved` | Constructor preserves sender/thisAddress |
+| 6 | `increment_context_preserved` | Increment preserves sender/thisAddress |
+| 7 | `decrement_context_preserved` | Decrement preserves sender/thisAddress |
+| 8 | `transferOwnership_context_preserved` | Transfer preserves sender/thisAddress |
+| 9 | `getCount_context_preserved` | getCount preserves sender/thisAddress |
+| 10 | `getOwner_context_preserved` | getOwner preserves sender/thisAddress |
+| 11 | `constructor_preserves_map_storage` | Constructor preserves mapping storage |
+| 12 | `increment_preserves_map_storage` | Increment preserves mapping storage |
+| 13 | `decrement_preserves_map_storage` | Decrement preserves mapping storage |
+| 14 | `transferOwnership_preserves_map_storage` | Transfer preserves mapping storage |
+
 ### Ledger
 
 **Basic:**

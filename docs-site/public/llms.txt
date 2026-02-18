@@ -8,7 +8,7 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 
 **Core**: Models contract state, storage operations, and `require` guards using explicit success/revert result type (`ContractResult`).
 
-**Contracts**: 9 example contracts with formal verification covering correctness, conservation laws, and storage isolation.
+**Contracts**: 8 formally verified contracts (+ CryptoHash as unverified linker demo) covering correctness, conservation laws, and storage isolation.
 
 **Compiler**: Declarative `ContractSpec` DSL compiles to Yul with verified IR generation. Solidity-compatible function selectors via keccak256.
 
