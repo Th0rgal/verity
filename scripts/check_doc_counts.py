@@ -498,6 +498,16 @@ def main() -> None:
                     re.compile(r"forge test\s+#\s*(\d+)/\d+ tests pass"),
                     str(test_count),
                 ),
+                (
+                    "test count in metrics",
+                    re.compile(r"Foundry tests pass \((\d+) as of"),
+                    str(test_count),
+                ),
+                (
+                    "test count in results",
+                    re.compile(r"All Foundry tests passing \((\d+) as of"),
+                    str(test_count),
+                ),
             ],
         )
     )
@@ -517,7 +527,7 @@ def main() -> None:
         )
     )
 
-    # Check theorem count in index.mdx
+    # Check theorem count and test counts in index.mdx
     index_mdx = ROOT / "docs-site" / "content" / "index.mdx"
     errors.extend(
         check_file(
@@ -527,6 +537,16 @@ def main() -> None:
                     "theorem count",
                     re.compile(r"(\d+) machine-checked theorems"),
                     str(total_theorems),
+                ),
+                (
+                    "test count",
+                    re.compile(r"(\d+) Foundry tests across"),
+                    str(test_count),
+                ),
+                (
+                    "test suite count",
+                    re.compile(r"Foundry tests across (\d+) suites"),
+                    str(suite_count),
                 ),
             ],
         )
@@ -573,6 +593,26 @@ def main() -> None:
                     "core line count",
                     re.compile(r"the (\d+)-line EDSL"),
                     str(core_lines),
+                ),
+            ],
+        )
+    )
+
+    # Check layout.tsx banner (theorem count appears twice: N/N)
+    layout_tsx = ROOT / "docs-site" / "app" / "layout.tsx"
+    errors.extend(
+        check_file(
+            layout_tsx,
+            [
+                (
+                    "banner proven count",
+                    re.compile(r"(\d+)/\d+ theorems proven"),
+                    str(total_theorems),
+                ),
+                (
+                    "banner total count",
+                    re.compile(r"\d+/(\d+) theorems proven"),
+                    str(total_theorems),
                 ),
             ],
         )
