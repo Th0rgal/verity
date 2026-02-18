@@ -95,6 +95,12 @@ jobs:
       - name: Check documentation counts
         run: python3 scripts/check_doc_counts.py
 
+      - name: Check property manifest sync
+        run: python3 scripts/check_property_manifest_sync.py
+
+      - name: Check storage layout consistency
+        run: python3 scripts/check_storage_layout.py
+
   build:
     runs-on: ubuntu-latest
     needs: changes
@@ -235,12 +241,6 @@ jobs:
 
       - name: Check selector fixtures against solc
         run: python3 scripts/check_selector_fixtures.py
-
-      - name: Check property manifest sync
-        run: python3 scripts/check_property_manifest_sync.py
-
-      - name: Check storage layout consistency
-        run: python3 scripts/check_storage_layout.py
 
       - name: Generate property coverage report
         run: python3 scripts/report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY

@@ -13,6 +13,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from property_utils import die
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # Contracts that use non-standard structure (inline proofs, proof-only, etc.)
@@ -29,11 +31,6 @@ EXPECTED_STRUCTURE = [
     "Verity/Proofs/{name}/Basic.lean",
     "Verity/Proofs/{name}/Correctness.lean",
 ]
-
-
-def die(msg: str) -> None:
-    print(f"ERROR: {msg}", file=sys.stderr)
-    sys.exit(1)
 
 
 def find_contracts() -> list[str]:

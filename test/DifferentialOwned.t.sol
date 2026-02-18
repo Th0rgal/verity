@@ -176,10 +176,10 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig, DifferentialTestBase 
         address newOwner = address(0xa11ce);
 
         bool success = executeDifferentialTest("transferOwnership", address(this), uint256(uint160(newOwner)));
-        require(success, "Test failed");
+        assertTrue(success, "Test failed");
 
         bool success2 = executeDifferentialTest("getOwner", address(this), 0);
-        require(success2, "Test failed");
+        assertTrue(success2, "Test failed");
     }
 
     function testDifferential_AccessControl() public {
@@ -187,15 +187,15 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig, DifferentialTestBase 
         address newOwner = address(0xa11ce);
 
         bool success = executeDifferentialTest("transferOwnership", nonOwner, uint256(uint160(newOwner)));
-        require(success, "Test failed");
+        assertTrue(success, "Test failed");
 
         bool success2 = executeDifferentialTest("getOwner", address(this), 0);
-        require(success2, "Test failed");
+        assertTrue(success2, "Test failed");
     }
 
     function testDifferential_GetOwner() public {
         bool success = executeDifferentialTest("getOwner", address(this), 0);
-        require(success, "Test failed");
+        assertTrue(success, "Test failed");
     }
 
     function testDifferential_MultipleTransfers() public {
@@ -203,13 +203,13 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig, DifferentialTestBase 
         address bob = address(0xb0b);
 
         bool success1 = executeDifferentialTest("transferOwnership", address(this), uint256(uint160(alice)));
-        require(success1, "Test 1 failed");
+        assertTrue(success1, "Test 1 failed");
 
         bool success2 = executeDifferentialTest("transferOwnership", alice, uint256(uint160(bob)));
-        require(success2, "Test 2 failed");
+        assertTrue(success2, "Test 2 failed");
 
         bool success3 = executeDifferentialTest("getOwner", address(this), 0);
-        require(success3, "Test 3 failed");
+        assertTrue(success3, "Test 3 failed");
     }
 
     function _runRandomOwnershipTests(uint256 startIndex, uint256 numTransactions, uint256 seed) internal {

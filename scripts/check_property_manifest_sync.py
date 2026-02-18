@@ -29,9 +29,9 @@ def main() -> None:
         missing = sorted(exp_set - act_set)
         extra = sorted(act_set - exp_set)
         if missing:
-            problems.append(f"{contract}: missing {len(missing)} theorem(s) in manifest")
+            problems.append(f"{contract}: missing {len(missing)} theorem(s) in manifest: {', '.join(missing)}")
         if extra:
-            problems.append(f"{contract}: {len(extra)} extra theorem(s) in manifest")
+            problems.append(f"{contract}: {len(extra)} extra theorem(s) in manifest: {', '.join(extra)}")
 
     if problems:
         print("Property manifest is out of sync with proofs:", file=sys.stderr)

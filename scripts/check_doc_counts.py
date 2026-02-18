@@ -17,6 +17,8 @@ import re
 import sys
 from pathlib import Path
 
+from property_utils import collect_covered
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -84,9 +86,6 @@ def get_covered_count(total_theorems: int) -> tuple[int, int]:
 
     Returns (covered_count, coverage_percent).
     """
-    sys.path.insert(0, str(ROOT / "scripts"))
-    from property_utils import collect_covered
-
     covered = collect_covered()
     covered_count = sum(len(v) for v in covered.values())
     pct = round(covered_count * 100 / total_theorems) if total_theorems else 0
