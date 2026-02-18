@@ -77,7 +77,7 @@ theorem sumBalances_insert_existing {slot : Nat} {addr : Address} {addrs : Finit
 theorem sumBalances_insert_new {slot : Nat} {addr : Address} {addrs : FiniteAddressSet}
     {balances : Nat → Address → Uint256} {amount : Uint256}
     (h : addr ∉ addrs.addresses.elements)
-    (h_zero : balances slot addr = 0) :
+    (_h_zero : balances slot addr = 0) :
     sumBalances slot (addrs.insert addr) (fun s a =>
       if s == slot && a == addr then amount else balances s a) =
     add (sumBalances slot addrs balances) amount := by
