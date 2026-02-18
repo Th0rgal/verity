@@ -297,9 +297,8 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
       Nat.mod_eq_of_lt h_amount_lt, h]
   -- Helper: overflow ge-check for the spec's new require on newRecipientBal
-  have h_max_succ : MAX_UINT256 + 1 = Verity.Core.Uint256.modulus := Verity.Core.Uint256.max_uint256_succ_eq_modulus
   have h_overflow_mod_eq : ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 0 to).val + amount := by
-    exact Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt h_no_overflow (by rw [← h_max_succ]; exact Nat.lt_succ_of_le (Nat.le_refl _)))
+    exact Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow)
   have h_overflow_ge : ¬ ((state.storageMap 0 to).val + amount < (state.storageMap 0 to).val) := by omega
   by_cases h_eq : sender = to
   · subst h_eq
