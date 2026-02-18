@@ -131,7 +131,9 @@ Creates 7 files: EDSL implementation, Spec, Invariants, Proofs re-export, Basic 
 
 ## CI Integration
 
-Scripts run automatically in GitHub Actions (`verify.yml`) across two jobs:
+Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
+
+**`changes`** — Path filter that gates code-dependent jobs (doc-only PRs skip build/test)
 
 **`checks` job** (fast, no Lean build required):
 1. Property manifest validation (`check_property_manifest.py`)
@@ -149,6 +151,9 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across two jobs:
 4. Yul compilation check (`check_yul_compiles.py`)
 5. Selector fixture check (`check_selector_fixtures.py`)
 6. Coverage and storage layout reports in workflow summary
+
+**`foundry`** — 8-shard parallel Foundry tests with seed 42
+**`foundry-multi-seed`** — 7-seed flakiness detection (seeds: 0, 1, 42, 123, 999, 12345, 67890)
 
 ## Adding New Property Tests
 
