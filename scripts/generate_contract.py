@@ -250,8 +250,20 @@ def parse_functions(spec: str, fields: List[Field]) -> List[Function]:
         f = fields[0]
         setter = f"set{f.name[0].upper()}{f.name[1:]}"
         getter = f"get{f.name[0].upper()}{f.name[1:]}"
-        return [Function(setter), Function(getter)]
-    return [Function("setValue"), Function("getValue")]
+        if f.is_mapping:
+            # Mappings need key + value params
+            key_ty = "address" if f.ty == "mapping" else "uint256"
+            return [
+                Function(setter, [Param("key", key_ty), Param("value", "uint256")]),
+                Function(getter, [Param("key", key_ty)]),
+            ]
+        else:
+            # Scalar fields: setter takes the field's type as param
+            return [
+                Function(setter, [Param("value", f.ty)]),
+                Function(getter),
+            ]
+    return [Function("setValue", [Param("value", "uint256")]), Function("getValue")]
 
 
 # ---------------------------------------------------------------------------
