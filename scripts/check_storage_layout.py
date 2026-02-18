@@ -158,88 +158,65 @@ def check_intra_collisions(
     return errors
 
 
-def check_cross_layer(
-    edsl: dict[str, list[tuple[str, str, int]]],
-    compiler: dict[str, list[tuple[str, str, int]]],
+def check_layer_consistency(
+    reference: dict[str, list[tuple[str, str, int]]],
+    subject: dict[str, list[tuple[str, str, int]]],
+    label: str,
+    ref_label: str = "EDSL",
+    subj_label: str = "",
+    check_reverse: bool = False,
 ) -> list[str]:
-    """Check consistency between EDSL and Compiler slot assignments."""
+    """Check that subject layer fields match reference layer definitions.
+
+    Args:
+        reference: The authoritative layer (e.g. EDSL).
+        subject: The layer to validate against reference.
+        label: Prefix for error messages (e.g. "Cross-layer", "Spec-EDSL").
+        ref_label: Display name for the reference layer.
+        subj_label: Display name for the subject layer.
+        check_reverse: If True, also report reference fields missing from subject.
+    """
     errors = []
 
-    for contract, compiler_fields in compiler.items():
-        if contract not in edsl:
-            # Not all compiler specs have matching EDSL implementations
-            continue
-
-        edsl_fields = edsl[contract]
-        edsl_map = {name: (ty, slot) for name, ty, slot in edsl_fields}
-        compiler_map = {name: (ty, slot) for name, ty, slot in compiler_fields}
-
-        # Check each compiler field matches EDSL
-        for name, (c_ty, c_slot) in compiler_map.items():
-            if name not in edsl_map:
-                errors.append(
-                    f"Cross-layer: {contract}.{name} in Compiler but not in EDSL"
-                )
+    for contract, subj_fields in subject.items():
+        if contract not in reference:
+            if check_reverse:
+                # Compiler specs may lack EDSL implementations (e.g. unverified demos)
                 continue
-
-            e_ty, e_slot = edsl_map[name]
-            if c_slot != e_slot:
-                errors.append(
-                    f"Cross-layer: {contract}.{name} slot mismatch: "
-                    f"EDSL={e_slot}, Compiler={c_slot}"
-                )
-
-            if normalize_type(e_ty) != normalize_type(c_ty):
-                errors.append(
-                    f"Cross-layer: {contract}.{name} type mismatch: "
-                    f"EDSL={e_ty}, Compiler={c_ty}"
-                )
-
-        # Check for EDSL fields missing from Compiler
-        for name in edsl_map:
-            if name not in compiler_map:
-                errors.append(
-                    f"Cross-layer: {contract}.{name} in EDSL but not in Compiler"
-                )
-
-    return errors
-
-
-def check_spec_layer(
-    edsl: dict[str, list[tuple[str, str, int]]],
-    spec: dict[str, list[tuple[str, str, int]]],
-) -> list[str]:
-    """Check that Spec layer duplications match EDSL definitions."""
-    errors = []
-
-    for contract, spec_fields in spec.items():
-        if contract not in edsl:
             errors.append(
-                f"Spec-EDSL: {contract} has Spec slots but no matching EDSL contract"
+                f"{label}: {contract} has {subj_label} slots but no matching {ref_label} contract"
             )
             continue
 
-        edsl_fields = edsl[contract]
-        edsl_map = {name: (ty, slot) for name, ty, slot in edsl_fields}
+        ref_fields = reference[contract]
+        ref_map = {name: (ty, slot) for name, ty, slot in ref_fields}
+        subj_map = {name: (ty, slot) for name, ty, slot in subj_fields}
 
-        for name, s_ty, s_slot in spec_fields:
-            if name not in edsl_map:
+        for name, (s_ty, s_slot) in subj_map.items():
+            if name not in ref_map:
                 errors.append(
-                    f"Spec-EDSL: {contract}.{name} in Spec but not in EDSL"
+                    f"{label}: {contract}.{name} in {subj_label} but not in {ref_label}"
                 )
                 continue
 
-            e_ty, e_slot = edsl_map[name]
-            if s_slot != e_slot:
+            r_ty, r_slot = ref_map[name]
+            if s_slot != r_slot:
                 errors.append(
-                    f"Spec-EDSL: {contract}.{name} slot mismatch: "
-                    f"EDSL={e_slot}, Spec={s_slot}"
+                    f"{label}: {contract}.{name} slot mismatch: "
+                    f"{ref_label}={r_slot}, {subj_label}={s_slot}"
                 )
-            if normalize_type(s_ty) != normalize_type(e_ty):
+            if normalize_type(r_ty) != normalize_type(s_ty):
                 errors.append(
-                    f"Spec-EDSL: {contract}.{name} type mismatch: "
-                    f"EDSL={e_ty}, Spec={s_ty}"
+                    f"{label}: {contract}.{name} type mismatch: "
+                    f"{ref_label}={r_ty}, {subj_label}={s_ty}"
                 )
+
+        if check_reverse:
+            for name in ref_map:
+                if name not in subj_map:
+                    errors.append(
+                        f"{label}: {contract}.{name} in {ref_label} but not in {subj_label}"
+                    )
 
     return errors
 
@@ -347,11 +324,17 @@ def main():
     for contract, slots in compiler_all.items():
         errors.extend(check_intra_collisions(contract, slots, "Compiler"))
 
-    # 5. Check cross-layer consistency
-    errors.extend(check_cross_layer(edsl_all, compiler_all))
+    # 5. Check cross-layer consistency (EDSL ↔ Compiler)
+    errors.extend(check_layer_consistency(
+        edsl_all, compiler_all, "Cross-layer",
+        ref_label="EDSL", subj_label="Compiler", check_reverse=True,
+    ))
 
     # 6. Check Spec-EDSL consistency
-    errors.extend(check_spec_layer(edsl_all, spec_all))
+    errors.extend(check_layer_consistency(
+        edsl_all, spec_all, "Spec-EDSL",
+        ref_label="EDSL", subj_label="Spec",
+    ))
 
     # 7. Report
     fmt = "markdown" if "--format=markdown" in sys.argv else "text"
