@@ -304,24 +304,26 @@ def _getter_return_type(fn: Function, fields: List[Field]) -> str:
     return "Uint256"
 
 
+def _needs_uint256_import(cfg: ContractConfig) -> bool:
+    """Whether a module needs ``import Verity.EVM.Uint256``."""
+    return (
+        any(f.is_mapping for f in cfg.fields)
+        or any(f.ty == "uint256" for f in cfg.fields)
+        or any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
+        or any(
+            _getter_prefix(fn.name) is not None
+            and _getter_return_type(fn, cfg.fields) == "Uint256"
+            for fn in cfg.functions
+        )
+    )
+
+
 def gen_example(cfg: ContractConfig) -> str:
     """Generate Verity/Examples/{Name}.lean"""
-    has_mapping = any(f.is_mapping for f in cfg.fields)
-    has_uint256 = any(f.ty == "uint256" for f in cfg.fields)
-    has_uint256_param = any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
-    has_uint256_getter = any(
-        _getter_prefix(fn.name) is not None
-        and _getter_return_type(fn, cfg.fields) == "Uint256"
-        for fn in cfg.functions
-    )
-    needs_uint256 = has_mapping or has_uint256 or has_uint256_param or has_uint256_getter
-
     imports = ["import Verity.Core"]
-    if needs_uint256:
-        imports.append("import Verity.EVM.Uint256")
-
     opens = ["open Verity"]
-    if needs_uint256:
+    if _needs_uint256_import(cfg):
+        imports.append("import Verity.EVM.Uint256")
         opens.append("open Verity.EVM.Uint256")
 
     # Storage definitions
@@ -385,8 +387,6 @@ end Verity.Examples.{cfg.name}
 
 def gen_spec(cfg: ContractConfig) -> str:
     """Generate Verity/Specs/{Name}/Spec.lean"""
-    has_mapping = any(f.is_mapping for f in cfg.fields)
-
     spec_defs = []
     for fn in cfg.functions:
         is_getter = _getter_prefix(fn.name) is not None
@@ -410,14 +410,7 @@ def gen_spec(cfg: ContractConfig) -> str:
 
     imports = ["import Verity.Core", "import Verity.Specs.Common"]
     opens = ["open Verity"]
-    # Only need Uint256 import if a getter actually returns Uint256 (not Address/Bool)
-    has_uint256_getter = any(
-        _getter_prefix(fn.name) is not None
-        and _getter_return_type(fn, cfg.fields) == "Uint256"
-        for fn in cfg.functions
-    )
-    has_uint256_param = any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
-    if has_mapping or any(f.ty == "uint256" for f in cfg.fields) or has_uint256_param or has_uint256_getter:
+    if _needs_uint256_import(cfg):
         imports.append("import Verity.EVM.Uint256")
         opens.append("open Verity.EVM.Uint256")
 
@@ -514,8 +507,6 @@ def gen_spec_proofs(cfg: ContractConfig) -> str:
 
 def gen_basic_proofs(cfg: ContractConfig) -> str:
     """Generate Verity/Proofs/{Name}/Basic.lean"""
-    has_mapping = any(f.is_mapping for f in cfg.fields)
-
     proof_stubs = []
     for fn in cfg.functions:
         is_getter = _getter_prefix(fn.name) is not None
@@ -556,13 +547,7 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
         f"open Verity.Examples.{cfg.name}",
         f"open Verity.Specs.{cfg.name}",
     ]
-    has_uint256_param = any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
-    has_uint256_getter = any(
-        _getter_prefix(fn.name) is not None
-        and _getter_return_type(fn, cfg.fields) == "Uint256"
-        for fn in cfg.functions
-    )
-    if has_mapping or any(f.ty == "uint256" for f in cfg.fields) or has_uint256_param or has_uint256_getter:
+    if _needs_uint256_import(cfg):
         imports.insert(1, "import Verity.EVM.Uint256")
         opens.append("open Verity.EVM.Uint256")
 
