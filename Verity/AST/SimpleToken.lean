@@ -97,7 +97,7 @@ private theorem inline_onlyOwner :
   simp only [Verity.Examples.SimpleToken.onlyOwner,
     Verity.Examples.SimpleToken.isOwner,
     Verity.Examples.SimpleToken.owner,
-    Bind.bind, Pure.pure, bind_assoc, bind_pure]
+    Bind.bind, Pure.pure, Contract.bind_assoc, Contract.bind_pure_left]
 
 theorem constructor_equiv (initialOwner : Address) :
     denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else "") constructorAST

@@ -55,7 +55,7 @@ theorem transferOwnership_equiv (newOwner : Address) :
     = transferOwnership newOwner := by
   simp only [transferOwnership, Verity.Examples.Owned.onlyOwner,
     Verity.Examples.Owned.isOwner, Verity.Examples.Owned.owner,
-    Bind.bind, Pure.pure, bind_assoc, bind_pure]
+    Bind.bind, Pure.pure, Contract.bind_assoc, Contract.bind_pure_left]
   rfl
 
 theorem getOwner_equiv :

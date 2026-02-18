@@ -14,7 +14,7 @@
 - ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
 - ✅ **External Linking**: Cryptographic library support (PR #49)
 - ✅ **ContractSpec Real-World Support**: Loops, branching, arrays, events, multi-mappings, internal calls, verified extern linking (#153, #154, #179, #180, #181, #184)
-- ✅ **Unified AST (#364)**: All 7 contracts migrated with equivalence proofs (28 theorems, PR #370)
+- ✅ **Unified AST (#364)**: All 7 contracts migrated with equivalence proofs (27 theorems, PR #370)
 
 ---
 
@@ -73,7 +73,7 @@ These limitations affect only the basic interpreter path (used for proofs). The 
 
 ### ✅ **Unified AST** (Issue #364, PR #370)
 **What**: Single deep embedding where `denote ast = edsl_fn` holds by equivalence proof
-**Status**: All 7/7 contracts migrated (28 theorems, 0 sorry)
+**Status**: All 7/7 contracts migrated (27 theorems, 0 sorry)
 
 The unified AST (`Verity.AST`) provides a deep embedding that maps 1:1 to EDSL primitives. Simple contracts use `rfl` (definitional equality). Contracts with helper composition (e.g., `onlyOwner`) use `bind_assoc` to flatten nested `bind` before `rfl` closes the goal.
 

@@ -20,7 +20,7 @@ EVM Bytecode
 
 ## Unified AST (Issue #364) ✅ **COMPLETE** (all 7 contracts)
 
-**Status**: All 7 compilable contracts migrated with equivalence proofs (28 theorems, zero `sorry`)
+**Status**: All 7 compilable contracts migrated with equivalence proofs (27 theorems, zero `sorry`)
 
 **What This Achieves**: A single deep embedding (`Verity.AST`) maps 1:1 to EDSL primitives. The denotation function (`Verity.Denote`) interprets AST → Contract monad such that `denote ast = edsl_fn` holds by `rfl` (definitional equality). For contracts with helper composition (e.g., `onlyOwner`), `bind_assoc` flattens nested binds before `rfl` closes the goal.
 
@@ -33,13 +33,13 @@ EVM Bytecode
 | SafeCounter | increment, decrement, getCount | 3 | `rfl` | `Verity/AST/SafeCounter.lean` |
 | Ledger | deposit, withdraw, transfer, getBalance | 4 | `rfl` | `Verity/AST/Ledger.lean` |
 | Owned | constructor, transferOwnership, getOwner | 3 | `rfl` + `bind_assoc` | `Verity/AST/Owned.lean` |
-| OwnedCounter | constructor, increment, decrement, getCount, getOwner, transferOwnership | 7 | `rfl` + `bind_assoc` | `Verity/AST/OwnedCounter.lean` |
+| OwnedCounter | constructor, increment, decrement, getCount, getOwner, transferOwnership | 6 | `rfl` + `bind_assoc` | `Verity/AST/OwnedCounter.lean` |
 | SimpleToken | constructor, mint, transfer, balanceOf, getTotalSupply, getOwner | 6 | `rfl` + `bind_assoc` | `Verity/AST/SimpleToken.lean` |
 
 ### Key Files
 
 - `Verity/AST.lean` — Unified `Expr` / `Stmt` inductive types
-- `Verity/Denote.lean` — AST → Contract monad denotation + `bind_assoc`/`bind_pure` monad laws
+- `Verity/Denote.lean` — AST → Contract monad denotation (monad laws in `Verity/Core.lean`)
 - `Verity/AST/*.lean` — Per-contract AST definitions and equivalence proofs
 
 ## Layer 1: EDSL ≡ ContractSpec ✅ **COMPLETE**

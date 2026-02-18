@@ -89,7 +89,7 @@ private theorem inline_onlyOwner :
   simp only [Verity.Examples.OwnedCounter.onlyOwner,
     Verity.Examples.OwnedCounter.isOwner,
     Verity.Examples.OwnedCounter.owner,
-    Bind.bind, Pure.pure, bind_assoc, bind_pure]
+    Bind.bind, Pure.pure, Contract.bind_assoc, Contract.bind_pure_left]
 
 theorem increment_equiv :
     denoteUnit emptyEnv emptyEnvAddr incrementAST = increment := by
