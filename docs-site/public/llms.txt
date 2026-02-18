@@ -17,7 +17,7 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 - **Language**: Lean 4.15.0
 - **Core Size**: 350 lines
 - **Verified Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, ReentrancyExample (+ CryptoHash as unverified linker demo)
-- **Theorems**: 359 across 9 categories (359 fully proven, 0 `sorry` placeholders)
+- **Theorems**: 362 across 9 categories (362 fully proven, 0 `sorry` placeholders)
 - **Axioms**: 2 documented axioms (see AXIOMS.md) — keccak256, address injectivity
 - **Tests**: 375 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
@@ -60,7 +60,7 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 | Ledger | 33 | Deposit/withdraw/transfer, balance conservation |
 | SafeCounter | 25 | Overflow/underflow revert proofs |
 | ReentrancyExample | 4 | Reentrancy vulnerability proof, supply invariant |
-| Stdlib | 123 | safeMul/safeDiv correctness, automation lemmas |
+| Stdlib | 126 | safeMul/safeDiv correctness, automation lemmas |
 
 ## Proof Techniques
 

@@ -118,32 +118,16 @@ theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner 
     unfold Verity.Examples.Owned.onlyOwner Verity.Examples.Owned.isOwner
     unfold msgSender getStorageAddr setStorageAddr Verity.Examples.Owned.owner
     simp only [Verity.bind, Bind.bind, Verity.require, Verity.pure, Pure.pure]
-    -- Show that (sender == state.storageAddr 0) = false when sender ≠ state.storageAddr 0
-    have h_beq : (sender == state.storageAddr 0) = false := by
-      cases h_eq : (sender == state.storageAddr 0)
-      · rfl
-      · -- If sender == state.storageAddr 0 is true, then they're equal
-        rw [beq_iff_eq] at h_eq
-        -- But this contradicts h
-        exfalso
-        exact h h_eq.symm
+    have h_beq : (sender == state.storageAddr 0) = false :=
+      address_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     rw [h_beq]
     simp [ContractResult.isSuccess]
   · -- Part 2: specResult.success = false
     -- Similar reasoning: spec checks sender == owner, which fails when h: sender ≠ owner
     -- By addressToNat_injective, we know addressToNat sender ≠ addressToNat owner
     -- So the require fails and spec reverts
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
-      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
-      · rfl
-      · -- If the Nat equality test is true, injectivity gives sender = owner, contradicting h
-        exfalso
-        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
-          -- beq_iff_eq for Nat
-          simpa [beq_iff_eq] using h_eq
-        have h_addr : sender = state.storageAddr 0 :=
-          addressToNat_injective sender (state.storageAddr 0) h_nat
-        exact h h_addr.symm
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     -- Now the require in the spec fails, so success = false
     simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]

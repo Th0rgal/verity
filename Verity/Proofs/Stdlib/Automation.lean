@@ -311,13 +311,31 @@ theorem require_success_implies_cond (cond : Bool) (msg : String) (state : Contr
 -- Address beq reflects equality (Address is String)
 theorem address_beq_eq_true_iff_eq (a b : Address) :
     (a == b) = true ↔ a = b := by
-  -- Address is String, so we can use String's BEq properties
-  -- Use the decidable equality property
   simp only [beq_iff_eq]
+
+/-- Address beq is false when addresses are not equal. -/
+theorem address_beq_false_of_ne (a b : Address) (h : a ≠ b) :
+    (a == b) = false :=
+  beq_eq_false_iff_ne.mpr h
+
+/-- addressToNat is injective, so distinct addresses have distinct Nat encodings. -/
+theorem addressToNat_ne_of_ne (a b : Address) (h : a ≠ b) :
+    addressToNat a ≠ addressToNat b := by
+  intro h_nat
+  exact h (addressToNat_injective a b h_nat)
+
+/-- addressToNat beq is false when addresses are not equal. -/
+theorem addressToNat_beq_false_of_ne (a b : Address) (h : a ≠ b) :
+    (addressToNat a == addressToNat b) = false :=
+  beq_eq_false_iff_ne.mpr (addressToNat_ne_of_ne a b h)
 
 /-!
 ## Uint256 Arithmetic Lemmas
 -/
+
+/-- 1 mod modulus is 1 (used pervasively in spec interpreter proofs). -/
+@[simp] theorem one_mod_modulus : (1 % Verity.Core.Uint256.modulus) = 1 :=
+  Nat.mod_eq_of_lt (by decide : (1 : Nat) < Verity.Core.Uint256.modulus)
 
 -- Helper: EVM add (Uint256) matches modular Nat addition.
 theorem uint256_add_val (a : Verity.Core.Uint256) (amount : Nat) :

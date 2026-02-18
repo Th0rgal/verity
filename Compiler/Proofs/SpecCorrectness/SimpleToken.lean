@@ -304,28 +304,16 @@ theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (a
     specResult.success = false := by
   constructor
   · -- EDSL reverts due to onlyOwner check
-    have h_beq : (sender == state.storageAddr 0) = false := by
-      cases h_eq : (sender == state.storageAddr 0)
-      · rfl
-      · exfalso
-        have h_addr : sender = state.storageAddr 0 := by
-          simpa [beq_iff_eq] using h_eq
-        exact h h_addr.symm
+    have h_beq : (sender == state.storageAddr 0) = false :=
+      address_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     simp [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner, Contract.run,
       msgSender, getStorageAddr, getMapping, setMapping, getStorage, setStorage,
       Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
       Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
       ContractResult.isSuccess, h_beq]
   · -- Spec reverts due to require failing
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
-      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
-      · rfl
-      · exfalso
-        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
-          simpa [beq_iff_eq] using h_eq
-        have h_addr : sender = state.storageAddr 0 :=
-          addressToNat_injective sender (state.storageAddr 0) h_nat
-        exact h h_addr.symm
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
       SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
@@ -365,8 +353,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     · -- Spec success
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        exact Nat.mod_eq_of_lt (by decide : (1 : Nat) < Verity.Core.Uint256.modulus)
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := (state.storageMap 1 sender).isLt
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -380,9 +367,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         exact Nat.not_lt_of_ge h
       have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
         exact (state.storageMap 1 sender).isLt
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by
         simp
       have h_spec_val :
@@ -418,9 +403,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         exact Nat.not_lt_of_ge h
       have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
         exact (state.storageMap 1 sender).isLt
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by
         simp
       have h_spec_val :
@@ -452,12 +435,10 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, h_balance_u, beq_iff_eq]
       simpa [h_spec_val] using h_edsl_val.symm
   · have h_ne : sender ≠ to := h_eq
-    have h_addr_ne : addressToNat sender ≠ addressToNat to := by
-      intro h_nat
-      exact h_ne (addressToNat_injective _ _ h_nat)
-    have h_addr_ne' : addressToNat to ≠ addressToNat sender := by
-      intro h_nat
-      exact h_addr_ne h_nat.symm
+    have h_addr_ne : addressToNat sender ≠ addressToNat to :=
+      addressToNat_ne_of_ne sender to h_ne
+    have h_addr_ne' : addressToNat to ≠ addressToNat sender :=
+      Ne.symm h_addr_ne
     have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
       h_no_overflow h_ne
     have h_safe : safeAdd (state.storageMap 1 to) (Verity.Core.Uint256.ofNat amount) = some (state.storageMap 1 to + Verity.Core.Uint256.ofNat amount) := by
@@ -474,8 +455,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     · -- Spec success
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        exact Nat.mod_eq_of_lt (by decide : (1 : Nat) < Verity.Core.Uint256.modulus)
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
         h_no_overflow h_ne
       have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
@@ -491,9 +471,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     · -- Sender mapping equals EDSL mapping
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
         h_no_overflow h_ne
       have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
@@ -562,9 +540,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     · -- Recipient mapping equals EDSL mapping
       have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
         h_no_overflow h_ne
       have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
@@ -664,9 +640,8 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
         h, h_insufficient, Nat.mod_eq_of_lt h_amount, lookup_senderBal, lookup_recipientBal,
         lookup_addr_first]
-    · have h_addr_ne : addressToNat sender ≠ addressToNat to := by
-        intro h_nat
-        exact h_eq (addressToNat_injective _ _ h_nat)
+    · have h_addr_ne : addressToNat sender ≠ addressToNat to :=
+        addressToNat_ne_of_ne sender to h_eq
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,

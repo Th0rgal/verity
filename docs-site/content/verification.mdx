@@ -7,11 +7,11 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
 
-**Status**: 359 theorems across 9 categories, all fully proven. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 2 axioms documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**Status**: 362 theorems across 9 categories, all fully proven. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 2 axioms documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
 ## Snapshot (2026-02-17)
 
-- EDSL theorems: 359 across 9 categories (7 contracts + ReentrancyExample + Stdlib).
+- EDSL theorems: 362 across 9 categories (7 contracts + ReentrancyExample + Stdlib).
 - SimpleStorage: 20 total (Basic 13, Correctness 7).
 - Counter: 28 total (Basic 19, Correctness 10; 1 shared between Basic and Correctness).
 - Owned: 22 total (Basic 18, Correctness 4).
@@ -20,7 +20,7 @@ The compiler is verified with IR preservation proofs and Yul equivalence proofs 
 - Ledger: 33 total (Basic 20, Correctness 6, Conservation 7 — all proven).
 - SafeCounter: 25 total (Basic 17, Correctness 8).
 - ReentrancyExample: 4 total (inline proofs: vulnerability existence, supply invariant).
-- Stdlib: 123 theorems (Math 25, Automation 53, MappingAutomation 37, ListSum 7; 2 shared between Automation and MappingAutomation).
+- Stdlib: 126 theorems (Math 25, Automation 53, MappingAutomation 37, ListSum 7; 2 shared between Automation and MappingAutomation).
 
 ## Unified AST Bridge (Issue #364)
 

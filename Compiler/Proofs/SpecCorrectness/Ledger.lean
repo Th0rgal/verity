@@ -316,8 +316,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     · -- Spec success (self-transfer: amountDelta=0, overflow check trivially passes)
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        exact Nat.mod_eq_of_lt (by decide : (1 : Nat) < Verity.Core.Uint256.modulus)
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by simp
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -330,9 +329,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     · -- Spec sender mapping equals EDSL sender mapping (self-transfer case)
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by
         simp
       have h_spec_val :
@@ -368,9 +365,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     · -- Spec recipient mapping equals EDSL recipient mapping (same as sender)
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by
         simp
       have h_spec_val :
@@ -404,12 +399,10 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, h_balance_u, beq_iff_eq]
       simpa [h_spec_val] using h_edsl_val.symm
   · have h_ne : sender ≠ to := h_eq
-    have h_addr_ne : addressToNat sender ≠ addressToNat to := by
-      intro h_nat
-      exact h_ne (addressToNat_injective _ _ h_nat)
-    have h_addr_ne' : addressToNat to ≠ addressToNat sender := by
-      intro h_nat
-      exact h_addr_ne h_nat.symm
+    have h_addr_ne : addressToNat sender ≠ addressToNat to :=
+      addressToNat_ne_of_ne sender to h_ne
+    have h_addr_ne' : addressToNat to ≠ addressToNat sender :=
+      Ne.symm h_addr_ne
     -- Compute safeAdd success for EDSL proof
     have h_no_overflow_u : (state.storageMap 0 to : Nat) + ((Verity.Core.Uint256.ofNat amount) : Nat) ≤ MAX_UINT256 := by
       simp [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt]
@@ -427,8 +420,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     · -- Spec success (different addresses: overflow check uses h_no_overflow)
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        exact Nat.mod_eq_of_lt (by decide : (1 : Nat) < Verity.Core.Uint256.modulus)
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
@@ -440,9 +432,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     · -- Spec sender mapping equals EDSL sender mapping
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_spec_val :
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
@@ -516,9 +506,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     · -- Spec recipient mapping equals EDSL recipient mapping
       have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := by
         exact Nat.not_lt_of_ge h
-      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := by
-        have h_lt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
-        exact Nat.mod_eq_of_lt h_lt
+      have h_one_mod : (1 % Verity.Core.Uint256.modulus) = 1 := one_mod_modulus
       have h_spec_val :
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender

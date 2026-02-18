@@ -136,25 +136,13 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
     unfold Verity.Examples.OwnedCounter.onlyOwner Verity.Examples.OwnedCounter.isOwner
     unfold msgSender getStorageAddr setStorage Verity.Examples.OwnedCounter.owner
     simp only [Verity.bind, Bind.bind, Verity.require, Verity.pure, Pure.pure]
-    have h_beq : (sender == state.storageAddr 0) = false := by
-      cases h_eq : (sender == state.storageAddr 0)
-      · rfl
-      · rw [beq_iff_eq] at h_eq
-        exfalso
-        exact h h_eq.symm
+    have h_beq : (sender == state.storageAddr 0) = false :=
+      address_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     rw [h_beq]
     simp [ContractResult.isSuccess, getStorage, setStorage]
   · -- Spec reverts when sender is not owner
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
-      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
-      · rfl
-      · -- If Nat equality holds, injectivity gives sender = owner, contradicting h
-        exfalso
-        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
-          simpa [beq_iff_eq] using h_eq
-        have h_addr : sender = state.storageAddr 0 :=
-          addressToNat_injective sender (state.storageAddr 0) h_nat
-        exact h h_addr.symm
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 
@@ -223,24 +211,13 @@ theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (send
     unfold Verity.Examples.OwnedCounter.onlyOwner Verity.Examples.OwnedCounter.isOwner
     unfold msgSender getStorageAddr setStorage Verity.Examples.OwnedCounter.owner
     simp only [Verity.bind, Bind.bind, Verity.require, Verity.pure, Pure.pure]
-    have h_beq : (sender == state.storageAddr 0) = false := by
-      cases h_eq : (sender == state.storageAddr 0)
-      · rfl
-      · rw [beq_iff_eq] at h_eq
-        exfalso
-        exact h h_eq.symm
+    have h_beq : (sender == state.storageAddr 0) = false :=
+      address_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     rw [h_beq]
     simp [ContractResult.isSuccess, getStorage, setStorage]
   · -- Spec reverts when sender is not owner
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
-      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
-      · rfl
-      · exfalso
-        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
-          simpa [beq_iff_eq] using h_eq
-        have h_addr : sender = state.storageAddr 0 :=
-          addressToNat_injective sender (state.storageAddr 0) h_nat
-        exact h h_addr.symm
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
 

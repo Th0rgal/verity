@@ -13,7 +13,7 @@ export const metadata = {
 
 const banner = (
   <Banner storageKey="verification-complete">
-    359/359 theorems proven — 100% formal verification
+    362/362 theorems proven — 100% formal verification
   </Banner>
 )
 
