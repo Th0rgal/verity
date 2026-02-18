@@ -315,28 +315,15 @@ theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (a
     specResult.success = false := by
   constructor
   · -- EDSL reverts due to onlyOwner check
-    have h_beq : (sender == state.storageAddr 0) = false := by
-      cases h_eq : (sender == state.storageAddr 0)
-      · rfl
-      · exfalso
-        have h_addr : sender = state.storageAddr 0 := by
-          simpa [beq_iff_eq] using h_eq
-        exact h h_addr.symm
+    have h_beq : (sender == state.storageAddr 0) = false := beq_eq_false_iff_ne.mpr h.symm
     simp [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner, Contract.run,
       msgSender, getStorageAddr, getMapping, setMapping, getStorage, setStorage,
       Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
       Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
       ContractResult.isSuccess, h_beq]
   · -- Spec reverts due to require failing
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false := by
-      cases h_eq : (addressToNat sender == addressToNat (state.storageAddr 0))
-      · rfl
-      · exfalso
-        have h_nat : addressToNat sender = addressToNat (state.storageAddr 0) := by
-          simpa [beq_iff_eq] using h_eq
-        have h_addr : sender = state.storageAddr 0 :=
-          addressToNat_injective sender (state.storageAddr 0) h_nat
-        exact h h_addr.symm
+    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) h.symm
     simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
       SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,

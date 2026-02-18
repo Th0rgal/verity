@@ -169,6 +169,14 @@ theorem addressToNat_lt_modulus (addr : Address) :
 axiom addressToNat_injective :
     ∀ (a b : Address), addressToNat a = addressToNat b → a = b
 
+/-- Nat-level BEq of two distinct addresses is false (via `addressToNat_injective`). -/
+theorem addressToNat_beq_false_of_ne (a b : Address) (h : a ≠ b) :
+    (addressToNat a == addressToNat b) = false := by
+  cases h_eq : (addressToNat a == addressToNat b)
+  · rfl
+  · exfalso
+    exact h (addressToNat_injective a b (by simpa [beq_iff_eq] using h_eq))
+
 /-!
 ## Mapping Operation Lemmas
 -/
