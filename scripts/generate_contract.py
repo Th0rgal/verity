@@ -119,17 +119,18 @@ def parse_functions(spec: str, fields: List[Field]) -> List[Function]:
 # Template generators
 # ---------------------------------------------------------------------------
 
-def _is_getter_name(name: str) -> bool:
-    """Return True if *name* looks like a getter (camelCase: getX, isX, hasX).
+def _getter_prefix(name: str) -> str | None:
+    """Return the getter prefix if *name* looks like a getter, else ``None``.
 
-    The prefix must be followed by an uppercase letter so that names like
+    Recognized prefixes: ``get``, ``is``, ``has``.  The prefix must be
+    followed by an uppercase letter (camelCase boundary) so that names like
     ``hash`` (starts with "has") or ``issue`` (starts with "is") are not
     misclassified.
     """
     for prefix in ("get", "is", "has"):
         if name.startswith(prefix) and len(name) > len(prefix) and name[len(prefix)].isupper():
-            return True
-    return False
+            return prefix
+    return None
 
 
 def gen_example(cfg: ContractConfig) -> str:
@@ -152,21 +153,14 @@ def gen_example(cfg: ContractConfig) -> str:
 
     # Function stubs — detect getters to use the correct return type.
     # Match getter names to field types: getOwner → owner → address field.
-    # "is"-prefix getters return Bool (e.g., isOwner → Contract Bool).
+    # "is"/"has"-prefix getters return Bool (e.g., isOwner → Contract Bool).
     addr_field_names = {f.name.lower() for f in cfg.fields if f.ty == "address"}
     func_lines = []
     for fn in cfg.functions:
-        # Determine which getter prefix matched (if any)
-        matched_prefix = next(
-            (p for p in ("get", "is", "has")
-             if fn.name.startswith(p)
-             and len(fn.name) > len(p)
-             and fn.name[len(p)].isupper()),
-            None,
-        )
+        matched_prefix = _getter_prefix(fn.name)
         if matched_prefix is not None:
             suffix = fn.name[len(matched_prefix):]
-            if matched_prefix == "is":
+            if matched_prefix in ("is", "has"):
                 ret_type = "Contract Bool"
                 ret_val = "pure false"
             elif suffix.lower() in addr_field_names:
@@ -404,7 +398,7 @@ def gen_property_tests(cfg: ContractConfig) -> str:
     test_functions = []
     for i, fn in enumerate(cfg.functions):
         camel = fn.name[0].upper() + fn.name[1:]
-        is_getter = _is_getter_name(fn.name)
+        is_getter = _getter_prefix(fn.name) is not None
         test_functions.append(
             _gen_single_test(cfg, fn, camel, i, is_getter)
         )
