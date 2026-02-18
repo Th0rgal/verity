@@ -321,7 +321,7 @@ Library functions are provided via `--link <path.yul>` flags to the compiler CLI
 - Recommendation: Minimize external dependencies, audit linked libraries independently
 
 **Future Work**:
-- Issue #71: Integrate EVMYulLean precompiled contracts
+- Issue #294: EVMYulLean integration (includes precompiled contracts)
 - Formal interface specifications for external calls
 
 ---
@@ -568,7 +568,7 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
 - Document gas assumptions in contract README
 - For high-value contracts: consider formal gas verification (future work)
 
-**Future Work** (Issue #80, #174):
+**Future Work** (Issue #262):
 - Add gas cost annotations to ContractSpec
 - Model gas in Yul semantics
 - Prove gas bounds for critical functions
@@ -634,7 +634,7 @@ Use this checklist when performing security audits of Verity-verified contracts.
 - [ ] Verify compiled bytecode matches Yul output
 - [ ] Check function selectors against specifications
 - [ ] Validate storage layout (issue #84)
-- [ ] Confirm gas costs are acceptable (issue #80)
+- [ ] Confirm gas costs are acceptable (issue #262)
 - [ ] Run gas estimates: `FOUNDRY_PROFILE=difftest forge test --gas-report`
 - [ ] Add gas bounds to property tests for critical functions
 
@@ -650,12 +650,12 @@ Use this checklist when performing security audits of Verity-verified contracts.
 
 ### Short-term (3-6 months)
 
-1. **EVMYulLean UInt256 Integration** (Issue #67)
+1. **EVMYulLean UInt256 Integration** (Issue #294)
    - Replace current Uint256 with EVMYulLean's verified implementation
    - Reduces trust in arithmetic operations
    - Effort: 3 days
 
-2. **Precompiled Contracts Integration** (Issue #71)
+2. **Precompiled Contracts Integration** (Issue #294)
    - Use EVMYulLean's verified precompiles
    - Reduces trust in cryptographic operations
    - Effort: 2 weeks
@@ -683,7 +683,7 @@ Use this checklist when performing security audits of Verity-verified contracts.
    - Remaining: formalize hex string parsing for `addressToNat_injective`
    - Remaining: prove `keccak256_first_4_bytes` via a Lean keccak256 implementation
 
-3. **Gas Cost Verification** (Issue #80)
+3. **Gas Cost Verification** (Issue #262)
    - Formally verify gas bounds
    - Prevents DoS via gas exhaustion
    - Effort: 6 weeks
@@ -714,7 +714,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ✅ Contract implementations match specifications (Layer 1)
 ✅ Specifications preserved through compilation (Layer 2)
 ✅ IR semantics equivalent to Yul semantics (Layer 3)
-✅ 319 theorems across 9 contracts (220 covered by property tests)
+✅ 319 theorems across 9 categories (220 covered by property tests)
 
 ### What is Trusted (Validated but Not Proven)
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
