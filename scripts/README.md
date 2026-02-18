@@ -10,7 +10,7 @@ These scripts manage the relationship between proven Lean theorems and their cor
 
 - **`check_property_manifest.py`** - Verifies that `property_manifest.json` contains all property theorems from Lean proofs
 - **`check_property_coverage.py`** - Ensures all properties are either tested or explicitly excluded
-- **`report_property_coverage.py`** - Generates detailed coverage statistics (new!)
+- **`report_property_coverage.py`** - Generates detailed coverage statistics
 
 ### Usage
 
@@ -100,6 +100,7 @@ python3 scripts/check_contract_structure.py
 
 - **`check_selectors.py`** - Verifies function selector hashes match between Lean and generated Yul
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes
+- **`validate_selectors.py`** - Validates that selector definitions in `Compiler/Selectors.lean` match keccak256 hashes
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc
 
 ## Contract Scaffold Generator
@@ -162,10 +163,3 @@ To add test coverage for a proven theorem:
 
 3. If the property cannot be tested in Foundry (e.g., proof-only helper), add it to `test/property_exclusions.json`
 
-## Recent Improvements
-
-- **Property Coverage Reporting** (Feb 2026): Added comprehensive coverage statistics and reporting
-  - Text/Markdown/JSON output formats
-  - Per-contract and overall statistics
-  - CI integration with GitHub workflow summaries
-  - Coverage improved from 53.1% (155/292) to 69% (220/319) — all testable properties covered

@@ -321,7 +321,7 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
         proof_stubs.append(f"theorem {fn.name}_meets_spec (s : ContractState) :")
         proof_stubs.append(f"  let s' := (({fn.name}).run s).snd")
         proof_stubs.append(f"  {fn.name}_spec s s' := by")
-        proof_stubs.append(f"  sorry")
+        proof_stubs.append(f"  sorry  -- TODO: replace with proof (see debugging-proofs guide)")
         proof_stubs.append("")
 
     imports = [
@@ -685,7 +685,12 @@ Examples:
     print(f"   Find 'def allSpecs' and add '{name_lower}Spec' to the list.")
     print()
 
-    print("4. Run validation:")
+    print(f"4. Create differential tests (not scaffolded):")
+    print(f"   Copy test/DifferentialCounter.t.sol to test/Differential{name}.t.sol")
+    print(f"   Inherit YulTestBase, DiffTestConfig, and DifferentialTestBase")
+    print()
+
+    print("5. Run validation:")
     print("   lake build")
     print(f"   FOUNDRY_PROFILE=difftest forge test --match-contract Property{name}")
     print("   python3 scripts/check_property_coverage.py")
