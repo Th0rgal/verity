@@ -80,6 +80,7 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 - **User-facing specs**: `Verity/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
 - **Implementations (EDSL)**: `Verity/Examples/<Name>.lean`
+- **Unified AST + bridge proofs**: `Verity/AST/<Name>.lean` (proves `denote ast = edsl_fn`)
 - **Layer 1 proofs (EDSL correctness)**: `Verity/Proofs/<Name>/Basic.lean` + `Correctness.lean`
 - **Layer 2 proof re-export**: `Verity/Specs/<Name>/Proofs.lean` (imports from `Compiler/Proofs/SpecCorrectness/`)
 - **Reusable proof infrastructure**: `Verity/Proofs/Stdlib/` (spec interpreter + automation)

@@ -26,10 +26,11 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 ## Architecture
 
 ```
-Layer 1: EDSL Proofs     — Lean theorems about contract behavior
-Layer 2: Compiler Proofs — ContractSpec -> IR preservation
-Layer 3: IR -> Yul       — Statement/expression equivalence proofs
-Trust:   Yul -> Bytecode — Via solc (validated by differential testing)
+AST Bridge: Unified AST  — denote ast = edsl_fn (by rfl or bind_assoc)
+Layer 1: EDSL Proofs      — Lean theorems about contract behavior
+Layer 2: Compiler Proofs  — ContractSpec -> IR preservation
+Layer 3: IR -> Yul        — Statement/expression equivalence proofs
+Trust:   Yul -> Bytecode  — Via solc (validated by differential testing)
 ```
 
 ## Key Design
@@ -136,7 +137,8 @@ The ContractSpec DSL supports: if/else branching (`Stmt.ite`), bounded loops (`S
 
 ## What's Next
 
-1. EVMYulLean integration: upgrade Lean, replace Yul semantics (#294)
-2. ERC-20 standard token (#69)
-3. Storage layout formalization (#84)
-4. Address soundness: replace String with ByteArray (#253)
+1. Unified AST `contract` macro: generate AST + EDSL + bridge proof from single source (Phase 4 of #364)
+2. Compiler AST → Yul: replace ContractSpec with unified AST for codegen (Phase 5 of #364)
+3. EVMYulLean integration: upgrade Lean, replace Yul semantics (#294)
+4. ERC-20 standard token (#69)
+5. Address soundness: replace String with ByteArray (#253)

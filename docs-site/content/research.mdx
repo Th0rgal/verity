@@ -99,7 +99,8 @@ But `private theorem` isn't accessible from other files. Isolation proofs in sep
 ## Verification Structure
 
 Each contract has:
-- `Verity/Examples/X.lean` — Implementation
+- `Verity/Examples/X.lean` — Implementation (EDSL)
+- `Verity/AST/X.lean` — Unified AST + equivalence proofs (`denote ast = edsl_fn`)
 - `Verity/Specs/X/Spec.lean` — Pre/postconditions for each operation
 - `Verity/Specs/X/Invariants.lean` — State properties that should hold
 - `Verity/Proofs/X/Basic.lean` — Layer 1: Spec conformance, basic properties
