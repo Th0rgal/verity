@@ -973,6 +973,7 @@ Examples:
     print("5. Run validation (see add-contract.mdx for the full checklist):")
     print("   lake build")
     print(f"   FOUNDRY_PROFILE=difftest forge test --match-contract {name}")
+    print("   python3 scripts/extract_property_manifest.py  # regenerate manifest with new theorems")
     print("   python3 scripts/check_property_manifest.py")
     print("   python3 scripts/check_property_manifest_sync.py")
     print("   python3 scripts/check_contract_structure.py")

@@ -95,7 +95,8 @@ FOUNDRY_PROFILE=difftest forge test --match-contract Differential<Name>
 # 3. Property tests pass
 FOUNDRY_PROFILE=difftest forge test --match-contract Property<Name>
 
-# 4. Property manifest is in sync
+# 4. Regenerate property manifest and validate
+python3 scripts/extract_property_manifest.py
 python3 scripts/check_property_manifest.py
 python3 scripts/check_property_manifest_sync.py
 python3 scripts/check_property_coverage.py

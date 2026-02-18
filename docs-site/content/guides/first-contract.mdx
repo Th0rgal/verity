@@ -277,8 +277,8 @@ open Verity.Specs.TipJar
 theorem tip_meets_spec (s : ContractState) (amount : Uint256) :
     tip_spec amount s (((tip amount).run s).snd) := by
   simp [tip, tip_spec, tips, msgSender, getMapping, setMapping, bind,
-        storageMapUnchangedExceptKeyAtSlot,
-        storageMapUnchangedExceptKey, storageMapUnchangedExceptSlot,
+        Specs.storageMapUnchangedExceptKeyAtSlot,
+        Specs.storageMapUnchangedExceptKey, Specs.storageMapUnchangedExceptSlot,
         Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr,
         Specs.sameContext]
   constructor
@@ -637,6 +637,7 @@ FOUNDRY_PROFILE=difftest forge test --match-contract TipJar -vv
 ### 6.3 Verify Property Coverage
 
 ```bash
+python3 scripts/extract_property_manifest.py  # regenerate manifest with new theorems
 python3 scripts/check_property_manifest.py
 python3 scripts/report_property_coverage.py --format=markdown
 ```
@@ -664,6 +665,7 @@ FOUNDRY_PROFILE=difftest forge test --match-contract TipJar
 
 # 5. All CI checks pass
 python3 scripts/check_selectors.py
+python3 scripts/extract_property_manifest.py
 python3 scripts/check_property_manifest.py
 python3 scripts/check_property_manifest_sync.py
 python3 scripts/check_property_coverage.py
