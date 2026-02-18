@@ -310,7 +310,6 @@ def generate_report(
 
 def main():
     errors: list[str] = []
-    warnings: list[str] = []
 
     # 1. Extract EDSL slots from Examples (use filename as contract name)
     edsl_all: dict[str, list[tuple[str, str, int]]] = {}
