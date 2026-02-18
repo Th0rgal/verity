@@ -221,23 +221,8 @@ jobs:
       - name: Validate Selectors.lean axiom definitions
         run: python3 scripts/validate_selectors.py
 
-      - name: Cache solc binary
-        id: cache-solc
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/bin/solc
-          key: solc-${{ env.SOLC_VERSION }}
-
-      - name: Install solc
-        if: steps.cache-solc.outputs.cache-hit != 'true'
-        run: |
-          curl -sSfL "$SOLC_URL" -o solc
-          echo "${SOLC_SHA256}  solc" | sha256sum -c -
-          sudo mv solc /usr/local/bin/solc
-          sudo chmod +x /usr/local/bin/solc
-
-      - name: Verify solc
-        run: solc --version
+      - name: Setup solc
+        uses: ./.github/actions/setup-solc
 
       - name: Compile generated Yul with solc
         run: python3 scripts/check_yul_compiles.py
@@ -304,23 +289,8 @@ jobs:
         with:
           version: v1.5.0
 
-      - name: Cache solc binary
-        id: cache-solc
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/bin/solc
-          key: solc-${{ env.SOLC_VERSION }}
-
-      - name: Install solc
-        if: steps.cache-solc.outputs.cache-hit != 'true'
-        run: |
-          curl -sSfL "$SOLC_URL" -o solc
-          echo "${SOLC_SHA256}  solc" | sha256sum -c -
-          sudo mv solc /usr/local/bin/solc
-          sudo chmod +x /usr/local/bin/solc
-
-      - name: Verify solc
-        run: solc --version
+      - name: Setup solc
+        uses: ./.github/actions/setup-solc
 
       - name: Run Foundry tests with seed 42
         env:
@@ -370,23 +340,8 @@ jobs:
         with:
           version: v1.5.0
 
-      - name: Cache solc binary
-        id: cache-solc
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/bin/solc
-          key: solc-${{ env.SOLC_VERSION }}
-
-      - name: Install solc
-        if: steps.cache-solc.outputs.cache-hit != 'true'
-        run: |
-          curl -sSfL "$SOLC_URL" -o solc
-          echo "${SOLC_SHA256}  solc" | sha256sum -c -
-          sudo mv solc /usr/local/bin/solc
-          sudo chmod +x /usr/local/bin/solc
-
-      - name: Verify solc
-        run: solc --version
+      - name: Setup solc
+        uses: ./.github/actions/setup-solc
 
       - name: Run tests with seed ${{ matrix.seed }}
         env:
