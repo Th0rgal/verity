@@ -1,9 +1,12 @@
 /-
   Verity.AST.SimpleToken: Unified AST for SimpleToken
 
-  The most complex contract: ownership + balances mapping + total supply +
-  safeAdd overflow protection + if/then/else transfer logic. Demonstrates
-  `bind_assoc` for owner-gated mint and `ite` for self-transfer.
+  Storage layout:  slot 0 = owner (Address)
+                   slot 1 = balances (Address → Uint256)
+                   slot 2 = totalSupply (Uint256)
+
+  Owner-gated `mint` uses `bind_assoc` + `bind_pure_left`. `transfer`
+  uses `ite` for the self-transfer short-circuit.
 -/
 
 import Verity.Denote
@@ -18,22 +21,22 @@ open Verity.Examples.SimpleToken
   (constructor mint transfer balanceOf getTotalSupply getOwner)
 
 /-- AST for `constructor(initialOwner)`:
-    setStorageAddr 0 initialOwner
-    setStorage 2 0 -/
+    sstoreAddr slot0 initialOwner
+    sstore slot2 0 -/
 def constructorAST : Stmt :=
   .sstoreAddr 0 (.varAddr "initialOwner")
     (.sstore 2 (.lit 0) .stop)
 
 /-- AST for `mint(to, amount)` (inlined onlyOwner/isOwner):
-    let sender ← msgSender
-    let currentOwner ← getStorageAddr 0
-    require (sender == currentOwner) "Caller is not the owner"
-    let currentBalance ← getMapping 1 to
-    let newBalance ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
-    let currentSupply ← getStorage 2
-    let newSupply ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
-    setMapping 1 to newBalance
-    setStorage 2 newSupply -/
+    sender ← msgSender
+    currentOwner ← sloadAddr slot0
+    require (sender == currentOwner)
+    currentBal ← mapping slot1[to]
+    newBal ← requireSomeUint (safeAdd currentBal amount)
+    currentSupply ← sload slot2
+    newSupply ← requireSomeUint (safeAdd currentSupply amount)
+    mstore slot1[to] newBal
+    sstore slot2 newSupply -/
 def mintAST : Stmt :=
   .bindAddr "sender" .sender
     (.bindAddr "currentOwner" (.storageAddr 0)
@@ -46,15 +49,15 @@ def mintAST : Stmt :=
                   (.sstore 2 (.var "newSupply") .stop))))))))
 
 /-- AST for `transfer(to, amount)`:
-    let sender ← msgSender
-    let senderBalance ← getMapping 1 sender
-    require (senderBalance >= amount) "Insufficient balance"
+    sender ← msgSender
+    senderBal ← mapping slot1[sender]
+    require (senderBal >= amount)
     if sender == to then stop
     else
-      let recipientBalance ← getMapping 1 to
-      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
-      setMapping 1 sender (sub senderBalance amount)
-      setMapping 1 to newRecipientBalance -/
+      recipientBal ← mapping slot1[to]
+      newRecipientBal ← requireSomeUint (safeAdd recipientBal amount)
+      mstore slot1[sender] (senderBal - amount)
+      mstore slot1[to] newRecipientBal -/
 def transferAST : Stmt :=
   .bindAddr "sender" .sender
     (.bindUint "senderBalance" (.mapping 1 (.varAddr "sender"))
@@ -68,24 +71,22 @@ def transferAST : Stmt :=
               (.mstore 1 (.varAddr "sender") (.sub (.var "senderBalance") (.var "amount"))
                 (.mstore 1 (.varAddr "to") (.var "newRecipientBalance") .stop)))))))
 
-/-- AST for `balanceOf(addr)`: getMapping 1 addr -/
+/-- AST for `balanceOf(addr)`: return mapping slot1[addr] -/
 def balanceOfAST : Stmt :=
   .bindUint "x" (.mapping 1 (.varAddr "addr"))
     (.ret (.var "x"))
 
-/-- AST for `getTotalSupply()`: getStorage 2 -/
+/-- AST for `getTotalSupply()`: return sload slot2 -/
 def getTotalSupplyAST : Stmt :=
   .bindUint "x" (.storage 2)
     (.ret (.var "x"))
 
-/-- AST for `getOwner()`: getStorageAddr 0 -/
+/-- AST for `getOwner()`: return sloadAddr slot0 -/
 def getOwnerAST : Stmt :=
   .bindAddr "x" (.storageAddr 0)
     (.retAddr (.varAddr "x"))
 
-/-!
-## Equivalence Proofs
--/
+/-! ## Equivalence Proofs -/
 
 private theorem inline_onlyOwner :
     ∀ (f : Unit → Contract α),
@@ -99,11 +100,13 @@ private theorem inline_onlyOwner :
     Verity.Examples.SimpleToken.owner,
     Bind.bind, Pure.pure, Contract.bind_assoc, Contract.bind_pure_left]
 
+/-- `constructor` AST denotes to the EDSL `constructor` function. -/
 theorem constructor_equiv (initialOwner : Address) :
     denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else "") constructorAST
     = constructor initialOwner := by
   rfl
 
+/-- `mint` AST denotes to the EDSL `mint` function. -/
 theorem mint_equiv (to : Address) (amount : Uint256) :
     denoteUnit
       (fun s => if s == "amount" then amount else 0)
@@ -113,6 +116,7 @@ theorem mint_equiv (to : Address) (amount : Uint256) :
   simp only [mint, Bind.bind, inline_onlyOwner,
     Verity.Examples.SimpleToken.balances, Verity.Examples.SimpleToken.totalSupply]; rfl
 
+/-- `transfer` AST denotes to the EDSL `transfer` function. -/
 theorem transfer_equiv (to : Address) (amount : Uint256) :
     denoteUnit
       (fun s => if s == "amount" then amount else 0)
@@ -121,15 +125,18 @@ theorem transfer_equiv (to : Address) (amount : Uint256) :
     = transfer to amount := by
   rfl
 
+/-- `balanceOf` AST denotes to the EDSL `balanceOf` function. -/
 theorem balanceOf_equiv (addr : Address) :
     denoteUint emptyEnv (fun s => if s == "addr" then addr else "") balanceOfAST
     = balanceOf addr := by
   rfl
 
+/-- `getTotalSupply` AST denotes to the EDSL `getTotalSupply` function. -/
 theorem getTotalSupply_equiv :
     denoteUint emptyEnv emptyEnvAddr getTotalSupplyAST = getTotalSupply := by
   rfl
 
+/-- `getOwner` AST denotes to the EDSL `getOwner` function. -/
 theorem getOwner_equiv :
     denoteAddress emptyEnv emptyEnvAddr getOwnerAST = getOwner := by
   rfl

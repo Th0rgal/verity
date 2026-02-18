@@ -50,7 +50,7 @@ def denoteBool (env : String → Uint256) (envAddr : String → Address) : Expr 
   | .ge a b     => denoteVal env a >= denoteVal env b
   | .gt a b     => denoteVal env a > denoteVal env b
   | .var name   => env name != 0  -- Bool stored as Uint256 (nonzero = true)
-  | other       => denoteVal env other != 0
+  | other       => denoteVal env other != 0  -- Uint256-to-Bool coercion (nonzero = true)
 
 /-- Evaluate an Option Uint256 expression (for `requireSome`). -/
 def denoteOpt (env : String → Uint256) : Expr → Option Uint256
@@ -83,7 +83,9 @@ def denoteUnit (env : String → Uint256) (envAddr : String → Address) : Stmt 
       Verity.bind (getMapping ⟨slot⟩ (denoteAddr envAddr key)) fun val =>
         denoteUnit (fun s => if s == name then val else env s) envAddr rest
 
-  | .bindUint _name _expr rest => denoteUnit env envAddr rest  -- fallback
+  -- Fallback: unsupported bindUint source (unreachable for well-formed ASTs).
+  -- An incorrect AST would fail to `rfl`-prove equivalence.
+  | .bindUint _name _expr rest => denoteUnit env envAddr rest
 
   -- Bind Address from effectful read
   | .bindAddr name .sender rest =>
@@ -94,7 +96,8 @@ def denoteUnit (env : String → Uint256) (envAddr : String → Address) : Stmt 
       Verity.bind (getStorageAddr ⟨slot⟩) fun addr =>
         denoteUnit env (fun s => if s == name then addr else envAddr s) rest
 
-  | .bindAddr _name _expr rest => denoteUnit env envAddr rest  -- fallback
+  -- Fallback: unsupported bindAddr source (unreachable for well-formed ASTs)
+  | .bindAddr _name _expr rest => denoteUnit env envAddr rest
 
   -- Bind Bool (e.g., isOwner check)
   | .bindBool name expr rest =>
@@ -145,7 +148,7 @@ def denoteUnit (env : String → Uint256) (envAddr : String → Address) : Stmt 
       then denoteUnit env envAddr thenBranch
       else denoteUnit env envAddr elseBranch
 
-  -- Fallback: remaining patterns
+  -- Return statements in a Unit context: ignore the value
   | .ret _e => Verity.pure ()
   | .retAddr _e => Verity.pure ()
 
@@ -162,6 +165,7 @@ def denoteUint (env : String → Uint256) (envAddr : String → Address) : Stmt 
       Verity.bind (getMapping ⟨slot⟩ (denoteAddr envAddr key)) fun val =>
         denoteUint (fun s => if s == name then val else env s) envAddr rest
 
+  -- Fallback: unsupported bindUint source (unreachable for well-formed ASTs)
   | .bindUint _name _expr rest => denoteUint env envAddr rest
 
   | .bindAddr name .sender rest =>
@@ -172,8 +176,10 @@ def denoteUint (env : String → Uint256) (envAddr : String → Address) : Stmt 
       Verity.bind (getStorageAddr ⟨slot⟩) fun addr =>
         denoteUint env (fun s => if s == name then addr else envAddr s) rest
 
+  -- Fallback: unsupported bindAddr source (unreachable for well-formed ASTs)
   | .bindAddr _name _expr rest => denoteUint env envAddr rest
 
+  -- Default: remaining patterns (unreachable for well-formed ASTs)
   | _ => Verity.pure 0
 
 /-- Denote a statement as `Contract Address` (for address getters). -/
@@ -189,6 +195,7 @@ def denoteAddress (env : String → Uint256) (envAddr : String → Address) : St
       Verity.bind msgSender fun addr =>
         denoteAddress env (fun s => if s == name then addr else envAddr s) rest
 
+  -- Default: remaining patterns (unreachable for well-formed ASTs)
   | _ => Verity.pure ""
 
 /-!

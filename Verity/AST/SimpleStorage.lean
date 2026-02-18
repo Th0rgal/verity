@@ -1,9 +1,7 @@
 /-
   Verity.AST.SimpleStorage: Unified AST for SimpleStorage
 
-  Defines the AST representation and proves `denote ast = edsl_fn` by `rfl`
-  for each SimpleStorage function. This demonstrates Phase 2 of issue #364:
-  a single source that is both compilable and provably equivalent to the EDSL.
+  Storage layout:  slot 0 = storedData (Uint256)
 -/
 
 import Verity.Denote
@@ -16,22 +14,16 @@ open Verity.AST
 open Verity.Denote
 open Verity.Examples (storedData store retrieve)
 
-/-- AST for `store(value)`: setStorage 0 value; stop -/
+/-- AST for `store(value)`: sstore slot0 value -/
 def storeAST : Stmt :=
   .sstore 0 (.var "value") .stop
 
-/-- AST for `retrieve()`: return getStorage 0 -/
+/-- AST for `retrieve()`: return sload slot0 -/
 def retrieveAST : Stmt :=
   .bindUint "x" (.storage 0)
     (.ret (.var "x"))
 
-/-!
-## Equivalence Proofs
-
-Each theorem proves that the AST denotation is definitionally equal to
-the handwritten EDSL function. The `rfl` tactic succeeds because both
-sides unfold to the same normal form through transparent `def`s.
--/
+/-! ## Equivalence Proofs -/
 
 /-- `store` AST denotes to the EDSL `store` function. -/
 theorem store_equiv (value : Uint256) :

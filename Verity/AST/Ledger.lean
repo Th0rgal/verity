@@ -1,8 +1,7 @@
 /-
   Verity.AST.Ledger: Unified AST for Ledger
 
-  Demonstrates mappings (Address → Uint256), `msgSender`, `require`,
-  and `if/then/else` through the unified AST with `rfl` equivalence proofs.
+  Storage layout:  slot 0 = balances (Address → Uint256)
 -/
 
 import Verity.Denote
@@ -16,41 +15,40 @@ open Verity.Denote
 open Verity.Examples.Ledger (deposit withdraw transfer getBalance)
 
 /-- AST for `deposit(amount)`:
-    let sender ← msgSender
-    let currentBalance ← getMapping ⟨0⟩ sender
-    setMapping ⟨0⟩ sender (add currentBalance amount) -/
+    sender ← msgSender
+    bal ← mapping slot0[sender]
+    mstore slot0[sender] (bal + amount) -/
 def depositAST : Stmt :=
   .bindAddr "sender" .sender
     (.bindUint "currentBalance" (.mapping 0 (.varAddr "sender"))
       (.mstore 0 (.varAddr "sender") (.add (.var "currentBalance") (.var "amount")) .stop))
 
 /-- AST for `withdraw(amount)`:
-    let sender ← msgSender
-    let currentBalance ← getMapping ⟨0⟩ sender
-    require (currentBalance >= amount) "Insufficient balance"
-    setMapping ⟨0⟩ sender (sub currentBalance amount) -/
+    sender ← msgSender
+    bal ← mapping slot0[sender]
+    require (bal >= amount)
+    mstore slot0[sender] (bal - amount) -/
 def withdrawAST : Stmt :=
   .bindAddr "sender" .sender
     (.bindUint "currentBalance" (.mapping 0 (.varAddr "sender"))
       (.require (.ge (.var "currentBalance") (.var "amount")) "Insufficient balance"
         (.mstore 0 (.varAddr "sender") (.sub (.var "currentBalance") (.var "amount")) .stop)))
 
-/-- AST for `getBalance(addr)`:
-    getMapping ⟨0⟩ addr -/
+/-- AST for `getBalance(addr)`: return mapping slot0[addr] -/
 def getBalanceAST : Stmt :=
   .bindUint "x" (.mapping 0 (.varAddr "addr"))
     (.ret (.var "x"))
 
 /-- AST for `transfer(to, amount)`:
-    let sender ← msgSender
-    let senderBalance ← getMapping ⟨0⟩ sender
-    require (senderBalance >= amount) "Insufficient balance"
-    if sender == to then pure ()
+    sender ← msgSender
+    senderBal ← mapping slot0[sender]
+    require (senderBal >= amount)
+    if sender == to then stop
     else
-      let recipientBalance ← getMapping ⟨0⟩ to
-      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
-      setMapping ⟨0⟩ sender (sub senderBalance amount)
-      setMapping ⟨0⟩ to newRecipientBalance -/
+      recipientBal ← mapping slot0[to]
+      newRecipientBal ← requireSomeUint (safeAdd recipientBal amount) "..."
+      mstore slot0[sender] (senderBal - amount)
+      mstore slot0[to] newRecipientBal -/
 def transferAST : Stmt :=
   .bindAddr "sender" .sender
     (.bindUint "senderBalance" (.mapping 0 (.varAddr "sender"))
@@ -64,25 +62,27 @@ def transferAST : Stmt :=
               (.mstore 0 (.varAddr "sender") (.sub (.var "senderBalance") (.var "amount"))
                 (.mstore 0 (.varAddr "to") (.var "newRecipientBalance") .stop)))))))
 
-/-!
-## Equivalence Proofs
--/
+/-! ## Equivalence Proofs -/
 
+/-- `deposit` AST denotes to the EDSL `deposit` function. -/
 theorem deposit_equiv (amount : Uint256) :
     denoteUnit (fun s => if s == "amount" then amount else 0) emptyEnvAddr depositAST
     = deposit amount := by
   rfl
 
+/-- `withdraw` AST denotes to the EDSL `withdraw` function. -/
 theorem withdraw_equiv (amount : Uint256) :
     denoteUnit (fun s => if s == "amount" then amount else 0) emptyEnvAddr withdrawAST
     = withdraw amount := by
   rfl
 
+/-- `getBalance` AST denotes to the EDSL `getBalance` function. -/
 theorem getBalance_equiv (addr : Address) :
     denoteUint emptyEnv (fun s => if s == "addr" then addr else "") getBalanceAST
     = getBalance addr := by
   rfl
 
+/-- `transfer` AST denotes to the EDSL `transfer` function. -/
 theorem transfer_equiv (to : Address) (amount : Uint256) :
     denoteUnit
       (fun s => if s == "amount" then amount else 0)
