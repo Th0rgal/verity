@@ -306,12 +306,13 @@ ContractSpec → IR → Yul AST → Yul text → [Linker injects library text] �
 ```
 Library functions are provided via `--link <path.yul>` flags to the compiler CLI. The Linker parses function definitions from library files and injects them as raw text into the rendered Yul output.
 
-**Safety Checks** (enabled in `CompileDriver.lean`):
-1. **External reference validation**: All non-builtin function calls in the contract must be resolved by a linked library
-2. **Duplicate name detection**: No two library functions may share the same name
+**Safety Checks** (implemented in `Compiler/Linker.lean`):
+1. **Duplicate name detection** (`validateNoDuplicateNames`): No two library functions may share the same name
+2. **Name collision detection** (`validateNoNameCollisions`): Library functions cannot shadow Yul builtins (`add`, `sstore`, etc.) or internal helpers (`mappingSlot`)
+3. **External reference validation** (`validateExternalReferences`): All non-builtin function calls in the contract must be resolved by a linked library
+4. **Call arity validation** (`validateCallArity`): Call sites must match the declared parameter count of linked functions
 
 **Remaining Gaps**:
-- Injection is text-level, not AST-level — no syntax or arity checking of library code
 - Library code is entirely outside the formal proof boundary
 
 **Risk Assessment**: **Medium to High** (depends on library)

@@ -51,11 +51,11 @@ def get_axiom_count() -> int:
 
 
 def get_test_counts() -> tuple[int, int]:
-    """Count test functions and test suite files."""
+    """Count test functions and test suite files (recursive, includes test/yul/)."""
     test_dir = ROOT / "test"
-    suite_count = len(list(test_dir.glob("*.t.sol")))
+    suite_count = len(list(test_dir.rglob("*.t.sol")))
     test_count = 0
-    for sol in test_dir.glob("*.t.sol"):
+    for sol in test_dir.rglob("*.t.sol"):
         text = sol.read_text(encoding="utf-8")
         test_count += len(re.findall(r"function\s+test", text))
     return test_count, suite_count

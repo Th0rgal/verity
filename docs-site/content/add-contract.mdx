@@ -94,10 +94,13 @@ FOUNDRY_PROFILE=difftest forge test --match-contract Property<Name>
 
 # 4. Property manifest is in sync
 python3 scripts/check_property_manifest.py
+python3 scripts/check_property_manifest_sync.py
 python3 scripts/check_property_coverage.py
 
-# 5. Selectors are correct
+# 5. Selectors and structure are correct
 python3 scripts/check_selectors.py
+python3 scripts/check_contract_structure.py
+python3 scripts/check_doc_counts.py
 ```
 
 **Reference**: See [SimpleStorage](/examples#simplestorage) for a minimal end-to-end example.

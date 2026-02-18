@@ -20,7 +20,7 @@ EVM Bytecode
 
 ## Layer 1: EDSL ≡ ContractSpec ✅ **COMPLETE**
 
-**Status**: All 9 contracts verified (7 with full spec proofs, 2 with inline proofs)
+**Status**: 8 contracts verified (7 with full spec proofs, 1 with inline proofs); CryptoHash is an unverified linker demo (0 specs)
 
 **What This Layer Proves**: User-facing EDSL contracts satisfy their human-readable specifications.
 

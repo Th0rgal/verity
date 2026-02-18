@@ -37,7 +37,7 @@ Basic contract behavior validation without formal property mapping.
 FOUNDRY_PROFILE=difftest forge test
 
 # Unit tests only (no FFI needed)
-forge test --no-match-path "test/Property*" --no-match-path "test/Differential*" --no-match-path "test/CallValue*" --no-match-path "test/CalldataSize*"
+forge test --no-match-path "test/Property*" --no-match-path "test/Differential*" --no-match-path "test/CallValue*" --no-match-path "test/CalldataSize*" --no-match-path "test/yul/*"
 
 # Single contract
 FOUNDRY_PROFILE=difftest forge test --match-path test/PropertyCounter.t.sol
