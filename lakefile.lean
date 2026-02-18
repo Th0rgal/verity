@@ -3,7 +3,6 @@ open Lake DSL
 
 package «verity» where
   version := v!"0.1.0"
-  -- Cache invalidation: 2026-02-15
 
 @[default_target]
 lean_lib «Verity» where

@@ -20,6 +20,7 @@
   - Generic Storage Preservation: cross-type preservation for setStorage/setStorageAddr/setMapping
 
   Status: All lemmas fully proven with zero sorry.
+  Note: Contains 1 axiom (addressToNat_injective) — see AXIOMS.md.
 -/
 
 import Verity.Core
@@ -718,6 +719,6 @@ theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint25
     ((setMapping slot key value).run state).snd.thisAddress = state.thisAddress := by
   simp [setMapping]
 
--- All lemmas in this file are fully proven with zero sorry.
+-- All lemmas in this file are fully proven with zero sorry (1 axiom: addressToNat_injective).
 
 end Verity.Proofs.Stdlib.Automation
