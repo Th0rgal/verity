@@ -23,6 +23,17 @@ EXCLUDED_CONTRACTS = {
     "CryptoHash",         # Axiom-based, no separate proof structure
 }
 
+# Contracts excluded from SpecCorrectness check (no compiler-level spec)
+EXCLUDED_FROM_SPEC_CORRECTNESS = {
+    "ReentrancyExample",  # Has proofs but no compiler spec
+    "CryptoHash",         # External-library contract, no separate proof structure
+}
+
+# Contracts excluded from property test check
+EXCLUDED_FROM_PROPERTY_TESTS = {
+    "CryptoHash",         # External-library contract, no property tests
+}
+
 # Expected files for each contract (relative to ROOT)
 EXPECTED_STRUCTURE = [
     "Verity/Specs/{name}/Spec.lean",
@@ -131,6 +142,30 @@ def main() -> None:
             all_issues.extend(f"{name}: {m}" for m in missing)
         else:
             print(f"  OK {name}")
+
+    # Check property test files
+    all_examples = [
+        f.stem for f in sorted((ROOT / "Verity" / "Examples").iterdir())
+        if f.suffix == ".lean"
+    ]
+    for name in all_examples:
+        if name in EXCLUDED_FROM_PROPERTY_TESTS:
+            continue
+        prop_test = ROOT / "test" / f"Property{name}.t.sol"
+        if not prop_test.exists():
+            msg = f"{name}: missing test/Property{name}.t.sol"
+            print(f"  MISSING {msg}")
+            all_issues.append(msg)
+
+    # Check SpecCorrectness files
+    for name in all_examples:
+        if name in EXCLUDED_FROM_SPEC_CORRECTNESS:
+            continue
+        spec_proof = ROOT / "Compiler" / "Proofs" / "SpecCorrectness" / f"{name}.lean"
+        if not spec_proof.exists():
+            msg = f"{name}: missing Compiler/Proofs/SpecCorrectness/{name}.lean"
+            print(f"  MISSING {msg}")
+            all_issues.append(msg)
 
     # Check All.lean imports
     import_issues = check_all_lean_imports(contracts)
