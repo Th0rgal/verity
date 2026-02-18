@@ -44,19 +44,23 @@ Each contract has three files:
 ```lean
 -- What should mint do?
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  s'.storageMap 1 to = s.storageMap 1 to + amount ∧  -- balance increases
-  s'.storage 2 = s.storage 2 + amount                 -- supply increases
+  s'.storageMap 1 to = add (s.storageMap 1 to) amount ∧  -- balance increases
+  s'.storage 2 = add (s.storage 2) amount ∧               -- supply increases
+  storageMapUnchangedExceptKeyAtSlot 1 to s s' ∧          -- other balances unchanged
+  sameContext s s'                                         -- context preserved
 ```
 
 **2. Implementation** (`Verity/Examples/SimpleToken.lean`)
 ```lean
--- How to implement mint
+-- How to implement mint (with overflow protection)
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
   onlyOwner
   let currentBalance ← getMapping balances to
-  setMapping balances to (currentBalance + amount)
+  let newBalance ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
   let currentSupply ← getStorage totalSupply
-  setStorage totalSupply (currentSupply + amount)
+  let newSupply ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
+  setMapping balances to newBalance
+  setStorage totalSupply newSupply
 ```
 
 **3. Proof** (`Verity/Proofs/SimpleToken/Basic.lean`)

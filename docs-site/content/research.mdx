@@ -48,7 +48,7 @@ Recent updates:
 - Storage as functions (`Nat -> Uint256`), not finite maps. Uninitialized slots return 0.
 - `require` returns `ContractResult.revert msg s`, preserving original state.
 - Manual storage slot allocation (slot 0, 1, 2...). No automatic allocation needed.
-- Selector maps remain explicit per contract (no ContractSpec-derived builder yet).
+- Selectors are auto-computed from function signatures via `computeSelectors` — no manual selector maps needed.
 - `onlyOwner` is a regular function, not special syntax.
 
 **What didn't work:**
@@ -62,8 +62,8 @@ Recent updates:
 All core arithmetic is EVM‑compatible. `Uint256` wraps at `2^256`, so `+`, `-`, `*`, `/`, and `%` match EVM behavior by default.
 
 Two approaches coexist for overflow safety:
-- **Counter / Ledger / SimpleToken**: Bare `+`/`-` (modular arithmetic, EVM‑accurate)
-- **SafeCounter**: `safeAdd`/`safeSub` from `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow
+- **Counter**: Bare `add`/`sub` (modular arithmetic, EVM‑accurate)
+- **SafeCounter / Ledger / SimpleToken**: `safeAdd`/`safeSub` from `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow
 
 `MAX_UINT256 := 2^256 - 1`. Safe arithmetic checks this bound before returning `some`.
 
