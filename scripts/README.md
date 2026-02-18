@@ -131,16 +131,24 @@ Creates 7 files: EDSL implementation, Spec, Invariants, Proofs re-export, Basic 
 
 ## CI Integration
 
-All verification scripts run automatically in GitHub Actions (`verify.yml`):
-1. Property manifest sync check
-2. Property coverage validation
-3. Selector hash verification (against Lean specs and solc output)
-4. Yul compilation check
-5. Storage layout consistency validation
-6. Contract file structure validation
-7. Axiom location validation
-8. Documentation count validation
-9. Coverage reports in workflow summary
+Scripts run automatically in GitHub Actions (`verify.yml`) across two jobs:
+
+**`checks` job** (fast, no Lean build required):
+1. Property manifest validation (`check_property_manifest.py`)
+2. Property coverage validation (`check_property_coverage.py`)
+3. Contract file structure validation (`check_contract_structure.py`)
+4. Axiom location validation (`check_axiom_locations.py`)
+5. Documentation count validation (`check_doc_counts.py`)
+6. Property manifest sync (`check_property_manifest_sync.py`)
+7. Storage layout consistency (`check_storage_layout.py`)
+
+**`build` job** (requires `lake build` artifacts):
+1. Keccak-256 self-test (`keccak256.py --self-test`)
+2. Selector hash verification (`check_selectors.py`)
+3. Selector axiom validation (`validate_selectors.py`)
+4. Yul compilation check (`check_yul_compiles.py`)
+5. Selector fixture check (`check_selector_fixtures.py`)
+6. Coverage and storage layout reports in workflow summary
 
 ## Adding New Property Tests
 
