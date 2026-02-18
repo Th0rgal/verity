@@ -14,7 +14,7 @@ Creates the complete file structure needed to add a new contract:
 Usage:
     python3 scripts/generate_contract.py MyContract
     python3 scripts/generate_contract.py MyContract --fields "value:uint256,owner:address"
-    python3 scripts/generate_contract.py MyContract --fields "balances:mapping" --functions "deposit,withdraw,getBalance"
+    python3 scripts/generate_contract.py MyContract --fields "balances:mapping" --functions "deposit(uint256),withdraw(uint256),transfer(address,uint256),getBalance(address)"
     python3 scripts/generate_contract.py MyContract --dry-run
 """
 
@@ -62,8 +62,34 @@ class Field:
 
 
 @dataclass
+class Param:
+    name: str
+    ty: str  # "uint256", "address"
+
+    @property
+    def lean_type(self) -> str:
+        if self.ty == "address":
+            return "Address"
+        return "Uint256"
+
+    @property
+    def compiler_type(self) -> str:
+        """ParamType variant for Compiler/Specs.lean."""
+        if self.ty == "address":
+            return "ParamType.address"
+        return "ParamType.uint256"
+
+    @property
+    def solidity_type(self) -> str:
+        if self.ty == "address":
+            return "address"
+        return "uint256"
+
+
+@dataclass
 class Function:
     name: str
+    params: List[Param] = field(default_factory=list)
 
 
 @dataclass
@@ -102,10 +128,80 @@ def parse_fields(spec: str) -> List[Field]:
     return fields
 
 
+_PARAM_NAME_COUNTERS: dict[str, int] = {}
+
+def _auto_param_name(ty: str) -> str:
+    """Generate a descriptive parameter name from its type.
+
+    First call for a type returns the canonical name (e.g. "value" for uint256);
+    subsequent calls within the same function append a counter ("value2").
+    Call ``_PARAM_NAME_COUNTERS.clear()`` between functions.
+    """
+    base = "addr" if ty == "address" else "value"
+    count = _PARAM_NAME_COUNTERS.get(base, 0) + 1
+    _PARAM_NAME_COUNTERS[base] = count
+    return base if count == 1 else f"{base}{count}"
+
+
+def _parse_single_function(raw: str) -> Function:
+    """Parse a single function spec like 'transfer(address,uint256)' or 'increment'.
+
+    Supported forms:
+      - ``increment``           → no params
+      - ``store(uint256)``      → one uint256 param named "value"
+      - ``transfer(address,uint256)`` → two params named "addr", "value"
+    """
+    raw = raw.strip()
+    if "(" not in raw:
+        return Function(name=raw)
+
+    paren_idx = raw.index("(")
+    name = raw[:paren_idx].strip()
+    params_str = raw[paren_idx + 1:].rstrip(")")
+
+    _PARAM_NAME_COUNTERS.clear()
+    params = []
+    for ty_raw in params_str.split(","):
+        ty_raw = ty_raw.strip().lower()
+        if not ty_raw:
+            continue
+        if ty_raw not in ("uint256", "address"):
+            print(f"Warning: Unknown param type '{ty_raw}' in {name}, defaulting to uint256", file=sys.stderr)
+            ty_raw = "uint256"
+        params.append(Param(name=_auto_param_name(ty_raw), ty=ty_raw))
+
+    return Function(name=name, params=params)
+
+
 def parse_functions(spec: str, fields: List[Field]) -> List[Function]:
-    """Parse 'func1,func2,...' or generate defaults from fields."""
+    """Parse 'func1,func2(type,...),...' or generate defaults from fields.
+
+    Supports both bare names and typed signatures::
+
+        --functions "deposit(uint256),transfer(address,uint256),getBalance(address)"
+
+    Parameter names are auto-generated from types (addr, value, etc.).
+    """
     if spec:
-        return [Function(f.strip()) for f in spec.split(",") if f.strip()]
+        # Split on commas that are NOT inside parentheses
+        functions = []
+        depth = 0
+        current: list[str] = []
+        for ch in spec:
+            if ch == "(":
+                depth += 1
+                current.append(ch)
+            elif ch == ")":
+                depth -= 1
+                current.append(ch)
+            elif ch == "," and depth == 0:
+                functions.append(_parse_single_function("".join(current)))
+                current = []
+            else:
+                current.append(ch)
+        if current:
+            functions.append(_parse_single_function("".join(current)))
+        return [f for f in functions if f.name]
     # Default: generate getter/setter for first field
     if fields:
         f = fields[0]
@@ -137,13 +233,23 @@ def gen_example(cfg: ContractConfig) -> str:
     """Generate Verity/Examples/{Name}.lean"""
     has_mapping = any(f.is_mapping for f in cfg.fields)
     has_uint256 = any(f.ty == "uint256" for f in cfg.fields)
+    has_uint256_param = any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
+    # Non-address getters return Contract Uint256, so they need the import
+    addr_field_names_lower = {f.name.lower() for f in cfg.fields if f.ty == "address"}
+    has_uint256_getter = any(
+        _getter_prefix(fn.name) is not None
+        and _getter_prefix(fn.name) not in ("is", "has")
+        and fn.name[len(_getter_prefix(fn.name)):].lower() not in addr_field_names_lower
+        for fn in cfg.functions
+    )
+    needs_uint256 = has_mapping or has_uint256 or has_uint256_param or has_uint256_getter
 
     imports = ["import Verity.Core"]
-    if has_mapping or has_uint256:
+    if needs_uint256:
         imports.append("import Verity.EVM.Uint256")
 
     opens = ["open Verity"]
-    if has_mapping or has_uint256:
+    if needs_uint256:
         opens.append("open Verity.EVM.Uint256")
 
     # Storage definitions
@@ -172,8 +278,13 @@ def gen_example(cfg: ContractConfig) -> str:
         else:
             ret_type = "Contract Unit"
             ret_val = "pure ()  -- TODO: implement (see Counter.lean for mutating ops)"
+        # Build parameter list: (param1 : Type1) (param2 : Type2)
+        param_str = ""
+        if fn.params:
+            param_str = " ".join(f"({p.name} : {p.lean_type})" for p in fn.params)
+            param_str = " " + param_str
         func_lines.append(f"-- TODO: Implement {fn.name}")
-        func_lines.append(f"def {fn.name} : {ret_type} := do")
+        func_lines.append(f"def {fn.name}{param_str} : {ret_type} := do")
         func_lines.append(f"  {ret_val}")
         func_lines.append("")
 
@@ -206,18 +317,30 @@ def gen_spec(cfg: ContractConfig) -> str:
 
     spec_defs = []
     for fn in cfg.functions:
+        is_getter = _getter_prefix(fn.name) is not None
+        # Build Lean parameter declarations
+        lean_params = " ".join(f"({p.name} : {p.lean_type})" for p in fn.params)
         spec_defs.append(f"-- What {fn.name} should do")
-        spec_defs.append(f"-- For mutating ops:   def {fn.name}_spec (params...) (s s' : ContractState) : Prop")
-        spec_defs.append(f"-- For read-only ops:  def {fn.name}_spec (result : Uint256) (s : ContractState) : Prop")
-        spec_defs.append(f"def {fn.name}_spec (s s' : ContractState) : Prop :=")
-        spec_defs.append(f"  -- TODO: Add function parameters before (s s'), define postconditions")
-        spec_defs.append(f"  True")
+        if is_getter:
+            # Getter spec: result-based (see getBalance_spec, retrieve_spec)
+            param_part = f" {lean_params}" if lean_params else ""
+            spec_defs.append(f"def {fn.name}_spec{param_part} (result : Uint256) (s : ContractState) : Prop :=")
+            spec_defs.append(f"  -- TODO: Define what the return value should be")
+            spec_defs.append(f"  True")
+        else:
+            # Mutator spec: state-based (see deposit_spec, store_spec)
+            param_part = f" {lean_params}" if lean_params else ""
+            spec_defs.append(f"def {fn.name}_spec{param_part} (s s' : ContractState) : Prop :=")
+            spec_defs.append(f"  -- TODO: Define postconditions on s'")
+            spec_defs.append(f"  True")
         spec_defs.append("")
 
     imports = ["import Verity.Core", "import Verity.Specs.Common"]
     opens = ["open Verity"]
-    # Almost all specs need Uint256 for add/sub in postconditions
-    if has_mapping or any(f.ty == "uint256" for f in cfg.fields):
+    # Getter specs use (result : Uint256), so any getter needs the import
+    has_getter = any(_getter_prefix(fn.name) is not None for fn in cfg.functions)
+    has_uint256_param = any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
+    if has_mapping or any(f.ty == "uint256" for f in cfg.fields) or has_uint256_param or has_getter:
         imports.append("import Verity.EVM.Uint256")
         opens.append("open Verity.EVM.Uint256")
 
@@ -319,18 +442,29 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
     proof_stubs = []
     for fn in cfg.functions:
         is_getter = _getter_prefix(fn.name) is not None
+        # Build Lean parameter declarations: (param1 : Type1) (param2 : Type2)
+        lean_params = " ".join(f"({p.name} : {p.lean_type})" for p in fn.params)
+        # Build function call arguments: fn param1 param2
+        call_args = " ".join(p.name for p in fn.params)
+        fn_call = f"{fn.name} {call_args}" if call_args else fn.name
+        # Build spec arguments: param1 param2
+        spec_args = " ".join(p.name for p in fn.params)
+
         proof_stubs.append(f"-- TODO: Prove {fn.name} meets its specification")
         if is_getter:
-            # Getter pattern: extract return value with .fst (see retrieve_meets_spec)
-            proof_stubs.append(f"theorem {fn.name}_meets_spec (s : ContractState) :")
-            proof_stubs.append(f"  let result := (({fn.name}).run s).fst")
-            proof_stubs.append(f"  {fn.name}_spec result s := by")
+            # Getter pattern: extract return value with .fst (see retrieve_meets_spec, getBalance_meets_spec)
+            theorem_params = f"(s : ContractState) {lean_params}" if lean_params else "(s : ContractState)"
+            proof_stubs.append(f"theorem {fn.name}_meets_spec {theorem_params} :")
+            proof_stubs.append(f"  let result := (({fn_call}).run s).fst")
+            spec_call = f"{fn.name}_spec {spec_args} result s" if spec_args else f"{fn.name}_spec result s"
+            proof_stubs.append(f"  {spec_call} := by")
         else:
-            # Mutator pattern: extract output state with .snd (see store_meets_spec)
-            # TODO: add function parameters manually (e.g., (value : Uint256))
-            proof_stubs.append(f"theorem {fn.name}_meets_spec (s : ContractState) :")
-            proof_stubs.append(f"  let s' := (({fn.name}).run s).snd")
-            proof_stubs.append(f"  {fn.name}_spec s s' := by")
+            # Mutator pattern: extract output state with .snd (see store_meets_spec, deposit_meets_spec)
+            theorem_params = f"(s : ContractState) {lean_params}" if lean_params else "(s : ContractState)"
+            proof_stubs.append(f"theorem {fn.name}_meets_spec {theorem_params} :")
+            proof_stubs.append(f"  let s' := (({fn_call}).run s).snd")
+            spec_call = f"{fn.name}_spec {spec_args} s s'" if spec_args else f"{fn.name}_spec s s'"
+            proof_stubs.append(f"  {spec_call} := by")
         proof_stubs.append(f"  sorry  -- TODO: replace with proof (see debugging-proofs guide)")
         proof_stubs.append("")
 
@@ -345,7 +479,9 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
         f"open Verity.Examples.{cfg.name}",
         f"open Verity.Specs.{cfg.name}",
     ]
-    if has_mapping or any(f.ty == "uint256" for f in cfg.fields):
+    has_uint256_param = any(p.ty == "uint256" for fn in cfg.functions for p in fn.params)
+    has_getter = any(_getter_prefix(fn.name) is not None for fn in cfg.functions)
+    if has_mapping or any(f.ty == "uint256" for f in cfg.fields) or has_uint256_param or has_getter:
         imports.insert(1, "import Verity.EVM.Uint256")
         opens.append("open Verity.EVM.Uint256")
 
@@ -459,10 +595,25 @@ def _gen_single_test(
     is_getter: bool,
 ) -> str:
     """Generate a single working test function."""
+    # Build Solidity signature: "funcName(uint256,address)"
+    sol_sig = f"{fn.name}({','.join(p.solidity_type for p in fn.params)})"
+    # Build call arguments for abi.encodeWithSignature
+    if fn.params:
+        # Generate example argument values
+        call_args = []
+        for p in fn.params:
+            if p.ty == "address":
+                call_args.append("alice")
+            else:
+                call_args.append("42")
+        encode_args = ", ".join([f'"{sol_sig}"'] + call_args)
+    else:
+        encode_args = f'"{sol_sig}"'
+
     if is_getter:
         return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: {fn.name}_meets_spec
-    // Theorem: {fn.name}() meets its formal specification
+    // Theorem: {fn.name}({', '.join(p.solidity_type for p in fn.params)}) meets its formal specification
     //═══════════════════════════════════════════════════════════════════════
 
     /// Property: {fn.name}_meets_spec
@@ -472,7 +623,7 @@ def _gen_single_test(
         uint256 slot0Before = readStorage(0);
 
         (bool success, bytes memory data) = target.call(
-            abi.encodeWithSignature("{fn.name}()")
+            abi.encodeWithSignature({encode_args})
         );
         require(success, "{fn.name} call failed");
 
@@ -483,7 +634,7 @@ def _gen_single_test(
     else:
         return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: {fn.name}_meets_spec
-    // Theorem: {fn.name}() meets its formal specification
+    // Theorem: {fn.name}({', '.join(p.solidity_type for p in fn.params)}) meets its formal specification
     //═══════════════════════════════════════════════════════════════════════
 
     /// Property: {fn.name}_meets_spec
@@ -492,7 +643,7 @@ def _gen_single_test(
 
         vm.prank(alice);
         (bool success,) = target.call(
-            abi.encodeWithSignature("{fn.name}()")
+            abi.encodeWithSignature({encode_args})
         );
         require(success, "{fn.name} call failed");
 
@@ -551,10 +702,19 @@ def gen_compiler_spec(cfg: ContractConfig) -> str:
     func_strs = []
     for fn in cfg.functions:
         is_getter = _getter_prefix(fn.name) is not None
+        # Build params list
+        if fn.params:
+            params_entries = ",\n        ".join(
+                f'{{ name := "{p.name}", ty := {p.compiler_type} }}'
+                for p in fn.params
+            )
+            params_str = f"[{params_entries}]"
+        else:
+            params_str = "[]"
         if is_getter:
             # Getter: return a storage value (see getCount, getOwner, getBalance)
             func_strs.append(f"""    {{ name := "{fn.name}"
-      params := []  -- TODO: add params if needed (e.g. [{{ name := "addr", ty := ParamType.address }}])
+      params := {params_str}
       returnType := some FieldType.uint256  -- TODO: adjust type (e.g. address)
       body := [
         Stmt.return (Expr.storage "{cfg.fields[0].name if cfg.fields else 'field'}")  -- TODO: match actual field
@@ -563,7 +723,7 @@ def gen_compiler_spec(cfg: ContractConfig) -> str:
         else:
             # Mutator: modifies state and stops (see increment, store, transfer)
             func_strs.append(f"""    {{ name := "{fn.name}"
-      params := []  -- TODO: e.g. [{{ name := "value", ty := ParamType.uint256 }}]
+      params := {params_str}
       returnType := none
       body := [
         Stmt.stop  -- TODO: Implement body (see Compiler/Specs.lean for examples)
@@ -629,7 +789,7 @@ def main() -> None:
 Examples:
   python3 scripts/generate_contract.py MyContract
   python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
-  python3 scripts/generate_contract.py MyToken --fields "balances:mapping" --functions "deposit,withdraw,getBalance"
+  python3 scripts/generate_contract.py MyToken --fields "balances:mapping" --functions "deposit(uint256),withdraw(uint256),getBalance(address)"
   python3 scripts/generate_contract.py MyContract --dry-run
         """,
     )
@@ -642,7 +802,7 @@ Examples:
     parser.add_argument(
         "--functions",
         default="",
-        help="Function names as 'func1,func2,...' (default: auto-generated getter/setter)",
+        help="Function signatures as 'func1(type,...),func2,...' e.g. 'deposit(uint256),transfer(address,uint256),getBalance(address)' (default: auto-generated getter/setter)",
     )
     parser.add_argument(
         "--dry-run",
@@ -669,7 +829,11 @@ Examples:
 
     print(f"Generating scaffold for contract: {cfg.name}")
     print(f"  Fields: {', '.join(f'{f.name}:{f.ty}' for f in cfg.fields)}")
-    print(f"  Functions: {', '.join(f.name for f in cfg.functions)}")
+    def _fn_repr(fn: Function) -> str:
+        if fn.params:
+            return f"{fn.name}({','.join(p.ty for p in fn.params)})"
+        return fn.name
+    print(f"  Functions: {', '.join(_fn_repr(f) for f in cfg.functions)}")
     print()
 
     # Generate files

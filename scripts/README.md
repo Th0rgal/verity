@@ -114,7 +114,7 @@ python3 scripts/generate_contract.py MyContract
 # Contract with typed fields and custom functions
 python3 scripts/generate_contract.py MyToken \
   --fields "balances:mapping,totalSupply:uint256,owner:address" \
-  --functions "deposit,withdraw,getBalance"
+  --functions "deposit(uint256),withdraw(uint256),getBalance(address)"
 
 # Preview without creating files
 python3 scripts/generate_contract.py MyContract --dry-run

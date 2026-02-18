@@ -45,7 +45,7 @@ The easiest way to start is with the scaffold generator:
 ```bash
 python3 scripts/generate_contract.py TipJar \
   --fields "tips:mapping" \
-  --functions "tip,getBalance"
+  --functions "tip(uint256),getBalance(address)"
 ```
 
 This creates all required files:

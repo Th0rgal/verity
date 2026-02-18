@@ -74,7 +74,7 @@ The `difftest` profile enables `vm.ffi()` calls needed by property tests (to inv
 ```bash
 python3 scripts/generate_contract.py TipJar \
   --fields "tips:mapping" \
-  --functions "tip,getBalance"
+  --functions "tip(uint256),getBalance(address)"
 ```
 
 This creates all the scaffold files you need:
