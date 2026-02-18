@@ -404,7 +404,7 @@ Function selectors (the first 4 bytes of `keccak256("functionName(paramTypes)")`
 
 ### 5.3 Write Layer 2 Proofs
 
-Layer 2 proofs show that the `ContractSpec` you just wrote faithfully represents the EDSL implementation. Create `Compiler/Proofs/SpecCorrectness/TipJar.lean`:
+Layer 2 proofs show that the `ContractSpec` you just wrote faithfully represents the EDSL implementation. Create `Compiler/Proofs/SpecCorrectness/TipJar.lean` (Lake discovers all `.lean` files under `Compiler/` automatically via `globs := #[.andSubmodules `Compiler]` in `lakefile.lean`, so no registration is needed):
 
 ```lean
 /-

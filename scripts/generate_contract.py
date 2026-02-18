@@ -550,11 +550,23 @@ def gen_compiler_spec(cfg: ContractConfig) -> str:
 
     func_strs = []
     for fn in cfg.functions:
-        func_strs.append(f"""    {{ name := "{fn.name}"
-      params := []  -- TODO: e.g. [{{ name := "value", ty := ParamType.uint256 }}]
-      returnType := none  -- TODO: e.g. some FieldType.uint256
+        is_getter = _getter_prefix(fn.name) is not None
+        if is_getter:
+            # Getter: return a storage value (see getCount, getOwner, getBalance)
+            func_strs.append(f"""    {{ name := "{fn.name}"
+      params := []  -- TODO: add params if needed (e.g. [{{ name := "addr", ty := ParamType.address }}])
+      returnType := some FieldType.uint256  -- TODO: adjust type (e.g. address)
       body := [
-        Stmt.stop  -- TODO: Implement body
+        Stmt.return (Expr.storage "{cfg.fields[0].name if cfg.fields else 'field'}")  -- TODO: match actual field
+      ]
+    }}""")
+        else:
+            # Mutator: modifies state and stops (see increment, store, transfer)
+            func_strs.append(f"""    {{ name := "{fn.name}"
+      params := []  -- TODO: e.g. [{{ name := "value", ty := ParamType.uint256 }}]
+      returnType := none
+      body := [
+        Stmt.stop  -- TODO: Implement body (see Compiler/Specs.lean for examples)
       ]
     }}""")
     functions_str = ",\n".join(func_strs)
