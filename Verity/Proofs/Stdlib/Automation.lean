@@ -719,6 +719,29 @@ theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint25
     ((setMapping slot key value).run state).snd.thisAddress = state.thisAddress := by
   simp [setMapping]
 
+/-!
+## MAX_UINT256 / modulus Helper Lemmas
+
+Convenience lemmas that eliminate the repeated inline derivation of
+`MAX_UINT256 < modulus` and `n ≤ MAX_UINT256 → n < modulus`.
+-/
+
+/-- modulus = MAX_UINT256 + 1. Useful for omega-based proofs. -/
+theorem modulus_eq_max_uint256_succ :
+    Verity.Core.Uint256.modulus = Verity.Stdlib.Math.MAX_UINT256 + 1 :=
+  Verity.Core.Uint256.max_uint256_succ_eq_modulus.symm
+
+/-- MAX_UINT256 is strictly less than modulus (= 2^256). -/
+theorem max_uint256_lt_modulus :
+    Verity.Stdlib.Math.MAX_UINT256 < Verity.Core.Uint256.modulus := by
+  rw [modulus_eq_max_uint256_succ]; exact Nat.lt_succ_of_le (Nat.le_refl _)
+
+/-- Any value ≤ MAX_UINT256 is strictly less than modulus. -/
+theorem lt_modulus_of_le_max_uint256 (n : Nat)
+    (h : n ≤ Verity.Stdlib.Math.MAX_UINT256) :
+    n < Verity.Core.Uint256.modulus :=
+  Nat.lt_of_le_of_lt h max_uint256_lt_modulus
+
 -- All lemmas in this file are fully proven with zero sorry (1 axiom: addressToNat_injective).
 
 end Verity.Proofs.Stdlib.Automation
