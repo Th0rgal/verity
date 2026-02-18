@@ -110,9 +110,7 @@ def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[st
     return errors
 
 
-def check_verification_theorem_names(
-    path: Path, per_contract: dict[str, int]
-) -> list[str]:
+def check_verification_theorem_names(path: Path) -> list[str]:
     """Validate backtick-quoted theorem names in verification.mdx tables.
 
     Parses each ``### ContractName`` section, extracts theorem names from
@@ -486,7 +484,7 @@ def main() -> None:
 
     # Validate theorem names in verification.mdx tables against manifest
     errors.extend(
-        check_verification_theorem_names(verification_mdx, per_contract)
+        check_verification_theorem_names(verification_mdx)
     )
 
     # Check research.mdx
