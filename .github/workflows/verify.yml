@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/actions/**'
       - '.github/workflows/verify.yml'
       - 'Verity/**'
       - 'Verity.lean'
@@ -22,6 +23,7 @@ on:
       - 'TRUST_ASSUMPTIONS.md'
   pull_request:
     paths:
+      - '.github/actions/**'
       - '.github/workflows/verify.yml'
       - 'Verity/**'
       - 'Verity.lean'
@@ -58,6 +60,7 @@ jobs:
         with:
           filters: |
             code:
+              - '.github/actions/**'
               - '.github/workflows/verify.yml'
               - 'Verity/**'
               - 'Verity.lean'
@@ -209,10 +212,7 @@ jobs:
       - name: Build difftest interpreter
         run: lake build difftest-interpreter
 
-      - name: Generate Yul
-        run: ./.lake/build/bin/verity-compiler
-
-      - name: Generate Yul with linked libraries (CryptoHash)
+      - name: Generate Yul (all contracts + CryptoHash with linked libraries)
         run: |
           ./.lake/build/bin/verity-compiler \
             --link examples/external-libs/PoseidonT3.yul \

@@ -598,7 +598,7 @@ def main() -> None:
         )
     )
 
-    # Check layout.tsx banner (theorem count appears twice: N/N)
+    # Check layout.tsx banner (proven/total theorems proven)
     layout_tsx = ROOT / "docs-site" / "app" / "layout.tsx"
     errors.extend(
         check_file(
@@ -607,7 +607,7 @@ def main() -> None:
                 (
                     "banner proven count",
                     re.compile(r"(\d+)/\d+ theorems proven"),
-                    str(total_theorems),
+                    str(proven_count),
                 ),
                 (
                     "banner total count",
