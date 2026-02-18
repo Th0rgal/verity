@@ -131,7 +131,7 @@ These return values from `ContractState` without modifying state.
 ## Event emission
 
 ```lean
-emitEvent "Transfer" [fromBal, toBal] [addressToNat from, addressToNat to]
+emitEvent "Transfer" [amount] [senderBal, recipientBal]
 ```
 
 `emitEvent name args indexedArgs` appends to the `events` log. The `indexedArgs` parameter is optional (defaults to `[]`).
@@ -240,6 +240,18 @@ Use these instead of conjunctions of atomics:
 
 All composites include `sameContext`.
 
+### Mixed storage+context helpers
+
+These combine two atomic storage checks with `sameContext`. They are the most commonly used helpers in practice — appearing in nearly every spec:
+
+| Helper | Meaning | Use when operation only writes... |
+|--------|---------|-----------------------------------|
+| `sameAddrMapContext s s'` | `sameStorageAddr ∧ sameStorageMap ∧ sameContext` | `setStorage` (uint256 slot only) |
+| `sameStorageMapContext s s'` | `sameStorage ∧ sameStorageMap ∧ sameContext` | `setStorageAddr` (address slot only) |
+| `sameStorageAddrContext s s'` | `sameStorage ∧ sameStorageAddr ∧ sameContext` | `setMapping` (mapping only) |
+
+**Example**: A counter's `increment` spec modifies a uint256 storage slot, so the unchanged-state predicate is `sameAddrMapContext` (address storage, mapping storage, and context are all unchanged).
+
 ### Fine-grained helpers (specific slot or key)
 
 For operations that modify a single entry in a mapping:
@@ -256,14 +268,14 @@ For operations that modify a single entry in a mapping:
 
 ### Choosing the right helper
 
-| Operation | Composite | Fine-grained |
-|-----------|-----------|--------------|
-| `setStorage count v` | `sameExceptStorage` | `storageUnchangedExcept count.slot` |
-| `setStorageAddr owner v` | `sameExceptStorageAddr` | `storageAddrUnchangedExcept owner.slot` |
-| `setMapping balances addr v` | `sameExceptStorageMap` | `storageMapUnchangedExceptKeyAtSlot balances.slot addr` |
-| ERC20 transfer (two keys) | `sameExceptStorageMap` | `storageMapUnchangedExceptKeysAtSlot balances.slot from to` |
-| `setMappingUint prices id v` | `sameExceptStorageMapUint` | `storageMapUintUnchangedExceptKey prices.slot id` |
-| Read-only (`getStorage`, etc.) | `sameAllStorage ∧ sameContext` | — |
+| Operation | Mixed (most common) | Composite (strictest) | Fine-grained |
+|-----------|---------------------|----------------------|--------------|
+| `setStorage count v` | `sameAddrMapContext` | `sameExceptStorage` | `storageUnchangedExcept count.slot` |
+| `setStorageAddr owner v` | `sameStorageMapContext` | `sameExceptStorageAddr` | `storageAddrUnchangedExcept owner.slot` |
+| `setMapping balances addr v` | `sameStorageAddrContext` | `sameExceptStorageMap` | `storageMapUnchangedExceptKeyAtSlot balances.slot addr` |
+| ERC20 transfer (two keys) | `sameStorageAddrContext` | `sameExceptStorageMap` | `storageMapUnchangedExceptKeysAtSlot balances.slot from to` |
+| `setMappingUint prices id v` | — | `sameExceptStorageMapUint` | `storageMapUintUnchangedExceptKey prices.slot id` |
+| Read-only (`getStorage`, etc.) | — | `sameAllStorage ∧ sameContext` | — |
 
 ## Source
 

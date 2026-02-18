@@ -153,7 +153,7 @@ have h' : a + b < MAX + 1 := by omega
 #check (5 : Uint256)  -- Error: failed to synthesize OfNat
 
 -- ✅ WORKS
-import Verity.Core.Uint256
+import Verity.EVM.Uint256
 #check (5 : Uint256)  -- Now works
 ```
 
@@ -453,9 +453,9 @@ theorem good_order : getValue state = value := by
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "unknown identifier 'Uint256'" | Missing import | `import Verity.Core.Uint256` |
-| "unknown identifier 'Contract'" | Missing import | `import Verity.Core` |
-| "unknown identifier 'ContractState'" | Missing import | `import Verity.Core` |
+| "unknown identifier 'Uint256'" | Missing import | `import Verity.EVM.Uint256` |
+| "unknown identifier 'Contract'" | Missing import | `import Verity.Core` and `open Verity` |
+| "unknown identifier 'ContractState'" | Missing import | `import Verity.Core` and `open Verity` |
 | "ambiguous identifier" | Multiple imports | Use fully qualified name |
 
 ### Type Class Errors

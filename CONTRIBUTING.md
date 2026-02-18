@@ -51,8 +51,10 @@ FOUNDRY_PROFILE=difftest forge test  # Must pass — runs all Foundry tests
 - `docs/VERIFICATION_STATUS.md` — Contract table and coverage stats
 - `docs-site/public/llms.txt` — Quick Facts and theorem breakdown table
 - `docs-site/content/verification.mdx` — Snapshot section
+- `docs-site/content/examples.mdx` — Contract descriptions and count
+- Plus any other files that reference theorem/test/contract counts (e.g., `compiler.mdx`, `research.mdx`, `index.mdx`, `layout.tsx`, `ROADMAP.md`, `TRUST_ASSUMPTIONS.md`, `test/README.md`)
 - Run `python3 scripts/check_contract_structure.py` to verify file structure is complete
-- Run `python3 scripts/check_doc_counts.py` to verify all counts are synchronized
+- Run `python3 scripts/check_doc_counts.py` to verify all counts are synchronized (validates 13 files)
 
 ## Code Style
 
