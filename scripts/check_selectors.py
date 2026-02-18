@@ -26,9 +26,11 @@ YUL_DIRS = [
 ]
 KECCAK = ROOT / "scripts" / "keccak256.py"
 
-PARAM_MAP = {
+SIMPLE_PARAM_MAP = {
     "uint256": "uint256",
     "address": "address",
+    "bytes32": "bytes32",
+    "bytes": "bytes",
 }
 
 
@@ -108,6 +110,58 @@ def extract_functions(spec_block: str) -> List[str]:
     return sigs
 
 
+def _parse_param_type(tokens: List[str], pos: int) -> tuple[str, int]:
+    """Parse a ParamType expression from a token list, returning (solidity_type, next_pos).
+
+    Handles recursive types like ``ParamType.array ParamType.uint256`` → ``uint256[]``
+    and ``ParamType.fixedArray ParamType.address 3`` → ``address[3]``.
+    Parenthesized sub-expressions are handled by stripping parens first.
+    """
+    if pos >= len(tokens):
+        die("Unexpected end of ParamType tokens")
+    tok = tokens[pos]
+    if not tok.startswith("ParamType."):
+        die(f"Expected ParamType.*, got '{tok}'")
+    variant = tok[len("ParamType."):]
+
+    sol = SIMPLE_PARAM_MAP.get(variant)
+    if sol is not None:
+        return sol, pos + 1
+
+    if variant == "array":
+        elem_type, next_pos = _parse_param_type(tokens, pos + 1)
+        return f"{elem_type}[]", next_pos
+
+    if variant == "fixedArray":
+        elem_type, next_pos = _parse_param_type(tokens, pos + 1)
+        if next_pos >= len(tokens):
+            die("fixedArray missing size")
+        size = tokens[next_pos]
+        return f"{elem_type}[{size}]", next_pos + 1
+
+    die(f"Unsupported ParamType.{variant}")
+    return "", pos  # unreachable
+
+
+def _tokenize_param_types(text: str) -> List[str]:
+    """Tokenize a Lean type expression, stripping parentheses.
+
+    Splits on whitespace and removes bare ``(`` and ``)`` tokens, as well as
+    stripping them from token edges.  This lets us handle both
+    ``ParamType.array ParamType.uint256`` and
+    ``ParamType.array (ParamType.array ParamType.uint256)``.
+    """
+    raw = text.split()
+    tokens: List[str] = []
+    for r in raw:
+        # Strip leading/trailing parens
+        r = r.strip("()")
+        if not r:
+            continue
+        tokens.append(r)
+    return tokens
+
+
 def extract_param_types(fn_block: str) -> List[str]:
     params_match = re.search(r"params\s*:=\s*\[", fn_block)
     if not params_match:
@@ -117,13 +171,26 @@ def extract_param_types(fn_block: str) -> List[str]:
     if list_end == -1:
         die("Failed to parse params list")
     params_block = fn_block[list_start : list_end + 1]
-    types = re.findall(r"ParamType\.([A-Za-z0-9_]+)", params_block)
-    sol_types = []
-    for typ in types:
-        sol = PARAM_MAP.get(typ)
-        if sol is None:
-            die(f"Unsupported ParamType.{typ}")
-        sol_types.append(sol)
+
+    # Extract each { ... } param block and parse its ty field
+    sol_types: List[str] = []
+    idx = 0
+    while idx < len(params_block):
+        if params_block[idx] == "{":
+            end = find_matching(params_block, idx, "{", "}")
+            if end == -1:
+                die("Failed to parse param block")
+            param_block = params_block[idx : end + 1]
+            ty_match = re.search(r"ty\s*:=\s*(.*?)(?:\s*\}|\s*,\s*\w)", param_block, re.DOTALL)
+            if ty_match:
+                ty_text = ty_match.group(1).strip().rstrip(",").rstrip("}")
+                tokens = _tokenize_param_types(ty_text)
+                if tokens:
+                    sol_type, _ = _parse_param_type(tokens, 0)
+                    sol_types.append(sol_type)
+            idx = end + 1
+        else:
+            idx += 1
     return sol_types
 
 
