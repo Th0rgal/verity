@@ -127,12 +127,16 @@ def check_verification_theorem_names(
     # Split into sections by ### headers
     section_pat = re.compile(r"^### (.+)$", re.MULTILINE)
     sections = list(section_pat.finditer(text))
+    seen_sections: set[str] = set()
     for i, match in enumerate(sections):
         section_name = match.group(1).strip()
-        contract = section_to_contract.get(section_name, section_name)
-        if contract not in manifest:
+        if section_name in seen_sections:
+            errors.append(
+                f"verification.mdx: duplicate section header {section_name}"
+            )
             continue
-
+        seen_sections.add(section_name)
+        contract = section_to_contract.get(section_name, section_name)
         # Get section text (from this header to next header or end)
         start = match.end()
         end = sections[i + 1].start() if i + 1 < len(sections) else len(text)
@@ -140,6 +144,12 @@ def check_verification_theorem_names(
 
         # Extract backtick-quoted theorem names from table rows
         theorem_pat = re.compile(r"^\|\s*\d+\s*\|\s*`([^`]+)`", re.MULTILINE)
+        if contract not in manifest:
+            if theorem_pat.search(section_text):
+                errors.append(
+                    f"verification.mdx: {section_name} has no manifest contract"
+                )
+            continue
         manifest_names = set(manifest[contract])
         seen_names: set[str] = set()
         row_count = 0
