@@ -154,9 +154,12 @@ def storeHashThree (a b c : Uint256) : Contract Unit := do
 **External library** (`examples/external-libs/PoseidonT3.yul`):
 ```yul
 function PoseidonT3_hash(a, b) -> result {
-    result := add(xor(a, b), 0x1234...)
+    // Placeholder — real Poseidon uses field arithmetic and S-boxes
+    result := add(xor(a, b), 0x1234567890abcdef)
 }
 ```
+
+> The EDSL function (`hashTwo`) is a placeholder used only in formal proofs — it never appears in the compiled Yul. The ContractSpec's `Expr.externalCall "PoseidonT3_hash"` is what the compiler actually emits, and the linker resolves it to the library function above.
 
 **Compile with linking**:
 ```bash
