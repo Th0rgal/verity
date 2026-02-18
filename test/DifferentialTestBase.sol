@@ -226,19 +226,18 @@ abstract contract DifferentialTestBase {
      * @notice Parse a number from JSON starting at given index
      */
     function _extractNumber(string memory json, uint256 startIdx) internal pure virtual returns (uint256) {
-        bytes memory b = bytes(json);
+        bytes memory jsonBytes = bytes(json);
         uint256 result = 0;
-        uint256 i = startIdx;
+        bool foundDigit = false;
 
-        // Skip whitespace
-        while (i < b.length && (b[i] == " " || b[i] == "\t" || b[i] == "\n")) {
-            i++;
-        }
-
-        // Parse digits
-        while (i < b.length && b[i] >= "0" && b[i] <= "9") {
-            result = result * 10 + uint8(b[i]) - uint8(bytes1("0"));
-            i++;
+        for (uint i = startIdx; i < jsonBytes.length; i++) {
+            bytes1 c = jsonBytes[i];
+            if (c >= '0' && c <= '9') {
+                unchecked { result = result * 10 + uint8(c) - uint8(bytes1('0')); }
+                foundDigit = true;
+            } else if (foundDigit) {
+                break;
+            }
         }
 
         return result;
