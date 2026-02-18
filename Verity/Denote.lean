@@ -139,12 +139,11 @@ def denoteUnit (env : String → Uint256) (envAddr : String → Address) : Stmt 
       Verity.bind (requireSomeUint (denoteOpt env optExpr) msg) fun val =>
         denoteUnit (fun s => if s == name then val else env s) envAddr rest
 
-  -- If-then-else (not a terminal for rfl purposes — both branches denote recursively)
+  -- If-then-else: produce `ite` directly (not eta-expanded) so rfl matches do-notation
   | .ite condExpr thenBranch elseBranch =>
-      fun state =>
-        if denoteBool env envAddr condExpr
-        then denoteUnit env envAddr thenBranch state
-        else denoteUnit env envAddr elseBranch state
+      if denoteBool env envAddr condExpr
+      then denoteUnit env envAddr thenBranch
+      else denoteUnit env envAddr elseBranch
 
   -- Fallback: remaining patterns
   | .ret _e => Verity.pure ()
@@ -153,7 +152,7 @@ def denoteUnit (env : String → Uint256) (envAddr : String → Address) : Stmt 
 /-- Denote a statement as `Contract Uint256` (for getter functions). -/
 def denoteUint (env : String → Uint256) (envAddr : String → Address) : Stmt → Contract Uint256
 
-  | .ret _e => getStorage ⟨0⟩  -- fallback, overridden by specific patterns below
+  | .ret e => Verity.pure (denoteVal env e)
 
   -- Bind then return: common getter pattern `do let x ← getStorage s; return x`
   -- which desugars to just `getStorage s`

@@ -23,6 +23,7 @@ import Verity.Denote
 import Verity.AST.SimpleStorage
 import Verity.AST.Counter
 import Verity.AST.SafeCounter
+import Verity.AST.Ledger
 
 -- Common specifications & invariants
 import Verity.Specs.Common

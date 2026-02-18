@@ -18,6 +18,31 @@ Yul (EVM Assembly)
 EVM Bytecode
 ```
 
+## Unified AST (Issue #364) 🟡 **IN PROGRESS**
+
+**Status**: 4 of 7 compilable contracts migrated with `rfl` proofs (13 theorems, zero `sorry`)
+
+**What This Achieves**: A single deep embedding (`Verity.AST`) maps 1:1 to EDSL primitives. The denotation function (`Verity.Denote`) interprets AST → Contract monad such that `denote ast = edsl_fn` holds by `rfl` (definitional equality). This eliminates the need for manual bridge proofs between the EDSL and deep embedding for migrated contracts.
+
+### Migrated Contracts
+
+| Contract | Functions | `rfl` Theorems | Location |
+|----------|-----------|---------------|----------|
+| SimpleStorage | store, retrieve | 2 | `Verity/AST/SimpleStorage.lean` |
+| Counter | increment, decrement, getCount | 3 | `Verity/AST/Counter.lean` |
+| SafeCounter | increment, decrement, getCount | 3 | `Verity/AST/SafeCounter.lean` |
+| Ledger | deposit, withdraw, transfer, getBalance | 4 | `Verity/AST/Ledger.lean` |
+
+### Remaining Contracts
+
+Contracts using helper composition (e.g., `onlyOwner` calling `isOwner`) produce nested `bind` structures that are propositionally but not definitionally equal to flat CPS. Migrating Owned, OwnedCounter, and SimpleToken requires monad associativity lemmas (future work).
+
+### Key Files
+
+- `Verity/AST.lean` — Unified `Expr` / `Stmt` inductive types
+- `Verity/Denote.lean` — AST → Contract monad denotation
+- `Verity/AST/*.lean` — Per-contract AST definitions and `rfl` proofs
+
 ## Layer 1: EDSL ≡ ContractSpec ✅ **COMPLETE**
 
 **Status**: 8 contracts verified (7 with full spec proofs, 1 with inline proofs); CryptoHash is an unverified linker demo (0 specs)
@@ -270,5 +295,5 @@ See `scripts/README.md` for:
 
 ---
 
-**Last Updated**: 2026-02-17
-**Status Summary**: Layers 1-3 complete, trust reduction in progress
+**Last Updated**: 2026-02-18
+**Status Summary**: Layers 1-3 complete, trust reduction in progress, unified AST 4/7 contracts migrated (Issue #364)
