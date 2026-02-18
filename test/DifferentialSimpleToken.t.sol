@@ -540,8 +540,8 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig, DifferentialTes
             _assertRandomSuccess(success, startIndex + i);
         }
 
-        console2.log("Random tests passed:", testsPassed);
-        console2.log("Random tests failed:", testsFailed);
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 
@@ -567,8 +567,8 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig, DifferentialTes
         }
         vm.resumeGasMetering();
 
-        console2.log("Random tests passed:", testsPassed);
-        console2.log("Random tests failed:", testsFailed);
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 

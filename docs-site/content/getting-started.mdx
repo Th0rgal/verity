@@ -57,6 +57,30 @@ lake build                # Downloads dependencies and verifies all 319 theorems
 
 The first build downloads Mathlib and compiles everything — expect **20–45 minutes** on first run (Mathlib is large). Subsequent builds are incremental and much faster (seconds to minutes).
 
+## Explore a proof (5 minutes)
+
+While the first build runs (or after it completes), get a feel for what Verity does:
+
+**1. Open an example contract** — [`Verity/Examples/SimpleStorage.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/SimpleStorage.lean):
+```lean
+-- A contract with a single uint256 storage slot
+def store (value : Uint256) : Contract Unit := setStorage storedData value
+def retrieve : Contract Uint256 := getStorage storedData
+```
+
+**2. See its proven theorems** — [`Verity/Proofs/SimpleStorage/Basic.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Proofs/SimpleStorage/Basic.lean) contains theorems like `store_meets_spec` and `retrieve_preserves_state`, each machine-checked by Lean with zero `sorry`. Build just that file to confirm:
+```bash
+lake build Verity.Proofs.SimpleStorage.Basic    # Verifies in seconds
+```
+
+**3. See it compile to EVM bytecode** — after `lake build` completes:
+```bash
+lake exe verity-compiler    # Outputs Yul to compiler/yul/
+cat compiler/yul/SimpleStorage.yul
+```
+
+This is the core loop: **write a contract in Lean → prove it correct → compile it to EVM bytecode**.
+
 ## 4. Run the test suite
 
 ```bash

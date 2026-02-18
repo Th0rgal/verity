@@ -187,7 +187,7 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig, DifferentialT
         bool success4 = executeDifferentialTest("retrieve", address(0xB0B), 0);
         assertTrue(success4, "Retrieve test 2 failed");
 
-        console2.log("Differential tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Differential tests passed:", testsPassed);
     }
 
     /**
@@ -223,7 +223,7 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig, DifferentialT
      * @notice Execute N random transactions via random-gen
      */
     function _runRandomDifferentialTests(uint256 startIndex, uint256 count, uint256 seed) internal {
-        console2.log("Generated", count, "random transactions");
+        if (_diffVerbose()) console2.log("Generated", count, "random transactions");
 
         uint256 prng = _skipRandom(seed, startIndex);
         vm.pauseGasMetering();
@@ -253,8 +253,8 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig, DifferentialT
 
         vm.resumeGasMetering();
 
-        console2.log("Random differential tests completed:", testsPassed);
-        console2.log("Failed:", testsFailed);
+        if (_diffVerbose()) console2.log("Random differential tests completed:", testsPassed);
+        if (_diffVerbose()) console2.log("Failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 

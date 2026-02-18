@@ -249,13 +249,18 @@ object "MyLib" {
 
 ## Trust Model
 
-External libraries are **outside the formal verification boundary**. The Linker validates structural properties (no shadowing, all references resolved) but does not verify the library's correctness.
+External libraries are **outside the formal verification boundary**. The Linker validates structural properties (no shadowing, all references resolved, correct arity) but does not verify the library's correctness.
 
 Your proofs establish: *"If the library functions behave like the placeholders, then the contract is correct."*
+
+**What this means in practice**: A contract using `PoseidonT3_hash` via the linker has formally verified *logic* (storage updates, access control, arithmetic) but an *unverified* cryptographic core. The Lean proof guarantees that IF `PoseidonT3_hash(a, b)` returns a consistent value, THEN the contract correctly stores and retrieves it. The proof does NOT guarantee the Poseidon implementation computes the correct hash — auditing the `.yul` library file is the developer's responsibility.
+
+> Without the `externals` field on a `ContractSpec`, the linker will skip that contract even if `--link` is passed. No injection occurs and no error is raised.
 
 To increase confidence in linked libraries:
 - Use audited, battle-tested implementations
 - Add Foundry fuzz tests that exercise the linked contract end-to-end
+- Compare library output against a known reference implementation
 - Document the trust assumption explicitly (see [`TRUST_ASSUMPTIONS.md`](https://github.com/Th0rgal/verity/blob/main/TRUST_ASSUMPTIONS.md))
 
 ---

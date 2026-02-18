@@ -374,8 +374,8 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig, DifferentialTe
             _assertRandomSuccess(success, startIndex + i);
         }
 
-        console2.log("Random tests passed:", testsPassed);
-        console2.log("Random tests failed:", testsFailed);
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 
@@ -398,8 +398,8 @@ contract DifferentialOwnedCounter is YulTestBase, DiffTestConfig, DifferentialTe
             _assertRandomSuccess(success, startIndex + i);
         }
 
-        console2.log("Random tests passed:", testsPassed);
-        console2.log("Random tests failed:", testsFailed);
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 

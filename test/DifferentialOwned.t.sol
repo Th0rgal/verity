@@ -220,7 +220,7 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig, DifferentialTestBase 
         testAddresses[3] = address(0xCA401);
         testAddresses[4] = address(0xDABE);
 
-        console2.log("Generated", numTransactions, "random transactions");
+        if (_diffVerbose()) console2.log("Generated", numTransactions, "random transactions");
 
         seed = _skipRandom(seed, startIndex);
         for (uint256 i = 0; i < numTransactions; i++) {
@@ -247,9 +247,9 @@ contract DifferentialOwned is YulTestBase, DiffTestConfig, DifferentialTestBase 
             }
         }
 
-        console2.log("All random tests passed!");
-        console2.log("Tests passed:", testsPassed);
-        console2.log("Tests failed:", testsFailed);
+        if (_diffVerbose()) console2.log("All random tests passed!");
+        if (_diffVerbose()) console2.log("Tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Tests failed:", testsFailed);
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 

@@ -7,7 +7,7 @@
 
   Key operations: empty, insert, remove, contains, union, inter, filter, sum,
                   subset, member, toList, fromList.
-  Key types: FiniteSet α, FiniteAddressSet, FiniteNatSet.
+  Key types: FiniteSet α, FiniteAddressSet.
   Key theorems: insert_of_mem, insert_of_not_mem, mem_elements_insert,
                 card_insert_of_not_mem, card_insert_of_mem, sum_empty.
 -/
@@ -181,38 +181,5 @@ def card (s : FiniteAddressSet) : Nat :=
   s.addresses.card
 
 end FiniteAddressSet
-
-/-- Finite set of natural numbers (for ERC721 token ID tracking, issue #73) -/
-structure FiniteNatSet where
-  nats : FiniteSet Nat
-  deriving Repr
-
-namespace FiniteNatSet
-
-/-- Create an empty nat set -/
-def empty : FiniteNatSet :=
-  ⟨FiniteSet.empty⟩
-
-/-- Insert a nat into the set -/
-def insert (n : Nat) (s : FiniteNatSet) : FiniteNatSet :=
-  ⟨s.nats.insert n⟩
-
-/-- Check if a nat is in the set -/
-def contains (n : Nat) (s : FiniteNatSet) : Bool :=
-  s.nats.contains n
-
-/-- Remove a nat from the set -/
-def remove (n : Nat) (s : FiniteNatSet) : FiniteNatSet :=
-  ⟨s.nats.remove n⟩
-
-/-- Get the number of nats in the set -/
-def card (s : FiniteNatSet) : Nat :=
-  s.nats.card
-
-/-- Check if one set is a subset of another -/
-def subset (s₁ s₂ : FiniteNatSet) : Bool :=
-  s₁.nats.subset s₂.nats
-
-end FiniteNatSet
 
 end Verity.Core
