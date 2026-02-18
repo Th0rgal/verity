@@ -113,8 +113,11 @@ def check_verification_theorem_names(path: Path) -> list[str]:
     """Validate backtick-quoted theorem names in verification.mdx tables.
 
     Parses each ``### ContractName`` section, extracts theorem names from
-    table rows (``| N | `theorem_name` | ...``), and checks that each name
-    exists in the property manifest for the corresponding contract.
+    table rows (``| N | `theorem_name` | ...``), and checks:
+    1. Each table name exists in the property manifest (forward check).
+    2. Each manifest theorem appears in the tables (reverse completeness check).
+       Skipped for Stdlib (only Math subsection tabled) and contracts without
+       a ``###`` section (e.g. ReentrancyExample).
     """
     if not path.exists():
         return []
@@ -128,6 +131,8 @@ def check_verification_theorem_names(path: Path) -> list[str]:
     section_to_contract = {
         "Stdlib/Math": "Stdlib",
     }
+    # Contracts where only a subset of manifest theorems are tabled
+    partial_contracts = {"Stdlib"}
 
     # Split into sections by ### headers
     section_pat = re.compile(r"^### (.+)$", re.MULTILINE)
@@ -145,13 +150,26 @@ def check_verification_theorem_names(path: Path) -> list[str]:
 
         # Extract backtick-quoted theorem names from table rows
         theorem_pat = re.compile(r"^\|\s*\d+\s*\|\s*`([^`]+)`", re.MULTILINE)
+        table_names = set()
         manifest_names = set(manifest[contract])
         for m in theorem_pat.finditer(section_text):
             name = m.group(1)
+            table_names.add(name)
             if name not in manifest_names:
                 errors.append(
                     f"verification.mdx: `{name}` in {section_name} table "
                     f"not found in property manifest for {contract}"
+                )
+
+        # Reverse check: manifest theorems missing from tables
+        if contract not in partial_contracts:
+            missing = sorted(manifest_names - table_names)
+            if missing:
+                errors.append(
+                    f"verification.mdx: {contract} section missing "
+                    f"{len(missing)} manifest theorem(s): "
+                    + ", ".join(f"`{n}`" for n in missing[:5])
+                    + ("..." if len(missing) > 5 else "")
                 )
 
     return errors

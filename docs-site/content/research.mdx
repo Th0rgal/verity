@@ -15,7 +15,7 @@ The project evolved in two phases:
 
 **Phase 2 (Verification)**: Replaced `StateM` with custom `ContractResult` type (`success | revert`) to model `require` guards explicitly. This enabled proving properties like "mint reverts when caller is not owner." The core expanded to include proof automation lemmas and EVM context fields.
 
-## Progress and Roadmap (as of 2026-02-14)
+## Progress and Roadmap (as of 2026-02-18)
 
 This is the single source of truth for progress, roadmap, and milestone updates.
 
@@ -241,10 +241,10 @@ FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_
 
 **Remaining Work**:
 
-**A. Scale Differential Testing**:
-- Centralize the "random run" entrypoint so each harness can opt into the same seed/count knobs.
-- Add adversarial patterns: boundary overflows, more edge cases.
-- **Done when**: random harness setup is shared and parameterized across all 7 contracts.
+**A. ~~Scale Differential Testing~~** (done — PR #307):
+- ~~Centralize the "random run" entrypoint so each harness can opt into the same seed/count knobs.~~
+- ~~Add adversarial patterns: boundary overflows, more edge cases.~~
+- ~~**Done when**: random harness setup is shared and parameterized across all 7 contracts.~~ All 7 differential tests now inherit `DifferentialTestBase` with shared utilities.
 
 **B. Property Extraction (Proofs → Tests)**:
 - Reduce exclusions. Add property tests contract‑by‑contract. Keep coverage script green.
