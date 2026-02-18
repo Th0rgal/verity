@@ -10,13 +10,12 @@ Checks:
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
 
 from keccak256 import selector as keccak_selector
-from property_utils import die
+from property_utils import die, report_errors
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
@@ -257,7 +256,7 @@ def format_selectors(selectors: List[int]) -> str:
     return "[" + ", ".join(f"0x{sel:08x}" for sel in selectors) + "]"
 
 
-def main() -> int:
+def main() -> None:
     if not SPEC_FILE.exists():
         die(f"Missing specs file: {SPEC_FILE}")
     if not IR_EXPR_FILE.exists():
@@ -278,14 +277,9 @@ def main() -> int:
         if yul_dir.exists():
             errors.extend(check_yul_selectors(specs, label, yul_dir))
 
-    if errors:
-        for err in errors:
-            print(f"error: {err}", file=sys.stderr)
-        return 1
-
+    report_errors(errors, "Selector checks failed")
     print("Selector checks passed.")
-    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

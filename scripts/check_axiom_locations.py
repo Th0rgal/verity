@@ -11,8 +11,9 @@ Usage:
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
+
+from property_utils import die, report_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,8 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> None:
     axioms_md = ROOT / "AXIOMS.md"
     if not axioms_md.exists():
-        print("AXIOMS.md not found", file=sys.stderr)
-        raise SystemExit(1)
+        die("AXIOMS.md not found")
 
     text = axioms_md.read_text(encoding="utf-8")
 
@@ -34,8 +34,7 @@ def main() -> None:
     )
 
     if not axiom_blocks:
-        print("No axiom location entries found in AXIOMS.md", file=sys.stderr)
-        raise SystemExit(1)
+        die("No axiom location entries found in AXIOMS.md")
 
     errors: list[str] = []
     checked = 0
@@ -71,12 +70,7 @@ def main() -> None:
             print(f"  OK {axiom_name} at {rel_path}:{actual_line}")
             checked += 1
 
-    if errors:
-        print("\nAxiom location check FAILED:", file=sys.stderr)
-        for error in errors:
-            print(f"  - {error}", file=sys.stderr)
-        raise SystemExit(1)
-
+    report_errors(errors, "Axiom location check failed")
     print(f"\nOK: All {checked} axiom locations in AXIOMS.md are accurate")
 
 
