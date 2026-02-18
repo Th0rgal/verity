@@ -55,6 +55,7 @@ FOUNDRY_PROFILE=difftest forge test  # Must pass — runs all Foundry tests
 - Plus any other files that reference theorem/test/contract counts (e.g., `compiler.mdx`, `research.mdx`, `index.mdx`, `layout.tsx`, `ROADMAP.md`, `TRUST_ASSUMPTIONS.md`, `test/README.md`)
 - Run `python3 scripts/check_contract_structure.py` to verify file structure is complete
 - Run `python3 scripts/check_doc_counts.py` to verify all counts are synchronized (validates 14 doc files + property test headers)
+- Run `python3 scripts/check_lean_hygiene.py` to verify no `#eval` in proof files and `allowUnsafeReducibility` count is correct
 
 ## Code Style
 

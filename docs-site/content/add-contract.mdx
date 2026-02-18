@@ -109,11 +109,13 @@ python3 scripts/check_property_manifest.py
 python3 scripts/check_property_manifest_sync.py
 python3 scripts/check_property_coverage.py
 
-# 5. Storage layout and selectors are correct
+# 5. Storage layout, selectors, and code hygiene
 python3 scripts/check_storage_layout.py
 python3 scripts/check_selectors.py
 python3 scripts/check_contract_structure.py
 python3 scripts/check_doc_counts.py
+python3 scripts/check_axiom_locations.py
+python3 scripts/check_lean_hygiene.py
 ```
 
 **Reference**: See [SimpleStorage](/examples#simplestorage) for a minimal end-to-end example.
