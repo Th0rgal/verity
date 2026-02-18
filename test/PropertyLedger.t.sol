@@ -10,7 +10,7 @@ import "./yul/YulTestBase.sol";
  *
  * This file contains property tests for Ledger's 33 proven theorems:
  *
- * Basic.lean (19 theorems):
+ * Basic.lean (20 theorems):
  * 1. getBalance_meets_spec - Read returns correct balance
  * 2. getBalance_returns_balance - Read returns balance value
  * 3. getBalance_preserves_state - Read is read-only
@@ -30,24 +30,24 @@ import "./yul/YulTestBase.sol";
  * 17. withdraw_preserves_wellformedness - Withdraw maintains invariants
  * 18. deposit_getBalance_correct - Deposit->read composition
  * 19. transfer_reverts_recipient_overflow - Transfer reverts on recipient overflow
+ * 20. transfer_self_preserves_balance - Self-transfer preserves balance
  *
  * Correctness.lean (6 theorems):
- * 20. transfer_preserves_wellformedness - Transfer maintains invariants
- * 21. transfer_preserves_non_mapping - Transfer doesn't affect other storage
- * 22. withdraw_getBalance_correct - Withdraw->read composition
- * 23. transfer_getBalance_sender_correct - Transfer->read sender
- * 24. transfer_getBalance_recipient_correct - Transfer->read recipient
- * 25. deposit_withdraw_cancel - Deposit->withdraw cancels
+ * 21. transfer_preserves_wellformedness - Transfer maintains invariants
+ * 22. transfer_preserves_non_mapping - Transfer doesn't affect other storage
+ * 23. withdraw_getBalance_correct - Withdraw->read composition
+ * 24. transfer_getBalance_sender_correct - Transfer->read sender
+ * 25. transfer_getBalance_recipient_correct - Transfer->read recipient
+ * 26. deposit_withdraw_cancel - Deposit->withdraw cancels
  *
  * Conservation.lean (7 theorems) - Balance sum conservation properties:
- * 26. deposit_sum_equation - Deposit increases sum by amount
- * 27. deposit_sum_singleton_sender - Singleton deposit sum increase
- * 28. withdraw_sum_equation - Withdraw decreases sum by amount
- * 29. withdraw_sum_singleton_sender - Singleton withdraw sum decrease
- * 30. transfer_sum_equation - Transfer preserves total sum
- * 31. transfer_sum_preserved_unique - Unique pair sum preservation
- * 32. deposit_withdraw_sum_cancel - Deposit-withdraw returns sum to original
- * 33. transfer_self_preserves_balance - Self-transfer preserves balance
+ * 27. deposit_sum_equation - Deposit increases sum by amount
+ * 28. deposit_sum_singleton_sender - Singleton deposit sum increase
+ * 29. withdraw_sum_equation - Withdraw decreases sum by amount
+ * 30. withdraw_sum_singleton_sender - Singleton withdraw sum decrease
+ * 31. transfer_sum_equation - Transfer preserves total sum
+ * 32. transfer_sum_preserved_unique - Unique pair sum preservation
+ * 33. deposit_withdraw_sum_cancel - Deposit-withdraw returns sum to original
  */
 contract PropertyLedgerTest is YulTestBase {
     address ledger;

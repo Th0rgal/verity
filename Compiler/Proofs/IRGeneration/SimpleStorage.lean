@@ -25,8 +25,7 @@ open Verity.Proofs.Stdlib.SpecInterpreter
 
 /-! ## SimpleStorage IR Compilation -/
 
-/-- Compile SimpleStorage spec to IR
-    Note: We need to provide selectors manually for now -/
+/-- Compile SimpleStorage spec to IR -/
 def simpleStorageIR : Except String IRContract :=
   compile simpleStorageSpec [0x6057361d, 0x2e64cec1]
 
