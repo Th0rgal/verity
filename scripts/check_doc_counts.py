@@ -21,9 +21,10 @@ from property_utils import collect_covered, load_exclusions, load_manifest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def get_manifest_counts() -> tuple[int, int, dict[str, int]]:
+def get_manifest_counts(
+    manifest: dict[str, set[str]],
+) -> tuple[int, int, dict[str, int]]:
     """Return (total_theorems, num_categories, per_contract_counts)."""
-    manifest = load_manifest()
     per_contract = {k: len(v) for k, v in manifest.items()}
     total = sum(per_contract.values())
     return total, len(manifest), per_contract
@@ -70,9 +71,8 @@ def get_sorry_count() -> int:
     return _count_lean_lines(r"^\s*(·\s*)?sorry\b")
 
 
-def get_exclusion_count() -> int:
+def get_exclusion_count(exclusions: dict[str, set[str]]) -> int:
     """Count total property exclusions from property_exclusions.json."""
-    exclusions = load_exclusions()
     return sum(len(v) for v in exclusions.values())
 
 
@@ -104,7 +104,10 @@ def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[st
     return errors
 
 
-def check_verification_theorem_names(path: Path) -> list[str]:
+def check_verification_theorem_names(
+    path: Path,
+    manifest: dict[str, set[str]],
+) -> list[str]:
     """Validate backtick-quoted theorem names in verification.mdx tables.
 
     Parses each ``### ContractName`` section, extracts theorem names from
@@ -114,7 +117,6 @@ def check_verification_theorem_names(path: Path) -> list[str]:
     if not path.exists():
         return []
     text = path.read_text(encoding="utf-8")
-    manifest = load_manifest()
     errors: list[str] = []
 
     # Map verification.mdx section headers to manifest contract names
@@ -151,12 +153,14 @@ def check_verification_theorem_names(path: Path) -> list[str]:
 
 
 def main() -> None:
-    total_theorems, num_categories, per_contract = get_manifest_counts()
+    manifest = load_manifest()
+    exclusions = load_exclusions()
+    total_theorems, num_categories, per_contract = get_manifest_counts(manifest)
     axiom_count = get_axiom_count()
     test_count, suite_count = get_test_counts()
     core_lines = get_core_line_count()
     sorry_count = get_sorry_count()
-    exclusion_count = get_exclusion_count()
+    exclusion_count = get_exclusion_count(exclusions)
     covered_count, coverage_pct = get_covered_count(total_theorems)
     proven_count = total_theorems - sorry_count
     stdlib_count = per_contract.get("Stdlib", 0)
@@ -476,7 +480,7 @@ def main() -> None:
 
     # Validate theorem names in verification.mdx tables against manifest
     errors.extend(
-        check_verification_theorem_names(verification_mdx)
+        check_verification_theorem_names(verification_mdx, manifest)
     )
 
     # Check research.mdx
