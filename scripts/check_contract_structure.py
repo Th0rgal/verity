@@ -87,6 +87,33 @@ def check_all_lean_imports(contracts: list[str]) -> list[str]:
     return missing
 
 
+def check_all_lean_imports_exist() -> list[str]:
+    """Check that every import in All.lean points to a file that exists.
+
+    Parses all ``import Verity.*`` lines and verifies the corresponding
+    ``.lean`` file is present on disk.  This catches orphaned imports
+    (e.g. someone deletes a proof file but forgets to remove the import)
+    and typos in module paths.
+    """
+    all_lean = ROOT / "Verity" / "All.lean"
+    if not all_lean.exists():
+        return ["Verity/All.lean not found"]
+
+    issues: list[str] = []
+    for line in all_lean.read_text().splitlines():
+        stripped = line.strip()
+        # Skip comments and blank lines
+        if not stripped.startswith("import Verity."):
+            continue
+        # "import Verity.Core" → "Verity/Core.lean"
+        module = stripped.removeprefix("import ").split()[0]
+        file_path = ROOT / (module.replace(".", "/") + ".lean")
+        if not file_path.exists():
+            rel = str(file_path.relative_to(ROOT))
+            issues.append(f"All.lean imports {module} but {rel} does not exist")
+    return issues
+
+
 def main() -> None:
     contracts = find_contracts()
     if not contracts:
@@ -116,6 +143,15 @@ def main() -> None:
         for issue in import_issues:
             print(f"    {issue}")
         all_issues.extend(import_issues)
+
+    # Check that every import in All.lean resolves to an existing file
+    existence_issues = check_all_lean_imports_exist()
+    if existence_issues:
+        print()
+        print("  All.lean orphaned imports:")
+        for issue in existence_issues:
+            print(f"    {issue}")
+        all_issues.extend(existence_issues)
 
     print()
     if all_issues:
