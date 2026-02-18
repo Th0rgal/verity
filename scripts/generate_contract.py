@@ -162,16 +162,16 @@ def gen_example(cfg: ContractConfig) -> str:
             suffix = fn.name[len(matched_prefix):]
             if matched_prefix in ("is", "has"):
                 ret_type = "Contract Bool"
-                ret_val = "pure false"
+                ret_val = "pure false  -- TODO: implement predicate (see OwnedCounter.lean)"
             elif suffix.lower() in addr_field_names:
                 ret_type = "Contract Address"
-                ret_val = 'pure ""'
+                ret_val = 'pure ""  -- TODO: use getStorageAddr <slot> (see Owned.lean)'
             else:
                 ret_type = "Contract Uint256"
-                ret_val = "pure 0"
+                ret_val = "pure 0  -- TODO: use getStorage <slot> (see SimpleStorage.lean)"
         else:
             ret_type = "Contract Unit"
-            ret_val = "pure ()"
+            ret_val = "pure ()  -- TODO: implement (see Counter.lean for mutating ops)"
         func_lines.append(f"-- TODO: Implement {fn.name}")
         func_lines.append(f"def {fn.name} : {ret_type} := do")
         func_lines.append(f"  {ret_val}")
@@ -683,20 +683,23 @@ Examples:
 
     print(f"3. Register in allSpecs (Compiler/Specs.lean):")
     print(f"   Find 'def allSpecs' and add '{name_lower}Spec' to the list.")
+    print(f"   Also add selectors for each function in Compiler/Selectors.lean")
+    print(f"   (see existing selectors for the pattern using keccak256_first_4_bytes).")
     print()
 
     print(f"4. Create differential tests (not scaffolded):")
     print(f"   Copy test/DifferentialCounter.t.sol to test/Differential{name}.t.sol")
-    print(f"   Inherit YulTestBase, DiffTestConfig, and DifferentialTestBase")
+    print(f"   Inherit YulTestBase, DiffTestConfig, and DifferentialTestBase (all three required)")
     print()
 
-    print("5. Run validation:")
+    print("5. Run validation (see add-contract.mdx for the full checklist):")
     print("   lake build")
-    print(f"   FOUNDRY_PROFILE=difftest forge test --match-contract Property{name}")
-    print("   python3 scripts/check_property_coverage.py")
-    print()
-
-    print("See docs-site/content/add-contract.mdx for the full checklist.")
+    print(f"   FOUNDRY_PROFILE=difftest forge test --match-contract {name}")
+    print("   python3 scripts/check_property_manifest.py")
+    print("   python3 scripts/check_property_manifest_sync.py")
+    print("   python3 scripts/check_contract_structure.py")
+    print("   python3 scripts/check_selectors.py")
+    print("   python3 scripts/check_doc_counts.py")
 
 
 if __name__ == "__main__":
