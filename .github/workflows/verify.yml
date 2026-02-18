@@ -56,6 +56,7 @@ env:
 jobs:
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -83,6 +84,7 @@ jobs:
   # Python-only checks (fast, ~5s, always run)
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -109,6 +111,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: changes
     if: needs.changes.outputs.code == 'true'
     steps:
@@ -268,6 +271,7 @@ jobs:
 
   foundry:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [changes, build]
     if: needs.changes.outputs.code == 'true'
     strategy:
@@ -297,6 +301,7 @@ jobs:
   # Multi-seed testing to detect flakiness and seed-dependent failures
   foundry-multi-seed:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [changes, build]
     if: needs.changes.outputs.code == 'true'
     strategy:
