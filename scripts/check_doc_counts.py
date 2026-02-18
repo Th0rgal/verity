@@ -313,8 +313,8 @@ def main() -> None:
                     str(total_theorems),
                 ),
                 (
-                    "property test count in Testing section",
-                    re.compile(r"Property tests.*\((\d+) tests\)"),
+                    "Foundry test count in Testing section",
+                    re.compile(r"Foundry tests.*\((\d+) tests\)"),
                     str(test_count),
                 ),
             ],

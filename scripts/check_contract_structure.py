@@ -36,6 +36,7 @@ EXCLUDED_FROM_PROPERTY_TESTS = {
 
 # Expected files for each contract (relative to ROOT)
 EXPECTED_STRUCTURE = [
+    "Verity/AST/{name}.lean",
     "Verity/Specs/{name}/Spec.lean",
     "Verity/Specs/{name}/Invariants.lean",
     "Verity/Specs/{name}/Proofs.lean",
