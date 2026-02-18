@@ -20,7 +20,7 @@ Represents a transaction that can be executed on both EDSL and compiled EVM.
 structure Transaction where
   sender : Address
   functionName : String
-  args : List Nat  -- Simplified: all args as uint256 for now
+  args : List Nat  -- All args encoded as uint256
   msgValue : Nat := 0
   blockTimestamp : Nat := 0
 

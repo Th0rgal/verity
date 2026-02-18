@@ -1675,9 +1675,10 @@ This is the actual preservation property we want to prove.
 
 To prove the preservation theorem, we need:
 
-**Step 1: Expression Equivalence** (conceptual)
+**Step 1: Expression Equivalence**
 - Show that compiled expressions evaluate to the same values
-- Cannot access compileExpr directly, but can observe through function execution
+- All compile functions (`compileExpr`, `compileStmt`, etc.) are now public,
+  enabling direct structural induction proofs (see issue #358)
 
 **Step 2: Statement Equivalence**
 - Show that compiled statements have the same effects on state
@@ -1693,30 +1694,14 @@ To prove the preservation theorem, we need:
 
 **Current File Status**:
 - Sets up the proof framework ✅
-- Documents the high-level strategy ✅
 - Proves SimpleStorage store/retrieve correctness ✅
 - Proves Counter increment/decrement/getCount correctness ✅
 - Ready to extend proofs to additional contracts ⚠️
 
-**Next Steps for Completion**:
-1. Extend to SafeCounter (overflow checks)
-2. Handle more complex contracts (Owned, Ledger, etc.)
-
-**Why This Approach Works**:
-- Uses public API (compile function)
-- Proves end-to-end correctness (what users care about)
-- Compositional (prove simple contracts first, build up)
-- Maintainable (doesn't depend on internal implementation details)
-
-**Estimated Effort**:
-- SimpleStorage proofs: ~50 lines (simple, 2 functions)
-- Counter proofs: ~100 lines (arithmetic, 3 functions)
-- General framework: ~50 lines (reusable infrastructure)
-- Total for Phase 2: ~200 lines (matches original estimate)
-
-This file establishes the verification framework for expression compilation
-(indirectly through contract execution). The actual proofs will be added
-incrementally, starting with SimpleStorage.
+**Two proof approaches available** (see issue #358):
+1. **Concrete-IR** (current): Per-contract proofs that unfold specific specs
+2. **Structural induction** (enabled by PR #374): Universal proof by induction
+   on `Expr`/`Stmt` constructors — proves correctness for *all* contracts at once
 -/
 
 end Compiler.Proofs.IRGeneration

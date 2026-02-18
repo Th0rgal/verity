@@ -38,7 +38,7 @@ def addressToNat (addr : String) : Nat :=
   | some n => n % (2^160)
   | none => stringToNat addr % (2^160)
 
-private def hexDigit (n : Nat) : Char :=
+def hexDigit (n : Nat) : Char :=
   if n < 10 then Char.ofNat (n + 48) else Char.ofNat (n - 10 + 97)
 
 /-- Convert a Nat to a zero-padded hex string (e.g. selector → "0x12345678") -/

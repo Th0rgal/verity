@@ -160,7 +160,7 @@ FOUNDRY_PROFILE=difftest forge test
 <details>
 <summary><strong>Testing</strong></summary>
 
-**Property tests** (361 tests) validate EDSL = Yul = EVM execution:
+**Property tests** (375 tests) validate EDSL = Yul = EVM execution:
 
 ```bash
 FOUNDRY_PROFILE=difftest forge test                                          # run all

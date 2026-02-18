@@ -447,26 +447,29 @@ theorem deposit_withdraw_sum_cancel (s : ContractState) (amount : Uint256)
 All theorems fully proven with zero sorry:
 
 Generic helpers (private):
-1. countOcc — occurrence counting
-2. countOcc_cons_eq — simplification for matching head
-3. countOcc_cons_ne — simplification for non-matching head
-4. map_sum_point_update — exact sum after adding: sum f' = sum f + count * delta
-5. map_sum_point_decrease — exact sum after subtracting: sum f' + count * delta = sum f
-6. map_sum_transfer_eq — exact conservation: sum f' + count(src)*d = sum f + count(dst)*d
+1. countOcc — occurrence counting (def)
+2. countOccU — countOcc cast to Uint256 (def)
+3. countOcc_cons_eq — simplification for matching head
+4. countOcc_cons_ne — simplification for non-matching head
+5. countOccU_cons_eq — Uint256 version of countOcc_cons_eq
+6. countOccU_cons_ne — Uint256 version of countOcc_cons_ne
+7. map_sum_point_update — exact sum after adding: sum f' = sum f + count * delta
+8. map_sum_point_decrease — exact sum after subtracting: sum f' + count * delta = sum f
+9. map_sum_transfer_eq — exact conservation: sum f' + count(src)*d = sum f + count(dst)*d
 
 Deposit conservation:
-7. deposit_sum_equation — new_sum = old_sum + count(sender) * amount
-8. deposit_sum_singleton_sender — for unique sender: new_sum = old_sum + amount
+10. deposit_sum_equation — new_sum = old_sum + count(sender) * amount
+11. deposit_sum_singleton_sender — for unique sender: new_sum = old_sum + amount
 
 Withdraw conservation:
-9. withdraw_sum_equation — new_sum + count(sender) * amount = old_sum
-10. withdraw_sum_singleton_sender — for unique sender: new_sum + amount = old_sum
+12. withdraw_sum_equation — new_sum + count(sender) * amount = old_sum
+13. withdraw_sum_singleton_sender — for unique sender: new_sum + amount = old_sum
 
 Transfer conservation:
-11. transfer_sum_equation — new_sum + count(sender)*amt = old_sum + count(to)*amt
-12. transfer_sum_preserved_unique — for unique sender & to: new_sum = old_sum
+14. transfer_sum_equation — new_sum + count(sender)*amt = old_sum + count(to)*amt
+15. transfer_sum_preserved_unique — for unique sender & to: new_sum = old_sum
 Composition:
-13. deposit_withdraw_sum_cancel — deposit then withdraw preserves sum
+16. deposit_withdraw_sum_cancel — deposit then withdraw preserves sum
 -/
 
 end Verity.Proofs.Ledger.Conservation

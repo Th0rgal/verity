@@ -380,12 +380,6 @@ For communication with Foundry via vm.ffi.
 -/
 
 -- Simple JSON serialization (could be improved with proper JSON library)
-private def hexDigit (n : Nat) : Char :=
-  if n < 10 then
-    Char.ofNat ('0'.toNat + n)
-  else
-    Char.ofNat ('a'.toNat + (n - 10))
-
 private def toHex2 (n : Nat) : String :=
   let hi := (n / 16) % 16
   let lo := n % 16

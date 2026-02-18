@@ -1,14 +1,10 @@
 import Compiler.Yul.Ast
+import Compiler.Hex
 
 namespace Compiler.Yul
 
 open YulExpr
-
-private def hexDigit (n : Nat) : Char :=
-  if n < 10 then
-    Char.ofNat (n + 48)
-  else
-    Char.ofNat (n - 10 + 97)
+open Compiler.Hex (hexDigit)
 
 def toHex (n : Nat) : String :=
   if n == 0 then

@@ -25,27 +25,6 @@ open Verity.Proofs.Stdlib.SpecInterpreter
 
 /-! ## Address Encoding -/
 
-/-- Predicate for valid Ethereum addresses
-
-    We treat valid addresses as 20-byte hex strings:
-    - Prefixed with "0x"
-    - Exactly 40 hex characters after the prefix
-    - All characters are valid hex digits
-    - Normalized to lowercase (to make encoding injective)
-
-    This matches the production address encoding used by `Compiler.Hex.addressToNat`.
--/
-def isValidAddress (addr : Address) : Prop :=
-  addr.startsWith "0x" ∧
-  addr.length = 42 ∧
-  (∀ c ∈ (addr.drop 2).data, (hexCharToNat? c).isSome) ∧
-  addr = normalizeAddress addr
-
-/-- Valid addresses are already normalized to lowercase. -/
-theorem isValidAddress_normalized {addr : Address} (h : isValidAddress addr) :
-    addr = normalizeAddress addr := by
-  exact h.2.2.2
-
 /-- Convert Address (String) to Nat for IR execution
 
     We use the production encoding:
@@ -69,36 +48,10 @@ def addressKeyMap (addrs : List Address) : List (Nat × Address) :=
 def addressFromNat (addrs : List Address) (key : Nat) : Option Address :=
   (addressKeyMap addrs).lookup key
 
-/-- For valid Ethereum addresses, addressToNat is injective.
-
-    This was previously an axiom but is now derived from the stronger
-    `addressToNat_injective` (which holds for all addresses, not just valid ones).
-    See AXIOMS.md for the remaining axioms.
--/
-theorem addressToNat_injective_valid :
-    ∀ {a b : Address}, isValidAddress a → isValidAddress b → addressToNat a = addressToNat b → a = b :=
-  fun _ _ h_eq => Verity.Proofs.Stdlib.Automation.addressToNat_injective _ _ h_eq
-
 /-! ## Uint256 Conversion -/
 
 /-- Extract Nat value from Uint256 -/
 def uint256ToNat (u : Uint256) : Nat := u.val
-
-/-- Construct Uint256 from Nat (with modular reduction) -/
-def natToUint256 (n : Nat) : Uint256 :=
-  ⟨n % (2^256), by
-    have : 2^256 > 0 := by omega
-    exact Nat.mod_lt n this⟩
-
-/-- Round-trip property: natToUint256 (uint256ToNat u) = u -/
-theorem natToUint256_uint256ToNat (u : Uint256) :
-    natToUint256 (uint256ToNat u) = u := by
-  unfold natToUint256 uint256ToNat
-  ext
-  simp
-  -- u.val < 2^256, so u.val % 2^256 = u.val
-  have h_bound : u.val < 2^256 := u.isLt
-  exact Nat.mod_eq_of_lt h_bound
 
 /-! ## State Conversion -/
 
@@ -153,12 +106,6 @@ def specStorageToIRState (storage : SpecStorage) (sender : Address) : IRState :=
     (specStorageToIRState storage sender).memory offset = 0 := by
   rfl
 
-/-- Storage conversion preserves slot values -/
-theorem contractStateToIRState_storage (addrs : List Address) (state : ContractState) (slot : Nat) :
-    (contractStateToIRState addrs state).storage slot = uint256ToNat (state.storage slot) := by
-  unfold contractStateToIRState
-  rfl
-
 @[simp] theorem contractStateToIRState_memory (addrs : List Address) (state : ContractState) (offset : Nat) :
     (contractStateToIRState addrs state).memory offset = 0 := by
   unfold contractStateToIRState
@@ -197,41 +144,6 @@ def resultsMatch (usesMapping : Bool) (addrs : List Address) (irResult : IRResul
     irResult.finalMappings baseSlot (addressToNat addr) =
       specResult.finalStorage.getMapping baseSlot (addressToNat addr))
 
-/-! ## Helper: Function Selector Lookup -/
-
-structure SelectorMap where
-  /-- Map function names to their selectors -/
-  selectors : List (String × Nat)
-
-def SelectorMap.lookup (map : SelectorMap) (name : String) : Option Nat :=
-  map.selectors.find? (·.1 == name) |>.map (·.2)
-
-/-! ## Conversion Properties -/
-
-/-- Storage preservation: Converting state and extracting storage preserves values -/
-theorem storage_preservation (addrs : List Address) (s : ContractState) (slot : Nat) :
-    (contractStateToIRState addrs s).storage slot = uint256ToNat (s.storage slot) := by
-  unfold contractStateToIRState uint256ToNat
-  rfl
-
-/-- Sender preservation: Converting state preserves sender -/
-theorem sender_preservation (addrs : List Address) (s : ContractState) :
-    (contractStateToIRState addrs s).sender = addressToNat (s.sender) := by
-  unfold contractStateToIRState
-  rfl
-
-/-! ## Example: SimpleStorage Conversions -/
-
-/-- For SimpleStorage, we only use slot 0 and have two functions -/
-def simpleStorageSelectorMap : SelectorMap :=
-  { selectors := [
-      ("store", 0x6057361d),
-      ("retrieve", 0x2e64cec1)
-    ] }
-
-example : simpleStorageSelectorMap.lookup "store" = some 0x6057361d := by rfl
-example : simpleStorageSelectorMap.lookup "retrieve" = some 0x2e64cec1 := by rfl
-
 /-! ## Notes on Conversion Soundness
 
 The conversion layer makes several simplifying assumptions:
@@ -244,7 +156,6 @@ The conversion layer makes several simplifying assumptions:
 2. **Uint256 conversion**: Direct value extraction is sound because:
    - Uint256.val already represents the mathematical value
    - IR arithmetic uses mod 2^256, matching Uint256 semantics
-   - Round-trip property proven (natToUint256 ∘ uint256ToNat = id)
 
 3. **Mapping conversion**: We decode Nat keys using an explicit address table, which is sufficient because:
    - IR only stores/loads using Nat keys

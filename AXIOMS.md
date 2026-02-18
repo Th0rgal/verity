@@ -143,7 +143,7 @@ theorem addressToNat_injective_valid :
   fun _ _ h_eq => addressToNat_injective _ _ h_eq
 ```
 
-**Impact**: Reduced axiom count from 5 to 4 with zero changes to proof structure (the axiom had no call sites).
+**Impact**: Reduced axiom count from 5 to 4 with zero changes to proof structure (the axiom had no call sites). The derived theorem was later removed as dead code (no call sites in any proof file).
 
 ---
 

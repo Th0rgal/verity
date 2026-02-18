@@ -312,6 +312,11 @@ def main() -> None:
                     re.compile(r"Verifies all (\d+) theorems"),
                     str(total_theorems),
                 ),
+                (
+                    "property test count in Testing section",
+                    re.compile(r"Property tests.*\((\d+) tests\)"),
+                    str(test_count),
+                ),
             ],
         )
     )
