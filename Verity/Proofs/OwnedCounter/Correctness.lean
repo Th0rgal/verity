@@ -108,7 +108,7 @@ theorem increment_survives_transfer (s : ContractState) (initialOwner newOwner :
 
 /-! ## Summary
 
-All 6 theorems fully proven with zero sorry:
+All 5 theorems fully proven with zero sorry:
 
 Cross-operation guard interaction:
 1. transfer_then_increment_reverts — old owner locked out of increment

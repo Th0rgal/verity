@@ -167,9 +167,12 @@ forge create SimpleStorage --from 0x... --private-key ...
 - Concise, type-safe, maintainable
 
 **`Compiler/Selector.lean`**
-- Function selector computation
-- Pre-computed Solidity keccak256 hashes
-- Type-safe signature generation
+- Dynamic function selector computation via IO (calls `scripts/keccak256.py`)
+- Type-safe Solidity signature generation from `FunctionSpec`
+
+**`Compiler/Selectors.lean`**
+- `keccak256_first_4_bytes` axiom (validated by CI against `solc --hashes`)
+- Pre-computed selector constants for common functions
 
 **`Compiler/Codegen.lean`**
 - IR → Yul code generation

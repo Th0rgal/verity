@@ -137,7 +137,7 @@ theorem decrement_getCount_correct (s : ContractState)
 
 /-! ## Summary
 
-All 9 theorems fully proven with zero sorry:
+All 8 theorems fully proven with zero sorry:
 
 Standalone invariants:
 1. increment_preserves_context

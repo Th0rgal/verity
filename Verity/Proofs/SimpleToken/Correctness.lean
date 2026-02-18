@@ -171,7 +171,7 @@ theorem transfer_then_balanceOf_recipient_correct (s : ContractState) (to : Addr
 
 /-! ## Summary
 
-All 12 theorems in this file are fully proven with zero sorry:
+All 10 theorems in this file are fully proven with zero sorry:
 
 Guard revert behavior:
 1. mint_reverts_when_not_owner — non-owners cannot mint

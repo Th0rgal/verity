@@ -306,7 +306,7 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
 
 /-! ## Summary
 
-All 6 theorems fully proven with zero sorry:
+All 10 theorems fully proven with zero sorry (3 public + 7 private helpers):
 
 Helper lemmas:
 1. map_sum_zero_of_all_zero — helper for zero-sum lists
