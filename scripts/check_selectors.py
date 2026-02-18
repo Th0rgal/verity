@@ -10,12 +10,12 @@ Checks:
 from __future__ import annotations
 
 import re
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
 
+from keccak256 import selector as keccak_selector
 from property_utils import die
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -24,7 +24,6 @@ IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
 YUL_DIRS = [
     ("yul", ROOT / "compiler" / "yul"),
 ]
-KECCAK = ROOT / "scripts" / "keccak256.py"
 
 SIMPLE_PARAM_MAP = {
     "uint256": "uint256",
@@ -195,26 +194,7 @@ def extract_param_types(fn_block: str) -> List[str]:
 
 
 def compute_selectors(signatures: Iterable[str]) -> List[int]:
-    sigs = list(signatures)
-    if not sigs:
-        return []
-    result = subprocess.run(
-        ["python3", str(KECCAK), *sigs],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        die(f"keccak256.py failed: {result.stderr.strip()}")
-    selectors: List[int] = []
-    for line in result.stdout.strip().splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        selectors.append(int(line, 16))
-    if len(selectors) != len(sigs):
-        die(f"keccak256.py returned {len(selectors)} selectors for {len(sigs)} signatures")
-    return selectors
+    return [int(keccak_selector(sig), 16) for sig in signatures]
 
 
 def extract_compile_selectors(text: str) -> List[CompileSelectors]:
@@ -282,8 +262,6 @@ def main() -> int:
         die(f"Missing specs file: {SPEC_FILE}")
     if not IR_EXPR_FILE.exists():
         die(f"Missing IR proof file: {IR_EXPR_FILE}")
-    if not KECCAK.exists():
-        die(f"Missing keccak script: {KECCAK}")
 
     specs_text = SPEC_FILE.read_text(encoding="utf-8")
     specs = extract_specs(specs_text)

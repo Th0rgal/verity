@@ -12,11 +12,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from keccak256 import selector as compute_selector
 from property_utils import die, report_errors
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
-KECCAK = ROOT / "scripts" / "keccak256.py"
 
 SIG_RE = re.compile(r"^([A-Za-z0-9_]+\([^\)]*\))\s*:\s*(0x)?([0-9a-fA-F]{8})$")
 HASH_RE = re.compile(r"^(0x)?([0-9a-fA-F]{8})\s*:\s*([A-Za-z0-9_]+\([^\)]*\))$")
@@ -86,18 +86,7 @@ def run_solc_hashes() -> dict[str, str]:
 
 
 def run_keccak(signatures: list[str]) -> dict[str, str]:
-    result = subprocess.run(
-        ["python3", str(KECCAK), *signatures],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        die(f"keccak256.py failed: {result.stderr.strip()}")
-    selectors = [line.strip().lower().replace("0x", "") for line in result.stdout.splitlines() if line.strip()]
-    if len(selectors) != len(signatures):
-        die("keccak256.py returned unexpected number of selectors")
-    return dict(zip(signatures, selectors, strict=True))
+    return {sig: compute_selector(sig).replace("0x", "") for sig in signatures}
 
 
 def main() -> None:
