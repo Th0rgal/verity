@@ -3,9 +3,6 @@
 
   This module defines the essential types and primitives for smart contracts.
   Philosophy: Keep it minimal - only add what examples actually need.
-
-  Version 2: Added explicit ContractResult for guard modeling
-  Version 3: Added FiniteAddressSet for sum property proofs
 -/
 
 import Verity.Core.Uint256
@@ -18,8 +15,6 @@ open Verity.Core (FiniteAddressSet)
 -- Basic Ethereum types
 abbrev Address := String
 abbrev Uint256 := Verity.Core.Uint256
-abbrev Bool' := Bool
-abbrev Bytes := List Nat
 
 -- Storage key-value abstraction
 structure StorageSlot (α : Type) where

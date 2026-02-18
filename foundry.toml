@@ -16,5 +16,3 @@ fs_permissions = [{ access = "read", path = "./compiler/yul" }]
 # Usage: FOUNDRY_PROFILE=difftest forge test
 [profile.difftest]
 ffi = true
-
-[rpc_endpoints]
