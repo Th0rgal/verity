@@ -1,10 +1,8 @@
 /-
   Compiler.Specs: Declarative Contract Specifications
 
-  This file demonstrates the new declarative contract specification system.
+  Declarative contract specification system.
   Each contract is specified once, and IR is generated automatically.
-
-  This replaces the manual IR definitions in Translate.lean.
 -/
 
 import Compiler.ContractSpec

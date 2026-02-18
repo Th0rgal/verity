@@ -70,10 +70,13 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig, DifferentialTestBas
         string memory edslResult = _runInterpreter(functionName, sender, storageState);
 
         // 3. Parse and compare results
-        console2.log("EVM success:", evmSuccess);
-        console2.log("EVM storage[0]:", evmStorageAfter);
-        console2.log("EVM return value:", evmReturnValue);
-        console2.log("EDSL result:", edslResult);
+        bool verbose = _diffVerbose();
+        if (verbose) {
+            console2.log("EVM success:", evmSuccess);
+            console2.log("EVM storage[0]:", evmStorageAfter);
+            console2.log("EVM return value:", evmReturnValue);
+            console2.log("EDSL result:", edslResult);
+        }
 
         // Parse EDSL result
         bool edslSuccess = contains(edslResult, "\"success\":true");
@@ -275,7 +278,7 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig, DifferentialTestBas
     function _runRandomDifferentialTests(uint256 startIndex, uint256 count, uint256 seed) internal {
         console2.log("Generated", count, "random transactions");
 
-        uint256 prng = _skipRandomLcg(seed, startIndex);
+        uint256 prng = _skipRandom(seed, startIndex);
         vm.pauseGasMetering();
         for (uint256 i = 0; i < count; i++) {
             // Simple PRNG
@@ -308,7 +311,7 @@ contract DifferentialCounter is YulTestBase, DiffTestConfig, DifferentialTestBas
         assertEq(testsFailed, 0, "Some random tests failed");
     }
 
-    function _skipRandomLcg(uint256 prng, uint256 iterations) internal pure returns (uint256) {
+    function _skipRandom(uint256 prng, uint256 iterations) internal pure returns (uint256) {
         for (uint256 i = 0; i < iterations; i++) {
             prng = _lcg(prng);
             prng = _lcg(prng);

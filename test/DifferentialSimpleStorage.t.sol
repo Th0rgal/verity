@@ -61,10 +61,13 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig, DifferentialT
         // The EDSL interpreter returns JSON like:
         // {"success":true,"returnValue":"42","revertReason":null,"storageChanges":[{"slot":0,"value":42}]}
 
-        console2.log("EVM success:", evmSuccess);
-        console2.log("EVM storage change:", evmStorageAfter);
-        console2.log("EVM return value:", evmReturnValue);
-        console2.log("EDSL result:", edslResult);
+        bool verbose = _diffVerbose();
+        if (verbose) {
+            console2.log("EVM success:", evmSuccess);
+            console2.log("EVM storage change:", evmStorageAfter);
+            console2.log("EVM return value:", evmReturnValue);
+            console2.log("EDSL result:", edslResult);
+        }
 
         // Parse EDSL result
         bool edslSuccess = contains(edslResult, "\"success\":true");

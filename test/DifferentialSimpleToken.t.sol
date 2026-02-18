@@ -111,10 +111,13 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig, DifferentialTes
         string memory edslResult = _runInterpreter(functionName, sender, arg0Addr, arg1, storageState);
 
         // 3. Parse and compare results
-        console2.log("Function:", functionName);
-        console2.log("EVM success:", evmSuccess);
-        console2.log("EVM totalSupply:", evmTotalSupply);
-        console2.log("EDSL result:", edslResult);
+        bool verbose = _diffVerbose();
+        if (verbose) {
+            console2.log("Function:", functionName);
+            console2.log("EVM success:", evmSuccess);
+            console2.log("EVM totalSupply:", evmTotalSupply);
+            console2.log("EDSL result:", edslResult);
+        }
 
         // Parse EDSL result
         bool edslSuccess = contains(edslResult, "\"success\":true");
