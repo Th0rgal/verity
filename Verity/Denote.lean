@@ -196,6 +196,33 @@ def denoteAddress (env : String → Uint256) (envAddr : String → Address) : St
 
   | _ => Verity.pure ""
 
+/-!
+## Monad Laws
+
+`bind_assoc` lets us flatten nested `bind` from helper composition
+(e.g., `onlyOwner` calling `isOwner`). Combined with `rfl`-based
+AST denotation, this enables equivalence proofs for contracts that
+use modular helper functions.
+-/
+
+/-- Monad associativity for `Contract`:
+    `bind (bind m f) g = bind m (fun x => bind (f x) g)`
+
+    Proof: by `funext` on the state, then case-split on `m state`. -/
+theorem bind_assoc {α β γ : Type}
+    (m : Contract α) (f : α → Contract β) (g : β → Contract γ) :
+    Verity.bind (Verity.bind m f) g = Verity.bind m (fun x => Verity.bind (f x) g) := by
+  funext state
+  simp only [Verity.bind]
+  cases m state with
+  | success a s' => rfl
+  | revert msg s' => rfl
+
+/-- Left identity: `bind (pure a) f = f a` -/
+theorem bind_pure {α β : Type} (a : α) (f : α → Contract β) :
+    Verity.bind (Verity.pure a) f = f a := by
+  rfl
+
 /-- Default empty environments for use in equivalence proofs. -/
 def emptyEnv : String → Uint256 := fun _ => 0
 def emptyEnvAddr : String → Address := fun _ => ""

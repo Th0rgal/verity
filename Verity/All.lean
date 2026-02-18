@@ -24,6 +24,9 @@ import Verity.AST.SimpleStorage
 import Verity.AST.Counter
 import Verity.AST.SafeCounter
 import Verity.AST.Ledger
+import Verity.AST.Owned
+import Verity.AST.OwnedCounter
+import Verity.AST.SimpleToken
 
 -- Common specifications & invariants
 import Verity.Specs.Common

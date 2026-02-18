@@ -18,30 +18,29 @@ Yul (EVM Assembly)
 EVM Bytecode
 ```
 
-## Unified AST (Issue #364) 🟡 **IN PROGRESS**
+## Unified AST (Issue #364) ✅ **COMPLETE** (all 7 contracts)
 
-**Status**: 4 of 7 compilable contracts migrated with `rfl` proofs (13 theorems, zero `sorry`)
+**Status**: All 7 compilable contracts migrated with equivalence proofs (28 theorems, zero `sorry`)
 
-**What This Achieves**: A single deep embedding (`Verity.AST`) maps 1:1 to EDSL primitives. The denotation function (`Verity.Denote`) interprets AST → Contract monad such that `denote ast = edsl_fn` holds by `rfl` (definitional equality). This eliminates the need for manual bridge proofs between the EDSL and deep embedding for migrated contracts.
+**What This Achieves**: A single deep embedding (`Verity.AST`) maps 1:1 to EDSL primitives. The denotation function (`Verity.Denote`) interprets AST → Contract monad such that `denote ast = edsl_fn` holds by `rfl` (definitional equality). For contracts with helper composition (e.g., `onlyOwner`), `bind_assoc` flattens nested binds before `rfl` closes the goal.
 
 ### Migrated Contracts
 
-| Contract | Functions | `rfl` Theorems | Location |
-|----------|-----------|---------------|----------|
-| SimpleStorage | store, retrieve | 2 | `Verity/AST/SimpleStorage.lean` |
-| Counter | increment, decrement, getCount | 3 | `Verity/AST/Counter.lean` |
-| SafeCounter | increment, decrement, getCount | 3 | `Verity/AST/SafeCounter.lean` |
-| Ledger | deposit, withdraw, transfer, getBalance | 4 | `Verity/AST/Ledger.lean` |
-
-### Remaining Contracts
-
-Contracts using helper composition (e.g., `onlyOwner` calling `isOwner`) produce nested `bind` structures that are propositionally but not definitionally equal to flat CPS. Migrating Owned, OwnedCounter, and SimpleToken requires monad associativity lemmas (future work).
+| Contract | Functions | Theorems | Proof Strategy | Location |
+|----------|-----------|----------|----------------|----------|
+| SimpleStorage | store, retrieve | 2 | `rfl` | `Verity/AST/SimpleStorage.lean` |
+| Counter | increment, decrement, getCount | 3 | `rfl` | `Verity/AST/Counter.lean` |
+| SafeCounter | increment, decrement, getCount | 3 | `rfl` | `Verity/AST/SafeCounter.lean` |
+| Ledger | deposit, withdraw, transfer, getBalance | 4 | `rfl` | `Verity/AST/Ledger.lean` |
+| Owned | constructor, transferOwnership, getOwner | 3 | `rfl` + `bind_assoc` | `Verity/AST/Owned.lean` |
+| OwnedCounter | constructor, increment, decrement, getCount, getOwner, transferOwnership | 7 | `rfl` + `bind_assoc` | `Verity/AST/OwnedCounter.lean` |
+| SimpleToken | constructor, mint, transfer, balanceOf, getTotalSupply, getOwner | 6 | `rfl` + `bind_assoc` | `Verity/AST/SimpleToken.lean` |
 
 ### Key Files
 
 - `Verity/AST.lean` — Unified `Expr` / `Stmt` inductive types
-- `Verity/Denote.lean` — AST → Contract monad denotation
-- `Verity/AST/*.lean` — Per-contract AST definitions and `rfl` proofs
+- `Verity/Denote.lean` — AST → Contract monad denotation + `bind_assoc`/`bind_pure` monad laws
+- `Verity/AST/*.lean` — Per-contract AST definitions and equivalence proofs
 
 ## Layer 1: EDSL ≡ ContractSpec ✅ **COMPLETE**
 
@@ -296,4 +295,4 @@ See `scripts/README.md` for:
 ---
 
 **Last Updated**: 2026-02-18
-**Status Summary**: Layers 1-3 complete, trust reduction in progress, unified AST 4/7 contracts migrated (Issue #364)
+**Status Summary**: Layers 1-3 complete, trust reduction in progress, unified AST complete — all 7 contracts migrated (Issue #364)
