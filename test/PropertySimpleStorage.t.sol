@@ -8,30 +8,10 @@ import "./yul/YulTestBase.sol";
  * @notice Property-based tests extracted from formally verified Lean theorems
  * @dev Maps theorems from Verity/Proofs/SimpleStorage/ to executable tests
  *
- * This file contains property tests corresponding to 19 proven theorems:
- *
- * From Basic.lean (12 theorems):
- * 1. setStorage_updates_slot
- * 2. getStorage_reads_slot
- * 3. setStorage_preserves_other_slots
- * 4. setStorage_preserves_sender
- * 5. setStorage_preserves_address
- * 6. setStorage_preserves_addr_storage
- * 7. setStorage_preserves_map_storage
- * 8. store_meets_spec
- * 9. retrieve_meets_spec
- * 10. retrieve_preserves_state
- * 11. store_retrieve_roundtrip
- * 12. retrieve_twice_idempotent
- *
- * From Correctness.lean (7 theorems):
- * 13. store_retrieve_roundtrip_holds
- * 14. store_preserves_storage_isolated
- * 15. store_preserves_addr_storage
- * 16. store_preserves_map_storage
- * 17. store_preserves_context
- * 18. retrieve_preserves_context
- * 19. retrieve_preserves_wellformedness
+ * This file contains property tests for SimpleStorage's 20 proven theorems:
+ * - Basic properties (storage ops, spec conformance, roundtrip)
+ * - State isolation (slot independence, context preservation)
+ * - Wellformedness preservation
  */
 contract PropertySimpleStorageTest is YulTestBase {
     address simpleStorage;

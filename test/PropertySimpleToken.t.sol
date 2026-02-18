@@ -8,7 +8,7 @@ import "./yul/YulTestBase.sol";
  * @notice Property-based tests extracted from formally verified Lean theorems
  * @dev Maps theorems from Verity/Proofs/SimpleToken/*.lean to executable tests
  *
- * This file extracts 57 proven theorems into Foundry property tests:
+ * This file extracts 59 proven theorems into Foundry property tests:
  * - Basic properties (constructor, mint, transfer, getters)
  * - Supply conservation (total supply invariant)
  * - Isolation properties (storage independence)

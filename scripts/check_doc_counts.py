@@ -108,6 +108,30 @@ def get_covered_count(total_theorems: int) -> tuple[int, int]:
     return covered_count, pct
 
 
+def check_property_test_headers(per_contract: dict[str, int]) -> list[str]:
+    """Validate theorem counts in Property*.t.sol file headers against manifest."""
+    test_dir = ROOT / "test"
+    errors = []
+    header_pat = re.compile(r"(\d+)\s+proven\s+theorems")
+    for sol in sorted(test_dir.glob("Property*.t.sol")):
+        name = sol.name.replace("Property", "").replace(".t.sol", "")
+        if name not in per_contract:
+            continue
+        # Read just the header (first 500 chars is enough)
+        text = sol.read_text(encoding="utf-8")[:500]
+        match = header_pat.search(text)
+        if not match:
+            continue  # No standard header pattern — skip
+        header_count = int(match.group(1))
+        manifest_count = per_contract[name]
+        if header_count != manifest_count:
+            errors.append(
+                f"Property{name}.t.sol: header says {header_count} proven theorems "
+                f"but manifest has {manifest_count}"
+            )
+    return errors
+
+
 def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[str]:
     """Check a file for expected patterns. Returns list of errors."""
     if not path.exists():
@@ -206,6 +230,9 @@ def main() -> None:
     property_fn_count = get_property_test_function_count()
 
     errors: list[str] = []
+
+    # Check property test file header counts
+    errors.extend(check_property_test_headers(per_contract))
 
     # Check README.md
     readme = ROOT / "README.md"
