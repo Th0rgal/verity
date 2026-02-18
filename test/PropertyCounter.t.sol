@@ -6,19 +6,13 @@ import "./yul/YulTestBase.sol";
 /**
  * @title PropertyCounterTest
  * @notice Property-based tests extracted from formally verified Lean theorems
- * @dev Maps theorems from Verity/Proofs/Counter/Correctness.lean to executable tests
+ * @dev Maps theorems from Verity/Proofs/Counter/*.lean to executable tests
  *
- * This file contains 10 property tests corresponding to 10 proven theorems:
- * 1. increment_state_preserved_except_count
- * 2. decrement_state_preserved_except_count
- * 3. getCount_state_preserved
- * 4. increment_getCount_meets_spec
- * 5. decrement_getCount_meets_spec
- * 6. two_increments_meets_spec
- * 7. increment_decrement_meets_cancel
- * 8. getCount_preserves_wellformedness
- * 9. decrement_getCount_correct
- * 10. decrement_at_zero_wraps_max
+ * This file contains property tests corresponding to 28 proven theorems:
+ * - Basic properties (correctness, state preservation, spec conformance)
+ * - Wellformedness preservation
+ * - Composition properties (increment-decrement cancellation, double increment)
+ * - Storage isolation (slot independence)
  */
 contract PropertyCounterTest is YulTestBase {
     address counter;
