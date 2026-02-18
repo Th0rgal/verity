@@ -133,11 +133,7 @@ contract DifferentialSimpleStorage is YulTestBase, DiffTestConfig, DifferentialT
         // Only pass arg0 for store function, not for retrieve
         bool needsArg = keccak256(bytes(functionName)) == keccak256(bytes("store"));
         inputs[2] = string.concat(
-            "cd \"$(git rev-parse --show-toplevel)\" && export PATH=\"$HOME/.elan/bin:$PATH\" && ",
-            "if [ ! -x ./.lake/build/bin/difftest-interpreter ]; then ",
-            "mkdir -p .lake/build/bin && lake build difftest-interpreter >/dev/null; ",
-            "fi; ",
-            "./.lake/build/bin/difftest-interpreter",
+            _interpreterPreamble(),
             " SimpleStorage ",
             functionName,
             " ",

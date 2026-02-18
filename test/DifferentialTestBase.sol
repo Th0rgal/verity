@@ -314,6 +314,19 @@ abstract contract DifferentialTestBase {
     }
 
     /**
+     * @notice Shell preamble for invoking the difftest interpreter
+     */
+    function _interpreterPreamble() internal pure returns (string memory) {
+        return string.concat(
+            "cd \"$(git rev-parse --show-toplevel)\" && export PATH=\"$HOME/.elan/bin:$PATH\" && ",
+            "if [ ! -x ./.lake/build/bin/difftest-interpreter ]; then ",
+            "mkdir -p .lake/build/bin && lake build difftest-interpreter >/dev/null; ",
+            "fi; ",
+            "./.lake/build/bin/difftest-interpreter"
+        );
+    }
+
+    /**
      * @notice Parse hex address string to uint256
      */
     function _parseHexAddress(string memory hexStr) internal pure returns (uint256) {
