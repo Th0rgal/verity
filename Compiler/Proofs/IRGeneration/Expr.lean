@@ -2,9 +2,8 @@
   Expression Compilation Correctness
 
   The compilation functions (compileExpr, compileStmt, etc.) in ContractSpec are
-  now public, enabling structural induction proofs over Expr/Stmt constructors.
-  See issue #358 for the roadmap toward a universal compile_preserves_semantics
-  theorem.
+  now public (PR #374), enabling structural induction proofs over Expr/Stmt
+  constructors toward a universal compile_preserves_semantics theorem.
 
   This file retains the concrete-IR approach for SimpleStorage as a reference
   and baseline. New generic proofs should go in dedicated files.
@@ -35,9 +34,9 @@ Now that compileExpr/compileStmt are public, two proof approaches are available:
    contract, prove `compile spec selectors = .ok concreteIR` by `rfl`, then
    prove function-level correctness by `simp`-unfolding both sides.
 
-2. **Structural induction** (enabled by #358 Step 1): Prove correctness by
+2. **Structural induction** (enabled by PR #374): Prove correctness by
    induction over `Expr`/`Stmt` constructors. This yields a universal theorem
-   covering all contracts — see issue #358 for the full roadmap.
+   covering all contracts (see issue #358).
 
 This file uses approach (1) for SimpleStorage as a baseline.
 -/

@@ -112,6 +112,9 @@ jobs:
       - name: Check storage layout consistency
         run: python3 scripts/check_storage_layout.py
 
+      - name: Check Lean hygiene
+        run: python3 scripts/check_lean_hygiene.py
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20

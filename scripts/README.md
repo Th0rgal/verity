@@ -62,7 +62,7 @@ Example output:
    Covered:    52 ( 88.1%)
    Excluded:     7 (proof-only)
 
-Overall: 69% coverage (220/319 properties)
+Overall: 67% coverage (220/326 properties)
 ```
 
 ### Property Exclusions
@@ -81,6 +81,7 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_doc_counts.py`** - Validates theorem, axiom, test, suite, coverage, and contract counts across 14 documentation files (README, llms.txt, compiler.mdx, verification.mdx, research.mdx, index.mdx, core.mdx, examples.mdx, getting-started.mdx, TRUST_ASSUMPTIONS, VERIFICATION_STATUS, ROADMAP, test/README, layout.tsx), theorem-name completeness in verification.mdx tables, and proven-theorem counts in Property*.t.sol file headers
 - **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
+- **`check_lean_hygiene.py`** - Validates no `#eval` in Compiler/Proofs/ and exactly 1 `allowUnsafeReducibility` (documented trust assumption)
 
 ```bash
 # Run locally before submitting documentation changes
@@ -142,6 +143,7 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
 5. Documentation count validation (`check_doc_counts.py`)
 6. Property manifest sync (`check_property_manifest_sync.py`)
 7. Storage layout consistency (`check_storage_layout.py`)
+8. Lean hygiene (`check_lean_hygiene.py`)
 
 **`build` job** (requires `lake build` artifacts):
 1. Keccak-256 self-test (`keccak256.py --self-test`)

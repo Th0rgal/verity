@@ -21,13 +21,6 @@ open Verity
 open DiffTestTypes
 open Verity.Proofs.Stdlib.SpecInterpreter
 
-/-! ## Setup: Compile SimpleStorage
-
-First, let's verify that SimpleStorage compiles successfully.
--/
-
-#eval compile simpleStorageSpec [0x6057361d, 0x2e64cec1]
-
 /-! ## Store Function Correctness
 
 The store function should:
