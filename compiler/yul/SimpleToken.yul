@@ -42,7 +42,6 @@ object "SimpleToken" {
                     mstore(68, 0x42616c616e6365206f766572666c6f7700000000000000000000000000000000)
                     revert(0, 100)
                 }
-                sstore(mappingSlot(1, to), newBalance)
                 let supply := sload(2)
                 let newSupply := add(supply, amount)
                 if lt(newSupply, supply) {
@@ -52,6 +51,7 @@ object "SimpleToken" {
                     mstore(68, 0x537570706c79206f766572666c6f770000000000000000000000000000000000)
                     revert(0, 100)
                 }
+                sstore(mappingSlot(1, to), newBalance)
                 sstore(2, newSupply)
                 stop()
             }

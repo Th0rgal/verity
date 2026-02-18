@@ -256,6 +256,26 @@ def isMapping2 (fields : List Field) (name : String) : Bool :=
 -- Keep compiler literals aligned with Uint256 semantics (mod 2^256).
 def uint256Modulus : Nat := 2 ^ 256
 
+-- Helpers for building common Yul patterns (defined outside mutual block for termination)
+private def yulBinOp (op : String) (a b : YulExpr) : YulExpr :=
+  YulExpr.call op [a, b]
+
+private def yulNegatedBinOp (op : String) (a b : YulExpr) : YulExpr :=
+  YulExpr.call "iszero" [YulExpr.call op [a, b]]
+
+private def yulToBool (e : YulExpr) : YulExpr :=
+  YulExpr.call "iszero" [YulExpr.call "iszero" [e]]
+
+private def compileMappingSlotRead (fields : List Field) (field : String) (keyExpr : YulExpr)
+    (label : String) : Except String YulExpr :=
+  if !isMapping fields field then
+    throw s!"Compilation error: field '{field}' is not a mapping"
+  else
+    match findFieldSlot fields field with
+    | some slot =>
+      pure (YulExpr.call "sload" [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr]])
+    | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
+
 -- Compile expression to Yul (using mutual recursion for lists)
 mutual
 def compileExprList (fields : List Field) : List Expr → Except String (List YulExpr)
@@ -268,7 +288,7 @@ def compileExprList (fields : List Field) : List Expr → Except String (List Yu
 def compileExpr (fields : List Field) : Expr → Except String YulExpr
   | Expr.literal n => pure (YulExpr.lit (n % uint256Modulus))
   | Expr.param name => pure (YulExpr.ident name)
-  | Expr.constructorArg idx => pure (YulExpr.ident s!"arg{idx}")  -- Constructor args loaded as argN
+  | Expr.constructorArg idx => pure (YulExpr.ident s!"arg{idx}")
   | Expr.storage field =>
     if isMapping fields field then
       throw s!"Compilation error: field '{field}' is a mapping; use Expr.mapping"
@@ -276,15 +296,8 @@ def compileExpr (fields : List Field) : Expr → Except String YulExpr
       match findFieldSlot fields field with
       | some slot => pure (YulExpr.call "sload" [YulExpr.lit slot])
       | none => throw s!"Compilation error: unknown storage field '{field}'"
-  | Expr.mapping field key =>
-    if !isMapping fields field then
-      throw s!"Compilation error: field '{field}' is not a mapping"
-    else
-      match findFieldSlot fields field with
-      | some slot => do
-        let keyExpr ← compileExpr fields key
-        pure (YulExpr.call "sload" [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr]])
-      | none => throw s!"Compilation error: unknown mapping field '{field}'"
+  | Expr.mapping field key => do
+      compileMappingSlotRead fields field (← compileExpr fields key) "mapping"
   | Expr.mapping2 field key1 key2 =>
     if !isMapping2 fields field then
       throw s!"Compilation error: field '{field}' is not a double mapping"
@@ -293,20 +306,11 @@ def compileExpr (fields : List Field) : Expr → Except String YulExpr
       | some slot => do
         let key1Expr ← compileExpr fields key1
         let key2Expr ← compileExpr fields key2
-        -- Nested mapping: keccak256(key2 . keccak256(key1 . slot))
         let innerSlot := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1Expr]
         pure (YulExpr.call "sload" [YulExpr.call "mappingSlot" [innerSlot, key2Expr]])
       | none => throw s!"Compilation error: unknown mapping field '{field}'"
-  | Expr.mappingUint field key =>
-    if !isMapping fields field then
-      throw s!"Compilation error: field '{field}' is not a mapping"
-    else
-      match findFieldSlot fields field with
-      | some slot => do
-        let keyExpr ← compileExpr fields key
-        -- Uint256-keyed mapping uses the same slot computation as address-keyed
-        pure (YulExpr.call "sload" [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr]])
-      | none => throw s!"Compilation error: unknown mapping field '{field}'"
+  | Expr.mappingUint field key => do
+      compileMappingSlotRead fields field (← compileExpr fields key) "mappingUint"
   | Expr.caller => pure (YulExpr.call "caller" [])
   | Expr.msgValue => pure (YulExpr.call "callvalue" [])
   | Expr.blockTimestamp => pure (YulExpr.call "timestamp" [])
@@ -317,115 +321,41 @@ def compileExpr (fields : List Field) : Expr → Except String YulExpr
   | Expr.internalCall functionName args => do
       let argExprs ← compileExprList fields args
       pure (YulExpr.call s!"internal_{functionName}" argExprs)
-  | Expr.arrayLength name =>
-      -- Array length: calldataload(calldataload(4 + paramOffset) + 4)
-      -- This is loaded into a local variable during param loading
-      pure (YulExpr.ident s!"{name}_length")
+  | Expr.arrayLength name => pure (YulExpr.ident s!"{name}_length")
   | Expr.arrayElement name index => do
       let indexExpr ← compileExpr fields index
-      -- Array element: calldataload(arrayDataOffset + index * 32)
-      -- arrayDataOffset is loaded during param loading
       pure (YulExpr.call "calldataload" [
         YulExpr.call "add" [
           YulExpr.ident s!"{name}_data_offset",
           YulExpr.call "mul" [indexExpr, YulExpr.lit 32]
         ]
       ])
-  | Expr.add a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "add" [aExpr, bExpr])
-  | Expr.sub a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "sub" [aExpr, bExpr])
-  | Expr.mul a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "mul" [aExpr, bExpr])
-  | Expr.div a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "div" [aExpr, bExpr])
-  | Expr.mod a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "mod" [aExpr, bExpr])
-  | Expr.bitAnd a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "and" [aExpr, bExpr])
-  | Expr.bitOr a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "or" [aExpr, bExpr])
-  | Expr.bitXor a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "xor" [aExpr, bExpr])
-  | Expr.bitNot a => do
-      let aExpr ← compileExpr fields a
-      pure (YulExpr.call "not" [aExpr])
-  | Expr.shl shift value => do
-      let shiftExpr ← compileExpr fields shift
-      let valueExpr ← compileExpr fields value
-      pure (YulExpr.call "shl" [shiftExpr, valueExpr])
-  | Expr.shr shift value => do
-      let shiftExpr ← compileExpr fields shift
-      let valueExpr ← compileExpr fields value
-      pure (YulExpr.call "shr" [shiftExpr, valueExpr])
-  | Expr.eq a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "eq" [aExpr, bExpr])
-  | Expr.ge a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "iszero" [YulExpr.call "lt" [aExpr, bExpr]])
-  | Expr.gt a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "gt" [aExpr, bExpr])
-  | Expr.lt a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "lt" [aExpr, bExpr])
-  | Expr.le a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "iszero" [YulExpr.call "gt" [aExpr, bExpr]])
-  | Expr.logicalAnd a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "and" [
-        YulExpr.call "iszero" [YulExpr.call "iszero" [aExpr]],
-        YulExpr.call "iszero" [YulExpr.call "iszero" [bExpr]]
-      ])
-  | Expr.logicalOr a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "or" [
-        YulExpr.call "iszero" [YulExpr.call "iszero" [aExpr]],
-        YulExpr.call "iszero" [YulExpr.call "iszero" [bExpr]]
-      ])
-  | Expr.logicalNot a => do
-      let aExpr ← compileExpr fields a
-      pure (YulExpr.call "iszero" [aExpr])
+  | Expr.add a b     => return yulBinOp "add" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.sub a b     => return yulBinOp "sub" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.mul a b     => return yulBinOp "mul" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.div a b     => return yulBinOp "div" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.mod a b     => return yulBinOp "mod" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.bitAnd a b  => return yulBinOp "and" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.bitOr a b   => return yulBinOp "or"  (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.bitXor a b  => return yulBinOp "xor" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.bitNot a    => return YulExpr.call "not" [← compileExpr fields a]
+  | Expr.shl s v     => return yulBinOp "shl" (← compileExpr fields s) (← compileExpr fields v)
+  | Expr.shr s v     => return yulBinOp "shr" (← compileExpr fields s) (← compileExpr fields v)
+  | Expr.eq a b      => return yulBinOp "eq"  (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.gt a b      => return yulBinOp "gt"  (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.lt a b      => return yulBinOp "lt"  (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.ge a b      => return yulNegatedBinOp "lt" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.le a b      => return yulNegatedBinOp "gt" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.logicalAnd a b => return yulBinOp "and" (yulToBool (← compileExpr fields a)) (yulToBool (← compileExpr fields b))
+  | Expr.logicalOr a b  => return yulBinOp "or"  (yulToBool (← compileExpr fields a)) (yulToBool (← compileExpr fields b))
+  | Expr.logicalNot a   => return YulExpr.call "iszero" [← compileExpr fields a]
 end
 
 -- Compile require condition to a "failure" predicate to avoid double-negation.
 def compileRequireFailCond (fields : List Field) : Expr → Except String YulExpr
-  | Expr.ge a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "lt" [aExpr, bExpr])
-  | Expr.le a b => do
-      let aExpr ← compileExpr fields a
-      let bExpr ← compileExpr fields b
-      pure (YulExpr.call "gt" [aExpr, bExpr])
-  | cond => do
-      let condExpr ← compileExpr fields cond
-      pure (YulExpr.call "iszero" [condExpr])
+  | Expr.ge a b => return yulBinOp "lt" (← compileExpr fields a) (← compileExpr fields b)
+  | Expr.le a b => return yulBinOp "gt" (← compileExpr fields a) (← compileExpr fields b)
+  | cond => return YulExpr.call "iszero" [← compileExpr fields cond]
 
 def bytesFromString (s : String) : List UInt8 :=
   s.toUTF8.data.toList
@@ -482,6 +412,21 @@ def paramTypeToSolidityString : ParamType → String
   | ParamType.fixedArray t n => paramTypeToSolidityString t ++ "[" ++ toString n ++ "]"
   | ParamType.bytes => "bytes"
 
+private def compileMappingSlotWrite (fields : List Field) (field : String)
+    (keyExpr valueExpr : YulExpr) (label : String) : Except String (List YulStmt) :=
+  if !isMapping fields field then
+    throw s!"Compilation error: field '{field}' is not a mapping"
+  else
+    match findFieldSlot fields field with
+    | some slot =>
+        pure [
+          YulStmt.expr (YulExpr.call "sstore" [
+            YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr],
+            valueExpr
+          ])
+        ]
+    | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
+
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value` (for internal Yul functions)
 -- instead of EVM RETURN which terminates the entire call.
@@ -496,38 +441,20 @@ def compileStmtList (fields : List Field) (isInternal : Bool := false) :
 
 def compileStmt (fields : List Field) (isInternal : Bool := false) :
     Stmt → Except String (List YulStmt)
-  | Stmt.letVar name value =>
-    do
-      let valueExpr ← compileExpr fields value
-      pure [YulStmt.let_ name valueExpr]
-  | Stmt.assignVar name value =>
-    do
-      let valueExpr ← compileExpr fields value
-      pure [YulStmt.assign name valueExpr]
+  | Stmt.letVar name value => do
+      pure [YulStmt.let_ name (← compileExpr fields value)]
+  | Stmt.assignVar name value => do
+      pure [YulStmt.assign name (← compileExpr fields value)]
   | Stmt.setStorage field value =>
     if isMapping fields field then
       throw s!"Compilation error: field '{field}' is a mapping; use setMapping"
     else
       match findFieldSlot fields field with
       | some slot => do
-          let valueExpr ← compileExpr fields value
-          pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueExpr])]
+          pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, ← compileExpr fields value])]
       | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
-  | Stmt.setMapping field key value =>
-    if !isMapping fields field then
-      throw s!"Compilation error: field '{field}' is not a mapping"
-    else
-      match findFieldSlot fields field with
-      | some slot => do
-          let keyExpr ← compileExpr fields key
-          let valueExpr ← compileExpr fields value
-          pure [
-            YulStmt.expr (YulExpr.call "sstore" [
-              YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr],
-              valueExpr
-            ])
-          ]
-      | none => throw s!"Compilation error: unknown mapping field '{field}' in setMapping"
+  | Stmt.setMapping field key value => do
+      compileMappingSlotWrite fields field (← compileExpr fields key) (← compileExpr fields value) "setMapping"
   | Stmt.setMapping2 field key1 key2 value =>
     if !isMapping2 fields field then
       throw s!"Compilation error: field '{field}' is not a double mapping"
@@ -545,21 +472,8 @@ def compileStmt (fields : List Field) (isInternal : Bool := false) :
             ])
           ]
       | none => throw s!"Compilation error: unknown mapping field '{field}' in setMapping2"
-  | Stmt.setMappingUint field key value =>
-    if !isMapping fields field then
-      throw s!"Compilation error: field '{field}' is not a mapping"
-    else
-      match findFieldSlot fields field with
-      | some slot => do
-          let keyExpr ← compileExpr fields key
-          let valueExpr ← compileExpr fields value
-          pure [
-            YulStmt.expr (YulExpr.call "sstore" [
-              YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr],
-              valueExpr
-            ])
-          ]
-      | none => throw s!"Compilation error: unknown mapping field '{field}' in setMappingUint"
+  | Stmt.setMappingUint field key value => do
+      compileMappingSlotWrite fields field (← compileExpr fields key) (← compileExpr fields value) "setMappingUint"
   | Stmt.require cond message =>
     do
       let failCond ← compileRequireFailCond fields cond
