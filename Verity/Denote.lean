@@ -63,7 +63,6 @@ def denoteBool (env : String → Uint256) (envAddr : String → Address) : Expr 
   | .eqAddr a b => denoteAddr envAddr a == denoteAddr envAddr b
   | .ge a b     => denoteVal env a >= denoteVal env b
   | .gt a b     => denoteVal env a > denoteVal env b
-  | .var name   => env name != 0  -- Bool stored as Uint256 (nonzero = true)
   | other       => denoteVal env other != 0  -- Uint256-to-Bool coercion (nonzero = true)
 
 /-- Evaluate an Option Uint256 expression (for `requireSome`). -/
