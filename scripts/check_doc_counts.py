@@ -362,6 +362,26 @@ def main() -> None:
                     re.compile(r"FULLY VERIFIED, (\d+) axioms"),
                     str(axiom_count),
                 ),
+                (
+                    "covered count",
+                    re.compile(r"(\d+) theorems have corresponding Foundry property tests"),
+                    str(covered_count),
+                ),
+                (
+                    "coverage percentage",
+                    re.compile(r"(\d+)% runtime test coverage"),
+                    str(coverage_pct),
+                ),
+                (
+                    "theorem count in summary",
+                    re.compile(r"(\d+) theorems across \d+ categor"),
+                    str(total_theorems),
+                ),
+                (
+                    "category count in summary",
+                    re.compile(r"\d+ theorems across (\d+) categor"),
+                    str(num_categories),
+                ),
             ],
         )
     )
