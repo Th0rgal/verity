@@ -15,7 +15,6 @@
 import Compiler.Specs
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Examples.SimpleStorage
-import Verity.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
 

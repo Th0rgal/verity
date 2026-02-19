@@ -19,12 +19,9 @@
 import Compiler.Specs
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Proofs.Stdlib.Automation
-import Compiler.Hex
 import Verity.Examples.SimpleToken
-import Verity.Stdlib.Math
 import Verity.Proofs.SimpleToken.Basic
 import Verity.Proofs.SimpleToken.Correctness
-import Verity.Core.Uint256
 
 -- Increased heartbeats due to additional struct fields (mappings2, events, etc.)
 set_option maxHeartbeats 400000

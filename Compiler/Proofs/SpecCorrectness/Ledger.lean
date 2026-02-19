@@ -18,10 +18,7 @@
 import Compiler.Specs
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Proofs.Stdlib.Automation
-import Compiler.Hex
 import Verity.Examples.Ledger
-import Verity.Stdlib.Math
-import Verity.Core.Uint256
 import Verity.Proofs.Ledger.Basic
 
 -- Increased heartbeats due to additional struct fields (mappings2, events, etc.)

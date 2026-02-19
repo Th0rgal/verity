@@ -17,7 +17,6 @@
 import Compiler.Specs
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Proofs.Stdlib.Automation
-import Compiler.Hex
 import Verity.Examples.Owned
 import Verity.Proofs.Owned.Basic
 import Verity.Proofs.Owned.Correctness
@@ -31,7 +30,6 @@ open Verity.Proofs.Stdlib.Automation
 open Compiler.Hex
 open Verity
 open Verity.Examples.Owned
-open Verity.Proofs.Owned
 
 /- State Conversion -/
 

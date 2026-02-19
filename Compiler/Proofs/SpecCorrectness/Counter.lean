@@ -15,7 +15,6 @@
 import Compiler.Specs
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Examples.Counter
-import Verity.Core.Uint256
 
 namespace Compiler.Proofs.SpecCorrectness
 
@@ -25,7 +24,7 @@ open Verity.Proofs.Stdlib.SpecInterpreter
 open Verity
 open Verity.Examples.Counter
 open Verity.EVM.Uint256 (add sub)
-open Verity.Core.Uint256 (modulus val_ofNat ofNat)
+open Verity.Core.Uint256 (modulus val_ofNat)
 
 /- State Conversion -/
 

@@ -17,8 +17,6 @@ import Compiler.Specs
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Proofs.Stdlib.Automation
 import Verity.Examples.SafeCounter
-import Verity.Core.Uint256
-import Verity.Stdlib.Math
 import Verity.Proofs.SafeCounter.Basic
 
 namespace Compiler.Proofs.SpecCorrectness
