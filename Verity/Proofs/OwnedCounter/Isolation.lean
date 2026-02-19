@@ -29,22 +29,19 @@ storage, using the count_preserves_owner spec definition.
 /-- Increment preserves all address storage (including owner). -/
 theorem increment_count_preserves_owner (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
-  count_preserves_owner s (increment.run s).snd := by
-  unfold count_preserves_owner
-  exact increment_preserves_owner s h_owner
+  count_preserves_owner s (increment.run s).snd :=
+  increment_preserves_owner s h_owner
 
 /-- Decrement preserves all address storage (including owner). -/
 theorem decrement_count_preserves_owner (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
-  count_preserves_owner s (decrement.run s).snd := by
-  unfold count_preserves_owner
-  exact decrement_preserves_owner s h_owner
+  count_preserves_owner s (decrement.run s).snd :=
+  decrement_preserves_owner s h_owner
 
 /-- Constructor preserves counter storage. -/
 theorem constructor_owner_preserves_count (s : ContractState) (initialOwner : Address) :
-  owner_preserves_count s ((constructor initialOwner).run s).snd := by
-  unfold owner_preserves_count
-  exact constructor_preserves_count s initialOwner
+  owner_preserves_count s ((constructor initialOwner).run s).snd :=
+  constructor_preserves_count s initialOwner
 
 /-! ## Owner operations preserve counter storage (owner_preserves_count)
 
@@ -54,9 +51,8 @@ TransferOwnership doesn't touch the counter value.
 /-- TransferOwnership preserves all uint256 storage (including count). -/
 theorem transferOwnership_owner_preserves_count (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
-  owner_preserves_count s ((transferOwnership newOwner).run s).snd := by
-  unfold owner_preserves_count
-  exact transferOwnership_preserves_count s newOwner h_owner
+  owner_preserves_count s ((transferOwnership newOwner).run s).snd :=
+  transferOwnership_preserves_count s newOwner h_owner
 
 /-! ## Context preservation
 

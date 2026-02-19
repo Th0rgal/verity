@@ -78,8 +78,7 @@ theorem store_preserves_context (s : ContractState) (value : Uint256) :
 theorem retrieve_preserves_context (s : ContractState) :
   let s' := ((retrieve).run s).snd
   context_preserved s s' := by
-  have h := retrieve_preserves_state s
-  simp [h, Specs.sameContext]
+  simp [retrieve_preserves_state s, Specs.sameContext]
 
 /-- retrieve preserves well-formedness. -/
 theorem retrieve_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :

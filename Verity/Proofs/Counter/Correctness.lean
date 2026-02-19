@@ -48,8 +48,7 @@ theorem decrement_state_preserved_except_count (s : ContractState) :
 theorem getCount_state_preserved (s : ContractState) :
   let s' := ((getCount).run s).snd
   state_preserved_except_count s s' := by
-  have h := getCount_preserves_state s
-  simp [h, state_preserved_except_count, storage_isolated,
+  simp [getCount_preserves_state s, state_preserved_except_count, storage_isolated,
     Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameContext]
 
 /-! ## Combined Spec Proofs
