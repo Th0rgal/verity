@@ -40,6 +40,17 @@ theorem countOccU_cons_ne (a target : Address) (rest : List Address) (h : a ≠ 
   countOccU target (a :: rest) = countOccU target rest := by
   simp [countOccU, countOcc, h]
 
+/-- `x * (1 + n) = x + x * n` — factored out of 4 identical calc blocks below. -/
+private theorem mul_one_add (x n : Uint256) : x * (1 + n) = x + x * n := by
+  calc
+    x * (1 + n)
+        = (1 + n) * x := by simp [Verity.Core.Uint256.mul_comm]
+    _ = x + n * x := by
+            have := Verity.Core.Uint256.add_mul (1 : Uint256) n x
+            calc (1 + n) * x = 1 * x + n * x := this
+              _ = x + n * x := by simp [Verity.Core.Uint256.one_mul]
+    _ = x + x * n := by simp [Verity.Core.Uint256.mul_comm]
+
 /-! ## Generic List Sum Lemma: Point Update -/
 
 /-- When f' agrees with f except at target where f'(target) = f(target) + delta,
@@ -58,22 +69,7 @@ theorem map_sum_point_update
     rw [ih]
     by_cases h : a = target
     · simp [h, h_target, countOccU_cons_eq]
-      have h_mul : delta * (1 + countOccU target rest) = delta + delta * countOccU target rest := by
-        calc
-          delta * (1 + countOccU target rest)
-              = (1 + countOccU target rest) * delta := by
-                  simp [Verity.Core.Uint256.mul_comm]
-          _ = delta + countOccU target rest * delta := by
-                  have h_add_mul := Verity.Core.Uint256.add_mul
-                    (1 : Uint256) (countOccU target rest) delta
-                  calc
-                    (1 + countOccU target rest) * delta
-                        = 1 * delta + countOccU target rest * delta := h_add_mul
-                    _ = delta + countOccU target rest * delta := by
-                        simp [Verity.Core.Uint256.one_mul]
-          _ = delta + delta * countOccU target rest := by
-                  simp [Verity.Core.Uint256.mul_comm]
-      rw [h_mul]
+      rw [mul_one_add]
       rw [← Verity.Core.Uint256.add_assoc delta (f target) _]
       rw [Verity.Core.Uint256.add_comm delta (f target)]
       rw [Verity.Core.Uint256.add_assoc (f target) delta _]
@@ -99,22 +95,7 @@ theorem map_sum_point_decrease
     simp only [List.map, List.sum_cons]
     by_cases h : a = target
     · simp [h, h_target, countOccU_cons_eq]
-      have h_mul : delta * (1 + countOccU target rest) = delta + delta * countOccU target rest := by
-        calc
-          delta * (1 + countOccU target rest)
-              = (1 + countOccU target rest) * delta := by
-                  simp [Verity.Core.Uint256.mul_comm]
-          _ = delta + countOccU target rest * delta := by
-                  have h_add_mul := Verity.Core.Uint256.add_mul
-                    (1 : Uint256) (countOccU target rest) delta
-                  calc
-                    (1 + countOccU target rest) * delta
-                        = 1 * delta + countOccU target rest * delta := h_add_mul
-                    _ = delta + countOccU target rest * delta := by
-                        simp [Verity.Core.Uint256.one_mul]
-          _ = delta + delta * countOccU target rest := by
-                  simp [Verity.Core.Uint256.mul_comm]
-      rw [h_mul]
+      rw [mul_one_add]
       have h_cancel : f target - delta + delta = f target := Verity.Core.Uint256.sub_add_cancel_left (f target) delta
       rw [← Verity.Core.Uint256.add_assoc (List.map f' rest).sum delta _]
       rw [Verity.Core.Uint256.add_left_comm (List.map f' rest).sum delta _]
@@ -155,22 +136,7 @@ theorem map_sum_transfer_eq
     simp only [List.map, List.sum_cons]
     by_cases ha_s : a = src
     · simp [ha_s, h_src, countOccU_cons_eq, countOccU_cons_ne src dst rest h_ne]
-      have h_mul : d * (1 + countOccU src rest) = d + d * countOccU src rest := by
-        calc
-          d * (1 + countOccU src rest)
-              = (1 + countOccU src rest) * d := by
-                  simp [Verity.Core.Uint256.mul_comm]
-          _ = d + countOccU src rest * d := by
-                  have h_add_mul := Verity.Core.Uint256.add_mul
-                    (1 : Uint256) (countOccU src rest) d
-                  calc
-                    (1 + countOccU src rest) * d
-                        = 1 * d + countOccU src rest * d := h_add_mul
-                    _ = d + countOccU src rest * d := by
-                        simp [Verity.Core.Uint256.one_mul]
-          _ = d + d * countOccU src rest := by
-                  simp [Verity.Core.Uint256.mul_comm]
-      rw [h_mul]
+      rw [mul_one_add]
       have h_cancel : f src - d + d = f src := Verity.Core.Uint256.sub_add_cancel_left (f src) d
       rw [← Verity.Core.Uint256.add_assoc (List.map f' rest).sum d _]
       rw [Verity.Core.Uint256.add_left_comm (List.map f' rest).sum d _]
@@ -186,22 +152,7 @@ theorem map_sum_transfer_eq
       · simp [ha_d, h_dst]
         have h_ne_sym : dst ≠ src := Ne.symm h_ne
         simp [countOccU_cons_ne dst src rest h_ne_sym, countOccU_cons_eq]
-        have h_mul : d * (1 + countOccU dst rest) = d + d * countOccU dst rest := by
-          calc
-            d * (1 + countOccU dst rest)
-                = (1 + countOccU dst rest) * d := by
-                    simp [Verity.Core.Uint256.mul_comm]
-            _ = d + countOccU dst rest * d := by
-                    have h_add_mul := Verity.Core.Uint256.add_mul
-                      (1 : Uint256) (countOccU dst rest) d
-                    calc
-                      (1 + countOccU dst rest) * d
-                          = 1 * d + countOccU dst rest * d := h_add_mul
-                      _ = d + countOccU dst rest * d := by
-                          simp [Verity.Core.Uint256.one_mul]
-            _ = d + d * countOccU dst rest := by
-                    simp [Verity.Core.Uint256.mul_comm]
-        rw [h_mul]
+        rw [mul_one_add]
         rw [← Verity.Core.Uint256.add_assoc d (f dst) _]
         rw [Verity.Core.Uint256.add_comm d (f dst)]
         rw [Verity.Core.Uint256.add_assoc (f dst) d _]
