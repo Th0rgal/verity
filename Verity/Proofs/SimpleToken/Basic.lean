@@ -126,8 +126,7 @@ on overflow, matching Solidity ^0.8 checked arithmetic semantics.
 -- Helper: isOwner returns true when sender is owner
 theorem isOwner_true_when_owner (s : ContractState) (h : s.sender = s.storageAddr 0) :
   ((isOwner).run s).fst = true := by
-  simp only [isOwner, msgSender, getStorageAddr, Examples.SimpleToken.owner, bind, Bind.bind, Contract.run, pure, Pure.pure, ContractResult.fst]
-  simp [h]
+  simp [isOwner, msgSender, getStorageAddr, Examples.SimpleToken.owner, bind, Bind.bind, Contract.run, pure, Pure.pure, ContractResult.fst, h]
 
 -- Helper: unfold mint when owner guard passes and no overflow
 private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256)
