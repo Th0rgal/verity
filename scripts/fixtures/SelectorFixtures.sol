@@ -64,4 +64,14 @@ contract SelectorFixtures {
     {
         return amount;
     }
+
+    // These are intentionally non-selector visibilities and must be ignored by
+    // fixture extraction because solc --hashes does not emit them.
+    function helperInternal(uint256 amount) internal pure returns (uint256) {
+        return amount + 1;
+    }
+
+    function helperPrivate(uint256 amount) private pure returns (uint256) {
+        return amount + 2;
+    }
 }

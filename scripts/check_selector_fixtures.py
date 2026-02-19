@@ -17,7 +17,7 @@ FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
 SIG_RE = re.compile(r"^([A-Za-z0-9_]+\([^\)]*\))\s*:\s*(0x)?([0-9a-fA-F]{8})$")
 HASH_RE = re.compile(r"^(0x)?([0-9a-fA-F]{8})\s*:\s*([A-Za-z0-9_]+\([^\)]*\))$")
 FUNCTION_START_RE = re.compile(r"\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
-VISIBILITY_RE = re.compile(r"\b(external|public|internal|private)\b")
+SELECTOR_VISIBILITY_RE = re.compile(r"\b(external|public)\b")
 IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ARRAY_SUFFIX_RE = re.compile(r"(\[[0-9]*\]\s*)+$")
 
@@ -208,7 +208,8 @@ def _iter_function_signatures(text: str) -> list[tuple[str, str]]:
             continue
 
         suffix = text[close_paren + 1 : header_end]
-        if not VISIBILITY_RE.search(suffix):
+        # solc --hashes only reports selectors for public/external functions.
+        if not SELECTOR_VISIBILITY_RE.search(suffix):
             continue
 
         params = text[open_paren + 1 : close_paren].strip()
