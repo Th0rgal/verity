@@ -79,7 +79,7 @@ theorem deposit_meets_spec (s : ContractState) (amount : Uint256) :
       simp [ContractResult.snd, beq_iff_eq, h_ne]
   · rfl
   · rfl
-  · exact ⟨rfl, ⟨rfl, ⟨rfl, rfl⟩⟩⟩
+  · exact Specs.sameContext_rfl _
 
 theorem deposit_increases_balance (s : ContractState) (amount : Uint256) :
   let s' := ((deposit amount).run s).snd
@@ -133,7 +133,7 @@ theorem withdraw_meets_spec (s : ContractState) (amount : Uint256)
       simp [ContractResult.snd, beq_iff_eq, h_ne]
   · rfl
   · rfl
-  · exact ⟨rfl, ⟨rfl, ⟨rfl, rfl⟩⟩⟩
+  · exact Specs.sameContext_rfl _
 
 theorem withdraw_decreases_balance (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :

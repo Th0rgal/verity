@@ -81,7 +81,7 @@ theorem increment_meets_spec (s : ContractState)
     intro h_eq; exact absurd h_eq h_ne
   · rfl
   · rfl
-  · exact ⟨rfl, ⟨rfl, ⟨rfl, rfl⟩⟩⟩
+  · exact Specs.sameContext_rfl _
 
 theorem increment_adds_one (s : ContractState)
   (h_no_overflow : (s.storage 0 : Nat) + 1 ≤ MAX_UINT256) :
@@ -144,7 +144,7 @@ theorem decrement_meets_spec (s : ContractState)
     intro h_eq; exact absurd h_eq h_ne
   · rfl
   · rfl
-  · exact ⟨rfl, ⟨rfl, ⟨rfl, rfl⟩⟩⟩
+  · exact Specs.sameContext_rfl _
 
 theorem decrement_subtracts_one (s : ContractState)
   (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :

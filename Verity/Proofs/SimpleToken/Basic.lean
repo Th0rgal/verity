@@ -135,14 +135,6 @@ theorem isOwner_true_when_owner (s : ContractState) (h : s.sender = s.storageAdd
   simp only [isOwner, msgSender, getStorageAddr, Examples.SimpleToken.owner, bind, Bind.bind, Contract.run, pure, Pure.pure, ContractResult.fst]
   simp [h]
 
--- Shared unfolding definitions for mint and transfer proofs
-private abbrev unfold_defs := [``mint, ``transfer,
-  ``Verity.Examples.SimpleToken.onlyOwner, ``isOwner,
-  ``Examples.SimpleToken.owner, ``Examples.SimpleToken.balances, ``Examples.SimpleToken.totalSupply,
-  ``msgSender, ``getStorageAddr, ``setStorageAddr, ``getStorage, ``setStorage, ``getMapping, ``setMapping,
-  ``Verity.require, ``Verity.pure, ``Verity.bind, ``Bind.bind, ``Pure.pure,
-  ``Contract.run, ``ContractResult.snd, ``ContractResult.fst]
-
 -- Helper: unfold mint when owner guard passes and no overflow
 private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
@@ -203,7 +195,7 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
     · intro slot h_neq; intro addr; simp [h_neq] -- other mapping slots
   · trivial -- owner preserved
   · intro slot h_neq; simp [h_neq] -- other uint storage
-  · exact ⟨rfl, ⟨rfl, ⟨rfl, rfl⟩⟩⟩
+  · exact Specs.sameContext_rfl _
 
 theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)

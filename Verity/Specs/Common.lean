@@ -18,6 +18,9 @@ def sameContext (s s' : ContractState) : Prop :=
   s'.msgValue = s.msgValue ∧
   s'.blockTimestamp = s.blockTimestamp
 
+@[simp] theorem sameContext_rfl (s : ContractState) : sameContext s s :=
+  ⟨rfl, rfl, rfl, rfl⟩
+
 /-- Uint256 storage is unchanged. -/
 def sameStorage (s s' : ContractState) : Prop :=
   s'.storage = s.storage
