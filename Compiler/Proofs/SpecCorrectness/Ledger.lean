@@ -186,33 +186,8 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
         ((ContractResult.getState
             ((withdraw (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
           ).storageMap 0 sender).val =
-          (state.storageMap 0 sender).val - amount := by
-      have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_state
-      -- Subtraction uses Nat subtraction when no underflow; amount ≤ balance by h
-      have h_le : (Verity.Core.Uint256.ofNat amount).val ≤ (state.storageMap 0 sender).val := by
-        simpa [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using h
-      -- Convert the Uint256 subtraction to Nat subtraction using sub_eq_of_le.
-      have h_val' :
-          ((ContractResult.getState
-              ((withdraw (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 0 sender).val =
-            ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-              Verity.Core.Uint256) : Nat) := by
-        simpa [Verity.EVM.Uint256.sub] using h_val
-      have h_val'' :
-          ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-            Verity.Core.Uint256) : Nat) =
-            (state.storageMap 0 sender).val - amount := by
-        simpa [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using
-          (Verity.Core.Uint256.sub_eq_of_le (a := state.storageMap 0 sender)
-            (b := Verity.Core.Uint256.ofNat amount) h_le)
-      calc
-        ((ContractResult.getState
-            ((withdraw (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-          ).storageMap 0 sender).val
-            = ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-              Verity.Core.Uint256) : Nat) := h_val'
-        _ = (state.storageMap 0 sender).val - amount := h_val''
+          (state.storageMap 0 sender).val - amount :=
+      h_edsl_state ▸ uint256_sub_val_of_le _ _ h
     calc
       (let specTx : DiffTestTypes.Transaction := {
         sender := sender
@@ -392,31 +367,8 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           ((ContractResult.getState
               ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
             ).storageMap 0 sender).val =
-            (state.storageMap 0 sender).val - amount := by
-        have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_state
-        have h_le : (Verity.Core.Uint256.ofNat amount).val ≤ (state.storageMap 0 sender).val := by
-          simpa [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using h
-        have h_val' :
-            ((ContractResult.getState
-                ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-              ).storageMap 0 sender).val =
-              ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-                Verity.Core.Uint256) : Nat) := by
-          simpa [Verity.EVM.Uint256.sub] using h_val
-        have h_val'' :
-            ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-              Verity.Core.Uint256) : Nat) =
-              (state.storageMap 0 sender).val - amount := by
-          simpa [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using
-            (Verity.Core.Uint256.sub_eq_of_le (a := state.storageMap 0 sender)
-              (b := Verity.Core.Uint256.ofNat amount) h_le)
-        calc
-          ((ContractResult.getState
-              ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 0 sender).val
-              = ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-                Verity.Core.Uint256) : Nat) := h_val'
-          _ = (state.storageMap 0 sender).val - amount := h_val''
+            (state.storageMap 0 sender).val - amount :=
+        h_edsl_state ▸ uint256_sub_val_of_le _ _ h
       calc
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -629,24 +581,8 @@ theorem ledger_transfer_preserves_total (state : ContractState) (to : Address) (
   have h_sender_val :
       ((Contract.runState (transfer to (Verity.Core.Uint256.ofNat amount))
           { state with sender := sender }).storageMap 0 sender).val =
-        (state.storageMap 0 sender).val - amount := by
-    have h_le : (Verity.Core.Uint256.ofNat amount).val ≤ (state.storageMap 0 sender).val := by
-      simpa [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using h2
-    have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_sender
-    have h_val' :
-        ((Contract.runState (transfer to (Verity.Core.Uint256.ofNat amount))
-          { state with sender := sender }).storageMap 0 sender).val =
-          ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-            Verity.Core.Uint256) : Nat) := by
-      simpa [Verity.EVM.Uint256.sub] using h_val
-    have h_val'' :
-        ((state.storageMap 0 sender - Verity.Core.Uint256.ofNat amount :
-          Verity.Core.Uint256) : Nat) =
-          (state.storageMap 0 sender).val - amount := by
-      simpa [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt] using
-        (Verity.Core.Uint256.sub_eq_of_le (a := state.storageMap 0 sender)
-          (b := Verity.Core.Uint256.ofNat amount) h_le)
-    simpa [h_val'] using h_val''
+        (state.storageMap 0 sender).val - amount :=
+    h_sender ▸ uint256_sub_val_of_le _ _ h2
   have h_recipient_val :
       ((Contract.runState (transfer to (Verity.Core.Uint256.ofNat amount))
           { state with sender := sender }).storageMap 0 to).val =
