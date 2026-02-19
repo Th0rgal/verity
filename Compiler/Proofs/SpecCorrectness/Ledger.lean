@@ -344,9 +344,6 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
           h_eq_nat, h_self_mod_eq, h_self_ge,
-          lookup_senderBal, lookup_recipientBal, lookup_senderBal_with_delta, lookup_recipientBal_with_delta,
-          lookup_sameAddr_with_delta, lookup_delta_with_delta, lookup_amountDelta_with_delta,
-          lookup_addr_first,
           List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
       have h_edsl_val :
           ((ContractResult.getState
@@ -379,9 +376,6 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
           h_eq_nat, h_self_mod_eq, h_self_ge,
-          lookup_senderBal, lookup_recipientBal, lookup_senderBal_with_delta, lookup_recipientBal_with_delta,
-          lookup_sameAddr_with_delta, lookup_delta_with_delta, lookup_amountDelta_with_delta,
-          lookup_addr_first,
           List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
       have h_edsl_val :
           ((ContractResult.getState
@@ -420,7 +414,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
         Nat.mod_eq_of_lt h_amount_lt,
-        h_addr_ne, h_addr_ne', lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second,
+        h_addr_ne, h_addr_ne',
         h_overflow_mod_eq, h_overflow_ge,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
     constructor
@@ -441,7 +435,6 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, h_addr_ne, h_addr_ne',
-          lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second,
           h_overflow_mod_eq, h_overflow_ge,
           List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
       have h_edsl_state :
@@ -514,7 +507,6 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
           SpecStorage.setMapping, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, h_addr_ne, h_addr_ne',
-          lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second,
           h_overflow_mod_eq, h_overflow_ge,
           List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
       have h_edsl_state :
