@@ -68,75 +68,100 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   else if name = "shr" then 3
   else cfg.unknownCallCost
 
+abbrev FunctionEnv := List (String × List YulStmt)
+
+/-- Collect user-defined function bodies from a Yul statement tree. -/
+def collectFunctionDefs : List YulStmt → FunctionEnv
+  | [] => []
+  | .funcDef name _ _ body :: rest => (name, body) :: collectFunctionDefs rest
+  | _ :: rest => collectFunctionDefs rest
+
+/-- Return all matching user-defined function bodies for a call name. -/
+def lookupFunctionBodies (env : FunctionEnv) (name : String) : List (List YulStmt) :=
+  env.foldr (fun (entry : String × List YulStmt) acc =>
+    if entry.fst = name then entry.snd :: acc else acc) []
+
 mutual
 
 /-- Upper bound for evaluating a Yul expression. -/
-def exprUpperBound (cfg : GasConfig) : YulExpr → Nat
-  | .lit _ => 0
-  | .hex _ => 0
-  | .str _ => 0
-  | .ident _ => 0
-  | .call name args =>
-      argsUpperBound cfg args + builtinBaseCost cfg name
+def exprUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → YulExpr → Nat
+  | 0, _ => 0
+  | _ + 1, .lit _ => 0
+  | _ + 1, .hex _ => 0
+  | _ + 1, .str _ => 0
+  | _ + 1, .ident _ => 0
+  | fuel + 1, .call name args =>
+      let argCost := argsUpperBoundFuel cfg env fuel args
+      let fnBodies := lookupFunctionBodies env name
+      if fnBodies.isEmpty then
+        argCost + builtinBaseCost cfg name
+      else
+        argCost + maxFunctionCallCostFuel cfg env fuel fnBodies
 
 /-- Upper bound for evaluating a list of Yul expressions. -/
-def argsUpperBound (cfg : GasConfig) : List YulExpr → Nat
-  | [] => 0
-  | arg :: rest => exprUpperBound cfg arg + argsUpperBound cfg rest
+def argsUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → List YulExpr → Nat
+  | 0, _ => 0
+  | _, [] => 0
+  | fuel + 1, arg :: rest => exprUpperBoundFuel cfg env fuel arg + argsUpperBoundFuel cfg env fuel rest
 
-end
-
-mutual
+/-- Maximum user-defined function-call cost among matching function bodies. -/
+def maxFunctionCallCostFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → List (List YulStmt) → Nat
+  | 0, _ => 0
+  | _, [] => 0
+  | fuel + 1, body :: rest =>
+      Nat.max (stmtsUpperBoundFuel cfg env fuel body) (maxFunctionCallCostFuel cfg env fuel rest)
 
 /-- Upper bound over switch cases using explicit fuel for totality. -/
-def casesUpperBoundFuel (cfg : GasConfig) : Nat → List (Nat × List YulStmt) → Nat
+def casesUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → List (Nat × List YulStmt) → Nat
   | 0, _ => 0
   | _, [] => 0
   | fuel + 1, (_, body) :: rest =>
-      Nat.max (stmtsUpperBoundFuel cfg fuel body) (casesUpperBoundFuel cfg fuel rest)
+      Nat.max (stmtsUpperBoundFuel cfg env fuel body) (casesUpperBoundFuel cfg env fuel rest)
 
 /-- Upper bound for a single Yul statement using explicit fuel for totality. -/
-def stmtUpperBoundFuel (cfg : GasConfig) : Nat → YulStmt → Nat
+def stmtUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → YulStmt → Nat
   | 0, _ => 0
   | _ + 1, .comment _ => 0
-  | _ + 1, .let_ _ value => exprUpperBound cfg value
-  | _ + 1, .assign _ value => exprUpperBound cfg value
-  | _ + 1, .expr e => exprUpperBound cfg e
-  | fuel + 1, .if_ cond body => exprUpperBound cfg cond + stmtsUpperBoundFuel cfg fuel body
+  | fuel + 1, .let_ _ value => exprUpperBoundFuel cfg env fuel value
+  | fuel + 1, .assign _ value => exprUpperBoundFuel cfg env fuel value
+  | fuel + 1, .expr e => exprUpperBoundFuel cfg env fuel e
+  | fuel + 1, .if_ cond body => exprUpperBoundFuel cfg env fuel cond + stmtsUpperBoundFuel cfg env fuel body
   | fuel + 1, .for_ init cond post body =>
-      let initCost := stmtsUpperBoundFuel cfg fuel init
-      let loopBodyCost := exprUpperBound cfg cond + stmtsUpperBoundFuel cfg fuel body + stmtsUpperBoundFuel cfg fuel post
-      let exitCheckCost := exprUpperBound cfg cond
+      let initCost := stmtsUpperBoundFuel cfg env fuel init
+      let loopBodyCost := exprUpperBoundFuel cfg env fuel cond + stmtsUpperBoundFuel cfg env fuel body + stmtsUpperBoundFuel cfg env fuel post
+      let exitCheckCost := exprUpperBoundFuel cfg env fuel cond
       initCost + cfg.loopIterations * loopBodyCost + exitCheckCost
   | fuel + 1, .switch expr cases defaultCase =>
-      let exprCost := exprUpperBound cfg expr
+      let exprCost := exprUpperBoundFuel cfg env fuel expr
       let defaultCost := match defaultCase with
-        | some body => stmtsUpperBoundFuel cfg fuel body
+        | some body => stmtsUpperBoundFuel cfg env fuel body
         | none => 0
-      exprCost + Nat.max defaultCost (casesUpperBoundFuel cfg fuel cases)
-  | fuel + 1, .block body => stmtsUpperBoundFuel cfg fuel body
-  | fuel + 1, .funcDef _ _ _ body => stmtsUpperBoundFuel cfg fuel body
+      exprCost + Nat.max defaultCost (casesUpperBoundFuel cfg env fuel cases)
+  | fuel + 1, .block body => stmtsUpperBoundFuel cfg env fuel body
+  /- Function declarations do not execute at declaration site; they are accounted on call sites. -/
+  | _ + 1, .funcDef _ _ _ _ => 0
 
 /-- Upper bound for a sequence of Yul statements using explicit fuel. -/
-def stmtsUpperBoundFuel (cfg : GasConfig) : Nat → List YulStmt → Nat
+def stmtsUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → List YulStmt → Nat
   | 0, _ => 0
   | _, [] => 0
   | fuel + 1, stmt :: rest =>
-      stmtUpperBoundFuel cfg fuel stmt + stmtsUpperBoundFuel cfg fuel rest
+      stmtUpperBoundFuel cfg env fuel stmt + stmtsUpperBoundFuel cfg env fuel rest
 
 end
 
 /-- Upper bound over switch cases. -/
 def casesUpperBound (cfg : GasConfig) (fuel : Nat) (cases : List (Nat × List YulStmt)) : Nat :=
-  casesUpperBoundFuel cfg fuel cases
+  casesUpperBoundFuel cfg [] fuel cases
 
 /-- Upper bound for a single Yul statement. -/
 def stmtUpperBound (cfg : GasConfig) (fuel : Nat) (stmt : YulStmt) : Nat :=
-  stmtUpperBoundFuel cfg fuel stmt
+  stmtUpperBoundFuel cfg [] fuel stmt
 
 /-- Upper bound for a sequence of Yul statements. -/
 def stmtsUpperBound (cfg : GasConfig) (fuel : Nat) (stmts : List YulStmt) : Nat :=
-  stmtsUpperBoundFuel cfg fuel stmts
+  let env := collectFunctionDefs stmts
+  stmtsUpperBoundFuel cfg env fuel stmts
 
 /-- Default static gas upper bound used for quick checks. -/
 def gasUpperBound (stmts : List YulStmt) : Nat :=
@@ -168,10 +193,21 @@ def externalCallProgram : List YulStmt :=
     .expr (.call "stop" [])
   ]
 
+def functionDeclAndCallProgram : List YulStmt :=
+  [
+    .funcDef "store" ["x"] [] [
+      .expr (.call "sstore" [.lit 0, .ident "x"])
+    ],
+    .expr (.call "store" [.lit 777]),
+    .expr (.call "stop" [])
+  ]
+
 example : gasUpperBound simpleStoreProgram = 22100 := rfl
 
 example : stmtsUpperBound { loopIterations := 3 } 64 boundedLoopProgram = 6330 := rfl
 
 example : gasUpperBound externalCallProgram = 36700 := rfl
+
+example : gasUpperBound functionDeclAndCallProgram = 22100 := rfl
 
 end Compiler.Gas

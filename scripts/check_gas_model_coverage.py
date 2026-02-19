@@ -24,22 +24,19 @@ def load_modeled_calls() -> set[str]:
     return set(MODELED_CALL_RE.findall(text))
 
 
-def strip_inline_comments(line: str) -> str:
-    idx = line.find("/*")
-    if idx != -1:
-        return line[:idx]
-    return line
+def strip_comments(text: str) -> str:
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = re.sub(r"//.*", "", text)
+    return text
 
 
 def collect_yul_calls() -> set[str]:
     calls: set[str] = set()
     for yul_path in sorted(YUL_DIR.glob("*.yul")):
-        function_names: set[str] = set()
-        for line in yul_path.read_text(encoding="utf-8").splitlines():
-            clean = strip_inline_comments(line)
-            fn_match = FUNCTION_DEF_RE.search(clean)
-            if fn_match:
-                function_names.add(fn_match.group(1))
+        source = strip_comments(yul_path.read_text(encoding="utf-8"))
+        function_names = set(FUNCTION_DEF_RE.findall(source))
+        for line in source.splitlines():
+            clean = line.strip()
             for match in CALL_RE.finditer(clean):
                 name = match.group(1)
                 if name in NON_CALL_KEYWORDS or name in function_names:
