@@ -51,6 +51,16 @@ AST_UINT_SLOT_RE = re.compile(r"\.(?:storage|sstore)\s+(\d+)\b")
 AST_ADDR_SLOT_RE = re.compile(r"\.(?:storageAddr|sstoreAddr)\s+(\d+)\b")
 AST_MAPPING_SLOT_RE = re.compile(r"\.(?:mapping|mstore)\s+(\d+)\b")
 
+# Spec slot references in Verity/Specs/*/Spec.lean:
+#   s.storage <slot>, s'.storage <slot>
+#   s.storageAddr <slot>, s'.storageAddr <slot>
+#   s.storageMap <slot> <addr>, s'.storageMap <slot> <addr>
+SPEC_UINT_SLOT_RE = re.compile(r"\bs'?\.(?:storage)\s+(\d+)\b")
+SPEC_ADDR_SLOT_RE = re.compile(r"\bs'?\.(?:storageAddr)\s+(\d+)\b")
+SPEC_MAPPING_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap)\s+(\d+)\b")
+SPEC_MAPPING_UINT_SLOT_RE = re.compile(r"\bs'?\.(?:storageMapUint)\s+(\d+)\b")
+SPEC_MAPPING2_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap2)\s+(\d+)\b")
+
 
 def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
     """Return index of matching close delimiter starting at `start`."""
@@ -245,6 +255,43 @@ def extract_ast_slots(
     return entries, errors
 
 
+def extract_spec_slots(
+    filepath: Path,
+) -> tuple[list[tuple[str, str, int]], list[str]]:
+    """Extract literal slot/type usage from a Spec.lean file.
+
+    Returns:
+      - list of (name, type, slot_number) where name is synthetic "slot<N>"
+      - list of consistency errors found inside the spec file itself
+    """
+    content = filepath.read_text()
+    contract = filepath.parent.name
+
+    by_slot: dict[int, set[str]] = {}
+    for m in SPEC_UINT_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("uint256")
+    for m in SPEC_ADDR_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("address")
+    for m in SPEC_MAPPING_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("mapping")
+    for m in SPEC_MAPPING_UINT_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("mapping_uint")
+    for m in SPEC_MAPPING2_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("mapping2")
+
+    entries: list[tuple[str, str, int]] = []
+    errors: list[str] = []
+    for slot in sorted(by_slot.keys()):
+        kinds = by_slot[slot]
+        if len(kinds) > 1:
+            errors.append(
+                f"[Spec] {contract}: slot {slot} used with multiple kinds: {sorted(kinds)}"
+            )
+        kind = sorted(kinds)[0]
+        entries.append((f"slot{slot}", kind, slot))
+    return entries, errors
+
+
 def normalize_type(ty: str) -> str:
     """Normalize type names for comparison across layers."""
     raw = ty.strip()
@@ -348,6 +395,47 @@ def check_layer_consistency(
                     errors.append(
                         f"{label}: {contract}.{name} in {ref_label} but not in {subj_label}"
                     )
+
+    return errors
+
+
+def check_spec_edsl_consistency(
+    edsl: dict[str, list[tuple[str, str, int]]],
+    spec: dict[str, list[tuple[str, str, int]]],
+    compiler: dict[str, list[tuple[str, str, int]]],
+    compiler_externals: dict[str, bool],
+) -> list[str]:
+    """Check Spec slot/type usage matches EDSL for compiled non-external contracts."""
+    errors: list[str] = []
+
+    required_contracts = sorted(
+        c for c in compiler.keys() if not compiler_externals.get(c, False)
+    )
+    for contract in required_contracts:
+        if contract not in edsl:
+            errors.append(
+                f"Spec-EDSL: {contract} in Compiler but missing from Verity/Examples"
+            )
+            continue
+        if contract not in spec:
+            errors.append(
+                f"Spec-EDSL: {contract} in Compiler but missing Spec.lean slot usage"
+            )
+            continue
+
+        edsl_slots = {(slot, normalize_type(ty)) for _name, ty, slot in edsl[contract]}
+        spec_slots = {(slot, normalize_type(ty)) for _name, ty, slot in spec[contract]}
+
+        for slot, ty in sorted(spec_slots):
+            if (slot, ty) not in edsl_slots:
+                errors.append(
+                    f"Spec-EDSL: {contract}.slot{slot} ({ty}) in Spec but not in EDSL"
+                )
+        for slot, ty in sorted(edsl_slots):
+            if (slot, ty) not in spec_slots:
+                errors.append(
+                    f"Spec-EDSL: {contract}.slot{slot} ({ty}) in EDSL but not in Spec"
+                )
 
     return errors
 
@@ -482,17 +570,15 @@ def main():
             if slots:
                 edsl_all[lean_file.stem] = slots
 
-    # 2. Extract Spec slots (use parent dir name as contract name)
+    # 2. Extract Spec slots from literal state accesses in Spec.lean files
     spec_all: dict[str, list[tuple[str, str, int]]] = {}
     specs_dir = ROOT / "Verity" / "Specs"
     for spec_file in sorted(specs_dir.glob("*/Spec.lean")):
-        # Contract name comes from parent directory, not filename
         contract_name = spec_file.parent.name
-        result = extract_edsl_slots(spec_file)
-        # Re-key using the parent directory name
-        for _key, slots in result.items():
-            if slots:
-                spec_all[contract_name] = slots
+        slots, spec_errors = extract_spec_slots(spec_file)
+        errors.extend(spec_errors)
+        if slots:
+            spec_all[contract_name] = slots
 
     # 3. Extract Compiler specs
     compiler_specs_file = ROOT / "Compiler" / "Specs.lean"
@@ -533,10 +619,9 @@ def main():
         ref_label="EDSL", subj_label="Compiler", check_reverse=True,
     ))
 
-    # 7. Check Spec-EDSL consistency
-    errors.extend(check_layer_consistency(
-        edsl_all, spec_all, "Spec-EDSL",
-        ref_label="EDSL", subj_label="Spec", check_reverse=True,
+    # 7. Check Spec-EDSL consistency (slot/type parity for compiled contracts)
+    errors.extend(check_spec_edsl_consistency(
+        edsl_all, spec_all, compiler_all, compiler_externals
     ))
 
     # 8. Check AST-Compiler slot/type consistency
