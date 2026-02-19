@@ -730,6 +730,60 @@ theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint25
   simp [setMapping]
 
 /-!
+## Generic msgValue / blockTimestamp / knownAddresses Preservation
+
+Storage mutations never touch context fields or (for non-mapping ops) knownAddresses.
+-/
+
+/-- setStorage preserves msgValue. -/
+theorem setStorage_preserves_msgValue (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.msgValue = state.msgValue := by
+  simp [setStorage]
+
+/-- setStorageAddr preserves msgValue. -/
+theorem setStorageAddr_preserves_msgValue (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.msgValue = state.msgValue := by
+  simp [setStorageAddr]
+
+/-- setMapping preserves msgValue. -/
+theorem setMapping_preserves_msgValue (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.msgValue = state.msgValue := by
+  simp [setMapping]
+
+/-- setStorage preserves blockTimestamp. -/
+theorem setStorage_preserves_blockTimestamp (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp [setStorage]
+
+/-- setStorageAddr preserves blockTimestamp. -/
+theorem setStorageAddr_preserves_blockTimestamp (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp [setStorageAddr]
+
+/-- setMapping preserves blockTimestamp. -/
+theorem setMapping_preserves_blockTimestamp (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp [setMapping]
+
+/-- setStorage preserves knownAddresses. -/
+theorem setStorage_preserves_knownAddresses (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.knownAddresses = state.knownAddresses := by
+  simp [setStorage]
+
+/-- setStorageAddr preserves knownAddresses. -/
+theorem setStorageAddr_preserves_knownAddresses (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.knownAddresses = state.knownAddresses := by
+  simp [setStorageAddr]
+
+/-!
 ## Generic Event Preservation
 
 Storage mutations never touch the `events` append-only log.

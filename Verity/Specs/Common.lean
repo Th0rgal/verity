@@ -39,6 +39,30 @@ def sameStorageMap (s s' : ContractState) : Prop :=
 
 @[simp] theorem sameStorageMap_rfl (s : ContractState) : sameStorageMap s s := rfl
 
+/-- Uint256-keyed mapping storage is unchanged. -/
+def sameStorageMapUint (s s' : ContractState) : Prop :=
+  s'.storageMapUint = s.storageMapUint
+
+@[simp] theorem sameStorageMapUint_rfl (s : ContractState) : sameStorageMapUint s s := rfl
+
+/-- Double mapping storage is unchanged. -/
+def sameStorageMap2 (s s' : ContractState) : Prop :=
+  s'.storageMap2 = s.storageMap2
+
+@[simp] theorem sameStorageMap2_rfl (s : ContractState) : sameStorageMap2 s s := rfl
+
+/-- Event log is unchanged. -/
+def sameEvents (s s' : ContractState) : Prop :=
+  s'.events = s.events
+
+@[simp] theorem sameEvents_rfl (s : ContractState) : sameEvents s s := rfl
+
+/-- Known addresses tracking is unchanged. -/
+def sameKnownAddresses (s s' : ContractState) : Prop :=
+  s'.knownAddresses = s.knownAddresses
+
+@[simp] theorem sameKnownAddresses_rfl (s : ContractState) : sameKnownAddresses s s := rfl
+
 /-- Address storage, mapping storage, and context are unchanged. -/
 def sameAddrMapContext (s s' : ContractState) : Prop :=
   sameStorageAddr s s' ∧
@@ -95,5 +119,25 @@ def storageMapUnchangedExceptKeyAtSlot (slot : Nat) (addr : Address) (s s' : Con
 def storageMapUnchangedExceptKeysAtSlot (slot : Nat) (addr1 addr2 : Address) (s s' : ContractState) : Prop :=
   storageMapUnchangedExceptKeys slot addr1 addr2 s s' ∧
   storageMapUnchangedExceptSlot slot s s'
+
+/-- All storage (uint256, addr, map, mapUint, map2) is unchanged. -/
+def sameAllStorage (s s' : ContractState) : Prop :=
+  sameStorage s s' ∧
+  sameStorageAddr s s' ∧
+  sameStorageMap s s' ∧
+  sameStorageMapUint s s' ∧
+  sameStorageMap2 s s'
+
+@[simp] theorem sameAllStorage_rfl (s : ContractState) : sameAllStorage s s :=
+  ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+/-- Everything except the event log is unchanged. -/
+def sameExceptEvents (s s' : ContractState) : Prop :=
+  sameAllStorage s s' ∧
+  sameContext s s' ∧
+  sameKnownAddresses s s'
+
+@[simp] theorem sameExceptEvents_rfl (s : ContractState) : sameExceptEvents s s :=
+  ⟨sameAllStorage_rfl s, sameContext_rfl s, rfl⟩
 
 end Verity.Specs

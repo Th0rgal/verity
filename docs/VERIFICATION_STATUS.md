@@ -63,7 +63,7 @@ EVM Bytecode
 | ReentrancyExample | 4 | ✅ Complete | `Verity/Examples/ReentrancyExample.lean` |
 | **Total** | **242** | **✅ 100%** | — |
 
-> **Note**: Stdlib (137 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (379 total properties).
+> **Note**: Stdlib (149 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (391 total properties).
 
 ### Example Property
 
@@ -177,12 +177,12 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
-**Status**: 58% coverage (220/379), 159 remaining exclusions all proof-only
+**Status**: 56% coverage (220/391), 159 remaining exclusions all proof-only
 
 ### Current Coverage
 
-- **Total Properties**: 379
-- **Covered**: 220 (58%)
+- **Total Properties**: 391
+- **Covered**: 220 (56%)
 - **Excluded**: 159 (all proof-only)
 - **Missing**: 0
 
@@ -198,7 +198,7 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 | SimpleToken | 85% (52/61) | 9 proof-only | ✅ High coverage |
 | Counter | 82% (23/28) | 5 proof-only | ✅ High coverage |
 | Ledger | 100% (33/33) | 0 | ✅ Complete |
-| Stdlib | 0% (0/137) | 137 proof-only | — Internal |
+| Stdlib | 0% (0/149) | 149 proof-only | — Internal |
 
 ### Exclusion Categories
 

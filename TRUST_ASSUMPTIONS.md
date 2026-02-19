@@ -79,7 +79,7 @@ theorem increment_correct (state : ContractState) :
     finalState.storage countSlot = add (state.storage countSlot) 1
 ```
 
-**Coverage**: All 379 theorems are formally proven (100% proof coverage). Additionally, 220 theorems have corresponding Foundry property tests (58% runtime test coverage).
+**Coverage**: All 391 theorems are formally proven (100% proof coverage). Additionally, 220 theorems have corresponding Foundry property tests (56% runtime test coverage).
 
 **What this guarantees**:
 - Contract behavior matches specification
@@ -689,7 +689,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ✅ Contract implementations match specifications (Layer 1)
 ✅ Specifications preserved through compilation (Layer 2)
 ✅ IR semantics equivalent to Yul semantics (Layer 3)
-✅ 379 theorems across 9 categories (220 covered by property tests)
+✅ 391 theorems across 9 categories (220 covered by property tests)
 
 ### What is Trusted (Validated but Not Proven)
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests

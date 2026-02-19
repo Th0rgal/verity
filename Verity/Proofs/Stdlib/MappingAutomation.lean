@@ -241,6 +241,34 @@ theorem setMapping2_preserves_knownAddresses (slot : StorageSlot (Address → Ad
   simp [setMapping2]
 
 /-!
+## msgValue / blockTimestamp / knownAddresses Preservation for Extended Mapping Types
+-/
+
+/-- setMappingUint preserves msgValue. -/
+theorem setMappingUint_preserves_msgValue (slot : StorageSlot (Uint256 → Uint256))
+    (key : Uint256) (value : Uint256) (state : ContractState) :
+    ((setMappingUint slot key value).run state).snd.msgValue = state.msgValue := by
+  simp [setMappingUint]
+
+/-- setMappingUint preserves blockTimestamp. -/
+theorem setMappingUint_preserves_blockTimestamp (slot : StorageSlot (Uint256 → Uint256))
+    (key : Uint256) (value : Uint256) (state : ContractState) :
+    ((setMappingUint slot key value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp [setMappingUint]
+
+/-- setMapping2 preserves msgValue. -/
+theorem setMapping2_preserves_msgValue (slot : StorageSlot (Address → Address → Uint256))
+    (key1 key2 : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping2 slot key1 key2 value).run state).snd.msgValue = state.msgValue := by
+  simp [setMapping2]
+
+/-- setMapping2 preserves blockTimestamp. -/
+theorem setMapping2_preserves_blockTimestamp (slot : StorageSlot (Address → Address → Uint256))
+    (key1 key2 : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping2 slot key1 key2 value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp [setMapping2]
+
+/-!
 ## Cross-Type Preservation: setMapping vs other storage types
 -/
 
