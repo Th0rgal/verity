@@ -23,8 +23,8 @@
     and `Stmt.internalCall` revert (return none) instead of silently producing
     wrong results. Used by `execFunction`/`execConstructor`/`interpretSpec`.
   - Fuel-based (`execStmtsFuel`): handles all constructs including forEach
-    and internal function calls. Used by `execFunctionFuel`,
-    `execConstructorFuel`, and `interpretSpecFull`.
+    and internal function calls. Used by `execFunctionFuel` and
+    `execConstructorFuel`.
 
   Known limitation:
   - `Expr.internalCall` always returns 0 in `evalExpr` — the expression evaluator
@@ -260,7 +260,7 @@ The basic `execStmt` / `execStmts` handle most constructs. `Stmt.forEach` and
 `Stmt.internalCall` return `none` (revert) in this path — `forEach` because
 loop expansion is not structurally decreasing, and `internalCall` because
 function lookup requires the `functions` parameter. For contracts that use
-these features, use `execStmtsFuel` / `execFunctionFuel` / `interpretSpecFull`.
+these features, use `execStmtsFuel` / `execFunctionFuel`.
 -/
 
 -- Execution state
@@ -333,9 +333,9 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
 
   | Stmt.forEach _varName _count _body =>
       -- forEach requires fuel-based execution for termination (the expanded loop
-      -- body is not structurally smaller). Use execStmtsFuel / execFunctionFuel /
-      -- interpretSpecFull for contracts with loops. Revert instead of silently
-      -- skipping the loop body.
+      -- body is not structurally smaller). Use execStmtsFuel / execFunctionFuel
+      -- for contracts with loops. Revert instead of silently skipping the loop
+      -- body.
       none
 
   | Stmt.emit eventName args =>
@@ -560,53 +560,6 @@ def interpretSpec (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Tra
       arrayParams := []
     }
     match execFunction spec tx.functionName ctx externalFns initialStorage with
-    | none =>
-        { success := false, returnValue := none,
-          revertReason := some s!"Function '{tx.functionName}' reverted",
-          finalStorage := initialStorage }
-    | some (_, finalState) =>
-        { success := true, returnValue := finalState.returnValue,
-          revertReason := none, finalStorage := finalState.storage }
-
-/-- Interpret a ContractSpec against a transaction using the fuel-based path.
-    Supports all features including internal function calls. Use this instead
-    of `interpretSpec` for contracts that use `Stmt.internalCall` or
-    `Expr.internalCall`. -/
-def interpretSpecFull (spec : ContractSpec) (initialStorage : SpecStorage) (tx : Transaction)
-    (externalFns : List (String × (List Nat → Nat)) := [])
-    (fuel : Nat := 10000) : SpecResult :=
-  if tx.functionName == "" then
-    let ctx : EvalContext := {
-      sender := tx.sender
-      msgValue := tx.msgValue
-      blockTimestamp := tx.blockTimestamp
-      params := []
-      paramTypes := []
-      constructorArgs := tx.args
-      constructorParamTypes := []
-      localVars := []
-      arrayParams := []
-    }
-    match execConstructorFuel spec ctx externalFns initialStorage fuel with
-    | none =>
-        { success := false, returnValue := none,
-          revertReason := some "Constructor reverted", finalStorage := initialStorage }
-    | some (_, finalState) =>
-        { success := true, returnValue := finalState.returnValue,
-          revertReason := none, finalStorage := finalState.storage }
-  else
-    let ctx : EvalContext := {
-      sender := tx.sender
-      msgValue := tx.msgValue
-      blockTimestamp := tx.blockTimestamp
-      params := tx.args
-      paramTypes := []
-      constructorArgs := []
-      constructorParamTypes := []
-      localVars := []
-      arrayParams := []
-    }
-    match execFunctionFuel spec tx.functionName ctx externalFns initialStorage fuel with
     | none =>
         { success := false, returnValue := none,
           revertReason := some s!"Function '{tx.functionName}' reverted",
