@@ -174,6 +174,12 @@ private def validateSelectorUniqueness (specName : String) (selectors : List Nat
   | some dup => throw s!"Duplicate selector in {specName}: {dup}"
   | none => pure ()
 
+private def validateSelectorRange (specName : String) (selectors : List Nat) : Except String Unit := do
+  let upperBound := (2 : Nat) ^ 32
+  for selector in selectors do
+    if selector >= upperBound then
+      throw s!"Selector out of 4-byte range in {specName}: {natToHex selector}"
+
 /-!
 ## Function Compilation
 
@@ -206,6 +212,7 @@ def compileSpec (spec : ASTContractSpec) (selectors : List Nat) : Except String 
   validateSpec spec
   if spec.functions.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {spec.functions.length} functions"
+  validateSelectorRange spec.name selectors
   validateSelectorUniqueness spec.name selectors
   let functions := (spec.functions.zip selectors).map fun (fn, sel) =>
     compileFunction sel fn

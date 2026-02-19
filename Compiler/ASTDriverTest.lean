@@ -132,4 +132,21 @@ private def badDuplicateSelectorsSpec : ASTContractSpec := {
   | .ok _ =>
     throw (IO.userError "✗ expected duplicate selectors to be rejected")
 
+private def badOutOfRangeSelectorSpec : ASTContractSpec := {
+  name := "BadOutOfRangeSelector"
+  functions := [
+    { name := "f", params := [], returnType := .unit, body := Stmt.stop }
+  ]
+}
+
+#eval! do
+  match compileSpec badOutOfRangeSelectorSpec [((2 : Nat) ^ 32)] with
+  | .error err =>
+    if contains err "out of 4-byte range" then
+      IO.println "✓ Out-of-range selectors rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected out-of-range selector error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected out-of-range selector to be rejected")
+
 end Compiler.ASTDriverTest
