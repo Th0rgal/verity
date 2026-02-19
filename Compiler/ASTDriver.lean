@@ -174,6 +174,13 @@ private def validateSpec (spec : ASTContractSpec) : Except String Unit := do
   | some dup => throw s!"Duplicate function name in {spec.name}: {dup}"
   | none => pure ()
 
+private def validateAllSpecs (specs : List ASTContractSpec) : Except String Unit := do
+  for spec in specs do
+    validateSpec spec
+  match findDuplicate (specs.map (·.name)) with
+  | some dup => throw s!"Duplicate contract name in AST specs: {dup}"
+  | none => pure ()
+
 /-!
 ## Function Compilation
 
@@ -260,8 +267,9 @@ def compileAllAST (outDir : String) (verbose : Bool := false) (libraryPaths : Li
     IO.println "Using unified AST compilation path"
     IO.println ""
 
+  orThrow (validateAllSpecs ASTSpecs.allSpecs)
+
   for spec in ASTSpecs.allSpecs do
-    orThrow (validateSpec spec)
     let selectors ← computeSelectors spec
     match compileSpec spec selectors with
     | .ok contract =>
