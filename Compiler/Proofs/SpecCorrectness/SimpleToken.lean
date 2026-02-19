@@ -165,6 +165,14 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
       SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
       addressToNat_mod_eq, h, h_bal_mod_eq, h_bal_ge, h_sup_mod_eq, h_sup_ge,
       List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
+  have h_bal_of : (({ state with sender := sender } : ContractState).storageMap 1 to : Nat) + ((Verity.Core.Uint256.ofNat amount : Uint256) : Nat) ≤ MAX_UINT256 := by
+    simp [Verity.Core.Uint256.coe_ofNat]
+    rw [Nat.mod_eq_of_lt h_amount_lt]
+    exact h_no_bal_overflow
+  have h_sup_of : (({ state with sender := sender } : ContractState).storage 2 : Nat) + ((Verity.Core.Uint256.ofNat amount : Uint256) : Nat) ≤ MAX_UINT256 := by
+    simp [Verity.Core.Uint256.coe_ofNat]
+    rw [Nat.mod_eq_of_lt h_amount_lt]
+    exact h_no_sup_overflow
   constructor
   · -- Mapping update matches EDSL
     have h_edsl_map :
@@ -173,14 +181,6 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         ).storageMap 1 to =
         Verity.EVM.Uint256.add (state.storageMap 1 to)
           (Verity.Core.Uint256.ofNat amount) := by
-      have h_bal_of : (({ state with sender := sender } : ContractState).storageMap 1 to : Nat) + ((Verity.Core.Uint256.ofNat amount : Uint256) : Nat) ≤ MAX_UINT256 := by
-        simp [Verity.Core.Uint256.coe_ofNat]
-        rw [Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ (Nat.le_trans (Nat.le_add_left ..) h_no_bal_overflow))]
-        exact h_no_bal_overflow
-      have h_sup_of : (({ state with sender := sender } : ContractState).storage 2 : Nat) + ((Verity.Core.Uint256.ofNat amount : Uint256) : Nat) ≤ MAX_UINT256 := by
-        simp [Verity.Core.Uint256.coe_ofNat]
-        rw [Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ (Nat.le_trans (Nat.le_add_left ..) h_no_sup_overflow))]
-        exact h_no_sup_overflow
       simpa [Contract.run, ContractResult.getState, ContractResult.snd, h] using
         (mint_increases_balance { state with sender := sender } to
           (Verity.Core.Uint256.ofNat amount) h.symm h_bal_of h_sup_of)
@@ -227,14 +227,6 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
             symm
             exact h_edsl_map_val
   · -- Total supply update matches EDSL
-    have h_bal_of' : (({ state with sender := sender } : ContractState).storageMap 1 to : Nat) + ((Verity.Core.Uint256.ofNat amount : Uint256) : Nat) ≤ MAX_UINT256 := by
-      simp [Verity.Core.Uint256.coe_ofNat]
-      rw [Nat.mod_eq_of_lt h_amount_lt]
-      exact h_no_bal_overflow
-    have h_sup_of' : (({ state with sender := sender } : ContractState).storage 2 : Nat) + ((Verity.Core.Uint256.ofNat amount : Uint256) : Nat) ≤ MAX_UINT256 := by
-      simp [Verity.Core.Uint256.coe_ofNat]
-      rw [Nat.mod_eq_of_lt h_amount_lt]
-      exact h_no_sup_overflow
     have h_edsl_supply :
         (ContractResult.getState
           ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
@@ -243,7 +235,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
           (Verity.Core.Uint256.ofNat amount) := by
       simpa [Contract.run, ContractResult.getState, ContractResult.snd, h] using
         (mint_increases_supply { state with sender := sender } to
-          (Verity.Core.Uint256.ofNat amount) h.symm h_bal_of' h_sup_of')
+          (Verity.Core.Uint256.ofNat amount) h.symm h_bal_of h_sup_of)
     have h_edsl_supply_val :
         ((ContractResult.getState
           ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
