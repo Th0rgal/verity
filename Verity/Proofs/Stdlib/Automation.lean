@@ -336,6 +336,10 @@ theorem addressToNat_beq_false_of_ne (a b : Address) (h : a ≠ b) :
 @[simp] theorem one_mod_modulus : (1 % Verity.Core.Uint256.modulus) = 1 :=
   Nat.mod_eq_of_lt (by decide : (1 : Nat) < Verity.Core.Uint256.modulus)
 
+/-- EVM.Uint256.add is definitionally equal to HAdd (+). -/
+theorem evm_add_eq_hadd (a b : Verity.Core.Uint256) :
+    Verity.EVM.Uint256.add a b = a + b := rfl
+
 -- Helper: EVM add (Uint256) matches modular Nat addition.
 theorem uint256_add_val (a : Verity.Core.Uint256) (amount : Nat) :
     (Verity.EVM.Uint256.add a (Verity.Core.Uint256.ofNat amount)).val =

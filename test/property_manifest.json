@@ -273,6 +273,7 @@
     "countOccU_cons_ne",
     "countOcc_cons_eq",
     "countOcc_cons_ne",
+    "evm_add_eq_hadd",
     "getMapping2_runState",
     "getMapping2_runValue",
     "getMappingUint_runState",

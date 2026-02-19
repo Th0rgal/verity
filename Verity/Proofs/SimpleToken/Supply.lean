@@ -26,6 +26,7 @@ open Verity.Specs.SimpleToken
 open Verity.Proofs.SimpleToken
 open Verity.Proofs.Stdlib.ListSum (countOcc countOccU countOccU_cons_eq countOccU_cons_ne
   map_sum_point_update map_sum_transfer_eq)
+open Verity.Proofs.Stdlib.Automation (evm_add_eq_hadd)
 
 /-! ## Helper: All-Zero List Sum -/
 
@@ -80,8 +81,7 @@ theorem mint_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
   obtain ⟨h_bal_raw, _, h_other, _, _, _⟩ := h_spec
   have h_bal :
       ((mint to amount).run s).snd.storageMap 1 to = s.storageMap 1 to + amount := by
-    simpa [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] using h_bal_raw
+    simpa [evm_add_eq_hadd] using h_bal_raw
   exact map_sum_point_update
     (fun addr => s.storageMap 1 addr)
     (fun addr => ((mint to amount).run s).snd.storageMap 1 addr)
@@ -105,17 +105,13 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
   have h_spec := transfer_meets_spec_when_sufficient s to amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   obtain ⟨_, h_sender_bal, h_recip_bal, h_other_bal, _, _, _, _⟩ := h_spec
-  have h_sender_bal' :
-      ((transfer to amount).run s).snd.storageMap 1 s.sender = s.storageMap 1 s.sender - amount := by
-    exact h_sender_bal
   have h_recip_bal' :
       ((transfer to amount).run s).snd.storageMap 1 to = s.storageMap 1 to + amount := by
-    simpa [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] using h_recip_bal
+    simpa [evm_add_eq_hadd] using h_recip_bal
   exact map_sum_transfer_eq
     (fun addr => s.storageMap 1 addr)
     (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)
-    s.sender to amount h_ne h_sender_bal' h_recip_bal'
+    s.sender to amount h_ne h_sender_bal h_recip_bal'
     (fun addr h1 h2 => h_other_bal.1 addr h1 h2)
 
 /-! ## Summary
