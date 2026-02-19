@@ -966,6 +966,21 @@ theorem require_beq_isSuccess_false_iff_ne (a b : Address) (msg : String) (s : C
     have h_beq_false : (a == b) = false := address_beq_false_of_ne a b h_ne
     simp [Verity.require, h_beq_false]
 
+/-- Common owner-check pattern:
+    if `msgSender >>= getStorageAddr slot >>= require (sender == owner)` succeeds,
+    then the storage owner at `slot` equals the caller (`state.sender`). -/
+theorem owner_guard_success_implies_storageAddr_eq_sender
+    (slot : StorageSlot Address) (msg : String) (state : ContractState)
+    (h :
+      ((Verity.bind msgSender (fun sender =>
+          Verity.bind (getStorageAddr slot) (fun ownerAddr =>
+            Verity.require (sender == ownerAddr) msg))).run state).isSuccess = true) :
+    state.storageAddr slot.slot = state.sender := by
+  have h_req :
+      ((Verity.require (state.sender == state.storageAddr slot.slot) msg).run state).isSuccess = true := by
+    simpa [msgSender, getStorageAddr, Verity.bind, Contract.run] using h
+  exact (require_beq_isSuccess_true_iff_eq state.sender (state.storageAddr slot.slot) msg state).1 h_req |>.symm
+
 -- All lemmas in this file are fully proven with zero sorry, zero axioms.
 
 end Verity.Proofs.Stdlib.Automation

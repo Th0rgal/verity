@@ -79,6 +79,7 @@
     "modulus_eq_max_uint256_succ",
     "msgSender_runState",
     "msgSender_runValue",
+    "owner_guard_success_implies_storageAddr_eq_sender",
     "require_beq_isSuccess_false_iff_ne",
     "require_beq_isSuccess_true_iff_eq",
     "require_false_isSuccess",
