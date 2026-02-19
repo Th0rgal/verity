@@ -11,12 +11,14 @@ import Verity.Core
 import Verity.Examples.Owned
 import Verity.Specs.Owned.Spec
 import Verity.Specs.Owned.Invariants
+import Verity.Proofs.Stdlib.Automation
 
 namespace Verity.Proofs.Owned
 
 open Verity
 open Verity.Examples.Owned
 open Verity.Specs.Owned
+open Verity.Proofs.Stdlib.Automation (wf_of_state_eq)
 
 /-! ## Basic Lemmas about setStorageAddr and getStorageAddr
 
@@ -172,10 +174,8 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
 
 theorem getOwner_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((getOwner).run s).snd
-  WellFormedState s' := by
-  have h_pres := getOwner_preserves_state s
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (getOwner_preserves_state s) h
 
 /-! ## Summary of Proven Properties
 

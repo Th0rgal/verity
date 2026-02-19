@@ -19,9 +19,7 @@ import re
 import sys
 from pathlib import Path
 
-from property_utils import collect_covered
-
-ROOT = Path(__file__).resolve().parents[1]
+from property_utils import ROOT, collect_covered
 
 
 def get_manifest_counts() -> tuple[int, int, dict[str, int]]:

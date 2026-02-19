@@ -13,6 +13,7 @@ import Verity.EVM.Uint256
 import Verity.Specs.Counter.Spec
 import Verity.Specs.Counter.Invariants
 import Verity.Proofs.Counter.Basic
+import Verity.Proofs.Stdlib.Automation
 
 namespace Verity.Proofs.Counter.Correctness
 
@@ -20,6 +21,7 @@ open Verity
 open Verity.Examples.Counter
 open Verity.Specs.Counter
 open Verity.Proofs.Counter
+open Verity.Proofs.Stdlib.Automation (wf_of_state_eq)
 
 /-! ## Standalone Invariant Proofs
 
@@ -97,10 +99,8 @@ theorem increment_decrement_meets_cancel (s : ContractState) :
 /-- getCount preserves well-formedness (trivially, since read-only). -/
 theorem getCount_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((getCount).run s).snd
-  WellFormedState s' := by
-  have h_pres := getCount_preserves_state s
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (getCount_preserves_state s) h
 
 /-! ## Edge Cases -/
 

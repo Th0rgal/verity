@@ -9,12 +9,9 @@ from __future__ import annotations
 
 import re
 import subprocess
-from pathlib import Path
 
 from keccak256 import selector as compute_selector
-from property_utils import die, report_errors
-
-ROOT = Path(__file__).resolve().parent.parent
+from property_utils import ROOT, die, report_errors
 FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
 
 SIG_RE = re.compile(r"^([A-Za-z0-9_]+\([^\)]*\))\s*:\s*(0x)?([0-9a-fA-F]{8})$")

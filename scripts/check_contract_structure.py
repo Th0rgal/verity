@@ -11,11 +11,8 @@ Contracts with inline proofs (e.g., ReentrancyExample) are excluded.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-from property_utils import die
-
-ROOT = Path(__file__).resolve().parent.parent
+from property_utils import ROOT, die
 
 # Contracts that use non-standard structure (inline proofs, proof-only, etc.)
 EXCLUDED_CONTRACTS = {

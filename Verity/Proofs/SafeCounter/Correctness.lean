@@ -78,10 +78,8 @@ theorem getCount_preserves_context (s : ContractState) :
 /-- getCount preserves well-formedness. -/
 theorem getCount_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((getCount).run s).snd
-  WellFormedState s' := by
-  have h_pres := getCount_preserves_state s
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (getCount_preserves_state s) h
 
 /-! ## Composition: increment → decrement cancellation -/
 
