@@ -16,18 +16,55 @@ FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
 
 SIG_RE = re.compile(r"^([A-Za-z0-9_]+\([^\)]*\))\s*:\s*(0x)?([0-9a-fA-F]{8})$")
 HASH_RE = re.compile(r"^(0x)?([0-9a-fA-F]{8})\s*:\s*([A-Za-z0-9_]+\([^\)]*\))$")
+FUNCTION_RE = re.compile(
+    r"\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*(?:external|public|internal|private)\b",
+    re.DOTALL,
+)
+
+
+def _split_top_level_commas(params: str) -> list[str]:
+    items: list[str] = []
+    depth = 0
+    start = 0
+    for i, ch in enumerate(params):
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        elif ch == "," and depth == 0:
+            items.append(params[start:i].strip())
+            start = i + 1
+    tail = params[start:].strip()
+    if tail:
+        items.append(tail)
+    return items
+
+
+def _canonical_param_type(raw: str) -> str:
+    # Remove data location and mutability keywords from declarations.
+    text = re.sub(r"\b(memory|calldata|storage|payable)\b", " ", raw)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return ""
+
+    parts = text.split(" ")
+    if len(parts) > 1:
+        # Drop trailing parameter name.
+        text = " ".join(parts[:-1])
+
+    # Normalize spaces around tuple/array punctuation.
+    text = re.sub(r"\s*([\[\]\(\),])\s*", r"\1", text)
+    return text
 
 
 def _strip_param_names(params: str) -> str:
     if not params.strip():
         return ""
     cleaned: list[str] = []
-    skip = {"memory", "calldata", "storage", "payable"}
-    for raw in params.split(","):
-        tokens = [token for token in raw.strip().split() if token and token not in skip]
-        if not tokens:
-            continue
-        cleaned.append(tokens[0])
+    for raw in _split_top_level_commas(params):
+        canonical = _canonical_param_type(raw)
+        if canonical:
+            cleaned.append(canonical)
     return ",".join(cleaned)
 
 
@@ -36,13 +73,9 @@ def load_fixture_signatures() -> list[str]:
         die(f"Missing fixture file: {FIXTURE}")
     text = FIXTURE.read_text(encoding="utf-8")
     sigs: list[str] = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("function "):
-            continue
-        line = line[len("function ") :]
-        name = line.split("(", 1)[0].strip()
-        params = line.split("(", 1)[1].split(")", 1)[0].strip()
+    for match in FUNCTION_RE.finditer(text):
+        name = match.group(1)
+        params = match.group(2).strip()
         params = _strip_param_names(params)
         sigs.append(f"{name}({params})")
     if not sigs:

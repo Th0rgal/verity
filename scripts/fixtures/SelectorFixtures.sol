@@ -21,4 +21,19 @@ contract SelectorFixtures {
     function burn(address from, uint256 amount) external returns (bool) {
         return from != address(0) && amount > 0;
     }
+
+    function transferBatch(
+        address[] calldata recipients,
+        uint256[] calldata amounts
+    ) external pure returns (uint256) {
+        return recipients.length + amounts.length;
+    }
+
+    function setRoots(bytes32[2] calldata roots) external pure returns (bytes32) {
+        return roots[0];
+    }
+
+    function submit(bytes calldata blob) external pure returns (uint256) {
+        return blob.length;
+    }
 }
