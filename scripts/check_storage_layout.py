@@ -52,6 +52,20 @@ AST_ADDR_SLOT_RE = re.compile(r"\.(?:storageAddr|sstoreAddr)\s+(\d+)\b")
 AST_MAPPING_SLOT_RE = re.compile(r"\.(?:mapping|mstore)\s+(\d+)\b")
 
 
+def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
+    """Return index of matching close delimiter starting at `start`."""
+    depth = 0
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return idx
+    return -1
+
+
 def extract_edsl_slots(filepath: Path) -> dict[str, list[tuple[str, str, int]]]:
     """Extract StorageSlot definitions from a Lean file.
 
@@ -123,6 +137,40 @@ def extract_compiler_specs(filepath: Path) -> dict[str, list[tuple[str, str, int
     return specs
 
 
+def extract_compiler_externals(filepath: Path) -> dict[str, bool]:
+    """Extract whether each ContractSpec has non-empty externals."""
+    content = filepath.read_text()
+    externals: dict[str, bool] = {}
+
+    spec_pattern = re.compile(
+        r"def\s+\w+\s*:\s*ContractSpec\s*:=\s*\{(.*?)\n\}",
+        re.DOTALL,
+    )
+
+    for spec_match in spec_pattern.finditer(content):
+        block = spec_match.group(1)
+        name_match = SPEC_NAME_RE.search(block)
+        if not name_match:
+            continue
+        contract_name = name_match.group(1)
+
+        ext_match = re.search(r"externals\s*:=\s*\[", block)
+        if not ext_match:
+            externals[contract_name] = False
+            continue
+
+        list_start = ext_match.end() - 1
+        list_end = find_matching(block, list_start, "[", "]")
+        if list_end == -1:
+            externals[contract_name] = False
+            continue
+
+        ext_body = block[list_start + 1 : list_end].strip()
+        externals[contract_name] = bool(ext_body)
+
+    return externals
+
+
 def extract_ast_contract_names(filepath: Path) -> set[str]:
     """Extract contract names from Compiler/ASTSpecs.lean ASTContractSpec blocks."""
     if not filepath.exists():
@@ -140,6 +188,28 @@ def extract_ast_contract_names(filepath: Path) -> set[str]:
         if name_match:
             names.add(name_match.group(1))
     return names
+
+
+def check_ast_spec_coverage(
+    compiler: dict[str, list[tuple[str, str, int]]],
+    compiler_externals: dict[str, bool],
+    ast_contracts: set[str],
+) -> list[str]:
+    """Ensure ASTSpecs covers all non-external ContractSpec contracts."""
+    errors: list[str] = []
+    for contract in sorted(compiler.keys()):
+        if compiler_externals.get(contract, False):
+            continue
+        if contract not in ast_contracts:
+            errors.append(
+                f"AST-Compiler: {contract} in Compiler/Specs but missing from Compiler/ASTSpecs"
+            )
+    for contract in sorted(ast_contracts):
+        if contract not in compiler:
+            errors.append(
+                f"AST-Compiler: {contract} in Compiler/ASTSpecs but missing from Compiler/Specs"
+            )
+    return errors
 
 
 def extract_ast_slots(
@@ -429,10 +499,14 @@ def main():
     compiler_all: dict[str, list[tuple[str, str, int]]] = {}
     if compiler_specs_file.exists():
         compiler_all = extract_compiler_specs(compiler_specs_file)
+    compiler_externals: dict[str, bool] = {}
+    if compiler_specs_file.exists():
+        compiler_externals = extract_compiler_externals(compiler_specs_file)
 
     # 4. Extract AST slots for contracts wired in Compiler/ASTSpecs.lean
     ast_all: dict[str, list[tuple[str, str, int]]] = {}
     ast_contracts = extract_ast_contract_names(AST_SPEC_FILE)
+    errors.extend(check_ast_spec_coverage(compiler_all, compiler_externals, ast_contracts))
     ast_dir = ROOT / "Verity" / "AST"
     for contract_name in sorted(ast_contracts):
         ast_file = ast_dir / f"{contract_name}.lean"
@@ -462,7 +536,7 @@ def main():
     # 7. Check Spec-EDSL consistency
     errors.extend(check_layer_consistency(
         edsl_all, spec_all, "Spec-EDSL",
-        ref_label="EDSL", subj_label="Spec",
+        ref_label="EDSL", subj_label="Spec", check_reverse=True,
     ))
 
     # 8. Check AST-Compiler slot/type consistency
