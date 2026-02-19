@@ -102,6 +102,7 @@ python3 scripts/check_contract_structure.py
 - **`check_selectors.py`** - Verifies selector hash consistency across ContractSpec, compile selector tables, and generated Yul (`compiler/yul` and `compiler/yul-ast` when present); strips Lean comments/docstrings with the same shared string-aware parser used by storage checks; parses `ParamType` expressions recursively (including `bool`, tuple, array, and fixed-array forms) when extracting Solidity signatures; enforces compile selector table coverage for all specs except those with non-empty `externals`
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes; fixture signature extraction is comment/string-aware so commented examples/debug strings cannot create false selector expectations, scans full function headers (so visibility can appear after modifiers like `virtual`), includes only `public`/`external` selectors (matching `solc --hashes`), canonicalizes ABI-sensitive param forms (`function(...)`, `uint/int` aliases, user-defined `contract`/`enum`/`type` aliases, and struct params into canonical tuple signatures), parses both `solc --hashes` output layouts robustly (including nested tuple signatures), and enforces reverse completeness (every `solc --hashes` signature must be present in extracted fixtures)
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc and can compare bytecode parity between directories
+- **`check_gas_report.py`** - Validates `lake exe gas-report` output shape, arithmetic consistency of totals, and monotonicity under more conservative static analysis settings
 
 ```bash
 # Default: check compiler/yul
@@ -161,7 +162,8 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
 2. Selector hash verification (`check_selectors.py`)
 3. Yul compilation check (`check_yul_compiles.py`)
 4. Selector fixture check (`check_selector_fixtures.py`)
-5. Coverage and storage layout reports in workflow summary
+5. Static gas report invariants (`check_gas_report.py`)
+6. Coverage and storage layout reports in workflow summary
 
 **`foundry`** — 8-shard parallel Foundry tests with seed 42
 **`foundry-multi-seed`** — 7-seed flakiness detection (seeds: 0, 1, 42, 123, 999, 12345, 67890)

@@ -270,6 +270,9 @@ jobs:
       - name: Check selector fixtures against solc
         run: python3 scripts/check_selector_fixtures.py
 
+      - name: Check static gas report invariants
+        run: python3 scripts/check_gas_report.py
+
       - name: Generate property coverage report
         run: python3 scripts/report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY
 
