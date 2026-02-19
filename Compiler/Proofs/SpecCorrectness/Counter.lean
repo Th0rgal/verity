@@ -81,7 +81,7 @@ private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address)
 /- Correctness Theorems -/
 
 /-- The `increment` function correctly increments the counter with modular arithmetic -/
-theorem increment_correct (state : ContractState) (sender : Address) :
+theorem counter_increment_correct (state : ContractState) (sender : Address) :
     let edslFinal := (increment.runState { state with sender := sender })
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
@@ -97,7 +97,7 @@ theorem increment_correct (state : ContractState) (sender : Address) :
   rfl
 
 /-- The `decrement` function correctly decrements the counter with modular arithmetic -/
-theorem decrement_correct (state : ContractState) (sender : Address) :
+theorem counter_decrement_correct (state : ContractState) (sender : Address) :
     let edslFinal := (decrement.runState { state with sender := sender })
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
@@ -118,7 +118,7 @@ theorem decrement_correct (state : ContractState) (sender : Address) :
     exact evalExpr_decrement_eq state sender
 
 /-- The `getCount` function correctly retrieves the counter value -/
-theorem getCount_correct (state : ContractState) (sender : Address) :
+theorem counter_getCount_correct (state : ContractState) (sender : Address) :
     let edslValue := (getCount.runValue { state with sender := sender }).val
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
@@ -134,13 +134,13 @@ theorem getCount_correct (state : ContractState) (sender : Address) :
 /- Helper Properties -/
 
 /-- `getCount` does not modify storage -/
-theorem getCount_preserves_state (state : ContractState) (sender : Address) :
+theorem counter_getCount_preserves_state (state : ContractState) (sender : Address) :
     let finalState := getCount.runState { state with sender := sender }
     finalState.storage 0 = state.storage 0 := by
   simp [getCount, Contract.runState, getStorage, count]
 
 /-- Incrementing then decrementing returns to original value (when not wrapping) -/
-theorem increment_decrement_roundtrip (state : ContractState) (sender : Address)
+theorem counter_increment_decrement_roundtrip (state : ContractState) (sender : Address)
     (_h : (state.storage 0).val < Verity.Core.MAX_UINT256) :
     let afterInc := increment.runState { state with sender := sender }
     let afterDec := decrement.runState { afterInc with sender := sender }
@@ -151,7 +151,7 @@ theorem increment_decrement_roundtrip (state : ContractState) (sender : Address)
   exact Verity.EVM.Uint256.sub_add_cancel (state.storage 0) 1
 
 /-- Decrementing then incrementing returns to original value (when not wrapping) -/
-theorem decrement_increment_roundtrip (state : ContractState) (sender : Address)
+theorem counter_decrement_increment_roundtrip (state : ContractState) (sender : Address)
     (_h : (state.storage 0).val > 0) :
     let afterDec := decrement.runState { state with sender := sender }
     let afterInc := increment.runState { afterDec with sender := sender }

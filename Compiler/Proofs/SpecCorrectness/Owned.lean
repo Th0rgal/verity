@@ -61,7 +61,7 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
     execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
-theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
+theorem owned_transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)
     (h : state.storageAddr 0 = sender) :
     let edslResult := (transferOwnership newOwner).run { state with sender := sender }
     let specTx : DiffTestTypes.Transaction := {
@@ -87,7 +87,7 @@ theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : A
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
 /-- The `transferOwnership` function correctly reverts when called by non-owner -/
-theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner : Address) (sender : Address)
+theorem owned_transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner : Address) (sender : Address)
     (h : state.storageAddr 0 ≠ sender) :
     let edslResult := (transferOwnership newOwner).run { state with sender := sender }
     let specTx : DiffTestTypes.Transaction := {
@@ -110,7 +110,7 @@ theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner 
       addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)]
 
 /-- The `getOwner` function correctly retrieves the owner address -/
-theorem getOwner_correct (state : ContractState) (sender : Address) :
+theorem owned_getOwner_correct (state : ContractState) (sender : Address) :
     let edslAddr := getOwner.runValue { state with sender := sender }
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
@@ -126,13 +126,13 @@ theorem getOwner_correct (state : ContractState) (sender : Address) :
 /- Helper Properties -/
 
 /-- `getOwner` does not modify storage -/
-theorem getOwner_preserves_state (state : ContractState) (sender : Address) :
+theorem owned_getOwner_preserves_state (state : ContractState) (sender : Address) :
     let finalState := getOwner.runState { state with sender := sender }
     finalState.storageAddr 0 = state.storageAddr 0 := by
   simp [Verity.Examples.Owned.getOwner, Contract.runState, getStorageAddr, Verity.Examples.Owned.owner]
 
 /-- Only owner can transfer ownership -/
-theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
+theorem owned_only_owner_can_transfer (state : ContractState) (newOwner : Address) (sender : Address) :
     ((transferOwnership newOwner).run { state with sender := sender }).isSuccess = true →
     state.storageAddr 0 = sender := by
   intro h_success
@@ -150,13 +150,13 @@ theorem only_owner_can_transfer (state : ContractState) (newOwner : Address) (se
     "Caller is not the owner" _ h_require_success).symm
 
 /-- Constructor sets initial owner correctly -/
-theorem constructor_sets_owner (state : ContractState) (initialOwner : Address) (sender : Address) :
+theorem owned_constructor_sets_owner (state : ContractState) (initialOwner : Address) (sender : Address) :
     let finalState := (constructor initialOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = initialOwner := by
   simp [Verity.Examples.Owned.constructor, Contract.runState, setStorageAddr, Verity.Examples.Owned.owner, Verity.bind]
 
 /-- TransferOwnership updates owner when authorized -/
-theorem transferOwnership_updates_owner (state : ContractState) (newOwner : Address) (sender : Address)
+theorem owned_transferOwnership_updates_owner (state : ContractState) (newOwner : Address) (sender : Address)
     (h : state.storageAddr 0 = sender) :
     let finalState := (Verity.Examples.Owned.transferOwnership newOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = newOwner := by
