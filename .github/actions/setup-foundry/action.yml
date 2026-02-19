@@ -20,7 +20,15 @@ runs:
       shell: bash
       run: chmod +x .lake/build/bin/difftest-interpreter
 
-    - name: Install Foundry (retry on transient download errors)
+    - name: Install Foundry
+      id: install_foundry_primary
+      continue-on-error: true
+      uses: foundry-rs/foundry-toolchain@v1
+      with:
+        version: v1.5.0
+
+    - name: Install Foundry fallback (retry on transient download errors)
+      if: steps.install_foundry_primary.outcome != 'success'
       shell: bash
       run: |
         set -euo pipefail
