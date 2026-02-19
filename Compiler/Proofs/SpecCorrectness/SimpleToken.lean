@@ -188,9 +188,9 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         ((ContractResult.getState
           ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
         ).storageMap 1 to).val =
-        (Verity.EVM.Uint256.add (state.storageMap 1 to)
-          (Verity.Core.Uint256.ofNat amount)).val := by
-      simpa using congrArg Verity.Core.Uint256.val h_edsl_map
+        ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
+      have h_val := congrArg Verity.Core.Uint256.val h_edsl_map
+      simpa [uint256_add_val] using h_val
     have h_spec_val :
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -217,10 +217,6 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         (tokenEdslToSpecStorageWithAddrs state [to]) specTx;
       specResult.finalStorage.getMapping 1 (addressToNat to))
           = ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-      _ = (Verity.EVM.Uint256.add (state.storageMap 1 to)
-            (Verity.Core.Uint256.ofNat amount)).val := by
-            symm
-            exact uint256_add_val (state.storageMap 1 to) amount
       _ = ((ContractResult.getState
           ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
         ).storageMap 1 to).val := by
@@ -240,9 +236,9 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         ((ContractResult.getState
           ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
         ).storage 2).val =
-        (Verity.EVM.Uint256.add (state.storage 2)
-          (Verity.Core.Uint256.ofNat amount)).val := by
-      simpa using congrArg Verity.Core.Uint256.val h_edsl_supply
+        ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus := by
+      have h_val := congrArg Verity.Core.Uint256.val h_edsl_supply
+      simpa [uint256_add_val] using h_val
     have h_spec_val :
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -269,10 +265,6 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         (tokenEdslToSpecStorageWithAddrs state [to]) specTx;
       specResult.finalStorage.getSlot 2)
           = ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-      _ = (Verity.EVM.Uint256.add (state.storage 2)
-            (Verity.Core.Uint256.ofNat amount)).val := by
-            symm
-            exact uint256_add_val (state.storage 2) amount
       _ = ((ContractResult.getState
           ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
         ).storage 2).val := by
@@ -486,15 +478,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
             ).storageMap 1 to).val =
             ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
         have h_val := congrArg Verity.Core.Uint256.val h_edsl_state
-        calc
-          ((ContractResult.getState
-              ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 1 to).val
-              = (Verity.EVM.Uint256.add (state.storageMap 1 to)
-                (Verity.Core.Uint256.ofNat amount)).val := by
-                    simpa using h_val
-          _ = ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
-                    exact uint256_add_val (state.storageMap 1 to) amount
+        simpa [uint256_add_val] using h_val
       calc
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -654,15 +638,7 @@ theorem token_mint_increases_supply (state : ContractState) (to : Address) (amou
       ).storage 2).val =
       ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus := by
     have h_edsl_val := congrArg Verity.Core.Uint256.val h_edsl
-    calc
-      ((ContractResult.getState
-        ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-      ).storage 2).val
-          = (Verity.EVM.Uint256.add (state.storage 2)
-            (Verity.Core.Uint256.ofNat amount)).val := by
-              simpa using h_edsl_val
-      _ = ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus := by
-              exact uint256_add_val (state.storage 2) amount
+    simpa [uint256_add_val] using h_edsl_val
   -- Since sum < modulus, the mod is identity
   have h_mod : ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus =
       (state.storage 2).val + amount := by

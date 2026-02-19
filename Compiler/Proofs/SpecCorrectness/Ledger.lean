@@ -103,14 +103,9 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
         ((ContractResult.getState
             ((deposit (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
           ).storageMap 0 sender).val =
-          (Verity.EVM.Uint256.add (state.storageMap 0 sender)
-            (Verity.Core.Uint256.ofNat amount)).val := by
-      simpa using congrArg Verity.Core.Uint256.val h_edsl_state
-    have h_add_val :
-        (Verity.EVM.Uint256.add (state.storageMap 0 sender)
-          (Verity.Core.Uint256.ofNat amount)).val =
           ((state.storageMap 0 sender).val + amount) % Verity.Core.Uint256.modulus := by
-      simpa using (uint256_add_val (state.storageMap 0 sender) amount)
+      have h_val := congrArg Verity.Core.Uint256.val h_edsl_state
+      simpa [uint256_add_val] using h_val
     calc
       (let specTx : DiffTestTypes.Transaction := {
         sender := sender
@@ -121,10 +116,6 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
         interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
       specResult.finalStorage.getMapping 0 (addressToNat sender))
           = ((state.storageMap 0 sender).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-      _ = (Verity.EVM.Uint256.add (state.storageMap 0 sender)
-            (Verity.Core.Uint256.ofNat amount)).val := by
-            symm
-            exact h_add_val
       _ = ((ContractResult.getState
             ((deposit (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
           ).storageMap 0 sender).val := by
