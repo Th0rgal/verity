@@ -38,14 +38,6 @@ def counterEdslToSpecStorage (state : ContractState) : SpecStorage :=
 
 /- Helper Lemmas -/
 
--- Helper: decrement's monadic bind simplifies correctly
-private theorem decrement_runState_eq (state : ContractState) :
-    (decrement.runState state).storage 0 =
-    sub (state.storage 0) 1 := by
-  unfold decrement Contract.runState getStorage setStorage count
-  simp [sub, Verity.bind]
-  rfl
-
 -- Helper: spec's evalExpr for decrement expression matches EDSL sub
 private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address) :
     evalExpr
@@ -190,62 +182,5 @@ theorem decrement_increment_roundtrip (state : ContractState) (sender : Address)
   -- We have: add (sub (state.storage 0) 1) 1 = state.storage 0
   -- This is exactly sub_add_cancel_left in infix notation: (a - b) + b = a
   exact Verity.Core.Uint256.sub_add_cancel_left (state.storage 0) 1
-
-/-- Helper: Single increment adds 1 to storage (mod modulus) -/
-private theorem increment_adds_one (state : ContractState) (sender : Address) :
-    (increment.runState { state with sender := sender }).storage 0 =
-    add (state.storage 0) 1 := by
-  unfold increment Contract.runState getStorage setStorage count
-  simp [Verity.bind]
-  rfl
-
-/-- Apply increment n times to a state -/
-private def applyNIncrements (sender : Address) : Nat → ContractState → ContractState
-  | 0, s => s
-  | k+1, s => applyNIncrements sender k (increment.runState { s with sender := sender })
-
-/-- Helper: applyNIncrements value equals initial value + n (mod modulus) -/
-private theorem applyNIncrements_val (state : ContractState) (sender : Address) : ∀ (n : Nat),
-    ((applyNIncrements sender n state).storage 0).val =
-    ((state.storage 0).val + n) % modulus
-  | 0 => by
-      -- Base case: 0 increments
-      simp [applyNIncrements, Nat.add_zero]
-      -- Show: (state.storage 0).val = ((state.storage 0).val) % modulus
-      -- This is true because Uint256.val < modulus always
-      symm
-      exact Nat.mod_eq_of_lt (state.storage 0).isLt
-  | k+1 => by
-      -- Inductive case: k+1 increments
-      -- applyN (k+1) state = applyN k (increment state)
-      simp only [applyNIncrements]
-      let stateAfterOne := increment.runState { state with sender := sender }
-      -- Apply IH to stateAfterOne with k increments
-      have h_ih := applyNIncrements_val stateAfterOne sender k
-      -- stateAfterOne.storage 0 = add (state.storage 0) 1
-      have h_one : stateAfterOne.storage 0 = add (state.storage 0) 1 := increment_adds_one state sender
-      rw [h_one] at h_ih
-      rw [h_ih]
-      -- Show: ((add (state.storage 0) 1).val + k) % modulus = ((state.storage 0).val + (k + 1)) % modulus
-      -- (add a 1).val = (a.val + 1) % modulus by definition
-      have h_add_val : (add (state.storage 0) 1).val = ((state.storage 0).val + 1) % modulus := by
-        simp [Verity.Core.Uint256.add, Verity.Core.Uint256.ofNat]
-      rw [h_add_val]
-      -- Show: (((state.storage 0).val + 1) % modulus + k) % modulus = ((state.storage 0).val + (k + 1)) % modulus
-      -- This is a standard modular arithmetic fact
-      -- We need to show: (a % m + b) % m = (a + b) % m where a = (state.storage 0).val + 1, b = k
-      -- Use the fact that for any a, b, m: (a % m + b) % m ≡ (a + b) % m
-      calc
-        (((state.storage 0).val + 1) % modulus + k) % modulus
-            = (((state.storage 0).val + 1) + k) % modulus := by
-                exact (Nat.mod_add_mod ((state.storage 0).val + 1) modulus k)
-        _ = ((state.storage 0).val + (k + 1)) % modulus := by
-                simp [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
-
-/-- Multiple increments accumulate correctly (modulo 2^256) -/
-theorem multiple_increments (state : ContractState) (sender : Address) (n : Nat) :
-    let finalState := applyNIncrements sender n state
-    (finalState.storage 0).val = ((state.storage 0).val + n) % modulus := by
-  exact applyNIncrements_val state sender n
 
 end Compiler.Proofs.SpecCorrectness
