@@ -20,6 +20,7 @@ SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
 IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
 YUL_DIRS = [
     ("yul", YUL_DIR),
+    ("yul-ast", ROOT / "compiler" / "yul-ast"),
 ]
 
 SIMPLE_PARAM_MAP = {
