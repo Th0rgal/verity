@@ -50,10 +50,7 @@ theorem transferOwnership_preserves_wellformedness (s : ContractState) (newOwner
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst]
   simp [h_owner]
-  constructor
-  · exact h_owner ▸ h.sender_nonempty
-  · exact h.contract_nonempty
-  · exact h_new
+  exact ⟨h_owner ▸ h.sender_nonempty, h.contract_nonempty, h_new⟩
 
 /-! ## End-to-End Composition -/
 

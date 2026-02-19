@@ -487,10 +487,7 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   have h_spec := constructor_meets_spec s initialOwner
   simp [constructor_spec] at h_spec
   obtain ⟨h_owner_set, h_supply_set, h_other_addr, h_other_uint, h_map, h_sender, h_this, _h_value, _h_time⟩ := h_spec
-  constructor
-  · exact h_sender ▸ h.sender_nonempty
-  · exact h_this ▸ h.contract_nonempty
-  · exact h_owner_set ▸ h_owner
+  exact ⟨h_sender ▸ h.sender_nonempty, h_this ▸ h.contract_nonempty, h_owner_set ▸ h_owner⟩
 
 theorem balanceOf_preserves_wellformedness (s : ContractState) (addr : Address) (h : WellFormedState s) :
   let s' := ((balanceOf addr).run s).snd

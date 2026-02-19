@@ -167,10 +167,7 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   rcases h_same with ⟨_h_storage, _h_map, h_ctx⟩
   have h_sender := h_ctx.1
   have h_this := h_ctx.2.1
-  constructor
-  · exact h_sender ▸ h.sender_nonempty
-  · exact h_this ▸ h.contract_nonempty
-  · exact h_owner_set ▸ h_owner
+  exact ⟨h_sender ▸ h.sender_nonempty, h_this ▸ h.contract_nonempty, h_owner_set ▸ h_owner⟩
 
 theorem getOwner_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((getOwner).run s).snd

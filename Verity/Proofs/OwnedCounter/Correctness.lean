@@ -77,10 +77,7 @@ theorem transferOwnership_preserves_wellformedness (s : ContractState) (newOwner
   let s' := ((transferOwnership newOwner).run s).snd
   WellFormedState s' := by
   rw [transferOwnership_unfold s newOwner h_owner]; simp [ContractResult.snd]
-  constructor
-  · exact h_owner ▸ h.sender_nonempty
-  · exact h.contract_nonempty
-  · exact h_new
+  exact ⟨h_owner ▸ h.sender_nonempty, h.contract_nonempty, h_new⟩
 
 /-! ## Ownership Transfer Preserves Counter Value
 

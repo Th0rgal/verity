@@ -263,32 +263,21 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   rcases h_same with ⟨_h_storage, _h_map, h_ctx⟩
   have h_sender := h_ctx.1
   have h_this := h_ctx.2.1
-  constructor
-  · exact h_sender ▸ h.sender_nonempty
-  · exact h_this ▸ h.contract_nonempty
-  · exact h_set ▸ h_owner
+  exact ⟨h_sender ▸ h.sender_nonempty, h_this ▸ h.contract_nonempty, h_set ▸ h_owner⟩
 
 theorem increment_preserves_wellformedness (s : ContractState)
   (h : WellFormedState s) (h_owner : s.sender = s.storageAddr 0) :
   let s' := (increment.run s).snd
   WellFormedState s' := by
-  rw [increment_unfold s h_owner]
-  simp [ContractResult.snd]
-  constructor
-  · exact h.sender_nonempty
-  · exact h.contract_nonempty
-  · exact h.owner_nonempty
+  rw [increment_unfold s h_owner]; simp [ContractResult.snd]
+  exact ⟨h.sender_nonempty, h.contract_nonempty, h.owner_nonempty⟩
 
 theorem decrement_preserves_wellformedness (s : ContractState)
   (h : WellFormedState s) (h_owner : s.sender = s.storageAddr 0) :
   let s' := (decrement.run s).snd
   WellFormedState s' := by
-  rw [decrement_unfold s h_owner]
-  simp [ContractResult.snd]
-  constructor
-  · exact h.sender_nonempty
-  · exact h.contract_nonempty
-  · exact h.owner_nonempty
+  rw [decrement_unfold s h_owner]; simp [ContractResult.snd]
+  exact ⟨h.sender_nonempty, h.contract_nonempty, h.owner_nonempty⟩
 
 /-! ## Composition Sequence: constructor → increment → getCount -/
 
