@@ -25,13 +25,19 @@ def sameContext (s s' : ContractState) : Prop :=
 def sameStorage (s s' : ContractState) : Prop :=
   s'.storage = s.storage
 
+@[simp] theorem sameStorage_rfl (s : ContractState) : sameStorage s s := rfl
+
 /-- Address storage is unchanged. -/
 def sameStorageAddr (s s' : ContractState) : Prop :=
   s'.storageAddr = s.storageAddr
 
+@[simp] theorem sameStorageAddr_rfl (s : ContractState) : sameStorageAddr s s := rfl
+
 /-- Mapping storage is unchanged. -/
 def sameStorageMap (s s' : ContractState) : Prop :=
   s'.storageMap = s.storageMap
+
+@[simp] theorem sameStorageMap_rfl (s : ContractState) : sameStorageMap s s := rfl
 
 /-- Address storage, mapping storage, and context are unchanged. -/
 def sameAddrMapContext (s s' : ContractState) : Prop :=
@@ -39,17 +45,26 @@ def sameAddrMapContext (s s' : ContractState) : Prop :=
   sameStorageMap s s' ∧
   sameContext s s'
 
+@[simp] theorem sameAddrMapContext_rfl (s : ContractState) : sameAddrMapContext s s :=
+  ⟨rfl, rfl, sameContext_rfl s⟩
+
 /-- Uint256 storage, mapping storage, and context are unchanged. -/
 def sameStorageMapContext (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
   sameStorageMap s s' ∧
   sameContext s s'
 
+@[simp] theorem sameStorageMapContext_rfl (s : ContractState) : sameStorageMapContext s s :=
+  ⟨rfl, rfl, sameContext_rfl s⟩
+
 /-- Uint256 storage, address storage, and context are unchanged. -/
 def sameStorageAddrContext (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
   sameStorageAddr s s' ∧
   sameContext s s'
+
+@[simp] theorem sameStorageAddrContext_rfl (s : ContractState) : sameStorageAddrContext s s :=
+  ⟨rfl, rfl, sameContext_rfl s⟩
 
 /-- All storage slots except `slot` are unchanged. -/
 def storageUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
