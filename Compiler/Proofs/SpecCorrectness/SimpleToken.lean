@@ -129,11 +129,9 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
       _ ≤ MAX_UINT256 := h_no_bal_overflow
       _ < Verity.Core.Uint256.modulus := max_uint256_lt_modulus
   have h_bal_safe : safeAdd (state.storageMap 1 to) (Verity.Core.Uint256.ofNat amount) = some (state.storageMap 1 to + Verity.Core.Uint256.ofNat amount) := by
-    simp only [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt]
-    simp [Nat.not_lt.mpr h_no_bal_overflow]
+    simp [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.not_lt.mpr h_no_bal_overflow]
   have h_sup_safe : safeAdd (state.storage 2) (Verity.Core.Uint256.ofNat amount) = some (state.storage 2 + Verity.Core.Uint256.ofNat amount) := by
-    simp only [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt]
-    simp [Nat.not_lt.mpr h_no_sup_overflow]
+    simp [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.not_lt.mpr h_no_sup_overflow]
   constructor
   · -- EDSL success (checks-before-effects: both requireSomeUint before setMapping/setStorage)
     simp only [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner, Contract.run,
@@ -638,8 +636,7 @@ theorem token_transfer_preserves_total_balance (state : ContractState) (to : Add
   have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 := by
     have := modulus_eq_max_uint256_succ; omega
   have h_safe : safeAdd (state.storageMap 1 to) (Verity.Core.Uint256.ofNat amount) = some (state.storageMap 1 to + Verity.Core.Uint256.ofNat amount) := by
-    simp only [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt]
-    simp [Nat.not_lt.mpr h_no_overflow_nat]
+    simp [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.not_lt.mpr h_no_overflow_nat]
   have h_sender_state :
       (ContractResult.getState
         ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })

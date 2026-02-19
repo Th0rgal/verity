@@ -82,11 +82,10 @@ theorem increment_survives_transfer (s : ContractState) (initialOwner newOwner :
   let s2 := (increment.run s1).snd
   let s3 := ((transferOwnership newOwner).run s2).snd
   (getCount.run s3).fst = EVM.Uint256.add (s.storage 1) 1 := by
-  simp only [constructor, increment, transferOwnership, onlyOwner, isOwner, owner, count,
+  simp [constructor, increment, transferOwnership, onlyOwner, isOwner, owner, count,
     getCount, getStorage, getStorageAddr, setStorage, setStorageAddr,
     msgSender, Verity.require, Verity.pure, Verity.bind,
-    Bind.bind, Pure.pure, Contract.run, ContractResult.snd, ContractResult.fst]
-  simp [h_sender]
+    Bind.bind, Pure.pure, Contract.run, ContractResult.snd, ContractResult.fst, h_sender]
 
 /-! ## Summary
 

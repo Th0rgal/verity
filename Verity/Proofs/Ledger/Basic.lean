@@ -109,10 +109,9 @@ private theorem withdraw_unfold (s : ContractState) (amount : Uint256)
         if slot == 0 then (s.knownAddresses slot).insert s.sender
         else s.knownAddresses slot,
       events := s.events } := by
-  simp only [withdraw, msgSender, getMapping, setMapping, balances,
+  simp [withdraw, msgSender, getMapping, setMapping, balances,
     Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst]
-  simp [h_balance]
+    Contract.run, ContractResult.snd, ContractResult.fst, h_balance]
 
 theorem withdraw_meets_spec (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
@@ -139,11 +138,11 @@ theorem withdraw_decreases_balance (s : ContractState) (amount : Uint256)
 theorem withdraw_reverts_insufficient (s : ContractState) (amount : Uint256)
   (h_insufficient : ¬(s.storageMap 0 s.sender >= amount)) :
   ∃ msg, (withdraw amount).run s = ContractResult.revert msg s := by
-  simp only [withdraw, msgSender, getMapping, setMapping, balances,
+  simp [withdraw, msgSender, getMapping, setMapping, balances,
     Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst]
-  simp [show (s.storageMap 0 s.sender >= amount) = false from by
-    simp [ge_iff_le] at h_insufficient ⊢; omega]
+    Contract.run, ContractResult.snd, ContractResult.fst,
+    show (s.storageMap 0 s.sender >= amount) = false from by
+      simp [ge_iff_le] at h_insufficient ⊢; omega]
 
 /-! ## Transfer Correctness -/
 
@@ -250,11 +249,11 @@ theorem transfer_increases_recipient (s : ContractState) (to : Address) (amount 
 theorem transfer_reverts_insufficient (s : ContractState) (to : Address) (amount : Uint256)
   (h_insufficient : ¬(s.storageMap 0 s.sender >= amount)) :
   ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
-  simp only [transfer, msgSender, getMapping, setMapping, balances,
+  simp [transfer, msgSender, getMapping, setMapping, balances,
     Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst]
-  simp [show (s.storageMap 0 s.sender >= amount) = false from by
-    simp [ge_iff_le] at h_insufficient ⊢; omega]
+    Contract.run, ContractResult.snd, ContractResult.fst,
+    show (s.storageMap 0 s.sender >= amount) = false from by
+      simp [ge_iff_le] at h_insufficient ⊢; omega]
 
 -- Transfer reverts on recipient balance overflow
 theorem transfer_reverts_recipient_overflow (s : ContractState) (to : Address) (amount : Uint256)
