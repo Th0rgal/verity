@@ -19,6 +19,7 @@ CREATE_TX_BASE_GAS = 53000
 CODE_DEPOSIT_GAS_PER_BYTE = 200
 
 STATIC_HEADER = "contract\tdeploy_upper_bound\truntime_upper_bound\ttotal_upper_bound"
+ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 
 def parse_args() -> argparse.Namespace:
@@ -147,6 +148,10 @@ def table_index(header: list[str], name: str) -> int:
     return -1
 
 
+def strip_ansi(raw: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", raw)
+
+
 def parse_foundry_report(stdout: str) -> tuple[dict[str, int], dict[str, tuple[int, int]]]:
     contract_header = re.compile(r"\|\s+[^|]*:(?P<name>[A-Za-z0-9_]+)\s+Contract\s*\|")
     observed_runtime: dict[str, int] = {}
@@ -159,7 +164,8 @@ def parse_foundry_report(stdout: str) -> tuple[dict[str, int], dict[str, tuple[i
     runtime_max_idx = -1
 
     for raw in stdout.splitlines():
-        m = contract_header.search(raw)
+        line = strip_ansi(raw)
+        m = contract_header.search(line)
         if m:
             current = m.group("name")
             observed_runtime.setdefault(current, 0)
@@ -170,17 +176,17 @@ def parse_foundry_report(stdout: str) -> tuple[dict[str, int], dict[str, tuple[i
             runtime_max_idx = -1
             continue
 
-        if current is None or "|" not in raw:
+        if current is None or "|" not in line:
             continue
-        stripped = raw.strip()
+        stripped = line.strip()
         if stripped.startswith("| Deployment Cost"):
-            header = parse_table_cells(raw)
+            header = parse_table_cells(line)
             deploy_gas_idx = table_index(header, "Deployment Cost")
             deploy_size_idx = table_index(header, "Deployment Size")
             mode = None
             continue
         if stripped.startswith("| Function Name"):
-            header = parse_table_cells(raw)
+            header = parse_table_cells(line)
             runtime_name_idx = table_index(header, "Function Name")
             runtime_max_idx = table_index(header, "Max")
             mode = "runtime"
@@ -188,7 +194,7 @@ def parse_foundry_report(stdout: str) -> tuple[dict[str, int], dict[str, tuple[i
         if set(stripped) <= {"|", "-", "+", "=", "╭", "╰", "╮", "╯"}:
             continue
 
-        cols = parse_table_cells(raw)
+        cols = parse_table_cells(line)
         if not cols:
             continue
 
