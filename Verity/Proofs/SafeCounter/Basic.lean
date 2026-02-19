@@ -40,8 +40,7 @@ theorem getCount_preserves_state (s : ContractState) :
 
 /-- Helper: relate EVM modular add to Nat addition when bounded. -/
 theorem evm_add_eq_of_no_overflow (a b : Uint256) (_h : (a : Nat) + (b : Nat) ≤ MAX_UINT256) :
-  add a b = a + b := by
-  rfl
+  add a b = a + b := rfl
 
 /-- Helper: unfold increment when no overflow -/
 private theorem increment_unfold (s : ContractState)

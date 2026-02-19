@@ -14,7 +14,6 @@
   Status: All lemmas fully proven with zero sorry.
 -/
 
-import Verity.Core
 import Verity.Proofs.Stdlib.Automation
 
 namespace Verity.Proofs.Stdlib.MappingAutomation

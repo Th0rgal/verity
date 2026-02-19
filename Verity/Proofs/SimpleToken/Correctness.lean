@@ -91,20 +91,16 @@ theorem mint_preserves_owner (s : ContractState) (to : Address) (amount : Uint25
   (h_no_bal_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((mint to amount).run s).snd
-  s'.storageAddr 0 = s.storageAddr 0 := by
-  obtain ⟨_, _, _, h_owner_pres, _, _⟩ :=
-    mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
-  exact h_owner_pres
+  s'.storageAddr 0 = s.storageAddr 0 :=
+  (mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow).2.2.2.1
 
 /-- Transfer does not change the owner address. -/
 theorem transfer_preserves_owner (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
   (h_no_overflow : s.sender ≠ to → (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((transfer to amount).run s).snd
-  s'.storageAddr 0 = s.storageAddr 0 := by
-  obtain ⟨_, _, _, _, h_owner_pres, _⟩ :=
-    transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow
-  exact h_owner_pres
+  s'.storageAddr 0 = s.storageAddr 0 :=
+  (transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow).2.2.2.2.1
 
 /-! ## End-to-End Composition
 
