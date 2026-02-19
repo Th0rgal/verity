@@ -1,4 +1,5 @@
 import Compiler.CompileDriver
+import Compiler.ASTDriver
 
 /-!
 ## CLI Argument Parsing
@@ -6,14 +7,21 @@ import Compiler.CompileDriver
 Supports:
 - `--link <path>` : Link external Yul library (can be specified multiple times)
 - `--output <dir>` or `-o <dir>` : Output directory (default: "compiler/yul")
+- `--ast` : Use unified AST compilation path (issue #364)
 - `--verbose` or `-v` : Verbose output
 - `--help` or `-h` : Show help message
 -/
 
-private def parseArgs (args : List String) : IO (String × List String × Bool) := do
-  let rec go (remaining : List String) (outDir : String) (libs : List String) (verbose : Bool) : IO (String × List String × Bool) :=
+private structure CLIArgs where
+  outDir : String := "compiler/yul"
+  libs : List String := []
+  verbose : Bool := false
+  useAST : Bool := false
+
+private def parseArgs (args : List String) : IO CLIArgs := do
+  let rec go (remaining : List String) (cfg : CLIArgs) : IO CLIArgs :=
     match remaining with
-    | [] => pure (outDir, libs.reverse, verbose)
+    | [] => pure { cfg with libs := cfg.libs.reverse }
     | "--help" :: _ | "-h" :: _ => do
         IO.println "Verity Compiler"
         IO.println ""
@@ -23,6 +31,7 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
         IO.println "  --link <path>      Link external Yul library (can be used multiple times)"
         IO.println "  --output <dir>     Output directory (default: compiler/yul)"
         IO.println "  -o <dir>           Short form of --output"
+        IO.println "  --ast              Use unified AST compilation path (#364)"
         IO.println "  --verbose          Enable verbose output"
         IO.println "  -v                 Short form of --verbose"
         IO.println "  --help             Show this help message"
@@ -30,28 +39,36 @@ private def parseArgs (args : List String) : IO (String × List String × Bool) 
         IO.println ""
         IO.println "Example:"
         IO.println "  verity-compiler --link examples/external-libs/PoseidonT3.yul -o compiler/yul"
+        IO.println "  verity-compiler --ast -v  # compile using unified AST path"
         throw (IO.userError "help")
     | "--link" :: path :: rest =>
-        go rest outDir (path :: libs) verbose
+        go rest { cfg with libs := path :: cfg.libs }
     | "--output" :: dir :: rest | "-o" :: dir :: rest =>
-        go rest dir libs verbose
+        go rest { cfg with outDir := dir }
+    | "--ast" :: rest =>
+        go rest { cfg with useAST := true }
     | "--verbose" :: rest | "-v" :: rest =>
-        go rest outDir libs true
+        go rest { cfg with verbose := true }
     | unknown :: _ =>
         throw (IO.userError s!"Unknown argument: {unknown}\nUse --help for usage information")
-  go args "compiler/yul" [] false
+  go args {}
 
 def main (args : List String) : IO Unit := do
   try
-    let (outDir, libs, verbose) ← parseArgs args
-    if verbose then
-      IO.println s!"Output directory: {outDir}"
-      if !libs.isEmpty then
-        IO.println s!"External libraries: {libs.length}"
-        for lib in libs do
+    let cfg ← parseArgs args
+    if cfg.verbose then
+      IO.println s!"Output directory: {cfg.outDir}"
+      if cfg.useAST then
+        IO.println "Mode: unified AST compilation"
+      if !cfg.libs.isEmpty then
+        IO.println s!"External libraries: {cfg.libs.length}"
+        for lib in cfg.libs do
           IO.println s!"  - {lib}"
       IO.println ""
-    compileAll outDir verbose libs
+    if cfg.useAST then
+      Compiler.ASTDriver.compileAllAST cfg.outDir cfg.verbose cfg.libs
+    else
+      compileAll cfg.outDir cfg.verbose cfg.libs
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly
