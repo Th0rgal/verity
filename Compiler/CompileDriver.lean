@@ -12,6 +12,11 @@ open Compiler.ContractSpec
 open Compiler.Selector
 open Compiler.Linker
 
+private def orThrow (r : Except String Unit) : IO Unit :=
+  match r with
+  | .error err => throw (IO.userError err)
+  | .ok () => pure ()
+
 private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) (verbose : Bool) : IO Unit := do
   let yulObj := emitYul contract
 
@@ -23,28 +28,13 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
 
   let allLibFunctions := libraries.flatten
 
-  -- Validate: no duplicate function names across libraries
+  -- Validate libraries
   if !allLibFunctions.isEmpty then
-    match validateNoDuplicateNames allLibFunctions with
-    | .error err => throw (IO.userError err)
-    | .ok () => pure ()
-
-  -- Validate: library functions don't shadow generated code or builtins
+    orThrow (validateNoDuplicateNames allLibFunctions)
+    orThrow (validateNoNameCollisions yulObj allLibFunctions)
+  orThrow (validateExternalReferences yulObj allLibFunctions)
   if !allLibFunctions.isEmpty then
-    match validateNoNameCollisions yulObj allLibFunctions with
-    | .error err => throw (IO.userError err)
-    | .ok () => pure ()
-
-  -- Validate: all external calls in the contract are provided by libraries
-  match validateExternalReferences yulObj allLibFunctions with
-  | .error err => throw (IO.userError err)
-  | .ok () => pure ()
-
-  -- Validate: call-site argument counts match library parameter counts
-  if !allLibFunctions.isEmpty then
-    match validateCallArity yulObj allLibFunctions with
-    | .error err => throw (IO.userError err)
-    | .ok () => pure ()
+    orThrow (validateCallArity yulObj allLibFunctions)
 
   let text ←
     if allLibFunctions.isEmpty then

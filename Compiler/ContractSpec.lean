@@ -641,15 +641,13 @@ def genConstructorArgLoads (params : List Param) : List YulStmt :=
     let loadArgs := params.enum.flatMap fun (idx, param) =>
       let offset := idx * 32
       match param.ty with
-      | ParamType.uint256 =>
-        [YulStmt.let_ s!"arg{idx}" (YulExpr.call "mload" [YulExpr.lit offset])]
       | ParamType.address =>
         [YulStmt.let_ s!"arg{idx}" (YulExpr.call "and" [
           YulExpr.call "mload" [YulExpr.lit offset],
           YulExpr.hex ((2^160) - 1)
         ])]
       | _ =>
-        -- bytes32 and other types loaded as raw 256-bit values
+        -- uint256, bytes32, and other types loaded as raw 256-bit values
         [YulStmt.let_ s!"arg{idx}" (YulExpr.call "mload" [YulExpr.lit offset])]
     argsOffset ++ loadArgs
 
