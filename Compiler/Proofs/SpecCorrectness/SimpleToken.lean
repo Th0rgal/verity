@@ -442,18 +442,8 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           ((ContractResult.getState
               ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
             ).storageMap 1 sender).val =
-            (state.storageMap 1 sender).val - amount := by
-        have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_state
-        -- Use sub semantics with no underflow
-        have h_val' :
-            ((ContractResult.getState
-                ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-              ).storageMap 1 sender).val =
-              (Verity.EVM.Uint256.sub (state.storageMap 1 sender)
-                (Verity.Core.Uint256.ofNat amount)).val := by
-          simpa using h_val
-        simpa [h_val'] using
-          (uint256_sub_val_of_le (state.storageMap 1 sender) amount h)
+            (state.storageMap 1 sender).val - amount :=
+        h_edsl_state ▸ uint256_sub_val_of_le _ _ h
       calc
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -773,14 +763,8 @@ theorem token_transfer_preserves_total_balance (state : ContractState) (to : Add
       ((ContractResult.getState
         ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
       ).storageMap 1 sender).val =
-      (state.storageMap 1 sender).val - amount := by
-    have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_sender_state
-    have h_val' :
-        (Verity.EVM.Uint256.sub (state.storageMap 1 sender)
-          (Verity.Core.Uint256.ofNat amount)).val =
-        (state.storageMap 1 sender).val - amount := by
-      exact uint256_sub_val_of_le (state.storageMap 1 sender) amount h2
-    simpa [h_val'] using h_val
+      (state.storageMap 1 sender).val - amount :=
+    h_sender_state ▸ uint256_sub_val_of_le _ _ h2
   have h_recipient_val :
       ((ContractResult.getState
         ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
