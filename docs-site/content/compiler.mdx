@@ -206,7 +206,7 @@ forge create SimpleStorage --from 0x... --private-key ...
 ```lean
 fields := [
   { name := "owner", ty := FieldType.address },     -- slot 0
-  { name := "balances", ty := FieldType.mapping },  -- slot 1
+  { name := "balances", ty := FieldType.mappingTyped (.simple .address) },  -- slot 1
   { name := "totalSupply", ty := FieldType.uint256 } -- slot 2
 ]
 ```
@@ -410,7 +410,7 @@ Define reusable logic shared across multiple external functions. Internal functi
 ```lean
 def mySpec : ContractSpec := {
   name := "MyContract"
-  fields := [{ name := "balances", ty := FieldType.mapping }]
+  fields := [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
   functions := [
     -- Internal helper (not exposed)
     { name := "addBalance"
@@ -458,7 +458,7 @@ Emit EVM events for standards compliance (ERC20 Transfer/Approval, etc.):
 ```lean
 def tokenSpec : ContractSpec := {
   name := "Token"
-  fields := [{ name := "balances", ty := FieldType.mapping }]
+  fields := [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
   events := [
     { name := "Transfer"
       params := [
