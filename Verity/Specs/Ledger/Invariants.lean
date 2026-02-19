@@ -20,7 +20,7 @@ structure WellFormedState (s : ContractState) : Prop where
 abbrev context_preserved := Specs.sameContext
 
 /-- Non-mapping storage unchanged by all Ledger operations -/
-def non_mapping_storage_unchanged (s s' : ContractState) : Prop :=
-  s'.storage = s.storage ∧ s'.storageAddr = s.storageAddr
+abbrev non_mapping_storage_unchanged (s s' : ContractState) :=
+  Specs.sameStorage s s' ∧ Specs.sameStorageAddr s s'
 
 end Verity.Specs.Ledger

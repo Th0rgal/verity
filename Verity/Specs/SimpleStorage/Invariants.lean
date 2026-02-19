@@ -19,12 +19,10 @@ def storage_isolated (s s' : ContractState) (slot : Nat) : Prop :=
   slot ≠ 0 → s'.storage slot = s.storage slot
 
 /-- Address storage unchanged by Uint256 storage operations -/
-def addr_storage_unchanged (s s' : ContractState) : Prop :=
-  s'.storageAddr = s.storageAddr
+abbrev addr_storage_unchanged := Specs.sameStorageAddr
 
 /-- Mapping storage unchanged by Uint256 storage operations -/
-def map_storage_unchanged (s s' : ContractState) : Prop :=
-  s'.storageMap = s.storageMap
+abbrev map_storage_unchanged := Specs.sameStorageMap
 
 /-- Context preservation -/
 abbrev context_preserved := Specs.sameContext

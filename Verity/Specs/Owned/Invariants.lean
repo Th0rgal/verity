@@ -27,8 +27,7 @@ structure WellFormedState (s : ContractState) : Prop where
   owner_nonempty : s.storageAddr 0 ≠ ""
 
 /-- Mapping storage unchanged: Owner operations don't touch mapping storage -/
-def map_storage_unchanged (s s' : ContractState) : Prop :=
-  s'.storageMap = s.storageMap
+abbrev map_storage_unchanged := Specs.sameStorageMap
 
 /-- Contract context preserved: Operations don't change sender or contract address -/
 abbrev context_preserved := Specs.sameContext

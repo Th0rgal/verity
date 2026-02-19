@@ -287,14 +287,14 @@ theorem deposit_preserves_non_mapping (s : ContractState) (amount : Uint256) :
   let s' := ((deposit amount).run s).snd
   non_mapping_storage_unchanged s s' := by
   rw [deposit_unfold]
-  simp [ContractResult.snd, non_mapping_storage_unchanged]
+  simp [ContractResult.snd, non_mapping_storage_unchanged, Specs.sameStorage, Specs.sameStorageAddr]
 
 theorem withdraw_preserves_non_mapping (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
   let s' := ((withdraw amount).run s).snd
   non_mapping_storage_unchanged s s' := by
   rw [withdraw_unfold s amount h_balance]
-  simp [ContractResult.snd, non_mapping_storage_unchanged]
+  simp [ContractResult.snd, non_mapping_storage_unchanged, Specs.sameStorage, Specs.sameStorageAddr]
 
 theorem deposit_preserves_wellformedness (s : ContractState) (amount : Uint256)
   (h : WellFormedState s) :
