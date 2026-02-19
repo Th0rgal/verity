@@ -257,11 +257,6 @@ sufficiency and the safeAdd/requireSomeUint overflow check are
 fully modeled, matching Solidity ^0.8 checked arithmetic semantics.
 -/
 
--- Helper: Nat.ble is equivalent to ≤ for the >= check
-private theorem ble_true_of_ge {a b : Nat} (h : a ≥ b) : (b <= a) = true := by
-  simp [Nat.ble_eq]
-  exact h
-
 -- Helper lemma: after unfolding transfer with sufficient balance and self-transfer, state is unchanged
 private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
