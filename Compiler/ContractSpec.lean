@@ -640,29 +640,26 @@ private def isScalarParamType : ParamType → Bool
   | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
   | _ => false
 
--- Conservative dynamic-type check for top-level ABI parameters.
--- Supports static tuples/fixed arrays of scalar elements inline in calldata head.
-def isDynamicParamType : ParamType → Bool
+partial def isDynamicParamType : ParamType → Bool
   | ParamType.uint256 => false
   | ParamType.address => false
   | ParamType.bool => false
   | ParamType.bytes32 => false
   | ParamType.array _ => true
   | ParamType.bytes => true
-  | ParamType.fixedArray elemTy _ => !isScalarParamType elemTy
+  | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
   | ParamType.tuple elemTys =>
-      elemTys.any (fun ty => !isScalarParamType ty)
+      elemTys.any isDynamicParamType
 
 -- ABI head size for top-level parameters.
--- Static tuples/fixed arrays of scalars are inlined in the head; dynamic values use a 32-byte offset word.
-def paramHeadSize : ParamType → Nat
+partial def paramHeadSize : ParamType → Nat
   | ty =>
       if isDynamicParamType ty then
         32
       else
         match ty with
-        | ParamType.fixedArray _ n => n * 32
-        | ParamType.tuple elemTys => elemTys.length * 32
+        | ParamType.fixedArray elemTy n => n * paramHeadSize elemTy
+        | ParamType.tuple elemTys => (elemTys.map paramHeadSize).foldl (· + ·) 0
         | _ => 32
 
 -- Generate calldata loads for a dynamic parameter (array or bytes).
@@ -680,58 +677,41 @@ private def genDynamicParamLoads (name : String) (headOffset : Nat) : List YulSt
     ])
   [offsetLoad, lengthLoad, dataOffsetLoad]
 
--- Generate calldata loads for static scalar tuple members, exposing them as:
---   tupleName_0, tupleName_1, ...
-private def genStaticTupleLoads (tupleName : String) (elemTypes : List ParamType) (headOffset : Nat) :
+private def genScalarLoad (name : String) (ty : ParamType) (offset : Nat) : List YulStmt :=
+  match ty with
+  | ParamType.uint256 =>
+      [YulStmt.let_ name (YulExpr.call "calldataload" [YulExpr.lit offset])]
+  | ParamType.bytes32 =>
+      [YulStmt.let_ name (YulExpr.call "calldataload" [YulExpr.lit offset])]
+  | ParamType.address =>
+      [YulStmt.let_ name (YulExpr.call "and" [
+        YulExpr.call "calldataload" [YulExpr.lit offset],
+        YulExpr.hex ((2^160) - 1)
+      ])]
+  | ParamType.bool =>
+      [YulStmt.let_ name (YulExpr.call "iszero" [YulExpr.call "iszero" [
+        YulExpr.call "calldataload" [YulExpr.lit offset]
+      ]])]
+  | _ => []
+
+private partial def genStaticTypeLoads (name : String) (ty : ParamType) (offset : Nat) :
     List YulStmt :=
-  let rec go (tys : List ParamType) (idx : Nat) (offset : Nat) : List YulStmt :=
-    match tys with
-    | [] => []
-    | ty :: rest =>
-        let elemName := s!"{tupleName}_{idx}"
-        let here := match ty with
-          | ParamType.uint256 =>
-              [YulStmt.let_ elemName (YulExpr.call "calldataload" [YulExpr.lit offset])]
-          | ParamType.bytes32 =>
-              [YulStmt.let_ elemName (YulExpr.call "calldataload" [YulExpr.lit offset])]
-          | ParamType.address =>
-              [YulStmt.let_ elemName (YulExpr.call "and" [
-                YulExpr.call "calldataload" [YulExpr.lit offset],
-                YulExpr.hex ((2^160) - 1)
-              ])]
-          | ParamType.bool =>
-              [YulStmt.let_ elemName (YulExpr.call "iszero" [YulExpr.call "iszero" [
-                YulExpr.call "calldataload" [YulExpr.lit offset]
-              ]])]
-          | ParamType.tuple _ =>
-              []
-          | ParamType.fixedArray elemTy n =>
-              if isDynamicParamType ty then
-                []
-              else
-                (List.range n).flatMap fun i =>
-                  let partOffset := offset + i * paramHeadSize elemTy
-                  match elemTy with
-                  | ParamType.uint256 =>
-                      [YulStmt.let_ s!"{elemName}_{i}" (YulExpr.call "calldataload" [YulExpr.lit partOffset])]
-                  | ParamType.bytes32 =>
-                      [YulStmt.let_ s!"{elemName}_{i}" (YulExpr.call "calldataload" [YulExpr.lit partOffset])]
-                  | ParamType.address =>
-                      [YulStmt.let_ s!"{elemName}_{i}" (YulExpr.call "and" [
-                        YulExpr.call "calldataload" [YulExpr.lit partOffset],
-                        YulExpr.hex ((2^160) - 1)
-                      ])]
-                  | ParamType.bool =>
-                      [YulStmt.let_ s!"{elemName}_{i}" (YulExpr.call "iszero" [YulExpr.call "iszero" [
-                        YulExpr.call "calldataload" [YulExpr.lit partOffset]
-                      ]])]
-                  | ParamType.tuple _ =>
-                      []
-                  | _ => []
-          | _ => []
-        let size := paramHeadSize ty
-        here ++ go rest (idx + 1) (offset + size)
-  go elemTypes 0 headOffset
+  match ty with
+  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+      genScalarLoad name ty offset
+  | ParamType.fixedArray elemTy n =>
+      (List.range n).flatMap fun i =>
+        genStaticTypeLoads s!"{name}_{i}" elemTy (offset + i * paramHeadSize elemTy)
+  | ParamType.tuple elemTys =>
+      let rec go (tys : List ParamType) (idx : Nat) (curOffset : Nat) : List YulStmt :=
+        match tys with
+        | [] => []
+        | elemTy :: rest =>
+            let elemName := s!"{name}_{idx}"
+            let here := genStaticTypeLoads elemName elemTy curOffset
+            here ++ go rest (idx + 1) (curOffset + paramHeadSize elemTy)
+      go elemTys 0 offset
+  | _ => []
 
 -- Generate parameter loading code (from calldata)
 def genParamLoads (params : List Param) : List YulStmt :=
@@ -757,19 +737,26 @@ def genParamLoads (params : List Param) : List YulStmt :=
           if isDynamicParamType param.ty then
             genDynamicParamLoads param.name headOffset
           else
-            genStaticTupleLoads param.name elemTypes headOffset
+            genStaticTypeLoads param.name (ParamType.tuple elemTypes) headOffset
         | ParamType.array _ =>
           genDynamicParamLoads param.name headOffset
         | ParamType.fixedArray _ n =>
-          -- Fixed arrays are inline in calldata: load first element at headOffset,
-          -- remaining elements at headOffset + 32, headOffset + 64, etc.
-          -- Expose the first element as the param name for backward compatibility.
-          if n == 0 then []
+          -- Static fixed arrays are decoded inline recursively (including nested tuple members).
+          -- For scalar element arrays we preserve `<name>` as an alias to `<name>_0`.
+          if isDynamicParamType param.ty then
+            genDynamicParamLoads param.name headOffset
           else
-            let firstElem := [YulStmt.let_ param.name (YulExpr.call "calldataload" [YulExpr.lit headOffset])]
-            let restElems := (List.range (n - 1)).map fun i =>
-              YulStmt.let_ s!"{param.name}_{i + 1}" (YulExpr.call "calldataload" [YulExpr.lit (headOffset + (i + 1) * 32)])
-            firstElem ++ restElems
+            let staticLoads := genStaticTypeLoads param.name param.ty headOffset
+            if n == 0 then staticLoads else
+              -- Backward compatibility: keep `<name>` bound to first element for scalar fixed arrays.
+              let firstAlias := match param.ty with
+                | ParamType.fixedArray elemTy _ =>
+                    if isScalarParamType elemTy then
+                      [YulStmt.let_ param.name (YulExpr.ident s!"{param.name}_0")]
+                    else
+                      []
+                | _ => []
+              staticLoads ++ firstAlias
         | ParamType.bytes =>
           genDynamicParamLoads param.name headOffset
       stmts ++ go rest (headOffset + paramHeadSize param.ty)
