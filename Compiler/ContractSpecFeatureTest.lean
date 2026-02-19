@@ -75,12 +75,18 @@ private def featureSpec : ContractSpec := {
       returnType := none
       returns := [ParamType.array ParamType.uint256]
       body := [Stmt.returnArray "arr"]
+    },
+    { name := "echoBytes"
+      params := [{ name := "data", ty := ParamType.bytes }]
+      returnType := none
+      returns := [ParamType.bytes]
+      body := [Stmt.returnBytes "data"]
     }
   ]
 }
 
 #eval! do
-  match compile featureSpec [1, 2, 3, 4, 5] with
+  match compile featureSpec [1, 2, 3, 4, 5, 6] with
   | .error err =>
       throw (IO.userError s!"✗ feature spec compile failed: {err}")
   | .ok ir =>
@@ -92,5 +98,6 @@ private def featureSpec : ContractSpec := {
       assertContains "event topic hashing uses free memory pointer" rendered ["keccak256(__evt_ptr,"]
       assertContains "event topic hash cached before data writes" rendered ["let __evt_topic0 := keccak256(__evt_ptr,", "log2(__evt_ptr, 32, __evt_topic0"]
       assertContains "dynamic array ABI return" rendered ["calldatacopy(64"]
+      assertContains "dynamic bytes ABI return" rendered ["calldatacopy(64, data_data_offset, data_length)", "return(0, add(64, and(add(data_length, 31), not(31))))"]
 
 end Compiler.ContractSpecFeatureTest
