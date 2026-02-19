@@ -57,8 +57,8 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
   simp [Verity.Examples.Owned.constructor, Contract.run, ownedSpec, interpretSpec,
-    setStorageAddr, Verity.Examples.Owned.owner, Verity.bind, Verity.pure]
-  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
+    setStorageAddr, Verity.Examples.Owned.owner, Verity.bind, Verity.pure,
+    execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
 
 /-- The `transferOwnership` function correctly transfers ownership when called by owner -/
 theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : Address) (sender : Address)

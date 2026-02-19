@@ -66,8 +66,8 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
   simp [Verity.Examples.OwnedCounter.constructor, Contract.run, ownedCounterSpec, interpretSpec,
-    setStorageAddr, Verity.Examples.OwnedCounter.owner, Verity.bind, Verity.pure]
-  simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
+    setStorageAddr, Verity.Examples.OwnedCounter.owner, Verity.bind, Verity.pure,
+    execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
 
 /-- The `increment` function correctly increments when called by owner -/
 theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender : Address)
