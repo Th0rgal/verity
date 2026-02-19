@@ -358,7 +358,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
         Nat.mod_eq_of_lt h_sender_lt,
-        lookup_senderBal, lookup_recipientBal, lookup_addr_first,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
     constructor
     · -- Sender mapping equals EDSL mapping (self-transfer)
@@ -383,8 +382,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
           h_eq_nat,
-          List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
-          lookup_addr_first]
+          List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
       have h_edsl_val :
           ((ContractResult.getState
               ((transfer sender (Verity.Core.Uint256.ofNat amount)).run
@@ -418,8 +416,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
           Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
           h_eq_nat,
-          List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
-          lookup_addr_first]
+          List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
       have h_edsl_val :
           ((ContractResult.getState
               ((transfer sender (Verity.Core.Uint256.ofNat amount)).run
@@ -460,8 +457,8 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
-        h_addr_ne, h_addr_ne', lookup_senderBal, lookup_recipientBal, lookup_addr_first,
-        lookup_addr_second, List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
+        h_addr_ne, h_addr_ne',
+        List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
         h_recip_add_mod, h_recip_ge]
     constructor
     · -- Sender mapping equals EDSL mapping
@@ -488,7 +485,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
           h_ne, h_addr_ne, h_addr_ne',
           List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
-          lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second,
           h_recip_add_mod, h_recip_ge]
       have h_edsl_state :
           (ContractResult.getState
@@ -555,7 +551,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
           h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt, h_ne, h_addr_ne, h_addr_ne',
           List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
-          lookup_senderBal, lookup_recipientBal, lookup_addr_first, lookup_addr_second,
           h_recip_add_mod, h_recip_ge]
       have h_edsl_state :
           (ContractResult.getState
@@ -632,16 +627,14 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
-        h, h_insufficient, Nat.mod_eq_of_lt h_amount, lookup_senderBal, lookup_recipientBal,
-        lookup_addr_first]
+        h, h_insufficient, Nat.mod_eq_of_lt h_amount]
     · have h_addr_ne : addressToNat sender ≠ addressToNat to :=
         addressToNat_ne_of_ne sender to h_eq
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
-        h, h_insufficient, Nat.mod_eq_of_lt h_amount, h_addr_ne, lookup_senderBal, lookup_recipientBal,
-        lookup_addr_first, lookup_addr_second]
+        h, h_insufficient, Nat.mod_eq_of_lt h_amount, h_addr_ne]
 
 /-- The `balanceOf` function correctly retrieves balance -/
 theorem token_balanceOf_correct (state : ContractState) (addr : Address) (sender : Address) :
@@ -673,7 +666,7 @@ theorem token_getTotalSupply_correct (state : ContractState) (sender : Address) 
   unfold getTotalSupply Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
   have h_slot : (List.lookup 2 [(0, addressToNat (state.storageAddr 0)), (2, (state.storage 2).val)]).getD 0
       = (state.storage 2).val := by
-    simp [lookup_addr_second, (by decide : (0:Nat) ≠ 2)]
+    simp [(by decide : (0:Nat) ≠ 2)]
   simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
     totalSupply, h_slot]
 
