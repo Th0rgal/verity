@@ -319,6 +319,27 @@ theorem require_success_implies_cond (cond : Bool) (msg : String) (state : Contr
     -- When cond = true, we're done
     rfl
 
+-- require preserves state regardless of branch
+@[simp] theorem require_state (cond : Bool) (msg : String) (state : ContractState) :
+    (require cond msg).runState state = state := by
+  by_cases h : cond
+  · simp [require, Contract.runState, h]
+  · simp [require, Contract.runState, h]
+
+-- If the guard is true, binding after require is exactly the continuation.
+@[simp] theorem require_bind_true_run (cond : Bool) (msg : String) (k : Unit → Contract α)
+    (state : ContractState) (h : cond = true) :
+    (Verity.bind (require cond msg) k).run state = (k ()) state := by
+  subst h
+  simp [Verity.bind, require, Contract.run]
+
+-- If the guard is false, bind short-circuits to revert and never runs continuation.
+@[simp] theorem require_bind_false_run (cond : Bool) (msg : String) (k : Unit → Contract α)
+    (state : ContractState) (h : cond = false) :
+    (Verity.bind (require cond msg) k).run state = ContractResult.revert msg state := by
+  subst h
+  simp [Verity.bind, require, Contract.run]
+
 /-!
 ## Address Equality Lemmas
 -/
