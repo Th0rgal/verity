@@ -167,7 +167,7 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
       match fields.findIdx? (·.name == fieldName) with
       | some slot => storage.getSlot slot
       | none => 0
-  | Expr.mapping fieldName key =>
+  | Expr.mapping fieldName key | Expr.mappingUint fieldName key =>
       match fields.findIdx? (·.name == fieldName) with
       | some baseSlot =>
           let keyVal := evalExpr ctx storage fields paramNames externalFns key
@@ -179,12 +179,6 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
           let key1Val := evalExpr ctx storage fields paramNames externalFns key1
           let key2Val := evalExpr ctx storage fields paramNames externalFns key2
           storage.getMapping2 baseSlot key1Val key2Val
-      | none => 0
-  | Expr.mappingUint fieldName key =>
-      match fields.findIdx? (·.name == fieldName) with
-      | some baseSlot =>
-          let keyVal := evalExpr ctx storage fields paramNames externalFns key
-          storage.getMapping baseSlot keyVal
       | none => 0
   | Expr.caller => addressToNat ctx.sender
   | Expr.msgValue => ctx.msgValue % modulus
@@ -302,7 +296,8 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
           some (ctx, { state with storage := state.storage.setSlot slot value })
       | none => none
 
-  | Stmt.setMapping fieldName keyExpr valueExpr =>
+  | Stmt.setMapping fieldName keyExpr valueExpr
+  | Stmt.setMappingUint fieldName keyExpr valueExpr =>
       match fields.findIdx? (·.name == fieldName) with
       | some baseSlot =>
           let key := evalExpr ctx state.storage fields paramNames externalFns keyExpr
@@ -317,14 +312,6 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
           let key2 := evalExpr ctx state.storage fields paramNames externalFns key2Expr
           let value := evalExpr ctx state.storage fields paramNames externalFns valueExpr
           some (ctx, { state with storage := state.storage.setMapping2 baseSlot key1 key2 value })
-      | none => none
-
-  | Stmt.setMappingUint fieldName keyExpr valueExpr =>
-      match fields.findIdx? (·.name == fieldName) with
-      | some baseSlot =>
-          let key := evalExpr ctx state.storage fields paramNames externalFns keyExpr
-          let value := evalExpr ctx state.storage fields paramNames externalFns valueExpr
-          some (ctx, { state with storage := state.storage.setMapping baseSlot key value })
       | none => none
 
   | Stmt.require condExpr _message =>
