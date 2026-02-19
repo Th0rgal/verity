@@ -638,6 +638,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.returnBytes name => do
       let lenIdent := YulExpr.ident s!"{name}_length"
       let dataOffset := YulExpr.ident s!"{name}_data_offset"
+      let tailOffset := YulExpr.call "add" [YulExpr.lit 64, lenIdent]
       let paddedLen :=
         YulExpr.call "and" [
           YulExpr.call "add" [lenIdent, YulExpr.lit 31],
@@ -647,6 +648,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
         YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, lenIdent]),
+        YulStmt.expr (YulExpr.call "mstore" [tailOffset, YulExpr.lit 0]),
         YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, paddedLen]])
       ]
 end
