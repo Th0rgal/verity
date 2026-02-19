@@ -93,7 +93,7 @@ theorem yulCodegen_preserves_semantics
 /-! ## Complete Preservation Theorem (No Undischarged Hypotheses)
 
 This version of the preservation theorem discharges the `hbody` hypothesis
-using the proven `all_stmts_equiv` and the `execIRFunctionFuel_eq_execIRFunction` lemma.
+using the proven `all_stmts_equiv` and the `execIRFunctionFuel_adequate` lemma.
 
 The remaining gap between `interpretYulBodyFromState` (fuel-based proof chain) and
 `interpretYulBody` (used by the parameterized theorem above) requires bridging two
@@ -102,7 +102,7 @@ different Yul execution entry points. This bridging lemma documents that gap exp
 **Proof chain** (complete — fuel adequacy is now `rfl`):
 1. `all_stmts_equiv` — every IR statement type is equivalent (StatementEquivalence.lean)
 2. `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv` — lifts to lists (Equivalence.lean)
-3. `execIRFunctionFuel_eq_execIRFunction` — bridges fuel-based ↔ total IR (Equivalence.lean, `rfl`)
+3. `execIRFunctionFuel_adequate` — bridges fuel-based ↔ total IR (Equivalence.lean, `rfl`)
 4. `ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy` — function-level equivalence
 
 The theorem `ir_function_body_equiv` below demonstrates the complete chain for any

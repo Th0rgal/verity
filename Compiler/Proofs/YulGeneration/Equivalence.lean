@@ -178,24 +178,6 @@ theorem resultsMatch_of_execResultsAligned
     simp [irResultOfExecWithRollback, yulResultOfExecWithRollback, resultsMatch,
       yulStateOfIR]
 
-/-- Generic function equivalence goal: holds for any IR function and its compiled Yul body. -/
-def ir_yul_function_equiv_goal
-    (fn : IRFunction) (tx : IRTransaction) (state : IRState) : Prop :=
-    tx.functionSelector < selectorModulus →
-    resultsMatch
-      (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
-      (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
-
-theorem ir_yul_function_equiv_goal_of_resultsMatch
-    (fn : IRFunction) (tx : IRTransaction) (state : IRState)
-    (hMatch :
-      resultsMatch
-        (execIRFunction fn tx.args { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
-        (interpretYulBody fn tx { state with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
-    ir_yul_function_equiv_goal fn tx state := by
-  intro _
-  simpa [ir_yul_function_equiv_goal] using hMatch
-
 /-! ## Generic Layer 3 Lemmas (Fuel-Agnostic)
 
 These lemmas lift instruction-level equivalence to sequences and function
@@ -465,12 +447,6 @@ Previously this required:
   axiom execIRStmtsFuel_adequate : ...
 This axiom has been **eliminated** by making the IR interpreter total.
 -/
-
-theorem execIRFunctionFuel_eq_execIRFunction
-    (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
-      execIRFunction fn args initialState := by
-  rfl
 
 def execIRFunctionFuel_adequate_goal
     (fn : IRFunction) (args : List Nat) (initialState : IRState) : Prop :=

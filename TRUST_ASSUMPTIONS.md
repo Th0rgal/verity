@@ -137,7 +137,6 @@ theorem assign_equiv :
     execYulStmt (assign var expr) yulState
 
 -- Storage operations equivalence
-theorem storageLoad_equiv : ...
 theorem storageStore_equiv : ...
 
 -- Control flow equivalence

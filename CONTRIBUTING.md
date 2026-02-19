@@ -205,7 +205,7 @@ Tag format: `/// Property: exact_theorem_name`
 
 ## Development
 
-**Layer 3 proofs**: Read [Compiler/Proofs/README.md](Compiler/Proofs/README.md), study completed proofs (`assign_equiv`, `storageLoad_equiv`), use templates
+**Layer 3 proofs**: Read [Compiler/Proofs/README.md](Compiler/Proofs/README.md), study completed proofs (`assign_equiv`, `storageStore_equiv`), use templates
 
 **New contracts**: Use `python3 scripts/generate_contract.py <Name>` to scaffold all boilerplate files, then follow the `SimpleStorage` pattern: Spec → Invariants → Implementation → Proofs → Tests
 

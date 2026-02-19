@@ -114,31 +114,6 @@ theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
-/-! ### Storage Load Equivalence -/
-
-theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
-    (varName : String) (slotExpr : YulExpr)
-    (irState : IRState) (yulState : YulState)
-    (halign : statesAligned selector irState yulState)
-    (hfuel : fuel > 0) :
-    execResultsAligned selector
-      (execIRStmtFuel fuel irState (YulStmt.let_ varName (.call "sload" [slotExpr])))
-      (execYulStmtFuel fuel yulState (YulStmt.let_ varName (.call "sload" [slotExpr]))) := by
-  unfold statesAligned at halign
-  subst halign
-  cases fuel with
-  | zero => contradiction
-  | succ fuel' =>
-      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
-      rw [evalIRExpr_eq_evalYulExpr]
-      cases evalYulExpr (yulStateOfIR selector irState) (.call "sload" [slotExpr]) with
-      | none =>
-          unfold execResultsAligned
-          rfl
-      | some v =>
-          unfold execResultsAligned statesAligned yulStateOfIR
-          simp [IRState.setVar, YulState.setVar]
-
 /-! ### Storage Store Equivalence -/
 
 theorem storageStore_equiv (selector : Nat) (fuel : Nat)

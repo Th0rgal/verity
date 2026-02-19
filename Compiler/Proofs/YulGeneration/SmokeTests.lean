@@ -24,9 +24,6 @@ private def storageWith (slot value : Nat) : Nat → Nat :=
 private def mappingsWith (base key value : Nat) : Nat → Nat → Nat :=
   fun b k => if b = base ∧ k = key then value else 0
 
-private def mkState (selector : Nat) (args : List Nat) : YulState :=
-  YulState.initial { sender := 0, functionSelector := selector, args := args } emptyStorage emptyMappings
-
 /-! ## Yul Runtime Semantics Smoke Tests -/
 
 private def runYul (runtimeCode : List YulStmt) (tx : YulTransaction)

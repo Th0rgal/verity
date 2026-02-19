@@ -26,10 +26,4 @@ structure WellFormedState (s : ContractState) : Prop where
   contract_nonempty : s.thisAddress ≠ ""
   owner_nonempty : s.storageAddr 0 ≠ ""
 
-/-- Mapping storage unchanged: Owner operations don't touch mapping storage -/
-abbrev map_storage_unchanged := Specs.sameStorageMap
-
-/-- Contract context preserved: Operations don't change sender or contract address -/
-abbrev context_preserved := Specs.sameContext
-
 end Verity.Specs.Owned
