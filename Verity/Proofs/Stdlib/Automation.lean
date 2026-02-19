@@ -831,6 +831,48 @@ theorem setMapping_preserves_events (slot : StorageSlot (Address → Uint256))
   simp [setMapping]
 
 /-!
+## Event Emission Helpers
+
+Direct automation lemmas for `emitEvent`.
+-/
+
+/-- Emitting an event always succeeds. -/
+@[simp] theorem emitEvent_isSuccess (name : String) (args indexedArgs : List Uint256)
+    (state : ContractState) :
+    ((emitEvent name args indexedArgs).run state).isSuccess = true := by
+  simp [emitEvent]
+
+/-- Emitting an event returns unit. -/
+@[simp] theorem emitEvent_runValue (name : String) (args indexedArgs : List Uint256)
+    (state : ContractState) :
+    (emitEvent name args indexedArgs).runValue state = () := by
+  simp [emitEvent, Contract.runValue]
+
+/-- Emitting an event updates only the event log by appending one entry. -/
+@[simp] theorem emitEvent_runState (name : String) (args indexedArgs : List Uint256)
+    (state : ContractState) :
+    (emitEvent name args indexedArgs).runState state =
+      { state with events := state.events ++ [{ name := name, args := args, indexedArgs := indexedArgs }] } := by
+  simp [emitEvent, Contract.runState]
+
+/-- Event log append view of emitEvent. -/
+@[simp] theorem emitEvent_events_append (name : String) (args indexedArgs : List Uint256)
+    (state : ContractState) :
+    ((emitEvent name args indexedArgs).run state).snd.events =
+      state.events ++ [{ name := name, args := args, indexedArgs := indexedArgs }] := by
+  simp [emitEvent]
+
+/-- Sequential event emission appends in order. -/
+theorem emitEvent_emitEvent_events (name1 : String) (args1 indexedArgs1 : List Uint256)
+    (name2 : String) (args2 indexedArgs2 : List Uint256) (state : ContractState) :
+    ((Verity.bind (emitEvent name1 args1 indexedArgs1)
+        (fun _ => emitEvent name2 args2 indexedArgs2)).run state).snd.events =
+      state.events ++
+        [{ name := name1, args := args1, indexedArgs := indexedArgs1 },
+         { name := name2, args := args2, indexedArgs := indexedArgs2 }] := by
+  simp [Contract.run, Verity.bind, emitEvent, List.append_assoc]
+
+/-!
 ## MAX_UINT256 / modulus Helper Lemmas
 
 Convenience lemmas that eliminate the repeated inline derivation of

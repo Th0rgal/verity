@@ -279,6 +279,7 @@
     "countOccU_cons_ne",
     "countOcc_cons_eq",
     "countOcc_cons_ne",
+    "emitEvent_emitEvent_events",
     "evm_add_eq_hadd",
     "getMapping2_runState",
     "getMapping2_runValue",
