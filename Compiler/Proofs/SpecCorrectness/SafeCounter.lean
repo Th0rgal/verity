@@ -261,22 +261,13 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
     let s := { state with sender := sender }
     have h_adds :=
       Verity.Proofs.SafeCounter.increment_adds_one s h_le
-    have h_edsl_storage :
-        ((ContractResult.getState (increment.run s)).storage 0).val =
-          (Verity.Core.Uint256.add (state.storage 0) 1).val := by
-      have h_adds' :
-          ((increment.run s).snd.storage 0) =
-            Verity.EVM.Uint256.add (state.storage 0) 1 := by
-        simpa [s] using h_adds
-      have h_adds_val :
-          ((increment.run s).snd.storage 0).val =
-            (Verity.Core.Uint256.add (state.storage 0) 1).val := by
-        simpa [Verity.EVM.Uint256.add] using congrArg Verity.Core.Uint256.val h_adds'
-      simpa [ContractResult.getState] using h_adds_val
     have h_edsl_storage_val :
         ((ContractResult.getState (increment.run s)).storage 0).val =
           ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus := by
-      simpa [add_one_val_eq_mod'] using h_edsl_storage
+      have h_adds' : ((increment.run s).snd.storage 0) =
+          Verity.EVM.Uint256.add (state.storage 0) 1 := by simpa [s] using h_adds
+      simpa [ContractResult.getState, Verity.EVM.Uint256.add, add_one_val_eq_mod'] using
+        congrArg Verity.Core.Uint256.val h_adds'
     -- Spec stores (count + 1).val
     -- The require passes and stores (count + 1).val
     -- We can use the same guard proof as above
@@ -358,32 +349,17 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
       let s := { state with sender := sender }
       have h_subs :=
         Verity.Proofs.SafeCounter.decrement_subtracts_one s h_ge
-      have h_edsl_storage :
-          ((ContractResult.getState (decrement.run s)).storage 0).val =
-            (Verity.Core.Uint256.sub (state.storage 0) 1).val := by
-        have h_subs' :
-            ((decrement.run s).snd.storage 0) =
-              Verity.EVM.Uint256.sub (state.storage 0) 1 := by
-          simpa [s] using h_subs
-        have h_subs_val :
-            ((decrement.run s).snd.storage 0).val =
-              (Verity.Core.Uint256.sub (state.storage 0) 1).val := by
-          simpa [Verity.EVM.Uint256.sub] using congrArg Verity.Core.Uint256.val h_subs'
-        simpa [ContractResult.getState] using h_subs_val
       have h_edsl_storage_val :
           ((ContractResult.getState (decrement.run s)).storage 0).val =
             (state.storage 0).val - 1 := by
-        have h_edsl_storage_mod :
-            ((ContractResult.getState (decrement.run s)).storage 0).val =
-              ((state.storage 0).val - 1) % Verity.Core.Uint256.modulus := by
-          simpa [Verity.Core.Uint256.sub, one_mod_modulus, h_ge] using h_edsl_storage
-        have h_lt_mod : (state.storage 0).val - 1 < Verity.Core.Uint256.modulus := by
-          have h_lt : (state.storage 0).val < Verity.Core.Uint256.modulus :=
-            (state.storage 0).isLt
-          have h_le : (state.storage 0).val - 1 ≤ (state.storage 0).val := by
-            omega
-          exact Nat.lt_of_le_of_lt h_le h_lt
-        simpa [Nat.mod_eq_of_lt h_lt_mod] using h_edsl_storage_mod
+        have h_subs' : ((decrement.run s).snd.storage 0) =
+            Verity.EVM.Uint256.sub (state.storage 0) 1 := by simpa [s] using h_subs
+        have h_edsl_storage :=
+          congrArg Verity.Core.Uint256.val h_subs'
+        have h_lt_mod : (state.storage 0).val - 1 < Verity.Core.Uint256.modulus :=
+          Nat.lt_of_le_of_lt (Nat.sub_le _ _) (state.storage 0).isLt
+        simpa [ContractResult.getState, Verity.EVM.Uint256.sub,
+          Verity.Core.Uint256.sub, one_mod_modulus, h_ge, Nat.mod_eq_of_lt h_lt_mod] using h_edsl_storage
       -- Spec: require passes and setStorage stores (count - 1)
       simpa [h_edsl_storage_val] using (decrement_spec_storage state sender h_ge)
   · -- Underflow: count < 1, both EDSL and spec fail
