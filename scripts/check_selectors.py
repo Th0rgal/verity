@@ -218,17 +218,25 @@ def check_unique_selectors(specs: List[SpecInfo]) -> List[str]:
 def check_compile_lists(specs: List[SpecInfo], compile_lists: List[CompileSelectors]) -> List[str]:
     errors: List[str] = []
     spec_map = {spec.def_name: spec for spec in specs}
+    seen_specs: set[str] = set()
     for item in compile_lists:
         spec = spec_map.get(item.def_name)
         if spec is None:
             errors.append(f"Compile list references unknown spec {item.def_name}")
             continue
+        seen_specs.add(item.def_name)
         expected = compute_selectors(spec.signatures)
         if expected != item.selectors:
             errors.append(
                 f"{spec.contract_name}: compile selector list mismatch: expected {format_selectors(expected)} "
                 f"got {format_selectors(item.selectors)}"
             )
+    for spec in specs:
+        # Specs compiled only via --link do not need compile selector tables.
+        if spec.has_externals:
+            continue
+        if spec.def_name not in seen_specs:
+            errors.append(f"{spec.contract_name}: missing compile selector list for {spec.def_name}")
     return errors
 
 
