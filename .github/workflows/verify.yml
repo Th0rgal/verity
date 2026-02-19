@@ -115,6 +115,9 @@ jobs:
       - name: Check Lean hygiene
         run: python3 scripts/check_lean_hygiene.py
 
+      - name: Check static gas model builtin coverage
+        run: python3 scripts/check_gas_model_coverage.py
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20

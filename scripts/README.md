@@ -103,6 +103,7 @@ python3 scripts/check_contract_structure.py
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes; fixture signature extraction is comment/string-aware so commented examples/debug strings cannot create false selector expectations, scans full function headers (so visibility can appear after modifiers like `virtual`), includes only `public`/`external` selectors (matching `solc --hashes`), canonicalizes ABI-sensitive param forms (`function(...)`, `uint/int` aliases, user-defined `contract`/`enum`/`type` aliases, and struct params into canonical tuple signatures), parses both `solc --hashes` output layouts robustly (including nested tuple signatures), and enforces reverse completeness (every `solc --hashes` signature must be present in extracted fixtures)
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc and can compare bytecode parity between directories
 - **`check_gas_report.py`** - Validates `lake exe gas-report` output shape, arithmetic consistency of totals, and monotonicity under more conservative static analysis settings
+- **`check_gas_model_coverage.py`** - Verifies that every call emitted in `compiler/yul/*.yul` has an explicit cost branch in `Compiler/Gas/StaticAnalysis.lean` (prevents silent fallback to unknown-call costs)
 
 ```bash
 # Default: check compiler/yul
@@ -156,6 +157,7 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
 6. Property manifest sync (`check_property_manifest_sync.py`)
 7. Storage layout consistency (`check_storage_layout.py`)
 8. Lean hygiene (`check_lean_hygiene.py`)
+9. Static gas model builtin coverage (`check_gas_model_coverage.py`)
 
 **`build` job** (requires `lake build` artifacts):
 1. Keccak-256 self-test (`keccak256.py --self-test`)

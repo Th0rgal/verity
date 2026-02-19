@@ -39,7 +39,17 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   else if name = "mstore" then 3
   else if name = "mload" then 3
   else if name = "calldataload" then 3
+  else if name = "calldatasize" then 2
+  else if name = "callvalue" then 2
   else if name = "caller" then 2
+  else if name = "codesize" then 2
+  /- Copy costs depend on payload length and memory expansion.
+     Use conservative constants to avoid unknown-call fallback explosions. -/
+  else if name = "codecopy" then 5000
+  else if name = "datacopy" then 5000
+  /- `dataoffset`/`datasize` compile to immediate constants; model as verylow. -/
+  else if name = "dataoffset" then 3
+  else if name = "datasize" then 3
   else if name = "mappingSlot" then 42
   else if name = "add" then 3
   else if name = "sub" then 3
