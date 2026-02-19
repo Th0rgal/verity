@@ -89,6 +89,7 @@ private def featureSpec : ContractSpec := {
       assertContains "multi-return ABI encoding" rendered ["return(0, 64)"]
       assertContains "indexed event log opcode" rendered ["log2("]
       assertContains "indexed bool topic normalization" rendered ["iszero(iszero(2))"]
+      assertContains "event topic hashing uses free memory pointer" rendered ["keccak256(__evt_ptr,"]
       assertContains "dynamic array ABI return" rendered ["calldatacopy(64"]
 
 end Compiler.ContractSpecFeatureTest
