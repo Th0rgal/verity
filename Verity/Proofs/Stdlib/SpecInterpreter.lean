@@ -153,12 +153,14 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
           let raw := ctx.params.getD idx 0
           match ctx.paramTypes.get? idx with
           | some ParamType.address => raw % addressModulus
+          | some ParamType.bool => if raw % modulus == 0 then 0 else 1
           | _ => raw % modulus
       | none => 0
   | Expr.constructorArg idx =>
       let raw := ctx.constructorArgs.getD idx 0
       match ctx.constructorParamTypes.get? idx with
       | some ParamType.address => raw % addressModulus
+      | some ParamType.bool => if raw % modulus == 0 then 0 else 1
       | _ => raw % modulus
   | Expr.storage fieldName =>
       match fields.findIdx? (·.name == fieldName) with
@@ -318,6 +320,15 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
   | Stmt.return expr =>
       let value := evalExpr ctx state.storage fields paramNames externalFns expr
       some (ctx, { state with returnValue := some value, halted := true })
+
+  | Stmt.returnValues values =>
+      let first := (evalExprs ctx state.storage fields paramNames externalFns values).head?
+      some (ctx, { state with returnValue := first, halted := true })
+
+  | Stmt.returnArray _name =>
+      -- The spec interpreter models scalar returnValue only.
+      -- Dynamic-array return encoding is a codegen concern.
+      some (ctx, { state with returnValue := none, halted := true })
 
   | Stmt.stop =>
       some (ctx, { state with halted := true })

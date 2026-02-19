@@ -164,6 +164,11 @@ jobs:
           LEAN_NUM_THREADS: 2
         run: lake build Compiler.ASTCompileTest Compiler.ASTDriverTest
 
+      - name: Run ContractSpec feature regression module
+        env:
+          LEAN_NUM_THREADS: 2
+        run: lake env lean Compiler/ContractSpecFeatureTest.lean
+
       - name: Check for sorry
         run: |
           # Count sorry across all Lean files (matching both 'sorry' and '· sorry')

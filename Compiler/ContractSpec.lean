@@ -78,7 +78,9 @@ Extended parameter types supporting arrays, bytes, and bytes32.
 inductive ParamType
   | uint256
   | address
+  | bool                                   -- Solidity bool (ABI-encoded as 32-byte 0/1)
   | bytes32                                -- Fixed 32-byte value
+  | tuple (elemTypes : List ParamType)     -- ABI tuple
   | array (elemType : ParamType)           -- Dynamic array: uint256[], address[]
   | fixedArray (elemType : ParamType) (size : Nat)  -- Fixed array: uint256[3]
   | bytes                                  -- Dynamic bytes
@@ -98,7 +100,9 @@ def FieldType.toIRType : FieldType → IRType
 def ParamType.toIRType : ParamType → IRType
   | uint256 => IRType.uint256
   | address => IRType.address
+  | bool => IRType.uint256
   | bytes32 => IRType.uint256  -- bytes32 is a 256-bit value
+  | tuple _ => IRType.uint256  -- Tuples are represented as ABI offsets for now
   | array _ => IRType.uint256  -- Arrays are represented as calldata offsets
   | fixedArray _ _ => IRType.uint256
   | bytes => IRType.uint256
@@ -137,7 +141,8 @@ Verified external library integration with axiom documentation.
 structure ExternalFunction where
   name : String
   params : List ParamType
-  returnType : Option ParamType  -- None for void functions
+  returnType : Option ParamType := none  -- backward compatibility
+  returns : List ParamType := []  -- empty for void functions
   /-- Names of axioms assumed about this function.
       The actual Lean propositions are stated separately;
       these names are for documentation and audit purposes. -/
@@ -197,6 +202,8 @@ inductive Stmt
   | setMappingUint (field : String) (key : Expr) (value : Expr)  -- Uint256-keyed mapping write (#154)
   | require (cond : Expr) (message : String)
   | return (value : Expr)
+  | returnValues (values : List Expr)  -- ABI-encode multiple static return words
+  | returnArray (name : String)        -- ABI-encode dynamic array parameter loaded from calldata
   | stop
   | ite (cond : Expr) (thenBranch : List Stmt) (elseBranch : List Stmt)  -- If/else (#179)
   | forEach (varName : String) (count : Expr) (body : List Stmt)  -- Bounded loop (#179)
@@ -208,6 +215,7 @@ structure FunctionSpec where
   name : String
   params : List Param
   returnType : Option FieldType  -- None for unit/void
+  returns : List ParamType := []  -- preferred ABI return model; falls back to returnType when empty
   body : List Stmt
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
@@ -405,10 +413,37 @@ At compile time we use a placeholder; CI validates the selector matches solc out
 def paramTypeToSolidityString : ParamType → String
   | ParamType.uint256 => "uint256"
   | ParamType.address => "address"
+  | ParamType.bool => "bool"
   | ParamType.bytes32 => "bytes32"
+  | ParamType.tuple _ => "tuple"
   | ParamType.array t => paramTypeToSolidityString t ++ "[]"
   | ParamType.fixedArray t n => paramTypeToSolidityString t ++ "[" ++ toString n ++ "]"
   | ParamType.bytes => "bytes"
+
+def eventSignature (eventDef : EventDef) : String :=
+  let params := eventDef.params.map (fun p => paramTypeToSolidityString p.ty)
+  s!"{eventDef.name}(" ++ String.intercalate "," params ++ ")"
+
+def fieldTypeToParamType : FieldType → ParamType
+  | FieldType.uint256 => ParamType.uint256
+  | FieldType.address => ParamType.address
+  | FieldType.mappingTyped _ => ParamType.uint256
+
+def functionReturns (spec : FunctionSpec) : List ParamType :=
+  if !spec.returns.isEmpty then
+    spec.returns
+  else
+    match spec.returnType with
+    | some ty => [fieldTypeToParamType ty]
+    | none => []
+
+def externalFunctionReturns (spec : ExternalFunction) : List ParamType :=
+  if !spec.returns.isEmpty then
+    spec.returns
+  else
+    match spec.returnType with
+    | some ty => [ty]
+    | none => []
 
 private def compileMappingSlotWrite (fields : List Field) (field : String)
     (keyExpr valueExpr : YulExpr) (label : String) : Except String (List YulStmt) :=
@@ -429,15 +464,17 @@ private def compileMappingSlotWrite (fields : List Field) (field : String)
 -- When isInternal=true, Stmt.return compiles to `__ret := value` (for internal Yul functions)
 -- instead of EVM RETURN which terminates the entire call.
 mutual
-def compileStmtList (fields : List Field) (isInternal : Bool := false) :
+def compileStmtList (fields : List Field) (events : List EventDef := [])
+    (isInternal : Bool := false) :
     List Stmt → Except String (List YulStmt)
   | [] => pure []
   | s :: ss => do
-      let head ← compileStmt fields isInternal s
-      let tail ← compileStmtList fields isInternal ss
+      let head ← compileStmt fields events isInternal s
+      let tail ← compileStmtList fields events isInternal ss
       pure (head ++ tail)
 
-def compileStmt (fields : List Field) (isInternal : Bool := false) :
+def compileStmt (fields : List Field) (events : List EventDef := [])
+    (isInternal : Bool := false) :
     Stmt → Except String (List YulStmt)
   | Stmt.letVar name value => do
       pure [YulStmt.let_ name (← compileExpr fields value)]
@@ -493,8 +530,8 @@ def compileStmt (fields : List Field) (isInternal : Bool := false) :
   | Stmt.ite cond thenBranch elseBranch => do
       -- If/else: compile to Yul if + negated if (#179)
       let condExpr ← compileExpr fields cond
-      let thenStmts ← compileStmtList fields isInternal thenBranch
-      let elseStmts ← compileStmtList fields isInternal elseBranch
+      let thenStmts ← compileStmtList fields events isInternal thenBranch
+      let elseStmts ← compileStmtList fields events isInternal elseBranch
       if elseBranch.isEmpty then
         -- Simple if (no else)
         pure [YulStmt.if_ condExpr thenStmts]
@@ -511,39 +548,81 @@ def compileStmt (fields : List Field) (isInternal : Bool := false) :
   | Stmt.forEach varName count body => do
       -- Bounded loop: for { let i := 0 } lt(i, count) { i := add(i, 1) } { body } (#179)
       let countExpr ← compileExpr fields count
-      let bodyStmts ← compileStmtList fields isInternal body
+      let bodyStmts ← compileStmtList fields events isInternal body
       let initStmts := [YulStmt.let_ varName (YulExpr.lit 0)]
       let condExpr := YulExpr.call "lt" [YulExpr.ident varName, countExpr]
       let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
       pure [YulStmt.for_ initStmts condExpr postStmts bodyStmts]
 
   | Stmt.emit eventName args => do
-      -- Emit event using LOG1 opcode (#153)
-      -- Topic0 = keccak256(event signature), resolved by linker at link time.
-      -- All args are stored in LOG data (indexed topics not yet implemented).
-      -- Use free memory pointer (0x40) to avoid clobbering scratch space.
-      -- Wrapped in block { } so __evt_ptr doesn't collide with other emit statements.
-      let topic0 := YulExpr.call s!"__event_{eventName}" []
+      let eventDef? := events.find? (·.name == eventName)
+      let eventDef ←
+        match eventDef? with
+        | some e => pure e
+        | none => throw s!"Compilation error: unknown event '{eventName}'"
+      if args.length != eventDef.params.length then
+        throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
+      let compiledArgs ← compileExprList fields args
+      let zipped := eventDef.params.zip compiledArgs
+      let indexed := zipped.filter (fun (p, _) => p.kind == EventParamKind.indexed)
+      let unindexed := zipped.filter (fun (p, _) => p.kind == EventParamKind.unindexed)
+      if indexed.length > 3 then
+        throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
+      for (p, _) in indexed do
+        match p.ty with
+        | ParamType.array _ | ParamType.fixedArray _ _ | ParamType.bytes | ParamType.tuple _ =>
+            throw s!"Compilation error: indexed dynamic/tuple param '{p.name}' in event '{eventName}' is not supported yet"
+        | _ => pure ()
+      let sig := eventSignature eventDef
+      let sigBytes := bytesFromString sig
+      let sigStores := (chunkBytes32 sigBytes).enum.map fun (idx, chunk) =>
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (idx * 32), YulExpr.hex (wordFromBytes chunk)])
+      let topic0 := YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit sigBytes.length]
       let freeMemPtr := YulExpr.call "mload" [YulExpr.lit 0x40]
       let storePtr := YulStmt.let_ "__evt_ptr" freeMemPtr
-      let argStores ← args.enum.mapM fun (idx, arg) => do
-        let argExpr ← compileExpr fields arg
+      let unindexedStores ← unindexed.enum.mapM fun (idx, (p, argExpr)) => do
+        let storedExpr :=
+          match p.ty with
+          | ParamType.address => YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)]
+          | ParamType.bool => yulToBool argExpr
+          | _ => argExpr
         pure (YulStmt.expr (YulExpr.call "mstore" [
           YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
-          argExpr
+          storedExpr
         ]))
-      let dataSize := args.length * 32
-      let logStmt := YulStmt.expr (YulExpr.call "log1" [
-        YulExpr.ident "__evt_ptr",
-        YulExpr.lit dataSize,
-        topic0
-      ])
-      pure [YulStmt.block ([storePtr] ++ argStores ++ [logStmt])]
+      let dataSize := unindexed.length * 32
+      let topicExprs := [topic0] ++ (indexed.map (·.2))
+      let logFn := match indexed.length with
+        | 0 => "log1"
+        | 1 => "log2"
+        | 2 => "log3"
+        | _ => "log4"
+      let logArgs := [YulExpr.ident "__evt_ptr", YulExpr.lit dataSize] ++ topicExprs
+      let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
+      pure [YulStmt.block (sigStores ++ [storePtr] ++ unindexedStores ++ [logStmt])]
 
   | Stmt.internalCall functionName args => do
       -- Internal function call as statement (#181)
       let argExprs ← compileExprList fields args
       pure [YulStmt.expr (YulExpr.call s!"internal_{functionName}" argExprs)]
+  | Stmt.returnValues values => do
+      if values.isEmpty then
+        pure [YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 0])]
+      else
+        let compiled ← compileExprList fields values
+        let stores := (compiled.enum.map fun (idx, valueExpr) =>
+          YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (idx * 32), valueExpr]))
+        pure (stores ++ [YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit (values.length * 32)])])
+  | Stmt.returnArray name => do
+      let lenIdent := YulExpr.ident s!"{name}_length"
+      let dataOffset := YulExpr.ident s!"{name}_data_offset"
+      let byteLen := YulExpr.call "mul" [lenIdent, YulExpr.lit 32]
+      pure [
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
+        YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, byteLen]),
+        YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, byteLen]])
+      ]
 end
 
 -- ABI head size: fixed arrays occupy n*32 bytes inline; everything else is 32 bytes.
@@ -580,8 +659,14 @@ def genParamLoads (params : List Param) : List YulStmt :=
             YulExpr.call "calldataload" [YulExpr.lit headOffset],
             YulExpr.hex ((2^160) - 1)
           ])]
+        | ParamType.bool =>
+          [YulStmt.let_ param.name (YulExpr.call "iszero" [YulExpr.call "iszero" [
+            YulExpr.call "calldataload" [YulExpr.lit headOffset]
+          ]])]
         | ParamType.bytes32 =>
           [YulStmt.let_ param.name (YulExpr.call "calldataload" [YulExpr.lit headOffset])]
+        | ParamType.tuple _ =>
+          genDynamicParamLoads param.name headOffset
         | ParamType.array _ =>
           genDynamicParamLoads param.name headOffset
         | ParamType.fixedArray _ n =>
@@ -602,24 +687,32 @@ def genParamLoads (params : List Param) : List YulStmt :=
 -- Compile internal function to a Yul function definition (#181)
 def compileInternalFunction (fields : List Field) (spec : FunctionSpec) :
     Except String YulStmt := do
+  let returns := functionReturns spec
+  if returns.length > 1 then
+    throw s!"Compilation error: internal function '{spec.name}' cannot return multiple values yet"
   let paramNames := spec.params.map (·.name)
-  let retNames := match spec.returnType with
-    | some _ => ["__ret"]
-    | none => []
-  let bodyStmts ← compileStmtList fields (isInternal := true) spec.body
+  let retNames := match returns with
+    | [_] => ["__ret"]
+    | [] => []
+    | _ => []
+  let bodyStmts ← compileStmtList fields [] (isInternal := true) spec.body
   pure (YulStmt.funcDef s!"internal_{spec.name}" paramNames retNames bodyStmts)
 
 -- Compile function spec to IR function
-def compileFunctionSpec (fields : List Field) (selector : Nat) (spec : FunctionSpec) :
+def compileFunctionSpec (fields : List Field) (events : List EventDef) (selector : Nat) (spec : FunctionSpec) :
     Except String IRFunction := do
+  let returns := functionReturns spec
   let paramLoads := genParamLoads spec.params
-  let bodyChunks ← spec.body.mapM (compileStmt fields)
+  let bodyChunks ← spec.body.mapM (compileStmt fields events)
   let allStmts := paramLoads ++ bodyChunks.flatten
+  let retType := match returns with
+    | [single] => single.toIRType
+    | _ => IRType.unit
   return {
     name := spec.name
     selector := selector
     params := spec.params.map Param.toIRParam
-    ret := spec.returnType.map FieldType.toIRType |>.getD IRType.unit
+    ret := retType
     body := allStmts
   }
 
@@ -694,7 +787,7 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
       throw s!"Selector collision in {spec.name}: {dup} assigned to {nameStr}"
   | none => pure ()
   let functions ← (externalFns.zip selectors).mapM fun (fnSpec, sel) =>
-    compileFunctionSpec spec.fields sel fnSpec
+    compileFunctionSpec spec.fields spec.events sel fnSpec
   -- Compile internal functions as Yul function definitions (#181)
   let internalFuncDefs ← internalFns.mapM (compileInternalFunction spec.fields)
   return {
