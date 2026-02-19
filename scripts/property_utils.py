@@ -199,10 +199,27 @@ def strip_lean_comments(text: str) -> str:
     n = len(text)
     block_depth = 0
     in_string = False
+    raw_string_hashes: int | None = None
 
     while i < n:
         ch = text[i]
         nxt = text[i + 1] if i + 1 < n else ""
+
+        if raw_string_hashes is not None:
+            out.append(ch)
+            if ch == '"':
+                j = i + 1
+                hashes = 0
+                while j < n and text[j] == "#" and hashes < raw_string_hashes:
+                    hashes += 1
+                    j += 1
+                if hashes == raw_string_hashes:
+                    out.extend("#" * hashes)
+                    i = j
+                    raw_string_hashes = None
+                    continue
+            i += 1
+            continue
 
         if in_string:
             out.append(ch)
@@ -221,6 +238,21 @@ def strip_lean_comments(text: str) -> str:
             out.append(ch)
             i += 1
             continue
+
+        # Lean raw string literal: r"...", r#"..."#, r##"..."##, ...
+        if block_depth == 0 and ch == "r":
+            j = i + 1
+            hashes = 0
+            while j < n and text[j] == "#":
+                hashes += 1
+                j += 1
+            if j < n and text[j] == '"':
+                out.append("r")
+                out.extend("#" * hashes)
+                out.append('"')
+                i = j + 1
+                raw_string_hashes = hashes
+                continue
 
         # Start of nested block comment: /- ... -/
         if ch == "/" and nxt == "-":

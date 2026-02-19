@@ -81,7 +81,7 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_doc_counts.py`** - Validates theorem, axiom, test, suite, coverage, and contract counts across 14 documentation files (README, llms.txt, compiler.mdx, verification.mdx, research.mdx, index.mdx, core.mdx, examples.mdx, getting-started.mdx, TRUST_ASSUMPTIONS, VERIFICATION_STATUS, ROADMAP, test/README, layout.tsx), theorem-name completeness in verification.mdx tables, and proven-theorem counts in Property*.t.sol file headers
 - **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
-- **`check_lean_hygiene.py`** - Validates proof hygiene (`#eval/#check/#print/#reduce`, `native_decide`, `sorry`) and exactly 1 `allowUnsafeReducibility`; parsing is comment/string-aware via shared Lean lexer utilities
+- **`check_lean_hygiene.py`** - Validates proof hygiene (`#eval/#check/#print/#reduce`, `native_decide`, `sorry`) and exactly 1 `allowUnsafeReducibility`; parsing is comment/string-aware (including Lean raw strings) via shared Lean lexer utilities
 
 ```bash
 # Run locally before submitting documentation changes
