@@ -19,7 +19,7 @@ import re
 import sys
 from pathlib import Path
 
-from property_utils import ROOT
+from property_utils import ROOT, strip_lean_comments
 
 # Regex for EDSL/Spec StorageSlot definitions:
 #   def <name> : StorageSlot <type> := ⟨<slot>⟩
@@ -60,76 +60,6 @@ SPEC_ADDR_SLOT_RE = re.compile(r"\bs'?\.(?:storageAddr)\s+(\d+)\b")
 SPEC_MAPPING_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap)\s+(\d+)\b")
 SPEC_MAPPING_UINT_SLOT_RE = re.compile(r"\bs'?\.(?:storageMapUint)\s+(\d+)\b")
 SPEC_MAPPING2_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap2)\s+(\d+)\b")
-
-
-def strip_lean_comments(text: str) -> str:
-    """Strip Lean line/block comments while preserving line structure.
-
-    Comment markers inside string literals are treated as plain text.
-    """
-    out: list[str] = []
-    i = 0
-    n = len(text)
-    block_depth = 0
-    in_string = False
-    escaped = False
-    while i < n:
-        ch = text[i]
-        nxt = text[i + 1] if i + 1 < n else ""
-
-        # Inside string literal: keep characters verbatim.
-        if in_string:
-            out.append(ch)
-            if escaped:
-                escaped = False
-            elif ch == "\\":
-                escaped = True
-            elif ch == '"':
-                in_string = False
-            i += 1
-            continue
-
-        # Start string literal.
-        if block_depth == 0 and ch == '"':
-            in_string = True
-            escaped = False
-            out.append(ch)
-            i += 1
-            continue
-
-        # Start of nested block comment: /- ... -/
-        if ch == "/" and nxt == "-":
-            block_depth += 1
-            out.extend("  ")
-            i += 2
-            continue
-
-        # End of nested block comment.
-        if block_depth > 0 and ch == "-" and nxt == "/":
-            block_depth -= 1
-            out.extend("  ")
-            i += 2
-            continue
-
-        # Inside block comment: preserve newlines, blank everything else.
-        if block_depth > 0:
-            out.append("\n" if ch == "\n" else " ")
-            i += 1
-            continue
-
-        # Line comment: -- ... (to end of line).
-        if ch == "-" and nxt == "-":
-            out.extend("  ")
-            i += 2
-            while i < n and text[i] != "\n":
-                out.append(" ")
-                i += 1
-            continue
-
-        out.append(ch)
-        i += 1
-
-    return "".join(out)
 
 
 def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:

@@ -77,7 +77,7 @@ Properties are excluded in `test/property_exclusions.json` for valid reasons:
 These CI-critical scripts validate cross-layer consistency:
 
 - **`check_property_manifest_sync.py`** - Ensures `property_manifest.json` stays in sync with actual Lean theorems (detects added/removed theorems)
-- **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, Compiler, and AST layers; strips Lean comments/docstrings before parsing (while preserving string literals) to avoid false positives from commented examples, detects intra-contract slot collisions, derives Spec slot usage from `Verity/Specs/*/Spec.lean` literal state accesses, enforces Spec↔EDSL slot/type parity for compiled non-external contracts, enforces ASTSpec coverage for non-external compiler specs, and checks AST-vs-Compiler slot/type drift
+- **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, Compiler, and AST layers; strips Lean comments/docstrings with a shared string-aware parser (so `--` and `/- -/` inside string literals are preserved), detects intra-contract slot collisions, derives Spec slot usage from `Verity/Specs/*/Spec.lean` literal state accesses, enforces Spec↔EDSL slot/type parity for compiled non-external contracts, enforces ASTSpec coverage for non-external compiler specs, and checks AST-vs-Compiler slot/type drift
 - **`check_doc_counts.py`** - Validates theorem, axiom, test, suite, coverage, and contract counts across 14 documentation files (README, llms.txt, compiler.mdx, verification.mdx, research.mdx, index.mdx, core.mdx, examples.mdx, getting-started.mdx, TRUST_ASSUMPTIONS, VERIFICATION_STATUS, ROADMAP, test/README, layout.tsx), theorem-name completeness in verification.mdx tables, and proven-theorem counts in Property*.t.sol file headers
 - **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
@@ -99,7 +99,7 @@ python3 scripts/check_contract_structure.py
 
 ## Selector & Yul Scripts
 
-- **`check_selectors.py`** - Verifies selector hash consistency across ContractSpec, compile selector tables, and generated Yul (`compiler/yul` and `compiler/yul-ast` when present); strips Lean comments/docstrings before parsing (while preserving string literals) to avoid false positives from commented examples; enforces compile selector table coverage for all specs except those with non-empty `externals`
+- **`check_selectors.py`** - Verifies selector hash consistency across ContractSpec, compile selector tables, and generated Yul (`compiler/yul` and `compiler/yul-ast` when present); strips Lean comments/docstrings with the same shared string-aware parser used by storage checks; enforces compile selector table coverage for all specs except those with non-empty `externals`
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc and can compare bytecode parity between directories
 

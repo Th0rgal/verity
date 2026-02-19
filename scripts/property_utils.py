@@ -186,3 +186,72 @@ def report_errors(errors: list[str], message: str) -> None:
         for item in errors:
             print(f"  - {item}", file=sys.stderr)
         raise SystemExit(1)
+
+
+def strip_lean_comments(text: str) -> str:
+    """Strip Lean line/block comments while preserving line structure.
+
+    This parser is string-aware, so comment markers that appear inside Lean
+    string literals are preserved as code.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    block_depth = 0
+    in_string = False
+
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+
+        if in_string:
+            out.append(ch)
+            # Preserve escape sequences inside string literals.
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_string = False
+            i += 1
+            continue
+
+        if block_depth == 0 and ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+
+        # Start of nested block comment: /- ... -/
+        if ch == "/" and nxt == "-":
+            block_depth += 1
+            out.extend("  ")
+            i += 2
+            continue
+
+        # End of nested block comment.
+        if block_depth > 0 and ch == "-" and nxt == "/":
+            block_depth -= 1
+            out.extend("  ")
+            i += 2
+            continue
+
+        # Inside block comment: preserve newlines, blank everything else.
+        if block_depth > 0:
+            out.append("\n" if ch == "\n" else " ")
+            i += 1
+            continue
+
+        # Line comment: -- ... (to end of line).
+        if ch == "-" and nxt == "-":
+            out.extend("  ")
+            i += 2
+            while i < n and text[i] != "\n":
+                out.append(" ")
+                i += 1
+            continue
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out)
