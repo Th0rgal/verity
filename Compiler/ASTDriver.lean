@@ -92,11 +92,44 @@ private def genConstructorArgLoads (params : List Param) : List YulStmt :=
         [YulStmt.let_ param.name (YulExpr.call "mload" [YulExpr.lit offset])]
     argsOffset ++ loadArgs
 
-private def compileConstructor (ctor : Option ASTConstructorSpec) : List YulStmt :=
+mutual
+  private partial def sanitizeConstructorStmts : List YulStmt → Except String (List YulStmt)
+    | [] => pure []
+    | stmt :: rest => do
+        let stmt' ← sanitizeConstructorStmt stmt
+        let rest' ← sanitizeConstructorStmts rest
+        pure (stmt' ++ rest')
+
+  private partial def sanitizeConstructorStmt (stmt : YulStmt) : Except String (List YulStmt) := do
+    match stmt with
+    | .expr (.call "stop" []) =>
+      -- Constructor `Unit` should fall through to deploy epilogue, not halt EVM execution.
+      pure []
+    | .expr (.call "return" _args) =>
+      throw "Constructor AST must not return runtime data directly"
+    | .if_ cond body =>
+      return [YulStmt.if_ cond (← sanitizeConstructorStmts body)]
+    | .for_ init cond post body =>
+      return [YulStmt.for_ (← sanitizeConstructorStmts init) cond (← sanitizeConstructorStmts post)
+        (← sanitizeConstructorStmts body)]
+    | .switch expr cases default =>
+      let cases' ← cases.mapM fun (tag, caseBody) => do
+        pure (tag, (← sanitizeConstructorStmts caseBody))
+      let default' ← default.mapM sanitizeConstructorStmts
+      return [YulStmt.switch expr cases' default']
+    | .block body =>
+      return [YulStmt.block (← sanitizeConstructorStmts body)]
+    | other =>
+      pure [other]
+end
+
+private def compileConstructor (ctor : Option ASTConstructorSpec) : Except String (List YulStmt) :=
   match ctor with
-  | none => []
-  | some spec =>
-    genConstructorArgLoads spec.params ++ compileStmt spec.body
+  | none => return []
+  | some spec => do
+    let body := compileStmt spec.body
+    let body' ← sanitizeConstructorStmts body
+    return genConstructorArgLoads spec.params ++ body'
 
 /-!
 ## AST Spec Validation
@@ -176,7 +209,7 @@ def compileSpec (spec : ASTContractSpec) (selectors : List Nat) : Except String 
     compileFunction sel fn
   return {
     name := spec.name
-    deploy := compileConstructor spec.constructor
+    deploy := (← compileConstructor spec.constructor)
     functions := functions
     usesMapping := spec.usesMapping
   }
