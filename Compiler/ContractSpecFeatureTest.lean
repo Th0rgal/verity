@@ -75,12 +75,28 @@ private def featureSpec : ContractSpec := {
       returnType := none
       returns := [ParamType.array ParamType.uint256]
       body := [Stmt.returnArray "arr"]
+    },
+    { name := "sumStaticTuple"
+      params := [
+        { name := "t", ty := ParamType.tuple [ParamType.uint256, ParamType.address, ParamType.bool] },
+        { name := "z", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [Stmt.return (Expr.add (Expr.param "t_0") (Expr.param "z"))]
+    },
+    { name := "dynamicTupleTail"
+      params := [
+        { name := "td", ty := ParamType.tuple [ParamType.uint256, ParamType.bytes] },
+        { name := "x", ty := ParamType.uint256 }
+      ]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "x")]
     }
   ]
 }
 
 #eval! do
-  match compile featureSpec [1, 2, 3, 4, 5] with
+  match compile featureSpec [1, 2, 3, 4, 5, 6, 7] with
   | .error err =>
       throw (IO.userError s!"✗ feature spec compile failed: {err}")
   | .ok ir =>
@@ -92,5 +108,7 @@ private def featureSpec : ContractSpec := {
       assertContains "event topic hashing uses free memory pointer" rendered ["keccak256(__evt_ptr,"]
       assertContains "event topic hash cached before data writes" rendered ["let __evt_topic0 := keccak256(__evt_ptr,", "log2(__evt_ptr, 32, __evt_topic0"]
       assertContains "dynamic array ABI return" rendered ["calldatacopy(64"]
+      assertContains "static tuple decode head offsets" rendered ["let t_0 := calldataload(4)", "let t_1 := and(calldataload(36)", "let t_2 := iszero(iszero(calldataload(68)))", "let z := calldataload(100)"]
+      assertContains "dynamic tuple keeps offset head word" rendered ["let td_offset := calldataload(4)", "let x := calldataload(36)"]
 
 end Compiler.ContractSpecFeatureTest
