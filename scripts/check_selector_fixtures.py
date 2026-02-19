@@ -269,8 +269,13 @@ def main() -> None:
     signatures = load_fixture_signatures()
     solc_hashes = run_solc_hashes()
     keccak_hashes = run_keccak(signatures)
+    signature_set = set(signatures)
 
     errors: list[str] = []
+    for signature in sorted(solc_hashes):
+        if signature not in signature_set:
+            errors.append(f"Fixture extraction missed solc selector signature: {signature}")
+
     for signature in signatures:
         solc_selector = solc_hashes.get(signature)
         if solc_selector is None:
