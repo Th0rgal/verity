@@ -338,6 +338,9 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
   have h_balance_u := uint256_ofNat_le_of_val_ge (state.storageMap 1 sender) amount h
   by_cases h_eq : sender = to
   · subst h_eq
+    have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := Nat.not_lt_of_ge h
+    have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := (state.storageMap 1 sender).isLt
+    have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by simp
     constructor
     · -- EDSL success
       simp [transfer, msgSender, getMapping, setMapping, balances,
@@ -345,83 +348,40 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         Contract.run, ContractResult.isSuccess, h_balance_u]
     constructor
     · -- Spec success
-      have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
-        exact Nat.not_lt_of_ge h
-      have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := (state.storageMap 1 sender).isLt
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
         Nat.mod_eq_of_lt h_sender_lt,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
-    constructor
-    · -- Sender mapping equals EDSL mapping (self-transfer)
-      have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
-        exact Nat.not_lt_of_ge h
-      have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
-        exact (state.storageMap 1 sender).isLt
-      have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by
-        simp
-      have h_spec_val :
-          (let specTx : DiffTestTypes.Transaction := {
-            sender := sender
-            functionName := "transfer"
-            args := [addressToNat sender, amount]
-          };
-          let specResult := interpretSpec simpleTokenSpec
-            (tokenEdslToSpecStorageWithAddrs state [sender, sender]) specTx;
-          specResult.finalStorage.getMapping 1 (addressToNat sender)) =
-            (state.storageMap 1 sender).val := by
-        simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-          simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
-          SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
-          Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
-          h_eq_nat,
-          List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
-      have h_edsl_val :
-          ((ContractResult.getState
-              ((transfer sender (Verity.Core.Uint256.ofNat amount)).run
-                { state with sender := sender })
-            ).storageMap 1 sender).val =
-            (state.storageMap 1 sender).val := by
-        simp [transfer, msgSender, getMapping, setMapping, balances,
-          Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-          Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
-          Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, h_balance_u, beq_iff_eq]
-      simpa [h_spec_val] using h_edsl_val.symm
-    · -- Recipient mapping equals EDSL mapping (same as sender)
-      have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
-        exact Nat.not_lt_of_ge h
-      have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
-        exact (state.storageMap 1 sender).isLt
-      have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by
-        simp
-      have h_spec_val :
-          (let specTx : DiffTestTypes.Transaction := {
-            sender := sender
-            functionName := "transfer"
-            args := [addressToNat sender, amount]
-          };
-          let specResult := interpretSpec simpleTokenSpec
-            (tokenEdslToSpecStorageWithAddrs state [sender, sender]) specTx;
-          specResult.finalStorage.getMapping 1 (addressToNat sender)) =
-            (state.storageMap 1 sender).val := by
-        simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
-          simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
-          SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
-          Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
-          h_eq_nat,
-          List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
-      have h_edsl_val :
-          ((ContractResult.getState
-              ((transfer sender (Verity.Core.Uint256.ofNat amount)).run
-                { state with sender := sender })
-            ).storageMap 1 sender).val =
-            (state.storageMap 1 sender).val := by
-        simp [transfer, msgSender, getMapping, setMapping, balances,
-          Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-          Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
-          Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, h_balance_u, beq_iff_eq]
-      simpa [h_spec_val] using h_edsl_val.symm
+    -- Both sender and recipient are the same address in self-transfer
+    have h_spec_val :
+        (let specTx : DiffTestTypes.Transaction := {
+          sender := sender
+          functionName := "transfer"
+          args := [addressToNat sender, amount]
+        };
+        let specResult := interpretSpec simpleTokenSpec
+          (tokenEdslToSpecStorageWithAddrs state [sender, sender]) specTx;
+        specResult.finalStorage.getMapping 1 (addressToNat sender)) =
+          (state.storageMap 1 sender).val := by
+      simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
+        simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
+        SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same, h, h_not_lt,
+        Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_sender_lt,
+        h_eq_nat,
+        List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
+    have h_edsl_val :
+        ((ContractResult.getState
+            ((transfer sender (Verity.Core.Uint256.ofNat amount)).run
+              { state with sender := sender })
+          ).storageMap 1 sender).val =
+          (state.storageMap 1 sender).val := by
+      simp [transfer, msgSender, getMapping, setMapping, balances,
+        Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
+        Contract.run, ContractResult.getState, ContractResult.snd, ContractResult.fst,
+        Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, h_balance_u, beq_iff_eq]
+    exact ⟨by simpa [h_spec_val] using h_edsl_val.symm,
+           by simpa [h_spec_val] using h_edsl_val.symm⟩
   · have h_ne : sender ≠ to := h_eq
     have h_addr_ne : addressToNat sender ≠ addressToNat to :=
       addressToNat_ne_of_ne sender to h_ne
@@ -432,6 +392,10 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     have h_safe : safeAdd (state.storageMap 1 to) (Verity.Core.Uint256.ofNat amount) = some (state.storageMap 1 to + Verity.Core.Uint256.ofNat amount) := by
       simp only [safeAdd, Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt]
       simp [Nat.not_lt.mpr h_no_overflow_nat]
+    have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := Nat.not_lt_of_ge h
+    have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
+      Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow_nat)
+    have h_recip_ge : ¬ ((state.storageMap 1 to).val + amount < (state.storageMap 1 to).val) := by omega
     constructor
     · -- EDSL success
       simp [transfer, msgSender, getMapping, setMapping, balances,
@@ -441,13 +405,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         h_balance_u, h_ne]
     constructor
     · -- Spec success
-      have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
-        exact Nat.not_lt_of_ge h
-      have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
-        h_no_overflow h_ne
-      have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
-        Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow_nat)
-      have h_recip_ge : ¬ ((state.storageMap 1 to).val + amount < (state.storageMap 1 to).val) := by omega
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
         SpecStorage.setMapping, SpecStorage.setSlot, h, h_not_lt, Nat.mod_eq_of_lt h_amount_lt,
@@ -456,13 +413,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         h_recip_add_mod, h_recip_ge]
     constructor
     · -- Sender mapping equals EDSL mapping
-      have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
-        exact Nat.not_lt_of_ge h
-      have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
-        h_no_overflow h_ne
-      have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
-        Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow_nat)
-      have h_recip_ge : ¬ ((state.storageMap 1 to).val + amount < (state.storageMap 1 to).val) := by omega
       have h_spec_val :
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
@@ -523,13 +473,6 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
               symm
               exact h_edsl_val
     · -- Recipient mapping equals EDSL mapping
-      have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := by
-        exact Nat.not_lt_of_ge h
-      have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
-        h_no_overflow h_ne
-      have h_recip_add_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 1 to).val + amount :=
-        Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow_nat)
-      have h_recip_ge : ¬ ((state.storageMap 1 to).val + amount < (state.storageMap 1 to).val) := by omega
       have h_spec_val :
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
