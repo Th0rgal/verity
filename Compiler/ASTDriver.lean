@@ -168,6 +168,12 @@ private def validateAllSpecs (specs : List ASTContractSpec) : Except String Unit
   | some dup => throw s!"Duplicate contract name in AST specs: {dup}"
   | none => pure ()
 
+private def validateSelectorUniqueness (specName : String) (selectors : List Nat) : Except String Unit := do
+  let selectorHex := selectors.map natToHex
+  match findDuplicate selectorHex with
+  | some dup => throw s!"Duplicate selector in {specName}: {dup}"
+  | none => pure ()
+
 /-!
 ## Function Compilation
 
@@ -200,6 +206,7 @@ def compileSpec (spec : ASTContractSpec) (selectors : List Nat) : Except String 
   validateSpec spec
   if spec.functions.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {spec.functions.length} functions"
+  validateSelectorUniqueness spec.name selectors
   let functions := (spec.functions.zip selectors).map fun (fn, sel) =>
     compileFunction sel fn
   return {

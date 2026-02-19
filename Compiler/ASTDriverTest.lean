@@ -41,11 +41,11 @@ private def assertNotContains (label rendered : String) (needles : List String) 
       throw (IO.userError s!"✗ {label}: unexpected '{needle}' in:\n{rendered}")
   IO.println s!"✓ {label}"
 
-private def zeroSelectors (spec : ASTContractSpec) : List Nat :=
-  List.replicate spec.functions.length 0
+private def uniqueSelectors (spec : ASTContractSpec) : List Nat :=
+  List.range spec.functions.length
 
 #eval! do
-  match compileSpec ownedSpec (zeroSelectors ownedSpec) with
+  match compileSpec ownedSpec (uniqueSelectors ownedSpec) with
   | .error err =>
     throw (IO.userError s!"✗ owned constructor compile failed: {err}")
   | .ok ir =>
@@ -54,7 +54,7 @@ private def zeroSelectors (spec : ASTContractSpec) : List Nat :=
     assertNotContains "Owned.deploy strips constructor stop()" rendered ["stop()"]
 
 #eval! do
-  match compileSpec simpleTokenSpec (zeroSelectors simpleTokenSpec) with
+  match compileSpec simpleTokenSpec (uniqueSelectors simpleTokenSpec) with
   | .error err =>
     throw (IO.userError s!"✗ simpleToken constructor compile failed: {err}")
   | .ok ir =>
@@ -113,5 +113,23 @@ private def badDuplicateFunctionsSpec : ASTContractSpec := {
       throw (IO.userError s!"✗ unexpected duplicate-function error: {err}")
   | .ok _ =>
     throw (IO.userError "✗ expected duplicate function names to be rejected")
+
+private def badDuplicateSelectorsSpec : ASTContractSpec := {
+  name := "BadDuplicateSelectors"
+  functions := [
+    { name := "f", params := [], returnType := .unit, body := Stmt.stop },
+    { name := "g", params := [], returnType := .unit, body := Stmt.stop }
+  ]
+}
+
+#eval! do
+  match compileSpec badDuplicateSelectorsSpec [1, 1] with
+  | .error err =>
+    if contains err "Duplicate selector" then
+      IO.println "✓ Duplicate selectors rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected duplicate-selector error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected duplicate selectors to be rejected")
 
 end Compiler.ASTDriverTest
