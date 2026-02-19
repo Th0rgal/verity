@@ -149,4 +149,56 @@ private def badOutOfRangeSelectorSpec : ASTContractSpec := {
   | .ok _ =>
     throw (IO.userError "✗ expected out-of-range selector to be rejected")
 
+private def badFunctionIdentifierSpec : ASTContractSpec := {
+  name := "BadFunctionIdentifier"
+  functions := [
+    { name := "bad-name", params := [], returnType := .unit, body := Stmt.stop }
+  ]
+}
+
+#eval! do
+  match compileSpec badFunctionIdentifierSpec [0] with
+  | .error err =>
+    if contains err "must be a valid identifier" then
+      IO.println "✓ Invalid function identifiers rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected invalid-function-name error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected invalid function identifier to be rejected")
+
+private def badParamIdentifierSpec : ASTContractSpec := {
+  name := "BadParamIdentifier"
+  functions := [
+    { name := "goodName"
+      params := [{ name := "0bad", ty := .uint256 }]
+      returnType := .unit
+      body := Stmt.stop }
+  ]
+}
+
+#eval! do
+  match compileSpec badParamIdentifierSpec [0] with
+  | .error err =>
+    if contains err "must be a valid identifier" then
+      IO.println "✓ Invalid parameter identifiers rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected invalid-parameter-name error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected invalid parameter identifier to be rejected")
+
+private def badContractIdentifierSpec : ASTContractSpec := {
+  name := "0BadContract"
+  functions := []
+}
+
+#eval! do
+  match compileSpec badContractIdentifierSpec [] with
+  | .error err =>
+    if contains err "must be a valid identifier" then
+      IO.println "✓ Invalid contract identifiers rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected invalid-contract-name error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected invalid contract identifier to be rejected")
+
 end Compiler.ASTDriverTest
