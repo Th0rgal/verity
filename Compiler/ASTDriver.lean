@@ -175,8 +175,6 @@ private def validateSpec (spec : ASTContractSpec) : Except String Unit := do
   | none => pure ()
 
 private def validateAllSpecs (specs : List ASTContractSpec) : Except String Unit := do
-  for spec in specs do
-    validateSpec spec
   match findDuplicate (specs.map (·.name)) with
   | some dup => throw s!"Duplicate contract name in AST specs: {dup}"
   | none => pure ()
@@ -210,6 +208,7 @@ existing `Codegen.emitYul` → `Yul.render` pipeline for output.
 -/
 
 def compileSpec (spec : ASTContractSpec) (selectors : List Nat) : Except String IRContract := do
+  validateSpec spec
   if spec.functions.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {spec.functions.length} functions"
   let functions := (spec.functions.zip selectors).map fun (fn, sel) =>

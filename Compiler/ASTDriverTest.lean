@@ -81,4 +81,37 @@ private def badConstructorReturnSpec : ASTContractSpec := {
   | .ok _ =>
     throw (IO.userError "✗ expected constructor return(...) to be rejected")
 
+private def badEmptyContractNameSpec : ASTContractSpec := {
+  name := "   "
+  functions := []
+}
+
+#eval! do
+  match compileSpec badEmptyContractNameSpec [] with
+  | .error err =>
+    if contains err "Contract name cannot be empty" then
+      IO.println "✓ Empty contract name rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected empty-name error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected empty contract name to be rejected")
+
+private def badDuplicateFunctionsSpec : ASTContractSpec := {
+  name := "BadDuplicateFunctions"
+  functions := [
+    { name := "dup", params := [], returnType := .unit, body := Stmt.stop },
+    { name := "dup", params := [], returnType := .unit, body := Stmt.stop }
+  ]
+}
+
+#eval! do
+  match compileSpec badDuplicateFunctionsSpec [0, 1] with
+  | .error err =>
+    if contains err "Duplicate function name" then
+      IO.println "✓ Duplicate function names rejected in compileSpec"
+    else
+      throw (IO.userError s!"✗ unexpected duplicate-function error: {err}")
+  | .ok _ =>
+    throw (IO.userError "✗ expected duplicate function names to be rejected")
+
 end Compiler.ASTDriverTest
