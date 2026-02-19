@@ -9,12 +9,12 @@ structure GasConfig where
   /-- Upper bound for loop trip counts in `for` blocks. -/
   loopIterations : Nat := 8
   /-- Conservative fallback for unknown builtins. -/
-  unknownCallCost : Nat := 700
+  unknownCallCost : Nat := 50000
   deriving Repr
 
 /-- Base cost model for a single builtin call, excluding argument evaluation. -/
 def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
-  if name = "sstore" then 20000
+  if name = "sstore" then 22100
   else if name = "sload" then 2100
   else if name = "keccak256" then 60
   else if name = "log0" then 375
@@ -22,11 +22,15 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   else if name = "log2" then 1125
   else if name = "log3" then 1500
   else if name = "log4" then 1875
-  else if name = "call" then 2600
-  else if name = "delegatecall" then 2600
-  else if name = "staticcall" then 2600
-  else if name = "create" then 32000
-  else if name = "create2" then 32000
+  /- Worst-case call upper bound:
+     base call + cold account access + nonzero value transfer + new-account creation. -/
+  else if name = "call" then 36700
+  /- Delegate/static calls cannot transfer value but still pay base + cold access in worst case. -/
+  else if name = "delegatecall" then 2700
+  else if name = "staticcall" then 2700
+  /- Creation costs are highly context dependent (initcode + memory expansion); use conservative fallback. -/
+  else if name = "create" then cfg.unknownCallCost
+  else if name = "create2" then cfg.unknownCallCost
   else if name = "selfdestruct" then 5000
   else if name = "return" then 0
   else if name = "revert" then 0
@@ -148,8 +152,16 @@ def boundedLoopProgram : List YulStmt :=
       ]
   ]
 
-example : gasUpperBound simpleStoreProgram = 20000 := rfl
+def externalCallProgram : List YulStmt :=
+  [
+    .expr (.call "call" [.lit 50000, .lit 1, .lit 1, .lit 0, .lit 0, .lit 0, .lit 0]),
+    .expr (.call "stop" [])
+  ]
+
+example : gasUpperBound simpleStoreProgram = 22100 := rfl
 
 example : stmtsUpperBound { loopIterations := 3 } 64 boundedLoopProgram = 6330 := rfl
+
+example : gasUpperBound externalCallProgram = 36700 := rfl
 
 end Compiler.Gas
