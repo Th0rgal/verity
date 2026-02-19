@@ -85,32 +85,16 @@ theorem increment_decrement_cancel (s : ContractState)
   let s'' := ((decrement).run s').snd
   s''.storage 0 = s.storage 0 := by
   have h_inc := increment_adds_one s h_no_overflow
-  have h_add : add (s.storage 0) 1 = s.storage 0 + 1 := by
-    exact evm_add_eq_of_no_overflow (s.storage 0) 1 h_no_overflow
-  -- After increment, s'.storage 0 = s.storage 0 + 1 ≥ 1
+  have h_add : add (s.storage 0) 1 = s.storage 0 + 1 := rfl
+  have h_val : ((s.storage 0 + 1 : Uint256) : Nat) = (s.storage 0 : Nat) + 1 :=
+    Verity.Core.Uint256.add_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow)
   have h_ge : ((increment).run s).snd.storage 0 ≥ 1 := by
     rw [h_inc, h_add]
-    have h_sum_lt :
-        (s.storage 0 : Nat) + 1 < Verity.Core.Uint256.modulus :=
-      lt_modulus_of_le_max_uint256 _ h_no_overflow
-    have h_val :
-        ((s.storage 0 + 1 : Uint256) : Nat) = (s.storage 0 : Nat) + 1 := by
-      exact Verity.Core.Uint256.add_eq_of_lt h_sum_lt
-    have h_ge_val : (1 : Nat) ≤ (s.storage 0 : Nat) + 1 := Nat.le_add_left _ _
-    have h_goal : (1 : Nat) ≤ (s.storage 0 + 1 : Uint256).val := by
-      rw [h_val]
-      exact h_ge_val
-    have h_ge_val' : (1 : Uint256).val ≤ (s.storage 0 + 1 : Uint256).val := by
-      simpa [Verity.Core.Uint256.val_one] using h_goal
-    simpa [Verity.Core.Uint256.le_def] using h_ge_val'
+    simp only [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_one, h_val]
+    exact Nat.le_add_left _ _
   have h_dec := decrement_subtracts_one ((increment).run s).snd h_ge
-  calc ((decrement).run ((increment).run s).snd).snd.storage 0
-      = sub (((increment).run s).snd.storage 0) 1 := h_dec
-    _ = ((increment).run s).snd.storage 0 - 1 := by
-      rfl
-    _ = (s.storage 0 + 1) - 1 := by rw [h_inc, h_add]
-    _ = s.storage 0 := by
-      exact (Verity.Core.Uint256.sub_add_cancel (s.storage 0) 1)
+  simp only [h_dec, h_inc, h_add]
+  exact Verity.Core.Uint256.sub_add_cancel (s.storage 0) 1
 
 /-! ## Composition: decrement → getCount -/
 
