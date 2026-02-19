@@ -350,10 +350,10 @@ set_option allowUnsafeReducibility true in
 attribute [reducible] execYulFuel
 
 
-noncomputable def execYulStmt (state : YulState) (stmt : YulStmt) : YulExecResult :=
+def execYulStmt (state : YulState) (stmt : YulStmt) : YulExecResult :=
   execYulStmtFuel (sizeOf stmt + 1) state stmt
 
-noncomputable def execYulStmts (state : YulState) (stmts : List YulStmt) : YulExecResult :=
+def execYulStmts (state : YulState) (stmts : List YulStmt) : YulExecResult :=
   execYulStmtsFuel (sizeOf stmts + 1) state stmts
 
 structure YulResult where
@@ -363,7 +363,7 @@ structure YulResult where
   finalMappings : Nat → Nat → Nat
 
 /-- Execute a Yul runtime program with selector-aware calldata -/
-noncomputable def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTransaction)
+def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTransaction)
     (storage : Nat → Nat) (mappings : Nat → Nat → Nat) : YulResult :=
   let initialState := YulState.initial tx storage mappings
   match execYulStmts initialState runtimeCode with
@@ -389,7 +389,7 @@ noncomputable def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTran
         finalMappings := mappings }
 
 /-- Interpret a Yul object by executing its runtime code. -/
-noncomputable def interpretYulObject (obj : YulObject) (tx : YulTransaction)
+def interpretYulObject (obj : YulObject) (tx : YulTransaction)
     (storage : Nat → Nat) (mappings : Nat → Nat → Nat) : YulResult :=
   interpretYulRuntime obj.runtimeCode tx storage mappings
 

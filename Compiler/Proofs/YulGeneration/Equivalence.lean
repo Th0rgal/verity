@@ -29,7 +29,7 @@ These helpers wire IR-level execution to Yul runtime execution so we can
 compare results directly in smoke tests.
 -/
 
-noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
+def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
     functionSelector := tx.functionSelector
@@ -38,7 +38,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
   interpretYulRuntime (Compiler.emitYul contract).runtimeCode yulTx state.storage state.mappings
 
 /-- Interpret just a function body as Yul runtime code. -/
-noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
+def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
     functionSelector := tx.functionSelector
@@ -120,7 +120,7 @@ def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulRes
         finalMappings := rollback.mappings }
 
 /-- Interpret a function body starting from an aligned IR-derived state. -/
-noncomputable def interpretYulBodyFromState
+def interpretYulBodyFromState
     (fn : IRFunction) (selector : Nat) (state rollback : IRState) : YulResult :=
   let yulState := yulStateOfIR selector state
   let yulRollback := yulStateOfIR selector rollback

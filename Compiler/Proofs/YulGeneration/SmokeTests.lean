@@ -367,4 +367,37 @@ example :
         checkIRvsYul ir tx state [] [(0, sender)]) = true := by
   native_decide
 
+/-! ## interpretYulRuntime Smoke Tests (enabled by making it computable, #270)
+
+These tests exercise `interpretYulRuntime` directly (previously impossible
+because it was noncomputable). They validate multi-step contract execution:
+compile → execute → check result, all through the same interpreter used by proofs.
+-/
+
+-- SimpleStorage: store(42) then retrieve → 42 via interpretYulRuntime
+example :
+    (match compile simpleStorageSpec simpleStorageSelectors with
+    | .error _ => false
+    | .ok ir =>
+        let yulCode := Compiler.runtimeCode ir
+        let storeTx : YulTransaction := { sender := 1, functionSelector := 0x6057361d, args := [42] }
+        let storeResult := interpretYulRuntime yulCode storeTx emptyStorage emptyMappings
+        let retrieveTx : YulTransaction := { sender := 1, functionSelector := 0x2e64cec1, args := [] }
+        let retrieveResult := interpretYulRuntime yulCode retrieveTx storeResult.finalStorage storeResult.finalMappings
+        retrieveResult.success && retrieveResult.returnValue == some 42) = true := by
+  native_decide
+
+-- Counter: increment from 0 → getCount returns 1 via interpretYulRuntime
+example :
+    (match compile counterSpec counterSelectors with
+    | .error _ => false
+    | .ok ir =>
+        let yulCode := Compiler.runtimeCode ir
+        let incTx : YulTransaction := { sender := 1, functionSelector := 0xd09de08a, args := [] }
+        let incResult := interpretYulRuntime yulCode incTx emptyStorage emptyMappings
+        let getTx : YulTransaction := { sender := 1, functionSelector := 0xa87d942c, args := [] }
+        let getResult := interpretYulRuntime yulCode getTx incResult.finalStorage incResult.finalMappings
+        getResult.success && getResult.returnValue == some 1) = true := by
+  native_decide
+
 end Compiler.Proofs.YulGeneration
