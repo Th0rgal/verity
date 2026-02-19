@@ -677,6 +677,16 @@ def main() -> None:
                     re.compile(r"All Foundry tests passing \((\d+) as of"),
                     str(test_count),
                 ),
+                (
+                    "theorem count in header",
+                    re.compile(r"(\d+) theorems, all fully proven"),
+                    str(total_theorems),
+                ),
+                (
+                    "theorem count in metrics",
+                    re.compile(r"(\d+) theorems as of"),
+                    str(total_theorems),
+                ),
             ],
         )
     )
@@ -696,7 +706,7 @@ def main() -> None:
         )
     )
 
-    # Check theorem count and test counts in index.mdx
+    # Check theorem count, test counts, and core size in index.mdx
     index_mdx = ROOT / "docs-site" / "content" / "index.mdx"
     errors.extend(
         check_file(
@@ -717,30 +727,16 @@ def main() -> None:
                     re.compile(r"Foundry tests across (\d+) suites"),
                     str(suite_count),
                 ),
-            ],
-        )
-    )
-
-    # Check theorem count in research.mdx header
-    errors.extend(
-        check_file(
-            research_mdx,
-            [
                 (
-                    "theorem count in header",
-                    re.compile(r"(\d+) theorems, all fully proven"),
-                    str(total_theorems),
-                ),
-                (
-                    "theorem count in metrics",
-                    re.compile(r"(\d+) theorems as of"),
-                    str(total_theorems),
+                    "core line count",
+                    re.compile(r"the (\d+)-line EDSL"),
+                    str(core_lines),
                 ),
             ],
         )
     )
 
-    # Check core size claims
+    # Check core size claims in core.mdx
     core_mdx = ROOT / "docs-site" / "content" / "core.mdx"
     errors.extend(
         check_file(
@@ -749,18 +745,6 @@ def main() -> None:
                 (
                     "core line count",
                     re.compile(r"the (\d+)-line core"),
-                    str(core_lines),
-                ),
-            ],
-        )
-    )
-    errors.extend(
-        check_file(
-            index_mdx,
-            [
-                (
-                    "core line count",
-                    re.compile(r"the (\d+)-line EDSL"),
                     str(core_lines),
                 ),
             ],
