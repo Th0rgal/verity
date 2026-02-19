@@ -90,7 +90,7 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
       Examples.SimpleToken.totalSupply, bind, Bind.bind, Contract.run, ContractResult.snd]
     split
     · next h =>
-      have : slot = 0 := by simp [beq_iff_eq] at h; exact h
+      have : slot = 0 := beq_iff_eq.mp h
       exact absurd this h_neq
     · rfl
   · intro slot h_neq
@@ -98,7 +98,7 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
       Examples.SimpleToken.totalSupply, bind, Bind.bind, Contract.run, ContractResult.snd]
     split
     · next h =>
-      have : slot = 2 := by simp [beq_iff_eq] at h; exact h
+      have : slot = 2 := beq_iff_eq.mp h
       exact absurd this h_neq
     · rfl
   · rfl

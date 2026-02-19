@@ -69,7 +69,7 @@ theorem increment_meets_spec (s : ContractState) :
     simp only [increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
     split
     · next h =>
-      have : slot = 0 := by simp [beq_iff_eq] at h; exact h
+      have : slot = 0 := beq_iff_eq.mp h
       exact absurd this h_neq
     · rfl
   · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
@@ -93,7 +93,7 @@ theorem decrement_meets_spec (s : ContractState) :
     simp only [decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
     split
     · next h =>
-      have : slot = 0 := by simp [beq_iff_eq] at h; exact h
+      have : slot = 0 := beq_iff_eq.mp h
       exact absurd this h_neq
     · rfl
   · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,

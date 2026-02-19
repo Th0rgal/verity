@@ -641,7 +641,6 @@ theorem token_balanceOf_correct (state : ContractState) (addr : Address) (sender
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state [addr]) specTx
     specResult.success = true ∧
     specResult.returnValue = some edslValue.val := by
-  -- Same pattern as other getters
   unfold balanceOf Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
   simp [getMapping, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getMapping,
     balances]

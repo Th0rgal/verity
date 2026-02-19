@@ -124,7 +124,6 @@ theorem storageLoad_equiv (selector : Nat) (fuel : Nat)
     execResultsAligned selector
       (execIRStmtFuel fuel irState (YulStmt.let_ varName (.call "sload" [slotExpr])))
       (execYulStmtFuel fuel yulState (YulStmt.let_ varName (.call "sload" [slotExpr]))) := by
-  -- Same pattern as assign_equiv
   unfold statesAligned at halign
   subst halign
   cases fuel with
