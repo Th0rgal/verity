@@ -29,45 +29,39 @@ or transfer ownership again. This tests that the onlyOwner guard correctly
 reads the updated owner from storage, not a stale value.
 -/
 
+/-- After ownership transfer, the old owner is no longer recognized as owner.
+    This is the key lemma that drives all three revert proofs below. -/
+private theorem transfer_sender_not_new_owner (s : ContractState) (newOwner : Address)
+  (h_owner : s.sender = s.storageAddr 0) (h_ne : s.sender ≠ newOwner) :
+  let s' := ((transferOwnership newOwner).run s).snd
+  s'.sender ≠ s'.storageAddr 0 := by
+  rw [transferOwnership_unfold s newOwner h_owner]
+  simp [ContractResult.snd, h_ne]
+
 /-- After transferring ownership, the old owner cannot increment.
     The guard correctly reads the new owner from storage and rejects. -/
 theorem transfer_then_increment_reverts (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0)
   (h_ne : s.sender ≠ newOwner) :
   let s' := ((transferOwnership newOwner).run s).snd
-  ∃ msg, increment.run s' = ContractResult.revert msg s' := by
-  simp only [transferOwnership, increment, onlyOwner, isOwner, owner, count,
-    msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst]
-  have h_ne2 : s.storageAddr 0 ≠ newOwner := h_owner ▸ h_ne
-  simp [h_owner, h_ne2]
+  ∃ msg, increment.run s' = ContractResult.revert msg s' :=
+  increment_reverts_when_not_owner _ (transfer_sender_not_new_owner s newOwner h_owner h_ne)
 
 /-- After transferring ownership, the old owner cannot decrement. -/
 theorem transfer_then_decrement_reverts (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0)
   (h_ne : s.sender ≠ newOwner) :
   let s' := ((transferOwnership newOwner).run s).snd
-  ∃ msg, decrement.run s' = ContractResult.revert msg s' := by
-  simp only [transferOwnership, decrement, onlyOwner, isOwner, owner, count,
-    msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst]
-  have h_ne2 : s.storageAddr 0 ≠ newOwner := h_owner ▸ h_ne
-  simp [h_owner, h_ne2]
+  ∃ msg, decrement.run s' = ContractResult.revert msg s' :=
+  decrement_reverts_when_not_owner _ (transfer_sender_not_new_owner s newOwner h_owner h_ne)
 
 /-- After transferring ownership, the old owner cannot transfer again. -/
 theorem transfer_then_transfer_reverts (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0)
   (h_ne : s.sender ≠ newOwner) :
   let s' := ((transferOwnership newOwner).run s).snd
-  ∃ msg, (transferOwnership "anyone").run s' = ContractResult.revert msg s' := by
-  simp only [transferOwnership, onlyOwner, isOwner, owner,
-    msgSender, getStorageAddr, setStorageAddr,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst]
-  have h_ne2 : s.storageAddr 0 ≠ newOwner := h_owner ▸ h_ne
-  simp [h_owner, h_ne2]
+  ∃ msg, (transferOwnership "anyone").run s' = ContractResult.revert msg s' :=
+  transferOwnership_reverts_when_not_owner _ _ (transfer_sender_not_new_owner s newOwner h_owner h_ne)
 
 /-! ## Invariant Preservation -/
 
