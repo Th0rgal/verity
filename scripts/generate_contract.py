@@ -306,6 +306,30 @@ def _getter_return_type(fn: Function, fields: List[Field]) -> str:
     return "Uint256"
 
 
+def _getter_target_field(fn: Function, fields: List[Field]) -> Field | None:
+    """Find the field that a getter function reads.
+
+    Matches the getter suffix (e.g., ``getTotalSupply`` → ``totalSupply``,
+    ``getBalance`` → ``balances``) case-insensitively against field names.
+    Tries exact match first, then common plural suffix (``+s``/``+es``).
+    Returns ``None`` if no match.
+    """
+    prefix = _getter_prefix(fn.name)
+    if prefix is None:
+        return None
+    suffix = fn.name[len(prefix):].lower()
+    # Exact match
+    for f in fields:
+        if f.name.lower() == suffix:
+            return f
+    # Try plural forms: getBalance → balances, getAddress → addresses
+    for plural in (suffix + "s", suffix + "es"):
+        for f in fields:
+            if f.name.lower() == plural:
+                return f
+    return None
+
+
 def _needs_uint256_import(cfg: ContractConfig) -> bool:
     """Whether a module needs ``import Verity.EVM.Uint256``."""
     return (
@@ -437,12 +461,16 @@ end Verity.Specs.{cfg.name}
 def gen_invariants(cfg: ContractConfig) -> str:
     """Generate Verity/Specs/{Name}/Invariants.lean"""
     # Build isolation predicates based on fields
-    # Address fields use storageAddr, uint256 fields use storage
+    # Address fields use storageAddr, uint256 fields use storage, mappings use storageMap
     slot_isolation = []
     for i, f in enumerate(cfg.fields):
         if f.is_mapping:
-            continue
-        if f.ty == "address":
+            slot_isolation.append(
+                f"-- Mapping storage isolation for {f.name} (slot {i})\n"
+                f"def {f.name}_mapping_isolated (s s' : ContractState) (slot : Nat) : Prop :=\n"
+                f"  slot ≠ {i} → ∀ addr : Address, s'.storageMap slot addr = s.storageMap slot addr"
+            )
+        elif f.ty == "address":
             slot_isolation.append(
                 f"-- Address storage slot isolation for {f.name} (slot {i})\n"
                 f"def {f.name}_isolated (s s' : ContractState) (slot : Nat) : Prop :=\n"
@@ -787,11 +815,20 @@ def gen_compiler_spec(cfg: ContractConfig) -> str:
                 compiler_ret = "FieldType.address"
             else:
                 compiler_ret = "FieldType.uint256"  # Bool maps to uint256 at EVM level
+            target = _getter_target_field(fn, cfg.fields)
+            if target and target.is_mapping:
+                # Mapping getter: Expr.mapping with key param (see balanceOf in SimpleToken)
+                key_param = fn.params[0].name if fn.params else "key"
+                body_expr = f'Expr.mapping "{target.name}" (Expr.param "{key_param}")'
+            elif target:
+                body_expr = f'Expr.storage "{target.name}"'
+            else:
+                body_expr = f'Expr.storage "{cfg.fields[0].name if cfg.fields else "field"}"  -- TODO: match actual field'
             func_strs.append(f"""    {{ name := "{fn.name}"
       params := {params_str}
       returnType := some {compiler_ret}
       body := [
-        Stmt.return (Expr.storage "{cfg.fields[0].name if cfg.fields else 'field'}")  -- TODO: match actual field
+        Stmt.return ({body_expr})
       ]
     }}""")
         else:
