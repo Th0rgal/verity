@@ -51,7 +51,7 @@ axiom keccak256_first_4_bytes (sig : String) : Nat
 
 ### 2. `addressToNat_injective`
 
-**Location**: `Verity/Proofs/Stdlib/Automation.lean:168`
+**Location**: `Verity/Proofs/Stdlib/Automation.lean:167`
 
 **Statement**:
 ```lean
