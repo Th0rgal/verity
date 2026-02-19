@@ -228,7 +228,7 @@ The compiler validates function names, arities, and prevents name collisions. Se
 
 | | |
 |---|---|
-| [Docs Site](https://verity.thomas.md/) | Full documentation site with guides and DSL reference |
+| [Docs Site](https://verity.thomasm.ar/) | Full documentation site with guides and DSL reference |
 | [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
 | [`AXIOMS.md`](AXIOMS.md) | All 2 axioms with soundness justifications |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
