@@ -28,38 +28,35 @@ open Verity.Proofs.SimpleToken
 
 /-! ## Constructor Isolation -/
 
+-- All three constructor isolation properties share the same simp reduction.
+-- Constructor writes Uint256 slot 2 and Address slot 0; it never writes mappings.
+private theorem constructor_isolation (s : ContractState) (initialOwner : Address) (slot : Nat) :
+  (slot ≠ 2 → ((constructor initialOwner).run s).snd.storage slot = s.storage slot) ∧
+  (∀ addr, ((constructor initialOwner).run s).snd.storageMap slot addr = s.storageMap slot addr) ∧
+  (slot ≠ 0 → ((constructor initialOwner).run s).snd.storageAddr slot = s.storageAddr slot) := by
+  simp only [constructor, setStorageAddr, setStorage,
+    Examples.SimpleToken.owner, Examples.SimpleToken.totalSupply,
+    Verity.bind, Bind.bind, Contract.run, ContractResult.snd]
+  refine ⟨fun h_ne => ?_, fun _ => trivial, fun h_ne => ?_⟩ <;>
+    simp [beq_iff_eq, h_ne]
+
 /-- Constructor only writes Uint256 slot 2 (supply). -/
 theorem constructor_supply_storage_isolated (s : ContractState) (initialOwner : Address)
   (slot : Nat) :
   supply_storage_isolated s ((constructor initialOwner).run s).snd slot := by
-  unfold supply_storage_isolated; intro h_ne
-  simp only [constructor, setStorageAddr, setStorage,
-    Examples.SimpleToken.owner, Examples.SimpleToken.totalSupply,
-    Verity.bind, Bind.bind, Contract.run, ContractResult.snd]
-  split
-  · next h => exact absurd (beq_iff_eq.mp h) h_ne
-  · rfl
+  unfold supply_storage_isolated; exact (constructor_isolation s initialOwner slot).1
 
 /-- Constructor doesn't write any mapping slot. -/
 theorem constructor_balance_mapping_isolated (s : ContractState) (initialOwner : Address)
   (slot : Nat) :
   balance_mapping_isolated s ((constructor initialOwner).run s).snd slot := by
-  unfold balance_mapping_isolated; intro _h_ne addr
-  simp only [constructor, setStorageAddr, setStorage,
-    Examples.SimpleToken.owner, Examples.SimpleToken.totalSupply,
-    Verity.bind, Bind.bind, Contract.run, ContractResult.snd]
+  unfold balance_mapping_isolated; intro _; exact (constructor_isolation s initialOwner slot).2.1
 
 /-- Constructor only writes Address slot 0 (owner). -/
 theorem constructor_owner_addr_isolated (s : ContractState) (initialOwner : Address)
   (slot : Nat) :
   owner_addr_isolated s ((constructor initialOwner).run s).snd slot := by
-  unfold owner_addr_isolated; intro h_ne
-  simp only [constructor, setStorageAddr, setStorage,
-    Examples.SimpleToken.owner, Examples.SimpleToken.totalSupply,
-    Verity.bind, Bind.bind, Contract.run, ContractResult.snd]
-  split
-  · next h => exact absurd (beq_iff_eq.mp h) h_ne
-  · rfl
+  unfold owner_addr_isolated; exact (constructor_isolation s initialOwner slot).2.2
 
 /-! ## Mint Isolation -/
 
