@@ -59,14 +59,39 @@ def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
 
 
 def strip_lean_comments(text: str) -> str:
-    """Strip Lean line/block comments while preserving line structure."""
+    """Strip Lean line/block comments while preserving line structure.
+
+    Comment markers inside string literals are treated as plain text.
+    """
     out: list[str] = []
     i = 0
     n = len(text)
     block_depth = 0
+    in_string = False
+    escaped = False
     while i < n:
         ch = text[i]
         nxt = text[i + 1] if i + 1 < n else ""
+
+        # Inside string literal: keep characters verbatim.
+        if in_string:
+            out.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+
+        # Start string literal.
+        if block_depth == 0 and ch == '"':
+            in_string = True
+            escaped = False
+            out.append(ch)
+            i += 1
+            continue
 
         # Start of nested block comment: /- ... -/
         if ch == "/" and nxt == "-":
