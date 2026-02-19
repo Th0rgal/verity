@@ -592,7 +592,13 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
           storedExpr
         ]))
       let dataSize := unindexed.length * 32
-      let topicExprs := [topic0] ++ (indexed.map (·.2))
+      let topicExprs :=
+        [topic0] ++ indexed.map (fun (p, argExpr) =>
+          match p.ty with
+          | ParamType.address => YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)]
+          | ParamType.bool => yulToBool argExpr
+          | _ => argExpr
+        )
       let logFn := match indexed.length with
         | 0 => "log1"
         | 1 => "log2"

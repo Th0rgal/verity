@@ -35,6 +35,11 @@ private def featureSpec : ContractSpec := {
         { name := "who", ty := ParamType.address, kind := EventParamKind.indexed },
         { name := "value", ty := ParamType.uint256, kind := EventParamKind.unindexed }
       ]
+    },
+    { name := "BoolSet"
+      params := [
+        { name := "ok", ty := ParamType.bool, kind := EventParamKind.indexed }
+      ]
     }
   ]
   functions := [
@@ -60,6 +65,11 @@ private def featureSpec : ContractSpec := {
       returnType := none
       body := [Stmt.emit "ValueSet" [Expr.param "who", Expr.param "value"], Stmt.stop]
     },
+    { name := "emitBool"
+      params := []
+      returnType := none
+      body := [Stmt.emit "BoolSet" [Expr.literal 2], Stmt.stop]
+    },
     { name := "echoArray"
       params := [{ name := "arr", ty := ParamType.array ParamType.uint256 }]
       returnType := none
@@ -70,7 +80,7 @@ private def featureSpec : ContractSpec := {
 }
 
 #eval! do
-  match compile featureSpec [1, 2, 3, 4] with
+  match compile featureSpec [1, 2, 3, 4, 5] with
   | .error err =>
       throw (IO.userError s!"✗ feature spec compile failed: {err}")
   | .ok ir =>
@@ -78,6 +88,7 @@ private def featureSpec : ContractSpec := {
       assertContains "bool param normalization" rendered ["iszero(iszero(calldataload(4)))"]
       assertContains "multi-return ABI encoding" rendered ["return(0, 64)"]
       assertContains "indexed event log opcode" rendered ["log2("]
+      assertContains "indexed bool topic normalization" rendered ["iszero(iszero(2))"]
       assertContains "dynamic array ABI return" rendered ["calldatacopy(64"]
 
 end Compiler.ContractSpecFeatureTest
