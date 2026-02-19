@@ -73,9 +73,21 @@ def extract_specs(text: str) -> List[SpecInfo]:
             die(f"Missing name for spec {def_name}")
         contract_name = name_match.group(1)
         signatures = extract_functions(block)
-        has_externals = bool(re.search(r"externals\s*:=\s*\[", block))
+        has_externals = has_nonempty_externals(block)
         specs.append(SpecInfo(def_name, contract_name, signatures, has_externals))
     return specs
+
+
+def has_nonempty_externals(spec_block: str) -> bool:
+    """Return True only when a spec has a non-empty externals list."""
+    ext_match = re.search(r"externals\s*:=\s*\[", spec_block)
+    if not ext_match:
+        return False
+    list_start = ext_match.end() - 1
+    list_end = find_matching(spec_block, list_start, "[", "]")
+    if list_end == -1:
+        die("Failed to parse externals list")
+    return bool(spec_block[list_start + 1 : list_end].strip())
 
 
 def extract_functions(spec_block: str) -> List[str]:
