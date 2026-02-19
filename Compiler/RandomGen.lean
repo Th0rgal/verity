@@ -114,8 +114,8 @@ private def addressPool : List Address :=
   [ Verity.Core.Address.ofNat 0xa11ce
   , Verity.Core.Address.ofNat 0xb0b
   , Verity.Core.Address.ofNat 0xca201
-  , Verity.Core.Address.ofNat 0xdave
-  , Verity.Core.Address.ofNat 0xeve
+  , Verity.Core.Address.ofNat 0xda7e
+  , Verity.Core.Address.ofNat 0xe7e
   , (0 : Address)                                                  -- zero address
   , Verity.Core.Address.ofNat (2^160 - 1)                         -- max address
   , Verity.Core.Address.ofNat 1                                    -- address(1)
@@ -279,11 +279,11 @@ open Compiler.DiffTestTypes
 def main (args : List String) : IO Unit := do
   match args with
   | [contractType, countStr, seedStr] =>
-    let count := match countStr.toNat? with
-      | some n => n
+    let count ← match countStr.toNat? with
+      | some n => pure n
       | none => throw <| IO.userError s!"Invalid count: {countStr}"
-    let seed := match seedStr.toNat? with
-      | some n => n
+    let seed ← match seedStr.toNat? with
+      | some n => pure n
       | none => throw <| IO.userError s!"Invalid seed: {seedStr}"
     let contractTypeEnum? : Option ContractType := match contractType with
       | "SimpleStorage" => some ContractType.simpleStorage
