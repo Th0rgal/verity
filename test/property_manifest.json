@@ -293,6 +293,7 @@
     "modulus_eq_max_uint256_succ",
     "msgSender_runState",
     "msgSender_runValue",
+    "require_beq_success_implies_eq",
     "require_false_isSuccess",
     "require_success_implies_cond",
     "require_true_isSuccess",

@@ -781,6 +781,14 @@ theorem uint256_ofNat_le_of_val_ge (bal : Verity.Core.Uint256) (amount : Nat)
   simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
     Nat.mod_eq_of_lt h_lt, h]
 
+/-- If `require (a == b) msg` succeeds, then `a = b`.
+    Composes `require_success_implies_cond` with `address_beq_eq_true_iff_eq`. -/
+theorem require_beq_success_implies_eq (a b : Address) (msg : String)
+    (s : ContractState)
+    (h : ((Verity.require (a == b) msg).run s).isSuccess = true) :
+    a = b :=
+  (address_beq_eq_true_iff_eq a b).1 (require_success_implies_cond (cond := a == b) (msg := msg) (state := s) h)
+
 -- All lemmas in this file are fully proven with zero sorry (1 axiom: addressToNat_injective).
 
 end Verity.Proofs.Stdlib.Automation

@@ -67,7 +67,6 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
-  -- Constructor sets owner to initialOwner in both EDSL and spec
   unfold Verity.Examples.OwnedCounter.constructor Contract.run ownedCounterSpec interpretSpec
   simp [setStorageAddr, Verity.Examples.OwnedCounter.owner, Verity.bind, Verity.pure]
   simp [execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
@@ -102,8 +101,7 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec storage count equals EDSL count
     have h_owner' : ({ state with sender := sender }).sender =
-        ({ state with sender := sender }).storageAddr 0 := by
-      simp [h]
+        ({ state with sender := sender }).storageAddr 0 := by simp [h]
     have h_inc :
         ((increment.run { state with sender := sender }).getState.storage 1) =
           Verity.EVM.Uint256.add (state.storage 1) 1 := by
@@ -175,8 +173,7 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
   · -- Spec storage count equals EDSL count
     have h_owner' : ({ state with sender := sender }).sender =
-        ({ state with sender := sender }).storageAddr 0 := by
-      simp [h]
+        ({ state with sender := sender }).storageAddr 0 := by simp [h]
     have h_dec :
         ((decrement.run { state with sender := sender }).getState.storage 1) =
           Verity.EVM.Uint256.sub (state.storage 1) 1 := by
@@ -312,16 +309,8 @@ theorem ownedCounter_only_owner_modifies (state : ContractState) (sender : Addre
         { state with sender := sender }).isSuccess = true := by
     simpa [onlyOwner, isOwner, msgSender, getStorageAddr, Contract.run, Verity.bind, Verity.pure]
       using h_onlyOwner
-  have h_eq : (sender == state.storageAddr 0) = true :=
-    Verity.Proofs.Stdlib.Automation.require_success_implies_cond
-      (cond := sender == state.storageAddr 0)
-      (msg := "Caller is not the owner")
-      (state := { state with sender := sender })
-      h_require_success
-  exact
-    (Verity.Proofs.Stdlib.Automation.address_beq_eq_true_iff_eq sender (state.storageAddr 0)).1
-        h_eq
-      |>.symm
+  exact (require_beq_success_implies_eq sender (state.storageAddr 0)
+    "Caller is not the owner" _ h_require_success).symm
 
 /-- Owner and count slots are independent -/
 theorem ownedCounter_slots_independent (state : ContractState) (newOwner : Address) (sender : Address)

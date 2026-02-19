@@ -68,6 +68,7 @@
     "msgSender_runState",
     "msgSender_runValue",
     "require_false_isSuccess",
+    "require_beq_success_implies_eq",
     "require_success_implies_cond",
     "require_true_isSuccess",
     "safeAdd_comm",
