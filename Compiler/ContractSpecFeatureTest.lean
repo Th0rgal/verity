@@ -98,6 +98,6 @@ private def featureSpec : ContractSpec := {
       assertContains "event topic hashing uses free memory pointer" rendered ["keccak256(__evt_ptr,"]
       assertContains "event topic hash cached before data writes" rendered ["let __evt_topic0 := keccak256(__evt_ptr,", "log2(__evt_ptr, 32, __evt_topic0"]
       assertContains "dynamic array ABI return" rendered ["calldatacopy(64"]
-      assertContains "dynamic bytes ABI return" rendered ["calldatacopy(64, data_data_offset, data_length)", "return(0, add(64, and(add(data_length, 31), not(31))))"]
+      assertContains "dynamic bytes ABI return" rendered ["calldatacopy(64, data_data_offset, data_length)", "mstore(add(64, data_length), 0)", "return(0, add(64, and(add(data_length, 31), not(31))))"]
 
 end Compiler.ContractSpecFeatureTest

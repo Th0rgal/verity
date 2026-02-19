@@ -647,6 +647,8 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
         YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, lenIdent]),
+        -- Ensure ABI right-padding bytes are zeroed even if memory was previously dirtied.
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.lit 64, lenIdent], YulExpr.lit 0]),
         YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, paddedLen]])
       ]
 end
