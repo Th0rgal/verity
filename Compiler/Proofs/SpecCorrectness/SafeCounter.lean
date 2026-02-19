@@ -395,8 +395,8 @@ theorem safeGetCount_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
-  unfold getCount Contract.runValue safeCounterSpec interpretSpec safeCounterEdslToSpecStorage
-  simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
+  simp [getCount, Contract.runValue, safeCounterSpec, interpretSpec, safeCounterEdslToSpecStorage,
+    getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
 
 /- Helper Properties -/
 
@@ -404,8 +404,6 @@ theorem safeGetCount_correct (state : ContractState) (sender : Address) :
 theorem safeGetCount_preserves_state (state : ContractState) (sender : Address) :
     let finalState := getCount.runState { state with sender := sender }
     finalState.storage 0 = state.storage 0 := by
-  -- getCount just reads storage, doesn't modify it
-  unfold getCount Contract.runState
-  simp [getStorage, count]
+  simp [getCount, Contract.runState, getStorage, count]
 
 end Compiler.Proofs.SpecCorrectness

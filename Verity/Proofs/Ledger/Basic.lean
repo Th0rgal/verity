@@ -262,8 +262,7 @@ theorem transfer_reverts_recipient_overflow (s : ContractState) (to : Address) (
   (h_ne : s.sender ≠ to)
   (h_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) > MAX_UINT256) :
   ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
-  unfold transfer requireSomeUint
-  simp [Examples.Ledger.balances,
+  simp [transfer, requireSomeUint, Examples.Ledger.balances,
     msgSender, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,

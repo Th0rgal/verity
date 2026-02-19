@@ -221,8 +221,8 @@ theorem mint_reverts_balance_overflow (s : ContractState) (to : Address) (amount
   (h_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) > MAX_UINT256) :
   ∃ msg, (mint to amount).run s = ContractResult.revert msg s := by
   have h_none := safeAdd_none (s.storageMap 1 to) amount h_overflow
-  unfold mint Verity.Examples.SimpleToken.onlyOwner isOwner requireSomeUint
-  simp [Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
+  simp [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner, requireSomeUint,
+    Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
     msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
@@ -238,8 +238,8 @@ theorem mint_reverts_supply_overflow (s : ContractState) (to : Address) (amount 
   ∃ msg, (mint to amount).run s = ContractResult.revert msg s := by
   have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
   have h_none := safeAdd_none (s.storage 2) amount h_overflow
-  unfold mint Verity.Examples.SimpleToken.onlyOwner isOwner requireSomeUint
-  simp only [Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
+  simp only [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner, requireSomeUint,
+    Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
     msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
@@ -382,8 +382,7 @@ theorem transfer_reverts_recipient_overflow (s : ContractState) (to : Address) (
   ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
   have h_balance' := uint256_ge_val_le h_balance
   have h_none := safeAdd_none (s.storageMap 1 to) amount h_overflow
-  unfold transfer requireSomeUint
-  simp [Examples.SimpleToken.balances,
+  simp [transfer, requireSomeUint, Examples.SimpleToken.balances,
     msgSender, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,

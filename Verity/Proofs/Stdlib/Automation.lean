@@ -102,8 +102,7 @@ These lemmas help with proving correctness of functions that use bind (>>=).
 theorem bind_getStorage_setStorage_runState (slot : StorageSlot Uint256) (f : Uint256 → Uint256) (state : ContractState) :
     (Verity.bind (getStorage slot) (fun val => setStorage slot (f val))).runState state =
       { state with storage := fun s => if s == slot.slot then f (state.storage slot.slot) else state.storage s } := by
-  unfold Verity.bind getStorage setStorage Contract.runState
-  simp
+  simp [Verity.bind, getStorage, setStorage, Contract.runState]
 
 -- Bind success propagation: if bind succeeds, first action succeeded
 theorem bind_isSuccess_left {α β : Type} (m1 : Contract α) (m2 : α → Contract β) (state : ContractState) :
@@ -411,10 +410,7 @@ theorem uint256_sub_val_of_le (a : Verity.Core.Uint256) (amount : Nat)
 -- getSlot from setSlot (same slot)
 theorem SpecStorage_getSlot_setSlot_same (storage : SpecStorage) (slot : Nat) (value : Nat) :
     (storage.setSlot slot value).getSlot slot = value := by
-  -- After unfolding: List.lookup slot ((slot, value) :: filtered) = some value
-  -- This is immediate since lookup finds (slot, value) at head
-  unfold SpecStorage.getSlot SpecStorage.setSlot
-  simp [List.lookup]
+  simp [SpecStorage.getSlot, SpecStorage.setSlot, List.lookup]
 
 theorem lookup_filter_ne {β : Type} (k k' : Nat) (h : k ≠ k') (xs : List (Nat × β)) :
     (xs.filter (fun kv => kv.1 ≠ k')).lookup k = xs.lookup k := by
@@ -482,8 +478,7 @@ theorem SpecStorage_getSlot_setSlot_diff (storage : SpecStorage) (slot1 slot2 : 
 -- getMapping from setMapping (same slot and key) - requires proof
 theorem SpecStorage_getMapping_setMapping_same (storage : SpecStorage) (slot : Nat) (key : Nat) (value : Nat) :
     (storage.setMapping slot key value).getMapping slot key = value := by
-  unfold SpecStorage.getMapping SpecStorage.setMapping
-  simp [List.lookup, beq_iff_eq, lookup_filter_ne]
+  simp [SpecStorage.getMapping, SpecStorage.setMapping, List.lookup, beq_iff_eq, lookup_filter_ne]
 
 -- getMapping preserves other slots - requires proof
 theorem SpecStorage_getMapping_setMapping_diff_slot (storage : SpecStorage) (slot1 slot2 : Nat) (key : Nat) (value : Nat)

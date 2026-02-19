@@ -91,10 +91,9 @@ theorem increment_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslFinal.storage 0).val := by
-  -- Original working proof
   unfold increment counterSpec interpretSpec counterEdslToSpecStorage Contract.runState
   simp [getStorage, setStorage, add, count, execFunction, execStmts, execStmt, evalExpr,
-        SpecStorage.setSlot, SpecStorage.getSlot, modulus, val_ofNat]
+    SpecStorage.setSlot, SpecStorage.getSlot, modulus, val_ofNat]
   rfl
 
 /-- The `decrement` function correctly decrements the counter with modular arithmetic -/
@@ -129,8 +128,8 @@ theorem getCount_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
-  unfold getCount Contract.runValue counterSpec interpretSpec counterEdslToSpecStorage
-  simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
+  simp [getCount, Contract.runValue, counterSpec, interpretSpec, counterEdslToSpecStorage,
+    getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
 
 /- Helper Properties -/
 
@@ -138,9 +137,7 @@ theorem getCount_correct (state : ContractState) (sender : Address) :
 theorem getCount_preserves_state (state : ContractState) (sender : Address) :
     let finalState := getCount.runState { state with sender := sender }
     finalState.storage 0 = state.storage 0 := by
-  -- getCount just reads storage, doesn't modify it
-  unfold getCount Contract.runState
-  simp [getStorage, count]
+  simp [getCount, Contract.runState, getStorage, count]
 
 /-- Incrementing then decrementing returns to original value (when not wrapping) -/
 theorem increment_decrement_roundtrip (state : ContractState) (sender : Address)
@@ -148,9 +145,7 @@ theorem increment_decrement_roundtrip (state : ContractState) (sender : Address)
     let afterInc := increment.runState { state with sender := sender }
     let afterDec := decrement.runState { afterInc with sender := sender }
     afterDec.storage 0 = state.storage 0 := by
-  -- Unfold increment and decrement
-  unfold increment decrement Contract.runState
-  simp [getStorage, setStorage, count, Verity.bind]
+  simp [increment, decrement, Contract.runState, getStorage, setStorage, count, Verity.bind]
   -- We have: sub (add (state.storage 0) 1) 1 = state.storage 0
   -- This is exactly the sub_add_cancel theorem
   exact Verity.EVM.Uint256.sub_add_cancel (state.storage 0) 1
@@ -161,10 +156,7 @@ theorem decrement_increment_roundtrip (state : ContractState) (sender : Address)
     let afterDec := decrement.runState { state with sender := sender }
     let afterInc := increment.runState { afterDec with sender := sender }
     afterInc.storage 0 = state.storage 0 := by
-  -- This is the reverse of increment_decrement_roundtrip
-  -- We use sub_add_cancel_left: (a - b) + b = a (always holds for Uint256 modular arithmetic)
-  unfold decrement increment Contract.runState
-  simp [getStorage, setStorage, count, Verity.bind]
+  simp [decrement, increment, Contract.runState, getStorage, setStorage, count, Verity.bind]
   -- We have: add (sub (state.storage 0) 1) 1 = state.storage 0
   -- This is exactly sub_add_cancel_left in infix notation: (a - b) + b = a
   exact Verity.Core.Uint256.sub_add_cancel_left (state.storage 0) 1
