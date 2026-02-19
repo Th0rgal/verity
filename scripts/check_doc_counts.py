@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import argparse
 from pathlib import Path
 
 from property_utils import ROOT, collect_covered
@@ -167,6 +168,39 @@ def check_file(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> list[st
     return errors
 
 
+def apply_fixes(path: Path, checks: list[tuple[str, re.Pattern, str]]) -> bool:
+    """Apply in-place count fixes for all matched stale capture groups in path."""
+    if not path.exists():
+        return False
+    text = path.read_text(encoding="utf-8")
+    edits: list[tuple[int, int, str]] = []
+    for _, pattern, expected in checks:
+        match = pattern.search(text)
+        if not match:
+            continue
+        if match.group(1) == expected:
+            continue
+        edits.append((match.start(1), match.end(1), expected))
+
+    if not edits:
+        return False
+
+    # Apply right-to-left to preserve index validity.
+    for start, stop, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[stop:]
+    path.write_text(text, encoding="utf-8")
+    return True
+
+
+def check_and_maybe_fix(
+    path: Path, checks: list[tuple[str, re.Pattern, str]], fix: bool
+) -> list[str]:
+    """Optionally apply fixes, then run checks."""
+    if fix:
+        apply_fixes(path, checks)
+    return check_file(path, checks)
+
+
 def check_verification_theorem_names(path: Path) -> list[str]:
     """Validate backtick-quoted theorem names in verification.mdx tables.
 
@@ -234,6 +268,16 @@ def check_verification_theorem_names(path: Path) -> list[str]:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Check documentation count claims against manifest/code metrics."
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Auto-fix stale numeric counts in documentation files before validating.",
+    )
+    args = parser.parse_args()
+
     total_theorems, num_categories, per_contract = get_manifest_counts()
     axiom_count = get_axiom_count()
     test_count, suite_count = get_test_counts()
@@ -256,10 +300,7 @@ def main() -> None:
 
     # Check README.md
     readme = ROOT / "README.md"
-    errors.extend(
-        check_file(
-            readme,
-            [
+    readme_checks = [
                 (
                     "theorem count",
                     re.compile(r"(\d+) theorems across"),
@@ -315,9 +356,8 @@ def main() -> None:
                     re.compile(r"Foundry tests.*\((\d+) tests\)"),
                     str(test_count),
                 ),
-            ],
-        )
-    )
+            ]
+    errors.extend(check_and_maybe_fix(readme, readme_checks, args.fix))
     # Check per-contract theorem counts in README table (| Contract | N | ...)
     readme_contract_checks = []
     for contract, count in per_contract.items():
@@ -328,7 +368,7 @@ def main() -> None:
             re.compile(rf"\|\s*{contract}\s*\|\s*(\d+)\s*\|"),
             str(count),
         ))
-    errors.extend(check_file(readme, readme_contract_checks))
+    errors.extend(check_and_maybe_fix(readme, readme_contract_checks, args.fix))
 
     # Check per-contract theorem counts in examples/solidity/README.md (| ... | N theorems | ...)
     solidity_readme = ROOT / "examples" / "solidity" / "README.md"
@@ -341,12 +381,12 @@ def main() -> None:
             re.compile(rf"{contract}\.lean.*?(\d+) theorems"),
             str(count),
         ))
-    errors.extend(check_file(solidity_readme, solidity_contract_checks))
+    errors.extend(check_and_maybe_fix(solidity_readme, solidity_contract_checks, args.fix))
 
     # Check llms.txt
     llms = ROOT / "docs-site" / "public" / "llms.txt"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             llms,
             [
                 (
@@ -380,6 +420,7 @@ def main() -> None:
                     str(core_lines),
                 ),
             ],
+            args.fix,
         )
     )
     # Check per-contract theorem counts in llms.txt table (| Contract | N | ...)
@@ -390,12 +431,12 @@ def main() -> None:
             re.compile(rf"\|\s*{contract}\s*\|\s*(\d+)\s*\|"),
             str(count),
         ))
-    errors.extend(check_file(llms, llms_contract_checks))
+    errors.extend(check_and_maybe_fix(llms, llms_contract_checks, args.fix))
 
     # Check compiler.mdx
     compiler_mdx = ROOT / "docs-site" / "content" / "compiler.mdx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             compiler_mdx,
             [
                 (
@@ -429,13 +470,14 @@ def main() -> None:
                     str(contract_count),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check examples.mdx
     examples_mdx = ROOT / "docs-site" / "content" / "examples.mdx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             examples_mdx,
             [
                 (
@@ -444,13 +486,14 @@ def main() -> None:
                     str(contract_count),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check TRUST_ASSUMPTIONS.md
     trust = ROOT / "TRUST_ASSUMPTIONS.md"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             trust,
             [
                 (
@@ -479,13 +522,14 @@ def main() -> None:
                     str(num_categories),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check test/README.md
     test_readme = ROOT / "test" / "README.md"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             test_readme,
             [
                 (
@@ -519,13 +563,14 @@ def main() -> None:
                     str(property_fn_count),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check docs/VERIFICATION_STATUS.md
     verification_status = ROOT / "docs" / "VERIFICATION_STATUS.md"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             verification_status,
             [
                 (
@@ -604,13 +649,14 @@ def main() -> None:
                     str(ast_equiv_count),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check docs/ROADMAP.md
     roadmap = ROOT / "docs" / "ROADMAP.md"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             roadmap,
             [
                 (
@@ -634,6 +680,7 @@ def main() -> None:
                     str(ast_equiv_count),
                 ),
             ],
+            args.fix,
         )
     )
 
@@ -680,7 +727,7 @@ def main() -> None:
             re.compile(rf"- {contract}: (\d+) total"),
             str(count),
         ))
-    errors.extend(check_file(verification_mdx, verification_checks))
+    errors.extend(check_and_maybe_fix(verification_mdx, verification_checks, args.fix))
 
     # Validate theorem names in verification.mdx tables against manifest
     errors.extend(
@@ -690,7 +737,7 @@ def main() -> None:
     # Check research.mdx
     research_mdx = ROOT / "docs-site" / "content" / "research.mdx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             research_mdx,
             [
                 (
@@ -719,13 +766,14 @@ def main() -> None:
                     str(total_theorems),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check theorem counts in getting-started.mdx
     getting_started = ROOT / "docs-site" / "content" / "getting-started.mdx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             getting_started,
             [
                 (
@@ -734,13 +782,14 @@ def main() -> None:
                     str(total_theorems),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check theorem count, test counts, and core size in index.mdx
     index_mdx = ROOT / "docs-site" / "content" / "index.mdx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             index_mdx,
             [
                 (
@@ -764,13 +813,14 @@ def main() -> None:
                     str(core_lines),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check core size claims in core.mdx
     core_mdx = ROOT / "docs-site" / "content" / "core.mdx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             core_mdx,
             [
                 (
@@ -779,13 +829,14 @@ def main() -> None:
                     str(core_lines),
                 ),
             ],
+            args.fix,
         )
     )
 
     # Check layout.tsx banner (proven/total theorems proven)
     layout_tsx = ROOT / "docs-site" / "app" / "layout.tsx"
     errors.extend(
-        check_file(
+        check_and_maybe_fix(
             layout_tsx,
             [
                 (
@@ -799,6 +850,7 @@ def main() -> None:
                     str(total_theorems),
                 ),
             ],
+            args.fix,
         )
     )
 
