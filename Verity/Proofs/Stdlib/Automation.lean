@@ -96,6 +96,29 @@ theorem setStorage_getStorage_diff (slot1 slot2 : StorageSlot Uint256) (value : 
 These lemmas help with proving correctness of functions that use bind (>>=).
 -/
 
+-- Left identity: binding a pure value is just function application.
+@[simp]
+theorem bind_pure_left {α β : Type} (a : α) (f : α → Contract β) :
+    Verity.bind (Verity.pure a) f = f a := by
+  funext state
+  simp [Verity.bind, Verity.pure]
+
+-- Right identity: binding to pure preserves the original computation.
+@[simp]
+theorem bind_pure_right {α : Type} (m : Contract α) :
+    Verity.bind m Verity.pure = m := by
+  funext state
+  unfold Verity.bind Verity.pure
+  cases h : m state <;> simp [h]
+
+-- Associativity: nested binds can be reassociated.
+@[simp]
+theorem bind_assoc {α β γ : Type} (m : Contract α) (f : α → Contract β) (g : β → Contract γ) :
+    Verity.bind (Verity.bind m f) g = Verity.bind m (fun a => Verity.bind (f a) g) := by
+  funext state
+  unfold Verity.bind
+  cases h : m state <;> simp [h]
+
 -- Lemma for getStorage >> setStorage pattern (the most common pattern)
 @[simp]
 theorem bind_getStorage_setStorage_runState (slot : StorageSlot Uint256) (f : Uint256 → Uint256) (state : ContractState) :
