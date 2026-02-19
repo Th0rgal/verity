@@ -45,8 +45,8 @@ def exampleUsage : Contract Uint256 := do
   getCount
 
 #eval (exampleUsage.run { defaultState with
-  sender := "0xAlice",
-  thisAddress := "0xSafeCounter"
+  sender := 0xA11CE,
+  thisAddress := 0x5AFE
 }).getValue?
 -- Expected output: some 1
 

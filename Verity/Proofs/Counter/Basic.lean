@@ -159,13 +159,13 @@ theorem increment_preserves_wellformedness (s : ContractState) (h : WellFormedSt
   let s' := ((increment).run s).snd
   WellFormedState s' := by
   simp only [increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
-  exact ⟨h.sender_nonempty, h.contract_nonempty⟩
+  exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 theorem decrement_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((decrement).run s).snd
   WellFormedState s' := by
   simp only [decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
-  exact ⟨h.sender_nonempty, h.contract_nonempty⟩
+  exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 theorem getCount_preserves_state (s : ContractState) :
   let s' := ((getCount).run s).snd

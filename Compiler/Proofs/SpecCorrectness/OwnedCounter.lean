@@ -27,7 +27,6 @@ open Compiler.ContractSpec
 open Compiler.Specs
 open Verity.Proofs.Stdlib.SpecInterpreter
 open Verity.Proofs.Stdlib.Automation
-open Compiler.Hex
 open Verity
 open Verity.Examples.OwnedCounter
 open Verity.Proofs.OwnedCounter
@@ -44,7 +43,7 @@ open Verity.Proofs.OwnedCounter
 /-- Convert EDSL ContractState to SpecStorage for OwnedCounter -/
 def ownedCounterEdslToSpecStorage (state : ContractState) : SpecStorage :=
   { slots := [
-      (0, addressToNat (state.storageAddr 0)),  -- owner at slot 0
+      (0, (state.storageAddr 0).val),  -- owner at slot 0
       (1, (state.storage 1).val)                -- count at slot 1
     ]
     mappings := []
@@ -59,12 +58,12 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := ""
-      args := [addressToNat initialOwner]
+      args := [initialOwner.val]
     }
     let specResult := interpretSpec ownedCounterSpec SpecStorage.empty specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
+    specResult.finalStorage.getSlot 0 = (edslResult.getState.storageAddr 0).val := by
   simp [Verity.Examples.OwnedCounter.constructor, Contract.run, ownedCounterSpec, interpretSpec,
     setStorageAddr, Verity.Examples.OwnedCounter.owner, Verity.bind, Verity.pure,
     execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
@@ -206,7 +205,7 @@ theorem ownedCounter_getOwner_correct (state : ContractState) (sender : Address)
     }
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     specResult.success = true ∧
-    specResult.returnValue = some (addressToNat edslAddr) := by
+    specResult.returnValue = some edslAddr.val := by
   simp [Verity.Examples.OwnedCounter.getOwner, Contract.runValue, ownedCounterSpec, interpretSpec,
     ownedCounterEdslToSpecStorage, getStorageAddr, Verity.Examples.OwnedCounter.owner, execFunction,
     execStmts, execStmt, evalExpr, SpecStorage.getSlot]
@@ -218,12 +217,12 @@ theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) 
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transferOwnership"
-      args := [addressToNat newOwner]
+      args := [newOwner.val]
     }
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getSlot 0 = addressToNat newOwner := by
+    specResult.finalStorage.getSlot 0 = newOwner.val := by
   have h_owner' : ({ state with sender := sender }).sender =
       ({ state with sender := sender }).storageAddr 0 := by simp [h]
   refine ⟨?_, ?_, ?_⟩
@@ -243,7 +242,7 @@ theorem ownedCounter_transferOwnership_reverts_as_nonowner (state : ContractStat
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transferOwnership"
-      args := [addressToNat newOwner]
+      args := [newOwner.val]
     }
     let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
     edslResult.isSuccess = false ∧

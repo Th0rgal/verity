@@ -36,14 +36,12 @@
 
 import Compiler.ContractSpec
 import Compiler.DiffTestTypes
-import Compiler.Hex
 import Verity.Core
 
 namespace Verity.Proofs.Stdlib.SpecInterpreter
 
 open Compiler.ContractSpec
 open Compiler.DiffTestTypes
-open Compiler.Hex
 open Verity
 open Verity.Core.Uint256 (modulus)
 
@@ -179,7 +177,7 @@ def evalExpr (ctx : EvalContext) (storage : SpecStorage) (fields : List Field) (
           let key2Val := evalExpr ctx storage fields paramNames externalFns key2
           storage.getMapping2 baseSlot key1Val key2Val
       | none => 0
-  | Expr.caller => addressToNat ctx.sender
+  | Expr.caller => ctx.sender.val
   | Expr.msgValue => ctx.msgValue % modulus
   | Expr.blockTimestamp => ctx.blockTimestamp % modulus
   | Expr.localVar name =>

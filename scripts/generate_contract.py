@@ -371,7 +371,7 @@ def gen_example(cfg: ContractConfig) -> str:
                 ret_val = "pure false  -- TODO: implement predicate (see OwnedCounter.lean)"
             elif suffix.lower() in addr_field_names:
                 ret_type = "Contract Address"
-                ret_val = 'pure ""  -- TODO: use getStorageAddr <slot> (see Owned.lean)'
+                ret_val = 'pure 0  -- TODO: use getStorageAddr <slot> (see Owned.lean)'
             else:
                 ret_type = "Contract Uint256"
                 ret_val = "pure 0  -- TODO: use getStorage <slot> (see SimpleStorage.lean)"
@@ -498,8 +498,8 @@ open Verity
 
 -- Basic well-formedness of ContractState
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
 
 {chr(10).join(slot_isolation) if slot_isolation else "-- TODO: Add state invariants"}
 

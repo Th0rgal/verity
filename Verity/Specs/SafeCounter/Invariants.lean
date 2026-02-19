@@ -15,10 +15,10 @@ open Verity.Stdlib.Math
 
 /-! ## State Invariants -/
 
-/-- Well-formed state: sender and contract addresses are non-empty -/
+/-- Well-formed state: sender and contract addresses are nonzero -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
 
 /-- Context preserved: operations don't change sender or contract address -/
 abbrev context_preserved := Specs.sameContext

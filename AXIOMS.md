@@ -49,38 +49,6 @@ axiom keccak256_first_4_bytes (sig : String) : Nat
 
 ---
 
-### 2. `addressToNat_injective`
-
-**Location**: `Verity/Proofs/Stdlib/Automation.lean:167`
-
-**Statement**:
-```lean
-axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
-```
-
-**Purpose**: Asserts that address-to-number conversion is injective (no two different addresses map to the same number).
-
-**Why Axiom?**:
-- Models Ethereum address encoding behavior
-- Full formalization of address string parsing/normalization is substantial
-- Used in proof automation for mapping operations
-
-**Soundness Argument**:
-1. **Ethereum model**: Addresses are 20-byte values with unique numeric encodings
-2. **Differential testing**: Validated by 70,000+ tests against EVM execution
-3. **Mathematical foundation**: String-to-number conversion on fixed-width encodings is inherently injective
-
-**Risk**: **Low** - Standard assumption about Ethereum address encoding.
-
-**Future Work**:
-- [ ] Formalize hex string parsing in Lean (substantial effort)
-- [ ] Prove injectivity from first principles
-- [ ] Consider using verified hex parsing library
-- [ ] Issue tracking: #253
-
----
-
 ## Eliminated Axioms
 
 ### `evalIRExpr_eq_evalYulExpr` (formerly axiom #1)
@@ -145,6 +113,26 @@ theorem addressToNat_injective_valid :
 
 **Impact**: Reduced axiom count from 5 to 4 with zero changes to proof structure (the axiom had no call sites). The derived theorem was later removed as dead code (no call sites in any proof file).
 
+### `addressToNat_injective` (formerly axiom #2)
+
+**Eliminated in**: Issue #253
+
+**Previous statement**:
+```lean
+axiom addressToNat_injective :
+    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
+```
+
+**How eliminated**: Replaced `abbrev Address := String` with `structure Address where val : Nat; isLt : val < 2^160`, a proper bounded Nat type following the `Uint256` pattern. With this representation, `addressToNat` simply returns `addr.val`, and injectivity follows trivially from `Address.ext`:
+
+```lean
+theorem addressToNat_injective :
+    ∀ (a b : Address), a.val = b.val → a = b :=
+  fun _ _ h => Verity.Core.Address.ext h
+```
+
+**Impact**: Eliminated the last axiom in the EDSL→Spec verification chain. The Address type now matches EVM semantics (20-byte integers) exactly, removing the soundness issue where `"0xFF" ≠ "0xff"` as strings but `addressToNat "0xFF" = addressToNat "0xff"`.
+
 ---
 
 ## Axiom Usage Summary
@@ -152,10 +140,9 @@ theorem addressToNat_injective_valid :
 | Axiom | File | Risk | Validated By | Future Work |
 |-------|------|------|--------------|-------------|
 | `keccak256_first_4_bytes` | Selectors.lean | Low | CI selector checks + solc | Verified keccak FFI |
-| `addressToNat_injective` | Automation.lean | Low | Differential tests (70k+) | Formalize hex parsing |
 
-**Total Axioms**: 2
-**Eliminated**: 4 (3 via Issue #148 refactor, 1 via PR #202)
+**Total Axioms**: 1
+**Eliminated**: 5 (3 via Issue #148 refactor, 1 via PR #202, 1 via Issue #253)
 **Production Blockers**: 0 (all have low risk with strong validation)
 
 ---
@@ -196,7 +183,7 @@ If you need to add an axiom:
 
 ```
 User Code (EDSL)
-    ↓ [Proven, 1 axiom: addressToNat_injective]
+    ↓ [Proven, no axioms]
 ContractSpec
     ↓ [Proven, no additional axioms]
 IR
@@ -208,7 +195,7 @@ EVM Bytecode
 
 **Trust Assumptions**:
 1. Lean 4 type checker is sound (foundational)
-2. The 2 axioms documented above are sound
+2. The 1 axiom documented above is sound
 3. Solidity compiler (solc) correctly compiles Yul → Bytecode
 
 See `TRUST_ASSUMPTIONS.md` (issue #68) for complete trust model.
@@ -233,6 +220,6 @@ cat AXIOMS.md
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-02-19
 **Next Review**: When new axioms added or existing ones eliminated
 **Maintainer**: Document all changes to axioms in git commit messages

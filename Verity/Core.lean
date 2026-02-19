@@ -5,6 +5,7 @@
   Philosophy: Keep it minimal - only add what examples actually need.
 -/
 
+import Verity.Core.Address
 import Verity.Core.Uint256
 import Verity.Core.FiniteSet
 
@@ -13,7 +14,7 @@ namespace Verity
 open Verity.Core (FiniteAddressSet)
 
 -- Basic Ethereum types
-abbrev Address := String
+abbrev Address := Verity.Core.Address
 abbrev Uint256 := Verity.Core.Uint256
 
 -- Storage key-value abstraction
@@ -46,19 +47,19 @@ structure ContractState where
 -- Use `{ defaultState with sender := "0xAlice" }` to customize individual fields.
 def defaultState : ContractState where
   storage := fun _ => 0
-  storageAddr := fun _ => ""
+  storageAddr := fun _ => 0
   storageMap := fun _ _ => 0
   storageMapUint := fun _ _ => 0
   storageMap2 := fun _ _ _ => 0
-  sender := ""
-  thisAddress := ""
+  sender := 0
+  thisAddress := 0
   msgValue := 0
   blockTimestamp := 0
   knownAddresses := fun _ => Core.FiniteAddressSet.empty
 
 -- Repr instance for ContractState (simplified for readability)
 instance : Repr ContractState where
-  reprPrec s _ := s!"ContractState(sender={s.sender}, thisAddress={s.thisAddress})"
+  reprPrec s _ := s!"ContractState(sender={repr s.sender}, thisAddress={repr s.thisAddress})"
 
 -- Contract execution result (explicit success/failure)
 inductive ContractResult (α : Type) where

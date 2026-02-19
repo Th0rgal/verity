@@ -289,7 +289,7 @@ theorem deposit_preserves_wellformedness (s : ContractState) (amount : Uint256)
   WellFormedState s' := by
   rw [deposit_unfold]
   simp [ContractResult.snd]
-  exact ⟨h.sender_nonempty, h.contract_nonempty⟩
+  exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 theorem withdraw_preserves_wellformedness (s : ContractState) (amount : Uint256)
   (h : WellFormedState s) (h_balance : s.storageMap 0 s.sender >= amount) :
@@ -297,7 +297,7 @@ theorem withdraw_preserves_wellformedness (s : ContractState) (amount : Uint256)
   WellFormedState s' := by
   rw [withdraw_unfold s amount h_balance]
   simp [ContractResult.snd]
-  exact ⟨h.sender_nonempty, h.contract_nonempty⟩
+  exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 /-! ## Composition: deposit → getBalance -/
 

@@ -56,7 +56,7 @@ def denoteVal (env : String → Uint256) : Expr → Uint256
 /-- Evaluate a pure Address expression. -/
 def denoteAddr (envAddr : String → Address) : Expr → Address
   | .varAddr name => envAddr name
-  | _             => ""
+  | _             => 0
 
 /-- Evaluate a pure Bool expression (for `require` / `ite` conditions). -/
 def denoteBool (env : String → Uint256) (envAddr : String → Address) : Expr → Bool
@@ -209,7 +209,7 @@ def denoteAddress (env : String → Uint256) (envAddr : String → Address) : St
         denoteAddress env (fun s => if s == name then addr else envAddr s) rest
 
   -- Default: remaining patterns (unreachable for well-formed ASTs)
-  | _ => Verity.pure ""
+  | _ => Verity.pure 0
 
 /-!
 ## Monad Laws
@@ -224,6 +224,6 @@ modular helper functions.
 
 /-- Default empty environments for use in equivalence proofs. -/
 def emptyEnv : String → Uint256 := fun _ => 0
-def emptyEnvAddr : String → Address := fun _ => ""
+def emptyEnvAddr : String → Address := fun _ => 0
 
 end Verity.Denote

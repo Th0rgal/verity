@@ -38,11 +38,11 @@ theorem transferOwnership_reverts_when_not_owner (s : ContractState) (newOwner :
 /-- transferOwnership preserves WellFormedState when the new owner is non-empty.
     After ownership transfer, all address fields remain non-empty. -/
 theorem transferOwnership_preserves_wellformedness (s : ContractState) (newOwner : Address)
-  (h : WellFormedState s) (h_owner : s.sender = s.storageAddr 0) (h_new : newOwner ≠ "") :
+  (h : WellFormedState s) (h_owner : s.sender = s.storageAddr 0) (h_new : newOwner ≠ 0) :
   let s' := ((transferOwnership newOwner).run s).snd
   WellFormedState s' := by
   rw [transferOwnership_unfold s newOwner h_owner]; simp [ContractResult.snd]
-  exact ⟨h_owner ▸ h.sender_nonempty, h.contract_nonempty, h_new⟩
+  exact ⟨h_owner ▸ h.sender_nonzero, h.contract_nonzero, h_new⟩
 
 /-! ## End-to-End Composition -/
 
@@ -63,7 +63,7 @@ theorem constructor_transferOwnership_getOwner (s : ContractState) (initialOwner
 theorem transferred_owner_cannot_act (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) (h_ne : s.sender ≠ newOwner) :
   let s' := ((transferOwnership newOwner).run s).snd
-  ∃ msg, (transferOwnership "anyone").run s' = ContractResult.revert msg s' := by
+  ∃ msg, (transferOwnership 42).run s' = ContractResult.revert msg s' := by
   have h_ne' : ((transferOwnership newOwner).run s).snd.sender ≠
       ((transferOwnership newOwner).run s).snd.storageAddr 0 := by
     rw [transferOwnership_unfold s newOwner h_owner]; simp [ContractResult.snd, h_ne]

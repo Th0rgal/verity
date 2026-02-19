@@ -107,18 +107,18 @@ def genUint256 (rng : RNG) : RNG × Nat :=
 
 -- Convert Address to Nat for calldata args (keeps parity with Interpreter)
 private def addressToNatNormalized (addr : Address) : Nat :=
-  addressToNat (normalizeAddress addr)
+  addr.val
 
 -- Address pool including edge-case addresses (zero address, high address)
 private def addressPool : List Address :=
-  [ "0xalice"
-  , "0xbob"
-  , "0xcarol"
-  , "0xdave"
-  , "0xeve"
-  , "0x0000000000000000000000000000000000000000"  -- zero address
-  , "0xffffffffffffffffffffffffffffffffffffffff"  -- max address
-  , "0x0000000000000000000000000000000000000001"  -- address(1)
+  [ Verity.Core.Address.ofNat 0xa11ce
+  , Verity.Core.Address.ofNat 0xb0b
+  , Verity.Core.Address.ofNat 0xca201
+  , Verity.Core.Address.ofNat 0xdave
+  , Verity.Core.Address.ofNat 0xeve
+  , (0 : Address)                                                  -- zero address
+  , Verity.Core.Address.ofNat (2^160 - 1)                         -- max address
+  , Verity.Core.Address.ofNat 1                                    -- address(1)
   ]
 
 -- Generate random address from an expanded pool that includes edge cases
@@ -126,8 +126,8 @@ def genAddress (rng : RNG) : RNG × Address :=
   let (rng', n) := rng.next
   let addr := match addressPool.get? (n % addressPool.length) with
     | some a => a
-    | none   => "0xalice"  -- fallback; unreachable when addressPool is non-empty
-  (rng', normalizeAddress addr)
+    | none   => (0 : Address)  -- fallback; unreachable when addressPool is non-empty
+  (rng', addr)
 
 -- Generate random bool
 def genBool (rng : RNG) : RNG × Bool :=
@@ -306,7 +306,7 @@ def main (args : List String) : IO Unit := do
           for tx in txs do
             if !isFirst then IO.println ","
             let argsStr := String.intercalate "," (tx.args.map toString)
-            let jsonStr := "  {" ++ "\"sender\":\"" ++ tx.sender ++ "\",\"function\":\"" ++ tx.functionName ++ "\",\"args\":[" ++ argsStr ++ "],\"msgValue\":" ++ toString tx.msgValue ++ ",\"blockTimestamp\":" ++ toString tx.blockTimestamp ++ "}"
+            let jsonStr := "  {" ++ "\"sender\":\"" ++ toString tx.sender.val ++ "\",\"function\":\"" ++ tx.functionName ++ "\",\"args\":[" ++ argsStr ++ "],\"msgValue\":" ++ toString tx.msgValue ++ ",\"blockTimestamp\":" ++ toString tx.blockTimestamp ++ "}"
             IO.print jsonStr
             isFirst := false
           IO.println ""

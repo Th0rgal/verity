@@ -10,26 +10,21 @@
 
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Verity.Proofs.Stdlib.Automation
-import Compiler.Hex
 
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
 open Verity
-open Compiler.Hex
 open DiffTestTypes
 open Verity.Proofs.Stdlib.SpecInterpreter
 
 /-! ## Address Encoding -/
 
-/-- Convert Address (String) to Nat for IR execution
+/-- Convert Address to Nat for IR execution.
 
-    We use the production encoding:
-    - If `addr` is hex ("0x..." prefix), parse and mod 2^160.
-    - Otherwise, fall back to raw byte encoding and mod 2^160.
+    Address is a bounded Nat structure (val < 2^160), so conversion is trivial.
 -/
-def addressToNat (addr : Address) : Nat :=
-  Compiler.Hex.addressToNat addr
+def addressToNat (addr : Address) : Nat := addr.val
 
 /-! ## Address Domain for Mapping Keys -/
 
@@ -145,10 +140,8 @@ def resultsMatch (usesMapping : Bool) (addrs : List Address) (irResult : IRResul
 
 The conversion layer makes several simplifying assumptions:
 
-1. **Address encoding**: We reuse the production encoding. This is sound because:
-   - We only care about test contracts with a small, fixed set of addresses
-   - We axiomatize injectivity for valid 20-byte hex addresses
-   - The encoding matches `Compiler.Hex.addressToNat`
+1. **Address encoding**: Address is a bounded Nat (val < 2^160), so conversion
+   is trivial identity. Injectivity is provable from the structure definition.
 
 2. **Uint256 conversion**: Direct value extraction is sound because:
    - Uint256.val already represents the mathematical value

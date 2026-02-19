@@ -87,18 +87,13 @@ private def revertReturnValue (msg : String) : Nat :=
 private def addressModulus : Nat :=
   2 ^ 160
 
--- Helper: Convert Nat to properly formatted address (0x + 40 hex digits, lowercase)
+-- Helper: Convert Nat to Address (bounded to 160 bits)
 private def natToAddress (n : Nat) : Address :=
-  let masked := n % addressModulus
-  let hexDigits := Nat.toDigits 16 masked
-  let hexStr := hexDigits.asString
-  -- Pad to 40 characters (20 bytes = 40 hex digits)
-  let padded := String.mk (List.replicate (40 - hexStr.length) '0') ++ hexStr
-  normalizeAddress ("0x" ++ padded)
+  Verity.Core.Address.ofNat (n % addressModulus)
 
--- Helper: Convert hex address string (0x...) to Nat for JSON output
+-- Helper: Convert Address to Nat for JSON output
 private def addressToNat (addr : Address) : Nat :=
-  Compiler.Hex.addressToNat (normalizeAddress addr) % addressModulus
+  addr.val
 
 -- Helper: Convert ContractResult to ExecutionResult
 def resultToExecutionResult
@@ -419,7 +414,7 @@ def ExecutionResult.toJSON (r : ExecutionResult) : String :=
   ) "["
   let addrChangesStr := addrChangesStr ++ "]"
   let mappingChangesStr := r.mappingChanges.foldl (fun acc (slot, key, val) =>
-    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"key\":\"" ++ escapeJsonString key ++ "\",\"value\":" ++ toString val ++ "}"
+    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"key\":\"" ++ toString key.val ++ "\",\"value\":" ++ toString val ++ "}"
   ) "["
   let mappingChangesStr := mappingChangesStr ++ "]"
   "{\"success\":" ++ successStr
@@ -502,8 +497,8 @@ private def parseStorageConfig (s : String) : (String × String) :=
   | none => ("storage", s)
 
 -- Parse address storage: "slot0:addr0,slot1:addr1,..."
-def parseStorageAddr (storageStr : String) : Nat → String :=
-  parseSlotPairs storageStr (fun s => some (normalizeAddress s)) ""
+def parseStorageAddr (storageStr : String) : Nat → Address :=
+  parseSlotPairs storageStr (fun s => some (Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress s)))) (0 : Address)
 
 -- Parse mapping storage from command line args
 -- Format: "slot0:key0:val0,slot1:key1=val1,..."
@@ -518,7 +513,8 @@ def parseStorageMap (storageStr : String) : Nat → Address → Uint256 :=
         match parseArgNat? slotStr, parseArgNat? valStr with
         | some slot, some val =>
           let valU : Uint256 := val
-          acc ++ [(slot, normalizeAddress key, valU)]
+          let keyAddr := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress key))
+          acc ++ [(slot, keyAddr, valU)]
         | _, _ => acc
       | [slotStr, rest] =>
         match rest.splitOn "=" with
@@ -526,14 +522,14 @@ def parseStorageMap (storageStr : String) : Nat → Address → Uint256 :=
           match parseArgNat? slotStr, parseArgNat? valStr with
           | some slot, some val =>
             let valU : Uint256 := val
-            acc ++ [(slot, normalizeAddress key, valU)]
+            let keyAddr := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress key))
+            acc ++ [(slot, keyAddr, valU)]
           | _, _ => acc
         | _ => acc
       | _ => acc
   ) []
   fun slot key =>
-    let keyNorm := normalizeAddress key
-    (mapping.find? (fun (s, k, _) => s == slot && k == keyNorm)).map (fun (_, _, v) => v) |>.getD 0
+    (mapping.find? (fun (s, k, _) => s == slot && k == key)).map (fun (_, _, v) => v) |>.getD 0
 
 private def parseArgs (args : List String) : Except String (List Nat) :=
   let parsed := args.foldl (fun acc s =>
@@ -620,8 +616,9 @@ def main (args : List String) : IO Unit := do
     let argsNat ← match parseArgs nonEmptyArgStrs with
       | Except.ok vals => pure vals
       | Except.error msg => throw <| IO.userError msg
+    let senderAddress := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress senderAddr))
     let tx : Transaction := {
-      sender := normalizeAddress senderAddr
+      sender := senderAddress
       functionName := functionName
       args := argsNat
       msgValue := valueOpt.getD 0
@@ -633,7 +630,7 @@ def main (args : List String) : IO Unit := do
       | none => fun _ => 0  -- Default: empty storage
     let storageAddrState := match addrOpt with
       | some s => parseStorageAddr s
-      | none => fun _ => "" -- Default: empty address storage
+      | none => fun _ => (0 : Address) -- Default: empty address storage
     let storageMapState := match mapOpt with
       | some s => parseStorageMap s
       | none => fun _ _ => 0 -- Default: empty mapping storage
@@ -644,8 +641,8 @@ def main (args : List String) : IO Unit := do
       storageMap := storageMapState
       storageMapUint := fun _ _ => 0
       storageMap2 := fun _ _ _ => 0
-      sender := normalizeAddress senderAddr
-      thisAddress := "0xContract"
+      sender := senderAddress
+      thisAddress := Verity.Core.Address.ofNat 0xC0437AC7
       msgValue := valueOpt.getD 0
       blockTimestamp := timestampOpt.getD 0
       knownAddresses := fun _ => Verity.Core.FiniteAddressSet.empty

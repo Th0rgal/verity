@@ -88,16 +88,7 @@ def simpleStorageIRContract : IRContract :=
 
 @[simp] lemma addressToNat_mask (addr : Address) :
     addressToNat addr &&& (2^160 - 1) = addressToNat addr := by
-  have hpos : 0 < (2^160 : Nat) := by
-    have hbase : 0 < (2 : Nat) := by decide
-    exact pow_pos hbase 160
-  have hlt : addressToNat addr < 2^160 := by
-    unfold addressToNat Compiler.Hex.addressToNat
-    cases h : Compiler.Hex.parseHexNat? addr with
-    | some n =>
-        simp [Compiler.Hex.addressToNat, h, Nat.mod_lt, hpos]
-    | none =>
-        simp [Compiler.Hex.addressToNat, h, Nat.mod_lt, hpos]
+  have hlt : addressToNat addr < 2^160 := addr.isLt
   calc
     addressToNat addr &&& (2^160 - 1) = addressToNat addr % 2^160 := by
       simpa using (Nat.and_two_pow_sub_one_eq_mod (addressToNat addr) 160)

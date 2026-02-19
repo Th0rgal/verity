@@ -76,7 +76,7 @@ Standalone functions use `rfl`. Owner-gated functions use `bind_assoc`
 
 /-- `constructor` AST denotes to the EDSL `constructor` function. -/
 theorem constructor_equiv (initialOwner : Address) :
-    denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else "") constructorAST
+    denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else 0) constructorAST
     = constructor initialOwner := by
   rfl
 
@@ -114,7 +114,7 @@ theorem getOwner_equiv :
 
 /-- `transferOwnership` AST denotes to the EDSL `transferOwnership` function. -/
 theorem transferOwnership_equiv (newOwner : Address) :
-    denoteUnit emptyEnv (fun s => if s == "newOwner" then newOwner else "") transferOwnershipAST
+    denoteUnit emptyEnv (fun s => if s == "newOwner" then newOwner else 0) transferOwnershipAST
     = transferOwnership newOwner := by
   simp only [transferOwnership, Bind.bind, inline_onlyOwner, Verity.Examples.OwnedCounter.owner]; rfl
 

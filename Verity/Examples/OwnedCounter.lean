@@ -65,10 +65,10 @@ def transferOwnership (newOwner : Address) : Contract Unit := do
 
 -- Example: Initialize with Alice, increment twice, transfer to Bob, try to increment
 def exampleUsage : Contract (Uint256 × Address) := do
-  constructor "0xAlice"
+  constructor 0xA11CE
   increment
   increment
-  transferOwnership "0xBob"
+  transferOwnership 0xB0B
   -- Note: Next increment would fail if caller is still Alice
   -- But in this example context, we just read the final state
   let finalCount ← getCount
@@ -76,9 +76,9 @@ def exampleUsage : Contract (Uint256 × Address) := do
   return (finalCount, finalOwner)
 
 #eval (exampleUsage.run { defaultState with
-  sender := "0xAlice",  -- Alice is the caller
-  thisAddress := "0xContract"
+  sender := 0xA11CE,  -- Alice is the caller
+  thisAddress := 0xC0437AC7
 }).getValue?
--- Expected output: some (2, "0xBob")
+-- Expected output: some (2, 0xB0B)
 
 end Verity.Examples.OwnedCounter

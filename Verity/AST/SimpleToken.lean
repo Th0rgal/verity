@@ -102,7 +102,7 @@ private theorem inline_onlyOwner :
 
 /-- `constructor` AST denotes to the EDSL `constructor` function. -/
 theorem constructor_equiv (initialOwner : Address) :
-    denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else "") constructorAST
+    denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else 0) constructorAST
     = constructor initialOwner := by
   rfl
 
@@ -110,7 +110,7 @@ theorem constructor_equiv (initialOwner : Address) :
 theorem mint_equiv (to : Address) (amount : Uint256) :
     denoteUnit
       (fun s => if s == "amount" then amount else 0)
-      (fun s => if s == "to" then to else "")
+      (fun s => if s == "to" then to else 0)
       mintAST
     = mint to amount := by
   simp only [mint, Bind.bind, inline_onlyOwner,
@@ -120,14 +120,14 @@ theorem mint_equiv (to : Address) (amount : Uint256) :
 theorem transfer_equiv (to : Address) (amount : Uint256) :
     denoteUnit
       (fun s => if s == "amount" then amount else 0)
-      (fun s => if s == "to" then to else "")
+      (fun s => if s == "to" then to else 0)
       transferAST
     = transfer to amount := by
   rfl
 
 /-- `balanceOf` AST denotes to the EDSL `balanceOf` function. -/
 theorem balanceOf_equiv (addr : Address) :
-    denoteUint emptyEnv (fun s => if s == "addr" then addr else "") balanceOfAST
+    denoteUint emptyEnv (fun s => if s == "addr" then addr else 0) balanceOfAST
     = balanceOf addr := by
   rfl
 

@@ -32,7 +32,6 @@ open Compiler.ContractSpec
 open Compiler.Specs
 open Verity.Proofs.Stdlib.SpecInterpreter
 open Verity.Proofs.Stdlib.Automation
-open Compiler.Hex
 open Verity
 open Verity.Stdlib.Math (MAX_UINT256 safeAdd requireSomeUint)
 open Verity.Examples.SimpleToken
@@ -43,10 +42,10 @@ open Verity.Proofs.SimpleToken
 /-- Convert EDSL ContractState to SpecStorage for SimpleToken with specific addresses -/
 def tokenEdslToSpecStorageWithAddrs (state : ContractState) (addrs : List Address) : SpecStorage :=
   { slots := [
-      (0, addressToNat (state.storageAddr 0)),  -- owner at slot 0
+      (0, (state.storageAddr 0).val),  -- owner at slot 0
       (2, (state.storage 2).val)                -- totalSupply at slot 2
     ]
-    mappings := [(1, addrs.map (fun addr => (addressToNat addr, (state.storageMap 1 addr).val)))]
+    mappings := [(1, addrs.map (fun addr => (addr.val, (state.storageMap 1 addr).val)))]
     mappings2 := []
     events := [] }
 
@@ -69,12 +68,12 @@ theorem token_constructor_correct (state : ContractState) (initialOwner : Addres
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := ""
-      args := [addressToNat initialOwner]
+      args := [initialOwner.val]
     }
     let specResult := interpretSpec simpleTokenSpec SpecStorage.empty specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) ∧
+    specResult.finalStorage.getSlot 0 = (edslResult.getState.storageAddr 0).val ∧
     specResult.finalStorage.getSlot 2 = (edslResult.getState.storage 2).val := by
   constructor
   · -- EDSL constructor succeeds
@@ -94,7 +93,7 @@ theorem token_constructor_correct (state : ContractState) (initialOwner : Addres
       -- Use proven EDSL lemma
       simpa [Contract.run, ContractResult.getState, ContractResult.snd] using
         (constructor_sets_owner { state with sender := sender } initialOwner)
-    -- Spec side stores constructorArg 0 (addressToNat initialOwner)
+    -- Spec side stores constructorArg 0 (initialOwner.val)
     simp [interpretSpec, execConstructor, execStmts, execStmt, evalExpr,
       simpleTokenSpec, requireOwner, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty,
       addressToNat_mod_eq, h_owner]
@@ -116,12 +115,12 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "mint"
-      args := [addressToNat to, amount]
+      args := [to.val, amount]
     }
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state [to]) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getMapping 1 (addressToNat to) = (edslResult.getState.storageMap 1 to).val ∧
+    specResult.finalStorage.getMapping 1 (to.val) = (edslResult.getState.storageMap 1 to).val ∧
     specResult.finalStorage.getSlot 2 = (edslResult.getState.storage 2).val := by
   -- Convert Nat overflow hypotheses to Uint256 safeAdd results
   have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
@@ -192,11 +191,11 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
           functionName := "mint"
-          args := [addressToNat to, amount]
+          args := [to.val, amount]
         };
         let specResult := interpretSpec simpleTokenSpec
           (tokenEdslToSpecStorageWithAddrs state [to]) specTx;
-        specResult.finalStorage.getMapping 1 (addressToNat to)) =
+        specResult.finalStorage.getMapping 1 (to.val)) =
           ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -225,7 +224,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
           functionName := "mint"
-          args := [addressToNat to, amount]
+          args := [to.val, amount]
         };
         let specResult := interpretSpec simpleTokenSpec
           (tokenEdslToSpecStorageWithAddrs state [to]) specTx;
@@ -246,7 +245,7 @@ theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (a
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "mint"
-      args := [addressToNat to, amount]
+      args := [to.val, amount]
     }
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state [to]) specTx
     edslResult.isSuccess = false ∧
@@ -261,7 +260,7 @@ theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (a
       Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
       ContractResult.isSuccess, h_beq]
   · -- Spec reverts due to require failing
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
+    have h_beq : (sender.val == (state.storageAddr 0).val) = false :=
       addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
     simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -276,20 +275,20 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transfer"
-      args := [addressToNat to, amount]
+      args := [to.val, amount]
     }
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state [sender, to]) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getMapping 1 (addressToNat sender) = (edslResult.getState.storageMap 1 sender).val ∧
-    specResult.finalStorage.getMapping 1 (addressToNat to) = (edslResult.getState.storageMap 1 to).val := by
+    specResult.finalStorage.getMapping 1 (sender.val) = (edslResult.getState.storageMap 1 sender).val ∧
+    specResult.finalStorage.getMapping 1 (to.val) = (edslResult.getState.storageMap 1 to).val := by
   have h_amount_lt := amount_lt_modulus_of_val_ge (state.storageMap 1 sender) amount h
   have h_balance_u := uint256_ofNat_le_of_val_ge (state.storageMap 1 sender) amount h
   by_cases h_eq : sender = to
   · subst h_eq
     have h_not_lt : ¬ (state.storageMap 1 sender).val < amount := Nat.not_lt_of_ge h
     have h_sender_lt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := (state.storageMap 1 sender).isLt
-    have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by simp
+    have h_eq_nat : (sender.val == sender.val) = true := by simp
     constructor
     · -- EDSL success
       simp [transfer, msgSender, getMapping, setMapping, balances,
@@ -307,11 +306,11 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
           functionName := "transfer"
-          args := [addressToNat sender, amount]
+          args := [sender.val, amount]
         };
         let specResult := interpretSpec simpleTokenSpec
           (tokenEdslToSpecStorageWithAddrs state [sender, sender]) specTx;
-        specResult.finalStorage.getMapping 1 (addressToNat sender)) =
+        specResult.finalStorage.getMapping 1 (sender.val)) =
           (state.storageMap 1 sender).val := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -332,9 +331,9 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     exact ⟨by simpa [h_spec_val] using h_edsl_val.symm,
            by simpa [h_spec_val] using h_edsl_val.symm⟩
   · have h_ne : sender ≠ to := h_eq
-    have h_addr_ne : addressToNat sender ≠ addressToNat to :=
+    have h_addr_ne : sender.val ≠ to.val :=
       addressToNat_ne_of_ne sender to h_ne
-    have h_addr_ne' : addressToNat to ≠ addressToNat sender :=
+    have h_addr_ne' : to.val ≠ sender.val :=
       Ne.symm h_addr_ne
     have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 :=
       h_no_overflow h_ne
@@ -366,11 +365,11 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
             functionName := "transfer"
-            args := [addressToNat to, amount]
+            args := [to.val, amount]
           };
           let specResult := interpretSpec simpleTokenSpec
             (tokenEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-          specResult.finalStorage.getMapping 1 (addressToNat sender)) =
+          specResult.finalStorage.getMapping 1 (sender.val)) =
             (state.storageMap 1 sender).val - amount := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
           simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -402,11 +401,11 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
             functionName := "transfer"
-            args := [addressToNat to, amount]
+            args := [to.val, amount]
           };
           let specResult := interpretSpec simpleTokenSpec
             (tokenEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-          specResult.finalStorage.getMapping 1 (addressToNat to)) =
+          specResult.finalStorage.getMapping 1 (to.val)) =
             ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
           simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -442,7 +441,7 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transfer"
-      args := [addressToNat to, amount]
+      args := [to.val, amount]
     }
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state [sender, to]) specTx
     edslResult.isSuccess = false ∧
@@ -467,7 +466,7 @@ theorem token_transfer_reverts_insufficient (state : ContractState) (to : Addres
         SpecStorage.setMapping, SpecStorage.setSlot, SpecStorage_getMapping_setMapping_same,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
         h, h_insufficient, Nat.mod_eq_of_lt h_amount]
-    · have h_addr_ne : addressToNat sender ≠ addressToNat to :=
+    · have h_addr_ne : sender.val ≠ to.val :=
         addressToNat_ne_of_ne sender to h_eq
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         simpleTokenSpec, requireOwner, tokenEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -481,7 +480,7 @@ theorem token_balanceOf_correct (state : ContractState) (addr : Address) (sender
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "balanceOf"
-      args := [addressToNat addr]
+      args := [addr.val]
     }
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state [addr]) specTx
     specResult.success = true ∧
@@ -502,7 +501,7 @@ theorem token_getTotalSupply_correct (state : ContractState) (sender : Address) 
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
   unfold getTotalSupply Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
-  have h_slot : (List.lookup 2 [(0, addressToNat (state.storageAddr 0)), (2, (state.storage 2).val)]).getD 0
+  have h_slot : (List.lookup 2 [(0, (state.storageAddr 0).val), (2, (state.storage 2).val)]).getD 0
       = (state.storage 2).val := by
     simp [(by decide : (0:Nat) ≠ 2)]
   simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
@@ -518,7 +517,7 @@ theorem token_getOwner_correct (state : ContractState) (sender : Address) :
     }
     let specResult := interpretSpec simpleTokenSpec (tokenEdslToSpecStorageWithAddrs state []) specTx
     specResult.success = true ∧
-    specResult.returnValue = some (addressToNat edslAddr) := by
+    specResult.returnValue = some (edslAddr.val) := by
   unfold getOwner Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
   simp [getStorageAddr, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
     owner]

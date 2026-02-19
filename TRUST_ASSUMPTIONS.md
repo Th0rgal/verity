@@ -25,7 +25,7 @@ User's Contract Code (EDSL)
 ContractSpec (High-level specification)
     ↓ [Layer 2: FULLY VERIFIED]
 IR (Intermediate representation)
-    ↓ [Layer 3: FULLY VERIFIED, 2 axioms]
+    ↓ [Layer 3: FULLY VERIFIED, 1 axioms]
 Yul (Ethereum intermediate language)
     ↓ [TRUSTED: Solidity compiler]
 EVM Bytecode
@@ -37,7 +37,7 @@ EVM Bytecode
 |-----------|--------|------------|
 | Layer 1 (EDSL → Spec) | ✅ Verified | None |
 | Layer 2 (Spec → IR) | ✅ Verified | None |
-| Layer 3 (IR → Yul) | ✅ Verified (2 axioms) | Very Low |
+| Layer 3 (IR → Yul) | ✅ Verified (1 axiom) | Very Low |
 | Axioms | ⚠️ Documented | Low |
 | Solidity Compiler (solc) | ⚠️ Trusted | Medium |
 | Keccak256 Hashing | ⚠️ Trusted | Low |
@@ -45,7 +45,7 @@ EVM Bytecode
 | Linked Libraries (Linker) | ⚠️ Trusted | Varies |
 | Mapping Slot Collision Freedom | ⚠️ Trusted | Low |
 | Arithmetic Semantics | ⚠️ Documented | Low |
-| Address Type | ⚠️ Documented | Low |
+| Address Type | ✅ Verified | Very Low |
 | Lean 4 Type Checker | ⚠️ Foundational | Very Low |
 | `allowUnsafeReducibility` | ⚠️ Documented | Low |
 | Gas Modeling | ⚠️ Documented | Medium |
@@ -79,7 +79,7 @@ theorem increment_correct (state : ContractState) :
     finalState.storage countSlot = add (state.storage countSlot) 1
 ```
 
-**Coverage**: All 378 theorems are formally proven (100% proof coverage). Additionally, 220 theorems have corresponding Foundry property tests (58% runtime test coverage).
+**Coverage**: All 379 theorems are formally proven (100% proof coverage). Additionally, 220 theorems have corresponding Foundry property tests (58% runtime test coverage).
 
 **What this guarantees**:
 - Contract behavior matches specification
@@ -121,7 +121,7 @@ theorem execStmt_preserves_properties :
 
 ### Layer 3: IR → Yul
 
-**Status**: ✅ **Verified (with 2 axioms)**
+**Status**: ✅ **Verified (with 1 axiom)**
 
 **What is proven**: IR execution is equivalent to Yul execution when states are properly aligned.
 
@@ -143,7 +143,7 @@ theorem storageStore_equiv : ...
 theorem if_equiv : ...
 ```
 
-**Dependencies**: Relies on 2 axioms (see [Axioms](#axioms) section)
+**Dependencies**: Relies on 1 axiom (see [Axioms](#axioms) section)
 
 **What this guarantees**:
 - Yul code correctly implements IR semantics
@@ -441,55 +441,31 @@ uint256 x = type(uint256).max + 1;  // reverts with overflow
 
 ---
 
-### 9. Address Type: String Without Validation
+### 9. Address Type: Bounded Nat
 
-**Role**: Ethereum addresses are represented as plain `String` throughout the codebase (`Verity/Core.lean:16`):
+**Role**: Ethereum addresses are represented as bounded natural numbers (`Verity/Core/Address.lean`):
 
 ```lean
-abbrev Address := String
+structure Address where
+  val : Nat
+  isLt : val < 2^160
+  deriving DecidableEq
 ```
 
-**Assumption**: Contract specifications and proofs assume addresses are well-formed 20-byte hex strings (with `0x` prefix), but no validation is enforced at the type level.
+**Status**: ✅ **Verified** -- Address injectivity is now a provable theorem, not an axiom.
 
 **Details**:
 
-One axiom depends on address injectivity:
-- `addressToNat_injective` (Automation.lean): Claims `addressToNat a = addressToNat b → a = b`
+The `addressToNat_injective` axiom has been **eliminated**. With `Address` as a bounded Nat structure (following the `Uint256` pattern), injectivity follows trivially from `Address.ext`.
 
-Note: `addressToNat_injective_valid` was previously an axiom but was eliminated as a derived theorem (see AXIOMS.md). The derived theorem was later removed as dead code.
+Previously, `abbrev Address := String` made `addressToNat_injective` technically unsound -- `"0xFF" ≠ "0xff"` as strings but `addressToNat "0xFF" = addressToNat "0xff"`. This is now resolved.
 
-Since `Address = String`, any string can be used as an address. The axiom `addressToNat_injective` (without validity check) is technically unsound for arbitrary strings — `addressToNat "0xFF"` might equal `addressToNat "0xff"` while the strings are different.
+**Risk Assessment**: **Very Low**
+- Addresses are 160-bit integers, matching EVM semantics exactly
+- `DecidableEq`, `BEq`, `LawfulBEq` all derive automatically from the structure
+- No axioms required for address-related proofs
 
-**Impact**:
-
-| Issue | Description | Risk |
-|-------|-------------|------|
-| Type Safety | No compile-time protection against invalid addresses | Low |
-| Case Sensitivity | String equality is case-sensitive, but Ethereum addresses are case-insensitive (EIP-55) | Low |
-| Axiom Soundness | `addressToNat_injective` may not hold for invalid strings | Low |
-
-**Mitigation Strategies**:
-
-1. **Use Valid Addresses**: Always use properly formatted Ethereum addresses (e.g., `"0x1234...abcd"`)
-
-2. **Case Consistency**: Use consistent casing when comparing addresses (both uppercase or both lowercase)
-
-3. **EDSL Validation**: The EDSL does not validate address format - this is a trust assumption
-
-**Risk Assessment**: **Low**
-- This is documented here as a known limitation
-- The stronger axiom with `isValidAddress` guard is more defensible
-- In practice, addresses used in tests and examples are well-formed
-
-**Recommendation for Developers**:
-- Use consistently cased addresses in proofs and tests
-- When comparing addresses, normalize to lowercase first
-- For production use, validate addresses before using them in contracts
-
-**Future Work**:
-- Create a validated Address type: `structure Address where hex : String, isValid : ...`
-- Use `Fin (2^160)` or `ByteArray` of length 20 for type-safe address representation
-- Issue tracking: #150, #253
+**Issue**: #253 (resolved)
 
 ---
 
@@ -577,7 +553,7 @@ Since `Address = String`, any string can be used as an address. The axiom `addre
 
 ## Axioms
 
-Verity uses **2 axioms** across the verification codebase. All axioms are documented with soundness justifications.
+Verity uses **1 axiom** across the verification codebase. All axioms are documented with soundness justifications.
 
 **See**: [AXIOMS.md](AXIOMS.md) for complete details.
 
@@ -586,7 +562,6 @@ Verity uses **2 axioms** across the verification codebase. All axioms are docume
 | Axiom | Purpose | Risk | Validation |
 |-------|---------|------|------------|
 | `keccak256_first_4_bytes` | Function selector computation | Low | CI validation against solc --hashes |
-| `addressToNat_injective` | Address-to-Nat mapping injectivity | Low | EVM address semantics (see #253) |
 
 **Key Points**:
 - All axioms have **low risk** with strong soundness arguments
@@ -596,7 +571,8 @@ Verity uses **2 axioms** across the verification codebase. All axioms are docume
 
 **Future Work**:
 - Expression evaluation axioms eliminated (IR interpreter is now total)
-- Formalize hex string parsing for address injectivity
+- `addressToNat_injective` eliminated (Address is now a bounded Nat structure)
+- Remaining: prove `keccak256_first_4_bytes` via a Lean keccak256 implementation
 
 ---
 
@@ -678,8 +654,8 @@ Use this checklist when performing security audits of Verity-verified contracts.
    - Effort: 3-4 months
 
 2. **Further Axiom Elimination**
-   - 4 of 6 axioms already eliminated (3 via Issue #148, 1 via PR #202)
-   - Remaining: formalize hex string parsing for `addressToNat_injective`
+   - 5 of 6 axioms already eliminated (3 via Issue #148, 1 via PR #202, 1 via Issue #253)
+   - `addressToNat_injective` eliminated: Address is now a bounded Nat structure, injectivity is a theorem
    - Remaining: prove `keccak256_first_4_bytes` via a Lean keccak256 implementation
 
 3. **Gas Cost Verification** (Issue #262)
@@ -713,7 +689,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ✅ Contract implementations match specifications (Layer 1)
 ✅ Specifications preserved through compilation (Layer 2)
 ✅ IR semantics equivalent to Yul semantics (Layer 3)
-✅ 378 theorems across 9 categories (220 covered by property tests)
+✅ 379 theorems across 9 categories (220 covered by property tests)
 
 ### What is Trusted (Validated but Not Proven)
 ⚠️ Solidity compiler (solc) - Validated by 70k+ differential tests
@@ -722,7 +698,7 @@ Verity provides **strong formal verification** with a **small trusted computing 
 ⚠️ Arithmetic semantics - Wrapping (Lean) vs checked (Solidity), see section 8
 ⚠️ EVM semantics - Industry standard, billions in TVL
 ⚠️ Linked libraries - Outside proof boundary, validated by compile-time reference checks
-⚠️ 2 axioms - Low risk, extensively validated (see AXIOMS.md)
+⚠️ 1 axiom - Low risk, extensively validated (see AXIOMS.md)
 ⚠️ Gas modeling - Not verified, assume infinite gas (see section 10)
 
 ### Risk Profile
@@ -747,7 +723,7 @@ Trust assumptions are **documented and minimized**:
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-02-19
 **Next Review**: After completing issue #76 (Yul → Bytecode verification)
 **Maintainer**: Update when trust boundaries change or new components are verified
 

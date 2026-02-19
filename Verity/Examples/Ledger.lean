@@ -59,17 +59,17 @@ def exampleUsage : Contract (Uint256 × Uint256) := do
   withdraw 30
 
   -- Alice transfers 50 to Bob (Alice: 20, Bob: 50)
-  transfer "0xBob" 50
+  transfer 0xB0B 50
 
   -- Return both balances
-  let aliceBalance ← getBalance "0xAlice"
-  let bobBalance ← getBalance "0xBob"
+  let aliceBalance ← getBalance 0xA11CE
+  let bobBalance ← getBalance 0xB0B
   return (aliceBalance, bobBalance)
 
 -- Evaluate the example
 #eval! (exampleUsage.run { defaultState with
-  sender := "0xAlice",
-  thisAddress := "0xLedger"
+  sender := 0xA11CE,
+  thisAddress := 0x1ED6E2
 }).getValue?
 -- Expected output: some (20, 50) - Alice has 20, Bob has 50
 

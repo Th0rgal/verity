@@ -12,8 +12,8 @@ open Verity
 
 /-- Well-formed state -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
 
 /-- Context preserved across operations -/
 abbrev context_preserved := Specs.sameContext

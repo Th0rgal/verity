@@ -82,24 +82,24 @@ def getOwner : Contract Address := do
 
 -- Example usage: Alice creates token, mints 1000 to herself, transfers 300 to Bob
 def exampleUsage : Contract (Uint256 × Uint256 × Uint256) := do
-  constructor "0xAlice"
+  constructor 0xA11CE
 
   -- Alice mints 1000 tokens to herself
-  mint "0xAlice" 1000
+  mint 0xA11CE 1000
 
   -- Alice transfers 300 to Bob
-  transfer "0xBob" 300
+  transfer 0xB0B 300
 
   -- Return: (Alice balance, Bob balance, total supply)
-  let aliceBalance ← balanceOf "0xAlice"
-  let bobBalance ← balanceOf "0xBob"
+  let aliceBalance ← balanceOf 0xA11CE
+  let bobBalance ← balanceOf 0xB0B
   let supply ← getTotalSupply
   return (aliceBalance, bobBalance, supply)
 
 -- Evaluate the example
 #eval! (exampleUsage.run { defaultState with
-  sender := "0xAlice",
-  thisAddress := "0xSimpleToken"
+  sender := 0xA11CE,
+  thisAddress := 0x5143
 }).getValue?
 -- Expected output: some (700, 300, 1000) - Alice: 700, Bob: 300, supply: 1000
 

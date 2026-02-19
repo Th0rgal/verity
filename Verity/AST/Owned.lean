@@ -45,13 +45,13 @@ from `onlyOwner` → `isOwner` composition. -/
 
 /-- `constructor` AST denotes to the EDSL `constructor` function. -/
 theorem constructor_equiv (initialOwner : Address) :
-    denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else "") constructorAST
+    denoteUnit emptyEnv (fun s => if s == "initialOwner" then initialOwner else 0) constructorAST
     = constructor initialOwner := by
   rfl
 
 /-- `transferOwnership` AST denotes to the EDSL `transferOwnership` function. -/
 theorem transferOwnership_equiv (newOwner : Address) :
-    denoteUnit emptyEnv (fun s => if s == "newOwner" then newOwner else "") transferOwnershipAST
+    denoteUnit emptyEnv (fun s => if s == "newOwner" then newOwner else 0) transferOwnershipAST
     = transferOwnership newOwner := by
   simp only [transferOwnership, Verity.Examples.Owned.onlyOwner,
     Verity.Examples.Owned.isOwner, Verity.Examples.Owned.owner,

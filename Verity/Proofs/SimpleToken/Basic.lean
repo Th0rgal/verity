@@ -446,13 +446,13 @@ theorem constructor_getOwner_correct (s : ContractState) (initialOwner : Address
 /-! ## Invariant Preservation -/
 
 theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner : Address)
-  (h : WellFormedState s) (h_owner : initialOwner ≠ "") :
+  (h : WellFormedState s) (h_owner : initialOwner ≠ 0) :
   let s' := ((constructor initialOwner).run s).snd
   WellFormedState s' := by
   have h_spec := constructor_meets_spec s initialOwner
   simp [constructor_spec] at h_spec
   obtain ⟨h_owner_set, h_supply_set, h_other_addr, h_other_uint, h_map, h_sender, h_this, _h_value, _h_time⟩ := h_spec
-  exact ⟨h_sender ▸ h.sender_nonempty, h_this ▸ h.contract_nonempty, h_owner_set ▸ h_owner⟩
+  exact ⟨h_sender ▸ h.sender_nonzero, h_this ▸ h.contract_nonzero, h_owner_set ▸ h_owner⟩
 
 theorem balanceOf_preserves_wellformedness (s : ContractState) (addr : Address) (h : WellFormedState s) :
   let s' := ((balanceOf addr).run s).snd

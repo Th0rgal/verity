@@ -15,9 +15,9 @@ open Verity
 
 /-- Well-formed state after construction -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
-  owner_nonempty : s.storageAddr 0 ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
+  owner_nonzero : s.storageAddr 0 ≠ 0
 
 /-- Storage isolation: count operations don't touch owner -/
 def count_preserves_owner (s s' : ContractState) : Prop :=

@@ -16,12 +16,12 @@ Properties that should be maintained by all operations.
 -/
 
 /-- Well-formed contract state:
-    - Sender address is non-empty
-    - Contract address is non-empty
+    - Sender address is nonzero
+    - Contract address is nonzero
 -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
 
 /-- Storage isolation: Operations on slot 0 (count) don't affect other slots -/
 def storage_isolated (s s' : ContractState) (slot : Nat) : Prop :=

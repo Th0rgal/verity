@@ -78,7 +78,7 @@ theorem withdraw_equiv (amount : Uint256) :
 
 /-- `getBalance` AST denotes to the EDSL `getBalance` function. -/
 theorem getBalance_equiv (addr : Address) :
-    denoteUint emptyEnv (fun s => if s == "addr" then addr else "") getBalanceAST
+    denoteUint emptyEnv (fun s => if s == "addr" then addr else 0) getBalanceAST
     = getBalance addr := by
   rfl
 
@@ -86,7 +86,7 @@ theorem getBalance_equiv (addr : Address) :
 theorem transfer_equiv (to : Address) (amount : Uint256) :
     denoteUnit
       (fun s => if s == "amount" then amount else 0)
-      (fun s => if s == "to" then to else "")
+      (fun s => if s == "to" then to else 0)
       transferAST
     = transfer to amount := by
   rfl

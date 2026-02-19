@@ -19,8 +19,8 @@
   - Well-Formedness Preservation: `wf_of_state_eq` for read-only ops
   - Generic Storage Preservation: cross-type preservation for setStorage/setStorageAddr/setMapping
 
-  Status: All lemmas fully proven with zero sorry.
-  Note: Contains 1 axiom (addressToNat_injective) — see AXIOMS.md.
+  Status: All lemmas fully proven with zero sorry, zero axioms.
+  Note: addressToNat_injective is now a provable theorem (was an axiom when Address = String).
 -/
 
 import Verity.Core
@@ -32,7 +32,6 @@ namespace Verity.Proofs.Stdlib.Automation
 
 open Verity
 open Verity.Proofs.Stdlib.SpecInterpreter
-open Compiler.Hex
 
 /-!
 ## Contract Result Lemmas
@@ -145,27 +144,22 @@ theorem getStorageAddr_runValue (slot : StorageSlot Address) (state : ContractSt
 ## Address Encoding Lemmas
 -/
 
--- Ethereum addresses are 160-bit values, so addressToNat is always less than 2^256.
+-- Address values are always less than 2^160 (the address modulus).
 theorem addressToNat_lt_modulus (addr : Address) :
-    addressToNat addr < addressModulus := by
-  unfold addressToNat
-  split
-  · rename_i n _
-    exact Nat.mod_lt _ (by decide : 2^160 > 0)
-  · rename_i _
-    exact Nat.mod_lt _ (by decide : 2^160 > 0)
+    addr.val < addressModulus := addr.isLt
 
 @[simp] theorem addressToNat_mod_eq (addr : Address) :
-    addressToNat addr % addressModulus = addressToNat addr := by
+    addr.val % addressModulus = addr.val := by
   exact Nat.mod_eq_of_lt (addressToNat_lt_modulus addr)
 
 @[simp] theorem addressToNat_beq_self (addr : Address) :
-    (addressToNat addr == addressToNat addr) = true := by
+    (addr.val == addr.val) = true := by
   simp
 
--- Trust assumption: address encoding is injective for valid addresses.
-axiom addressToNat_injective :
-    ∀ (a b : Address), addressToNat a = addressToNat b → a = b
+-- Injectivity is now provable from the structure definition (was an axiom!).
+theorem addressToNat_injective :
+    ∀ (a b : Address), a.val = b.val → a = b :=
+  fun _ _ h => Verity.Core.Address.ext h
 
 /-!
 ## Mapping Operation Lemmas
@@ -306,7 +300,7 @@ theorem require_success_implies_cond (cond : Bool) (msg : String) (state : Contr
 ## Address Equality Lemmas
 -/
 
--- Address beq reflects equality (Address is String)
+-- Address beq reflects equality.
 theorem address_beq_eq_true_iff_eq (a b : Address) :
     (a == b) = true ↔ a = b := by
   simp only [beq_iff_eq]
@@ -316,15 +310,15 @@ theorem address_beq_false_of_ne (a b : Address) (h : a ≠ b) :
     (a == b) = false :=
   beq_eq_false_iff_ne.mpr h
 
-/-- addressToNat is injective, so distinct addresses have distinct Nat encodings. -/
+/-- Distinct addresses have distinct Nat values. -/
 theorem addressToNat_ne_of_ne (a b : Address) (h : a ≠ b) :
-    addressToNat a ≠ addressToNat b := by
+    a.val ≠ b.val := by
   intro h_nat
   exact h (addressToNat_injective a b h_nat)
 
-/-- addressToNat beq is false when addresses are not equal. -/
+/-- Address val beq is false when addresses are not equal. -/
 theorem addressToNat_beq_false_of_ne (a b : Address) (h : a ≠ b) :
-    (addressToNat a == addressToNat b) = false :=
+    (a.val == b.val) = false :=
   beq_eq_false_iff_ne.mpr (addressToNat_ne_of_ne a b h)
 
 /-!
@@ -811,6 +805,6 @@ theorem require_beq_success_implies_eq (a b : Address) (msg : String)
     a = b :=
   (address_beq_eq_true_iff_eq a b).1 (require_success_implies_cond (cond := a == b) (msg := msg) (state := s) h)
 
--- All lemmas in this file are fully proven with zero sorry (1 axiom: addressToNat_injective).
+-- All lemmas in this file are fully proven with zero sorry, zero axioms.
 
 end Verity.Proofs.Stdlib.Automation

@@ -8,10 +8,10 @@ namespace Verity.Specs.SimpleStorage
 
 open Verity
 
-/-- Basic well-formedness: addresses are non-empty -/
+/-- Basic well-formedness: addresses are nonzero -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
 
 /-- Storage slot isolation: operations on slot 0 don't affect other slots -/
 def storage_isolated (s s' : ContractState) (slot : Nat) : Prop :=

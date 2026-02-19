@@ -10,6 +10,8 @@
   Key theorems: insert_of_not_mem, mem_elements_insert, sum_empty.
 -/
 
+import Verity.Core.Address
+
 namespace Verity.Core
 
 /-- A finite set implemented as a list without duplicates -/
@@ -73,7 +75,7 @@ end FiniteSet
 
 /-- Finite set of addresses -/
 structure FiniteAddressSet where
-  addresses : FiniteSet String
+  addresses : FiniteSet Address
   deriving Repr
 
 namespace FiniteAddressSet
@@ -83,7 +85,7 @@ def empty : FiniteAddressSet :=
   ⟨FiniteSet.empty⟩
 
 /-- Insert an address into the set -/
-def insert (addr : String) (s : FiniteAddressSet) : FiniteAddressSet :=
+def insert (addr : Address) (s : FiniteAddressSet) : FiniteAddressSet :=
   ⟨s.addresses.insert addr⟩
 
 end FiniteAddressSet

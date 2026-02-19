@@ -27,7 +27,6 @@ open Compiler.ContractSpec
 open Compiler.Specs
 open Verity.Proofs.Stdlib.SpecInterpreter
 open Verity.Proofs.Stdlib.Automation
-open Compiler.Hex
 open Verity
 open Verity.Examples.Owned
 
@@ -35,7 +34,7 @@ open Verity.Examples.Owned
 
 /-- Convert EDSL ContractState to SpecStorage for Owned -/
 def ownedEdslToSpecStorage (state : ContractState) : SpecStorage :=
-  { slots := [(0, addressToNat (state.storageAddr 0))]
+  { slots := [(0, Verity.Core.Address.val (state.storageAddr 0))]
     mappings := []
     mappings2 := []
     events := [] }
@@ -50,12 +49,12 @@ theorem owned_constructor_correct (state : ContractState) (initialOwner : Addres
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := ""  -- constructor has no name
-      args := [addressToNat initialOwner]
+      args := [Verity.Core.Address.val initialOwner]
     }
     let specResult := interpretSpec ownedSpec SpecStorage.empty specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getSlot 0 = addressToNat (edslResult.getState.storageAddr 0) := by
+    specResult.finalStorage.getSlot 0 = Verity.Core.Address.val (edslResult.getState.storageAddr 0) := by
   simp [Verity.Examples.Owned.constructor, Contract.run, ownedSpec, interpretSpec,
     setStorageAddr, Verity.Examples.Owned.owner, Verity.bind, Verity.pure,
     execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
@@ -67,12 +66,12 @@ theorem owned_transferOwnership_correct_as_owner (state : ContractState) (newOwn
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transferOwnership"
-      args := [addressToNat newOwner]
+      args := [Verity.Core.Address.val newOwner]
     }
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getSlot 0 = addressToNat newOwner := by
+    specResult.finalStorage.getSlot 0 = Verity.Core.Address.val newOwner := by
   have h_owner' : ({ state with sender := sender }).sender =
       ({ state with sender := sender }).storageAddr 0 := by simp [h]
   refine ⟨?_, ?_, ?_⟩
@@ -93,7 +92,7 @@ theorem owned_transferOwnership_reverts_as_nonowner (state : ContractState) (new
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transferOwnership"
-      args := [addressToNat newOwner]
+      args := [Verity.Core.Address.val newOwner]
     }
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     edslResult.isSuccess = false ∧
@@ -119,7 +118,7 @@ theorem owned_getOwner_correct (state : ContractState) (sender : Address) :
     }
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     specResult.success = true ∧
-    specResult.returnValue = some (addressToNat edslAddr) := by
+    specResult.returnValue = some (Verity.Core.Address.val edslAddr) := by
   simp [Verity.Examples.Owned.getOwner, Contract.runValue, ownedSpec, interpretSpec, ownedEdslToSpecStorage,
     getStorageAddr, Verity.Examples.Owned.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
 

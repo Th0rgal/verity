@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
-  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-378-brightgreen.svg" alt="378 Theorems"></a>
+  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-379-brightgreen.svg" alt="379 Theorems"></a>
   <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
@@ -28,7 +28,7 @@ source ~/.elan/env
 # 2. Clone and build
 git clone https://github.com/Th0rgal/verity.git
 cd verity
-lake build                                    # Verifies all 378 theorems
+lake build                                    # Verifies all 379 theorems
 
 # 3. Generate a new contract
 python3 scripts/generate_contract.py MyContract
@@ -123,13 +123,13 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 
 See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
 
-378 theorems across 9 categories, all fully proven. 375 Foundry tests across 32 test suites. 220 covered by property tests (58% coverage, 158 proof-only exclusions). 2 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
+379 theorems across 9 categories, all fully proven. 375 Foundry tests across 32 test suites. 220 covered by property tests (58% coverage, 159 proof-only exclusions). 1 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
 - **EDSL correctness** - each contract satisfies its spec in Lean (Layer 1)
 - **Compiler correctness** - IR generation preserves semantics (Layer 2), Yul codegen preserves IR (Layer 3)
-- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 2 axioms
+- **End-to-end pipeline** - EDSL -> ContractSpec -> IR -> Yul, fully verified with 1 axioms
 - **Trust boundary** - Yul -> EVM bytecode via solc (validated by 70k+ differential tests)
 
 See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
@@ -230,7 +230,7 @@ The compiler validates function names, arities, and prevents name collisions. Se
 |---|---|
 | [Docs Site](https://verity.thomasm.ar/) | Full documentation site with guides and DSL reference |
 | [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
-| [`AXIOMS.md`](AXIOMS.md) | All 2 axioms with soundness justifications |
+| [`AXIOMS.md`](AXIOMS.md) | All axioms with soundness justifications (1 remaining) |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Verification progress, planned features |
 | [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) | Per-theorem status |

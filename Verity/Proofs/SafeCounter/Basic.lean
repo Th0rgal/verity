@@ -164,7 +164,7 @@ theorem increment_preserves_wellformedness (s : ContractState)
   WellFormedState s' := by
   rw [increment_unfold s h_no_overflow]
   simp [ContractResult.snd]
-  exact ⟨h.sender_nonempty, h.contract_nonempty⟩
+  exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 theorem decrement_preserves_wellformedness (s : ContractState)
   (h : WellFormedState s) (h_no_underflow : (s.storage 0 : Nat) ≥ 1) :
@@ -172,7 +172,7 @@ theorem decrement_preserves_wellformedness (s : ContractState)
   WellFormedState s' := by
   rw [decrement_unfold s h_no_underflow]
   simp [ContractResult.snd]
-  exact ⟨h.sender_nonempty, h.contract_nonempty⟩
+  exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 /-! ## Bounds Preservation -/
 

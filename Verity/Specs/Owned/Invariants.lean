@@ -16,13 +16,13 @@ Properties that should be maintained by all operations.
 -/
 
 /-- Well-formed contract state:
-    - Sender address is non-empty
-    - Contract address is non-empty
-    - Owner address is non-empty (after construction)
+    - Sender address is nonzero
+    - Contract address is nonzero
+    - Owner address is nonzero (after construction)
 -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
-  owner_nonempty : s.storageAddr 0 ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
+  owner_nonzero : s.storageAddr 0 ≠ 0
 
 end Verity.Specs.Owned

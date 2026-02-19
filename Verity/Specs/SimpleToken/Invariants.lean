@@ -12,11 +12,11 @@ open Verity.EVM.Uint256
 
 /-! ## State Invariants -/
 
-/-- Basic well-formedness: addresses are non-empty -/
+/-- Basic well-formedness: addresses are nonzero -/
 structure WellFormedState (s : ContractState) : Prop where
-  sender_nonempty : s.sender ≠ ""
-  contract_nonempty : s.thisAddress ≠ ""
-  owner_nonempty : s.storageAddr 0 ≠ ""
+  sender_nonzero : s.sender ≠ 0
+  contract_nonzero : s.thisAddress ≠ 0
+  owner_nonzero : s.storageAddr 0 ≠ 0
 
 /-- Sum balances over a list of addresses -/
 def sum_balances (s : ContractState) (addrs : List Address) : Uint256 :=

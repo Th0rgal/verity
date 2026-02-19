@@ -46,15 +46,15 @@ def getOwner : Contract Address := do
 
 -- Example: Initialize, check owner, transfer ownership
 def exampleUsage : Contract Address := do
-  constructor "0xAlice"
-  transferOwnership "0xBob"
+  constructor 0xA11CE
+  transferOwnership 0xB0B
   getOwner
 
 -- Note: This will evaluate in a context where msgSender is set
 #eval (exampleUsage.run { defaultState with
-  sender := "0xAlice",  -- Alice is the caller
-  thisAddress := "0xContract"
+  sender := 0xA11CE,  -- Alice is the caller
+  thisAddress := 0xC0437AC7
 }).getValue?
--- Expected output: some "0xBob" (after transfer)
+-- Expected output: some 0xB0B (after transfer)
 
 end Verity.Examples.Owned

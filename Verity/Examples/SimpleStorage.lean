@@ -32,8 +32,8 @@ def exampleUsage : Contract Uint256 := do
   retrieve
 
 #eval (exampleUsage.run { defaultState with
-  sender := "0xAlice",
-  thisAddress := "0xContract"
+  sender := 0xA11CE,
+  thisAddress := 0xC0437AC7
 }).getValue?
 -- Expected output: some 42
 

@@ -64,8 +64,8 @@ def exampleUsage : Contract Uint256 := do
 
 -- Evaluate the example
 #eval (exampleUsage.run { defaultState with
-  sender := "0xAlice",
-  thisAddress := "0xCryptoHash"
+  sender := 0xA11CE,
+  thisAddress := 0xC2470
 }).getValue?
 -- Expected output: some 300 (with placeholder hash: 100 + 200)
 

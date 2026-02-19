@@ -87,22 +87,22 @@ COUNTEREXAMPLE: Proof that vulnerability exists
 
 theorem vulnerable_attack_exists :
   ∃ (s : ContractState),
-    s.storageMap balances.slot "attacker" = (Verity.EVM.MAX_UINT256 : Uint256) ∧
+    s.storageMap balances.slot 0xA77AC = (Verity.EVM.MAX_UINT256 : Uint256) ∧
     s.storage totalSupply.slot = (Verity.EVM.MAX_UINT256 : Uint256) ∧
-    supplyInvariant s ["attacker"] ∧
+    supplyInvariant s [0xA77AC] ∧
     let s' := (withdraw (Verity.EVM.MAX_UINT256 : Uint256)).runState s;
-    ¬ supplyInvariant s' ["attacker"] := by
+    ¬ supplyInvariant s' [0xA77AC] := by
   -- Choose a concrete attacker and amount. We use MAX_UINT256 so that
   -- `0 - amount` wraps to 1, making the mismatch obvious.
   let s : ContractState :=
     { storage := fun slot => if slot == totalSupply.slot then (Verity.EVM.MAX_UINT256 : Uint256) else 0
-    , storageAddr := fun _ => ""
+    , storageAddr := fun _ => 0
     , storageMap := fun slot addr =>
-        if slot == balances.slot && addr == "attacker" then (Verity.EVM.MAX_UINT256 : Uint256) else 0
+        if slot == balances.slot && addr == 0xA77AC then (Verity.EVM.MAX_UINT256 : Uint256) else 0
     , storageMapUint := fun _ _ => 0
     , storageMap2 := fun _ _ _ => 0
-    , sender := "attacker"
-    , thisAddress := "this"
+    , sender := 0xA77AC
+    , thisAddress := 0x7415
     , msgValue := 0
     , blockTimestamp := 0
     , knownAddresses := fun _ => Core.FiniteAddressSet.empty }
@@ -131,9 +131,9 @@ We can show the universal statement is FALSE by using the counterexample.
 
 theorem withdraw_maintains_supply_UNPROVABLE :
   ¬ (∀ (s : ContractState),
-      supplyInvariant s ["attacker"] →
+      supplyInvariant s [0xA77AC] →
       let s' := (withdraw (Verity.EVM.MAX_UINT256 : Uint256)).runState s;
-      supplyInvariant s' ["attacker"]) := by
+      supplyInvariant s' [0xA77AC]) := by
   intro h
   rcases vulnerable_attack_exists with ⟨s, _h_bal, _h_sup, h_inv, h_not⟩
   have h' := h s h_inv

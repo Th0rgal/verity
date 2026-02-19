@@ -30,7 +30,6 @@ open Compiler.ContractSpec
 open Compiler.Specs
 open Verity.Proofs.Stdlib.SpecInterpreter
 open Verity.Proofs.Stdlib.Automation
-open Compiler.Hex
 open Verity
 open Verity.Stdlib.Math (MAX_UINT256)
 open Verity.Examples.Ledger
@@ -47,7 +46,7 @@ open Verity.Examples.Ledger
 /-- Convert EDSL mapping to SpecStorage mapping for specific addresses -/
 def ledgerEdslToSpecStorageWithAddrs (state : ContractState) (addrs : List Address) : SpecStorage :=
   { slots := []
-    mappings := [(0, addrs.map (fun addr => (addressToNat addr, (state.storageMap 0 addr).val)))]
+    mappings := [(0, addrs.map (fun addr => (addr.val, (state.storageMap 0 addr).val)))]
     mappings2 := []
     events := [] }
 
@@ -64,7 +63,7 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getMapping 0 (addressToNat sender) =
+    specResult.finalStorage.getMapping 0 (sender.val) =
       (edslResult.getState.storageMap 0 sender).val := by
   constructor
   · -- EDSL success
@@ -85,7 +84,7 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
         };
         let specResult :=
           interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
-        specResult.finalStorage.getMapping 0 (addressToNat sender)) =
+        specResult.finalStorage.getMapping 0 (sender.val)) =
           ((state.storageMap 0 sender).val + amount) % Verity.Core.Uint256.modulus := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -119,7 +118,7 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getMapping 0 (addressToNat sender) =
+    specResult.finalStorage.getMapping 0 (sender.val) =
       (edslResult.getState.storageMap 0 sender).val := by
   have h_amount_lt := amount_lt_modulus_of_val_ge (state.storageMap 0 sender) amount h
   have h_balance_u := uint256_ofNat_le_of_val_ge (state.storageMap 0 sender) amount h
@@ -143,7 +142,7 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
         };
         let specResult :=
           interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
-        specResult.finalStorage.getMapping 0 (addressToNat sender)) =
+        specResult.finalStorage.getMapping 0 (sender.val)) =
           (state.storageMap 0 sender).val - amount := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -204,14 +203,14 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transfer"
-      args := [addressToNat to, amount]
+      args := [to.val, amount]
     }
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
-    specResult.finalStorage.getMapping 0 (addressToNat sender) =
+    specResult.finalStorage.getMapping 0 (sender.val) =
       (edslResult.getState.storageMap 0 sender).val ∧
-    specResult.finalStorage.getMapping 0 (addressToNat to) =
+    specResult.finalStorage.getMapping 0 (to.val) =
       (edslResult.getState.storageMap 0 to).val := by
   have h_amount_lt := amount_lt_modulus_of_val_ge (state.storageMap 0 sender) amount h
   have h_balance_u := uint256_ofNat_le_of_val_ge (state.storageMap 0 sender) amount h
@@ -232,7 +231,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
         Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
         Contract.run, ContractResult.isSuccess, h_balance_u, beq_iff_eq]
     have h_not_lt : ¬ (state.storageMap 0 sender).val < amount := Nat.not_lt_of_ge h
-    have h_eq_nat : (addressToNat sender == addressToNat sender) = true := by simp
+    have h_eq_nat : (sender.val == sender.val) = true := by simp
     constructor
     · -- Spec success (self-transfer: amountDelta=0, overflow check trivially passes)
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -246,11 +245,11 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
           functionName := "transfer"
-          args := [addressToNat sender, amount]
+          args := [sender.val, amount]
         };
         let specResult :=
           interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, sender]) specTx;
-        specResult.finalStorage.getMapping 0 (addressToNat sender)) =
+        specResult.finalStorage.getMapping 0 (sender.val)) =
           (state.storageMap 0 sender).val := by
       simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
         ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -271,9 +270,9 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
     exact ⟨by simpa [h_spec_val] using h_edsl_val.symm,
            by simpa [h_spec_val] using h_edsl_val.symm⟩
   · have h_ne : sender ≠ to := h_eq
-    have h_addr_ne : addressToNat sender ≠ addressToNat to :=
+    have h_addr_ne : sender.val ≠ to.val :=
       addressToNat_ne_of_ne sender to h_ne
-    have h_addr_ne' : addressToNat to ≠ addressToNat sender :=
+    have h_addr_ne' : to.val ≠ sender.val :=
       Ne.symm h_addr_ne
     -- Compute safeAdd success for EDSL proof
     have h_no_overflow_u : (state.storageMap 0 to : Nat) + ((Verity.Core.Uint256.ofNat amount) : Nat) ≤ MAX_UINT256 := by
@@ -304,11 +303,11 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
             functionName := "transfer"
-            args := [addressToNat to, amount]
+            args := [to.val, amount]
           };
           let specResult :=
             interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-          specResult.finalStorage.getMapping 0 (addressToNat sender)) =
+          specResult.finalStorage.getMapping 0 (sender.val)) =
             (state.storageMap 0 sender).val - amount := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
           ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -337,11 +336,11 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
           (let specTx : DiffTestTypes.Transaction := {
             sender := sender
             functionName := "transfer"
-            args := [addressToNat to, amount]
+            args := [to.val, amount]
           };
           let specResult :=
             interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-          specResult.finalStorage.getMapping 0 (addressToNat to)) =
+          specResult.finalStorage.getMapping 0 (to.val)) =
             ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus := by
         simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
           ledgerSpec, ledgerEdslToSpecStorageWithAddrs, SpecStorage.getMapping, SpecStorage.getSlot,
@@ -374,7 +373,7 @@ theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Addre
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "transfer"
-      args := [addressToNat to, amount]
+      args := [to.val, amount]
     }
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx
     edslResult.isSuccess = false ∧
@@ -395,9 +394,9 @@ theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Addre
     have h_senderBal :
         (List.lookup "senderBal"
             [("recipientBal",
-                (List.lookup (addressToNat to % Verity.Core.Uint256.modulus)
-                      [(addressToNat sender, (state.storageMap 0 sender).val),
-                        (addressToNat to, (state.storageMap 0 to).val)]).getD
+                (List.lookup (to.val % Verity.Core.Uint256.modulus)
+                      [(sender.val, (state.storageMap 0 sender).val),
+                        (to.val, (state.storageMap 0 to).val)]).getD
                   0),
               ("senderBal", (state.storageMap 0 sender).val)]).getD 0 =
           (state.storageMap 0 sender).val := by
@@ -412,7 +411,7 @@ theorem ledger_getBalance_correct (state : ContractState) (addr : Address) (send
     let specTx : DiffTestTypes.Transaction := {
       sender := sender
       functionName := "getBalance"
-      args := [addressToNat addr]
+      args := [addr.val]
     }
     let specResult := interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [addr]) specTx
     specResult.success = true ∧
@@ -423,7 +422,7 @@ theorem ledger_getBalance_correct (state : ContractState) (addr : Address) (send
     simpa [Contract.runValue] using
       Verity.Proofs.Ledger.getBalance_returns_balance { state with sender := sender } addr
   have h_mod := addressToNat_mod_eq addr
-  -- Spec side: interpretSpec returns the mapping value at key addressToNat addr.
+  -- Spec side: interpretSpec returns the mapping value at key addr.val.
   -- The Spec storage is initialized with exactly that mapping entry.
   simp [interpretSpec, execFunction, execStmts, execStmt, evalExpr,
     ledgerSpec, ledgerEdslToSpecStorageWithAddrs, h_edsl, h_mod,

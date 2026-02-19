@@ -55,18 +55,18 @@ theorem transfer_then_transfer_reverts (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0)
   (h_ne : s.sender ≠ newOwner) :
   let s' := ((transferOwnership newOwner).run s).snd
-  ∃ msg, (transferOwnership "anyone").run s' = ContractResult.revert msg s' :=
+  ∃ msg, (transferOwnership 42).run s' = ContractResult.revert msg s' :=
   transferOwnership_reverts_when_not_owner _ _ (transfer_sender_not_new_owner s newOwner h_owner h_ne)
 
 /-! ## Invariant Preservation -/
 
 /-- transferOwnership preserves WellFormedState when new owner is non-empty. -/
 theorem transferOwnership_preserves_wellformedness (s : ContractState) (newOwner : Address)
-  (h : WellFormedState s) (h_owner : s.sender = s.storageAddr 0) (h_new : newOwner ≠ "") :
+  (h : WellFormedState s) (h_owner : s.sender = s.storageAddr 0) (h_new : newOwner ≠ 0) :
   let s' := ((transferOwnership newOwner).run s).snd
   WellFormedState s' := by
   rw [transferOwnership_unfold s newOwner h_owner]; simp [ContractResult.snd]
-  exact ⟨h_owner ▸ h.sender_nonempty, h.contract_nonempty, h_new⟩
+  exact ⟨h_owner ▸ h.sender_nonzero, h.contract_nonzero, h_new⟩
 
 /-! ## Ownership Transfer Preserves Counter Value
 
