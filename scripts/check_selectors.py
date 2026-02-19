@@ -58,6 +58,51 @@ def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
     return -1
 
 
+def strip_lean_comments(text: str) -> str:
+    """Strip Lean line/block comments while preserving line structure."""
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    block_depth = 0
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+
+        # Start of nested block comment: /- ... -/
+        if ch == "/" and nxt == "-":
+            block_depth += 1
+            out.extend("  ")
+            i += 2
+            continue
+
+        # End of nested block comment.
+        if block_depth > 0 and ch == "-" and nxt == "/":
+            block_depth -= 1
+            out.extend("  ")
+            i += 2
+            continue
+
+        # Inside block comment: preserve newlines, blank everything else.
+        if block_depth > 0:
+            out.append("\n" if ch == "\n" else " ")
+            i += 1
+            continue
+
+        # Line comment: -- ... (to end of line).
+        if ch == "-" and nxt == "-":
+            out.extend("  ")
+            i += 2
+            while i < n and text[i] != "\n":
+                out.append(" ")
+                i += 1
+            continue
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out)
+
+
 def extract_specs(text: str) -> List[SpecInfo]:
     specs: List[SpecInfo] = []
     spec_re = re.compile(r"def\s+(\w+)\s*:\s*ContractSpec\s*:=\s*\{")
@@ -281,12 +326,12 @@ def main() -> None:
     if not IR_EXPR_FILE.exists():
         die(f"Missing IR proof file: {IR_EXPR_FILE}")
 
-    specs_text = SPEC_FILE.read_text(encoding="utf-8")
+    specs_text = strip_lean_comments(SPEC_FILE.read_text(encoding="utf-8"))
     specs = extract_specs(specs_text)
     if not specs:
         die("No ContractSpec definitions found")
 
-    compile_text = IR_EXPR_FILE.read_text(encoding="utf-8")
+    compile_text = strip_lean_comments(IR_EXPR_FILE.read_text(encoding="utf-8"))
     compile_lists = extract_compile_selectors(compile_text)
 
     errors: List[str] = []

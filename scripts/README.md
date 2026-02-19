@@ -99,7 +99,7 @@ python3 scripts/check_contract_structure.py
 
 ## Selector & Yul Scripts
 
-- **`check_selectors.py`** - Verifies selector hash consistency across ContractSpec, compile selector tables, and generated Yul (`compiler/yul` and `compiler/yul-ast` when present); enforces compile selector table coverage for all specs except those with non-empty `externals`
+- **`check_selectors.py`** - Verifies selector hash consistency across ContractSpec, compile selector tables, and generated Yul (`compiler/yul` and `compiler/yul-ast` when present); strips Lean comments/docstrings before parsing to avoid false positives from commented examples; enforces compile selector table coverage for all specs except those with non-empty `externals`
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc and can compare bytecode parity between directories
 
