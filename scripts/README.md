@@ -62,7 +62,7 @@ Example output:
    Covered:    52 ( 88.1%)
    Excluded:     7 (proof-only)
 
-Overall: 67% coverage (220/326 properties)
+Overall: 59% coverage (220/371 properties)
 ```
 
 ### Property Exclusions

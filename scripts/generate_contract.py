@@ -408,7 +408,7 @@ def gen_spec(cfg: ContractConfig) -> str:
             spec_defs.append(f"  True")
         spec_defs.append("")
 
-    imports = ["import Verity.Core", "import Verity.Specs.Common"]
+    imports = ["import Verity.Specs.Common"]
     opens = ["open Verity"]
     if _needs_uint256_import(cfg):
         imports.append("import Verity.EVM.Uint256")
@@ -460,7 +460,6 @@ def gen_invariants(cfg: ContractConfig) -> str:
   ContractState instances used with {cfg.name}.
 -/
 
-import Verity.Core
 import Verity.Specs.Common
 
 namespace Verity.Specs.{cfg.name}
@@ -537,7 +536,6 @@ def gen_basic_proofs(cfg: ContractConfig) -> str:
         proof_stubs.append("")
 
     imports = [
-        "import Verity.Core",
         f"import Verity.Examples.{cfg.name}",
         f"import Verity.Specs.{cfg.name}.Spec",
         f"import Verity.Specs.{cfg.name}.Invariants",
@@ -583,10 +581,6 @@ def gen_correctness_proofs(cfg: ContractConfig) -> str:
   Status: Scaffold — proofs need implementation.
 -/
 
-import Verity.Core
-import Verity.Examples.{cfg.name}
-import Verity.Specs.{cfg.name}.Spec
-import Verity.Specs.{cfg.name}.Invariants
 import Verity.Proofs.{cfg.name}.Basic
 
 namespace Verity.Proofs.{cfg.name}.Correctness
