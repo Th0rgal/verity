@@ -77,7 +77,7 @@ Properties are excluded in `test/property_exclusions.json` for valid reasons:
 These CI-critical scripts validate cross-layer consistency:
 
 - **`check_property_manifest_sync.py`** - Ensures `property_manifest.json` stays in sync with actual Lean theorems (detects added/removed theorems)
-- **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, and Compiler layers; detects intra-contract slot collisions
+- **`check_storage_layout.py`** - Validates storage slot consistency across EDSL, Spec, Compiler, and AST layers; detects intra-contract slot collisions and AST-vs-Compiler slot/type drift
 - **`check_doc_counts.py`** - Validates theorem, axiom, test, suite, coverage, and contract counts across 14 documentation files (README, llms.txt, compiler.mdx, verification.mdx, research.mdx, index.mdx, core.mdx, examples.mdx, getting-started.mdx, TRUST_ASSUMPTIONS, VERIFICATION_STATUS, ROADMAP, test/README, layout.tsx), theorem-name completeness in verification.mdx tables, and proven-theorem counts in Property*.t.sol file headers
 - **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)

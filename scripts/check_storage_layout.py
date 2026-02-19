@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate storage layout consistency across EDSL, Spec, and Compiler layers.
+"""Validate storage layout consistency across EDSL, Spec, Compiler, and AST layers.
 
 Extracts storage slot definitions from:
 1. EDSL layer:     Verity/Examples/*.lean  (StorageSlot definitions)
@@ -10,6 +10,7 @@ Checks:
 - No intra-contract slot collisions within any layer
 - Cross-layer consistency: EDSL slots match Compiler slot assignments
 - Spec layer duplications match EDSL definitions
+- AST layer slot/type usage matches Compiler slot assignments
 """
 
 from __future__ import annotations
@@ -37,10 +38,18 @@ COMPILER_FIELD_RE = re.compile(
 # Regex for ContractSpec name:
 #   name := "<name>"
 SPEC_NAME_RE = re.compile(r'name\s*:=\s*"(\w+)"')
+AST_SPEC_FILE = ROOT / "Compiler" / "ASTSpecs.lean"
 
 # Regex for Lean namespace:
 #   namespace <name>
 NAMESPACE_RE = re.compile(r"^namespace\s+(\S+)", re.MULTILINE)
+
+# AST slot references in Verity/AST/*.lean:
+#   .storage <slot>, .sstore <slot>, .storageAddr <slot>, .sstoreAddr <slot>
+#   .mapping <slot>, .mstore <slot>
+AST_UINT_SLOT_RE = re.compile(r"\.(?:storage|sstore)\s+(\d+)\b")
+AST_ADDR_SLOT_RE = re.compile(r"\.(?:storageAddr|sstoreAddr)\s+(\d+)\b")
+AST_MAPPING_SLOT_RE = re.compile(r"\.(?:mapping|mstore)\s+(\d+)\b")
 
 
 def extract_edsl_slots(filepath: Path) -> dict[str, list[tuple[str, str, int]]]:
@@ -112,6 +121,58 @@ def extract_compiler_specs(filepath: Path) -> dict[str, list[tuple[str, str, int
             specs[contract_name] = fields
 
     return specs
+
+
+def extract_ast_contract_names(filepath: Path) -> set[str]:
+    """Extract contract names from Compiler/ASTSpecs.lean ASTContractSpec blocks."""
+    if not filepath.exists():
+        return set()
+
+    content = filepath.read_text()
+    names: set[str] = set()
+    spec_pattern = re.compile(
+        r"def\s+\w+Spec\s*:\s*ASTContractSpec\s*:=\s*\{(.*?)\n\}",
+        re.DOTALL,
+    )
+    for spec_match in spec_pattern.finditer(content):
+        block = spec_match.group(1)
+        name_match = SPEC_NAME_RE.search(block)
+        if name_match:
+            names.add(name_match.group(1))
+    return names
+
+
+def extract_ast_slots(
+    filepath: Path,
+) -> tuple[list[tuple[str, str, int]], list[str]]:
+    """Extract slot/type usage from a Verity AST file.
+
+    Returns:
+      - list of (name, type, slot_number) where name is synthetic "slot<N>"
+      - list of consistency errors found inside the AST file itself
+    """
+    content = filepath.read_text()
+    contract = filepath.stem
+
+    by_slot: dict[int, set[str]] = {}
+    for m in AST_UINT_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("uint256")
+    for m in AST_ADDR_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("address")
+    for m in AST_MAPPING_SLOT_RE.finditer(content):
+        by_slot.setdefault(int(m.group(1)), set()).add("mapping")
+
+    entries: list[tuple[str, str, int]] = []
+    errors: list[str] = []
+    for slot in sorted(by_slot.keys()):
+        kinds = by_slot[slot]
+        if len(kinds) > 1:
+            errors.append(
+                f"[AST] {contract}: slot {slot} used with multiple kinds: {sorted(kinds)}"
+            )
+        kind = sorted(kinds)[0]
+        entries.append((f"slot{slot}", kind, slot))
+    return entries, errors
 
 
 def normalize_type(ty: str) -> str:
@@ -221,9 +282,49 @@ def check_layer_consistency(
     return errors
 
 
+def check_ast_compiler_consistency(
+    ast: dict[str, list[tuple[str, str, int]]],
+    compiler: dict[str, list[tuple[str, str, int]]],
+) -> list[str]:
+    """Check that AST slot usage matches Compiler slot assignments by slot number."""
+    errors: list[str] = []
+    for contract, ast_fields in ast.items():
+        if contract not in compiler:
+            errors.append(
+                f"AST-Compiler: {contract} has AST slots but no matching Compiler contract"
+            )
+            continue
+
+        ast_by_slot = {slot: ty for _name, ty, slot in ast_fields}
+        comp_by_slot = {slot: (name, ty) for name, ty, slot in compiler[contract]}
+
+        for slot, ast_ty in ast_by_slot.items():
+            if slot not in comp_by_slot:
+                errors.append(
+                    f"AST-Compiler: {contract}.slot{slot} in AST but missing in Compiler"
+                )
+                continue
+            comp_name, comp_ty = comp_by_slot[slot]
+            if normalize_type(ast_ty) != normalize_type(comp_ty):
+                errors.append(
+                    f"AST-Compiler: {contract}.slot{slot} type mismatch: "
+                    f"AST={ast_ty}, Compiler={comp_ty} (field '{comp_name}')"
+                )
+
+        for slot, (comp_name, _comp_ty) in comp_by_slot.items():
+            if slot not in ast_by_slot:
+                errors.append(
+                    f"AST-Compiler: {contract}.{comp_name} (slot {slot}) in Compiler "
+                    f"but not referenced in AST"
+                )
+
+    return errors
+
+
 def generate_report(
     edsl: dict[str, list[tuple[str, str, int]]],
     compiler: dict[str, list[tuple[str, str, int]]],
+    ast: dict[str, list[tuple[str, str, int]]] | None = None,
     fmt: str = "text",
 ) -> str:
     """Generate a storage layout report."""
@@ -232,7 +333,8 @@ def generate_report(
     if fmt == "markdown":
         lines.append("## Storage Layout Report")
         lines.append("")
-        all_contracts = sorted(set(list(edsl.keys()) + list(compiler.keys())))
+        ast = ast or {}
+        all_contracts = sorted(set(list(edsl.keys()) + list(compiler.keys()) + list(ast.keys())))
         for contract in all_contracts:
             lines.append(f"### {contract}")
             lines.append("")
@@ -245,8 +347,11 @@ def generate_report(
             compiler_fields = {
                 name: (ty, slot) for name, ty, slot in compiler.get(contract, [])
             }
+            ast_fields = {
+                name: (ty, slot) for name, ty, slot in ast.get(contract, [])
+            }
             all_fields = sorted(
-                set(list(edsl_fields.keys()) + list(compiler_fields.keys())),
+                set(list(edsl_fields.keys()) + list(compiler_fields.keys()) + list(ast_fields.keys())),
                 key=lambda n: edsl_fields.get(n, compiler_fields.get(n, ("", 99)))[1],
             )
 
@@ -261,6 +366,10 @@ def generate_report(
                     layers.append("Compiler")
                     if slot == "?":
                         ty, slot = compiler_fields[name]
+                if name in ast_fields:
+                    layers.append("AST")
+                    if slot == "?":
+                        ty, slot = ast_fields[name]
                 lines.append(
                     f"| {slot} | `{name}` | `{ty}` | {', '.join(layers)} |"
                 )
@@ -270,7 +379,8 @@ def generate_report(
         lines.append("=" * 60)
         lines.append("STORAGE LAYOUT REPORT")
         lines.append("=" * 60)
-        all_contracts = sorted(set(list(edsl.keys()) + list(compiler.keys())))
+        ast = ast or {}
+        all_contracts = sorted(set(list(edsl.keys()) + list(compiler.keys()) + list(ast.keys())))
         for contract in all_contracts:
             lines.append("")
             lines.append(f"  {contract}")
@@ -281,6 +391,10 @@ def generate_report(
                 compiler_slots = compiler.get(contract, [])
                 for name, ty, slot in sorted(compiler_slots, key=lambda x: x[2]):
                     lines.append(f"    Slot {slot}: {name} ({ty}) [compiler only]")
+            ast_slots = ast.get(contract, [])
+            if ast_slots:
+                for name, ty, slot in sorted(ast_slots, key=lambda x: x[2]):
+                    lines.append(f"    Slot {slot}: {name} ({ty}) [ast]")
 
     return "\n".join(lines)
 
@@ -316,7 +430,22 @@ def main():
     if compiler_specs_file.exists():
         compiler_all = extract_compiler_specs(compiler_specs_file)
 
-    # 4. Check intra-contract collisions (all layers)
+    # 4. Extract AST slots for contracts wired in Compiler/ASTSpecs.lean
+    ast_all: dict[str, list[tuple[str, str, int]]] = {}
+    ast_contracts = extract_ast_contract_names(AST_SPEC_FILE)
+    ast_dir = ROOT / "Verity" / "AST"
+    for contract_name in sorted(ast_contracts):
+        ast_file = ast_dir / f"{contract_name}.lean"
+        if not ast_file.exists():
+            errors.append(
+                f"[AST] Missing AST file for contract '{contract_name}': {ast_file}"
+            )
+            continue
+        slots, ast_errors = extract_ast_slots(ast_file)
+        ast_all[contract_name] = slots
+        errors.extend(ast_errors)
+
+    # 5. Check intra-contract collisions (EDSL/Spec/Compiler)
     for contract, slots in edsl_all.items():
         errors.extend(check_intra_collisions(contract, slots, "EDSL"))
     for contract, slots in spec_all.items():
@@ -324,19 +453,22 @@ def main():
     for contract, slots in compiler_all.items():
         errors.extend(check_intra_collisions(contract, slots, "Compiler"))
 
-    # 5. Check cross-layer consistency (EDSL ↔ Compiler)
+    # 6. Check cross-layer consistency (EDSL ↔ Compiler)
     errors.extend(check_layer_consistency(
         edsl_all, compiler_all, "Cross-layer",
         ref_label="EDSL", subj_label="Compiler", check_reverse=True,
     ))
 
-    # 6. Check Spec-EDSL consistency
+    # 7. Check Spec-EDSL consistency
     errors.extend(check_layer_consistency(
         edsl_all, spec_all, "Spec-EDSL",
         ref_label="EDSL", subj_label="Spec",
     ))
 
-    # 7. Report
+    # 8. Check AST-Compiler slot/type consistency
+    errors.extend(check_ast_compiler_consistency(ast_all, compiler_all))
+
+    # 9. Report
     fmt = "markdown" if "--format=markdown" in sys.argv else "text"
 
     if errors:
@@ -347,7 +479,7 @@ def main():
         sys.exit(1)
 
     print("Storage layout validation passed.\n")
-    print(generate_report(edsl_all, compiler_all, fmt))
+    print(generate_report(edsl_all, compiler_all, ast_all, fmt))
 
 
 if __name__ == "__main__":
