@@ -101,7 +101,18 @@ python3 scripts/check_contract_structure.py
 
 - **`check_selectors.py`** - Verifies function selector hashes match between Lean and generated Yul
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes
-- **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc
+- **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc and can compare bytecode parity between directories
+
+```bash
+# Default: check compiler/yul
+python3 scripts/check_yul_compiles.py
+
+# Check multiple directories and assert legacy/AST bytecode parity
+python3 scripts/check_yul_compiles.py \
+  --dir compiler/yul \
+  --dir compiler/yul-ast \
+  --compare-dirs compiler/yul compiler/yul-ast
+```
 
 ## Contract Scaffold Generator
 
@@ -175,4 +186,3 @@ To add test coverage for a proven theorem:
    ```
 
 3. If the property cannot be tested in Foundry (e.g., proof-only helper), add it to `test/property_exclusions.json`
-

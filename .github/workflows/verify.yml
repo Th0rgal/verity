@@ -251,24 +251,11 @@ jobs:
       - name: Setup solc
         uses: ./.github/actions/setup-solc
 
-      - name: Compile generated Yul with solc
-        run: python3 scripts/check_yul_compiles.py
-
-      - name: Compile AST-generated Yul with solc
+      - name: Compile generated Yul with solc (legacy + AST)
         run: |
-          shopt -s nullglob
-          ast_files=(compiler/yul-ast/*.yul)
-          if [ "${#ast_files[@]}" -eq 0 ]; then
-            echo "::error::No AST-generated Yul files found in compiler/yul-ast"
-            exit 1
-          fi
-
-          for file in "${ast_files[@]}"; do
-            echo "Compiling $file"
-            solc --strict-assembly --bin "$file" >/dev/null
-          done
-
-          echo "✓ AST Yul->EVM compilation check passed (${#ast_files[@]} files)."
+          python3 scripts/check_yul_compiles.py \
+            --dir compiler/yul \
+            --dir compiler/yul-ast
 
       - name: Check selector fixtures against solc
         run: python3 scripts/check_selector_fixtures.py
