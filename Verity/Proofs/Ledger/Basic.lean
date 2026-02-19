@@ -211,13 +211,11 @@ theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameContext]
   · rw [transfer_unfold_other s to amount h_balance h_eq (h_no_overflow h_eq)]
     simp only [ContractResult.snd, transfer_spec]
+    have h_ne' := address_beq_false_of_ne s.sender to h_eq
     refine ⟨?_, ?_, ?_, ?_⟩
-    · have h_ne' := address_beq_false_of_ne s.sender to h_eq
-      simp [beq_iff_eq, h_ne', h_balance]
-    · have h_ne' := address_beq_false_of_ne s.sender to h_eq
-      simp [beq_iff_eq, h_ne']
-    · have h_ne' := address_beq_false_of_ne s.sender to h_eq
-      simp [h_ne']
+    · simp [beq_iff_eq, h_ne', h_balance]
+    · simp [beq_iff_eq, h_ne']
+    · simp [h_ne']
       refine ⟨?_, ?_⟩
       · intro addr h_ne_sender h_ne_to
         simp [beq_iff_eq, h_ne_sender, h_ne_to]

@@ -325,16 +325,11 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
     simp only [Contract.run, ContractResult.snd, transfer_spec]
     rw [show (transfer to amount) s = (transfer to amount).run s from rfl, h_unfold]
     simp only [ContractResult.snd]
+    have h_ne' := address_beq_false_of_ne s.sender to h_eq
     refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_⟩
-    · -- sender balance decreased: the 'to' branch doesn't match sender
-      have h_ne' := address_beq_false_of_ne s.sender to h_eq
-      simp [h_ne']
-    · -- recipient balance increased
-      have h_ne' := address_beq_false_of_ne s.sender to h_eq
-      simp [h_ne']
-    · -- other balances/slots preserved
-      have h_ne' := address_beq_false_of_ne s.sender to h_eq
-      simp [h_ne']
+    · simp [h_ne'] -- sender balance decreased
+    · simp [h_ne'] -- recipient balance increased
+    · simp [h_ne'] -- other balances/slots preserved
       refine ⟨?_, ?_⟩
       · intro addr h_ne_sender h_ne_to; simp [h_ne_sender, h_ne_to]
       · intro slot h_neq addr'; simp [h_neq]
@@ -348,12 +343,8 @@ theorem transfer_preserves_supply_when_sufficient (s : ContractState) (to : Addr
   let s' := ((transfer to amount).run s).snd
   s'.storage 2 = s.storage 2 := by
   have h := transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow
-  simp [transfer_spec] at h
-  have h_storage : Specs.sameStorage s ((transfer to amount).run s).snd := by
-    exact h.2.2.2.2.2.1
-  have h_eq : ((transfer to amount).run s).snd.storage = s.storage := by
-    simpa [Specs.sameStorage] using h_storage
-  simpa using congrArg (fun f => f 2) h_eq
+  simp [transfer_spec, Specs.sameStorage] at h
+  simpa using congrArg (fun f => f 2) h.2.2.2.2.2.1
 
 theorem transfer_decreases_sender_balance (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)

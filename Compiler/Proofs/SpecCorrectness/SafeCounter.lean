@@ -70,14 +70,14 @@ private theorem increment_spec_success_iff (state : ContractState) (sender : Add
   by_cases h_le :
       ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus ≤ (state.storage 0).val
   · have h_not_gt :
-        ¬((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val := by
-      exact Nat.not_lt_of_ge h_le
+        ¬((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val :=
+      Nat.not_lt_of_ge h_le
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
       execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
       lookup_count_newcount, lookup_newcount, List.lookup, one_mod_modulus, h_le, h_not_gt]
   · have h_gt :
-        ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val := by
-      exact Nat.lt_of_not_ge h_le
+        ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val :=
+      Nat.lt_of_not_ge h_le
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
       execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
       lookup_count_newcount, lookup_newcount, List.lookup, one_mod_modulus, h_le, h_gt]
@@ -93,8 +93,8 @@ private theorem increment_spec_storage (state : ContractState) (sender : Address
     specResult.finalStorage.getSlot 0 =
       ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus := by
   have h_not_le :
-      ¬((state.storage 0).val + 1) % Verity.Core.Uint256.modulus ≤ (state.storage 0).val := by
-    exact Nat.not_le_of_gt h_gt
+      ¬((state.storage 0).val + 1) % Verity.Core.Uint256.modulus ≤ (state.storage 0).val :=
+    Nat.not_le_of_gt h_gt
   simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
     execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
     lookup_count_newcount, lookup_newcount, List.lookup, one_mod_modulus, h_not_le]
@@ -108,8 +108,8 @@ private theorem decrement_spec_success_iff (state : ContractState) (sender : Add
     let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
     specResult.success = true ↔ (state.storage 0).val ≥ 1 := by
   by_cases h_ge : (state.storage 0).val ≥ 1
-  · have h_not_lt : ¬(state.storage 0).val < 1 := by
-      exact Nat.not_lt_of_ge h_ge
+  · have h_not_lt : ¬(state.storage 0).val < 1 :=
+      Nat.not_lt_of_ge h_ge
     have h_not_lt' : ¬(state.storage 0).val < 1 % Verity.Core.Uint256.modulus := by
       simpa [one_mod_modulus] using h_not_lt
     have h_ne : (state.storage 0).val ≠ 0 := by
@@ -117,8 +117,8 @@ private theorem decrement_spec_success_iff (state : ContractState) (sender : Add
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
       execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
       lookup_count_single, List.lookup, one_mod_modulus, h_not_lt', h_ge, h_ne]
-  · have h_lt : (state.storage 0).val < 1 := by
-      exact Nat.lt_of_not_ge h_ge
+  · have h_lt : (state.storage 0).val < 1 :=
+      Nat.lt_of_not_ge h_ge
     have h_lt' : (state.storage 0).val < 1 % Verity.Core.Uint256.modulus := by
       simpa [one_mod_modulus] using h_lt
     have h_zero : (state.storage 0).val = 0 := by
@@ -136,8 +136,8 @@ private theorem decrement_spec_storage (state : ContractState) (sender : Address
     }
     let specResult := interpretSpec safeCounterSpec (safeCounterEdslToSpecStorage state) specTx
     specResult.finalStorage.getSlot 0 = (state.storage 0).val - 1 := by
-  have h_not_lt : ¬(state.storage 0).val < 1 := by
-    exact Nat.not_lt_of_ge h_ge
+  have h_not_lt : ¬(state.storage 0).val < 1 :=
+    Nat.not_lt_of_ge h_ge
   have h_not_lt' : ¬(state.storage 0).val < 1 % Verity.Core.Uint256.modulus := by
     simpa [one_mod_modulus] using h_not_lt
   have h_ne : (state.storage 0).val ≠ 0 := by
