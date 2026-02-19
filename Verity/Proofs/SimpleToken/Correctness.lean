@@ -115,8 +115,7 @@ theorem mint_then_balanceOf_correct (s : ContractState) (to : Address) (amount :
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((mint to amount).run s).snd
   ((balanceOf to).run s').fst = EVM.Uint256.add (s.storageMap 1 to) amount := by
-  show ((balanceOf to).run ((mint to amount).run s).snd).fst = _
-  rw [balanceOf_returns_balance, mint_increases_balance s to amount h_owner h_no_bal_overflow h_no_sup_overflow]
+  simp only [balanceOf_returns_balance, mint_increases_balance s to amount h_owner h_no_bal_overflow h_no_sup_overflow]
 
 /-- After minting, getTotalSupply returns the increased supply. -/
 theorem mint_then_getTotalSupply_correct (s : ContractState) (to : Address) (amount : Uint256)
@@ -125,8 +124,7 @@ theorem mint_then_getTotalSupply_correct (s : ContractState) (to : Address) (amo
   (h_no_sup_overflow : (s.storage 2 : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((mint to amount).run s).snd
   ((getTotalSupply).run s').fst = EVM.Uint256.add (s.storage 2) amount := by
-  show ((getTotalSupply).run ((mint to amount).run s).snd).fst = _
-  rw [getTotalSupply_returns_supply, mint_increases_supply s to amount h_owner h_no_bal_overflow h_no_sup_overflow]
+  simp only [getTotalSupply_returns_supply, mint_increases_supply s to amount h_owner h_no_bal_overflow h_no_sup_overflow]
 
 /-- After transfer, sender's balance is decreased by the transfer amount. -/
 theorem transfer_then_balanceOf_sender_correct (s : ContractState) (to : Address) (amount : Uint256)
@@ -134,8 +132,7 @@ theorem transfer_then_balanceOf_sender_correct (s : ContractState) (to : Address
   (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((transfer to amount).run s).snd
   ((balanceOf s.sender).run s').fst = EVM.Uint256.sub (s.storageMap 1 s.sender) amount := by
-  show ((balanceOf s.sender).run ((transfer to amount).run s).snd).fst = _
-  rw [balanceOf_returns_balance]
+  simp only [balanceOf_returns_balance]
   exact transfer_decreases_sender_balance s to amount h_balance h_ne h_no_overflow
 
 /-- After transfer, recipient's balance is increased by the transfer amount. -/
@@ -144,8 +141,7 @@ theorem transfer_then_balanceOf_recipient_correct (s : ContractState) (to : Addr
   (h_no_overflow : (s.storageMap 1 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((transfer to amount).run s).snd
   ((balanceOf to).run s').fst = EVM.Uint256.add (s.storageMap 1 to) amount := by
-  show ((balanceOf to).run ((transfer to amount).run s).snd).fst = _
-  rw [balanceOf_returns_balance]
+  simp only [balanceOf_returns_balance]
   exact transfer_increases_recipient_balance s to amount h_balance h_ne h_no_overflow
 
 /-! ## Summary

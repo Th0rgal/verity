@@ -53,8 +53,7 @@ theorem withdraw_getBalance_correct (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
   let s' := ((withdraw amount).run s).snd
   ((getBalance s.sender).run s').fst = EVM.Uint256.sub (s.storageMap 0 s.sender) amount := by
-  show ((getBalance s.sender).run ((withdraw amount).run s).snd).fst = _
-  rw [getBalance_returns_balance]
+  simp only [getBalance_returns_balance]
   exact withdraw_decreases_balance s amount h_balance
 
 /-- After transfer, sender's balance is decreased. -/
@@ -63,8 +62,7 @@ theorem transfer_getBalance_sender_correct (s : ContractState) (to : Address) (a
   (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((transfer to amount).run s).snd
   ((getBalance s.sender).run s').fst = EVM.Uint256.sub (s.storageMap 0 s.sender) amount := by
-  show ((getBalance s.sender).run ((transfer to amount).run s).snd).fst = _
-  rw [getBalance_returns_balance]
+  simp only [getBalance_returns_balance]
   exact transfer_decreases_sender s to amount h_balance h_ne h_no_overflow
 
 /-- After transfer, recipient's balance is increased. -/
@@ -73,8 +71,7 @@ theorem transfer_getBalance_recipient_correct (s : ContractState) (to : Address)
   (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   let s' := ((transfer to amount).run s).snd
   ((getBalance to).run s').fst = EVM.Uint256.add (s.storageMap 0 to) amount := by
-  show ((getBalance to).run ((transfer to amount).run s).snd).fst = _
-  rw [getBalance_returns_balance]
+  simp only [getBalance_returns_balance]
   exact transfer_increases_recipient s to amount h_balance h_ne h_no_overflow
 
 /-! ## Deposit-Withdraw Cancellation

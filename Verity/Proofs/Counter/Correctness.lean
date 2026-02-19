@@ -102,8 +102,7 @@ theorem getCount_preserves_wellformedness (s : ContractState) (h : WellFormedSta
 theorem decrement_at_zero_wraps_max (s : ContractState) (h : s.storage 0 = 0) :
   let s' := ((decrement).run s).snd
   s'.storage 0 = EVM.MAX_UINT256 := by
-  show ((decrement).run s).snd.storage 0 = EVM.MAX_UINT256
-  rw [decrement_subtracts_one s, h]
+  simp only [decrement_subtracts_one s, h]
   simp [EVM.MAX_UINT256, EVM.Uint256.sub, Verity.Core.MAX_UINT256,
     Verity.Core.Uint256.sub, Verity.Core.Uint256.modulus,
     Verity.Core.UINT256_MODULUS]
