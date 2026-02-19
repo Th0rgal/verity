@@ -26,7 +26,6 @@
 import Verity.Core
 import Verity.Stdlib.Math
 import Verity.EVM.Uint256
-import Compiler.Hex
 import Verity.Proofs.Stdlib.SpecInterpreter
 
 namespace Verity.Proofs.Stdlib.Automation
