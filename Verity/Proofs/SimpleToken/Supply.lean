@@ -86,10 +86,8 @@ theorem mint_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
   obtain ⟨h_bal_raw, _, h_other, _, _, _⟩ := h_spec
   have h_bal :
       ((mint to amount).run s).snd.storageMap 1 to = s.storageMap 1 to + amount := by
-    have h_bal' := h_bal_raw
-    simp [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] at h_bal'
-    exact h_bal'
+    simpa [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
+      HAdd.hAdd, Verity.Core.Uint256.add_comm] using h_bal_raw
   exact map_sum_point_update
     (fun addr => s.storageMap 1 addr)
     (fun addr => ((mint to amount).run s).snd.storageMap 1 addr)
@@ -118,10 +116,8 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
     exact h_sender_bal
   have h_recip_bal' :
       ((transfer to amount).run s).snd.storageMap 1 to = s.storageMap 1 to + amount := by
-    have h_recip_bal' := h_recip_bal
-    simp [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] at h_recip_bal'
-    exact h_recip_bal'
+    simpa [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
+      HAdd.hAdd, Verity.Core.Uint256.add_comm] using h_recip_bal
   exact map_sum_transfer_eq
     (fun addr => s.storageMap 1 addr)
     (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)

@@ -40,14 +40,11 @@ theorem deposit_sum_equation (s : ContractState) (amount : Uint256)
   ∀ addrs : List Address,
     (addrs.map (fun addr => ((deposit amount).run s).snd.storageMap 0 addr)).sum
     = (addrs.map (fun addr => s.storageMap 0 addr)).sum + countOccU s.sender addrs * amount := by
-  have h_inc_raw := deposit_increases_balance s amount
   have h_inc :
       ((deposit amount).run s).snd.storageMap 0 s.sender =
         s.storageMap 0 s.sender + amount := by
-    have h_inc' := h_inc_raw
-    simp [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] at h_inc'
-    exact h_inc'
+    simpa [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
+      HAdd.hAdd, Verity.Core.Uint256.add_comm] using deposit_increases_balance s amount
   have h_other : ∀ addr, addr ≠ s.sender →
     ((deposit amount).run s).snd.storageMap 0 addr = s.storageMap 0 addr :=
     fun addr h_ne => deposit_preserves_other_balances s amount addr h_ne
@@ -144,10 +141,8 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
   have h_recip_bal' :
       ((transfer to amount).run s).snd.storageMap 0 to =
         s.storageMap 0 to + amount := by
-    have h_recip_bal' := h_recip_bal
-    simp [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] at h_recip_bal'
-    exact h_recip_bal'
+    simpa [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
+      HAdd.hAdd, Verity.Core.Uint256.add_comm] using h_recip_bal
   exact map_sum_transfer_eq
     (fun addr => s.storageMap 0 addr)
     (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)
@@ -194,13 +189,10 @@ theorem deposit_withdraw_sum_cancel (s : ContractState) (amount : Uint256)
     = (addrs.map (fun addr => s.storageMap 0 addr)).sum := by
   intro addrs
   let s1 := ((deposit amount).run s).snd
-  have h_inc_raw := deposit_increases_balance s amount
   have h_inc :
       s1.storageMap 0 s.sender = s.storageMap 0 s.sender + amount := by
-    have h_inc' := h_inc_raw
-    simp [s1, Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-      HAdd.hAdd, Verity.Core.Uint256.add_comm] at h_inc'
-    exact h_inc'
+    simpa [s1, Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
+      HAdd.hAdd, Verity.Core.Uint256.add_comm] using deposit_increases_balance s amount
   have h_balance : s1.storageMap 0 s.sender ≥ amount := by
     have h_le : (amount : Nat) ≤ (s.storageMap 0 s.sender : Nat) + (amount : Nat) := by
       exact Nat.le_add_left _ _
