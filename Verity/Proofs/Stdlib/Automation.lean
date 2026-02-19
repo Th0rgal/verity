@@ -736,6 +736,30 @@ theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint25
   simp [setMapping]
 
 /-!
+## Generic Event Preservation
+
+Storage mutations never touch the `events` append-only log.
+-/
+
+/-- setStorage on any uint256 slot preserves the event log. -/
+theorem setStorage_preserves_events (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.events = state.events := by
+  simp [setStorage]
+
+/-- setStorageAddr on any address slot preserves the event log. -/
+theorem setStorageAddr_preserves_events (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.events = state.events := by
+  simp [setStorageAddr]
+
+/-- setMapping preserves the event log. -/
+theorem setMapping_preserves_events (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.events = state.events := by
+  simp [setMapping]
+
+/-!
 ## MAX_UINT256 / modulus Helper Lemmas
 
 Convenience lemmas that eliminate the repeated inline derivation of

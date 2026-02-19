@@ -284,4 +284,22 @@ theorem setStorageAddr_preserves_storageMap2 (slot : StorageSlot Address)
     ((setStorageAddr slot value).run state).snd.storageMap2 = state.storageMap2 := by
   simp [setStorageAddr]
 
+/-!
+## Event Preservation for Extended Mapping Types
+
+Mapping mutations never touch the `events` append-only log.
+-/
+
+/-- setMappingUint preserves the event log. -/
+theorem setMappingUint_preserves_events (slot : StorageSlot (Uint256 → Uint256))
+    (key : Uint256) (value : Uint256) (state : ContractState) :
+    ((setMappingUint slot key value).run state).snd.events = state.events := by
+  simp [setMappingUint]
+
+/-- setMapping2 preserves the event log. -/
+theorem setMapping2_preserves_events (slot : StorageSlot (Address → Address → Uint256))
+    (key1 key2 : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping2 slot key1 key2 value).run state).snd.events = state.events := by
+  simp [setMapping2]
+
 end Verity.Proofs.Stdlib.MappingAutomation

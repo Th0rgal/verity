@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
-  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-373-brightgreen.svg" alt="373 Theorems"></a>
+  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-378-brightgreen.svg" alt="378 Theorems"></a>
   <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
@@ -28,7 +28,7 @@ source ~/.elan/env
 # 2. Clone and build
 git clone https://github.com/Th0rgal/verity.git
 cd verity
-lake build                                    # Verifies all 373 theorems
+lake build                                    # Verifies all 378 theorems
 
 # 3. Generate a new contract
 python3 scripts/generate_contract.py MyContract
@@ -123,7 +123,7 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 
 See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
 
-373 theorems across 9 categories, all fully proven. 375 Foundry tests across 32 test suites. 220 covered by property tests (59% coverage, 153 proof-only exclusions). 2 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
+378 theorems across 9 categories, all fully proven. 375 Foundry tests across 32 test suites. 220 covered by property tests (58% coverage, 158 proof-only exclusions). 2 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
