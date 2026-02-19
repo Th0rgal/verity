@@ -151,7 +151,6 @@ theorem getCount_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec counterSpec (counterEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
-  -- Same pattern as SimpleStorage.retrieve_correct
   unfold getCount Contract.runValue counterSpec interpretSpec counterEdslToSpecStorage
   simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, count]
 

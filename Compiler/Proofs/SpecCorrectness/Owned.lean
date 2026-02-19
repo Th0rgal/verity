@@ -143,7 +143,6 @@ theorem getOwner_correct (state : ContractState) (sender : Address) :
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     specResult.success = true ∧
     specResult.returnValue = some (addressToNat edslAddr) := by
-  -- Same pattern as Counter.getCount_correct and SafeCounter.getCount_correct
   unfold Verity.Examples.Owned.getOwner Contract.runValue ownedSpec interpretSpec ownedEdslToSpecStorage
   simp [getStorageAddr, Verity.Examples.Owned.owner, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot]
 

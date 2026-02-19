@@ -37,7 +37,7 @@ theorem constructor_supply_storage_isolated (s : ContractState) (initialOwner : 
     Examples.SimpleToken.owner, Examples.SimpleToken.totalSupply,
     Verity.bind, Bind.bind, Contract.run, ContractResult.snd]
   split
-  · next h => simp [beq_iff_eq] at h; exact absurd h h_ne
+  · next h => exact absurd (beq_iff_eq.mp h) h_ne
   · rfl
 
 /-- Constructor doesn't write any mapping slot. -/
@@ -58,7 +58,7 @@ theorem constructor_owner_addr_isolated (s : ContractState) (initialOwner : Addr
     Examples.SimpleToken.owner, Examples.SimpleToken.totalSupply,
     Verity.bind, Bind.bind, Contract.run, ContractResult.snd]
   split
-  · next h => simp [beq_iff_eq] at h; exact absurd h h_ne
+  · next h => exact absurd (beq_iff_eq.mp h) h_ne
   · rfl
 
 /-! ## Mint Isolation -/
