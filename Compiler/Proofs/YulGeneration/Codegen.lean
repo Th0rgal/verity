@@ -16,18 +16,6 @@ These lemmas capture the core obligations for Yul codegen correctness:
 2. Runtime switch dispatch executes the selected function body.
 -/
 
-theorem beq_eq_true_of_eq {a b : Nat} (h : a = b) : (a == b) = true := by
-  exact (Eq.mpr (Nat.beq_eq_true_eq a b) h)
-
-theorem beq_eq_false_of_ne {a b : Nat} (h : a ≠ b) : (a == b) = false := by
-  cases h' : (a == b) with
-  | true =>
-      have : a = b := by
-        exact (Eq.mp (Nat.beq_eq_true_eq a b) (by simpa [h'] ))
-      exact (h this).elim
-  | false =>
-      rfl
-
 @[simp]
 theorem emitYul_runtimeCode_eq (contract : IRContract) :
     (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
@@ -145,13 +133,13 @@ theorem find_switch_case_of_find_function
   | cons f rest ih =>
       by_cases hsel : f.selector = sel
       · have hselb : (f.selector == sel) = true := by
-          exact beq_eq_true_of_eq hsel
+          simp [beq_iff_eq, hsel]
         have hFind' : some f = some fn := by
           simpa [List.find?, hselb] using hFind
         cases hFind'
         simp [switchCases, List.find?, hsel]
       · have hselb : (f.selector == sel) = false := by
-          exact beq_eq_false_of_ne hsel
+          simp [beq_iff_eq, hsel]
         have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
           simpa [List.find?, hselb] using hFind
         have ih' := ih hFind'
@@ -168,12 +156,12 @@ theorem find_switch_case_of_find_function_none
   | cons f rest ih =>
       by_cases hsel : f.selector = sel
       · have hselb : (f.selector == sel) = true := by
-          exact beq_eq_true_of_eq hsel
+          simp [beq_iff_eq, hsel]
         have hFind' : (some f : Option IRFunction) = none := by
           simpa [List.find?, hselb] using hFind
         cases hFind'
       · have hselb : (f.selector == sel) = false := by
-          exact beq_eq_false_of_ne hsel
+          simp [beq_iff_eq, hsel]
         have hFind' : rest.find? (fun f => f.selector == sel) = none := by
           simpa [List.find?, hselb] using hFind
         have ih' := ih hFind'

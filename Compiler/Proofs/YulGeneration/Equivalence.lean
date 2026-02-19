@@ -472,9 +472,6 @@ theorem execIRFunctionFuel_eq_execIRFunction
       execIRFunction fn args initialState := by
   rfl
 
-def execIRStmtsFuel_adequate_goal (state : IRState) (stmts : List YulStmt) : Prop :=
-  execIRStmtsFuel (sizeOf stmts + 1) state stmts = execIRStmts (sizeOf stmts + 1) state stmts
-
 def execIRFunctionFuel_adequate_goal
     (fn : IRFunction) (args : List Nat) (initialState : IRState) : Prop :=
   execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
@@ -483,17 +480,6 @@ def execIRFunctionFuel_adequate_goal
 /-- Fuel adequacy is now trivially true (aliases). -/
 theorem execIRFunctionFuel_adequate
     (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    execIRFunctionFuel_adequate_goal fn args initialState := by
-  rfl
-
-theorem execIRFunctionFuel_adequate_goal_of_stmts_adequate
-    (fn : IRFunction) (args : List Nat) (initialState : IRState)
-    (hAdequacy :
-      execIRStmtsFuel_adequate_goal
-        (fn.params.zip args |>.foldl
-          (fun s (p, v) => s.setVar p.name v)
-          initialState)
-        fn.body) :
     execIRFunctionFuel_adequate_goal fn args initialState := by
   rfl
 
