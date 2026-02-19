@@ -141,18 +141,42 @@ private def ensureNonEmpty (kind name : String) : Except String Unit := do
   if name.trim.isEmpty then
     throw s!"{kind} name cannot be empty"
 
+private def isAsciiLetter (c : Char) : Bool :=
+  ('a' ≤ c && c ≤ 'z') || ('A' ≤ c && c ≤ 'Z')
+
+private def isAsciiDigit (c : Char) : Bool :=
+  '0' ≤ c && c ≤ '9'
+
+private def isIdentifierStart (c : Char) : Bool :=
+  isAsciiLetter c || c = '_'
+
+private def isIdentifierContinue (c : Char) : Bool :=
+  isIdentifierStart c || isAsciiDigit c
+
+private def isValidIdentifier (name : String) : Bool :=
+  match name.data with
+  | [] => false
+  | c :: cs => isIdentifierStart c && cs.all isIdentifierContinue
+
+private def ensureValidIdentifier (kind name : String) : Except String Unit := do
+  if !isValidIdentifier name then
+    throw s!"{kind} name must be a valid identifier: {name}"
+
 private def validateParamNames (kind : String) (params : List Param) : Except String Unit := do
   for param in params do
     ensureNonEmpty s!"{kind} parameter" param.name
+    ensureValidIdentifier s!"{kind} parameter" param.name
   match findDuplicate (params.map (·.name)) with
   | some dup => throw s!"Duplicate {kind} parameter name: {dup}"
   | none => pure ()
 
 private def validateSpec (spec : ASTContractSpec) : Except String Unit := do
   ensureNonEmpty "Contract" spec.name
+  ensureValidIdentifier "Contract" spec.name
 
   for fn in spec.functions do
     ensureNonEmpty s!"Function in {spec.name}" fn.name
+    ensureValidIdentifier s!"Function in {spec.name}" fn.name
     validateParamNames s!"function {fn.name}" fn.params
 
   match spec.constructor with
