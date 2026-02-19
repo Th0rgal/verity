@@ -10,9 +10,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from property_utils import report_errors
-
-ROOT = Path(__file__).resolve().parents[1]
+from property_utils import ROOT, report_errors
 YUL_DIRS = [ROOT / "compiler" / "yul"]
 
 

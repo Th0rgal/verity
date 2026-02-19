@@ -2,11 +2,8 @@
 """Extract theorem names from Lean proof files to generate property manifest."""
 
 import json
-from pathlib import Path
 
-from property_utils import extract_manifest_from_proofs
-
-ROOT = Path(__file__).resolve().parents[1]
+from property_utils import ROOT, extract_manifest_from_proofs
 OUTPUT = ROOT / "test" / "property_manifest.json"
 
 

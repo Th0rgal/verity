@@ -15,9 +15,7 @@ from pathlib import Path
 from typing import Iterable, List
 
 from keccak256 import selector as keccak_selector
-from property_utils import die, report_errors
-
-ROOT = Path(__file__).resolve().parent.parent
+from property_utils import ROOT, die, report_errors
 SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
 IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
 YUL_DIRS = [

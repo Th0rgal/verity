@@ -11,11 +11,7 @@ Usage:
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from property_utils import die, report_errors
-
-ROOT = Path(__file__).resolve().parents[1]
+from property_utils import ROOT, die, report_errors
 
 
 def main() -> None:
