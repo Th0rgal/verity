@@ -206,19 +206,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
         addressToNat_mod_eq, h, h_bal_mod_eq, h_bal_ge, h_sup_mod_eq, h_sup_ge,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
-    calc
-      (let specTx : DiffTestTypes.Transaction := {
-        sender := sender
-        functionName := "mint"
-        args := [addressToNat to, amount]
-      };
-      let specResult := interpretSpec simpleTokenSpec
-        (tokenEdslToSpecStorageWithAddrs state [to]) specTx;
-      specResult.finalStorage.getMapping 1 (addressToNat to))
-          = ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-      _ = ((ContractResult.getState
-          ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-        ).storageMap 1 to).val := h_edsl_map_val.symm
+    exact h_spec_val.trans h_edsl_map_val.symm
   · -- Total supply update matches EDSL
     have h_edsl_supply :
         (ContractResult.getState
@@ -251,19 +239,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq,
         addressToNat_mod_eq, h, h_bal_mod_eq, h_bal_ge, h_sup_mod_eq, h_sup_ge,
         List.lookup, BEq.beq, beq_iff_eq, decide_eq_true_eq, String.decEq]
-    calc
-      (let specTx : DiffTestTypes.Transaction := {
-        sender := sender
-        functionName := "mint"
-        args := [addressToNat to, amount]
-      };
-      let specResult := interpretSpec simpleTokenSpec
-        (tokenEdslToSpecStorageWithAddrs state [to]) specTx;
-      specResult.finalStorage.getSlot 2)
-          = ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-      _ = ((ContractResult.getState
-          ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-        ).storage 2).val := h_edsl_supply_val.symm
+    exact h_spec_val.trans h_edsl_supply_val.symm
 
 /-- The `mint` function correctly reverts when called by non-owner -/
 theorem token_mint_reverts_as_nonowner (state : ContractState) (to : Address) (amount : Nat) (sender : Address)
@@ -422,19 +398,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
             ).storageMap 1 sender).val =
             (state.storageMap 1 sender).val - amount :=
         h_edsl_state ▸ uint256_sub_val_of_le _ _ h
-      calc
-        (let specTx : DiffTestTypes.Transaction := {
-          sender := sender
-          functionName := "transfer"
-          args := [addressToNat to, amount]
-        };
-        let specResult := interpretSpec simpleTokenSpec
-          (tokenEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-        specResult.finalStorage.getMapping 1 (addressToNat sender))
-            = (state.storageMap 1 sender).val - amount := h_spec_val
-        _ = ((ContractResult.getState
-              ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 1 sender).val := h_edsl_val.symm
+      exact h_spec_val.trans h_edsl_val.symm
     · -- Recipient mapping equals EDSL mapping
       have h_spec_val :
           (let specTx : DiffTestTypes.Transaction := {
@@ -470,19 +434,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
             ).storageMap 1 to).val =
             ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
         simpa [uint256_add_val] using congrArg Verity.Core.Uint256.val h_edsl_state
-      calc
-        (let specTx : DiffTestTypes.Transaction := {
-          sender := sender
-          functionName := "transfer"
-          args := [addressToNat to, amount]
-        };
-        let specResult := interpretSpec simpleTokenSpec
-          (tokenEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-        specResult.finalStorage.getMapping 1 (addressToNat to))
-            = ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-        _ = ((ContractResult.getState
-              ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 1 to).val := h_edsl_val.symm
+      exact h_spec_val.trans h_edsl_val.symm
 
 /-- The `transfer` function correctly reverts when balance is insufficient -/
 theorem token_transfer_reverts_insufficient (state : ContractState) (to : Address) (amount : Nat) (sender : Address)

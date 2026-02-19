@@ -105,19 +105,7 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
           ).storageMap 0 sender).val =
           ((state.storageMap 0 sender).val + amount) % Verity.Core.Uint256.modulus := by
       simpa [uint256_add_val] using congrArg Verity.Core.Uint256.val h_edsl_state
-    calc
-      (let specTx : DiffTestTypes.Transaction := {
-        sender := sender
-        functionName := "deposit"
-        args := [amount]
-      };
-      let specResult :=
-        interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
-      specResult.finalStorage.getMapping 0 (addressToNat sender))
-          = ((state.storageMap 0 sender).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-      _ = ((ContractResult.getState
-            ((deposit (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-          ).storageMap 0 sender).val := h_edsl_val.symm
+    exact h_spec_val.trans h_edsl_val.symm
 
 /-- The `withdraw` function correctly subtracts when balance is sufficient -/
 theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat) (sender : Address)
@@ -176,19 +164,7 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
           ).storageMap 0 sender).val =
           (state.storageMap 0 sender).val - amount :=
       h_edsl_state ▸ uint256_sub_val_of_le _ _ h
-    calc
-      (let specTx : DiffTestTypes.Transaction := {
-        sender := sender
-        functionName := "withdraw"
-        args := [amount]
-      };
-      let specResult :=
-        interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender]) specTx;
-      specResult.finalStorage.getMapping 0 (addressToNat sender))
-          = (state.storageMap 0 sender).val - amount := h_spec_val
-      _ = ((ContractResult.getState
-            ((withdraw (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-          ).storageMap 0 sender).val := h_edsl_val.symm
+    exact h_spec_val.trans h_edsl_val.symm
 
 /-- The `withdraw` function correctly reverts when balance is insufficient -/
 theorem ledger_withdraw_reverts_insufficient (state : ContractState) (amount : Nat) (sender : Address)
@@ -355,19 +331,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
             ).storageMap 0 sender).val =
             (state.storageMap 0 sender).val - amount :=
         h_edsl_state ▸ uint256_sub_val_of_le _ _ h
-      calc
-        (let specTx : DiffTestTypes.Transaction := {
-          sender := sender
-          functionName := "transfer"
-          args := [addressToNat to, amount]
-        };
-        let specResult :=
-          interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-        specResult.finalStorage.getMapping 0 (addressToNat sender))
-            = (state.storageMap 0 sender).val - amount := h_spec_val
-        _ = ((ContractResult.getState
-              ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 0 sender).val := h_edsl_val.symm
+      exact h_spec_val.trans h_edsl_val.symm
     · -- Spec recipient mapping equals EDSL recipient mapping
       have h_spec_val :
           (let specTx : DiffTestTypes.Transaction := {
@@ -400,19 +364,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
             ).storageMap 0 to).val =
             ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus := by
         simpa [uint256_add_val] using congrArg Verity.Core.Uint256.val h_edsl_state
-      calc
-        (let specTx : DiffTestTypes.Transaction := {
-          sender := sender
-          functionName := "transfer"
-          args := [addressToNat to, amount]
-        };
-        let specResult :=
-          interpretSpec ledgerSpec (ledgerEdslToSpecStorageWithAddrs state [sender, to]) specTx;
-        specResult.finalStorage.getMapping 0 (addressToNat to))
-            = ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus := h_spec_val
-        _ = ((ContractResult.getState
-              ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
-            ).storageMap 0 to).val := h_edsl_val.symm
+      exact h_spec_val.trans h_edsl_val.symm
 
 /-- The `transfer` function correctly reverts when balance is insufficient -/
 theorem ledger_transfer_reverts_insufficient (state : ContractState) (to : Address) (amount : Nat) (sender : Address)
