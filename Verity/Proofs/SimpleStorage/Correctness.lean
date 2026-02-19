@@ -12,6 +12,7 @@ import Verity.Examples.SimpleStorage
 import Verity.Specs.SimpleStorage.Spec
 import Verity.Specs.SimpleStorage.Invariants
 import Verity.Proofs.SimpleStorage.Basic
+import Verity.Proofs.Stdlib.Automation
 
 namespace Verity.Proofs.SimpleStorage.Correctness
 
@@ -19,6 +20,7 @@ open Verity
 open Verity.Examples
 open Verity.Specs.SimpleStorage
 open Verity.Proofs.SimpleStorage
+open Verity.Proofs.Stdlib.Automation (wf_of_state_eq)
 
 /-! ## Roundtrip Specification
 
@@ -86,10 +88,8 @@ theorem retrieve_preserves_context (s : ContractState) :
 /-- retrieve preserves well-formedness. -/
 theorem retrieve_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((retrieve).run s).snd
-  WellFormedState s' := by
-  have h_pres := retrieve_preserves_state s
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (retrieve_preserves_state s) h
 
 /-! ## Summary
 

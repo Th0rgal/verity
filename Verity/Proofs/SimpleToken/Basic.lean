@@ -22,7 +22,7 @@ namespace Verity.Proofs.SimpleToken
 open Verity
 open Verity.Stdlib.Math
 open Verity.Proofs.Stdlib.Math (safeAdd_some safeAdd_none)
-open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne)
+open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne wf_of_state_eq)
 open Verity.Examples.SimpleToken (constructor mint transfer balanceOf getTotalSupply getOwner isOwner)
 open Verity.Specs.SimpleToken hiding owner balances totalSupply
 
@@ -511,24 +511,18 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
 
 theorem balanceOf_preserves_wellformedness (s : ContractState) (addr : Address) (h : WellFormedState s) :
   let s' := ((balanceOf addr).run s).snd
-  WellFormedState s' := by
-  have h_pres := balanceOf_preserves_state s addr
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (balanceOf_preserves_state s addr) h
 
 theorem getTotalSupply_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((getTotalSupply).run s).snd
-  WellFormedState s' := by
-  have h_pres := getTotalSupply_preserves_state s
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (getTotalSupply_preserves_state s) h
 
 theorem getOwner_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((getOwner).run s).snd
-  WellFormedState s' := by
-  have h_pres := getOwner_preserves_state s
-  rw [h_pres]
-  exact h
+  WellFormedState s' :=
+  wf_of_state_eq _ _ _ (getOwner_preserves_state s) h
 
 /-! ## Documentation
 
