@@ -237,7 +237,7 @@ Automatically compile a ContractSpec to IRContract.
 def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
   fields.findIdx? (·.name == name)
 
--- Helper: Is field a mapping? (legacy or typed)
+-- Helper: Is field a mapping?
 def isMapping (fields : List Field) (name : String) : Bool :=
   fields.find? (·.name == name) |>.any fun f =>
     match f.ty with

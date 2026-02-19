@@ -68,6 +68,8 @@ class Field:
     @property
     def compiler_field_type(self) -> str:
         """FieldType variant for Compiler/Specs.lean."""
+        if self.ty == "mapping":
+            return "FieldType.mappingTyped (.simple .address)"
         if self.ty == "mapping_uint":
             return "FieldType.mappingTyped (.simple .uint256)"
         return f"FieldType.{self.ty}"
