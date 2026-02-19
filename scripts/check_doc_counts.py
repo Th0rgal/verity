@@ -318,6 +318,30 @@ def main() -> None:
             ],
         )
     )
+    # Check per-contract theorem counts in README table (| Contract | N | ...)
+    readme_contract_checks = []
+    for contract, count in per_contract.items():
+        if contract == "Stdlib":
+            continue  # Stdlib not in README table
+        readme_contract_checks.append((
+            f"README {contract} count",
+            re.compile(rf"\|\s*{contract}\s*\|\s*(\d+)\s*\|"),
+            str(count),
+        ))
+    errors.extend(check_file(readme, readme_contract_checks))
+
+    # Check per-contract theorem counts in examples/solidity/README.md (| ... | N theorems | ...)
+    solidity_readme = ROOT / "examples" / "solidity" / "README.md"
+    solidity_contract_checks = []
+    for contract, count in per_contract.items():
+        if contract == "Stdlib":
+            continue
+        solidity_contract_checks.append((
+            f"solidity README {contract} count",
+            re.compile(rf"{contract}\.lean.*?(\d+) theorems"),
+            str(count),
+        ))
+    errors.extend(check_file(solidity_readme, solidity_contract_checks))
 
     # Check llms.txt
     llms = ROOT / "docs-site" / "public" / "llms.txt"
@@ -358,6 +382,15 @@ def main() -> None:
             ],
         )
     )
+    # Check per-contract theorem counts in llms.txt table (| Contract | N | ...)
+    llms_contract_checks = []
+    for contract, count in per_contract.items():
+        llms_contract_checks.append((
+            f"llms.txt {contract} count",
+            re.compile(rf"\|\s*{contract}\s*\|\s*(\d+)\s*\|"),
+            str(count),
+        ))
+    errors.extend(check_file(llms, llms_contract_checks))
 
     # Check compiler.mdx
     compiler_mdx = ROOT / "docs-site" / "content" / "compiler.mdx"

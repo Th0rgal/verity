@@ -60,7 +60,7 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 | Ledger | 33 | Deposit/withdraw/transfer, balance conservation |
 | SafeCounter | 25 | Overflow/underflow revert proofs |
 | ReentrancyExample | 4 | Reentrancy vulnerability proof, supply invariant |
-| Stdlib | 126 | safeMul/safeDiv correctness, automation lemmas |
+| Stdlib | 130 | safeMul/safeDiv correctness, automation lemmas |
 
 ## Proof Techniques
 

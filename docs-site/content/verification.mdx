@@ -36,7 +36,7 @@ Simple contracts (SimpleStorage, Counter, SafeCounter, Ledger) hold by `rfl`. Co
 
 - **Spec semantics**: `Verity/Proofs/Stdlib/SpecInterpreter.lean`
 - **Spec correctness**: `Compiler/Proofs/SpecCorrectness/` (complete for all 7 contracts — proves each ContractSpec matches its EDSL)
-- **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + per-contract proofs for Counter, SimpleStorage)
+- **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + concrete IR proofs in `Expr.lean`)
 - **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/` (complete — PR #42)
 
 ## Structure

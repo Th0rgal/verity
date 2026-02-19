@@ -9,7 +9,7 @@ These Solidity contracts serve as **reference implementations** for Verity's dif
 | `SimpleStorage.sol` | `Verity/Examples/SimpleStorage.lean` | 20 theorems | Single storage slot (store/retrieve) |
 | `Counter.sol` | `Verity/Examples/Counter.lean` | 28 theorems | Increment/decrement with wrapping arithmetic |
 | `SafeCounter.sol` | `Verity/Examples/SafeCounter.lean` | 25 theorems | Overflow-safe arithmetic (reverts on overflow) |
-| `Owned.sol` | `Verity/Examples/Owned.lean` | 22 theorems | Access control (owner-only functions) |
+| `Owned.sol` | `Verity/Examples/Owned.lean` | 23 theorems | Access control (owner-only functions) |
 | `OwnedCounter.sol` | `Verity/Examples/OwnedCounter.lean` | 48 theorems | Combined access control + counter |
 | `Ledger.sol` | `Verity/Examples/Ledger.lean` | 33 theorems | Balance mapping (deposit/withdraw/transfer) |
 | `SimpleToken.sol` | `Verity/Examples/SimpleToken.lean` | 59 theorems | Token with mint/transfer + supply invariants |

@@ -83,7 +83,7 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | SimpleStorage | 20 | Store/retrieve with roundtrip proof |
 | Counter | 28 | Increment/decrement with wrapping, composition proofs |
 | SafeCounter | 25 | Overflow/underflow revert proofs |
-| Owned | 22 | Access control and ownership transfer |
+| Owned | 23 | Access control and ownership transfer |
 | OwnedCounter | 48 | Cross-pattern composition, lockout proofs |
 | Ledger | 33 | Deposit/withdraw/transfer with balance conservation |
 | SimpleToken | 59 | Mint/transfer, supply conservation, storage isolation |
