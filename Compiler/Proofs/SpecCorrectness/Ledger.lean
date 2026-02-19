@@ -533,12 +533,8 @@ theorem ledger_deposit_increases (state : ContractState) (amount : Nat) (sender 
       ((deposit (Verity.Core.Uint256.ofNat amount)).runState { state with sender := sender }).storageMap 0 sender =
         Verity.EVM.Uint256.add (state.storageMap 0 sender) (Verity.Core.Uint256.ofNat amount) := by
     simpa [Contract.runState] using h_deposit
-  have h_deposit_val_nat :
-      (((deposit (Verity.Core.Uint256.ofNat amount)).runState { state with sender := sender }).storageMap 0 sender).val =
-        (Verity.EVM.Uint256.add (state.storageMap 0 sender) (Verity.Core.Uint256.ofNat amount)).val := by
-    simpa using congrArg Verity.Core.Uint256.val h_deposit_val
   -- Rewrite with the addition lemma and the runState definition.
-  simpa [h_add] using h_deposit_val_nat
+  simpa [h_add] using congrArg Verity.Core.Uint256.val h_deposit_val
 
 /-- Transfer preserves total balance (sender + recipient) -/
 theorem ledger_transfer_preserves_total (state : ContractState) (to : Address) (amount : Nat) (sender : Address)

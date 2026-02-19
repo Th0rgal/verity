@@ -739,15 +739,7 @@ theorem token_transfer_preserves_total_balance (state : ContractState) (to : Add
       ).storageMap 1 to).val =
       (state.storageMap 1 to).val + amount := by
     have h_val := congrArg Verity.Core.Uint256.val h_recipient_state
-    have h_val' :
-        (Verity.EVM.Uint256.add (state.storageMap 1 to)
-          (Verity.Core.Uint256.ofNat amount)).val =
-        ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
-      exact uint256_add_val (state.storageMap 1 to) amount
-    have h_mod : ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus =
-        (state.storageMap 1 to).val + amount := by
-      exact Nat.mod_eq_of_lt h3
-    simpa [h_val', h_mod] using h_val
+    simpa [uint256_add_val, Nat.mod_eq_of_lt h3] using h_val
   calc
     ((ContractResult.getState
       ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
