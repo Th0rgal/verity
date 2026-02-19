@@ -190,7 +190,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         ).storageMap 1 to).val =
         (Verity.EVM.Uint256.add (state.storageMap 1 to)
           (Verity.Core.Uint256.ofNat amount)).val := by
-      simpa using congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_map
+      simpa using congrArg Verity.Core.Uint256.val h_edsl_map
     have h_spec_val :
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -242,7 +242,7 @@ theorem token_mint_correct_as_owner (state : ContractState) (to : Address) (amou
         ).storage 2).val =
         (Verity.EVM.Uint256.add (state.storage 2)
           (Verity.Core.Uint256.ofNat amount)).val := by
-      simpa using congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_supply
+      simpa using congrArg Verity.Core.Uint256.val h_edsl_supply
     have h_spec_val :
         (let specTx : DiffTestTypes.Transaction := {
           sender := sender
@@ -485,7 +485,7 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
               ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
             ).storageMap 1 to).val =
             ((state.storageMap 1 to).val + amount) % Verity.Core.Uint256.modulus := by
-        have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_state
+        have h_val := congrArg Verity.Core.Uint256.val h_edsl_state
         calc
           ((ContractResult.getState
               ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
@@ -653,7 +653,7 @@ theorem token_mint_increases_supply (state : ContractState) (to : Address) (amou
         ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
       ).storage 2).val =
       ((state.storage 2).val + amount) % Verity.Core.Uint256.modulus := by
-    have h_edsl_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl
+    have h_edsl_val := congrArg Verity.Core.Uint256.val h_edsl
     calc
       ((ContractResult.getState
         ((mint to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
@@ -762,7 +762,7 @@ theorem token_transfer_preserves_total_balance (state : ContractState) (to : Add
         ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
       ).storageMap 1 to).val =
       (state.storageMap 1 to).val + amount := by
-    have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_recipient_state
+    have h_val := congrArg Verity.Core.Uint256.val h_recipient_state
     have h_val' :
         (Verity.EVM.Uint256.add (state.storageMap 1 to)
           (Verity.Core.Uint256.ofNat amount)).val =

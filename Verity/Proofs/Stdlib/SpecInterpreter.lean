@@ -38,7 +38,6 @@ import Compiler.ContractSpec
 import Compiler.DiffTestTypes
 import Compiler.Hex
 import Verity.Core
-import Verity.Core.Uint256
 
 namespace Verity.Proofs.Stdlib.SpecInterpreter
 

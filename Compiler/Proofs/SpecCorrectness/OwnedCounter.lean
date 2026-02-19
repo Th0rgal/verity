@@ -97,7 +97,7 @@ theorem ownedCounter_increment_correct_as_owner (state : ContractState) (sender 
           ((state.storage 1).val + 1) % Verity.Core.Uint256.modulus := by
       have h_inc := increment_adds_one_when_owner (s := { state with sender := sender }) h_owner'
       simpa [ContractResult.getState, ContractResult.snd, uint256_add_val] using
-        congrArg (fun v : Verity.Core.Uint256 => v.val) h_inc
+        congrArg Verity.Core.Uint256.val h_inc
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_inc_val]
 
@@ -155,7 +155,7 @@ theorem ownedCounter_decrement_correct_as_owner (state : ContractState) (sender 
               (1 % Verity.Core.Uint256.modulus - (state.storage 1).val)) := by
       have h_dec := decrement_subtracts_one_when_owner (s := { state with sender := sender }) h_owner'
       simpa [ContractResult.getState, ContractResult.snd] using
-        (congrArg (fun v : Verity.Core.Uint256 => v.val) h_dec).trans (uint256_sub_val (state.storage 1) 1)
+        (congrArg Verity.Core.Uint256.val h_dec).trans (uint256_sub_val (state.storage 1) 1)
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, h_dec_val]
 

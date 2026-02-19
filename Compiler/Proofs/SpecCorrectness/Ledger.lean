@@ -105,7 +105,7 @@ theorem ledger_deposit_correct (state : ContractState) (amount : Nat) (sender : 
           ).storageMap 0 sender).val =
           (Verity.EVM.Uint256.add (state.storageMap 0 sender)
             (Verity.Core.Uint256.ofNat amount)).val := by
-      simpa using congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_state
+      simpa using congrArg Verity.Core.Uint256.val h_edsl_state
     have h_add_val :
         (Verity.EVM.Uint256.add (state.storageMap 0 sender)
           (Verity.Core.Uint256.ofNat amount)).val =
@@ -415,7 +415,7 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
               ((transfer to (Verity.Core.Uint256.ofNat amount)).run { state with sender := sender })
             ).storageMap 0 to).val =
             ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus := by
-        have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_edsl_state
+        have h_val := congrArg Verity.Core.Uint256.val h_edsl_state
         simpa [uint256_add_val] using h_val
       calc
         (let specTx : DiffTestTypes.Transaction := {
@@ -545,7 +545,7 @@ theorem ledger_deposit_increases (state : ContractState) (amount : Nat) (sender 
   have h_deposit_val_nat :
       (((deposit (Verity.Core.Uint256.ofNat amount)).runState { state with sender := sender }).storageMap 0 sender).val =
         (Verity.EVM.Uint256.add (state.storageMap 0 sender) (Verity.Core.Uint256.ofNat amount)).val := by
-    simpa using congrArg (fun v : Verity.Core.Uint256 => v.val) h_deposit_val
+    simpa using congrArg Verity.Core.Uint256.val h_deposit_val
   -- Rewrite with the addition lemma and the runState definition.
   simpa [h_add] using h_deposit_val_nat
 
@@ -587,7 +587,7 @@ theorem ledger_transfer_preserves_total (state : ContractState) (to : Address) (
       ((Contract.runState (transfer to (Verity.Core.Uint256.ofNat amount))
           { state with sender := sender }).storageMap 0 to).val =
         (state.storageMap 0 to).val + amount := by
-    have h_val := congrArg (fun v : Verity.Core.Uint256 => v.val) h_recipient
+    have h_val := congrArg Verity.Core.Uint256.val h_recipient
     have h_mod : ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus =
         (state.storageMap 0 to).val + amount := by
       exact Nat.mod_eq_of_lt h3
