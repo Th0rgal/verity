@@ -162,57 +162,6 @@ theorem storageStore_equiv (selector : Nat) (fuel : Nat)
       unfold execResultsAligned statesAligned yulStateOfIR
       simp
 
-/-! ### Mapping Load Equivalence -/
-
-theorem mappingLoad_equiv (selector : Nat) (fuel : Nat)
-    (varName : String) (baseExpr keyExpr : YulExpr)
-    (irState : IRState) (yulState : YulState)
-    (halign : statesAligned selector irState yulState)
-    (hfuel : fuel > 0) :
-    execResultsAligned selector
-      (execIRStmtFuel fuel irState
-        (YulStmt.let_ varName (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]])))
-      (execYulStmtFuel fuel yulState
-        (YulStmt.let_ varName (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]]))) := by
-  -- Mapping load is just storage load with computed slot - same pattern
-  unfold statesAligned at halign
-  subst halign
-  cases fuel with
-  | zero => contradiction
-  | succ fuel' =>
-      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
-      rw [evalIRExpr_eq_evalYulExpr]
-      cases evalYulExpr (yulStateOfIR selector irState) (.call "sload" [.call "mappingSlot" [baseExpr, keyExpr]]) with
-      | none =>
-          unfold execResultsAligned
-          rfl
-      | some v =>
-          unfold execResultsAligned statesAligned yulStateOfIR
-          simp [IRState.setVar, YulState.setVar]
-
-/-! ### Mapping Store Equivalence -/
-
-theorem mappingStore_equiv (selector : Nat) (fuel : Nat)
-    (baseExpr keyExpr valExpr : YulExpr)
-    (irState : IRState) (yulState : YulState)
-    (halign : statesAligned selector irState yulState)
-    (hfuel : fuel > 0) :
-    execResultsAligned selector
-      (execIRStmtFuel fuel irState
-        (YulStmt.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr])))
-      (execYulStmtFuel fuel yulState
-        (YulStmt.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr]))) := by
-  -- Mapping store is just storage store with computed slot - same pattern
-  unfold statesAligned at halign
-  subst halign
-  cases fuel with
-  | zero => contradiction
-  | succ fuel' =>
-      unfold execIRStmtFuel execIRStmt execYulStmtFuel execYulFuel
-      simp only [evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
-      unfold execResultsAligned statesAligned yulStateOfIR
-      simp
-
 /-! ### Conditional (if) and Universal Statement Equivalence
 
 Proven mutually: `conditional_equiv` needs `all_stmts_equiv` for the body,
@@ -292,41 +241,13 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
               -- Handle specific builtin calls
               match fname, args with
               | "sstore", [slotExpr, valExpr] =>
-                  -- Check if it's a mapping store
-                  match slotExpr with
-                  | YulExpr.call "mappingSlot" mappingArgs =>
-                      match mappingArgs with
-                      | [baseExpr, keyExpr] =>
-                          exact mappingStore_equiv selector (fuel' + 1) baseExpr keyExpr valExpr irState yulState halign (by omega)
-                      | _ =>
-                          -- Invalid mappingSlot call - generic handling
-                          unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
-                          intro hAlign
-                          unfold statesAligned at hAlign
-                          subst hAlign
-                          simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
-                  | _ =>
-                      exact storageStore_equiv selector (fuel' + 1) slotExpr valExpr irState yulState halign (by omega)
+                  exact storageStore_equiv selector (fuel' + 1) slotExpr valExpr irState yulState halign (by omega)
               | "return", [offsetExpr, sizeExpr] =>
                   exact return_equiv selector (fuel' + 1) offsetExpr sizeExpr irState yulState halign (by omega)
               | "revert", [offsetExpr, sizeExpr] =>
                   exact revert_equiv selector (fuel' + 1) offsetExpr sizeExpr irState yulState halign (by omega)
-              | "stop", [] =>
-                  -- Stop is a terminal statement like revert
-                  unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
-                  intro hAlign
-                  unfold statesAligned at hAlign
-                  subst hAlign
-                  simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR]
-              | "mstore", [offsetExpr, valExpr] =>
-                  -- Memory store - both handle identically
-                  unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
-                  intro hAlign
-                  unfold statesAligned at hAlign
-                  subst hAlign
-                  simp [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel, yulStateOfIR, evalIRExpr_eq_evalYulExpr, evalIRExprs_eq_evalYulExprs]
               | _, _ =>
-                  -- Other expression statements - generic handling
+                  -- Generic handling: stop, mstore, and all other expression statements
                   unfold execIRStmt_equiv_execYulStmt_goal execResultsAligned
                   intro hAlign
                   unfold statesAligned at hAlign
