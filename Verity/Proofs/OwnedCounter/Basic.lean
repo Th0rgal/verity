@@ -82,7 +82,7 @@ theorem isOwner_correct (s : ContractState) :
 /-! ## Increment Correctness (Owner-Guarded) -/
 
 /-- Helper: unfold increment when caller is owner -/
-private theorem increment_unfold (s : ContractState)
+theorem increment_unfold (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (increment.run s) = ContractResult.success ()
     { storage := fun slot => if (slot == 1) = true then EVM.Uint256.add (s.storage 1) 1 else s.storage slot,
@@ -131,7 +131,7 @@ theorem increment_reverts_when_not_owner (s : ContractState)
 /-! ## Decrement Correctness (Owner-Guarded) -/
 
 /-- Helper: unfold decrement when caller is owner -/
-private theorem decrement_unfold (s : ContractState)
+theorem decrement_unfold (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (decrement.run s) = ContractResult.success ()
     { storage := fun slot => if (slot == 1) = true then EVM.Uint256.sub (s.storage 1) 1 else s.storage slot,
@@ -179,7 +179,7 @@ theorem decrement_reverts_when_not_owner (s : ContractState)
 
 /-! ## TransferOwnership Correctness (Owner-Guarded) -/
 
-private theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
+theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
   (transferOwnership newOwner).run s = ContractResult.success ()
     { storage := s.storage,
