@@ -330,6 +330,11 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
       -- Dynamic-array return encoding is a codegen concern.
       some (ctx, { state with returnValue := none, halted := true })
 
+  | Stmt.returnBytes _name =>
+      -- The spec interpreter models scalar returnValue only.
+      -- Dynamic-bytes return encoding is a codegen concern.
+      some (ctx, { state with returnValue := none, halted := true })
+
   | Stmt.stop =>
       some (ctx, { state with halted := true })
 

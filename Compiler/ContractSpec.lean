@@ -203,7 +203,8 @@ inductive Stmt
   | require (cond : Expr) (message : String)
   | return (value : Expr)
   | returnValues (values : List Expr)  -- ABI-encode multiple static return words
-  | returnArray (name : String)        -- ABI-encode dynamic array parameter loaded from calldata
+  | returnArray (name : String)        -- ABI-encode dynamic uint256[] parameter loaded from calldata
+  | returnBytes (name : String)        -- ABI-encode dynamic bytes parameter loaded from calldata
   | stop
   | ite (cond : Expr) (thenBranch : List Stmt) (elseBranch : List Stmt)  -- If/else (#179)
   | forEach (varName : String) (count : Expr) (body : List Stmt)  -- Bounded loop (#179)
@@ -633,6 +634,22 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
         YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, byteLen]),
         YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, byteLen]])
+      ]
+  | Stmt.returnBytes name => do
+      let lenIdent := YulExpr.ident s!"{name}_length"
+      let dataOffset := YulExpr.ident s!"{name}_data_offset"
+      let paddedLen :=
+        YulExpr.call "and" [
+          YulExpr.call "add" [lenIdent, YulExpr.lit 31],
+          YulExpr.call "not" [YulExpr.lit 31]
+        ]
+      pure [
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
+        YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, lenIdent]),
+        -- Ensure ABI right-padding bytes are zeroed even if memory was previously dirtied.
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.lit 64, lenIdent], YulExpr.lit 0]),
+        YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, paddedLen]])
       ]
 end
 
