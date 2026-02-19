@@ -26,6 +26,7 @@ YUL_DIRS = [
 SIMPLE_PARAM_MAP = {
     "uint256": "uint256",
     "address": "address",
+    "bool": "bool",
     "bytes32": "bytes32",
     "bytes": "bytes",
 }
@@ -119,56 +120,105 @@ def extract_functions(spec_block: str) -> List[str]:
     return sigs
 
 
-def _parse_param_type(tokens: List[str], pos: int) -> tuple[str, int]:
-    """Parse a ParamType expression from a token list, returning (solidity_type, next_pos).
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
 
-    Handles recursive types like ``ParamType.array ParamType.uint256`` → ``uint256[]``
-    and ``ParamType.fixedArray ParamType.address 3`` → ``address[3]``.
-    Parenthesized sub-expressions are handled by stripping parens first.
-    """
-    if pos >= len(tokens):
-        die("Unexpected end of ParamType tokens")
-    tok = tokens[pos]
-    if not tok.startswith("ParamType."):
-        die(f"Expected ParamType.*, got '{tok}'")
-    variant = tok[len("ParamType."):]
 
-    sol = SIMPLE_PARAM_MAP.get(variant)
-    if sol is not None:
-        return sol, pos + 1
+def _read_ident(text: str, pos: int) -> tuple[str, int]:
+    start = pos
+    while pos < len(text) and (text[pos].isalnum() or text[pos] == "_"):
+        pos += 1
+    return text[start:pos], pos
+
+
+def _parse_param_type_expr(text: str, pos: int) -> tuple[str, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        die("Unexpected end of ParamType expression")
+
+    if text[pos] == "(":
+        parsed, pos = _parse_param_type_expr(text, pos + 1)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ")":
+            die("Unclosed parenthesized ParamType expression")
+        return parsed, pos + 1
+
+    if not text.startswith("ParamType.", pos):
+        die(f"Expected ParamType.* near: {text[pos:pos+32]!r}")
+    pos += len("ParamType.")
+    variant, pos = _read_ident(text, pos)
+    if not variant:
+        die("Missing ParamType variant name")
+
+    simple = SIMPLE_PARAM_MAP.get(variant)
+    if simple is not None:
+        return simple, pos
 
     if variant == "array":
-        elem_type, next_pos = _parse_param_type(tokens, pos + 1)
-        return f"{elem_type}[]", next_pos
+        elem_type, pos = _parse_param_type_expr(text, pos)
+        return f"{elem_type}[]", pos
 
     if variant == "fixedArray":
-        elem_type, next_pos = _parse_param_type(tokens, pos + 1)
-        if next_pos >= len(tokens):
+        elem_type, pos = _parse_param_type_expr(text, pos)
+        pos = _skip_ws(text, pos)
+        size_start = pos
+        while pos < len(text) and text[pos].isdigit():
+            pos += 1
+        if size_start == pos:
             die("fixedArray missing size")
-        size = tokens[next_pos]
-        return f"{elem_type}[{size}]", next_pos + 1
+        size = text[size_start:pos]
+        return f"{elem_type}[{size}]", pos
+
+    if variant == "tuple":
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != "[":
+            die("tuple missing element list")
+        pos += 1
+        elems: List[str] = []
+        while True:
+            pos = _skip_ws(text, pos)
+            if pos < len(text) and text[pos] == "]":
+                pos += 1
+                break
+            elem, pos = _parse_param_type_expr(text, pos)
+            elems.append(elem)
+            pos = _skip_ws(text, pos)
+            if pos < len(text) and text[pos] == ",":
+                pos += 1
+                continue
+            if pos < len(text) and text[pos] == "]":
+                pos += 1
+                break
+            die("tuple elements must be comma-separated")
+        return f"({','.join(elems)})", pos
 
     die(f"Unsupported ParamType.{variant}")
     return "", pos  # unreachable
 
 
-def _tokenize_param_types(text: str) -> List[str]:
-    """Tokenize a Lean type expression, stripping parentheses.
+def parse_param_type(text: str) -> str:
+    parsed, pos = _parse_param_type_expr(text, 0)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        die(f"Unexpected trailing ParamType tokens: {text[pos:]!r}")
+    return parsed
 
-    Splits on whitespace and removes bare ``(`` and ``)`` tokens, as well as
-    stripping them from token edges.  This lets us handle both
-    ``ParamType.array ParamType.uint256`` and
-    ``ParamType.array (ParamType.array ParamType.uint256)``.
-    """
-    raw = text.split()
-    tokens: List[str] = []
-    for r in raw:
-        # Strip leading/trailing parens
-        r = r.strip("()")
-        if not r:
-            continue
-        tokens.append(r)
-    return tokens
+
+def _self_test_param_type_parser() -> None:
+    cases = {
+        "ParamType.uint256": "uint256",
+        "ParamType.bool": "bool",
+        "ParamType.array ParamType.address": "address[]",
+        "ParamType.fixedArray (ParamType.array ParamType.uint256) 3": "uint256[][3]",
+        "ParamType.tuple [ParamType.uint256, ParamType.address, ParamType.bool]": "(uint256,address,bool)",
+        "ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.address])": "(uint256,address)[]",
+    }
+    for src, expected in cases.items():
+        got = parse_param_type(src)
+        if got != expected:
+            die(f"ParamType parser self-test failed: {src!r} -> {got!r} (expected {expected!r})")
 
 
 def extract_param_types(fn_block: str) -> List[str]:
@@ -193,10 +243,8 @@ def extract_param_types(fn_block: str) -> List[str]:
             ty_match = re.search(r"ty\s*:=\s*(.*?)(?:\s*\}|\s*,\s*\w)", param_block, re.DOTALL)
             if ty_match:
                 ty_text = ty_match.group(1).strip().rstrip(",").rstrip("}")
-                tokens = _tokenize_param_types(ty_text)
-                if tokens:
-                    sol_type, _ = _parse_param_type(tokens, 0)
-                    sol_types.append(sol_type)
+                if ty_text:
+                    sol_types.append(parse_param_type(ty_text))
             idx = end + 1
         else:
             idx += 1
@@ -280,6 +328,8 @@ def main() -> None:
         die(f"Missing specs file: {SPEC_FILE}")
     if not IR_EXPR_FILE.exists():
         die(f"Missing IR proof file: {IR_EXPR_FILE}")
+
+    _self_test_param_type_parser()
 
     specs_text = strip_lean_comments(SPEC_FILE.read_text(encoding="utf-8"))
     specs = extract_specs(specs_text)
