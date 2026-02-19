@@ -104,7 +104,7 @@ python3 scripts/check_contract_structure.py
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc and can compare bytecode parity between directories
 - **`check_gas_report.py`** - Validates `lake exe gas-report` output shape, arithmetic consistency of totals, and monotonicity under more conservative static analysis settings
 - **`check_gas_model_coverage.py`** - Verifies that every call emitted in generated Yul has an explicit cost branch in `Compiler/Gas/StaticAnalysis.lean` (prevents silent fallback to unknown-call costs)
-- **`check_gas_calibration.py`** - Compares static bounds (`lake exe gas-report`) against Foundry `--gas-report` measurements for `test/yul/*.t.sol`, requiring runtime bounds + transaction base gas to dominate observed max call gas, deploy bounds + creation/code-deposit overhead to dominate deployment gas, and static-report contracts to be represented in Foundry gas output (unless explicitly allowlisted). Accepts precomputed `--static-report` and `--foundry-report` files for deterministic replay/debugging.
+- **`check_gas_calibration.py`** - Compares static bounds (`lake exe gas-report`) against Foundry `--gas-report` measurements for `test/yul/*.t.sol`, requiring runtime bounds + transaction base gas to dominate observed max call gas, deploy bounds + creation/code-deposit overhead to dominate deployment gas, and static-report contracts to be represented in Foundry gas output (unless explicitly allowlisted). Parsing is header-driven (not fixed-column) to tolerate Foundry table layout drift. Accepts precomputed `--static-report` and `--foundry-report` files for deterministic replay/debugging.
 
 ```bash
 # Default: check compiler/yul

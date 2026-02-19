@@ -133,51 +133,86 @@ def parse_cell_int(raw: str) -> int | None:
     return int(cleaned)
 
 
+def parse_table_cells(raw: str) -> list[str]:
+    cells = [part.strip() for part in raw.split("|")]
+    if len(cells) >= 2:
+        return cells[1:-1]
+    return []
+
+
+def table_index(header: list[str], name: str) -> int:
+    for i, cell in enumerate(header):
+        if cell == name:
+            return i
+    return -1
+
+
 def parse_foundry_report(stdout: str) -> tuple[dict[str, int], dict[str, tuple[int, int]]]:
     contract_header = re.compile(r"\|\s+[^|]*:(?P<name>[A-Za-z0-9_]+)\s+Contract\s*\|")
     observed_runtime: dict[str, int] = {}
     observed_deploy: dict[str, tuple[int, int]] = {}
     current: str | None = None
-    expect_deploy_row = False
+    mode: str | None = None
+    deploy_gas_idx = -1
+    deploy_size_idx = -1
+    runtime_name_idx = -1
+    runtime_max_idx = -1
 
     for raw in stdout.splitlines():
         m = contract_header.search(raw)
         if m:
             current = m.group("name")
             observed_runtime.setdefault(current, 0)
-            expect_deploy_row = False
+            mode = None
+            deploy_gas_idx = -1
+            deploy_size_idx = -1
+            runtime_name_idx = -1
+            runtime_max_idx = -1
             continue
 
         if current is None or "|" not in raw:
             continue
         stripped = raw.strip()
         if stripped.startswith("| Deployment Cost"):
-            expect_deploy_row = True
+            header = parse_table_cells(raw)
+            deploy_gas_idx = table_index(header, "Deployment Cost")
+            deploy_size_idx = table_index(header, "Deployment Size")
+            mode = None
             continue
         if stripped.startswith("| Function Name"):
-            expect_deploy_row = False
+            header = parse_table_cells(raw)
+            runtime_name_idx = table_index(header, "Function Name")
+            runtime_max_idx = table_index(header, "Max")
+            mode = "runtime"
             continue
         if set(stripped) <= {"|", "-", "+", "=", "╭", "╰", "╮", "╯"}:
             continue
 
-        cols = [part.strip() for part in raw.split("|")]
-        if len(cols) < 7:
+        cols = parse_table_cells(raw)
+        if not cols:
             continue
 
-        if expect_deploy_row:
-            deploy_gas = parse_cell_int(cols[1])
-            deploy_size = parse_cell_int(cols[2])
+        if deploy_gas_idx >= 0 and deploy_size_idx >= 0 and max(deploy_gas_idx, deploy_size_idx) < len(cols):
+            deploy_gas = parse_cell_int(cols[deploy_gas_idx])
+            deploy_size = parse_cell_int(cols[deploy_size_idx])
             if deploy_gas is not None and deploy_size is not None:
                 observed_deploy[current] = (deploy_gas, deploy_size)
-                expect_deploy_row = False
+                deploy_gas_idx = -1
+                deploy_size_idx = -1
                 continue
-            expect_deploy_row = False
+            deploy_gas_idx = -1
+            deploy_size_idx = -1
 
-        fn_name = cols[1]
+        if mode != "runtime" or runtime_name_idx < 0 or runtime_max_idx < 0:
+            continue
+        if max(runtime_name_idx, runtime_max_idx) >= len(cols):
+            continue
+
+        fn_name = cols[runtime_name_idx]
         if not fn_name or fn_name in {"Function Name", "Deployment Cost"}:
             continue
 
-        max_col = cols[5]
+        max_col = cols[runtime_max_idx]
         max_gas = parse_cell_int(max_col)
         if max_gas is None:
             continue
