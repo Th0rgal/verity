@@ -6,10 +6,10 @@
 
 ## Current Status
 
-- ✅ **Layer 1 Complete**: 400 theorems across 9 categories (8 contracts + Stdlib math library)
+- ✅ **Layer 1 Complete**: 401 theorems across 9 categories (8 contracts + Stdlib math library)
 - ✅ **Layer 2 Complete**: All IR generation with preservation proofs (ContractSpec → IR)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
-- ✅ **Property Testing**: 55% coverage (220/400), all testable properties covered
+- ✅ **Property Testing**: 55% coverage (220/401), all testable properties covered
 - ✅ **Differential Testing**: Production-ready with 70k+ tests
 - ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
 - ✅ **External Linking**: Cryptographic library support (PR #49)

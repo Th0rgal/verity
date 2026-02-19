@@ -63,7 +63,7 @@ EVM Bytecode
 | ReentrancyExample | 4 | ✅ Complete | `Verity/Examples/ReentrancyExample.lean` |
 | **Total** | **242** | **✅ 100%** | — |
 
-> **Note**: Stdlib (158 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (400 total properties).
+> **Note**: Stdlib (159 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (401 total properties).
 
 ### Example Property
 
@@ -177,13 +177,13 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
-**Status**: 55% coverage (220/400), 180 remaining exclusions all proof-only
+**Status**: 55% coverage (220/401), 181 remaining exclusions all proof-only
 
 ### Current Coverage
 
-- **Total Properties**: 400
+- **Total Properties**: 401
 - **Covered**: 220 (55%)
-- **Excluded**: 180 (all proof-only)
+- **Excluded**: 181 (all proof-only)
 - **Missing**: 0
 
 ### Coverage by Contract
@@ -198,11 +198,11 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 | SimpleToken | 85% (52/61) | 9 proof-only | ✅ High coverage |
 | Counter | 82% (23/28) | 5 proof-only | ✅ High coverage |
 | Ledger | 100% (33/33) | 0 | ✅ Complete |
-| Stdlib | 0% (0/158) | 158 proof-only | — Internal |
+| Stdlib | 0% (0/159) | 159 proof-only | — Internal |
 
 ### Exclusion Categories
 
-**Proof-Only Properties (180 exclusions)**: Internal proof machinery that cannot be tested in Foundry
+**Proof-Only Properties (181 exclusions)**: Internal proof machinery that cannot be tested in Foundry
 - Storage helpers: `setStorage_*`, `getStorage_*`, `setMapping_*`, `getMapping_*`
 - Internal helpers: `isOwner_*` functions tested implicitly
 - Low-level operations used only in proofs
