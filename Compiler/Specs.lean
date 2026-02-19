@@ -153,7 +153,7 @@ def ownedSpec : ContractSpec := {
 def ledgerSpec : ContractSpec := {
   name := "Ledger"
   fields := [
-    { name := "balances", ty := FieldType.mapping }
+    { name := "balances", ty := FieldType.mappingTyped (.simple .address) }
   ]
   constructor := none
   functions := [
@@ -264,7 +264,7 @@ def simpleTokenSpec : ContractSpec := {
   name := "SimpleToken"
   fields := [
     { name := "owner", ty := FieldType.address },
-    { name := "balances", ty := FieldType.mapping },
+    { name := "balances", ty := FieldType.mappingTyped (.simple .address) },
     { name := "totalSupply", ty := FieldType.uint256 }
   ]
   constructor := some {

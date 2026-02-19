@@ -61,7 +61,6 @@ inductive MappingType
 inductive FieldType
   | uint256
   | address
-  | mapping   -- Address → Uint256 (legacy, equivalent to mappingTyped (.simple .address))
   | mappingTyped (mt : MappingType)  -- Flexible mapping types (#154)
   deriving Repr, BEq
 
@@ -94,7 +93,6 @@ structure Param where
 def FieldType.toIRType : FieldType → IRType
   | uint256 => IRType.uint256
   | address => IRType.address
-  | mapping => IRType.uint256  -- Mappings return uint256
   | mappingTyped _ => IRType.uint256  -- All mappings return uint256
 
 def ParamType.toIRType : ParamType → IRType
@@ -242,7 +240,7 @@ def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
 -- Helper: Is field a mapping? (legacy or typed)
 def isMapping (fields : List Field) (name : String) : Bool :=
   fields.find? (·.name == name) |>.any fun f =>
-    f.ty == FieldType.mapping || match f.ty with
+    match f.ty with
     | FieldType.mappingTyped _ => true
     | _ => false
 

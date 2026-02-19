@@ -363,7 +363,7 @@ Add your contract to `Compiler/Specs.lean`:
 def tipJarSpec : ContractSpec := {
   name := "TipJar"
   fields := [
-    { name := "tips", ty := FieldType.mapping }
+    { name := "tips", ty := FieldType.mappingTyped (.simple .address) }
   ]
   constructor := none
   functions := [
