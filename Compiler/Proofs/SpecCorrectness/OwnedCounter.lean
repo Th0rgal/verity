@@ -236,6 +236,29 @@ theorem ownedCounter_transferOwnership_correct_as_owner (state : ContractState) 
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
       execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
+/-- The `transferOwnership` function correctly reverts when called by non-owner -/
+theorem ownedCounter_transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner : Address) (sender : Address)
+    (h : state.storageAddr 0 ≠ sender) :
+    let edslResult := (transferOwnership newOwner).run { state with sender := sender }
+    let specTx : DiffTestTypes.Transaction := {
+      sender := sender
+      functionName := "transferOwnership"
+      args := [addressToNat newOwner]
+    }
+    let specResult := interpretSpec ownedCounterSpec (ownedCounterEdslToSpecStorage state) specTx
+    edslResult.isSuccess = false ∧
+    specResult.success = false := by
+  have h_ne : ({ state with sender := sender }).sender ≠
+      ({ state with sender := sender }).storageAddr 0 := by simp [Ne.symm h]
+  refine ⟨?_, ?_⟩
+  · -- EDSL reverts when sender is not owner
+    obtain ⟨_, h_revert⟩ := transferOwnership_reverts_when_not_owner _ newOwner h_ne
+    simp [h_revert, ContractResult.isSuccess]
+  · -- Spec reverts when sender is not owner
+    simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
+      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)]
+
 /- Helper Properties -/
 
 /-- Getter functions preserve state -/
