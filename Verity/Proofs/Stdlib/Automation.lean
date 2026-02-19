@@ -390,13 +390,26 @@ theorem uint256_sub_val (a : Verity.Core.Uint256) (amount : Nat) :
     simp [Verity.EVM.Uint256.sub, Verity.Core.Uint256.sub, h_not_le,
       Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
 
+/-- If `a : Uint256` and `a.val ≥ n`, then `n < modulus`.
+    Eliminates the repeated 3-line pattern:
+    `have hlt := a.isLt; exact Nat.lt_of_le_of_lt h hlt` -/
+theorem lt_modulus_of_val_ge {a : Verity.Core.Uint256} {n : Nat}
+    (h : a.val ≥ n) : n < Verity.Core.Uint256.modulus :=
+  Nat.lt_of_le_of_lt h a.isLt
+
+/-- If `a.val ≥ n`, then `a ≥ Uint256.ofNat n`.
+    Eliminates the repeated 4-line conversion from Nat ≥ to Uint256 ≥. -/
+theorem ge_ofNat_of_val_ge {a : Verity.Core.Uint256} {n : Nat}
+    (h : a.val ≥ n) : a ≥ Verity.Core.Uint256.ofNat n := by
+  simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
+    Nat.mod_eq_of_lt (lt_modulus_of_val_ge h), h]
+
 -- Helper: EVM sub (Uint256) matches Nat subtraction when no underflow.
 theorem uint256_sub_val_of_le (a : Verity.Core.Uint256) (amount : Nat)
     (h : a.val ≥ amount) :
     (Verity.EVM.Uint256.sub a (Verity.Core.Uint256.ofNat amount)).val =
       a.val - amount := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    exact Nat.lt_of_le_of_lt h a.isLt
+  have h_amount_lt := lt_modulus_of_val_ge h
   have h_le : (Verity.Core.Uint256.ofNat amount : Nat) ≤ (a : Nat) := by
     simp [Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt, h]
   have h_sub : ((Verity.EVM.Uint256.sub a (Verity.Core.Uint256.ofNat amount)

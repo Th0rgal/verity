@@ -148,14 +148,8 @@ theorem ledger_withdraw_correct_sufficient (state : ContractState) (amount : Nat
     specResult.success = true ∧
     specResult.finalStorage.getMapping 0 (addressToNat sender) =
       (edslResult.getState.storageMap 0 sender).val := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    have hlt : (state.storageMap 0 sender).val < Verity.Core.Uint256.modulus := by
-      exact (state.storageMap 0 sender).isLt
-    exact Nat.lt_of_le_of_lt h hlt
-  have h_balance_u :
-      (state.storageMap 0 sender) ≥ Verity.Core.Uint256.ofNat amount := by
-    simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
-      Nat.mod_eq_of_lt h_amount_lt, h]
+  have h_amount_lt := lt_modulus_of_val_ge h
+  have h_balance_u := ge_ofNat_of_val_ge h
   constructor
   · -- EDSL success
     simp [withdraw, msgSender, getMapping, setMapping, balances,
@@ -288,14 +282,8 @@ theorem ledger_transfer_correct_sufficient (state : ContractState) (to : Address
       (edslResult.getState.storageMap 0 sender).val ∧
     specResult.finalStorage.getMapping 0 (addressToNat to) =
       (edslResult.getState.storageMap 0 to).val := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    have hlt : (state.storageMap 0 sender).val < Verity.Core.Uint256.modulus := by
-      exact (state.storageMap 0 sender).isLt
-    exact Nat.lt_of_le_of_lt h hlt
-  have h_balance_u :
-      (state.storageMap 0 sender) ≥ Verity.Core.Uint256.ofNat amount := by
-    simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
-      Nat.mod_eq_of_lt h_amount_lt, h]
+  have h_amount_lt := lt_modulus_of_val_ge h
+  have h_balance_u := ge_ofNat_of_val_ge h
   -- Helper: overflow ge-check for the spec's new require on newRecipientBal
   have h_overflow_mod_eq : ((state.storageMap 0 to).val + amount) % Verity.Core.Uint256.modulus = (state.storageMap 0 to).val + amount := by
     exact Nat.mod_eq_of_lt (lt_modulus_of_le_max_uint256 _ h_no_overflow)
@@ -665,14 +653,8 @@ theorem ledger_transfer_preserves_total (state : ContractState) (to : Address) (
     let finalState := (transfer to (Verity.Core.Uint256.ofNat amount)).runState { state with sender := sender }
     (finalState.storageMap 0 sender).val + (finalState.storageMap 0 to).val =
     (state.storageMap 0 sender).val + (state.storageMap 0 to).val := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    have hlt : (state.storageMap 0 sender).val < Verity.Core.Uint256.modulus := by
-      exact (state.storageMap 0 sender).isLt
-    exact Nat.lt_of_le_of_lt h2 hlt
-  have h_balance_u :
-      (state.storageMap 0 sender) ≥ Verity.Core.Uint256.ofNat amount := by
-    simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
-      Nat.mod_eq_of_lt h_amount_lt, h2]
+  have h_amount_lt := lt_modulus_of_val_ge h2
+  have h_balance_u := ge_ofNat_of_val_ge h2
   have h_no_overflow_u2 : (state.storageMap 0 to : Nat) + ((Verity.Core.Uint256.ofNat amount) : Nat) ≤ MAX_UINT256 := by
     simp only [Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, MAX_UINT256, Verity.Stdlib.Math.MAX_UINT256]
     have h_max : Verity.Core.Uint256.modulus = 2 ^ 256 := rfl

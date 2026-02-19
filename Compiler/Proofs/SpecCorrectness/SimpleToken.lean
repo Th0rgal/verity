@@ -334,14 +334,8 @@ theorem token_transfer_correct_sufficient (state : ContractState) (to : Address)
     specResult.success = true ∧
     specResult.finalStorage.getMapping 1 (addressToNat sender) = (edslResult.getState.storageMap 1 sender).val ∧
     specResult.finalStorage.getMapping 1 (addressToNat to) = (edslResult.getState.storageMap 1 to).val := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    have hlt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
-      exact (state.storageMap 1 sender).isLt
-    exact Nat.lt_of_le_of_lt h hlt
-  have h_balance_u :
-      (state.storageMap 1 sender) ≥ Verity.Core.Uint256.ofNat amount := by
-    simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
-      Nat.mod_eq_of_lt h_amount_lt, h]
+  have h_amount_lt := lt_modulus_of_val_ge h
+  have h_balance_u := ge_ofNat_of_val_ge h
   by_cases h_eq : sender = to
   · subst h_eq
     constructor
@@ -759,14 +753,8 @@ theorem token_transfer_preserves_supply (state : ContractState) (to : Address) (
     (h : (state.storageMap 1 sender).val ≥ amount) :
     let finalState := (transfer to (Verity.Core.Uint256.ofNat amount)).runState { state with sender := sender }
     finalState.storage 2 = state.storage 2 := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    have hlt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
-      exact (state.storageMap 1 sender).isLt
-    exact Nat.lt_of_le_of_lt h hlt
-  have h_balance_u :
-      (state.storageMap 1 sender) ≥ Verity.Core.Uint256.ofNat amount := by
-    simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
-      Nat.mod_eq_of_lt h_amount_lt, h]
+  have h_amount_lt := lt_modulus_of_val_ge h
+  have h_balance_u := ge_ofNat_of_val_ge h
   by_cases h_eq : sender = to
   · subst h_eq
     simp [transfer, msgSender, getMapping, setMapping, balances,
@@ -812,14 +800,8 @@ theorem token_transfer_preserves_total_balance (state : ContractState) (to : Add
     let finalState := (transfer to (Verity.Core.Uint256.ofNat amount)).runState { state with sender := sender }
     (finalState.storageMap 1 sender).val + (finalState.storageMap 1 to).val =
     (state.storageMap 1 sender).val + (state.storageMap 1 to).val := by
-  have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
-    have hlt : (state.storageMap 1 sender).val < Verity.Core.Uint256.modulus := by
-      exact (state.storageMap 1 sender).isLt
-    exact Nat.lt_of_le_of_lt h2 hlt
-  have h_balance_u :
-      (state.storageMap 1 sender) ≥ Verity.Core.Uint256.ofNat amount := by
-    simp [Verity.Core.Uint256.le_def, Verity.Core.Uint256.val_ofNat,
-      Nat.mod_eq_of_lt h_amount_lt, h2]
+  have h_amount_lt := lt_modulus_of_val_ge h2
+  have h_balance_u := ge_ofNat_of_val_ge h2
   have h_no_overflow_nat : (state.storageMap 1 to).val + amount ≤ MAX_UINT256 := by
     have := modulus_eq_max_uint256_succ; omega
   have h_safe : safeAdd (state.storageMap 1 to) (Verity.Core.Uint256.ofNat amount) = some (state.storageMap 1 to + Verity.Core.Uint256.ofNat amount) := by
