@@ -7,12 +7,6 @@
   - Composition: decrement → getCount
 -/
 
-import Verity.Core
-import Verity.Stdlib.Math
-import Verity.EVM.Uint256
-import Verity.Examples.SafeCounter
-import Verity.Specs.SafeCounter.Spec
-import Verity.Specs.SafeCounter.Invariants
 import Verity.Proofs.SafeCounter.Basic
 import Verity.Proofs.Stdlib.Automation
 

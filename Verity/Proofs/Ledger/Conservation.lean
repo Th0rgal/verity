@@ -11,13 +11,8 @@
   factor accounts for addresses appearing multiple times in the list.
 -/
 
-import Verity.Core
-import Verity.Examples.Ledger
-import Verity.EVM.Uint256
-import Verity.Specs.Ledger.Spec
 import Verity.Proofs.Ledger.Basic
 import Verity.Proofs.Stdlib.ListSum
-import Verity.Stdlib.Math
 
 namespace Verity.Proofs.Ledger.Conservation
 

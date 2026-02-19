@@ -10,11 +10,6 @@
   fully independent. No operation corrupts unrelated storage.
 -/
 
-import Verity.Core
-import Verity.Examples.SimpleToken
-import Verity.Stdlib.Math
-import Verity.Specs.SimpleToken.Spec
-import Verity.Specs.SimpleToken.Invariants
 import Verity.Proofs.SimpleToken.Basic
 
 namespace Verity.Proofs.SimpleToken.Isolation

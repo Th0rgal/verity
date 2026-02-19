@@ -7,11 +7,6 @@
   - State preservation composition
 -/
 
-import Verity.Core
-import Verity.Examples.Counter
-import Verity.EVM.Uint256
-import Verity.Specs.Counter.Spec
-import Verity.Specs.Counter.Invariants
 import Verity.Proofs.Counter.Basic
 import Verity.Proofs.Stdlib.Automation
 

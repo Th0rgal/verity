@@ -14,12 +14,6 @@
   provable statement about how sums change under state-modifying operations.
 -/
 
-import Verity.Core
-import Verity.Examples.SimpleToken
-import Verity.EVM.Uint256
-import Verity.Stdlib.Math
-import Verity.Specs.SimpleToken.Spec
-import Verity.Specs.SimpleToken.Invariants
 import Verity.Proofs.SimpleToken.Basic
 import Verity.Proofs.Stdlib.ListSum
 

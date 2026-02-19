@@ -7,10 +7,6 @@
   - End-to-end composition: constructor → transferOwnership → getOwner
 -/
 
-import Verity.Core
-import Verity.Examples.Owned
-import Verity.Specs.Owned.Spec
-import Verity.Specs.Owned.Invariants
 import Verity.Proofs.Owned.Basic
 
 namespace Verity.Proofs.Owned.Correctness

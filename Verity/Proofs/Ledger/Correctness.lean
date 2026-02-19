@@ -7,13 +7,7 @@
   - Deposit-withdraw cancellation: deposit then withdraw returns to original balance
 -/
 
-import Verity.Core
-import Verity.Examples.Ledger
-import Verity.EVM.Uint256
-import Verity.Specs.Ledger.Spec
-import Verity.Specs.Ledger.Invariants
 import Verity.Proofs.Ledger.Basic
-import Verity.Stdlib.Math
 
 namespace Verity.Proofs.Ledger.Correctness
 

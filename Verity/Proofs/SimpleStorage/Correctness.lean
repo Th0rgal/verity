@@ -7,10 +7,6 @@
   - Retrieve preserves well-formedness
 -/
 
-import Verity.Core
-import Verity.Examples.SimpleStorage
-import Verity.Specs.SimpleStorage.Spec
-import Verity.Specs.SimpleStorage.Invariants
 import Verity.Proofs.SimpleStorage.Basic
 import Verity.Proofs.Stdlib.Automation
 

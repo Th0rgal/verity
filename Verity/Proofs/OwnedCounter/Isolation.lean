@@ -11,9 +11,6 @@
   actual contract behavior.
 -/
 
-import Verity.Core
-import Verity.Examples.OwnedCounter
-import Verity.Specs.OwnedCounter.Invariants
 import Verity.Proofs.OwnedCounter.Basic
 
 namespace Verity.Proofs.OwnedCounter.Isolation

@@ -10,11 +10,6 @@
   These are Tier 2-3 properties: functional correctness and invariant preservation.
 -/
 
-import Verity.Examples.SimpleToken
-import Verity.EVM.Uint256
-import Verity.Stdlib.Math
-import Verity.Specs.SimpleToken.Spec
-import Verity.Specs.SimpleToken.Invariants
 import Verity.Proofs.SimpleToken.Basic
 
 namespace Verity.Proofs.SimpleToken.Correctness

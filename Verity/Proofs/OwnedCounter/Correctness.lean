@@ -7,11 +7,6 @@
   - End-to-end: constructor → increment → getCount → transferOwnership → verify lockout
 -/
 
-import Verity.Core
-import Verity.Examples.OwnedCounter
-import Verity.EVM.Uint256
-import Verity.Specs.OwnedCounter.Spec
-import Verity.Specs.OwnedCounter.Invariants
 import Verity.Proofs.OwnedCounter.Basic
 
 namespace Verity.Proofs.OwnedCounter.Correctness
