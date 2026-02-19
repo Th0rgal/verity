@@ -53,15 +53,8 @@ theorem deposit_sum_singleton_sender (s : ContractState) (amount : Uint256)
   (addrs.map (fun addr => ((deposit amount).run s).snd.storageMap 0 addr)).sum
   = (addrs.map (fun addr => s.storageMap 0 addr)).sum + amount := by
   have h := deposit_sum_equation s amount addrs
-  have h' := h
-  simp [countOccU, h_once] at h'
-  exact (by
-    calc
-      (addrs.map (fun addr => ((deposit amount).run s).snd.storageMap 0 addr)).sum
-          = amount + (addrs.map (fun addr => s.storageMap 0 addr)).sum := h'
-      _ = (addrs.map (fun addr => s.storageMap 0 addr)).sum + amount := by
-          exact Verity.Core.Uint256.add_comm amount
-            ((addrs.map (fun addr => s.storageMap 0 addr)).sum))
+  simp [countOccU, h_once] at h
+  simpa [Verity.Core.Uint256.add_comm] using h
 
 /-! ## Withdraw: Exact Sum Equation -/
 
@@ -93,16 +86,8 @@ theorem withdraw_sum_singleton_sender (s : ContractState) (amount : Uint256)
   (addrs.map (fun addr => ((withdraw amount).run s).snd.storageMap 0 addr)).sum + amount
   = (addrs.map (fun addr => s.storageMap 0 addr)).sum := by
   have h := withdraw_sum_equation s amount h_balance addrs
-  have h' := h
-  simp [countOccU, h_once] at h'
-  exact (by
-    calc
-      (addrs.map (fun addr => ((withdraw amount).run s).snd.storageMap 0 addr)).sum + amount
-          = amount + (addrs.map (fun addr => ((withdraw amount).run s).snd.storageMap 0 addr)).sum := by
-              exact Verity.Core.Uint256.add_comm
-                ((addrs.map (fun addr => ((withdraw amount).run s).snd.storageMap 0 addr)).sum) amount
-      _ = (addrs.map (fun addr => s.storageMap 0 addr)).sum := h'
-    )
+  simp [countOccU, h_once] at h
+  simpa [Verity.Core.Uint256.add_comm] using h
 
 /-! ## Transfer: Exact Sum Conservation Equation -/
 
@@ -147,20 +132,10 @@ theorem transfer_sum_preserved_unique (s : ContractState) (to : Address) (amount
   (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum
   = (addrs.map (fun addr => s.storageMap 0 addr)).sum := by
   have h := transfer_sum_equation s to amount h_balance h_ne h_no_overflow addrs
+  simp [countOccU, h_sender_once, h_to_once] at h
   have h' : (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum + amount =
       (addrs.map (fun addr => s.storageMap 0 addr)).sum + amount := by
-    have h'' := h
-    simp [countOccU, h_sender_once, h_to_once] at h''
-    exact (by
-      calc
-        (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum + amount
-            = amount + (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum := by
-                exact Verity.Core.Uint256.add_comm
-                  ((addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum) amount
-        _ = amount + (addrs.map (fun addr => s.storageMap 0 addr)).sum := h''
-        _ = (addrs.map (fun addr => s.storageMap 0 addr)).sum + amount := by
-            exact Verity.Core.Uint256.add_comm amount
-              ((addrs.map (fun addr => s.storageMap 0 addr)).sum))
+    simpa [Verity.Core.Uint256.add_comm] using h
   exact Verity.Core.Uint256.add_right_cancel h'
 
 /-! ## Deposit-Withdraw Inverse (Sum Level) -/
@@ -183,34 +158,13 @@ theorem deposit_withdraw_sum_cancel (s : ContractState) (amount : Uint256)
     have h_le : (amount : Nat) ≤ (s.storageMap 0 s.sender : Nat) + (amount : Nat) := by
       exact Nat.le_add_left _ _
     have h_inc_val : (s1.storageMap 0 s.sender : Nat) =
-        (s.storageMap 0 s.sender : Nat) + (amount : Nat) := by
-      have h_add :
-          ((s.storageMap 0 s.sender + amount : Uint256) : Nat) =
-            (s.storageMap 0 s.sender : Nat) + (amount : Nat) :=
-        Verity.Core.Uint256.add_eq_of_lt h_no_overflow
-      have h_inc_val' : (s1.storageMap 0 s.sender : Nat) =
-          ((s.storageMap 0 s.sender + amount : Uint256) : Nat) := by
-        exact congrArg (fun x => x.val) h_inc
-      calc
-        (s1.storageMap 0 s.sender : Nat)
-            = ((s.storageMap 0 s.sender + amount : Uint256) : Nat) := h_inc_val'
-        _ = (s.storageMap 0 s.sender : Nat) + (amount : Nat) := h_add
+        (s.storageMap 0 s.sender : Nat) + (amount : Nat) :=
+      (congrArg (fun x => x.val) h_inc).trans (Verity.Core.Uint256.add_eq_of_lt h_no_overflow)
     -- Convert to Uint256 order
     simp [Verity.Core.Uint256.le_def, h_inc_val, h_le]
   have h_dep := deposit_sum_equation s amount addrs
   have h_wd := withdraw_sum_equation (s := s1) amount h_balance addrs
-  have h_eq :
-      (addrs.map (fun addr => ((withdraw amount).run s1).snd.storageMap 0 addr)).sum
-        + countOccU s.sender addrs * amount
-        = (addrs.map (fun addr => s.storageMap 0 addr)).sum
-          + countOccU s.sender addrs * amount := by
-    calc
-      (addrs.map (fun addr => ((withdraw amount).run s1).snd.storageMap 0 addr)).sum
-          + countOccU s.sender addrs * amount
-          = (addrs.map (fun addr => s1.storageMap 0 addr)).sum := h_wd
-      _ = (addrs.map (fun addr => s.storageMap 0 addr)).sum
-          + countOccU s.sender addrs * amount := h_dep
-  exact Verity.Core.Uint256.add_right_cancel h_eq
+  exact Verity.Core.Uint256.add_right_cancel (h_wd.trans h_dep)
 
 /-! ## Summary
 
