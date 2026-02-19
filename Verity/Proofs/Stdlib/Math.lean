@@ -47,36 +47,8 @@ theorem safeAdd_comm (a b : Uint256) :
 
 /-- safeAdd result is always bounded by MAX_UINT256 when successful. -/
 theorem safeAdd_result_bounded (a b : Uint256) (c : Uint256)
-  (h : safeAdd a b = some c) : c ≤ MAX_UINT256 := by
-  by_cases hsum : (a : Nat) + (b : Nat) > MAX_UINT256
-  · simp [safeAdd, hsum] at h
-  · have hsum_le : (a : Nat) + (b : Nat) ≤ MAX_UINT256 := Nat.not_lt.mp hsum
-    have hlt : (a : Nat) + (b : Nat) < Verity.Core.Uint256.modulus := by
-      have hlt' : (a : Nat) + (b : Nat) < MAX_UINT256 + 1 := Nat.lt_succ_of_le hsum_le
-      calc
-        (a : Nat) + (b : Nat) < MAX_UINT256 + 1 := hlt'
-        _ = Verity.Core.Uint256.modulus := by
-          symm
-          exact Verity.Core.Uint256.max_uint256_succ_eq_modulus
-    simp [safeAdd, hsum] at h
-    have hc : a + b = c := by
-      cases h
-      rfl
-    have hle : (c : Nat) ≤ MAX_UINT256 := by
-      have hadd : ((a + b : Uint256) : Nat) = (a : Nat) + (b : Nat) :=
-        Verity.Core.Uint256.add_eq_of_lt hlt
-      have hsum_le' := hsum_le
-      have hcval : (a : Nat) + (b : Nat) = (c : Nat) := by
-        have hcv : ((a + b : Uint256) : Nat) = (c : Nat) := by
-          exact congrArg (fun x => x.val) hc
-        calc
-          (a : Nat) + (b : Nat) = ((a + b : Uint256) : Nat) := by
-            symm
-            exact hadd
-          _ = (c : Nat) := hcv
-      simp [hcval] at hsum_le'
-      exact hsum_le'
-    exact hle
+  (_h : safeAdd a b = some c) : c ≤ MAX_UINT256 :=
+  Verity.Core.Uint256.val_le_max c
 
 /-! ## safeSub Correctness -/
 
@@ -110,14 +82,10 @@ theorem safeSub_result_le (a b : Uint256) (c : Uint256)
   · simp [safeSub, hlt] at h
   · have hle' : (b : Nat) ≤ (a : Nat) := Nat.not_lt.mp hlt
     simp [safeSub, hlt] at h
-    have hc : a - b = c := by
-      cases h
-      rfl
-    have hle : (c : Nat) ≤ (a : Nat) := by
-      have hsub : ((a - b : Uint256) : Nat) = (a : Nat) - (b : Nat) :=
-        Verity.Core.Uint256.sub_eq_of_le hle'
-      simp [hc.symm, hsub]
-    exact hle
+    have hc : a - b = c := by cases h; rfl
+    have hsub : ((a - b : Uint256) : Nat) = (a : Nat) - (b : Nat) :=
+      Verity.Core.Uint256.sub_eq_of_le hle'
+    simp [hc.symm, hsub]
 
 /-! ## safeMul Correctness -/
 
@@ -166,12 +134,7 @@ theorem safeMul_comm (a b : Uint256) :
 /-- safeDiv returns the quotient when divisor is nonzero. -/
 theorem safeDiv_some (a b : Uint256) (h : b ≠ 0) :
   safeDiv a b = some (a / b) := by
-  have h_not : b.val ≠ 0 := by
-    intro hval
-    apply h
-    apply Verity.Core.Uint256.ext
-    simp [Verity.Core.Uint256.val_zero]
-    exact hval
+  have h_not : b.val ≠ 0 := fun hv => h (Verity.Core.Uint256.ext (by simp [Verity.Core.Uint256.val_zero, hv]))
   simp [safeDiv, h_not]
 
 /-- safeDiv returns none when divisor is zero. -/
@@ -183,12 +146,7 @@ theorem safeDiv_none (a : Uint256) :
 /-- safeDiv of zero always returns zero (when divisor is nonzero). -/
 theorem safeDiv_zero_numerator (b : Uint256) (h : b ≠ 0) :
   safeDiv 0 b = some 0 := by
-  have h_not : b.val ≠ 0 := by
-    intro hval
-    apply h
-    apply Verity.Core.Uint256.ext
-    simp [Verity.Core.Uint256.val_zero]
-    exact hval
+  have h_not : b.val ≠ 0 := fun hv => h (Verity.Core.Uint256.ext (by simp [Verity.Core.Uint256.val_zero, hv]))
   simp [safeDiv, h_not]
 
 /-- safeDiv by one returns the numerator. -/
@@ -199,61 +157,24 @@ theorem safeDiv_by_one (a : Uint256) :
 /-- safeDiv of a value by itself returns 1 (when nonzero). -/
 theorem safeDiv_self (a : Uint256) (h : a ≠ 0) :
   safeDiv a a = some 1 := by
-  have h_not : a.val ≠ 0 := by
-    intro hzero
-    apply h
-    apply Verity.Core.Uint256.ext
-    simp [Verity.Core.Uint256.val_zero]
-    exact hzero
+  have h_not : a.val ≠ 0 := fun hv => h (Verity.Core.Uint256.ext (by simp [Verity.Core.Uint256.val_zero, hv]))
   have hpos : 0 < (a : Nat) := Nat.pos_of_ne_zero h_not
+  have hlt : (1 : Nat) < Verity.Core.Uint256.modulus := by decide
   have hdiv : a / a = (1 : Uint256) := by
     apply Verity.Core.Uint256.ext
-    have hlt : (1 : Nat) < Verity.Core.Uint256.modulus := by
-      dsimp [Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
-      decide
-    calc
-      (a / a).val = (a.val / a.val) % Verity.Core.Uint256.modulus := by
-        simp [HDiv.hDiv, Verity.Core.Uint256.div, h_not, Verity.Core.Uint256.ofNat]
-      _ = 1 % Verity.Core.Uint256.modulus := by
-        simp [Nat.div_self hpos]
-      _ = 1 := by
-        simp [Nat.mod_eq_of_lt hlt]
+    calc (a / a).val
+        = (a.val / a.val) % Verity.Core.Uint256.modulus := by
+          simp [HDiv.hDiv, Verity.Core.Uint256.div, h_not, Verity.Core.Uint256.ofNat]
+      _ = 1 % Verity.Core.Uint256.modulus := by simp [Nat.div_self hpos]
+      _ = 1 := Nat.mod_eq_of_lt hlt
   simp [safeDiv, h_not, hdiv]
 
 /-! ## Cross-Operation Properties -/
 
 /-- safeMul result is always bounded by MAX_UINT256 when successful. -/
 theorem safeMul_result_bounded (a b : Uint256) (c : Uint256)
-  (h : safeMul a b = some c) : c ≤ MAX_UINT256 := by
-  by_cases hprod : (a : Nat) * (b : Nat) > MAX_UINT256
-  · simp [safeMul, hprod] at h
-  · have hprod_le : (a : Nat) * (b : Nat) ≤ MAX_UINT256 := Nat.not_lt.mp hprod
-    have hlt : (a : Nat) * (b : Nat) < Verity.Core.Uint256.modulus := by
-      have hlt' : (a : Nat) * (b : Nat) < MAX_UINT256 + 1 := Nat.lt_succ_of_le hprod_le
-      calc
-        (a : Nat) * (b : Nat) < MAX_UINT256 + 1 := hlt'
-        _ = Verity.Core.Uint256.modulus := by
-          symm
-          exact Verity.Core.Uint256.max_uint256_succ_eq_modulus
-    simp [safeMul, hprod] at h
-    have hc : a * b = c := by
-      cases h
-      rfl
-    have hle : (c : Nat) ≤ MAX_UINT256 := by
-      have hmul : ((a * b : Uint256) : Nat) = (a : Nat) * (b : Nat) :=
-        Verity.Core.Uint256.mul_eq_of_lt hlt
-      have hprod_le' := hprod_le
-      have hcval : (a : Nat) * (b : Nat) = (c : Nat) := by
-        have hcv : ((a * b : Uint256) : Nat) = (c : Nat) := by
-          exact congrArg (fun x => x.val) hc
-        calc
-          (a : Nat) * (b : Nat) = ((a * b : Uint256) : Nat) := by
-            symm
-            exact hmul
-          _ = (c : Nat) := hcv
-      simp [hcval] at hprod_le'
-      exact hprod_le'
-    exact hle
+  (_h : safeMul a b = some c) : c ≤ MAX_UINT256 :=
+  Verity.Core.Uint256.val_le_max c
 
 /-- safeDiv result never exceeds the numerator. -/
 theorem safeDiv_result_le_numerator (a b : Uint256) (c : Uint256)
@@ -261,32 +182,16 @@ theorem safeDiv_result_le_numerator (a b : Uint256) (c : Uint256)
   by_cases hzero : b.val = 0
   · simp [safeDiv, hzero] at h_div
   · simp [safeDiv, hzero] at h_div
-    have hc : a / b = c := by
-      cases h_div
-      rfl
-    have hle : (c : Nat) ≤ (a : Nat) := by
-      have hdiv : ((a / b : Uint256) : Nat) = (a : Nat) / (b : Nat) := by
-        have hdiv_lt : (a : Nat) / (b : Nat) < Verity.Core.Uint256.modulus := by
-          have hle' : (a : Nat) / (b : Nat) ≤ (a : Nat) := Nat.div_le_self _ _
-          exact Nat.lt_of_le_of_lt hle' a.isLt
-        calc
-          ((a / b : Uint256) : Nat) = ((a : Nat) / (b : Nat)) % Verity.Core.Uint256.modulus := by
-            simp [HDiv.hDiv, Verity.Core.Uint256.div, hzero, Verity.Core.Uint256.ofNat]
-          _ = (a : Nat) / (b : Nat) := by
-            exact Nat.mod_eq_of_lt hdiv_lt
-      have hdiv_le := Nat.div_le_self (a : Nat) (b : Nat)
-      have hdiv_le' := hdiv_le
-      have hcval : (a : Nat) / (b : Nat) = (c : Nat) := by
-        have hcv : ((a / b : Uint256) : Nat) = (c : Nat) := by
-          exact congrArg (fun x => x.val) hc
-        calc
-          (a : Nat) / (b : Nat) = ((a / b : Uint256) : Nat) := by
-            symm
-            exact hdiv
-          _ = (c : Nat) := hcv
-      simp [hcval] at hdiv_le'
-      exact hdiv_le'
-    exact hle
+    have hc : a / b = c := by cases h_div; rfl
+    have hdiv_lt : (a : Nat) / (b : Nat) < Verity.Core.Uint256.modulus :=
+      Nat.lt_of_le_of_lt (Nat.div_le_self _ _) a.isLt
+    have hdiv : ((a / b : Uint256) : Nat) = (a : Nat) / (b : Nat) := by
+      simp only [HDiv.hDiv, Verity.Core.Uint256.div, hzero, Verity.Core.Uint256.ofNat, ↓reduceIte]
+      exact Nat.mod_eq_of_lt hdiv_lt
+    have hcval : (c : Nat) = (a : Nat) / (b : Nat) :=
+      (hdiv.symm.trans (congrArg (fun x => x.val) hc)).symm
+    simp only [Verity.Core.Uint256.le_def, hcval]
+    exact Nat.div_le_self _ _
 
 /-! ## Summary
 
