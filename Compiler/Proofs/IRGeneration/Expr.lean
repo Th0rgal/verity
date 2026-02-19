@@ -138,11 +138,7 @@ theorem simpleStorage_store_correct (value : Nat) :
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     simpleStorageIRContract, SpecStorage.empty, specStorageToIRState]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 /-! ## SimpleStorage: Retrieve Function Correctness -/
 
@@ -172,11 +168,7 @@ theorem simpleStorage_retrieve_correct :
   simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     simpleStorageIRContract, SpecStorage.empty, specStorageToIRState]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 /-! ## SimpleStorage: Retrieve with Pre-Initialized Storage -/
 
@@ -206,11 +198,7 @@ theorem simpleStorage_retrieve_correct_with_storage (storedValue : Nat) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     simpleStorageIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 /-! ## Counter: Concrete IR -/
 
@@ -285,11 +273,7 @@ theorem counter_increment_correct :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     counterIRContract, SpecStorage.empty, specStorageToIRState,
     Verity.Core.Uint256.modulus, evmModulus]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 /-! ## SafeCounter: Concrete IR -/
 
@@ -422,20 +406,12 @@ theorem safeCounter_increment_correct (storedValue : Nat) :
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       safeCounterIRContract, safeCounterOverflowRevert, SpecStorage.empty, SpecStorage.setSlot,
       SpecStorage.getSlot, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · simp [hslot]
+    · intro slot; by_cases hslot : slot = 0 <;> simp_all
   · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       safeCounterIRContract, safeCounterOverflowRevert, SpecStorage.empty, SpecStorage.setSlot,
       SpecStorage.getSlot, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · simp [hslot]
+    · intro slot; by_cases hslot : slot = 0 <;> simp_all
 
 theorem safeCounter_decrement_correct (storedValue : Nat) :
   let spec := safeCounterSpec
@@ -464,22 +440,14 @@ theorem safeCounter_decrement_correct (storedValue : Nat) :
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       safeCounterIRContract, safeCounterUnderflowRevert, SpecStorage.empty, SpecStorage.setSlot,
       SpecStorage.getSlot, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · simp [hslot]
+    · intro slot; by_cases hslot : slot = 0 <;> simp_all
   · have hge : storedValue >= 1 := by
       exact Nat.not_lt.mp h
     simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       safeCounterIRContract, safeCounterUnderflowRevert, SpecStorage.empty, SpecStorage.setSlot,
       SpecStorage.getSlot, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h, hge]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · simp [hslot]
+    · intro slot; by_cases hslot : slot = 0 <;> simp_all
 
 theorem safeCounter_getCount_correct (storedValue : Nat) :
   let spec := safeCounterSpec
@@ -507,11 +475,7 @@ theorem safeCounter_getCount_correct (storedValue : Nat) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     safeCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 theorem counter_decrement_correct :
   let spec := counterSpec
@@ -538,11 +502,7 @@ theorem counter_decrement_correct :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     counterIRContract, SpecStorage.empty, specStorageToIRState,
     Verity.Core.Uint256.modulus, evmModulus]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 theorem counter_getCount_correct (storedValue : Nat) :
   let spec := counterSpec
@@ -570,11 +530,7 @@ theorem counter_getCount_correct (storedValue : Nat) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     counterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 /-! ## Owned: Concrete IR -/
 
@@ -670,11 +626,7 @@ theorem owned_transferOwnership_correct_as_owner (newOwner : Nat) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     ownedIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 theorem owned_getOwner_correct (storedOwner : Nat) :
   let spec := ownedSpec
@@ -702,11 +654,7 @@ theorem owned_getOwner_correct (storedOwner : Nat) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     ownedIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState]
-  · intro slot
-    by_cases h : slot = 0
-    · subst h
-      simp
-    · simp [h]
+  · intro slot; by_cases h : slot = 0 <;> simp_all
 
 /-! ## OwnedCounter: Concrete IR -/
 
@@ -830,26 +778,12 @@ theorem ownedCounter_increment_correct (storedCount : Nat) (ownerAddr : Address)
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
       specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 1
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
   · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
       specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 1
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
 
 theorem ownedCounter_decrement_correct (storedCount : Nat) (ownerAddr : Address) :
   let spec := ownedCounterSpec
@@ -879,26 +813,12 @@ theorem ownedCounter_decrement_correct (storedCount : Nat) (ownerAddr : Address)
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
       specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 1
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
   · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
       specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 1
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
 
 theorem ownedCounter_getCount_correct (storedCount : Nat) (ownerAddr : Address) :
   let spec := ownedCounterSpec
@@ -927,14 +847,7 @@ theorem ownedCounter_getCount_correct (storedCount : Nat) (ownerAddr : Address) 
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus]
-  · intro slot
-    by_cases hslot : slot = 0
-    · subst hslot
-      simp
-    · by_cases hslot' : slot = 1
-      · subst hslot'
-        simp [hslot]
-      · simp [hslot, hslot']
+  · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
 
 theorem ownedCounter_getOwner_correct (storedOwner : Nat) (storedCount : Nat) :
   let spec := ownedCounterSpec
@@ -963,14 +876,7 @@ theorem ownedCounter_getOwner_correct (storedOwner : Nat) (storedCount : Nat) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState]
-  · intro slot
-    by_cases hslot : slot = 0
-    · subst hslot
-      simp
-    · by_cases hslot' : slot = 1
-      · subst hslot'
-        simp [hslot]
-      · simp [hslot, hslot']
+  · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
 
 theorem ownedCounter_transferOwnership_correct (storedCount : Nat) (ownerAddr newOwnerAddr : Address)
     :
@@ -1001,26 +907,12 @@ theorem ownedCounter_transferOwnership_correct (storedCount : Nat) (ownerAddr ne
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
       specStorageToIRState, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 1
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
   · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ownedCounterIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
       specStorageToIRState, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 1
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 1 <;> simp_all
 
 /-! ## Ledger: Concrete IR -/
 
@@ -1146,12 +1038,8 @@ theorem ledger_deposit_correct (senderBal amount : Nat) (senderAddr : Address) :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     ledgerIRContract, SpecStorage.empty, SpecStorage.setMapping, SpecStorage.getMapping,
     specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus]
-  · intro slot
-    simp
-  · intro baseSlot addr haddr
-    simp at haddr
-    subst haddr
-    simp
+  · intro slot; simp
+  · intro baseSlot addr haddr; simp_all
 
 theorem ledger_withdraw_correct (senderBal amount : Nat) (senderAddr : Address) :
   let spec := ledgerSpec
@@ -1180,24 +1068,16 @@ theorem ledger_withdraw_correct (senderBal amount : Nat) (senderAddr : Address) 
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ledgerIRContract, insufficientBalanceRevert, SpecStorage.empty, SpecStorage.setMapping,
       SpecStorage.getMapping, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      simp
-    · intro baseSlot addr haddr
-      simp at haddr
-      subst haddr
-      simp
+    · intro slot; simp
+    · intro baseSlot addr haddr; simp_all
   · have hge : senderBal ≥ amount := by
       exact Nat.not_lt.mp h
     simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ledgerIRContract, insufficientBalanceRevert, SpecStorage.empty, SpecStorage.setMapping,
       SpecStorage.getMapping, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h, hge]
-    · intro slot
-      simp
-    · intro baseSlot addr haddr
-      simp at haddr
-      subst haddr
-      simp
+    · intro slot; simp
+    · intro baseSlot addr haddr; simp_all
 
 theorem ledger_transfer_correct (senderBal recipientBal amount : Nat)
     (senderAddr recipientAddr : Address) :
@@ -1228,26 +1108,16 @@ theorem ledger_transfer_correct (senderBal recipientBal amount : Nat)
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ledgerIRContract, insufficientBalanceRevert, SpecStorage.empty, SpecStorage.setMapping,
       SpecStorage.getMapping, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      simp
-    · intro baseSlot addr haddr
-      simp at haddr
-      rcases haddr with rfl | rfl
-      · simp
-      · simp
+    · intro slot; simp
+    · intro baseSlot addr haddr; simp at haddr; rcases haddr with rfl | rfl <;> simp
   · have hge : senderBal ≥ amount := by
       exact Nat.not_lt.mp h
     simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       ledgerIRContract, insufficientBalanceRevert, SpecStorage.empty, SpecStorage.setMapping,
       SpecStorage.getMapping, specStorageToIRState, Verity.Core.Uint256.modulus, evmModulus, h, hge]
-    · intro slot
-      simp
-    · intro baseSlot addr haddr
-      simp at haddr
-      rcases haddr with rfl | rfl
-      · simp
-      · simp
+    · intro slot; simp
+    · intro baseSlot addr haddr; simp at haddr; rcases haddr with rfl | rfl <;> simp
 
 theorem ledger_getBalance_correct (storedBal : Nat) (addr : Address) (senderAddr : Address)
     :
@@ -1276,12 +1146,8 @@ theorem ledger_getBalance_correct (storedBal : Nat) (addr : Address) (senderAddr
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     ledgerIRContract, SpecStorage.empty, SpecStorage.setMapping, SpecStorage.getMapping,
     specStorageToIRState]
-  · intro slot
-    simp
-  · intro baseSlot addr' haddr
-    simp at haddr
-    subst haddr
-    simp
+  · intro slot; simp
+  · intro baseSlot addr' haddr; simp_all
 
 /-! ## SimpleToken: Concrete IR -/
 
@@ -1434,35 +1300,15 @@ theorem simpleToken_mint_correct (senderBal totalSupply amount : Nat) (senderAdd
       simpleTokenIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.setMapping,
       SpecStorage.getSlot, SpecStorage.getMapping, specStorageToIRState,
       Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 2
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
-    · intro baseSlot addr haddr
-      simp at haddr
-      subst haddr
-      simp
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
+    · intro baseSlot addr haddr; simp_all
   · simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
       interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
       simpleTokenIRContract, ownedNotOwnerRevert, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.setMapping,
       SpecStorage.getSlot, SpecStorage.getMapping, specStorageToIRState,
       Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 2
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
-    · intro baseSlot addr haddr
-      simp at haddr
-      subst haddr
-      simp
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
+    · intro baseSlot addr haddr; simp_all
 
 theorem simpleToken_transfer_correct (senderBal recipientBal totalSupply amount : Nat)
     (senderAddr recipientAddr ownerAddr : Address) :
@@ -1495,19 +1341,8 @@ theorem simpleToken_transfer_correct (senderBal recipientBal totalSupply amount 
       simpleTokenIRContract, insufficientBalanceRevert, SpecStorage.empty, SpecStorage.setSlot,
       SpecStorage.setMapping, SpecStorage.getSlot, SpecStorage.getMapping, specStorageToIRState,
       Verity.Core.Uint256.modulus, evmModulus, h]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 2
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
-    · intro baseSlot addr haddr
-      simp at haddr
-      rcases haddr with rfl | rfl
-      · simp
-      · simp
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
+    · intro baseSlot addr haddr; simp at haddr; rcases haddr with rfl | rfl <;> simp
   · have hge : senderBal ≥ amount := by
       exact Nat.not_lt.mp h
     simp [resultsMatch, interpretSpec, execFunction, execStmts, execStmt, evalExpr,
@@ -1515,19 +1350,8 @@ theorem simpleToken_transfer_correct (senderBal recipientBal totalSupply amount 
       simpleTokenIRContract, insufficientBalanceRevert, SpecStorage.empty, SpecStorage.setSlot,
       SpecStorage.setMapping, SpecStorage.getSlot, SpecStorage.getMapping, specStorageToIRState,
       Verity.Core.Uint256.modulus, evmModulus, h, hge]
-    · intro slot
-      by_cases hslot : slot = 0
-      · subst hslot
-        simp
-      · by_cases hslot' : slot = 2
-        · subst hslot'
-          simp [hslot]
-        · simp [hslot, hslot']
-    · intro baseSlot addr haddr
-      simp at haddr
-      rcases haddr with rfl | rfl
-      · simp
-      · simp
+    · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
+    · intro baseSlot addr haddr; simp at haddr; rcases haddr with rfl | rfl <;> simp
 
 theorem simpleToken_balanceOf_correct (storedBal totalSupply : Nat) (addr ownerAddr senderAddr : Address)
     :
@@ -1557,18 +1381,8 @@ theorem simpleToken_balanceOf_correct (storedBal totalSupply : Nat) (addr ownerA
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     simpleTokenIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.setMapping,
     SpecStorage.getSlot, SpecStorage.getMapping, specStorageToIRState]
-  · intro slot
-    by_cases hslot : slot = 0
-    · subst hslot
-      simp
-    · by_cases hslot' : slot = 2
-      · subst hslot'
-        simp [hslot]
-      · simp [hslot, hslot']
-  · intro baseSlot addr' haddr
-    simp at haddr
-    subst haddr
-    simp
+  · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
+  · intro baseSlot addr' haddr; simp_all
 
 theorem simpleToken_totalSupply_correct (storedSupply : Nat) (ownerAddr senderAddr : Address)
     :
@@ -1597,14 +1411,7 @@ theorem simpleToken_totalSupply_correct (storedSupply : Nat) (ownerAddr senderAd
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     simpleTokenIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState]
-  · intro slot
-    by_cases hslot : slot = 0
-    · subst hslot
-      simp
-    · by_cases hslot' : slot = 2
-      · subst hslot'
-        simp [hslot]
-      · simp [hslot, hslot']
+  · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
 
 theorem simpleToken_owner_correct (storedOwner storedSupply : Nat) (senderAddr : Address)
     :
@@ -1633,14 +1440,7 @@ theorem simpleToken_owner_correct (storedOwner storedSupply : Nat) (senderAddr :
     interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr, evalIRExprs,
     simpleTokenIRContract, SpecStorage.empty, SpecStorage.setSlot, SpecStorage.getSlot,
     specStorageToIRState]
-  · intro slot
-    by_cases hslot : slot = 0
-    · subst hslot
-      simp
-    · by_cases hslot' : slot = 2
-      · subst hslot'
-        simp [hslot]
-      · simp [hslot, hslot']
+  · intro slot; by_cases hslot : slot = 0 <;> by_cases hslot' : slot = 2 <;> simp_all
 
 /-! ## General Preservation Theorem Template
 
