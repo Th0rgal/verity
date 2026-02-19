@@ -19,6 +19,8 @@ import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Proofs.Stdlib.Automation
 import Compiler.Hex
 import Verity.Examples.Owned
+import Verity.Proofs.Owned.Basic
+import Verity.Proofs.Owned.Correctness
 
 namespace Compiler.Proofs.SpecCorrectness
 
@@ -29,6 +31,7 @@ open Verity.Proofs.Stdlib.Automation
 open Compiler.Hex
 open Verity
 open Verity.Examples.Owned
+open Verity.Proofs.Owned
 
 /- State Conversion -/
 
@@ -73,27 +76,16 @@ theorem transferOwnership_correct_as_owner (state : ContractState) (newOwner : A
     edslResult.isSuccess = true ∧
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = addressToNat newOwner := by
-  -- When sender is owner, both EDSL and spec succeed
-  constructor
-  · -- Part 1: edslResult.isSuccess = true
-    unfold Verity.Examples.Owned.transferOwnership Contract.run
-    unfold Verity.Examples.Owned.onlyOwner Verity.Examples.Owned.isOwner
-    unfold msgSender getStorageAddr setStorageAddr Verity.Examples.Owned.owner
-    simp only [Verity.bind, Bind.bind, Verity.require, Verity.pure, Pure.pure]
-    have h_beq : (sender == state.storageAddr 0) = true := by
-      rw [beq_iff_eq, h]
-    rw [h_beq]
+  have h_owner' : ({ state with sender := sender }).sender =
+      ({ state with sender := sender }).storageAddr 0 := by simp [h]
+  refine ⟨?_, ?_, ?_⟩
+  · -- EDSL success when sender is owner
+    rw [Verity.Proofs.Owned.transferOwnership_unfold _ _ h_owner']
     simp [ContractResult.isSuccess]
-  constructor
-  · -- Part 2: specResult.success = true
-    -- After unfolding, the spec evaluates: if sender == owner then execute else revert
-    -- When h: sender = owner, the spec succeeds
-    -- This requires simplifying nested Option.bind chains with evalExpr
+  · -- Spec success when sender is owner
     simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h]
-  · -- Part 3: specResult.finalStorage.getSlot 0 = addressToNat newOwner
-    -- Similar to Part 2: requires Option.bind chain simplification
-    -- When authorized, spec stores newOwner at slot 0
+  · -- Spec sets owner to newOwner
     simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
       evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h, addressToNat_mod_eq]
 
@@ -109,26 +101,16 @@ theorem transferOwnership_reverts_as_nonowner (state : ContractState) (newOwner 
     let specResult := interpretSpec ownedSpec (ownedEdslToSpecStorage state) specTx
     edslResult.isSuccess = false ∧
     specResult.success = false := by
-  -- When sender is not owner, both EDSL and spec revert
-  constructor
-  · -- Part 1: edslResult.isSuccess = false
-    unfold Verity.Examples.Owned.transferOwnership Contract.run
-    unfold Verity.Examples.Owned.onlyOwner Verity.Examples.Owned.isOwner
-    unfold msgSender getStorageAddr setStorageAddr Verity.Examples.Owned.owner
-    simp only [Verity.bind, Bind.bind, Verity.require, Verity.pure, Pure.pure]
-    have h_beq : (sender == state.storageAddr 0) = false :=
-      address_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
-    rw [h_beq]
-    simp [ContractResult.isSuccess]
-  · -- Part 2: specResult.success = false
-    -- Similar reasoning: spec checks sender == owner, which fails when h: sender ≠ owner
-    -- By addressToNat_injective, we know addressToNat sender ≠ addressToNat owner
-    -- So the require fails and spec reverts
-    have h_beq : (addressToNat sender == addressToNat (state.storageAddr 0)) = false :=
-      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)
-    -- Now the require in the spec fails, so success = false
+  have h_ne : ({ state with sender := sender }).sender ≠
+      ({ state with sender := sender }).storageAddr 0 := by simp [Ne.symm h]
+  refine ⟨?_, ?_⟩
+  · -- EDSL reverts when sender is not owner
+    obtain ⟨_, h_revert⟩ := Verity.Proofs.Owned.Correctness.transferOwnership_reverts_when_not_owner _ newOwner h_ne
+    simp [h_revert, ContractResult.isSuccess]
+  · -- Spec reverts when sender is not owner
     simp [ownedSpec, requireOwner, interpretSpec, ownedEdslToSpecStorage, execFunction, execStmts, execStmt,
-      evalExpr, SpecStorage.getSlot, SpecStorage.setSlot, h_beq]
+      evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)]
 
 /-- The `getOwner` function correctly retrieves the owner address -/
 theorem getOwner_correct (state : ContractState) (sender : Address) :
@@ -188,14 +170,9 @@ theorem transferOwnership_updates_owner (state : ContractState) (newOwner : Addr
     (h : state.storageAddr 0 = sender) :
     let finalState := (Verity.Examples.Owned.transferOwnership newOwner).runState { state with sender := sender }
     finalState.storageAddr 0 = newOwner := by
-  -- Unfold all definitions
-  unfold Verity.Examples.Owned.transferOwnership Verity.Examples.Owned.onlyOwner Verity.Examples.Owned.isOwner Verity.Examples.Owned.owner
-  unfold msgSender getStorageAddr setStorageAddr Contract.runState
-  simp only [Verity.bind, Bind.bind, Verity.pure, Pure.pure, Verity.require]
-
-  -- The key is that sender == state.storageAddr 0, so the require passes
-  have h_beq : (sender == state.storageAddr 0) = true := by
-    simp [beq_iff_eq, h]
-  simp [h_beq]
+  have h_owner' : ({ state with sender := sender }).sender =
+      ({ state with sender := sender }).storageAddr 0 := by simp [h]
+  change ((Verity.Examples.Owned.transferOwnership newOwner).run { state with sender := sender }).snd.storageAddr 0 = newOwner
+  rw [Verity.Proofs.Owned.transferOwnership_unfold _ _ h_owner']; rfl
 
 end Compiler.Proofs.SpecCorrectness
