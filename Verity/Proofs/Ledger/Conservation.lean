@@ -114,7 +114,7 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
     (fun addr => s.storageMap 0 addr)
     (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)
     s.sender to amount h_ne h_sender_bal h_recip_bal'
-    (fun addr h1 h2 => h_other_bal.1 addr h1 h2)
+    h_other_bal.1
 
 /-- Corollary: for NoDup lists where sender and to each appear once,
     the total sum is exactly preserved by transfer. -/

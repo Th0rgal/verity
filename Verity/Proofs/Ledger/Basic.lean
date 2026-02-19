@@ -86,8 +86,7 @@ theorem deposit_preserves_other_balances (s : ContractState) (amount : Uint256)
   (addr : Address) (h_ne : addr ≠ s.sender) :
   let s' := ((deposit amount).run s).snd
   s'.storageMap 0 addr = s.storageMap 0 addr := by
-  rw [deposit_unfold]; simp [ContractResult.snd, beq_iff_eq]
-  intro h_eq; exact absurd h_eq h_ne
+  rw [deposit_unfold]; simp [ContractResult.snd, beq_iff_eq, h_ne]
 
 /-! ## Withdraw Correctness -/
 

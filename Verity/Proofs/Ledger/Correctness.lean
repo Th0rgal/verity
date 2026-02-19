@@ -29,8 +29,7 @@ theorem transfer_preserves_wellformedness (s : ContractState) (to : Address) (am
   WellFormedState s' := by
   have h_spec := transfer_meets_spec s to amount h_balance (fun _ => h_no_overflow)
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
-  obtain ⟨_, _, _, _, _, h_ctx⟩ := h_spec
-  obtain ⟨h_sender, h_this, _h_value, _h_time⟩ := h_ctx
+  obtain ⟨_, _, _, _, _, h_sender, h_this, _, _⟩ := h_spec
   constructor
   · exact h_sender ▸ h.sender_nonempty
   · exact h_this ▸ h.contract_nonempty

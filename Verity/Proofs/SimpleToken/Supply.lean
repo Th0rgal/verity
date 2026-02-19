@@ -85,7 +85,7 @@ theorem mint_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
   exact map_sum_point_update
     (fun addr => s.storageMap 1 addr)
     (fun addr => ((mint to amount).run s).snd.storageMap 1 addr)
-    to amount h_bal (fun addr h_ne => h_other.1 addr h_ne)
+    to amount h_bal h_other.1
 
 /-- Exact sum conservation equation for transfer:
     new_sum + count(sender, addrs) * amount = old_sum + count(to, addrs) * amount.
@@ -112,7 +112,7 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
     (fun addr => s.storageMap 1 addr)
     (fun addr => ((transfer to amount).run s).snd.storageMap 1 addr)
     s.sender to amount h_ne h_sender_bal h_recip_bal'
-    (fun addr h1 h2 => h_other_bal.1 addr h1 h2)
+    h_other_bal.1
 
 /-! ## Summary
 
