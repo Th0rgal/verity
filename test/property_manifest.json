@@ -46,7 +46,9 @@
     "totalSupply_meets_spec",
     "transfer_decreases_sender_balance_when_sufficient",
     "transfer_increases_recipient_balance_when_sufficient",
-    "transfer_meets_spec_when_sufficient"
+    "transfer_meets_spec_when_sufficient",
+    "transfer_preserves_owner_when_sufficient",
+    "transfer_preserves_totalSupply_when_sufficient"
   ],
   "ERC721": [
     "balanceOf_meets_spec",

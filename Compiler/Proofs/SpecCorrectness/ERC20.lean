@@ -7,6 +7,7 @@
 import Verity.Specs.ERC20.Spec
 import Verity.Examples.ERC20
 import Verity.Proofs.ERC20.Basic
+import Verity.Proofs.ERC20.Correctness
 import Verity.Stdlib.Math
 
 namespace Compiler.Proofs.SpecCorrectness
@@ -61,6 +62,26 @@ theorem erc20_transfer_spec_correct (s : ContractState) (to : Address) (amount :
       (s.storageMap 2 to : Nat) + (amount : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256) :
     transfer_spec s.sender to amount s ((transfer to amount).runState s) := by
   simpa using Verity.Proofs.ERC20.transfer_meets_spec_when_sufficient
+    s to amount h_balance h_no_overflow
+
+/-- `transfer` preserves total supply under successful-path preconditions. -/
+theorem erc20_transfer_preserves_totalSupply_when_sufficient
+    (s : ContractState) (to : Address) (amount : Uint256)
+    (h_balance : s.storageMap 2 s.sender ≥ amount)
+    (h_no_overflow : s.sender ≠ to →
+      (s.storageMap 2 to : Nat) + (amount : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256) :
+    ((transfer to amount).runState s).storage 1 = s.storage 1 := by
+  simpa using Verity.Proofs.ERC20.transfer_preserves_totalSupply_when_sufficient
+    s to amount h_balance h_no_overflow
+
+/-- `transfer` preserves owner storage under successful-path preconditions. -/
+theorem erc20_transfer_preserves_owner_when_sufficient
+    (s : ContractState) (to : Address) (amount : Uint256)
+    (h_balance : s.storageMap 2 s.sender ≥ amount)
+    (h_no_overflow : s.sender ≠ to →
+      (s.storageMap 2 to : Nat) + (amount : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256) :
+    ((transfer to amount).runState s).storageAddr 0 = s.storageAddr 0 := by
+  simpa using Verity.Proofs.ERC20.transfer_preserves_owner_when_sufficient
     s to amount h_balance h_no_overflow
 
 end Compiler.Proofs.SpecCorrectness

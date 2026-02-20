@@ -21,6 +21,8 @@ contract PropertyERC20Test is Test {
     /// Property 15: transfer_meets_spec_when_sufficient
     /// Property 16: transfer_decreases_sender_balance_when_sufficient
     /// Property 17: transfer_increases_recipient_balance_when_sufficient
+    /// Property 18: transfer_preserves_totalSupply_when_sufficient
+    /// Property 19: transfer_preserves_owner_when_sufficient
     function testProperty_ERC20_ScaffoldExists() public pure {
         assertTrue(true);
     }

@@ -37,4 +37,24 @@ theorem approve_is_balance_neutral_holds (s : ContractState) (spender : Address)
   rcases h with ⟨_, _, _, h_storage, _, h_storageMap, _⟩
   exact ⟨h_storage, h_storageMap⟩
 
+/-- `transfer` preserves total supply under successful-path preconditions. -/
+theorem transfer_preserves_totalSupply_when_sufficient
+    (s : ContractState) (to : Address) (amount : Uint256)
+    (h_balance : s.storageMap 2 s.sender ≥ amount)
+    (h_no_overflow : s.sender ≠ to →
+      (s.storageMap 2 to : Nat) + (amount : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256) :
+    ((Verity.Examples.ERC20.transfer to amount).runState s).storage 1 = s.storage 1 := by
+  have h := transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow
+  exact h.2.2.2.2.1
+
+/-- `transfer` preserves owner storage under successful-path preconditions. -/
+theorem transfer_preserves_owner_when_sufficient
+    (s : ContractState) (to : Address) (amount : Uint256)
+    (h_balance : s.storageMap 2 s.sender ≥ amount)
+    (h_no_overflow : s.sender ≠ to →
+      (s.storageMap 2 to : Nat) + (amount : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256) :
+    ((Verity.Examples.ERC20.transfer to amount).runState s).storageAddr 0 = s.storageAddr 0 := by
+  have h := transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow
+  exact h.2.2.2.2.2.1
+
 end Verity.Proofs.ERC20
