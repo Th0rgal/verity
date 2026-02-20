@@ -73,14 +73,14 @@ private theorem increment_spec_success_iff (state : ContractState) (sender : Add
         ¬((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val :=
       Nat.not_lt_of_ge h_le
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
-      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
-      lookup_count_newcount, lookup_newcount, List.lookup, one_mod_modulus, h_le, h_not_gt]
+      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
+      List.lookup, one_mod_modulus, h_not_gt]
   · have h_gt :
         ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val :=
       Nat.lt_of_not_ge h_le
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
       execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
-      lookup_count_newcount, lookup_newcount, List.lookup, one_mod_modulus, h_le, h_gt]
+      List.lookup, one_mod_modulus, h_gt]
 
 private theorem increment_spec_storage (state : ContractState) (sender : Address)
     (h_gt : ((state.storage 0).val + 1) % Verity.Core.Uint256.modulus > (state.storage 0).val) :
@@ -97,7 +97,7 @@ private theorem increment_spec_storage (state : ContractState) (sender : Address
     Nat.not_le_of_gt h_gt
   simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
     execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
-    lookup_count_newcount, lookup_newcount, List.lookup, one_mod_modulus, h_not_le]
+    List.lookup, one_mod_modulus, h_not_le]
 
 private theorem decrement_spec_success_iff (state : ContractState) (sender : Address) :
     let specTx : DiffTestTypes.Transaction := {
@@ -110,22 +110,16 @@ private theorem decrement_spec_success_iff (state : ContractState) (sender : Add
   by_cases h_ge : (state.storage 0).val ≥ 1
   · have h_not_lt : ¬(state.storage 0).val < 1 :=
       Nat.not_lt_of_ge h_ge
-    have h_not_lt' : ¬(state.storage 0).val < 1 % Verity.Core.Uint256.modulus := by
-      simpa [one_mod_modulus] using h_not_lt
-    have h_ne : (state.storage 0).val ≠ 0 := by
-      omega
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
       execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
-      lookup_count_single, List.lookup, one_mod_modulus, h_not_lt', h_ge, h_ne]
+      List.lookup, one_mod_modulus, h_ge]
   · have h_lt : (state.storage 0).val < 1 :=
       Nat.lt_of_not_ge h_ge
-    have h_lt' : (state.storage 0).val < 1 % Verity.Core.Uint256.modulus := by
-      simpa [one_mod_modulus] using h_lt
     have h_zero : (state.storage 0).val = 0 := by
       omega
     simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
-      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
-      lookup_count_single, List.lookup, one_mod_modulus, h_lt', h_ge, h_zero]
+      execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
+      List.lookup, one_mod_modulus, h_zero]
 
 private theorem decrement_spec_storage (state : ContractState) (sender : Address)
     (h_ge : (state.storage 0).val ≥ 1) :
@@ -138,13 +132,9 @@ private theorem decrement_spec_storage (state : ContractState) (sender : Address
     specResult.finalStorage.getSlot 0 = (state.storage 0).val - 1 := by
   have h_not_lt : ¬(state.storage 0).val < 1 :=
     Nat.not_lt_of_ge h_ge
-  have h_not_lt' : ¬(state.storage 0).val < 1 % Verity.Core.Uint256.modulus := by
-    simpa [one_mod_modulus] using h_not_lt
-  have h_ne : (state.storage 0).val ≠ 0 := by
-    omega
   simp [interpretSpec, safeCounterSpec, safeCounterEdslToSpecStorage,
     execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
-    lookup_count_single, List.lookup, one_mod_modulus, h_not_lt', h_ge, h_ne]
+    List.lookup, one_mod_modulus, h_ge]
 
 /-- Increment reverts when counter is at MAX_UINT256 -/
 theorem safeIncrement_reverts_at_max (state : ContractState) (sender : Address)
@@ -169,7 +159,7 @@ theorem safeIncrement_succeeds_below_max (state : ContractState) (sender : Addre
   -- When count < MAX_UINT256, count + 1 ≤ MAX_UINT256, so safeAdd succeeds
   -- Unfold increment and show that safeAdd succeeds (returns Some), thus no revert
   unfold increment getStorage setStorage count requireSomeUint Contract.run ContractResult.isSuccess
-  simp only [Verity.bind, Bind.bind, Verity.pure, Pure.pure]
+  simp only [Verity.bind, Bind.bind, Pure.pure]
   -- Show safeAdd returns Some when no overflow
   have h_no_overflow : ((state.storage 0) : Nat) + 1 ≤ Verity.Core.MAX_UINT256 := by
     omega
@@ -308,7 +298,7 @@ theorem safeDecrement_succeeds_above_zero (state : ContractState) (sender : Addr
     result.isSuccess = true := by
   -- When count > 0, count ≥ 1, so safeSub succeeds
   unfold decrement getStorage setStorage count requireSomeUint Contract.run ContractResult.isSuccess
-  simp only [Verity.bind, Bind.bind, Verity.pure, Pure.pure]
+  simp only [Verity.bind, Bind.bind, Pure.pure]
   -- Show safeSub returns Some when no underflow
   have h_no_underflow : ((state.storage 0) : Nat) ≥ 1 := by
     omega

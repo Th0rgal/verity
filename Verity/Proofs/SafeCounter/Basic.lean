@@ -59,7 +59,7 @@ private theorem increment_unfold (s : ContractState)
       events := s.events } := by
   simp only [increment, getStorage, setStorage, count, requireSomeUint,
     Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst,
+    Contract.run,
     safeAdd_some (s.storage 0) 1 h_no_overflow]
 
 theorem increment_meets_spec (s : ContractState)
@@ -93,9 +93,9 @@ theorem increment_preserves_other_slots (s : ContractState)
 theorem increment_reverts_overflow (s : ContractState)
   (h_overflow : (s.storage 0 : Nat) + 1 > MAX_UINT256) :
   ∃ msg, (increment).run s = ContractResult.revert msg s := by
-  simp [increment, getStorage, setStorage, count, requireSomeUint,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Verity.require, Contract.run, ContractResult.snd, ContractResult.fst,
+  simp [increment, getStorage, count, requireSomeUint,
+    Verity.bind, Bind.bind,
+    Verity.require, Contract.run,
     safeAdd_none (s.storage 0) 1 h_overflow]
 
 /-! ## Decrement Correctness -/
@@ -117,7 +117,7 @@ private theorem decrement_unfold (s : ContractState)
       events := s.events } := by
   simp only [decrement, getStorage, setStorage, count, requireSomeUint,
     Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst,
+    Contract.run,
     safeSub_some (s.storage 0) 1 h_no_underflow]
 
 theorem decrement_meets_spec (s : ContractState)
@@ -151,9 +151,9 @@ theorem decrement_preserves_other_slots (s : ContractState)
 theorem decrement_reverts_underflow (s : ContractState)
   (h_underflow : s.storage 0 = 0) :
   ∃ msg, (decrement).run s = ContractResult.revert msg s := by
-  simp [decrement, getStorage, setStorage, count, requireSomeUint,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Verity.require, Contract.run, ContractResult.snd, ContractResult.fst,
+  simp [decrement, getStorage, count, requireSomeUint,
+    Verity.bind, Bind.bind,
+    Verity.require, Contract.run,
     safeSub_none (s.storage 0) 1 (show (1 : Nat) > (s.storage 0 : Nat) by rw [h_underflow]; decide)]
 
 /-! ## State Preservation -/
