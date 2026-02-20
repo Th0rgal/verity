@@ -503,18 +503,31 @@ private def issue586Ref : String :=
 private def isLowLevelCallName (name : String) : Bool :=
   ["call", "staticcall", "delegatecall", "callcode"].contains name
 
+private def isInteropBuiltinCallName (name : String) : Bool :=
+  (isLowLevelCallName name) ||
+    ["create", "create2", "extcodesize", "extcodecopy", "extcodehash"].contains name
+
 private def payableUnsupportedError (fnName : String) : Except String Unit :=
   throw s!"Compilation error: function '{fnName}' uses Expr.msgValue, but payable/fallback/receive entrypoints are unsupported ({issue586Ref}). Use a non-payable function and pass value explicitly as a uint256 parameter."
 
 private def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
   throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall."
 
+private def interopBuiltinCallUnsupportedError (context : String) (name : String) : Except String Unit :=
+  throw s!"Compilation error: {context} uses unsupported interop builtin call '{name}' ({issue586Ref}). Use a verified linked external wrapper or pass the required value through explicit function parameters."
+
+private def unsupportedInteropCallError (context : String) (name : String) : Except String Unit :=
+  if isLowLevelCallName name then
+    lowLevelCallUnsupportedError context name
+  else
+    interopBuiltinCallUnsupportedError context name
+
 private partial def validateInteropExpr (fnName : String) : Expr → Except String Unit
   | Expr.msgValue =>
       payableUnsupportedError fnName
   | Expr.externalCall name args => do
-      if isLowLevelCallName name then
-        lowLevelCallUnsupportedError s!"function '{fnName}'" name
+      if isInteropBuiltinCallName name then
+        unsupportedInteropCallError s!"function '{fnName}'" name
       args.forM (validateInteropExpr fnName)
   | Expr.mapping _ key => validateInteropExpr fnName key
   | Expr.mapping2 _ key1 key2 => do
@@ -567,8 +580,8 @@ private def validateInteropFunctionSpec (spec : FunctionSpec) : Except String Un
   spec.body.forM (validateInteropStmt spec.name)
 
 private def validateInteropExternalSpec (spec : ExternalFunction) : Except String Unit := do
-  if isLowLevelCallName spec.name then
-    lowLevelCallUnsupportedError s!"external declaration '{spec.name}'" spec.name
+  if isInteropBuiltinCallName spec.name then
+    unsupportedInteropCallError s!"external declaration '{spec.name}'" spec.name
 
 private def validateInteropConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit := do
   match ctor with

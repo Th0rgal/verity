@@ -283,4 +283,53 @@ private def featureSpec : ContractSpec := {
   | .ok _ =>
       throw (IO.userError "✗ expected constructor low-level call usage to fail compilation")
 
+#eval! do
+  let extCodeSizeSpec : ContractSpec := {
+    name := "ExtCodeSizeUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "extcodesize" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile extCodeSizeSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'extcodesize'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ extcodesize diagnostic mismatch: {err}")
+      IO.println "✓ extcodesize unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected extcodesize usage to fail compilation")
+
+#eval! do
+  let externalCreate2Spec : ContractSpec := {
+    name := "ExternalCreate2Unsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "create2"
+        params := [ParamType.uint256]
+        returnType := some ParamType.address
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalCreate2Spec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'create2'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external create2 diagnostic mismatch: {err}")
+      IO.println "✓ external create2 unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external create2 declaration to fail compilation")
+
 end Compiler.ContractSpecFeatureTest

@@ -282,6 +282,7 @@ Diagnostics policy for unsupported constructs:
 Current diagnostic coverage in compiler:
 - `Expr.msgValue` now fails with an explicit payable/fallback/receive unsupported message and migration guidance.
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
+- Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
 - The same unsupported checks are enforced in constructor bodies (not only regular function bodies).
 - Both diagnostics include an `Issue #586` reference for scope tracking.
 
