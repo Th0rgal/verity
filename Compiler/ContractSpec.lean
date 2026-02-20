@@ -657,9 +657,9 @@ private partial def eventHeadWordSize : ParamType → Nat
         | ParamType.tuple elemTys => (elemTys.map eventHeadWordSize).foldl (· + ·) 0
         | _ => 32
 
-private def indexedDynamicArrayElemSupported : ParamType → Bool
-  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
-  | _ => false
+private def indexedDynamicArrayElemSupported (elemTy : ParamType) : Bool :=
+  !eventIsDynamicType elemTy &&
+    eventHeadWordSize elemTy > 0
 
 private partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
     (events : List EventDef) : Stmt → Except String Unit
@@ -784,6 +784,24 @@ private partial def staticCompositeLeaves (baseName : String) (ty : ParamType) :
         | elemTy :: rest =>
             staticCompositeLeaves s!"{baseName}_{idx}" elemTy ++ go rest (idx + 1)
       go elemTys 0
+  | _ => []
+
+private partial def staticCompositeLeafTypeOffsets
+    (baseOffset : Nat) (ty : ParamType) : List (Nat × ParamType) :=
+  match ty with
+  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+      [(baseOffset, ty)]
+  | ParamType.fixedArray elemTy n =>
+      (List.range n).flatMap fun i =>
+        staticCompositeLeafTypeOffsets (baseOffset + i * eventHeadWordSize elemTy) elemTy
+  | ParamType.tuple elemTys =>
+      let rec go (remaining : List ParamType) (curOffset : Nat) : List (Nat × ParamType) :=
+        match remaining with
+        | [] => []
+        | elemTy :: rest =>
+            staticCompositeLeafTypeOffsets curOffset elemTy ++
+              go rest (curOffset + eventHeadWordSize elemTy)
+      go elemTys baseOffset
   | _ => []
 
 private def isLowLevelCallName (name : String) : Bool :=
@@ -1335,12 +1353,42 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
               | Expr.param name =>
                   let topicName := s!"__evt_topic{idx + 1}"
                   let byteLenName := s!"__evt_arg{idx}_byte_len"
+                  let elemWordSize := eventHeadWordSize elemTy
+                  let elemBaseName := s!"__evt_arg{idx}_elem_base"
+                  let elemOutBaseName := s!"__evt_arg{idx}_out_base"
+                  let loopIndexName := s!"__evt_arg{idx}_i"
+                  let leafStores :=
+                    (staticCompositeLeafTypeOffsets 0 elemTy).map fun (leafOffset, leafTy) =>
+                      let loadExpr := dynamicWordLoad dynamicSource (YulExpr.call "add" [
+                        YulExpr.ident elemBaseName,
+                        YulExpr.lit leafOffset
+                      ])
+                      YulStmt.expr (YulExpr.call "mstore" [
+                        YulExpr.call "add" [
+                          YulExpr.ident elemOutBaseName,
+                          YulExpr.lit leafOffset
+                        ],
+                        normalizeEventWord leafTy loadExpr
+                      ])
                   let hashStmts := [
-                    YulStmt.let_ byteLenName (YulExpr.call "mul" [YulExpr.ident s!"{name}_length", YulExpr.lit 32])
-                  ] ++ dynamicCopyData dynamicSource
-                    (YulExpr.ident "__evt_ptr")
-                    (YulExpr.ident s!"{name}_data_offset")
-                    (YulExpr.ident byteLenName) ++ [
+                    YulStmt.let_ byteLenName (YulExpr.call "mul" [
+                      YulExpr.ident s!"{name}_length",
+                      YulExpr.lit elemWordSize
+                    ]),
+                    YulStmt.for_
+                      [YulStmt.let_ loopIndexName (YulExpr.lit 0)]
+                      (YulExpr.call "lt" [YulExpr.ident loopIndexName, YulExpr.ident s!"{name}_length"])
+                      [YulStmt.assign loopIndexName (YulExpr.call "add" [YulExpr.ident loopIndexName, YulExpr.lit 1])]
+                      ([
+                        YulStmt.let_ elemBaseName (YulExpr.call "add" [
+                          YulExpr.ident s!"{name}_data_offset",
+                          YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit elemWordSize]
+                        ]),
+                        YulStmt.let_ elemOutBaseName (YulExpr.call "add" [
+                          YulExpr.ident "__evt_ptr",
+                          YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit elemWordSize]
+                        ])
+                      ] ++ leafStores),
                     YulStmt.let_ topicName (YulExpr.call "keccak256" [
                       YulExpr.ident "__evt_ptr",
                       YulExpr.ident byteLenName

@@ -1056,7 +1056,43 @@ private def featureSpec : ContractSpec := {
       let rendered := Yul.render (emitYul ir)
       assertContains "indexed dynamic array topic hashing" rendered
         ["let __evt_arg0_byte_len := mul(payload_length, 32)",
-         "calldatacopy(__evt_ptr, payload_data_offset, __evt_arg0_byte_len)",
+         "let __evt_arg0_i := 0",
+         "lt(__evt_arg0_i, payload_length)",
+         "let __evt_arg0_elem_base := add(payload_data_offset, mul(__evt_arg0_i, 32))",
+         "let __evt_topic1 := keccak256(__evt_ptr, __evt_arg0_byte_len)",
+         "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
+
+#eval! do
+  let indexedDynamicStaticTupleArrayEventSpec : ContractSpec := {
+    name := "IndexedDynamicStaticTupleArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "IndexedDynamicStaticTupleArray"
+        params := [
+          { name := "payload", ty := ParamType.array (ParamType.tuple [ParamType.address, ParamType.bool]), kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitArray"
+        params := [{ name := "payload", ty := ParamType.array (ParamType.tuple [ParamType.address, ParamType.bool]) }]
+        returnType := none
+        body := [Stmt.emit "IndexedDynamicStaticTupleArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedDynamicStaticTupleArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected indexed dynamic static-tuple array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "indexed dynamic static-tuple array topic hashing" rendered
+        ["let __evt_arg0_byte_len := mul(payload_length, 64)",
+         "let __evt_arg0_i := 0",
+         "lt(__evt_arg0_i, payload_length)",
+         "mstore(add(__evt_arg0_out_base, 0), and(calldataload(add(__evt_arg0_elem_base, 0))",
+         "mstore(add(__evt_arg0_out_base, 32), iszero(iszero(calldataload(add(__evt_arg0_elem_base, 32)))))",
          "let __evt_topic1 := keccak256(__evt_ptr, __evt_arg0_byte_len)",
          "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
 

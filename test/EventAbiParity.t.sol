@@ -27,6 +27,7 @@ contract EventAbiParityEmitter {
     event IndexedBytes(bytes indexed payload);
     event IndexedStaticTuple(StaticTupleParity indexed payload);
     event IndexedStaticFixedArray(uint256[2] indexed payload);
+    event IndexedDynamicStaticTupleArray(StaticTupleParity[] indexed payload);
     event UnindexedStaticTuple(StaticTupleParity payload);
     event UnindexedStaticFixedArray(uint256[2] payload);
 
@@ -53,6 +54,10 @@ contract EventAbiParityEmitter {
 
     function emitIndexedStaticFixedArray(uint256[2] calldata payload) external {
         emit IndexedStaticFixedArray(payload);
+    }
+
+    function emitIndexedDynamicStaticTupleArray(StaticTupleParity[] calldata payload) external {
+        emit IndexedDynamicStaticTupleArray(payload);
     }
 
     function emitUnindexedStaticTuple(StaticTupleParity calldata payload) external {
@@ -168,6 +173,32 @@ contract EventAbiParityTest is Test {
 
         bytes32 expectedTopic0 = keccak256(bytes("IndexedStaticFixedArray(uint256[2])"));
         bytes32 expectedTopic1 = keccak256(abi.encode(payload));
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
+    function testIndexedDynamicStaticTupleArrayTopicUsesInPlaceElementEncoding() public {
+        StaticTupleParity[] memory payload = new StaticTupleParity[](2);
+        payload[0] = StaticTupleParity({amount: 101, recipient: address(0x1111)});
+        payload[1] = StaticTupleParity({amount: 202, recipient: address(0x2222)});
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicStaticTupleArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicStaticTupleArray((uint256,address)[])"));
+        bytes32 expectedTopic1 = keccak256(
+            abi.encode(
+                payload[0].amount,
+                payload[0].recipient,
+                payload[1].amount,
+                payload[1].recipient
+            )
+        );
 
         assertEq(logs[0].topics[0], expectedTopic0);
         assertEq(logs[0].topics[1], expectedTopic1);
