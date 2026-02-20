@@ -1,0 +1,58 @@
+{
+  "allowed_overlap_builtins": [
+    "add",
+    "and",
+    "calldataload",
+    "caller",
+    "div",
+    "eq",
+    "gt",
+    "iszero",
+    "lt",
+    "mod",
+    "mul",
+    "not",
+    "or",
+    "shl",
+    "shr",
+    "sload",
+    "sub",
+    "xor"
+  ],
+  "allowed_verity_helpers": [
+    "mappingSlot"
+  ],
+  "builtins_file": "Compiler/Proofs/YulGeneration/Builtins.lean",
+  "found_builtins": [
+    "add",
+    "and",
+    "calldataload",
+    "caller",
+    "div",
+    "eq",
+    "gt",
+    "iszero",
+    "lt",
+    "mappingSlot",
+    "mod",
+    "mul",
+    "not",
+    "or",
+    "shl",
+    "shr",
+    "sload",
+    "sub",
+    "xor"
+  ],
+  "schema_version": 1,
+  "status": "ok",
+  "unknown_builtins_present": [],
+  "unsupported_builtins": [
+    "create",
+    "create2",
+    "extcodecopy",
+    "extcodehash",
+    "extcodesize"
+  ],
+  "unsupported_builtins_present": []
+}
