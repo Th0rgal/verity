@@ -25,6 +25,8 @@ import Verity.Proofs.SimpleToken.Correctness
 
 -- Increased heartbeats due to additional struct fields (mappings2, events, etc.)
 set_option maxHeartbeats 400000
+-- These proof scripts keep explicit simp arguments for readability/maintenance.
+set_option linter.unusedSimpArgs false
 
 namespace Compiler.Proofs.SpecCorrectness
 

@@ -15,6 +15,9 @@ import Verity.Proofs.Stdlib.Automation
 import Verity.Specs.SimpleToken.Spec
 import Verity.Specs.SimpleToken.Invariants
 
+-- Proof scripts intentionally provide broader simp sets for stability across refactors.
+set_option linter.unusedSimpArgs false
+
 namespace Verity.Proofs.SimpleToken
 
 open Verity
