@@ -258,8 +258,29 @@ private def orThrow (r : Except String Unit) : IO Unit :=
   | .error err => throw (IO.userError err)
   | .ok () => pure ()
 
-private def writeContract (outDir : String) (contract : IRContract) (libraryPaths : List String) (verbose : Bool) : IO Unit := do
-  let yulObj := emitYul contract
+private def reportRow (contractName : String) (report : Yul.PatchPassReport) : List String :=
+  match report.manifest with
+  | [] =>
+      [s!"{contractName}\t{report.iterations}\t-\t0\t0\t-"]
+  | entries =>
+      entries.map (fun entry =>
+        s!"{contractName}\t{report.iterations}\t{entry.patchName}\t{entry.matchCount}\t{entry.changedNodes}\t{entry.proofRef}")
+
+private def renderPatchReportTsv (rows : List (String × Yul.PatchPassReport)) : String :=
+  let header := "contract\titerations\tpatch_name\tmatch_count\tchanged_nodes\tproof_ref"
+  let body := rows.foldr (fun (contractName, report) acc => reportRow contractName report ++ acc) []
+  String.intercalate "\n" (header :: body) ++ "\n"
+
+private def writePatchReport (path : String) (rows : List (String × Yul.PatchPassReport)) : IO Unit := do
+  IO.FS.writeFile path (renderPatchReportTsv rows)
+
+private def writeContract
+    (outDir : String)
+    (contract : IRContract)
+    (libraryPaths : List String)
+    (verbose : Bool)
+    (options : YulEmitOptions) : IO Yul.PatchPassReport := do
+  let (yulObj, patchReport) := emitYulWithOptionsReport contract options
 
   let libraries ← libraryPaths.mapM fun path => do
     if verbose then
@@ -285,8 +306,14 @@ private def writeContract (outDir : String) (contract : IRContract) (libraryPath
 
   let path := s!"{outDir}/{contract.name}.yul"
   IO.FS.writeFile path text
+  pure patchReport
 
-def compileAllAST (outDir : String) (verbose : Bool := false) (libraryPaths : List String := []) : IO Unit := do
+def compileAllASTWithOptions
+    (outDir : String)
+    (verbose : Bool := false)
+    (libraryPaths : List String := [])
+    (options : YulEmitOptions := {})
+    (patchReportPath : Option String := none) : IO Unit := do
   IO.FS.createDirAll outDir
 
   if verbose then
@@ -295,19 +322,30 @@ def compileAllAST (outDir : String) (verbose : Bool := false) (libraryPaths : Li
 
   orThrow (validateAllSpecs ASTSpecs.allSpecs)
 
+  let mut patchRows : List (String × Yul.PatchPassReport) := []
   for spec in ASTSpecs.allSpecs do
     let selectors ← computeSelectors spec
     match compileSpec spec selectors with
     | .ok contract =>
-      writeContract outDir contract libraryPaths verbose
+      let patchReport ← writeContract outDir contract libraryPaths verbose options
+      patchRows := (contract.name, patchReport) :: patchRows
       if verbose then
         IO.println s!"✓ Compiled {contract.name} (AST path)"
     | .error err =>
       throw (IO.userError err)
+  match patchReportPath with
+  | some path =>
+      writePatchReport path patchRows.reverse
+      if verbose then
+        IO.println s!"✓ Wrote patch report: {path}"
+  | none => pure ()
 
   if verbose then
     IO.println ""
     IO.println "AST compilation complete!"
     IO.println s!"Generated {ASTSpecs.allSpecs.length} contracts in {outDir}"
+
+def compileAllAST (outDir : String) (verbose : Bool := false) (libraryPaths : List String := []) : IO Unit := do
+  compileAllASTWithOptions outDir verbose libraryPaths {} none
 
 end Compiler.ASTDriver

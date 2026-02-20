@@ -44,6 +44,15 @@ lake exe verity-compiler                      # Output in compiler/yul/
 lake exe verity-compiler --link examples/external-libs/MyLib.yul -o compiler/yul
 ```
 
+**With deterministic Yul patch pass + coverage report:**
+```bash
+lake exe verity-compiler \
+  --enable-patches \
+  --patch-max-iterations 2 \
+  --patch-report compiler/patch-report.tsv \
+  -o compiler/yul-patched
+```
+
 **Run tests:**
 ```bash
 FOUNDRY_PROFILE=difftest forge test           # 375 tests across 32 suites

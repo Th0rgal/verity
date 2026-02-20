@@ -278,6 +278,15 @@ jobs:
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
 
+      - name: Generate patched Yul + patch coverage report
+        run: |
+          ./.lake/build/bin/verity-compiler \
+            --enable-patches \
+            --patch-report compiler/patch-report.tsv \
+            --output compiler/yul-patched \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
       - name: Generate Yul (unified AST path)
         run: ./.lake/build/bin/verity-compiler --ast --output compiler/yul-ast
 
@@ -313,6 +322,32 @@ jobs:
       - name: Save static gas report snapshot
         run: lake exe gas-report > gas-report-static.tsv
 
+      - name: Summarize patch coverage report
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import csv
+          from collections import defaultdict
+          path = "compiler/patch-report.tsv"
+          rows = list(csv.DictReader(open(path), delimiter="\t"))
+          totals = defaultdict(int)
+          contracts = defaultdict(int)
+          for row in rows:
+            patch = row["patch_name"]
+            if patch == "-":
+              continue
+            match_count = int(row["match_count"])
+            totals[patch] += match_count
+            contracts[patch] += 1
+          print("### Patch Coverage")
+          if not totals:
+            print("No patch rules fired in this run.")
+          else:
+            print("| Patch | Total Matches | Contracts |")
+            print("| :-- | --: | --: |")
+            for patch, total in sorted(totals.items(), key=lambda kv: kv[1], reverse=True):
+              print(f"| `{patch}` | {total} | {contracts[patch]} |")
+          PY
+
       - name: Generate property coverage report
         run: python3 scripts/report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY
 
@@ -325,6 +360,12 @@ jobs:
           name: generated-yul
           path: compiler/yul
 
+      - name: Upload patched Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul-patched
+          path: compiler/yul-patched
+
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v4
         with:
@@ -336,6 +377,12 @@ jobs:
         with:
           name: static-gas-report
           path: gas-report-static.tsv
+
+      - name: Upload patch coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-coverage-report
+          path: compiler/patch-report.tsv
 
   foundry-gas-calibration:
     runs-on: ubuntu-latest

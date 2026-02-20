@@ -297,6 +297,10 @@ Implemented:
   - opt-in patch execution via `YulEmitOptions.patchConfig`
 - `Compiler.emitYulWithOptionsReport`
   - emits `(YulObject × PatchPassReport)` so manifest + iteration metadata are available for CI/tooling
+- `verity-compiler` (`Compiler/Main.lean`, `Compiler/CompileDriver.lean`, `Compiler/ASTDriver.lean`)
+  - supports `--enable-patches`, `--patch-max-iterations`, and `--patch-report <path>` to export TSV patch coverage per contract/rule
+- CI (`.github/workflows/verify.yml`)
+  - produces and uploads `patch-coverage-report` artifact; summary table is included in workflow step summary
 
 Current diagnostic coverage in compiler:
 - Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.
