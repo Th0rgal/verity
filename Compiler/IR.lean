@@ -21,12 +21,14 @@ structure IRFunction where
   selector : Nat
   params : List IRParam
   ret : IRType
+  payable : Bool := false
   body : List IRStmt
   deriving Repr
 
 structure IRContract where
   name : String
   deploy : List IRStmt
+  constructorPayable : Bool := false
   functions : List IRFunction
   usesMapping : Bool
   internalFunctions : List IRStmt := []  -- Yul function definitions for internal calls (#181)

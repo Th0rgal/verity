@@ -218,6 +218,8 @@ structure FunctionSpec where
   params : List Param
   returnType : Option FieldType  -- None for unit/void
   returns : List ParamType := []  -- preferred ABI return model; falls back to returnType when empty
+  /-- Whether this entrypoint accepts non-zero msg.value. -/
+  isPayable : Bool := false
   body : List Stmt
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
@@ -225,6 +227,8 @@ structure FunctionSpec where
 
 structure ConstructorSpec where
   params : List Param  -- Constructor parameters (passed at deployment)
+  /-- Whether deployment is allowed with non-zero msg.value. -/
+  isPayable : Bool := false
   body : List Stmt     -- Initialization code
   deriving Repr
 
@@ -507,9 +511,6 @@ private def isInteropBuiltinCallName (name : String) : Bool :=
   (isLowLevelCallName name) ||
     ["create", "create2", "extcodesize", "extcodecopy", "extcodehash"].contains name
 
-private def payableUnsupportedError (fnName : String) : Except String Unit :=
-  throw s!"Compilation error: function '{fnName}' uses Expr.msgValue, but payable/fallback/receive entrypoints are unsupported ({issue586Ref}). Use a non-payable function and pass value explicitly as a uint256 parameter."
-
 private def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
   throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall."
 
@@ -522,62 +523,62 @@ private def unsupportedInteropCallError (context : String) (name : String) : Exc
   else
     interopBuiltinCallUnsupportedError context name
 
-private partial def validateInteropExpr (fnName : String) : Expr → Except String Unit
+private partial def validateInteropExpr (context : String) : Expr → Except String Unit
   | Expr.msgValue =>
-      payableUnsupportedError fnName
+      pure ()
   | Expr.externalCall name args => do
       if isInteropBuiltinCallName name then
-        unsupportedInteropCallError s!"function '{fnName}'" name
-      args.forM (validateInteropExpr fnName)
-  | Expr.mapping _ key => validateInteropExpr fnName key
+        unsupportedInteropCallError context name
+      args.forM (validateInteropExpr context)
+  | Expr.mapping _ key => validateInteropExpr context key
   | Expr.mapping2 _ key1 key2 => do
-      validateInteropExpr fnName key1
-      validateInteropExpr fnName key2
-  | Expr.mappingUint _ key => validateInteropExpr fnName key
+      validateInteropExpr context key1
+      validateInteropExpr context key2
+  | Expr.mappingUint _ key => validateInteropExpr context key
   | Expr.internalCall _ args =>
-      args.forM (validateInteropExpr fnName)
+      args.forM (validateInteropExpr context)
   | Expr.arrayElement _ index =>
-      validateInteropExpr fnName index
+      validateInteropExpr context index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.mod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.lt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b => do
-      validateInteropExpr fnName a
-      validateInteropExpr fnName b
+      validateInteropExpr context a
+      validateInteropExpr context b
   | Expr.bitNot a | Expr.logicalNot a =>
-      validateInteropExpr fnName a
+      validateInteropExpr context a
   | _ =>
       pure ()
 
-private partial def validateInteropStmt (fnName : String) : Stmt → Except String Unit
+private partial def validateInteropStmt (context : String) : Stmt → Except String Unit
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
     Stmt.return value | Stmt.require value _ =>
-      validateInteropExpr fnName value
+      validateInteropExpr context value
   | Stmt.setMapping _ key value | Stmt.setMappingUint _ key value => do
-      validateInteropExpr fnName key
-      validateInteropExpr fnName value
+      validateInteropExpr context key
+      validateInteropExpr context value
   | Stmt.setMapping2 _ key1 key2 value => do
-      validateInteropExpr fnName key1
-      validateInteropExpr fnName key2
-      validateInteropExpr fnName value
+      validateInteropExpr context key1
+      validateInteropExpr context key2
+      validateInteropExpr context value
   | Stmt.ite cond thenBranch elseBranch => do
-      validateInteropExpr fnName cond
-      thenBranch.forM (validateInteropStmt fnName)
-      elseBranch.forM (validateInteropStmt fnName)
+      validateInteropExpr context cond
+      thenBranch.forM (validateInteropStmt context)
+      elseBranch.forM (validateInteropStmt context)
   | Stmt.forEach _ count body => do
-      validateInteropExpr fnName count
-      body.forM (validateInteropStmt fnName)
+      validateInteropExpr context count
+      body.forM (validateInteropStmt context)
   | Stmt.emit _ args =>
-      args.forM (validateInteropExpr fnName)
+      args.forM (validateInteropExpr context)
   | Stmt.internalCall _ args =>
-      args.forM (validateInteropExpr fnName)
+      args.forM (validateInteropExpr context)
   | Stmt.returnValues values =>
-      values.forM (validateInteropExpr fnName)
+      values.forM (validateInteropExpr context)
   | _ =>
       pure ()
 
 private def validateInteropFunctionSpec (spec : FunctionSpec) : Except String Unit := do
-  spec.body.forM (validateInteropStmt spec.name)
+  spec.body.forM (validateInteropStmt s!"function '{spec.name}'")
 
 private def validateInteropExternalSpec (spec : ExternalFunction) : Except String Unit := do
   if isInteropBuiltinCallName spec.name then
@@ -976,6 +977,7 @@ def compileFunctionSpec (fields : List Field) (events : List EventDef) (selector
     selector := selector
     params := spec.params.map Param.toIRParam
     ret := retType
+    payable := spec.isPayable
     body := allStmts
   }
 
@@ -1063,6 +1065,7 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   return {
     name := spec.name
     deploy := (← compileConstructor spec.fields spec.constructor)
+    constructorPayable := spec.constructor.map (·.isPayable) |>.getD false
     functions := functions
     usesMapping := usesMapping spec.fields
     internalFunctions := internalFuncDefs

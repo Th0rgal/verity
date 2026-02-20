@@ -25,6 +25,12 @@ private def assertContains (label rendered : String) (needles : List String) : I
       throw (IO.userError s!"✗ {label}: missing '{needle}' in:\n{rendered}")
   IO.println s!"✓ {label}"
 
+private def assertNotContains (label rendered : String) (needles : List String) : IO Unit := do
+  for needle in needles do
+    if contains rendered needle then
+      throw (IO.userError s!"✗ {label}: unexpected '{needle}' in:\n{rendered}")
+  IO.println s!"✓ {label}"
+
 private def featureSpec : ContractSpec := {
   name := "FeatureSpec"
   fields := []
@@ -194,25 +200,50 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected invalid returnBytes parameter to fail compilation")
 
 #eval! do
-  let msgValueSpec : ContractSpec := {
-    name := "MsgValueUnsupported"
+  let payableMsgValueSpec : ContractSpec := {
+    name := "PayableMsgValue"
     fields := []
-    constructor := none
+    constructor := some {
+      params := []
+      isPayable := true
+      body := [Stmt.stop]
+    }
     functions := [
       { name := "payableLike"
         params := []
         returnType := some FieldType.uint256
+        isPayable := true
         body := [Stmt.return Expr.msgValue]
       }
     ]
   }
-  match compile msgValueSpec [1] with
+  match compile payableMsgValueSpec [1] with
   | .error err =>
-      if !(contains err "Expr.msgValue" && contains err "Issue #586") then
-        throw (IO.userError s!"✗ msgValue diagnostic mismatch: {err}")
-      IO.println "✓ msgValue/payable unsupported diagnostic"
-  | .ok _ =>
-      throw (IO.userError "✗ expected msgValue/payable-like usage to fail compilation")
+      throw (IO.userError s!"✗ expected payable msgValue usage to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "payable msgValue compiles" rendered ["mstore(0, callvalue())"]
+      assertNotContains "payable function skips non-payable guard" rendered ["if callvalue()"]
+
+#eval! do
+  let nonPayableGuardSpec : ContractSpec := {
+    name := "NonPayableGuard"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile nonPayableGuardSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected non-payable function to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "non-payable function emits msg.value guard" rendered ["if callvalue()"]
 
 #eval! do
   let lowLevelCallSpec : ContractSpec := {
@@ -237,27 +268,53 @@ private def featureSpec : ContractSpec := {
 
 #eval! do
   let ctorMsgValueSpec : ContractSpec := {
-    name := "CtorMsgValueUnsupported"
+    name := "CtorMsgValuePayable"
     fields := []
     constructor := some {
       params := []
+      isPayable := true
       body := [Stmt.letVar "v" Expr.msgValue, Stmt.stop]
     }
     functions := [
       { name := "noop"
         params := []
         returnType := none
+        isPayable := true
         body := [Stmt.stop]
       }
     ]
   }
   match compile ctorMsgValueSpec [1] with
   | .error err =>
-      if !(contains err "Expr.msgValue" && contains err "Issue #586") then
-        throw (IO.userError s!"✗ constructor msgValue diagnostic mismatch: {err}")
-      IO.println "✓ constructor msgValue unsupported diagnostic"
-  | .ok _ =>
-      throw (IO.userError "✗ expected constructor msgValue usage to fail compilation")
+      throw (IO.userError s!"✗ expected payable constructor msgValue usage to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "payable constructor msgValue compiles" rendered ["let v := callvalue()"]
+      assertNotContains "payable constructor skips non-payable guard" rendered ["if callvalue()"]
+
+#eval! do
+  let ctorNonPayableGuardSpec : ContractSpec := {
+    name := "CtorNonPayableGuard"
+    fields := []
+    constructor := some {
+      params := []
+      body := [Stmt.stop]
+    }
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        isPayable := true
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile ctorNonPayableGuardSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected non-payable constructor to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "non-payable constructor emits msg.value guard" rendered ["if callvalue()"]
 
 #eval! do
   let ctorLowLevelCallSpec : ContractSpec := {

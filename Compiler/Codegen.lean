@@ -40,8 +40,9 @@ def calldatasizeGuard (numParams : Nat) : YulStmt :=
 def buildSwitch (funcs : List IRFunction) : YulStmt :=
   let selectorExpr := YulExpr.call "shr" [YulExpr.lit 224, YulExpr.call "calldataload" [YulExpr.lit 0]]
   let cases := funcs.map (fun fn =>
+    let valueGuard := if fn.payable then [] else [callvalueGuard]
     let body := [YulStmt.comment s!"{fn.name}()"] ++
-      [callvalueGuard] ++ [calldatasizeGuard fn.params.length] ++ fn.body
+      valueGuard ++ [calldatasizeGuard fn.params.length] ++ fn.body
     (fn.selector, body)
   )
   YulStmt.switch selectorExpr cases (some [
@@ -54,7 +55,8 @@ def runtimeCode (contract : IRContract) : List YulStmt :=
   mapping ++ internals ++ [buildSwitch contract.functions]
 
 private def deployCode (contract : IRContract) : List YulStmt :=
-  contract.deploy ++ [yulDatacopy, yulReturnRuntime]
+  let valueGuard := if contract.constructorPayable then [] else [callvalueGuard]
+  valueGuard ++ contract.deploy ++ [yulDatacopy, yulReturnRuntime]
 
 def emitYul (contract : IRContract) : YulObject :=
   { name := contract.name

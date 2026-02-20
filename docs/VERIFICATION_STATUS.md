@@ -269,7 +269,7 @@ Status legend:
 |---|---|---|---|---|---|
 | Custom errors + typed revert payloads | unsupported | unsupported | n/a | n/a | unsupported |
 | Low-level calls (`call` / `staticcall` / `delegatecall`) with returndata | unsupported | unsupported | n/a | n/a | unsupported |
-| `fallback` / `receive` / payable entrypoint modeling | unsupported | unsupported | n/a | n/a | unsupported |
+| `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
 | Event ABI parity for indexed dynamic/tuple payloads | partial | partial | partial | partial | partial |
 | Storage layout controls (packing + explicit slots) | partial | partial | partial | partial | partial |
 | ABI JSON artifact generation | unsupported | unsupported | n/a | n/a | unsupported |
@@ -280,10 +280,10 @@ Diagnostics policy for unsupported constructs:
 3. Link to the owning tracking issue.
 
 Current diagnostic coverage in compiler:
-- `Expr.msgValue` now fails with an explicit payable/fallback/receive unsupported message and migration guidance.
+- Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
-- The same unsupported checks are enforced in constructor bodies (not only regular function bodies).
+- Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
 - Both diagnostics include an `Issue #586` reference for scope tracking.
 
 ### Short Term (1-2 months)

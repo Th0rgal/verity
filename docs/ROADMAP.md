@@ -52,7 +52,7 @@ Status legend:
 |---|---|---|---|---|---|---|
 | 1 | Custom errors + typed revert payloads | unsupported | unsupported | n/a | n/a | unsupported |
 | 2 | Low-level calls (`call`/`staticcall`/`delegatecall`) + returndata handling | unsupported | unsupported | n/a | n/a | unsupported |
-| 3 | `fallback` / `receive` / payable entrypoint modeling | unsupported | unsupported | n/a | n/a | unsupported |
+| 3 | `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
 | 4 | Full event ABI parity (indexed dynamic + tuple hashing) | partial | partial | partial | partial | partial |
 | 5 | Storage layout controls (packed fields + explicit slot mapping) | partial | partial | partial | partial | partial |
 | 6 | ABI JSON artifact generation | unsupported | unsupported | n/a | n/a | unsupported |
