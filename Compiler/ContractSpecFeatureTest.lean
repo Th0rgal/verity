@@ -390,34 +390,64 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected external create2 declaration to fail compilation")
 
 #eval! do
-  let indexedDynamicEventSpec : ContractSpec := {
-    name := "IndexedDynamicEventUnsupported"
+  let indexedBytesEventSpec : ContractSpec := {
+    name := "IndexedBytesEventSupported"
     fields := []
     constructor := none
     events := [
-      { name := "BadIndexedBytes"
+      { name := "IndexedBytes"
         params := [
           { name := "payload", ty := ParamType.bytes, kind := EventParamKind.indexed }
         ]
       }
     ]
     functions := [
-      { name := "emitBad"
+      { name := "emitBytes"
         params := [{ name := "payload", ty := ParamType.bytes }]
         returnType := none
-        body := [Stmt.emit "BadIndexedBytes" [Expr.param "payload"], Stmt.stop]
+        body := [Stmt.emit "IndexedBytes" [Expr.param "payload"], Stmt.stop]
       }
     ]
   }
-  match compile indexedDynamicEventSpec [1] with
+  match compile indexedBytesEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected indexed bytes event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "indexed bytes topic hashing" rendered
+        ["calldatacopy(__evt_ptr, payload_data_offset, payload_length)",
+         "let __evt_topic1 := keccak256(__evt_ptr, payload_length)",
+         "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
+
+#eval! do
+  let indexedTupleEventSpec : ContractSpec := {
+    name := "IndexedTupleEventUnsupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "BadIndexedTuple"
+        params := [
+          { name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.uint256], kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBad"
+        params := [{ name := "x", ty := ParamType.uint256 }, { name := "y", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.emit "BadIndexedTuple" [Expr.param "x"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedTupleEventSpec [1] with
   | .error err =>
       if !(contains err "indexed dynamic/tuple param 'payload'" &&
           contains err "Issue #586" &&
           contains err "Use an unindexed field for now") then
-        throw (IO.userError s!"✗ indexed dynamic event diagnostic mismatch: {err}")
-      IO.println "✓ indexed dynamic event diagnostic"
+        throw (IO.userError s!"✗ indexed tuple event diagnostic mismatch: {err}")
+      IO.println "✓ indexed tuple event diagnostic"
   | .ok _ =>
-      throw (IO.userError "✗ expected indexed dynamic event param usage to fail compilation")
+      throw (IO.userError "✗ expected indexed tuple event param usage to fail compilation")
 
 #eval! do
   let fallbackSpec : ContractSpec := {
