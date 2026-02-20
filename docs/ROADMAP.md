@@ -18,6 +18,24 @@
 
 ---
 
+## Migration + Optimization Execution Tracker (P0 -> P2)
+
+This tracker is the execution order for migration-oriented compiler work. Later phases are blocked on earlier phases unless noted.
+
+| Priority | Milestone | Issues | Dependency | Exit Criteria |
+|---|---|---|---|---|
+| P0 | Canonical equivalence baseline | [#581](https://github.com/Th0rgal/verity/issues/581) | none | Canonical Yul equivalence check in CI for at least one real contract pair |
+| P1 | Proven optimization foundation | [#582](https://github.com/Th0rgal/verity/issues/582), [#583](https://github.com/Th0rgal/verity/issues/583), [#584](https://github.com/Th0rgal/verity/issues/584) | blocked by #581 | Proven patch framework + initial patch pack + warning non-regression gate |
+| P2 | Interop + verification docs hardening | [#585](https://github.com/Th0rgal/verity/issues/585), [#586](https://github.com/Th0rgal/verity/issues/586) | blocked by P0/P1 outputs | Generated verification artifact consumed by docs + published interop support profile |
+
+Execution policy:
+1. Do not start patch-pack expansion in `#583` before `#582` proof hooks are merged.
+2. Treat `#584` as a release gate for ongoing compiler work after initial warning cleanup lands.
+3. Treat `#585` docs generation as authoritative source for public metrics before broader docs expansion.
+4. Keep issue bodies and this section synchronized when scope/order changes.
+
+---
+
 ## Lessons from UnlinkPool (#185)
 
 [UnlinkPool](https://github.com/Th0rgal/unlink-contracts/pull/4) — a ZK privacy pool — was the first non-trivial contract built with Verity (37 theorems, 0 `sorry`, 64 Foundry tests). It exposed gaps in the ContractSpec compilation path that prevented real-world contracts from using the verified pipeline (Layers 2+3).
@@ -217,5 +235,5 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 
 ---
 
-**Last Updated**: 2026-02-18
+**Last Updated**: 2026-02-20
 **Status**: Layers 1-3 complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). Unified AST complete: all 7/7 contracts migrated (Issue #364). ContractSpec now supports real-world contracts (loops, branching, events, multi-mappings, internal calls, verified externs).
