@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import re
 import subprocess
+from typing import Literal
 
 from keccak256 import keccak_256, selector as compute_selector
 from property_utils import ROOT, die, report_errors
 FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
+SignatureKind = Literal["function", "event"]
+SignatureKey = tuple[SignatureKind, str]
 
 FUNCTION_START_RE = re.compile(r"\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
 EVENT_START_RE = re.compile(r"\bevent\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
@@ -409,7 +412,15 @@ def _parse_hash_fixture_line(line: str) -> tuple[str, str] | None:
     return None
 
 
-def run_solc_hashes() -> dict[str, str]:
+def _signature_kind_from_hash(hash_value: str) -> SignatureKind:
+    if len(hash_value) == 8:
+        return "function"
+    if len(hash_value) == 64:
+        return "event"
+    die(f"Unexpected hash width from solc --hashes: {len(hash_value)}")
+
+
+def run_solc_hashes() -> dict[SignatureKey, str]:
     result = subprocess.run(
         ["solc", "--hashes", str(FIXTURE)],
         check=False,
@@ -418,7 +429,7 @@ def run_solc_hashes() -> dict[str, str]:
     )
     if result.returncode != 0:
         die(f"solc --hashes failed: {result.stderr.strip()}")
-    hashes: dict[str, str] = {}
+    hashes: dict[SignatureKey, str] = {}
     for line in result.stdout.splitlines():
         line = line.strip()
         if not line or line.endswith(":"):
@@ -426,19 +437,19 @@ def run_solc_hashes() -> dict[str, str]:
         parsed = _parse_hash_fixture_line(line)
         if parsed is not None:
             signature, digest = parsed
-            hashes[signature] = digest
+            hashes[(_signature_kind_from_hash(digest), signature)] = digest
             continue
     if not hashes:
         die("No signature hashes parsed from solc output")
     return hashes
 
 
-def run_keccak_selectors(signatures: list[str]) -> dict[str, str]:
-    return {sig: compute_selector(sig).replace("0x", "") for sig in signatures}
+def run_keccak_selectors(signatures: list[str]) -> dict[SignatureKey, str]:
+    return {("function", sig): compute_selector(sig).replace("0x", "") for sig in signatures}
 
 
-def run_keccak_event_hashes(signatures: list[str]) -> dict[str, str]:
-    return {sig: keccak_256(sig.encode("utf-8")).hex() for sig in signatures}
+def run_keccak_event_hashes(signatures: list[str]) -> dict[SignatureKey, str]:
+    return {("event", sig): keccak_256(sig.encode("utf-8")).hex() for sig in signatures}
 
 
 def main() -> None:
@@ -446,34 +457,22 @@ def main() -> None:
     solc_hashes = run_solc_hashes()
     keccak_selectors = run_keccak_selectors(function_signatures)
     keccak_event_hashes = run_keccak_event_hashes(event_signatures)
-    overlap = sorted(set(keccak_selectors).intersection(keccak_event_hashes))
-    if overlap:
-        die(
-            "Fixture contains function/event signature overlaps that make "
-            f"`solc --hashes` mapping ambiguous: {', '.join(overlap)}"
-        )
-
     expected_hashes = {**keccak_selectors, **keccak_event_hashes}
     signature_set = set(expected_hashes)
 
     errors: list[str] = []
-    for signature in sorted(solc_hashes):
-        if signature not in signature_set:
-            errors.append(f"Fixture extraction missed solc signature: {signature}")
+    for kind, signature in sorted(solc_hashes):
+        if (kind, signature) not in signature_set:
+            errors.append(f"Fixture extraction missed solc {kind} signature: {signature}")
 
-    for signature, expected_hash in expected_hashes.items():
-        solc_hash = solc_hashes.get(signature)
+    for (kind, signature), expected_hash in expected_hashes.items():
+        solc_hash = solc_hashes.get((kind, signature))
         if solc_hash is None:
-            errors.append(f"Missing solc hash for {signature}")
-            continue
-        if len(solc_hash) != len(expected_hash):
-            errors.append(
-                f"Hash width mismatch for {signature}: solc={len(solc_hash)} expected={len(expected_hash)}"
-            )
+            errors.append(f"Missing solc hash for {kind} {signature}")
             continue
         if solc_hash != expected_hash:
             errors.append(
-                f"Hash mismatch for {signature}: solc={solc_hash} keccak={expected_hash}"
+                f"Hash mismatch for {kind} {signature}: solc={solc_hash} keccak={expected_hash}"
             )
 
     report_errors(errors, "Selector/event fixture check failed")
