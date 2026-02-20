@@ -389,4 +389,51 @@ private def featureSpec : ContractSpec := {
   | .ok _ =>
       throw (IO.userError "✗ expected external create2 declaration to fail compilation")
 
+#eval! do
+  let fallbackSpec : ContractSpec := {
+    name := "FallbackUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "fallback"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile fallbackSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported Solidity interop entrypoint modeling" &&
+          contains err "function 'fallback'" &&
+          contains err "Issue #586") then
+        throw (IO.userError s!"✗ fallback diagnostic mismatch: {err}")
+      IO.println "✓ fallback entrypoint diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected fallback entrypoint modeling to fail compilation")
+
+#eval! do
+  let receiveSpec : ContractSpec := {
+    name := "ReceiveUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "receive"
+        params := []
+        returnType := none
+        isPayable := true
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile receiveSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported Solidity interop entrypoint modeling" &&
+          contains err "function 'receive'" &&
+          contains err "Issue #586") then
+        throw (IO.userError s!"✗ receive diagnostic mismatch: {err}")
+      IO.println "✓ receive entrypoint diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected receive entrypoint modeling to fail compilation")
+
 end Compiler.ContractSpecFeatureTest

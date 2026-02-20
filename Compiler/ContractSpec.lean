@@ -511,6 +511,12 @@ private def isInteropBuiltinCallName (name : String) : Bool :=
   (isLowLevelCallName name) ||
     ["create", "create2", "extcodesize", "extcodecopy", "extcodehash"].contains name
 
+private def isUnsupportedInteropEntrypointName (name : String) : Bool :=
+  ["fallback", "receive"].contains name
+
+private def unsupportedEntrypointModelingError (name : String) : Except String Unit :=
+  throw s!"Compilation error: function '{name}' uses unsupported Solidity interop entrypoint modeling ({issue586Ref}). Model this behavior with an explicit external function selector and guard logic until first-class fallback/receive support lands."
+
 private def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
   throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall."
 
@@ -578,6 +584,8 @@ private partial def validateInteropStmt (context : String) : Stmt → Except Str
       pure ()
 
 private def validateInteropFunctionSpec (spec : FunctionSpec) : Except String Unit := do
+  if isUnsupportedInteropEntrypointName spec.name then
+    unsupportedEntrypointModelingError spec.name
   spec.body.forM (validateInteropStmt s!"function '{spec.name}'")
 
 private def validateInteropExternalSpec (spec : ExternalFunction) : Except String Unit := do
