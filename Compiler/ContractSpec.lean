@@ -725,14 +725,15 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       if args.length != eventDef.params.length then
         throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
       let compiledArgs ← compileExprList fields args
-      let zipped := eventDef.params.zip compiledArgs
-      let indexed := zipped.filter (fun (p, _) => p.kind == EventParamKind.indexed)
-      let unindexed := zipped.filter (fun (p, _) => p.kind == EventParamKind.unindexed)
+      let zippedWithSource := (eventDef.params.zip args).zip compiledArgs |>.map (fun ((p, srcExpr), argExpr) =>
+        (p, srcExpr, argExpr))
+      let indexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.indexed)
+      let unindexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
       if indexed.length > 3 then
         throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
-      for (p, _) in indexed do
+      for (p, _, _) in indexed do
         match p.ty with
-        | ParamType.array _ | ParamType.fixedArray _ _ | ParamType.bytes | ParamType.tuple _ =>
+        | ParamType.array _ | ParamType.fixedArray _ _ | ParamType.tuple _ =>
             throw s!"Compilation error: indexed dynamic/tuple param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref}). Use an unindexed field for now and hash payload data off-chain when topic-style filtering is required."
         | _ => pure ()
       let sig := eventSignature eventDef
@@ -746,7 +747,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         ])
       let topic0Expr := YulExpr.call "keccak256" [YulExpr.ident "__evt_ptr", YulExpr.lit sigBytes.length]
       let topic0Store := YulStmt.let_ "__evt_topic0" topic0Expr
-      let unindexedStores ← unindexed.zipIdx.mapM fun ((p, argExpr), idx) => do
+      let unindexedStores ← unindexed.zipIdx.mapM fun ((p, _, argExpr), idx) => do
         let storedExpr :=
           match p.ty with
           | ParamType.address => YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)]
@@ -757,13 +758,34 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
           storedExpr
         ]))
       let dataSize := unindexed.length * 32
-      let topicExprs :=
-        [YulExpr.ident "__evt_topic0"] ++ indexed.map (fun (p, argExpr) =>
-          match p.ty with
-          | ParamType.address => YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)]
-          | ParamType.bool => yulToBool argExpr
-          | _ => argExpr
-        )
+      let indexedTopicParts ← indexed.zipIdx.mapM fun ((p, srcExpr, argExpr), idx) => do
+        match p.ty with
+        | ParamType.bytes =>
+            match srcExpr with
+            | Expr.param name =>
+                let topicName := s!"__evt_topic{idx + 1}"
+                let hashStmts := [
+                  YulStmt.expr (YulExpr.call "calldatacopy" [
+                    YulExpr.ident "__evt_ptr",
+                    YulExpr.ident s!"{name}_data_offset",
+                    YulExpr.ident s!"{name}_length"
+                  ]),
+                  YulStmt.let_ topicName (YulExpr.call "keccak256" [
+                    YulExpr.ident "__evt_ptr",
+                    YulExpr.ident s!"{name}_length"
+                  ])
+                ]
+                pure (hashStmts, YulExpr.ident topicName)
+            | _ =>
+                throw s!"Compilation error: indexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+        | ParamType.address =>
+            pure ([], YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)])
+        | ParamType.bool =>
+            pure ([], yulToBool argExpr)
+        | _ =>
+            pure ([], argExpr)
+      let indexedTopicStmts := indexedTopicParts.flatMap (·.1)
+      let topicExprs := [YulExpr.ident "__evt_topic0"] ++ indexedTopicParts.map (·.2)
       let logFn := match indexed.length with
         | 0 => "log1"
         | 1 => "log2"
@@ -771,7 +793,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         | _ => "log4"
       let logArgs := [YulExpr.ident "__evt_ptr", YulExpr.lit dataSize] ++ topicExprs
       let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
-      pure [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++ unindexedStores ++ [logStmt])]
+      pure [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++ indexedTopicStmts ++ unindexedStores ++ [logStmt])]
 
   | Stmt.internalCall functionName args => do
       -- Internal function call as statement (#181)
