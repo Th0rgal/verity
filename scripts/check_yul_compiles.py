@@ -48,13 +48,19 @@ def resolve_dir(path_str: str) -> Path:
     return path if path.is_absolute() else (ROOT / path)
 
 
-def collect_yul_files(yul_dirs: list[Path]) -> list[Path]:
+def collect_yul_files(yul_dirs: list[Path]) -> tuple[list[Path], list[str]]:
     files: list[Path] = []
+    failures: list[str] = []
     for yul_dir in yul_dirs:
         if not yul_dir.exists():
+            failures.append(f"Missing Yul directory: {yul_dir}")
             continue
-        files.extend(sorted(yul_dir.glob("*.yul")))
-    return files
+        dir_files = sorted(yul_dir.glob("*.yul"))
+        if not dir_files:
+            failures.append(f"No Yul files found in requested directory: {yul_dir}")
+            continue
+        files.extend(dir_files)
+    return files, failures
 
 
 def run_solc(path: Path) -> tuple[int, str, str]:
@@ -118,12 +124,11 @@ def load_allowed_compare_diffs(path: str | None) -> set[tuple[str, str]]:
 def main() -> None:
     args = parse_args()
     yul_dirs = [resolve_dir(d) for d in (args.dirs or [str(YUL_DIR)])]
-    files = collect_yul_files(yul_dirs)
-    if not files:
+    files, failures = collect_yul_files(yul_dirs)
+    if not files and not failures:
         checked = ", ".join(str(path) for path in yul_dirs)
-        raise SystemExit(f"No generated Yul files found in: {checked}")
+        failures.append(f"No generated Yul files found in: {checked}")
 
-    failures: list[str] = []
     bytecode_by_file: dict[Path, str] = {}
     for path in files:
         code, stdout, stderr = run_solc(path)
@@ -141,48 +146,57 @@ def main() -> None:
         seen_diffs: set[tuple[str, str]] = set()
         dir_a = resolve_dir(args.compare_dirs[0])
         dir_b = resolve_dir(args.compare_dirs[1])
-        files_a = sorted(dir_a.glob("*.yul"))
-        files_b = sorted(dir_b.glob("*.yul"))
-        by_name_a = index_by_filename(files_a, dir_a)
-        by_name_b = index_by_filename(files_b, dir_b)
+        files_a = sorted(dir_a.glob("*.yul")) if dir_a.exists() else []
+        files_b = sorted(dir_b.glob("*.yul")) if dir_b.exists() else []
+        if not dir_a.exists():
+            failures.append(f"Compare directory does not exist: {dir_a}")
+        if not dir_b.exists():
+            failures.append(f"Compare directory does not exist: {dir_b}")
+        if dir_a.exists() and not files_a:
+            failures.append(f"No Yul files found in compare directory: {dir_a}")
+        if dir_b.exists() and not files_b:
+            failures.append(f"No Yul files found in compare directory: {dir_b}")
+        if dir_a.exists() and dir_b.exists() and files_a and files_b:
+            by_name_a = index_by_filename(files_a, dir_a)
+            by_name_b = index_by_filename(files_b, dir_b)
 
-        names_a = set(by_name_a.keys())
-        names_b = set(by_name_b.keys())
-        only_a = sorted(names_a - names_b)
-        only_b = sorted(names_b - names_a)
-        if only_a:
-            for name in only_a:
-                diff = ("missing_in_b", name)
-                seen_diffs.add(diff)
-                if diff not in allowed_diffs:
-                    failures.append(f"{dir_b} missing file present in {dir_a}: {name}")
-        if only_b:
-            for name in only_b:
-                diff = ("missing_in_a", name)
-                seen_diffs.add(diff)
-                if diff not in allowed_diffs:
-                    failures.append(f"{dir_a} missing file present in {dir_b}: {name}")
+            names_a = set(by_name_a.keys())
+            names_b = set(by_name_b.keys())
+            only_a = sorted(names_a - names_b)
+            only_b = sorted(names_b - names_a)
+            if only_a:
+                for name in only_a:
+                    diff = ("missing_in_b", name)
+                    seen_diffs.add(diff)
+                    if diff not in allowed_diffs:
+                        failures.append(f"{dir_b} missing file present in {dir_a}: {name}")
+            if only_b:
+                for name in only_b:
+                    diff = ("missing_in_a", name)
+                    seen_diffs.add(diff)
+                    if diff not in allowed_diffs:
+                        failures.append(f"{dir_a} missing file present in {dir_b}: {name}")
 
-        for name in sorted(names_a & names_b):
-            path_a = by_name_a[name]
-            path_b = by_name_b[name]
-            bytecode_a = bytecode_by_file.get(path_a)
-            bytecode_b = bytecode_by_file.get(path_b)
-            if bytecode_a is None or bytecode_b is None:
-                continue
-            if bytecode_a != bytecode_b:
-                diff = ("mismatch", name)
-                seen_diffs.add(diff)
-                if diff not in allowed_diffs:
-                    failures.append(f"Bytecode mismatch for {name}: {path_a} vs {path_b}")
+            for name in sorted(names_a & names_b):
+                path_a = by_name_a[name]
+                path_b = by_name_b[name]
+                bytecode_a = bytecode_by_file.get(path_a)
+                bytecode_b = bytecode_by_file.get(path_b)
+                if bytecode_a is None or bytecode_b is None:
+                    continue
+                if bytecode_a != bytecode_b:
+                    diff = ("mismatch", name)
+                    seen_diffs.add(diff)
+                    if diff not in allowed_diffs:
+                        failures.append(f"Bytecode mismatch for {name}: {path_a} vs {path_b}")
 
-        stale_allowed = sorted(allowed_diffs - seen_diffs)
-        if stale_allowed:
-            stale_rendered = ", ".join(f"{kind}:{name}" for kind, name in stale_allowed)
-            failures.append(
-                "Allowlist contains stale compare diffs no longer present: "
-                f"{stale_rendered}"
-            )
+            stale_allowed = sorted(allowed_diffs - seen_diffs)
+            if stale_allowed:
+                stale_rendered = ", ".join(f"{kind}:{name}" for kind, name in stale_allowed)
+                failures.append(
+                    "Allowlist contains stale compare diffs no longer present: "
+                    f"{stale_rendered}"
+                )
 
     report_errors(failures, "Yul->EVM compilation failed")
 

@@ -41,6 +41,7 @@ Current P1 foundation coverage (Issue #582):
 - Report-capable compiler path via `Compiler.emitYulWithOptionsReport` to surface patch manifest/iteration metadata to CI and tooling
 - `verity-compiler` patch coverage emission (`--patch-report`) now writes per-contract/rule TSV output and CI uploads it as an artifact for Issue #583 tuning
 - Static gas delta gate for patch impact (`scripts/check_patch_gas_delta.py`) now compares baseline vs patch-enabled reports in CI with median/p90 non-regression and measurable-improvement requirements
+- CI now runs `check_yul_compiles.py` + `check_gas_model_coverage.py` on `compiler/yul-patched` as part of Issue #582 fail-closed hardening for patch-enabled output
 
 Execution policy:
 1. Do not start patch-pack expansion in `#583` before `#582` proof hooks are merged.

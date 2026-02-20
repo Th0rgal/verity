@@ -294,7 +294,8 @@ jobs:
         run: |
           python3 scripts/check_gas_model_coverage.py \
             --dir compiler/yul \
-            --dir compiler/yul-ast
+            --dir compiler/yul-ast \
+            --dir compiler/yul-patched
 
       - name: Keccak-256 self-test (validate hash implementation)
         run: python3 scripts/keccak256.py --self-test
@@ -309,6 +310,7 @@ jobs:
         run: |
           python3 scripts/check_yul_compiles.py \
             --dir compiler/yul \
+            --dir compiler/yul-patched \
             --dir compiler/yul-ast \
             --compare-dirs compiler/yul compiler/yul-ast \
             --allow-compare-diff-file scripts/fixtures/yul_ast_bytecode_diffs.allowlist

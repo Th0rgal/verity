@@ -120,7 +120,7 @@ python3 scripts/generate_evmyullean_adapter_report.py
 
 - **`check_selectors.py`** - Verifies selector hash consistency across ContractSpec, compile selector tables, and generated Yul (`compiler/yul` and `compiler/yul-ast` when present); strips Lean comments/docstrings with the same shared string-aware parser used by storage checks; parses `ParamType` expressions recursively (including `bool`, tuple, array, and fixed-array forms) when extracting Solidity signatures; enforces compile selector table coverage for all specs except those with non-empty `externals`
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes; fixture signature extraction is comment/string-aware so commented examples/debug strings cannot create false selector expectations, scans full function headers (so visibility can appear after modifiers like `virtual`), includes only `public`/`external` selectors (matching `solc --hashes`), canonicalizes ABI-sensitive param forms (`function(...)`, `uint/int` aliases, user-defined `contract`/`enum`/`type` aliases, and struct params into canonical tuple signatures), parses both `solc --hashes` output layouts robustly (including nested tuple signatures), and enforces reverse completeness (every `solc --hashes` signature must be present in extracted fixtures)
-- **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc, can compare bytecode parity between directories, and can enforce a checked baseline of known compare diffs via allowlist
+- **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc, fails closed when any requested `--dir` is missing/empty, can compare bytecode parity between directories, and can enforce a checked baseline of known compare diffs via allowlist
 - **`check_gas_report.py`** - Validates `lake exe gas-report` output shape, arithmetic consistency of totals, and monotonicity under more conservative static analysis settings
 - **`check_patch_gas_delta.py`** - Compares baseline vs patch-enabled static gas reports, reports median/p90 deltas for total/deploy/runtime gas, enforces total-gas median/p90 non-regression thresholds, and supports configurable minimum improved-contract thresholds
 - **`check_gas_model_coverage.py`** - Verifies that every call emitted in generated Yul has an explicit cost branch in `Compiler/Gas/StaticAnalysis.lean` (prevents silent fallback to unknown-call costs)
@@ -137,9 +137,10 @@ python3 scripts/check_yul_compiles.py \
   --compare-dirs compiler/yul compiler/yul-ast \
   --allow-compare-diff-file scripts/fixtures/yul_ast_bytecode_diffs.allowlist
 
-# Check static gas model coverage against legacy + AST Yul outputs
+# Check static gas model coverage against legacy + patched + AST Yul outputs
 python3 scripts/check_gas_model_coverage.py \
   --dir compiler/yul \
+  --dir compiler/yul-patched \
   --dir compiler/yul-ast
 
 # Check patch-enabled static gas deltas (median/p90 non-regression + configurable improvement floor)
@@ -202,8 +203,8 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
 1. Keccak-256 self-test (`keccak256.py --self-test`)
 2. Lean warning non-regression (`check_lean_warning_regression.py` over `lake-build.log`)
 3. Selector hash verification (`check_selectors.py`)
-4. Yul compilation + legacy/AST diff-baseline check (`check_yul_compiles.py`)
-5. Static gas model coverage on generated Yul (legacy + AST) (`check_gas_model_coverage.py`)
+4. Yul compilation (legacy + patched + AST) + legacy/AST diff-baseline check (`check_yul_compiles.py`)
+5. Static gas model coverage on generated Yul (legacy + patched + AST) (`check_gas_model_coverage.py`)
 6. Selector fixture check (`check_selector_fixtures.py`)
 7. Static gas report invariants (`check_gas_report.py`)
 8. Save baseline + patch-enabled static gas report artifacts (`gas-report-static.tsv`, `gas-report-static-patched.tsv`)
