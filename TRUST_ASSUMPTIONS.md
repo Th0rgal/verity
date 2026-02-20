@@ -270,6 +270,7 @@ These components are **not formally verified** but are trusted based on testing,
 - **Specification**: Ethereum Yellow Paper (Byzantium+)
 - **Implementation**: Various EVM implementations (Geth, Foundry, etc.)
 - **Validation**: Ethereum consensus across thousands of nodes
+- **Proof-model boundary**: Runtime builtin-call semantics are centralized in `Compiler/Proofs/YulGeneration/Builtins.lean` and consumed by both IR and Yul proof interpreters, reducing migration risk for issue #294 to a single backend touchpoint.
 
 **Mitigation Strategies**:
 1. **Differential Testing**:
