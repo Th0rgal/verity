@@ -100,7 +100,7 @@ These are directly needed by Ledger sum proofs (#65).
 
 /-- Membership in the empty set is false. -/
 @[simp] theorem not_mem_empty (a : α) : a ∉ (empty : FiniteSet α) := by
-  simp [FiniteSet.mem]
+  simp
 
 /-- Inserting a new element prepends it -/
 theorem insert_of_not_mem [DecidableEq α] (a : α) (s : FiniteSet α) (h : a ∉ s.elements) :
@@ -123,7 +123,7 @@ theorem mem_elements_insert [DecidableEq α] (a b : α) (s : FiniteSet α) :
 /-- Membership in intersection is conjunction of memberships. -/
 @[simp] theorem mem_elements_inter [DecidableEq α] (a : α) (s t : FiniteSet α) :
     a ∈ (s.inter t).elements ↔ a ∈ s.elements ∧ a ∈ t.elements := by
-  simp [FiniteSet.inter, and_left_comm, and_assoc, FiniteSet.mem]
+  simp [FiniteSet.inter]
 
 /-- Membership in union is disjunction of memberships. -/
 @[simp] theorem mem_elements_union [DecidableEq α] (a : α) (s t : FiniteSet α) :
@@ -138,25 +138,25 @@ theorem mem_elements_insert [DecidableEq α] (a b : α) (s : FiniteSet α) :
 /-- Membership in set difference is left-membership without right-membership. -/
 @[simp] theorem mem_elements_diff [DecidableEq α] (a : α) (s t : FiniteSet α) :
     a ∈ (s.diff t).elements ↔ a ∈ s.elements ∧ a ∉ t.elements := by
-  simp [FiniteSet.diff, and_left_comm, and_assoc, FiniteSet.mem]
+  simp [FiniteSet.diff]
 
 /-- Membership in symmetric difference is exclusive membership. -/
 @[simp] theorem mem_elements_symmDiff [DecidableEq α] (a : α) (s t : FiniteSet α) :
     a ∈ (s.symmDiff t).elements ↔
       (a ∈ s.elements ∧ a ∉ t.elements) ∨ (a ∈ t.elements ∧ a ∉ s.elements) := by
-  simp [FiniteSet.symmDiff, and_left_comm, and_assoc, or_left_comm, or_assoc]
+  simp [FiniteSet.symmDiff]
 
 /-- `contains` reflects propositional membership. -/
 @[simp] theorem contains_eq_true [DecidableEq α] (a : α) (s : FiniteSet α) :
     s.contains a = true ↔ a ∈ s := by
   unfold contains
-  simp [FiniteSet.mem]
+  simp
 
 /-- `contains = false` iff the element is not a member. -/
 @[simp] theorem contains_eq_false [DecidableEq α] (a : α) (s : FiniteSet α) :
     s.contains a = false ↔ a ∉ s := by
   unfold contains
-  simp [FiniteSet.mem]
+  simp
 
 /-- `isSubset` reflects propositional subset. -/
 @[simp] theorem isSubset_eq_true [DecidableEq α] (s t : FiniteSet α) :
@@ -261,43 +261,35 @@ def contains (addr : Address) (s : FiniteAddressSet) : Bool :=
 
 @[simp] theorem contains_eq_true (addr : Address) (s : FiniteAddressSet) :
     s.contains addr = true ↔ addr ∈ s := by
-  simpa [FiniteAddressSet.mem, FiniteAddressSet.contains] using
-    FiniteSet.contains_eq_true addr s.addresses
+  simp [FiniteAddressSet.contains]
 
 @[simp] theorem contains_eq_false (addr : Address) (s : FiniteAddressSet) :
     s.contains addr = false ↔ addr ∉ s := by
-  simpa [FiniteAddressSet.mem, FiniteAddressSet.contains] using
-    FiniteSet.contains_eq_false addr s.addresses
+  simp [FiniteAddressSet.contains]
 
 @[simp] theorem mem_inter (a : Address) (s t : FiniteAddressSet) :
     a ∈ s.inter t ↔ a ∈ s ∧ a ∈ t := by
-  simpa [FiniteAddressSet.mem, FiniteAddressSet.inter] using
-    (FiniteSet.mem_elements_inter a s.addresses t.addresses)
+  simp [FiniteAddressSet.inter]
 
 @[simp] theorem mem_union (a : Address) (s t : FiniteAddressSet) :
     a ∈ s.union t ↔ a ∈ s ∨ a ∈ t := by
-  simpa [FiniteAddressSet.mem, FiniteAddressSet.union] using
-    (FiniteSet.mem_elements_union a s.addresses t.addresses)
+  simp [FiniteAddressSet.union]
 
 @[simp] theorem mem_diff (a : Address) (s t : FiniteAddressSet) :
     a ∈ s.diff t ↔ a ∈ s ∧ a ∉ t := by
-  simpa [FiniteAddressSet.mem, FiniteAddressSet.diff] using
-    (FiniteSet.mem_elements_diff a s.addresses t.addresses)
+  simp [FiniteAddressSet.diff]
 
 @[simp] theorem mem_symmDiff (a : Address) (s t : FiniteAddressSet) :
     a ∈ s.symmDiff t ↔ (a ∈ s ∧ a ∉ t) ∨ (a ∈ t ∧ a ∉ s) := by
-  simpa [FiniteAddressSet.mem, FiniteAddressSet.symmDiff] using
-    (FiniteSet.mem_elements_symmDiff a s.addresses t.addresses)
+  simp [FiniteAddressSet.symmDiff]
 
 @[simp] theorem isSubset_eq_true (s t : FiniteAddressSet) :
     s.isSubset t = true ↔ s.subset t := by
-  simpa [FiniteAddressSet.isSubset, FiniteAddressSet.subset] using
-    (FiniteSet.isSubset_eq_true s.addresses t.addresses)
+  simp [FiniteAddressSet.isSubset, FiniteAddressSet.subset]
 
 @[simp] theorem isSubset_eq_false (s t : FiniteAddressSet) :
     s.isSubset t = false ↔ ¬ s.subset t := by
-  simpa [FiniteAddressSet.isSubset, FiniteAddressSet.subset] using
-    (FiniteSet.isSubset_eq_false s.addresses t.addresses)
+  simp [FiniteAddressSet.isSubset, FiniteAddressSet.subset]
 
 end FiniteAddressSet
 
@@ -370,43 +362,35 @@ def contains (n : Nat) (s : FiniteNatSet) : Bool :=
 
 @[simp] theorem contains_eq_true (n : Nat) (s : FiniteNatSet) :
     s.contains n = true ↔ n ∈ s := by
-  simpa [FiniteNatSet.mem, FiniteNatSet.contains] using
-    FiniteSet.contains_eq_true n s.nats
+  simp [FiniteNatSet.contains]
 
 @[simp] theorem contains_eq_false (n : Nat) (s : FiniteNatSet) :
     s.contains n = false ↔ n ∉ s := by
-  simpa [FiniteNatSet.mem, FiniteNatSet.contains] using
-    FiniteSet.contains_eq_false n s.nats
+  simp [FiniteNatSet.contains]
 
 @[simp] theorem mem_inter (a : Nat) (s t : FiniteNatSet) :
     a ∈ s.inter t ↔ a ∈ s ∧ a ∈ t := by
-  simpa [FiniteNatSet.mem, FiniteNatSet.inter] using
-    (FiniteSet.mem_elements_inter a s.nats t.nats)
+  simp [FiniteNatSet.inter]
 
 @[simp] theorem mem_union (a : Nat) (s t : FiniteNatSet) :
     a ∈ s.union t ↔ a ∈ s ∨ a ∈ t := by
-  simpa [FiniteNatSet.mem, FiniteNatSet.union] using
-    (FiniteSet.mem_elements_union a s.nats t.nats)
+  simp [FiniteNatSet.union]
 
 @[simp] theorem mem_diff (a : Nat) (s t : FiniteNatSet) :
     a ∈ s.diff t ↔ a ∈ s ∧ a ∉ t := by
-  simpa [FiniteNatSet.mem, FiniteNatSet.diff] using
-    (FiniteSet.mem_elements_diff a s.nats t.nats)
+  simp [FiniteNatSet.diff]
 
 @[simp] theorem mem_symmDiff (a : Nat) (s t : FiniteNatSet) :
     a ∈ s.symmDiff t ↔ (a ∈ s ∧ a ∉ t) ∨ (a ∈ t ∧ a ∉ s) := by
-  simpa [FiniteNatSet.mem, FiniteNatSet.symmDiff] using
-    (FiniteSet.mem_elements_symmDiff a s.nats t.nats)
+  simp [FiniteNatSet.symmDiff]
 
 @[simp] theorem isSubset_eq_true (s t : FiniteNatSet) :
     s.isSubset t = true ↔ s.subset t := by
-  simpa [FiniteNatSet.isSubset, FiniteNatSet.subset] using
-    (FiniteSet.isSubset_eq_true s.nats t.nats)
+  simp [FiniteNatSet.isSubset, FiniteNatSet.subset]
 
 @[simp] theorem isSubset_eq_false (s t : FiniteNatSet) :
     s.isSubset t = false ↔ ¬ s.subset t := by
-  simpa [FiniteNatSet.isSubset, FiniteNatSet.subset] using
-    (FiniteSet.isSubset_eq_false s.nats t.nats)
+  simp [FiniteNatSet.isSubset, FiniteNatSet.subset]
 
 end FiniteNatSet
 
