@@ -133,6 +133,9 @@ jobs:
       - name: Check EVMYulLean capability boundary
         run: python3 scripts/check_evmyullean_capability_boundary.py
 
+      - name: Check EVMYulLean capability report freshness
+        run: python3 scripts/generate_evmyullean_capability_report.py --check
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
