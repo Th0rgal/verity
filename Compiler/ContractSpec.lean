@@ -515,6 +515,42 @@ private def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := d
 private def issue586Ref : String :=
   "Issue #586 (Solidity interop profile)"
 
+private def validateBytesCustomErrorArg (fnName errorName : String) (params : List Param)
+    (arg : Expr) : Except String Unit := do
+  match arg with
+  | Expr.param name =>
+      match findParamType params name with
+      | some ParamType.bytes => pure ()
+      | some ty =>
+          throw s!"Compilation error: function '{fnName}' custom error '{errorName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
+      | none =>
+          throw s!"Compilation error: function '{fnName}' custom error '{errorName}' references unknown parameter '{name}' ({issue586Ref})."
+  | _ =>
+      throw s!"Compilation error: function '{fnName}' custom error '{errorName}' bytes parameter currently requires direct bytes parameter reference ({issue586Ref})."
+
+private partial def validateCustomErrorArgShapesInStmt (fnName : String) (params : List Param)
+    (errors : List ErrorDef) : Stmt → Except String Unit
+  | Stmt.requireError _ errorName args | Stmt.revertError errorName args => do
+      let errorDef ←
+        match errors.find? (·.name == errorName) with
+        | some defn => pure defn
+        | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
+      if errorDef.params.length != args.length then
+        throw s!"Compilation error: custom error '{errorName}' expects {errorDef.params.length} args, got {args.length}"
+      for (ty, arg) in errorDef.params.zip args do
+        if ty == ParamType.bytes then
+          validateBytesCustomErrorArg fnName errorName params arg
+  | Stmt.ite _ thenBranch elseBranch => do
+      thenBranch.forM (validateCustomErrorArgShapesInStmt fnName params errors)
+      elseBranch.forM (validateCustomErrorArgShapesInStmt fnName params errors)
+  | Stmt.forEach _ _ body =>
+      body.forM (validateCustomErrorArgShapesInStmt fnName params errors)
+  | _ => pure ()
+
+private def validateCustomErrorArgShapesInFunction (spec : FunctionSpec) (errors : List ErrorDef) :
+    Except String Unit := do
+  spec.body.forM (validateCustomErrorArgShapesInStmt spec.name spec.params errors)
+
 private def isLowLevelCallName (name : String) : Bool :=
   ["call", "staticcall", "delegatecall", "callcode"].contains name
 
@@ -638,11 +674,11 @@ private def compileMappingSlotWrite (fields : List Field) (field : String)
         ]
     | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
 
-private def staticCustomErrorParamType : ParamType → Bool
-  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
+private def supportedCustomErrorParamType : ParamType → Bool
+  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 | ParamType.bytes => true
   | _ => false
 
-private def encodeCustomErrorArg (errorName : String) (ty : ParamType) (argExpr : YulExpr) :
+private def encodeStaticCustomErrorArg (errorName : String) (ty : ParamType) (argExpr : YulExpr) :
     Except String YulExpr :=
   match ty with
   | ParamType.uint256 | ParamType.bytes32 =>
@@ -654,13 +690,10 @@ private def encodeCustomErrorArg (errorName : String) (ty : ParamType) (argExpr 
   | _ =>
       throw s!"Compilation error: custom error '{errorName}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref})."
 
-private def revertWithCustomError (errorDef : ErrorDef) (args : List YulExpr) :
+private def revertWithCustomError (errorDef : ErrorDef) (sourceArgs : List Expr) (args : List YulExpr) :
     Except String (List YulStmt) := do
-  if errorDef.params.length != args.length then
+  if errorDef.params.length != args.length || sourceArgs.length != args.length then
     throw s!"Compilation error: custom error '{errorDef.name}' expects {errorDef.params.length} args, got {args.length}"
-  let encodedArgs ← (errorDef.params.zip args).mapM (fun (ty, argExpr) =>
-    encodeCustomErrorArg errorDef.name ty argExpr
-  )
   let sigBytes := bytesFromString (errorSignature errorDef)
   let storePtr := YulStmt.let_ "__err_ptr" (YulExpr.call "mload" [YulExpr.lit 0x40])
   let sigStores := (chunkBytes32 sigBytes).zipIdx.map fun (chunk, idx) =>
@@ -673,11 +706,55 @@ private def revertWithCustomError (errorDef : ErrorDef) (args : List YulExpr) :
   let selectorStmt := YulStmt.let_ "__err_selector"
     (YulExpr.call "shl" [YulExpr.lit 224, YulExpr.call "shr" [YulExpr.lit 224, YulExpr.ident "__err_hash"]])
   let selectorStore := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "__err_selector"])
-  let argStores := encodedArgs.zipIdx.map fun (argExpr, idx) =>
-    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
-  let revertSize := 4 + encodedArgs.length * 32
-  let revertStmt := YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit revertSize])
-  pure [YulStmt.block ([storePtr] ++ sigStores ++ [hashStmt, selectorStmt, selectorStore] ++ argStores ++ [revertStmt])]
+  let headSize := errorDef.params.length * 32
+  let tailInit := YulStmt.let_ "__err_tail" (YulExpr.lit headSize)
+  let argsWithSources := (errorDef.params.zip sourceArgs).zip args |>.map (fun ((ty, srcExpr), argExpr) =>
+    (ty, srcExpr, argExpr))
+  let argStores ← argsWithSources.zipIdx.mapM fun ((ty, srcExpr, argExpr), idx) => do
+    let headOffset := 4 + idx * 32
+    match ty with
+    | ParamType.bytes =>
+        match srcExpr with
+        | Expr.param name =>
+            let lenName := s!"__err_arg{idx}_len"
+            let dstName := s!"__err_arg{idx}_dst"
+            let paddedName := s!"__err_arg{idx}_padded"
+            pure [
+              YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, YulExpr.ident "__err_tail"]),
+              YulStmt.let_ lenName (YulExpr.ident s!"{name}_length"),
+              YulStmt.let_ dstName (YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident "__err_tail"]),
+              YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident dstName, YulExpr.ident lenName]),
+              YulStmt.expr (YulExpr.call "calldatacopy" [
+                YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32],
+                YulExpr.ident s!"{name}_data_offset",
+                YulExpr.ident lenName
+              ]),
+              YulStmt.let_ paddedName (YulExpr.call "and" [
+                YulExpr.call "add" [YulExpr.ident lenName, YulExpr.lit 31],
+                YulExpr.call "not" [YulExpr.lit 31]
+              ]),
+              YulStmt.expr (YulExpr.call "mstore" [
+                YulExpr.call "add" [
+                  YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32],
+                  YulExpr.ident lenName
+                ],
+                YulExpr.lit 0
+              ]),
+              YulStmt.assign "__err_tail" (YulExpr.call "add" [
+                YulExpr.ident "__err_tail",
+                YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName]
+              ])
+            ]
+        | _ =>
+            throw s!"Compilation error: custom error '{errorDef.name}' bytes parameter currently requires direct bytes parameter reference ({issue586Ref})."
+    | _ =>
+        let encoded ← encodeStaticCustomErrorArg errorDef.name ty argExpr
+        pure [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, encoded])]
+  let revertStmt := YulStmt.expr (YulExpr.call "revert" [
+    YulExpr.lit 0,
+    YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident "__err_tail"]
+  ])
+  pure [YulStmt.block ([storePtr] ++ sigStores ++ [hashStmt, selectorStmt, selectorStore, tailInit] ++ argStores.flatten ++ [revertStmt])]
 
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value` (for internal Yul functions)
@@ -743,7 +820,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         | some defn => pure defn
         | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
       let argExprs ← compileExprList fields args
-      let revertStmts ← revertWithCustomError errorDef argExprs
+      let revertStmts ← revertWithCustomError errorDef args argExprs
       pure [YulStmt.if_ failCond revertStmts]
   | Stmt.revertError errorName args => do
       let errorDef ←
@@ -751,7 +828,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         | some defn => pure defn
         | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
       let argExprs ← compileExprList fields args
-      revertWithCustomError errorDef argExprs
+      revertWithCustomError errorDef args argExprs
   | Stmt.return value =>
     do
       let valueExpr ← compileExpr fields value
@@ -1185,8 +1262,8 @@ private def firstDuplicateName (names : List String) : Option String :=
 
 private def validateErrorDef (err : ErrorDef) : Except String Unit := do
   for ty in err.params do
-    if !staticCustomErrorParamType ty then
-      throw s!"Compilation error: custom error '{err.name}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref}). Use uint256/address/bool/bytes32 parameters."
+    if !supportedCustomErrorParamType ty then
+      throw s!"Compilation error: custom error '{err.name}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref}). Use uint256/address/bool/bytes32/bytes parameters."
 
 def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContract := do
   let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
@@ -1195,6 +1272,7 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
     validateFunctionSpec fn
     validateInteropFunctionSpec fn
     validateSpecialEntrypointSpec fn
+    validateCustomErrorArgShapesInFunction fn spec.errors
   validateInteropConstructorSpec spec.constructor
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext

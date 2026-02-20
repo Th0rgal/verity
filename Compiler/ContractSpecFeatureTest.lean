@@ -167,7 +167,7 @@ private def featureSpec : ContractSpec := {
       assertContains "fixed array of static tuples decode offsets" rendered ["let fa_0_0 := calldataload(4)", "let fa_0_1 := iszero(iszero(calldataload(36)))", "let fa_1_0 := calldataload(68)", "let fa_1_1 := iszero(iszero(calldataload(100)))", "let q := calldataload(132)"]
       assertContains "dynamic bytes ABI return" rendered ["calldatacopy(64, data_data_offset, data_length)", "mstore(add(64, data_length), 0)", "return(0, add(64, and(add(data_length, 31), not(31))))"]
       assertContains "storage-word array return ABI" rendered ["let __slot := calldataload(add(slots_data_offset, mul(__i, 32)))", "mstore(add(64, mul(__i, 32)), sload(__slot))", "return(0, add(64, mul(slots_length, 32)))"]
-      assertContains "custom error revert payload emission" rendered ["let __err_hash := keccak256(__err_ptr,", "mstore(0, __err_selector)", "mstore(4, and(who,", "revert(0, 68)"]
+      assertContains "custom error revert payload emission" rendered ["let __err_hash := keccak256(__err_ptr,", "mstore(0, __err_selector)", "mstore(4, and(who,", "let __err_tail := 64", "revert(0, add(4, __err_tail))"]
 
 #eval! do
   let conflictingReturnsSpec : ContractSpec := {
@@ -425,8 +425,8 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected unknown custom error usage to fail compilation")
 
 #eval! do
-  let dynamicCustomErrorSpec : ContractSpec := {
-    name := "DynamicCustomErrorUnsupported"
+  let bytesCustomErrorSpec : ContractSpec := {
+    name := "BytesCustomErrorSupported"
     fields := []
     constructor := none
     errors := [
@@ -442,13 +442,43 @@ private def featureSpec : ContractSpec := {
       }
     ]
   }
-  match compile dynamicCustomErrorSpec [1] with
+  match compile bytesCustomErrorSpec [1] with
   | .error err =>
-      if !(contains err "unsupported dynamic parameter type" && contains err "Issue #586") then
-        throw (IO.userError s!"✗ dynamic custom error diagnostic mismatch: {err}")
-      IO.println "✓ dynamic custom error diagnostic"
+      throw (IO.userError s!"✗ expected bytes custom error support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "bytes custom error ABI encoding" rendered
+        ["mstore(4, __err_tail)",
+         "let __err_arg0_len := payload_length",
+         "calldatacopy(add(__err_arg0_dst, 32), payload_data_offset, __err_arg0_len)",
+         "let __err_arg0_padded := and(add(__err_arg0_len, 31), not(31))",
+         "revert(0, add(4, __err_tail))"]
+
+#eval! do
+  let bytesCustomErrorArgShapeSpec : ContractSpec := {
+    name := "BytesCustomErrorArgShapeUnsupported"
+    fields := []
+    constructor := none
+    errors := [
+      { name := "BadPayload"
+        params := [ParamType.bytes]
+      }
+    ]
+    functions := [
+      { name := "bad"
+        params := [{ name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.revertError "BadPayload" [Expr.param "x"]]
+      }
+    ]
+  }
+  match compile bytesCustomErrorArgShapeSpec [1] with
+  | .error err =>
+      if !(contains err "expects bytes arg to reference a bytes parameter" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ bytes custom error arg-shape diagnostic mismatch: {err}")
+      IO.println "✓ bytes custom error arg-shape diagnostic"
   | .ok _ =>
-      throw (IO.userError "✗ expected dynamic custom error params to fail compilation")
+      throw (IO.userError "✗ expected invalid bytes custom error arg shape to fail compilation")
 
 #eval! do
   let indexedBytesEventSpec : ContractSpec := {
