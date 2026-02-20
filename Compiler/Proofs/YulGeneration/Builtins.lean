@@ -1,4 +1,5 @@
 import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -112,5 +113,28 @@ def evalBuiltinCall
     | _ => none
   else
     none
+
+inductive BuiltinBackend where
+  | verity
+  | evmYulLean
+  deriving DecidableEq, Repr
+
+abbrev defaultBuiltinBackend : BuiltinBackend := .verity
+
+def evalBuiltinCallWithBackend
+    (backend : BuiltinBackend)
+    (storage : Nat → Nat)
+    (mappings : Nat → Nat → Nat)
+    (sender : Nat)
+    (selector : Nat)
+    (calldata : List Nat)
+    (func : String)
+    (argVals : List Nat) : Option Nat :=
+  match backend with
+  | .verity =>
+      evalBuiltinCall storage mappings sender selector calldata func argVals
+  | .evmYulLean =>
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
+        storage mappings sender selector calldata func argVals
 
 end Compiler.Proofs.YulGeneration

@@ -113,7 +113,8 @@ identical to the Yul version, enabling direct equivalence proofs without axioms.
 def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
   | args => do
     let argVals ← evalIRExprs state args
-    Compiler.Proofs.YulGeneration.evalBuiltinCall
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend
+      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
       state.storage state.mappings state.sender state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by

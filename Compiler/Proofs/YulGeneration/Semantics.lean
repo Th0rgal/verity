@@ -99,7 +99,8 @@ decreasing_by
 def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
   | args => do
     let argVals ← evalYulExprs state args
-    Compiler.Proofs.YulGeneration.evalBuiltinCall
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend
+      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
       state.storage state.mappings state.sender state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
