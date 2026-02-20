@@ -279,6 +279,23 @@ Diagnostics policy for unsupported constructs:
 2. Suggest the nearest supported migration pattern.
 3. Link to the owning tracking issue.
 
+## Yul Patch Framework Foundation (Issue #582) 🟡 **IN PROGRESS**
+
+Status: deterministic patch engine + first proven-safe patch pack landed; broader optimization coverage and CI policy still pending.
+
+Implemented:
+- `Compiler/Yul/PatchFramework.lean`
+  - patch metadata schema (`pattern`, `rewrite`, `sideConditions`, `proofId`, `passPhase`, `priority`)
+  - deterministic ordering (`priority` + stable tie-break by declaration order)
+  - bounded fixpoint execution (`maxIterations`) with patch manifest output
+- `Compiler/Yul/PatchRules.lean`
+  - initial expression patch pack: `or(x,0) -> x`, `or(0,x) -> x`, `xor(x,0) -> x`
+- `Compiler/Proofs/YulGeneration/PatchRulesProofs.lean`
+  - backend-agnostic preservation contract `ExprPatchPreservesUnder`
+  - explicit evaluator-law proof obligations for each shipped patch rule
+- `Compiler.emitYulWithOptions`
+  - opt-in patch execution via `YulEmitOptions.patchConfig`
+
 Current diagnostic coverage in compiler:
 - Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.
 - Custom errors are now first-class declarations (`errors`) with `Stmt.requireError`/`Stmt.revertError` emission for static payload types (`uint256`, `address`, `bool`, `bytes32`). Dynamic custom error payloads still fail with explicit guidance.

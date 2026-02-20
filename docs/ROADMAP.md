@@ -33,6 +33,12 @@ Current P0 baseline artifact coverage:
 - `artifacts/evmyullean_unsupported_nodes.json` provides a dedicated machine-readable unsupported-node list for adapter-lowering gaps.
 - `artifacts/evmyullean_adapter_report.json` tracks adapter AST-lowering coverage (`supported`/`partial`/`gap`) and runtime seam status.
 
+Current P1 foundation coverage (Issue #582):
+- Deterministic expression patch DSL + pass engine in `Compiler/Yul/PatchFramework.lean`
+- Initial patch pack in `Compiler/Yul/PatchRules.lean` with explicit metadata (`pattern`, `rewrite`, `side_conditions`, `proof_id`, `pass_phase`, `priority`)
+- Proof hooks + preservation theorems in `Compiler/Proofs/YulGeneration/PatchRulesProofs.lean`
+- Opt-in compiler path via `Compiler.emitYulWithOptions` (`YulEmitOptions.patchConfig`)
+
 Execution policy:
 1. Do not start patch-pack expansion in `#583` before `#582` proof hooks are merged.
 2. Treat `#584` as a release gate for ongoing compiler work after initial warning cleanup lands.

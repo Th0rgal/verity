@@ -31,6 +31,9 @@ This directory contains the verification proofs for Layer 3 (IR → Yul) of the 
 - **`Lemmas.lean`** - General utility lemmas
 
 - **`SmokeTests.lean`** - Concrete examples demonstrating equivalence
+- **`PatchRulesProofs.lean`** - Proof hooks for deterministic Yul patch rules
+  - Defines `ExprPatchPreservesUnder` backend-agnostic proof contract for patch correctness
+  - Registers evaluator-law proof obligations for the initial foundation patch pack (`or(x,0)`, `or(0,x)`, `xor(x,0)`)
 
 ## Expression Equivalence Theorems
 

@@ -1,9 +1,14 @@
 import Compiler.IR
 import Compiler.Yul.PrettyPrint
+import Compiler.Yul.PatchFramework
+import Compiler.Yul.PatchRules
 
 namespace Compiler
 
 open Yul
+
+structure YulEmitOptions where
+  patchConfig : Yul.PatchPassConfig := { enabled := false }
 
 private def yulDatacopy : YulStmt :=
   YulStmt.expr (YulExpr.call "datacopy" [
@@ -82,6 +87,11 @@ def runtimeCode (contract : IRContract) : List YulStmt :=
   let internals := contract.internalFunctions
   mapping ++ internals ++ [buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint]
 
+def runtimeCodeWithOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
+  let base := runtimeCode contract
+  let patchReport := Yul.runExprPatchPass options.patchConfig Yul.foundationExprPatchPack base
+  patchReport.patched
+
 private def deployCode (contract : IRContract) : List YulStmt :=
   let valueGuard := if contract.constructorPayable then [] else [callvalueGuard]
   valueGuard ++ contract.deploy ++ [yulDatacopy, yulReturnRuntime]
@@ -90,5 +100,10 @@ def emitYul (contract : IRContract) : YulObject :=
   { name := contract.name
     deployCode := deployCode contract
     runtimeCode := runtimeCode contract }
+
+def emitYulWithOptions (contract : IRContract) (options : YulEmitOptions) : YulObject :=
+  { name := contract.name
+    deployCode := deployCode contract
+    runtimeCode := runtimeCodeWithOptions contract options }
 
 end Compiler
