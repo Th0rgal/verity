@@ -251,7 +251,7 @@ theorem bind_pure_right {α : Type} (m : Contract α) :
     Verity.bind m Verity.pure = m := by
   funext state
   unfold Verity.bind Verity.pure
-  cases h : m state <;> simp [h]
+  cases h : m state <;> simp
 
 -- Associativity: nested binds can be reassociated.
 @[simp]
@@ -259,7 +259,7 @@ theorem bind_assoc {α β γ : Type} (m : Contract α) (f : α → Contract β) 
     Verity.bind (Verity.bind m f) g = Verity.bind m (fun a => Verity.bind (f a) g) := by
   funext state
   unfold Verity.bind
-  cases h : m state <;> simp [h]
+  cases h : m state <;> simp
 
 -- Lemma for getStorage >> setStorage pattern (the most common pattern)
 @[simp]
@@ -348,12 +348,12 @@ theorem getMapping_runValue (slot : StorageSlot (Address → Uint256)) (key : Ad
 @[simp] theorem lookup_senderBal (recipientBal senderBal : Nat) :
     (List.lookup "senderBal" [("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       senderBal := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_recipientBal (recipientBal senderBal : Nat) :
     (List.lookup "recipientBal" [("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       recipientBal := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 -- Local variable lookups when transfer introduces sameAddr/delta/amountDelta.
 @[simp] theorem lookup_senderBal_with_delta (amountDelta delta sameAddr recipientBal senderBal : Nat) :
@@ -361,40 +361,40 @@ theorem getMapping_runValue (slot : StorageSlot (Address → Uint256)) (key : Ad
         [("amountDelta", amountDelta), ("delta", delta), ("sameAddr", sameAddr),
           ("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       senderBal := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_recipientBal_with_delta (amountDelta delta sameAddr recipientBal senderBal : Nat) :
     (List.lookup "recipientBal"
         [("amountDelta", amountDelta), ("delta", delta), ("sameAddr", sameAddr),
           ("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       recipientBal := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_sameAddr_with_delta (amountDelta delta sameAddr recipientBal senderBal : Nat) :
     (List.lookup "sameAddr"
         [("amountDelta", amountDelta), ("delta", delta), ("sameAddr", sameAddr),
           ("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       sameAddr := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_delta_with_delta (amountDelta delta sameAddr recipientBal senderBal : Nat) :
     (List.lookup "delta"
         [("amountDelta", amountDelta), ("delta", delta), ("sameAddr", sameAddr),
           ("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       delta := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_amountDelta_with_delta (amountDelta delta sameAddr recipientBal senderBal : Nat) :
     (List.lookup "amountDelta"
         [("amountDelta", amountDelta), ("delta", delta), ("sameAddr", sameAddr),
           ("recipientBal", recipientBal), ("senderBal", senderBal)]).getD 0 =
       amountDelta := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 -- Mapping lookups for two-address lists.
 @[simp] theorem lookup_addr_first (k1 k2 v1 v2 : Nat) :
     (List.lookup k1 [(k1, v1), (k2, v2)]).getD 0 = v1 := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_addr_second (k1 k2 v1 v2 : Nat) (h : k1 ≠ k2) :
     (List.lookup k2 [(k1, v1), (k2, v2)]).getD 0 = v2 := by
@@ -409,11 +409,11 @@ theorem getMapping_runValue (slot : StorageSlot (Address → Uint256)) (key : Ad
 -- Slot lookups for the common two-slot layout.
 @[simp] theorem lookup_slot_first (v0 v1 : Nat) :
     (List.lookup 0 [(0, v0), (1, v1)]).getD 0 = v0 := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 @[simp] theorem lookup_slot_second (v0 v1 : Nat) :
     (List.lookup 1 [(0, v0), (1, v1)]).getD 0 = v1 := by
-  simp [List.lookup, List.lookup_cons]
+  simp [List.lookup]
 
 /-!
 ## msgSender Lemmas
@@ -437,13 +437,13 @@ theorem msgSender_runValue (state : ContractState) :
 theorem require_true_isSuccess (cond : Bool) (msg : String) (state : ContractState)
     (h : cond = true) :
     ((require cond msg).run state).isSuccess = true := by
-  simp [require, h]
+  simp [h]
 
 -- require with false condition is not success
 theorem require_false_isSuccess (cond : Bool) (msg : String) (state : ContractState)
     (h : cond = false) :
     ((require cond msg).run state).isSuccess = false := by
-  simp [require, h]
+  simp [h]
 
 -- If require succeeds, the condition must have been true (reverse direction)
 theorem require_success_implies_cond (cond : Bool) (msg : String) (state : ContractState) :
@@ -577,17 +577,17 @@ theorem uint256_sub_val_of_le (a : Verity.Core.Uint256) (amount : Nat)
   have h_amount_lt : amount < Verity.Core.Uint256.modulus := by
     exact Nat.lt_of_le_of_lt h a.isLt
   have h_le : (Verity.Core.Uint256.ofNat amount : Nat) ≤ (a : Nat) := by
-    simp [Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt, h]
+    simp [Nat.mod_eq_of_lt h_amount_lt, h]
   have h_sub : ((Verity.EVM.Uint256.sub a (Verity.Core.Uint256.ofNat amount)
       : Verity.Core.Uint256) : Nat) = (a : Nat) - (Verity.Core.Uint256.ofNat amount : Nat) := by
     exact Verity.EVM.Uint256.sub_eq_of_le h_le
-  simp [Verity.Core.Uint256.coe_ofNat, Nat.mod_eq_of_lt h_amount_lt] at h_sub
+  simp [Nat.mod_eq_of_lt h_amount_lt] at h_sub
   simpa using h_sub
 
 -- getSlot from setSlot (same slot)
 theorem SpecStorage_getSlot_setSlot_same (storage : SpecStorage) (slot : Nat) (value : Nat) :
     (storage.setSlot slot value).getSlot slot = value := by
-  simp [SpecStorage.getSlot, SpecStorage.setSlot, List.lookup]
+  simp [SpecStorage.getSlot, SpecStorage.setSlot]
 
 theorem lookup_filter_ne {β : Type} (k k' : Nat) (h : k ≠ k') (xs : List (Nat × β)) :
     (xs.filter (fun kv => kv.1 ≠ k')).lookup k = xs.lookup k := by
@@ -613,7 +613,7 @@ theorem lookup_filter_ne {β : Type} (k k' : Nat) (h : k ≠ k') (xs : List (Nat
                       simp [List.lookup, hk0false]
           · -- Filter keeps this head.
             by_cases hk : k = k0
-            · simp [List.filter, List.lookup, hk0, beq_iff_eq, hk]
+            · simp [List.filter, List.lookup, hk0, hk]
             · calc
                 (List.filter (fun kv => kv.1 ≠ k') ((k0, v0) :: xs)).lookup k
                     = (List.filter (fun kv => kv.1 ≠ k') xs).lookup k := by
@@ -655,7 +655,7 @@ theorem SpecStorage_getSlot_setSlot_diff (storage : SpecStorage) (slot1 slot2 : 
 -- getMapping from setMapping (same slot and key) - requires proof
 theorem SpecStorage_getMapping_setMapping_same (storage : SpecStorage) (slot : Nat) (key : Nat) (value : Nat) :
     (storage.setMapping slot key value).getMapping slot key = value := by
-  simp [SpecStorage.getMapping, SpecStorage.setMapping, List.lookup, beq_iff_eq, lookup_filter_ne]
+  simp [SpecStorage.getMapping, SpecStorage.setMapping, List.lookup]
 
 -- getMapping preserves other slots - requires proof
 theorem SpecStorage_getMapping_setMapping_diff_slot (storage : SpecStorage) (slot1 slot2 : Nat) (key : Nat) (value : Nat)
@@ -765,7 +765,7 @@ theorem add_one_preserves_order_iff_no_overflow (a : Verity.Core.Uint256) :
     · intro h_gt
       -- Show contradiction: (a + 1).val = 0, so 0 > MAX_UINT256 is false
       unfold Verity.Core.Uint256.add at h_gt
-      simp [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.val] at h_gt
+      simp [Verity.Core.Uint256.ofNat] at h_gt
       rw [h] at h_gt
       -- Now: (MAX_UINT256 + 1) % modulus > MAX_UINT256
       have h_mod : (Verity.Core.MAX_UINT256 + 1) % Verity.Core.Uint256.modulus = 0 := by
@@ -795,7 +795,7 @@ theorem add_one_preserves_order_iff_no_overflow (a : Verity.Core.Uint256) :
     · intro h_lt
       -- Show (a + 1).val > a.val when no overflow
       unfold Verity.Core.Uint256.add
-      simp [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.val]
+      simp [Verity.Core.Uint256.ofNat]
       -- Need to show: (a.val + 1) % modulus > a.val
       -- Since a.val < MAX_UINT256, we have a.val + 1 < modulus
       have h_sum_lt : (a : Nat) + 1 < Verity.Core.Uint256.modulus := by
@@ -834,55 +834,55 @@ like `count` or `storedData`. These eliminate per-contract duplication of
 theorem setStorage_preserves_storageAddr (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.storageAddr = state.storageAddr := by
-  simp [setStorage]
+  simp
 
 /-- setStorage on any uint256 slot preserves the mapping storage. -/
 theorem setStorage_preserves_storageMap (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.storageMap = state.storageMap := by
-  simp [setStorage]
+  simp
 
 /-- setStorage on any uint256 slot preserves the sender. -/
 theorem setStorage_preserves_sender (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.sender = state.sender := by
-  simp [setStorage]
+  simp
 
 /-- setStorage on any uint256 slot preserves the contract address. -/
 theorem setStorage_preserves_thisAddress (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.thisAddress = state.thisAddress := by
-  simp [setStorage]
+  simp
 
 /-- setStorage on any uint256 slot preserves other uint256 slots. -/
 theorem setStorage_preserves_other_storage (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) (n : Nat) (h : n ≠ slot.slot) :
     ((setStorage slot value).run state).snd.storage n = state.storage n := by
-  simp [setStorage, h]
+  simp [h]
 
 /-- setStorageAddr on any address slot preserves the uint256 storage. -/
 theorem setStorageAddr_preserves_storage (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.storage = state.storage := by
-  simp [setStorageAddr]
+  simp
 
 /-- setStorageAddr on any address slot preserves the mapping storage. -/
 theorem setStorageAddr_preserves_storageMap (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.storageMap = state.storageMap := by
-  simp [setStorageAddr]
+  simp
 
 /-- setStorageAddr on any address slot preserves the sender. -/
 theorem setStorageAddr_preserves_sender (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.sender = state.sender := by
-  simp [setStorageAddr]
+  simp
 
 /-- setStorageAddr on any address slot preserves the contract address. -/
 theorem setStorageAddr_preserves_thisAddress (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.thisAddress = state.thisAddress := by
-  simp [setStorageAddr]
+  simp
 
 /-!
 ## Generic setMapping Preservation
@@ -892,25 +892,25 @@ theorem setStorageAddr_preserves_thisAddress (slot : StorageSlot Address) (value
 theorem setMapping_preserves_storage (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.storage = state.storage := by
-  simp [setMapping]
+  simp
 
 /-- setMapping preserves the address storage. -/
 theorem setMapping_preserves_storageAddr (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.storageAddr = state.storageAddr := by
-  simp [setMapping]
+  simp
 
 /-- setMapping preserves the sender. -/
 theorem setMapping_preserves_sender (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.sender = state.sender := by
-  simp [setMapping]
+  simp
 
 /-- setMapping preserves the contract address. -/
 theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.thisAddress = state.thisAddress := by
-  simp [setMapping]
+  simp
 
 /-!
 ## Generic msgValue / blockTimestamp / knownAddresses Preservation
@@ -922,49 +922,49 @@ Storage mutations never touch context fields or (for non-mapping ops) knownAddre
 theorem setStorage_preserves_msgValue (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.msgValue = state.msgValue := by
-  simp [setStorage]
+  simp
 
 /-- setStorageAddr preserves msgValue. -/
 theorem setStorageAddr_preserves_msgValue (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.msgValue = state.msgValue := by
-  simp [setStorageAddr]
+  simp
 
 /-- setMapping preserves msgValue. -/
 theorem setMapping_preserves_msgValue (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.msgValue = state.msgValue := by
-  simp [setMapping]
+  simp
 
 /-- setStorage preserves blockTimestamp. -/
 theorem setStorage_preserves_blockTimestamp (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.blockTimestamp = state.blockTimestamp := by
-  simp [setStorage]
+  simp
 
 /-- setStorageAddr preserves blockTimestamp. -/
 theorem setStorageAddr_preserves_blockTimestamp (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.blockTimestamp = state.blockTimestamp := by
-  simp [setStorageAddr]
+  simp
 
 /-- setMapping preserves blockTimestamp. -/
 theorem setMapping_preserves_blockTimestamp (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.blockTimestamp = state.blockTimestamp := by
-  simp [setMapping]
+  simp
 
 /-- setStorage preserves knownAddresses. -/
 theorem setStorage_preserves_knownAddresses (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.knownAddresses = state.knownAddresses := by
-  simp [setStorage]
+  simp
 
 /-- setStorageAddr preserves knownAddresses. -/
 theorem setStorageAddr_preserves_knownAddresses (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.knownAddresses = state.knownAddresses := by
-  simp [setStorageAddr]
+  simp
 
 /-!
 ## Generic Event Preservation
@@ -976,19 +976,19 @@ Storage mutations never touch the `events` append-only log.
 theorem setStorage_preserves_events (slot : StorageSlot Uint256) (value : Uint256)
     (state : ContractState) :
     ((setStorage slot value).run state).snd.events = state.events := by
-  simp [setStorage]
+  simp
 
 /-- setStorageAddr on any address slot preserves the event log. -/
 theorem setStorageAddr_preserves_events (slot : StorageSlot Address) (value : Address)
     (state : ContractState) :
     ((setStorageAddr slot value).run state).snd.events = state.events := by
-  simp [setStorageAddr]
+  simp
 
 /-- setMapping preserves the event log. -/
 theorem setMapping_preserves_events (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.events = state.events := by
-  simp [setMapping]
+  simp
 
 /-!
 ## Event Emission Helpers
@@ -1000,7 +1000,7 @@ Direct automation lemmas for `emitEvent`.
 @[simp] theorem emitEvent_isSuccess (name : String) (args indexedArgs : List Uint256)
     (state : ContractState) :
     ((emitEvent name args indexedArgs).run state).isSuccess = true := by
-  simp [emitEvent]
+  simp
 
 /-- Emitting an event returns unit. -/
 @[simp] theorem emitEvent_runValue (name : String) (args indexedArgs : List Uint256)
@@ -1020,7 +1020,7 @@ Direct automation lemmas for `emitEvent`.
     (state : ContractState) :
     ((emitEvent name args indexedArgs).run state).snd.events =
       state.events ++ [{ name := name, args := args, indexedArgs := indexedArgs }] := by
-  simp [emitEvent]
+  simp
 
 /-- Sequential event emission appends in order. -/
 theorem emitEvent_emitEvent_events (name1 : String) (args1 indexedArgs1 : List Uint256)
@@ -1092,7 +1092,7 @@ theorem require_beq_isSuccess_true_iff_eq (a b : Address) (msg : String) (s : Co
     exact require_beq_success_implies_eq a b msg s h
   · intro h_eq
     subst h_eq
-    simp [Verity.require]
+    simp
 
 /-- `require (a == b) msg` fails exactly when `a ≠ b`. -/
 theorem require_beq_isSuccess_false_iff_ne (a b : Address) (msg : String) (s : ContractState) :
@@ -1100,10 +1100,10 @@ theorem require_beq_isSuccess_false_iff_ne (a b : Address) (msg : String) (s : C
   constructor
   · intro h_false h_eq
     subst h_eq
-    simp [Verity.require] at h_false
+    simp at h_false
   · intro h_ne
     have h_beq_false : (a == b) = false := address_beq_false_of_ne a b h_ne
-    simp [Verity.require, h_beq_false]
+    simp [h_beq_false]
 
 /-- Common owner-check pattern:
     if `msgSender >>= getStorageAddr slot >>= require (sender == owner)` succeeds,
