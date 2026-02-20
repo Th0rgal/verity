@@ -497,6 +497,85 @@ private def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := d
   let _ ← functionReturns spec
   spec.body.forM (validateStmtParamReferences spec.name spec.params)
 
+private def issue586Ref : String :=
+  "Issue #586 (Solidity interop profile)"
+
+private def isLowLevelCallName (name : String) : Bool :=
+  ["call", "staticcall", "delegatecall", "callcode"].contains name
+
+private def payableUnsupportedError (fnName : String) : Except String Unit :=
+  throw s!"Compilation error: function '{fnName}' uses Expr.msgValue, but payable/fallback/receive entrypoints are unsupported ({issue586Ref}). Use a non-payable function and pass value explicitly as a uint256 parameter."
+
+private def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
+  throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall."
+
+private partial def validateInteropExpr (fnName : String) : Expr → Except String Unit
+  | Expr.msgValue =>
+      payableUnsupportedError fnName
+  | Expr.externalCall name args => do
+      if isLowLevelCallName name then
+        lowLevelCallUnsupportedError s!"function '{fnName}'" name
+      args.forM (validateInteropExpr fnName)
+  | Expr.mapping _ key => validateInteropExpr fnName key
+  | Expr.mapping2 _ key1 key2 => do
+      validateInteropExpr fnName key1
+      validateInteropExpr fnName key2
+  | Expr.mappingUint _ key => validateInteropExpr fnName key
+  | Expr.internalCall _ args =>
+      args.forM (validateInteropExpr fnName)
+  | Expr.arrayElement _ index =>
+      validateInteropExpr fnName index
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.mod a b |
+    Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
+    Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.lt a b | Expr.le a b |
+    Expr.logicalAnd a b | Expr.logicalOr a b => do
+      validateInteropExpr fnName a
+      validateInteropExpr fnName b
+  | Expr.bitNot a | Expr.logicalNot a =>
+      validateInteropExpr fnName a
+  | _ =>
+      pure ()
+
+private partial def validateInteropStmt (fnName : String) : Stmt → Except String Unit
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+    Stmt.return value | Stmt.require value _ =>
+      validateInteropExpr fnName value
+  | Stmt.setMapping _ key value | Stmt.setMappingUint _ key value => do
+      validateInteropExpr fnName key
+      validateInteropExpr fnName value
+  | Stmt.setMapping2 _ key1 key2 value => do
+      validateInteropExpr fnName key1
+      validateInteropExpr fnName key2
+      validateInteropExpr fnName value
+  | Stmt.ite cond thenBranch elseBranch => do
+      validateInteropExpr fnName cond
+      thenBranch.forM (validateInteropStmt fnName)
+      elseBranch.forM (validateInteropStmt fnName)
+  | Stmt.forEach _ count body => do
+      validateInteropExpr fnName count
+      body.forM (validateInteropStmt fnName)
+  | Stmt.emit _ args =>
+      args.forM (validateInteropExpr fnName)
+  | Stmt.internalCall _ args =>
+      args.forM (validateInteropExpr fnName)
+  | Stmt.returnValues values =>
+      values.forM (validateInteropExpr fnName)
+  | _ =>
+      pure ()
+
+private def validateInteropFunctionSpec (spec : FunctionSpec) : Except String Unit := do
+  spec.body.forM (validateInteropStmt spec.name)
+
+private def validateInteropExternalSpec (spec : ExternalFunction) : Except String Unit := do
+  if isLowLevelCallName spec.name then
+    lowLevelCallUnsupportedError s!"external declaration '{spec.name}'" spec.name
+
+private def validateInteropConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit := do
+  match ctor with
+  | none => pure ()
+  | some spec =>
+      spec.body.forM (validateInteropStmt "constructor")
+
 private def compileMappingSlotWrite (fields : List Field) (field : String)
     (keyExpr valueExpr : YulExpr) (label : String) : Except String (List YulStmt) :=
   if !isMapping fields field then
@@ -951,8 +1030,11 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   let internalFns := spec.functions.filter (·.isInternal)
   for fn in spec.functions do
     validateFunctionSpec fn
+    validateInteropFunctionSpec fn
+  validateInteropConstructorSpec spec.constructor
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
+    validateInteropExternalSpec ext
   if externalFns.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {externalFns.length} external functions"
   match firstDuplicateSelector selectors with

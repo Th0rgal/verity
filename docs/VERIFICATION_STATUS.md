@@ -278,6 +278,12 @@ Diagnostics policy for unsupported constructs:
 2. Suggest the nearest supported migration pattern.
 3. Link to the owning tracking issue.
 
+Current diagnostic coverage in compiler:
+- `Expr.msgValue` now fails with an explicit payable/fallback/receive unsupported message and migration guidance.
+- Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
+- The same unsupported checks are enforced in constructor bodies (not only regular function bodies).
+- Both diagnostics include an `Issue #586` reference for scope tracking.
+
 ### Short Term (1-2 months)
 
 - [x] Add finite address set modeling for Ledger sum properties (Issue #39, closed)
@@ -317,5 +323,5 @@ See `scripts/README.md` for:
 
 ---
 
-**Last Updated**: 2026-02-18
+**Last Updated**: 2026-02-20
 **Status Summary**: Layers 1-3 complete, trust reduction in progress, unified AST complete — all 7 contracts migrated (Issue #364)

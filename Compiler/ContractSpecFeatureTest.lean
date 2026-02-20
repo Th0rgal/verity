@@ -193,4 +193,94 @@ private def featureSpec : ContractSpec := {
   | .ok _ =>
       throw (IO.userError "✗ expected invalid returnBytes parameter to fail compilation")
 
+#eval! do
+  let msgValueSpec : ContractSpec := {
+    name := "MsgValueUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "payableLike"
+        params := []
+        returnType := some FieldType.uint256
+        body := [Stmt.return Expr.msgValue]
+      }
+    ]
+  }
+  match compile msgValueSpec [1] with
+  | .error err =>
+      if !(contains err "Expr.msgValue" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ msgValue diagnostic mismatch: {err}")
+      IO.println "✓ msgValue/payable unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected msgValue/payable-like usage to fail compilation")
+
+#eval! do
+  let lowLevelCallSpec : ContractSpec := {
+    name := "LowLevelCallUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "unsafe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "delegatecall" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile lowLevelCallSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported low-level call 'delegatecall'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ low-level call diagnostic mismatch: {err}")
+      IO.println "✓ low-level call unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected low-level call usage to fail compilation")
+
+#eval! do
+  let ctorMsgValueSpec : ContractSpec := {
+    name := "CtorMsgValueUnsupported"
+    fields := []
+    constructor := some {
+      params := []
+      body := [Stmt.letVar "v" Expr.msgValue, Stmt.stop]
+    }
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile ctorMsgValueSpec [1] with
+  | .error err =>
+      if !(contains err "Expr.msgValue" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ constructor msgValue diagnostic mismatch: {err}")
+      IO.println "✓ constructor msgValue unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected constructor msgValue usage to fail compilation")
+
+#eval! do
+  let ctorLowLevelCallSpec : ContractSpec := {
+    name := "CtorLowLevelCallUnsupported"
+    fields := []
+    constructor := some {
+      params := []
+      body := [Stmt.letVar "v" (Expr.externalCall "call" []), Stmt.stop]
+    }
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile ctorLowLevelCallSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported low-level call 'call'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ constructor low-level call diagnostic mismatch: {err}")
+      IO.println "✓ constructor low-level call unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected constructor low-level call usage to fail compilation")
+
 end Compiler.ContractSpecFeatureTest
