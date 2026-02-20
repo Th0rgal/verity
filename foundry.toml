@@ -16,3 +16,6 @@ fs_permissions = [{ access = "read", path = "./compiler/yul" }]
 # Usage: FOUNDRY_PROFILE=difftest forge test
 [profile.difftest]
 ffi = true
+# Differential suites include 10k-transaction randomized runs with vm.ffi() calls.
+# The default Forge gas limit (2^30) can OOG before completion.
+gas_limit = 9223372036854775807

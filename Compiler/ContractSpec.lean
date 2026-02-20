@@ -432,21 +432,70 @@ def fieldTypeToParamType : FieldType → ParamType
   | FieldType.address => ParamType.address
   | FieldType.mappingTyped _ => ParamType.uint256
 
-def functionReturns (spec : FunctionSpec) : List ParamType :=
-  if !spec.returns.isEmpty then
-    spec.returns
+private def resolveReturns (context : String) (legacy : Option ParamType)
+    (returns : List ParamType) : Except String (List ParamType) := do
+  if returns.isEmpty then
+    pure (legacy.map (fun ty => [ty]) |>.getD [])
   else
-    match spec.returnType with
-    | some ty => [fieldTypeToParamType ty]
-    | none => []
+    match legacy with
+    | none => pure returns
+    | some ty =>
+        if returns == [ty] then
+          pure returns
+        else
+          throw s!"Compilation error: {context} has conflicting return declarations (returnType vs returns)"
 
-def externalFunctionReturns (spec : ExternalFunction) : List ParamType :=
-  if !spec.returns.isEmpty then
-    spec.returns
-  else
-    match spec.returnType with
-    | some ty => [ty]
-    | none => []
+def functionReturns (spec : FunctionSpec) : Except String (List ParamType) :=
+  resolveReturns s!"function '{spec.name}'"
+    (spec.returnType.map fieldTypeToParamType) spec.returns
+
+def externalFunctionReturns (spec : ExternalFunction) : Except String (List ParamType) :=
+  resolveReturns s!"external declaration '{spec.name}'" spec.returnType spec.returns
+
+private def findParamType (params : List Param) (name : String) : Option ParamType :=
+  (params.find? (fun p => p.name == name)).map (·.ty)
+
+private def isStorageWordArrayParam : ParamType → Bool
+  | ParamType.array ParamType.bytes32 => true
+  | ParamType.array ParamType.uint256 => true
+  | _ => false
+
+private partial def validateStmtParamReferences (fnName : String) (params : List Param) :
+    Stmt → Except String Unit
+  | Stmt.returnArray name =>
+      match findParamType params name with
+      | some (ParamType.array _) =>
+          pure ()
+      | some ty =>
+          throw s!"Compilation error: function '{fnName}' returnArray '{name}' requires array parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: function '{fnName}' returnArray references unknown parameter '{name}'"
+  | Stmt.returnBytes name =>
+      match findParamType params name with
+      | some ParamType.bytes => pure ()
+      | some ty =>
+          throw s!"Compilation error: function '{fnName}' returnBytes '{name}' requires bytes parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: function '{fnName}' returnBytes references unknown parameter '{name}'"
+  | Stmt.returnStorageWords name =>
+      match findParamType params name with
+      | some ty =>
+          if isStorageWordArrayParam ty then
+            pure ()
+          else
+            throw s!"Compilation error: function '{fnName}' returnStorageWords '{name}' requires bytes32[] or uint256[] parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: function '{fnName}' returnStorageWords references unknown parameter '{name}'"
+  | Stmt.ite _ thenBranch elseBranch => do
+      thenBranch.forM (validateStmtParamReferences fnName params)
+      elseBranch.forM (validateStmtParamReferences fnName params)
+  | Stmt.forEach _ _ body => do
+      body.forM (validateStmtParamReferences fnName params)
+  | _ => pure ()
+
+private def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
+  let _ ← functionReturns spec
+  spec.body.forM (validateStmtParamReferences spec.name spec.params)
 
 private def compileMappingSlotWrite (fields : List Field) (field : String)
     (keyExpr valueExpr : YulExpr) (label : String) : Except String (List YulStmt) :=
@@ -807,7 +856,8 @@ def genParamLoads (params : List Param) : List YulStmt :=
 -- Compile internal function to a Yul function definition (#181)
 def compileInternalFunction (fields : List Field) (events : List EventDef) (spec : FunctionSpec) :
     Except String YulStmt := do
-  let returns := functionReturns spec
+  validateFunctionSpec spec
+  let returns ← functionReturns spec
   if returns.length > 1 then
     throw s!"Compilation error: internal function '{spec.name}' cannot return multiple values yet"
   let paramNames := spec.params.map (·.name)
@@ -821,7 +871,8 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (spec
 -- Compile function spec to IR function
 def compileFunctionSpec (fields : List Field) (events : List EventDef) (selector : Nat) (spec : FunctionSpec) :
     Except String IRFunction := do
-  let returns := functionReturns spec
+  validateFunctionSpec spec
+  let returns ← functionReturns spec
   let paramLoads := genParamLoads spec.params
   let bodyChunks ← spec.body.mapM (compileStmt fields events)
   let allStmts := paramLoads ++ bodyChunks.flatten
@@ -898,6 +949,10 @@ def selectorNames (spec : ContractSpec) (selectors : List Nat) (sel : Nat) : Lis
 def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContract := do
   let externalFns := spec.functions.filter (!·.isInternal)
   let internalFns := spec.functions.filter (·.isInternal)
+  for fn in spec.functions do
+    validateFunctionSpec fn
+  for ext in spec.externals do
+    let _ ← externalFunctionReturns ext
   if externalFns.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {externalFns.length} external functions"
   match firstDuplicateSelector selectors with

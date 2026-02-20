@@ -149,4 +149,48 @@ private def featureSpec : ContractSpec := {
       assertContains "dynamic bytes ABI return" rendered ["calldatacopy(64, data_data_offset, data_length)", "mstore(add(64, data_length), 0)", "return(0, add(64, and(add(data_length, 31), not(31))))"]
       assertContains "storage-word array return ABI" rendered ["let __slot := calldataload(add(slots_data_offset, mul(__i, 32)))", "mstore(add(64, mul(__i, 32)), sload(__slot))", "return(0, add(64, mul(slots_length, 32)))"]
 
+#eval! do
+  let conflictingReturnsSpec : ContractSpec := {
+    name := "ConflictingReturns"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "bad"
+        params := []
+        returnType := some FieldType.uint256
+        returns := [ParamType.uint256, ParamType.uint256]
+        body := [Stmt.returnValues [Expr.literal 1, Expr.literal 2]]
+      }
+    ]
+  }
+  match compile conflictingReturnsSpec [1] with
+  | .error err =>
+      if !contains err "conflicting return declarations" then
+        throw (IO.userError s!"✗ conflicting returns should fail with clear message, got: {err}")
+      IO.println "✓ conflicting return declaration validation"
+  | .ok _ =>
+      throw (IO.userError "✗ expected conflicting returns to fail compilation")
+
+#eval! do
+  let invalidReturnBytesSpec : ContractSpec := {
+    name := "InvalidReturnBytes"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "badBytes"
+        params := [{ name := "arr", ty := ParamType.array ParamType.uint256 }]
+        returnType := none
+        returns := [ParamType.bytes]
+        body := [Stmt.returnBytes "arr"]
+      }
+    ]
+  }
+  match compile invalidReturnBytesSpec [1] with
+  | .error err =>
+      if !contains err "returnBytes 'arr' requires bytes parameter" then
+        throw (IO.userError s!"✗ returnBytes type validation message mismatch: {err}")
+      IO.println "✓ returnBytes parameter type validation"
+  | .ok _ =>
+      throw (IO.userError "✗ expected invalid returnBytes parameter to fail compilation")
+
 end Compiler.ContractSpecFeatureTest
