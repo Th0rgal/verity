@@ -404,6 +404,31 @@ private def featureSpec : ContractSpec := {
          "let payload_data_offset := add(payload_offset, 32)", "let arg0 := payload_offset"]
 
 #eval! do
+  let ctorMixedParamSpec : ContractSpec := {
+    name := "CtorMixedParamDecode"
+    fields := []
+    constructor := some {
+      params := [
+        { name := "owner", ty := ParamType.address },
+        { name := "payload", ty := ParamType.bytes }
+      ]
+      body := [Stmt.stop]
+    }
+    events := []
+    errors := []
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile ctorMixedParamSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected mixed constructor parameter support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "constructor mixed param decode" rendered
+        ["let owner := and(mload(0),", "let payload_offset := mload(32)",
+         "let payload_length := mload(payload_offset)", "let arg0 := owner",
+         "let arg1 := payload_offset"]
+
+#eval! do
   let extCodeSizeSpec : ContractSpec := {
     name := "ExtCodeSizeUnsupported"
     fields := []
