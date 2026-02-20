@@ -90,4 +90,8 @@ def allowance_spec (ownerAddr spender : Address) (result : Uint256) (s : Contrac
 def totalSupply_spec (result : Uint256) (s : ContractState) : Prop :=
   result = s.storage 1
 
+/-- getOwner: returns the current owner address from slot 0 -/
+def getOwner_spec (result : Address) (s : ContractState) : Prop :=
+  result = s.storageAddr 0
+
 end Verity.Specs.ERC20

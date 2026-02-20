@@ -28,7 +28,7 @@ source ~/.elan/env
 # 2. Clone and build
 git clone https://github.com/Th0rgal/verity.git
 cd verity
-lake build                                    # Verifies all 406 theorems
+lake build                                    # Verifies all 412 theorems
 
 # 3. Generate a new contract
 python3 scripts/generate_contract.py MyContract
@@ -87,7 +87,7 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | OwnedCounter | 48 | Cross-pattern composition, lockout proofs |
 | Ledger | 33 | Deposit/withdraw/transfer with balance conservation |
 | SimpleToken | 61 | Mint/transfer, supply conservation, storage isolation |
-| ERC20 | 5 | Foundation scaffold with initial spec/read-state proofs |
+| ERC20 | 11 | Foundation scaffold with initial spec/read-state proofs |
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 
 **Unverified examples**:
@@ -126,7 +126,7 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 
 See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
 
-406 theorems across 10 categories, all fully proven. 376 Foundry tests across 33 test suites. 225 covered by property tests (55% coverage, 181 proof-only exclusions). 1 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
+412 theorems across 10 categories, all fully proven. 376 Foundry tests across 33 test suites. 231 covered by property tests (56% coverage, 181 proof-only exclusions). 1 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 

@@ -7,11 +7,11 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
 
-**Status**: 406 theorems across 10 categories, all fully proven. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**Status**: 412 theorems across 10 categories, all fully proven. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
 ## Snapshot (2026-02-17)
 
-- EDSL theorems: 406 across 10 categories (7 contracts + ReentrancyExample + Stdlib).
+- EDSL theorems: 412 across 10 categories (7 contracts + ReentrancyExample + Stdlib).
 - SimpleStorage: 20 total (Basic 13, Correctness 7).
 - Counter: 28 total (Basic 19, Correctness 10; 1 shared between Basic and Correctness).
 - Owned: 23 total (Basic 19, Correctness 4).
@@ -19,7 +19,7 @@ The compiler is verified with IR preservation proofs and Yul equivalence proofs 
 - OwnedCounter: 48 total (Basic 29, Correctness 5, Isolation 14).
 - Ledger: 33 total (Basic 20, Correctness 6, Conservation 7 — all proven).
 - SafeCounter: 25 total (Basic 17, Correctness 8).
-- ERC20: 5 total (Basic 3, Correctness 2).
+- ERC20: 11 total (Basic 3, Correctness 2).
 - ReentrancyExample: 4 total (inline proofs: vulnerability existence, supply invariant).
 - Stdlib: 159 theorems (Math 25, Automation 56, MappingAutomation 37, ListSum 7, AddressAutomation 24; 2 shared between Automation and MappingAutomation).
 

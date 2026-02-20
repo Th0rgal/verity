@@ -20,4 +20,21 @@ theorem allowanceOf_preserves_state (s : ContractState) (ownerAddr spender : Add
     ((Verity.Examples.ERC20.allowanceOf ownerAddr spender).runState s) = s := by
   simp [Verity.Examples.ERC20.allowanceOf, getMapping2, Contract.runState]
 
+/-- Read-only `getTotalSupply` preserves state. -/
+theorem getTotalSupply_preserves_state (s : ContractState) :
+    ((Verity.Examples.ERC20.getTotalSupply).runState s) = s := by
+  simp [Verity.Examples.ERC20.getTotalSupply, getStorage, Contract.runState]
+
+/-- Read-only `getOwner` preserves state. -/
+theorem getOwner_preserves_state (s : ContractState) :
+    ((Verity.Examples.ERC20.getOwner).runState s) = s := by
+  simp [Verity.Examples.ERC20.getOwner, getStorageAddr, Contract.runState]
+
+/-- `approve` satisfies the balance-neutral invariant helper. -/
+theorem approve_is_balance_neutral_holds (s : ContractState) (spender : Address) (amount : Uint256) :
+    approve_is_balance_neutral s ((Verity.Examples.ERC20.approve spender amount).runState s) := by
+  have h := approve_meets_spec s spender amount
+  rcases h with ⟨_, _, _, h_storage, _, h_storageMap, _⟩
+  exact ⟨h_storage, h_storageMap⟩
+
 end Verity.Proofs.ERC20

@@ -32,8 +32,14 @@
   "ERC20": [
     "allowanceOf_meets_spec",
     "allowanceOf_preserves_state",
+    "approve_is_balance_neutral_holds",
+    "approve_meets_spec",
     "balanceOf_meets_spec",
     "balanceOf_preserves_state",
+    "constructor_meets_spec",
+    "getOwner_meets_spec",
+    "getOwner_preserves_state",
+    "getTotalSupply_preserves_state",
     "totalSupply_meets_spec"
   ],
   "Ledger": [
