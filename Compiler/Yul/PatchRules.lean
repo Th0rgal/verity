@@ -44,15 +44,43 @@ def xorZeroRightRule : ExprPatchRule :=
       | .call "xor" [lhs, .lit 0] => some lhs
       | _ => none }
 
-/-- Initial deterministic, proven-safe expression patch pack (Issue #582 foundation). -/
+/-- `xor(0, x) -> x` -/
+def xorZeroLeftRule : ExprPatchRule :=
+  { patchName := "xor-zero-left"
+    pattern := "xor(0, x)"
+    rewrite := "x"
+    sideConditions := ["first argument is literal zero"]
+    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.xor_zero_left_preserves"
+    passPhase := .postCodegen
+    priority := 85
+    applyExpr := fun expr =>
+      match expr with
+      | .call "xor" [.lit 0, rhs] => some rhs
+      | _ => none }
+
+/-- `and(x, 0) -> 0` -/
+def andZeroRightRule : ExprPatchRule :=
+  { patchName := "and-zero-right"
+    pattern := "and(x, 0)"
+    rewrite := "0"
+    sideConditions := ["second argument is literal zero"]
+    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.and_zero_right_preserves"
+    passPhase := .postCodegen
+    priority := 80
+    applyExpr := fun expr =>
+      match expr with
+      | .call "and" [_lhs, .lit 0] => some (.lit 0)
+      | _ => none }
+
+/-- Initial deterministic, proven-safe expression patch pack (Issue #583 expansion). -/
 def foundationExprPatchPack : List ExprPatchRule :=
-  [orZeroRightRule, orZeroLeftRule, xorZeroRightRule]
+  [orZeroRightRule, orZeroLeftRule, xorZeroRightRule, xorZeroLeftRule, andZeroRightRule]
 
 /-- Smoke test: higher-priority rule wins deterministically. -/
 example :
-    (let rules := orderRulesByPriority [xorZeroRightRule, orZeroRightRule, orZeroLeftRule]
+    (let rules := orderRulesByPriority [andZeroRightRule, xorZeroLeftRule, xorZeroRightRule, orZeroRightRule, orZeroLeftRule]
      rules.map (fun r => r.patchName)) =
-    ["or-zero-right", "or-zero-left", "xor-zero-right"] := by
+    ["or-zero-right", "or-zero-left", "xor-zero-right", "xor-zero-left", "and-zero-right"] := by
   native_decide
 
 /-- Smoke test: one rewrite pass catches nested expression occurrences. -/
@@ -72,6 +100,24 @@ example :
     report.manifest.map (fun m => (m.patchName, m.matchCount, m.proofRef)) =
       [("or-zero-right", 1,
         "Compiler.Proofs.YulGeneration.PatchRulesProofs.or_zero_right_preserves")] := by
+  native_decide
+
+/-- Smoke test: `xor(0, x)` rewrites to `x`. -/
+example :
+    let stmt : YulStmt := .expr (.call "xor" [.lit 0, .ident "x"])
+    let report := runExprPatchPass { enabled := true, maxIterations := 1 } foundationExprPatchPack [stmt]
+    (match report.patched with
+    | [.expr (.ident "x")] => true
+    | _ => false) = true := by
+  native_decide
+
+/-- Smoke test: `and(x, 0)` rewrites to `0`. -/
+example :
+    let stmt : YulStmt := .expr (.call "and" [.ident "x", .lit 0])
+    let report := runExprPatchPass { enabled := true, maxIterations := 1 } foundationExprPatchPack [stmt]
+    (match report.patched with
+    | [.expr (.lit 0)] => true
+    | _ => false) = true := by
   native_decide
 
 /-- Smoke test: fail-closed metadata gate skips non-auditable rules. -/

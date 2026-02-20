@@ -289,7 +289,7 @@ Implemented:
   - deterministic ordering (`priority` + stable tie-break by declaration order)
   - bounded fixpoint execution (`maxIterations`) with patch manifest output
 - `Compiler/Yul/PatchRules.lean`
-  - initial expression patch pack: `or(x,0) -> x`, `or(0,x) -> x`, `xor(x,0) -> x`
+  - expanded expression patch pack: `or(x,0) -> x`, `or(0,x) -> x`, `xor(x,0) -> x`, `xor(0,x) -> x`, `and(x,0) -> 0`
 - `Compiler/Proofs/YulGeneration/PatchRulesProofs.lean`
   - backend-agnostic preservation contract `ExprPatchPreservesUnder`
   - explicit evaluator-law proof obligations for each shipped patch rule
