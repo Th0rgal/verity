@@ -241,7 +241,7 @@ These components are **not formally verified** but are trusted based on testing,
 **Assumption**: The keccak256-based storage slot calculation used by Solidity (and Verity's compiled Yul) for mapping entries is collision-free in practice — distinct `(key, baseSlot)` pairs produce distinct storage slot addresses.
 
 **Details**:
-- **Lean proof model**: Mapping slots use `mappingTag = 2^256` (defined in `Compiler/Proofs/MappingEncoding.lean:14`) as an out-of-range tag to route mapping storage. A mapping access `storageMap[slot][addr]` is encoded as slot `mappingTag + baseSlot * maxKeys + addressToNat(addr)`. Since `mappingTag = 2^256` exceeds the EVM word range (0 to 2^256-1), mapping slots are guaranteed to never collide with direct storage slots in the proof model.
+- **Lean proof model**: Mapping slots are routed through `Compiler/Proofs/MappingSlot.lean`, whose current backend delegates to the tagged model in `Compiler/Proofs/MappingEncoding.lean` (`mappingTag = 2^256`). A mapping access is encoded as `mappingTag + normalize(baseSlot) * 2^256 + (key % 2^256)`, so mapping slots are disjoint from direct storage slots in the proof model.
 - **Yul implementation**: Mappings use `keccak256(abi.encodePacked(key, baseSlot))` to derive a storage slot address, then read/write via `sload`/`sstore`.
 - **The gap**: The Lean proofs reason about a tag-based separation model. The Yul code uses hash-based slot derivation. These are equivalent only if (1) keccak256 mapping slots never collide with each other or with direct storage slots (0, 1, 2, ...), and (2) the tag-based Lean encoding is injective (distinct `(slot, addr)` pairs produce distinct encoded values).
 

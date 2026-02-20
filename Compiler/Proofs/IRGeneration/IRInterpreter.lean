@@ -18,7 +18,7 @@
 
 import Compiler.IR
 import Compiler.ContractSpec
-import Compiler.Proofs.MappingEncoding
+import Compiler.Proofs.MappingSlot
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Core
 
@@ -79,14 +79,13 @@ measures from Semantics.lean are reused.
 abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
 
 /-!
-Mapping slots in Yul are derived via keccak(baseSlot, key). For proofs, we model
-them with a tagged encoding so `sload`/`sstore` can route to `mappings` rather
-than flat `storage`. The tag is `2^256`, which is outside the EVM word range,
-so it cannot collide with real storage slots produced by arithmetic.
+Mapping slots in Yul are derived via keccak(baseSlot, key). IR proof semantics
+call through the `MappingSlot` abstraction; the current backend is tagged
+encoding so `sload`/`sstore` can route to `mappings` instead of flat storage.
 -/
 abbrev mappingTag : Nat := Compiler.Proofs.mappingTag
-abbrev encodeMappingSlot := Compiler.Proofs.encodeMappingSlot
-abbrev decodeMappingSlot := Compiler.Proofs.decodeMappingSlot
+abbrev encodeMappingSlot := Compiler.Proofs.abstractMappingSlot
+abbrev decodeMappingSlot := Compiler.Proofs.abstractDecodeMappingSlot
 
 open Compiler.Proofs.YulGeneration in
 mutual
