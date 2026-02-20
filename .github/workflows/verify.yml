@@ -168,15 +168,15 @@ jobs:
       - name: Add elan to PATH
         run: echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
-      - name: Cache Lake packages
-        uses: actions/cache@v4
+      - name: Restore Lake packages cache
+        id: cache-lake
+        uses: actions/cache/restore@v4
         with:
           path: .lake
           key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ github.sha }}
           restore-keys: |
             lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
             lake-${{ hashFiles('lean-toolchain') }}-
-          save-always: true
 
       - name: Build and verify all proofs
         env:
@@ -367,6 +367,13 @@ jobs:
 
       - name: Generate storage layout report
         run: python3 scripts/check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY
+
+      - name: Save Lake packages cache
+        if: always() && steps.cache-lake.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .lake
+          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ github.sha }}
 
       - name: Upload generated Yul
         uses: actions/upload-artifact@v4
