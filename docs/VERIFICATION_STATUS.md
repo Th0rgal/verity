@@ -302,7 +302,7 @@ Implemented:
 - CI (`.github/workflows/verify.yml`)
   - produces and uploads `patch-coverage-report` artifact; summary table is included in workflow step summary
   - computes baseline vs patch-enabled static gas deltas, reports total/deploy/runtime median+p90 deltas in CI summary, and gates on total median/p90 non-regression with a configurable improved-contract floor (currently `0` in CI)
-  - runs `check_yul_compiles.py` and `check_gas_model_coverage.py` against `compiler/yul-patched` in addition to baseline outputs, so patch-enabled codegen is fail-closed on solc-compileability and static-gas builtin-coverage regressions
+  - runs `check_yul_compiles.py` and `check_gas_model_coverage.py` against `compiler/yul-patched` in addition to baseline outputs, including explicit filename-set parity checks vs `compiler/yul`, so patch-enabled codegen is fail-closed on contract-drop, solc-compileability, and static-gas builtin-coverage regressions
 
 Current diagnostic coverage in compiler:
 - Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.

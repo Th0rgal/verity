@@ -32,6 +32,17 @@ def parse_args() -> argparse.Namespace:
         help="Compare compiled bytecode parity by filename between two Yul directories.",
     )
     parser.add_argument(
+        "--require-same-files",
+        dest="same_file_pairs",
+        action="append",
+        nargs=2,
+        metavar=("DIR_A", "DIR_B"),
+        help=(
+            "Require matching .yul filename sets between two directories (repeatable). "
+            "Unlike --compare-dirs, this does not require bytecode parity."
+        ),
+    )
+    parser.add_argument(
         "--allow-compare-diff-file",
         type=str,
         help=(
@@ -90,6 +101,29 @@ def extract_bytecode(stdout: str) -> str | None:
 
 def index_by_filename(files: list[Path], root: Path) -> dict[str, Path]:
     return {path.relative_to(root).name: path for path in files}
+
+
+def compare_filename_sets(
+    dir_a: Path,
+    files_a: list[Path],
+    dir_b: Path,
+    files_b: list[Path],
+    failures: list[str],
+    *,
+    missing_a_label: str,
+    missing_b_label: str,
+) -> None:
+    by_name_a = index_by_filename(files_a, dir_a)
+    by_name_b = index_by_filename(files_b, dir_b)
+    names_a = set(by_name_a.keys())
+    names_b = set(by_name_b.keys())
+
+    only_a = sorted(names_a - names_b)
+    only_b = sorted(names_b - names_a)
+    for name in only_a:
+        failures.append(f"{missing_b_label}: {name}")
+    for name in only_b:
+        failures.append(f"{missing_a_label}: {name}")
 
 
 def load_allowed_compare_diffs(path: str | None) -> set[tuple[str, str]]:
@@ -197,6 +231,34 @@ def main() -> None:
                     "Allowlist contains stale compare diffs no longer present: "
                     f"{stale_rendered}"
                 )
+
+    if args.same_file_pairs is not None:
+        for raw_a, raw_b in args.same_file_pairs:
+            dir_a = resolve_dir(raw_a)
+            dir_b = resolve_dir(raw_b)
+            files_a = sorted(dir_a.glob("*.yul")) if dir_a.exists() else []
+            files_b = sorted(dir_b.glob("*.yul")) if dir_b.exists() else []
+            if not dir_a.exists():
+                failures.append(f"Same-file check directory does not exist: {dir_a}")
+                continue
+            if not dir_b.exists():
+                failures.append(f"Same-file check directory does not exist: {dir_b}")
+                continue
+            if not files_a:
+                failures.append(f"No Yul files found in same-file check directory: {dir_a}")
+                continue
+            if not files_b:
+                failures.append(f"No Yul files found in same-file check directory: {dir_b}")
+                continue
+            compare_filename_sets(
+                dir_a,
+                files_a,
+                dir_b,
+                files_b,
+                failures,
+                missing_a_label=f"{dir_a} missing file present in {dir_b}",
+                missing_b_label=f"{dir_b} missing file present in {dir_a}",
+            )
 
     report_errors(failures, "Yul->EVM compilation failed")
 
