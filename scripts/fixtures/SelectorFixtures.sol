@@ -133,3 +133,19 @@ contract SelectorFixtures {
         return amount + 2;
     }
 }
+
+contract SelectorFixturesCollisionEvent {
+    // Cross-contract function/event signature reuse is legal and should remain
+    // unambiguous in the checker keyspace (`function` vs `event`).
+    event MirrorMarket(bytes32 indexed id, MarketParams market);
+}
+
+contract SelectorFixturesCollisionFunction {
+    function MirrorMarket(bytes32 id, MarketParams calldata market)
+        external
+        pure
+        returns (uint256)
+    {
+        return uint256(id) + market.lltv;
+    }
+}
