@@ -103,6 +103,9 @@ jobs:
       - name: Check axiom locations in AXIOMS.md
         run: python3 scripts/check_axiom_locations.py
 
+      - name: Check verification status artifact freshness
+        run: python3 scripts/generate_verification_status.py --check
+
       - name: Check documentation counts
         run: python3 scripts/check_doc_counts.py
 

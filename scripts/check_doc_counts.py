@@ -19,6 +19,7 @@ import re
 import sys
 import argparse
 from pathlib import Path
+from typing import Any
 
 from property_utils import ROOT, collect_covered
 
@@ -125,6 +126,78 @@ def get_covered_count(total_theorems: int) -> tuple[int, int]:
     covered_count = sum(len(v) for v in covered.values())
     pct = round(covered_count * 100 / total_theorems) if total_theorems else 0
     return covered_count, pct
+
+
+def get_lean_toolchain() -> str:
+    """Return pinned Lean toolchain string."""
+    return (ROOT / "lean-toolchain").read_text(encoding="utf-8").strip()
+
+
+def get_solc_version() -> str:
+    """Return pinned solc version from foundry.toml."""
+    text = (ROOT / "foundry.toml").read_text(encoding="utf-8")
+    match = re.search(r'^solc_version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    if not match:
+        raise ValueError("foundry.toml: missing solc_version pin")
+    return match.group(1)
+
+
+def collect_metrics() -> dict[str, Any]:
+    """Collect verification/doc metric values from source files."""
+    total_theorems, num_categories, per_contract = get_manifest_counts()
+    axiom_count = get_axiom_count()
+    test_count, suite_count = get_test_counts()
+    core_lines = get_core_line_count()
+    sorry_count = get_sorry_count()
+    exclusion_count = get_exclusion_count()
+    covered_count, coverage_pct = get_covered_count(total_theorems)
+    stdlib_count = per_contract.get("Stdlib", 0)
+
+    return {
+        "schema_version": 1,
+        "theorems": {
+            "total": total_theorems,
+            "categories": num_categories,
+            "per_contract": per_contract,
+            "covered": covered_count,
+            "coverage_percent": coverage_pct,
+            "excluded": exclusion_count,
+            "proven": total_theorems - sorry_count,
+            "stdlib": stdlib_count,
+            "non_stdlib_total": total_theorems - stdlib_count,
+            "ast_equivalence": get_ast_equiv_count(),
+        },
+        "tests": {
+            "foundry_functions": test_count,
+            "suites": suite_count,
+            "property_functions": get_property_test_function_count(),
+            "differential_total": get_diff_test_total(),
+        },
+        "proofs": {
+            "axioms": axiom_count,
+            "sorry": sorry_count,
+        },
+        "codebase": {
+            "core_lines": core_lines,
+            "example_contracts": get_contract_count(),
+        },
+        "toolchain": {
+            "lean": get_lean_toolchain(),
+            "solc": get_solc_version(),
+        },
+    }
+
+
+def load_metrics_from_artifact(path: Path) -> dict[str, Any]:
+    """Load and minimally validate verification status artifact JSON."""
+    if not path.exists():
+        raise FileNotFoundError(f"{path}: verification status artifact not found")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    required = ["theorems", "tests", "proofs", "codebase", "toolchain"]
+    missing = [key for key in required if key not in data]
+    if missing:
+        raise ValueError(f"{path}: missing required keys: {', '.join(missing)}")
+    return data
 
 
 def check_property_test_headers(per_contract: dict[str, int]) -> list[str]:
@@ -276,22 +349,49 @@ def main() -> None:
         action="store_true",
         help="Auto-fix stale numeric counts in documentation files before validating.",
     )
+    parser.add_argument(
+        "--artifact",
+        type=Path,
+        default=ROOT / "artifacts" / "verification_status.json",
+        help="Path to verification status artifact JSON.",
+    )
     args = parser.parse_args()
 
-    total_theorems, num_categories, per_contract = get_manifest_counts()
-    axiom_count = get_axiom_count()
-    test_count, suite_count = get_test_counts()
-    core_lines = get_core_line_count()
-    sorry_count = get_sorry_count()
-    exclusion_count = get_exclusion_count()
-    covered_count, coverage_pct = get_covered_count(total_theorems)
-    proven_count = total_theorems - sorry_count
-    stdlib_count = per_contract.get("Stdlib", 0)
-    non_stdlib_total = total_theorems - stdlib_count
-    contract_count = get_contract_count()
-    property_fn_count = get_property_test_function_count()
-    diff_test_total = get_diff_test_total()
-    ast_equiv_count = get_ast_equiv_count()
+    artifact_metrics = load_metrics_from_artifact(args.artifact)
+    live_metrics = collect_metrics()
+    if artifact_metrics != live_metrics:
+        print(
+            f"Verification status artifact is stale: {args.artifact}",
+            file=sys.stderr,
+        )
+        print(
+            "Run `python3 scripts/generate_verification_status.py` and commit the result.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    theorem_metrics = artifact_metrics["theorems"]
+    tests_metrics = artifact_metrics["tests"]
+    proofs_metrics = artifact_metrics["proofs"]
+    codebase_metrics = artifact_metrics["codebase"]
+    total_theorems = int(theorem_metrics["total"])
+    num_categories = int(theorem_metrics["categories"])
+    per_contract = dict(theorem_metrics["per_contract"])
+    covered_count = int(theorem_metrics["covered"])
+    coverage_pct = int(theorem_metrics["coverage_percent"])
+    exclusion_count = int(theorem_metrics["excluded"])
+    proven_count = int(theorem_metrics["proven"])
+    stdlib_count = int(theorem_metrics["stdlib"])
+    non_stdlib_total = int(theorem_metrics["non_stdlib_total"])
+    ast_equiv_count = int(theorem_metrics["ast_equivalence"])
+    test_count = int(tests_metrics["foundry_functions"])
+    suite_count = int(tests_metrics["suites"])
+    property_fn_count = int(tests_metrics["property_functions"])
+    diff_test_total = int(tests_metrics["differential_total"])
+    axiom_count = int(proofs_metrics["axioms"])
+    sorry_count = int(proofs_metrics["sorry"])
+    core_lines = int(codebase_metrics["core_lines"])
+    contract_count = int(codebase_metrics["example_contracts"])
 
     errors: list[str] = []
 

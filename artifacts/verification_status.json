@@ -1,0 +1,45 @@
+{
+  "codebase": {
+    "core_lines": 351,
+    "example_contracts": 11
+  },
+  "proofs": {
+    "axioms": 1,
+    "sorry": 0
+  },
+  "schema_version": 1,
+  "tests": {
+    "differential_total": 70000,
+    "foundry_functions": 377,
+    "property_functions": 197,
+    "suites": 34
+  },
+  "theorems": {
+    "ast_equivalence": 29,
+    "categories": 11,
+    "coverage_percent": 58,
+    "covered": 250,
+    "excluded": 181,
+    "non_stdlib_total": 272,
+    "per_contract": {
+      "Counter": 28,
+      "ERC20": 19,
+      "ERC721": 11,
+      "Ledger": 33,
+      "Owned": 23,
+      "OwnedCounter": 48,
+      "ReentrancyExample": 4,
+      "SafeCounter": 25,
+      "SimpleStorage": 20,
+      "SimpleToken": 61,
+      "Stdlib": 159
+    },
+    "proven": 431,
+    "stdlib": 159,
+    "total": 431
+  },
+  "toolchain": {
+    "lean": "leanprover/lean4:v4.22.0",
+    "solc": "0.8.33"
+  }
+}

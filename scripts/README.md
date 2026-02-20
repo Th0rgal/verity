@@ -82,6 +82,7 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_yul_builtin_boundary.py`** - Enforces a centralized Yul builtin semantics boundary: runtime interpreters must import `Compiler/Proofs/YulGeneration/Builtins.lean`, call `evalBuiltinCall`, and avoid inline builtin dispatch branches (`func = "add"`, `func = "sload"`, etc.)
 - **`check_evmyullean_capability_boundary.py`** - Enforces the current `#294` EVMYulLean overlap capability matrix in `Compiler/Proofs/YulGeneration/Builtins.lean`: allows only the explicit overlap builtin set plus Verity helper `mappingSlot`, and blocks known unsupported builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) from silently entering the migration seam
 - **`check_doc_counts.py`** - Validates theorem, axiom, test, suite, coverage, and contract counts across 14 documentation files (README, llms.txt, compiler.mdx, verification.mdx, research.mdx, index.mdx, core.mdx, examples.mdx, getting-started.mdx, TRUST_ASSUMPTIONS, VERIFICATION_STATUS, ROADMAP, test/README, layout.tsx), theorem-name completeness in verification.mdx tables, and proven-theorem counts in Property*.t.sol file headers
+- **`generate_verification_status.py`** - Deterministically generates `artifacts/verification_status.json` (theorem/test/axiom/sorry/toolchain metrics) and supports `--check` mode for CI freshness gating
 - **`check_solc_pin.py`** - Enforces pinned solc consistency across CI/tooling/docs: `verify.yml` (`SOLC_VERSION`, `SOLC_URL`, `SOLC_SHA256`), `foundry.toml` (`solc_version`), `setup-solc` action URL/SHA usage, and `TRUST_ASSUMPTIONS.md` pinned version line
 - **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
@@ -89,6 +90,7 @@ These CI-critical scripts validate cross-layer consistency:
 
 ```bash
 # Run locally before submitting documentation changes
+python3 scripts/generate_verification_status.py
 python3 scripts/check_doc_counts.py
 
 # Run locally after modifying storage slots or adding contracts
