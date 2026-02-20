@@ -281,6 +281,27 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected low-level call usage to fail compilation")
 
 #eval! do
+  let staticcallSpec : ContractSpec := {
+    name := "StaticcallUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "unsafe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "staticcall" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile staticcallSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported low-level call 'staticcall'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ staticcall diagnostic mismatch: {err}")
+      IO.println "✓ staticcall unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected staticcall usage to fail compilation")
+
+#eval! do
   let ctorMsgValueSpec : ContractSpec := {
     name := "CtorMsgValuePayable"
     fields := []
@@ -353,6 +374,30 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ constructor low-level call unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected constructor low-level call usage to fail compilation")
+
+#eval! do
+  let ctorCallcodeSpec : ContractSpec := {
+    name := "CtorCallcodeUnsupported"
+    fields := []
+    constructor := some {
+      params := []
+      body := [Stmt.letVar "v" (Expr.externalCall "callcode" []), Stmt.stop]
+    }
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile ctorCallcodeSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported low-level call 'callcode'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ constructor callcode diagnostic mismatch: {err}")
+      IO.println "✓ constructor callcode unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected constructor callcode usage to fail compilation")
 
 #eval! do
   let ctorBoolParamSpec : ContractSpec := {

@@ -781,7 +781,7 @@ private def isInteropEntrypointName (name : String) : Bool :=
   ["fallback", "receive"].contains name
 
 private def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
-  throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall."
+  throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall/callcode."
 
 private def interopBuiltinCallUnsupportedError (context : String) (name : String) : Except String Unit :=
   throw s!"Compilation error: {context} uses unsupported interop builtin call '{name}' ({issue586Ref}). Use a verified linked external wrapper or pass the required value through explicit function parameters."
