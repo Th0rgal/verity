@@ -10,9 +10,9 @@
   "schema_version": 1,
   "tests": {
     "differential_total": 70000,
-    "foundry_functions": 377,
+    "foundry_functions": 381,
     "property_functions": 197,
-    "suites": 34
+    "suites": 35
   },
   "theorems": {
     "ast_equivalence": 29,
