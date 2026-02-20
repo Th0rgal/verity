@@ -50,6 +50,22 @@ def insert [DecidableEq α] (a : α) (s : FiniteSet α) : FiniteSet α :=
 def remove [DecidableEq α] (a : α) (s : FiniteSet α) : FiniteSet α :=
   ⟨s.elements.erase a, s.nodup.erase a⟩
 
+/-- Union of two finite sets. -/
+def union [DecidableEq α] (s t : FiniteSet α) : FiniteSet α :=
+  t.elements.foldl (fun acc x => acc.insert x) s
+
+/-- Intersection of two finite sets. -/
+def inter [DecidableEq α] (s t : FiniteSet α) : FiniteSet α :=
+  ⟨s.elements.filter (fun x => decide (x ∈ t.elements)), s.nodup.filter _⟩
+
+/-- Propositional subset relation. -/
+def subset (s t : FiniteSet α) : Prop :=
+  ∀ x, x ∈ s → x ∈ t
+
+/-- Boolean subset check. -/
+def isSubset [DecidableEq α] (s t : FiniteSet α) : Bool :=
+  s.elements.all (fun x => decide (x ∈ t.elements))
+
 /-- Boolean membership test for finite sets. -/
 def contains [DecidableEq α] (a : α) (s : FiniteSet α) : Bool :=
   decide (a ∈ s.elements)
@@ -95,6 +111,11 @@ theorem mem_elements_insert [DecidableEq α] (a b : α) (s : FiniteSet α) :
       | inl heq => subst heq; assumption
       | inr hmem => exact hmem
   · simp [List.mem_cons]
+
+/-- Membership in intersection is conjunction of memberships. -/
+@[simp] theorem mem_elements_inter [DecidableEq α] (a : α) (s t : FiniteSet α) :
+    a ∈ (s.inter t).elements ↔ a ∈ s.elements ∧ a ∈ t.elements := by
+  simp [FiniteSet.inter, and_left_comm, and_assoc, FiniteSet.mem]
 
 /-- `contains` reflects propositional membership. -/
 @[simp] theorem contains_eq_true [DecidableEq α] (a : α) (s : FiniteSet α) :
@@ -144,6 +165,22 @@ def insert (addr : Address) (s : FiniteAddressSet) : FiniteAddressSet :=
 def remove (addr : Address) (s : FiniteAddressSet) : FiniteAddressSet :=
   ⟨s.addresses.remove addr⟩
 
+/-- Union of two address sets. -/
+def union (s t : FiniteAddressSet) : FiniteAddressSet :=
+  ⟨s.addresses.union t.addresses⟩
+
+/-- Intersection of two address sets. -/
+def inter (s t : FiniteAddressSet) : FiniteAddressSet :=
+  ⟨s.addresses.inter t.addresses⟩
+
+/-- Propositional subset relation. -/
+def subset (s t : FiniteAddressSet) : Prop :=
+  s.addresses.subset t.addresses
+
+/-- Boolean subset check. -/
+def isSubset (s t : FiniteAddressSet) : Bool :=
+  s.addresses.isSubset t.addresses
+
 /-- Boolean address membership test. -/
 def contains (addr : Address) (s : FiniteAddressSet) : Bool :=
   s.addresses.contains addr
@@ -166,6 +203,11 @@ def contains (addr : Address) (s : FiniteAddressSet) : Bool :=
     s.contains addr = false ↔ addr ∉ s := by
   simpa [FiniteAddressSet.mem, FiniteAddressSet.contains] using
     FiniteSet.contains_eq_false addr s.addresses
+
+@[simp] theorem mem_inter (a : Address) (s t : FiniteAddressSet) :
+    a ∈ s.inter t ↔ a ∈ s ∧ a ∈ t := by
+  simpa [FiniteAddressSet.mem, FiniteAddressSet.inter] using
+    (FiniteSet.mem_elements_inter a s.addresses t.addresses)
 
 end FiniteAddressSet
 
@@ -199,6 +241,22 @@ def insert (n : Nat) (s : FiniteNatSet) : FiniteNatSet :=
 def remove (n : Nat) (s : FiniteNatSet) : FiniteNatSet :=
   ⟨s.nats.remove n⟩
 
+/-- Union of two nat sets. -/
+def union (s t : FiniteNatSet) : FiniteNatSet :=
+  ⟨s.nats.union t.nats⟩
+
+/-- Intersection of two nat sets. -/
+def inter (s t : FiniteNatSet) : FiniteNatSet :=
+  ⟨s.nats.inter t.nats⟩
+
+/-- Propositional subset relation. -/
+def subset (s t : FiniteNatSet) : Prop :=
+  s.nats.subset t.nats
+
+/-- Boolean subset check. -/
+def isSubset (s t : FiniteNatSet) : Bool :=
+  s.nats.isSubset t.nats
+
 /-- Boolean nat membership test. -/
 def contains (n : Nat) (s : FiniteNatSet) : Bool :=
   s.nats.contains n
@@ -221,6 +279,11 @@ def contains (n : Nat) (s : FiniteNatSet) : Bool :=
     s.contains n = false ↔ n ∉ s := by
   simpa [FiniteNatSet.mem, FiniteNatSet.contains] using
     FiniteSet.contains_eq_false n s.nats
+
+@[simp] theorem mem_inter (a : Nat) (s t : FiniteNatSet) :
+    a ∈ s.inter t ↔ a ∈ s ∧ a ∈ t := by
+  simpa [FiniteNatSet.mem, FiniteNatSet.inter] using
+    (FiniteSet.mem_elements_inter a s.nats t.nats)
 
 end FiniteNatSet
 
