@@ -20,7 +20,7 @@ EVM Bytecode
 
 ## Unified AST (Issue #364) ✅ **COMPLETE** (all 7 contracts)
 
-**Status**: All 7 compilable contracts migrated with equivalence proofs (27 theorems, zero `sorry`)
+**Status**: All 7 compilable contracts migrated with equivalence proofs (28 theorems, zero `sorry`)
 
 **What This Achieves**: A single deep embedding (`Verity.AST`) maps 1:1 to EDSL primitives. The denotation function (`Verity.Denote`) interprets AST → Contract monad such that `denote ast = edsl_fn` holds by `rfl` (definitional equality). For contracts with helper composition (e.g., `onlyOwner`), `bind_assoc` flattens nested binds before `rfl` closes the goal.
 
@@ -61,9 +61,9 @@ EVM Bytecode
 | SimpleToken | 61 | ✅ Complete | `Verity/Proofs/SimpleToken/` |
 | CryptoHash | 0 | ⬜ No specs | `Verity/Examples/CryptoHash.lean` |
 | ReentrancyExample | 4 | ✅ Complete | `Verity/Examples/ReentrancyExample.lean` |
-| **Total** | **242** | **✅ 100%** | — |
+| **Total** | **247** | **✅ 100%** | — |
 
-> **Note**: Stdlib (159 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (401 total properties).
+> **Note**: Stdlib (159 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (406 total properties).
 
 ### Example Property
 
@@ -177,11 +177,11 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 ## Property Test Coverage 🎯 **NEAR COMPLETE**
 
-**Status**: 55% coverage (220/401), 181 remaining exclusions all proof-only
+**Status**: 55% coverage (225/406), 181 remaining exclusions all proof-only
 
 ### Current Coverage
 
-- **Total Properties**: 401
+- **Total Properties**: 406
 - **Covered**: 220 (55%)
 - **Excluded**: 181 (all proof-only)
 - **Missing**: 0

@@ -29,6 +29,13 @@
     "setStorage_updates_count",
     "two_increments_meets_spec"
   ],
+  "ERC20": [
+    "allowanceOf_meets_spec",
+    "allowanceOf_preserves_state",
+    "balanceOf_meets_spec",
+    "balanceOf_preserves_state",
+    "totalSupply_meets_spec"
+  ],
   "Ledger": [
     "deposit_getBalance_correct",
     "deposit_increases_balance",

@@ -13,6 +13,7 @@ These Solidity contracts serve as **reference implementations** for Verity's dif
 | `OwnedCounter.sol` | `Verity/Examples/OwnedCounter.lean` | 48 theorems | Combined access control + counter |
 | `Ledger.sol` | `Verity/Examples/Ledger.lean` | 33 theorems | Balance mapping (deposit/withdraw/transfer) |
 | `SimpleToken.sol` | `Verity/Examples/SimpleToken.lean` | 61 theorems | Token with mint/transfer + supply invariants |
+| `(pending)` | `Verity/Examples/ERC20.lean` | 5 theorems | ERC20 scaffold with initial read-state/spec bridge proofs |
 | `ReentrancyExample.sol` | `Verity/Examples/ReentrancyExample.lean` | 4 theorems | Reentrancy guard pattern |
 
 ## How Testing Works

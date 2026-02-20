@@ -1,6 +1,6 @@
 ---
 title: Example Contracts
-description: 9 contracts covering storage, arithmetic, access control, mappings, composition, and security
+description: 10 contracts covering storage, arithmetic, access control, mappings, composition, and security
 ---
 
 # Example Contracts
@@ -219,6 +219,15 @@ The EDSL uses a placeholder function (`add`) for the hash. At compile time, the 
 
 Source: [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/CryptoHash.lean)
 
+## ERC20 (Foundation Scaffold)
+
+Unverified ERC20 foundation scaffold with executable logic (`mint`, `transfer`, `approve`, `transferFrom`) and formal spec/invariant modules for incremental proof work tracked in issue #69.
+
+Source:
+- Implementation: [`Verity/Examples/ERC20.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/ERC20.lean)
+- Spec: [`Verity/Specs/ERC20/Spec.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Specs/ERC20/Spec.lean)
+- Invariants: [`Verity/Specs/ERC20/Invariants.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Specs/ERC20/Invariants.lean)
+
 ## Pattern progression
 
 1. **SimpleStorage**: single slot
@@ -230,6 +239,7 @@ Source: [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/bl
 7. **SimpleToken**: full composition (Owned + Ledger + supply tracking)
 8. **ReentrancyExample**: vulnerability modeling and safety proofs
 9. **CryptoHash**: external library linking (unverified)
+10. **ERC20**: standards-oriented token scaffold with specs/invariants (proofs pending)
 
 ## Source
 
