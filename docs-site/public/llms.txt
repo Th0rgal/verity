@@ -19,7 +19,7 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 - **Verified Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, ReentrancyExample (+ CryptoHash as unverified linker demo)
 - **Theorems**: 431 across 11 categories (431 fully proven, 0 `sorry` placeholders)
 - **Axioms**: 1 documented axiom (see AXIOMS.md) — keccak256, address injectivity
-- **Tests**: 377 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
+- **Tests**: 381 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
 - **Repository**: https://github.com/Th0rgal/verity
 
