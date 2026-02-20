@@ -706,17 +706,36 @@ private partial def validateEventArgShapesInStmt (fnName : String) (params : Lis
               | _ =>
                   throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
           | _ => pure ()
-        if eventParam.kind == EventParamKind.indexed && eventParam.ty == ParamType.bytes then
-          match arg with
-          | Expr.param name =>
-              match findParamType params name with
-              | some ParamType.bytes => pure ()
-              | some ty =>
-                  throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
-              | none =>
-                  throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
-          | _ =>
-              throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+        if eventParam.kind == EventParamKind.indexed then
+          match eventParam.ty with
+          | ParamType.bytes =>
+              match arg with
+              | Expr.param name =>
+                  match findParamType params name with
+                  | some ParamType.bytes => pure ()
+                  | some ty =>
+                      throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
+                  | none =>
+                      throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+              | _ =>
+                  throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+          | ParamType.array _ =>
+              throw s!"Compilation error: function '{fnName}' event '{eventName}' indexed param '{eventParam.name}' has dynamic composite type {repr eventParam.ty}, which is not supported yet ({issue586Ref})."
+          | ParamType.fixedArray _ _ | ParamType.tuple _ =>
+              if eventIsDynamicType eventParam.ty then
+                throw s!"Compilation error: function '{fnName}' event '{eventName}' indexed param '{eventParam.name}' has dynamic composite type {repr eventParam.ty}, which is not supported yet ({issue586Ref})."
+              else
+                match arg with
+                | Expr.param name =>
+                    match findParamType params name with
+                    | some ty =>
+                        if ty != eventParam.ty then
+                          throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+                    | none =>
+                        throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                | _ =>
+                    throw s!"Compilation error: function '{fnName}' indexed static composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+          | _ => pure ()
   | Stmt.ite _ thenBranch elseBranch => do
       thenBranch.forM (validateEventArgShapesInStmt fnName params events)
       elseBranch.forM (validateEventArgShapesInStmt fnName params events)
@@ -1193,11 +1212,6 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let unindexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.unindexed)
       if indexed.length > 3 then
         throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
-      for (p, _, _) in indexed do
-        match p.ty with
-        | ParamType.array _ | ParamType.fixedArray _ _ | ParamType.tuple _ =>
-            throw s!"Compilation error: indexed dynamic/tuple param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref}). Use an unindexed field for now and hash payload data off-chain when topic-style filtering is required."
-        | _ => pure ()
       let sig := eventSignature eventDef
       let sigBytes := bytesFromString sig
       let freeMemPtr := YulExpr.call "mload" [YulExpr.lit 0x40]
@@ -1299,6 +1313,27 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
                 pure (hashStmts, YulExpr.ident topicName)
             | _ =>
                 throw s!"Compilation error: indexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+        | ParamType.array _ =>
+            throw s!"Compilation error: indexed dynamic event param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref})."
+        | ParamType.fixedArray _ _ | ParamType.tuple _ =>
+            if eventIsDynamicType p.ty then
+              throw s!"Compilation error: indexed dynamic composite event param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref})."
+            else
+              match srcExpr with
+              | Expr.param name =>
+                  let topicName := s!"__evt_topic{idx + 1}"
+                  let leaves := staticCompositeLeaves name p.ty
+                  let stores := leaves.zipIdx.map fun ((leafTy, leafExpr), wordIdx) =>
+                    YulStmt.expr (YulExpr.call "mstore" [
+                      YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (wordIdx * 32)],
+                      normalizeEventWord leafTy leafExpr
+                    ])
+                  pure (stores ++ [YulStmt.let_ topicName (YulExpr.call "keccak256" [
+                    YulExpr.ident "__evt_ptr",
+                    YulExpr.lit (eventHeadWordSize p.ty)
+                  ])], YulExpr.ident topicName)
+              | _ =>
+                  throw s!"Compilation error: indexed static composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
         | ParamType.address =>
             pure ([], YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)])
         | ParamType.bool =>
