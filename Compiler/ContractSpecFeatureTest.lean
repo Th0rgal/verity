@@ -642,6 +642,36 @@ private def featureSpec : ContractSpec := {
          "log1(__evt_ptr, 64, __evt_topic0)"]
 
 #eval! do
+  let unindexedFixedArrayEventSpec : ContractSpec := {
+    name := "UnindexedFixedArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "UnindexedFixedArray"
+        params := [
+          { name := "payload", ty := ParamType.fixedArray ParamType.uint256 2, kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitFixed"
+        params := [{ name := "payload", ty := ParamType.fixedArray ParamType.uint256 2 }]
+        returnType := none
+        body := [Stmt.emit "UnindexedFixedArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedFixedArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected unindexed static fixed-array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed static fixed-array event encoding" rendered
+        ["mstore(add(__evt_ptr, 0), payload_0)",
+         "mstore(add(__evt_ptr, 32), payload_1)",
+         "log1(__evt_ptr, 64, __evt_topic0)"]
+
+#eval! do
   let unindexedDynamicTupleEventSpec : ContractSpec := {
     name := "UnindexedDynamicTupleEventUnsupported"
     fields := []
@@ -762,6 +792,37 @@ private def featureSpec : ContractSpec := {
          "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
 
 #eval! do
+  let indexedFixedArrayEventSpec : ContractSpec := {
+    name := "IndexedFixedArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "IndexedFixedArray"
+        params := [
+          { name := "payload", ty := ParamType.fixedArray ParamType.uint256 2, kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitFixed"
+        params := [{ name := "payload", ty := ParamType.fixedArray ParamType.uint256 2 }]
+        returnType := none
+        body := [Stmt.emit "IndexedFixedArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedFixedArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected indexed static fixed-array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "indexed static fixed-array topic hashing" rendered
+        ["mstore(add(__evt_ptr, 0), payload_0)",
+         "mstore(add(__evt_ptr, 32), payload_1)",
+         "let __evt_topic1 := keccak256(__evt_ptr, 64)",
+         "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
+
+#eval! do
   let indexedDynamicTupleEventSpec : ContractSpec := {
     name := "IndexedDynamicTupleEventUnsupported"
     fields := []
@@ -789,6 +850,35 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ indexed dynamic tuple event diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected indexed dynamic tuple event param usage to fail compilation")
+
+#eval! do
+  let indexedDynamicArrayEventSpec : ContractSpec := {
+    name := "IndexedDynamicArrayEventUnsupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "BadIndexedDynamicArray"
+        params := [
+          { name := "payload", ty := ParamType.array ParamType.uint256, kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBad"
+        params := [{ name := "payload", ty := ParamType.array ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.emit "BadIndexedDynamicArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedDynamicArrayEventSpec [1] with
+  | .error err =>
+      if !(contains err "indexed dynamic event param 'payload' in event 'BadIndexedDynamicArray' is not supported yet" &&
+          contains err "Issue #586") then
+        throw (IO.userError s!"✗ indexed dynamic array event diagnostic mismatch: {err}")
+      IO.println "✓ indexed dynamic array event diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected indexed dynamic array event param usage to fail compilation")
 
 #eval! do
   let internalVoidReturnSpec : ContractSpec := {
