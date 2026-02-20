@@ -10,6 +10,8 @@ structure GasConfig where
   loopIterations : Nat := 8
   /-- Conservative fallback for unknown builtins. -/
   unknownCallCost : Nat := 50000
+  /-- Conservative fallback for unknown forwarded gas in CALL-like builtins. -/
+  unknownForwardedGas : Nat := 50000
   deriving Repr
 
 /-- Base cost model for a single builtin call, excluding argument evaluation. -/
@@ -25,6 +27,7 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   /- Worst-case call upper bound:
      base call + cold account access + nonzero value transfer + new-account creation. -/
   else if name = "call" then 36700
+  else if name = "callcode" then 36700
   /- Delegate/static calls cannot transfer value but still pay base + cold access in worst case. -/
   else if name = "delegatecall" then 2700
   else if name = "staticcall" then 2700
@@ -68,6 +71,16 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   else if name = "shr" then 3
   else cfg.unknownCallCost
 
+/-- Extra cost for CALL-like opcodes from forwarded gas argument. -/
+def forwardedGasCost (cfg : GasConfig) (name : String) (args : List YulExpr) : Nat :=
+  if name = "call" || name = "callcode" || name = "delegatecall" || name = "staticcall" then
+    match args.head? with
+    | some (.lit n) => n
+    | some (.hex n) => n
+    | _ => cfg.unknownForwardedGas
+  else
+    0
+
 abbrev FunctionEnv := List (String × List YulStmt)
 
 /-- Collect user-defined function bodies from a Yul statement tree. -/
@@ -94,7 +107,7 @@ def exprUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat → YulExpr �
       let argCost := argsUpperBoundFuel cfg env fuel args
       let fnBodies := lookupFunctionBodies env name
       if fnBodies.isEmpty then
-        argCost + builtinBaseCost cfg name
+        argCost + builtinBaseCost cfg name + forwardedGasCost cfg name args
       else
         argCost + maxFunctionCallCostFuel cfg env fuel fnBodies
 
@@ -206,7 +219,7 @@ example : gasUpperBound simpleStoreProgram = 22100 := rfl
 
 example : stmtsUpperBound { loopIterations := 3 } 64 boundedLoopProgram = 6330 := rfl
 
-example : gasUpperBound externalCallProgram = 36700 := rfl
+example : gasUpperBound externalCallProgram = 86700 := rfl
 
 example : gasUpperBound functionDeclAndCallProgram = 22100 := rfl
 

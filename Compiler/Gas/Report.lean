@@ -13,6 +13,7 @@ open Compiler.Selector
 private structure CliConfig where
   loopIterations : Nat := 8
   unknownCallCost : Nat := 50000
+  unknownForwardedGas : Nat := 50000
   fuel : Nat := 4096
 
 private def parseNatFlag (flag : String) (raw : String) : IO Nat :=
@@ -28,6 +29,7 @@ private def printHelp : IO Unit := do
   IO.println "Options:"
   IO.println "  --loop-iterations <n>   Loop upper bound used by static analysis (default: 8)"
   IO.println "  --unknown-call-cost <n> Fallback cost for unknown builtins/calls (default: 50000)"
+  IO.println "  --unknown-forwarded-gas <n> Fallback forwarded gas for CALL-like builtins (default: 50000)"
   IO.println "  --fuel <n>              Structural recursion fuel for analysis (default: 4096)"
   IO.println "  --help                  Show this help message"
 
@@ -42,6 +44,8 @@ private def parseArgs (args : List String) : IO CliConfig := do
         go tail { cfg with loopIterations := (← parseNatFlag "--loop-iterations" value) }
     | "--unknown-call-cost" :: value :: tail =>
         go tail { cfg with unknownCallCost := (← parseNatFlag "--unknown-call-cost" value) }
+    | "--unknown-forwarded-gas" :: value :: tail =>
+        go tail { cfg with unknownForwardedGas := (← parseNatFlag "--unknown-forwarded-gas" value) }
     | "--fuel" :: value :: tail =>
         go tail { cfg with fuel := (← parseNatFlag "--fuel" value) }
     | flag :: _ =>
@@ -67,9 +71,10 @@ def main (args : List String) : IO Unit := do
     let gasCfg : GasConfig := {
       loopIterations := cli.loopIterations
       unknownCallCost := cli.unknownCallCost
+      unknownForwardedGas := cli.unknownForwardedGas
     }
 
-    IO.println s!"# gas-report loopIterations={cli.loopIterations} unknownCallCost={cli.unknownCallCost} fuel={cli.fuel}"
+    IO.println s!"# gas-report loopIterations={cli.loopIterations} unknownCallCost={cli.unknownCallCost} unknownForwardedGas={cli.unknownForwardedGas} fuel={cli.fuel}"
     IO.println "contract\tdeploy_upper_bound\truntime_upper_bound\ttotal_upper_bound"
 
     let mut totalDeploy := 0
