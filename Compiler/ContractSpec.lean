@@ -656,6 +656,22 @@ private partial def validateEventArgShapesInStmt (fnName : String) (params : Lis
             | none =>
                 throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
         | _ => pure ()
+        if eventParam.kind == EventParamKind.unindexed then
+          match eventParam.ty with
+          | ParamType.array _ | ParamType.fixedArray _ _ | ParamType.tuple _ =>
+              throw s!"Compilation error: function '{fnName}' event '{eventName}' unindexed param '{eventParam.name}' has composite type {repr eventParam.ty}, which is not supported yet ({issue586Ref}). Use scalar fields (uint256/address/bool/bytes32) or bytes payloads for now."
+          | ParamType.bytes =>
+              match arg with
+              | Expr.param name =>
+                  match findParamType params name with
+                  | some ParamType.bytes => pure ()
+                  | some ty =>
+                      throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
+                  | none =>
+                      throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+              | _ =>
+                  throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+          | _ => pure ()
         if eventParam.kind == EventParamKind.indexed && eventParam.ty == ParamType.bytes then
           match arg with
           | Expr.param name =>
@@ -1136,17 +1152,63 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         ])
       let topic0Expr := YulExpr.call "keccak256" [YulExpr.ident "__evt_ptr", YulExpr.lit sigBytes.length]
       let topic0Store := YulStmt.let_ "__evt_topic0" topic0Expr
-      let unindexedStores ← unindexed.zipIdx.mapM fun ((p, _, argExpr), idx) => do
-        let storedExpr :=
-          match p.ty with
-          | ParamType.address => YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)]
-          | ParamType.bool => yulToBool argExpr
-          | _ => argExpr
-        pure (YulStmt.expr (YulExpr.call "mstore" [
-          YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
-          storedExpr
-        ]))
-      let dataSize := unindexed.length * 32
+      let unindexedHeadSize := unindexed.length * 32
+      let hasUnindexedBytes := unindexed.any (fun (p, _, _) => p.ty == ParamType.bytes)
+      let unindexedTailInit :=
+        if hasUnindexedBytes then
+          [YulStmt.let_ "__evt_data_tail" (YulExpr.lit unindexedHeadSize)]
+        else
+          []
+      let unindexedStores ← unindexed.zipIdx.mapM fun ((p, srcExpr, argExpr), idx) => do
+        match p.ty with
+        | ParamType.bytes =>
+            match srcExpr with
+            | Expr.param name =>
+                let lenName := s!"__evt_arg{idx}_len"
+                let dstName := s!"__evt_arg{idx}_dst"
+                let paddedName := s!"__evt_arg{idx}_padded"
+                pure ([
+                  YulStmt.expr (YulExpr.call "mstore" [
+                    YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
+                    YulExpr.ident "__evt_data_tail"
+                  ]),
+                  YulStmt.let_ lenName (YulExpr.ident s!"{name}_length"),
+                  YulStmt.let_ dstName (YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.ident "__evt_data_tail"]),
+                  YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident dstName, YulExpr.ident lenName]),
+                ] ++ dynamicCopyData dynamicSource
+                  (YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32])
+                  (YulExpr.ident s!"{name}_data_offset")
+                  (YulExpr.ident lenName) ++ [
+                  YulStmt.let_ paddedName (YulExpr.call "and" [
+                    YulExpr.call "add" [YulExpr.ident lenName, YulExpr.lit 31],
+                    YulExpr.call "not" [YulExpr.lit 31]
+                  ]),
+                  YulStmt.expr (YulExpr.call "mstore" [
+                    YulExpr.call "add" [
+                      YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32],
+                      YulExpr.ident lenName
+                    ],
+                    YulExpr.lit 0
+                  ]),
+                  YulStmt.assign "__evt_data_tail" (YulExpr.call "add" [
+                    YulExpr.ident "__evt_data_tail",
+                    YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName]
+                  ])
+                ])
+            | _ =>
+                throw s!"Compilation error: unindexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+        | _ =>
+            let storedExpr :=
+              match p.ty with
+              | ParamType.address => YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)]
+              | ParamType.bool => yulToBool argExpr
+              | _ => argExpr
+            pure [YulStmt.expr (YulExpr.call "mstore" [
+              YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (idx * 32)],
+              storedExpr
+            ])]
+      let dataSizeExpr :=
+        if hasUnindexedBytes then YulExpr.ident "__evt_data_tail" else YulExpr.lit unindexedHeadSize
       let indexedTopicParts ← indexed.zipIdx.mapM fun ((p, srcExpr, argExpr), idx) => do
         match p.ty with
         | ParamType.bytes =>
@@ -1179,9 +1241,9 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         | 1 => "log2"
         | 2 => "log3"
         | _ => "log4"
-      let logArgs := [YulExpr.ident "__evt_ptr", YulExpr.lit dataSize] ++ topicExprs
+      let logArgs := [YulExpr.ident "__evt_ptr", dataSizeExpr] ++ topicExprs
       let logStmt := YulStmt.expr (YulExpr.call logFn logArgs)
-      pure [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++ indexedTopicStmts ++ unindexedStores ++ [logStmt])]
+      pure [YulStmt.block ([storePtr] ++ sigStores ++ [topic0Store] ++ indexedTopicStmts ++ unindexedTailInit ++ unindexedStores.flatten ++ [logStmt])]
 
   | Stmt.internalCall functionName args => do
       -- Internal function call as statement (#181)

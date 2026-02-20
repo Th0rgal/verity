@@ -311,8 +311,8 @@ Current diagnostic coverage in compiler:
 - `fallback` and `receive` are now modeled as first-class entrypoints in dispatch (empty-calldata routing to `receive`, unmatched selector routing to `fallback`) with compile-time shape checks (`receive` must be payable, both must be parameterless and non-returning).
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
-- Indexed `bytes` event params now emit ABI-style hashed topics (`keccak256(payload)`); indexed tuple/array forms still fail with explicit migration guidance (`use unindexed field + off-chain hash`).
-- Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed-bytes arg-shape checks) to prevent invalid Yul from unresolved dynamic calldata helpers.
+- Indexed `bytes` event params now emit ABI-style hashed topics (`keccak256(payload)`), and unindexed `bytes` params now emit ABI head/tail event data encoding when sourced from direct bytes parameters. Indexed tuple/array forms still fail with explicit migration guidance (`use unindexed field + off-chain hash`).
+- Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed/unindexed bytes arg-shape checks) and rejects unsupported unindexed composite event payloads (tuple/array/fixed-array) to prevent malformed Yul.
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
 - Constructor argument decoding now reuses ABI head/tail decoding for constructor params (including tuple/array/bytes forms) and exposes both named param bindings plus `constructorArg` index aliases.
 - `verity-compiler` now supports deterministic ABI artifact emission in ContractSpec mode via `--abi-output <dir>` and writes one `<Contract>.abi.json` per compiled spec.

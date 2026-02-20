@@ -580,6 +580,67 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected invalid bytes custom error arg shape to fail compilation")
 
 #eval! do
+  let unindexedBytesEventSpec : ContractSpec := {
+    name := "UnindexedBytesEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "UnindexedBytes"
+        params := [
+          { name := "payload", ty := ParamType.bytes, kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBytes"
+        params := [{ name := "payload", ty := ParamType.bytes }]
+        returnType := none
+        body := [Stmt.emit "UnindexedBytes" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedBytesEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected unindexed bytes event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed bytes event ABI data encoding" rendered
+        ["let __evt_data_tail := 32",
+         "mstore(add(__evt_ptr, 0), __evt_data_tail)",
+         "let __evt_arg0_len := payload_length",
+         "calldatacopy(add(__evt_arg0_dst, 32), payload_data_offset, __evt_arg0_len)",
+         "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
+
+#eval! do
+  let unindexedTupleEventSpec : ContractSpec := {
+    name := "UnindexedTupleEventUnsupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "BadUnindexedTuple"
+        params := [
+          { name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.uint256], kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBad"
+        params := [{ name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.uint256] }]
+        returnType := none
+        body := [Stmt.emit "BadUnindexedTuple" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedTupleEventSpec [1] with
+  | .error err =>
+      if !(contains err "unindexed param 'payload' has composite type" &&
+          contains err "Issue #586") then
+        throw (IO.userError s!"✗ unindexed tuple event diagnostic mismatch: {err}")
+      IO.println "✓ unindexed tuple event diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected unindexed tuple event param usage to fail compilation")
+
+#eval! do
   let indexedBytesEventSpec : ContractSpec := {
     name := "IndexedBytesEventSupported"
     fields := []
