@@ -64,17 +64,15 @@ private theorem mint_isolation (s : ContractState) (to : Address) (amount : Uint
   (slot ≠ 0 → ((mint to amount).run s).snd.storageAddr slot = s.storageAddr slot) := by
   simp only [mint, Verity.Examples.SimpleToken.onlyOwner, isOwner,
     Examples.SimpleToken.owner, Examples.SimpleToken.balances, Examples.SimpleToken.totalSupply,
-    msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
+    msgSender, getStorageAddr, getStorage, setStorage, getMapping, setMapping,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst,
+    Contract.run, ContractResult.snd,
     h_owner, beq_self_eq_true, ite_true]
   unfold Stdlib.Math.requireSomeUint
   cases safeAdd (s.storageMap 1 to) amount <;>
-    simp_all [Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-      Contract.run, ContractResult.snd, ContractResult.fst, beq_iff_eq]
+    simp_all [Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure, beq_iff_eq]
   cases safeAdd (s.storage 2) amount <;>
-    simp_all [Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-      Contract.run, ContractResult.snd, ContractResult.fst, beq_iff_eq]
+    simp_all [Verity.require, Verity.pure, Verity.bind]
 
 /-- Mint only writes Uint256 slot 2. -/
 theorem mint_supply_storage_isolated (s : ContractState) (to : Address) (amount : Uint256)
@@ -106,19 +104,17 @@ private theorem transfer_isolation (s : ContractState) (to : Address) (amount : 
   by_cases h_eq : s.sender = to
   · have h_balance' := uint256_ge_val_le (h_eq ▸ h_balance)
     simp [transfer, Examples.SimpleToken.balances,
-      msgSender, getMapping, setMapping,
-      Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-      Contract.run, ContractResult.snd, ContractResult.fst,
-      h_balance', h_eq, beq_iff_eq]
+      msgSender, getMapping,
+      Verity.require, Verity.pure, Verity.bind, Bind.bind,
+      Contract.run, ContractResult.snd, h_balance', h_eq]
   · refine ⟨?_, fun h_ne_slot addr => ?_, ?_⟩
     all_goals simp [transfer, Examples.SimpleToken.balances,
         msgSender, getMapping, setMapping, requireSomeUint,
-        Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-        Contract.run, ContractResult.snd, ContractResult.fst,
+        Verity.require, Verity.bind, Bind.bind, Pure.pure,
+        Contract.run, ContractResult.snd,
         h_balance, h_eq, beq_iff_eq]
     all_goals cases safeAdd (s.storageMap 1 to) amount <;>
-        simp_all [Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-          Contract.run, ContractResult.snd, ContractResult.fst, beq_iff_eq]
+        simp_all [Verity.require, Verity.pure, Verity.bind]
 
 /-- Transfer doesn't write any Uint256 slot (supply unchanged). -/
 theorem transfer_supply_storage_isolated (s : ContractState) (to : Address) (amount : Uint256)
