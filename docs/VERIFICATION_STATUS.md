@@ -313,6 +313,7 @@ Current diagnostic coverage in compiler:
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
 - Indexed `bytes` event params now emit ABI-style hashed topics (`keccak256(payload)`); indexed tuple/array forms still fail with explicit migration guidance (`use unindexed field + off-chain hash`).
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
+- Constructor argument decoding is currently constrained to static ABI words (`uint256`/`address`/`bool`/`bytes32`); unsupported constructor parameter types now fail fast with explicit diagnostics.
 - All interop diagnostics include an `Issue #586` reference for scope tracking.
 
 ### Short Term (1-2 months)

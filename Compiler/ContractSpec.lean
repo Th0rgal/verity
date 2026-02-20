@@ -515,6 +515,18 @@ private def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := d
 private def issue586Ref : String :=
   "Issue #586 (Solidity interop profile)"
 
+private def supportedConstructorParamType : ParamType → Bool
+  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
+  | _ => false
+
+private def validateConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit := do
+  match ctor with
+  | none => pure ()
+  | some spec =>
+      for param in spec.params do
+        if !supportedConstructorParamType param.ty then
+          throw s!"Compilation error: constructor parameter '{param.name}' uses unsupported type {repr param.ty}; only uint256/address/bool/bytes32 are currently supported ({issue586Ref})."
+
 private def validateBytesCustomErrorArg (fnName errorName : String) (params : List Param)
     (arg : Expr) : Except String Unit := do
   match arg with
@@ -1211,8 +1223,12 @@ def genConstructorArgLoads (params : List Param) : List YulStmt :=
           YulExpr.call "mload" [YulExpr.lit offset],
           YulExpr.hex ((2^160) - 1)
         ])]
+      | ParamType.bool =>
+        [YulStmt.let_ s!"arg{idx}" (YulExpr.call "iszero" [
+          YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.lit offset]]
+        ])]
       | _ =>
-        -- uint256, bytes32, and other types loaded as raw 256-bit values
+        -- uint256 and bytes32 are loaded as raw 256-bit values.
         [YulStmt.let_ s!"arg{idx}" (YulExpr.call "mload" [YulExpr.lit offset])]
     argsOffset ++ loadArgs
 
@@ -1273,6 +1289,7 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
     validateInteropFunctionSpec fn
     validateSpecialEntrypointSpec fn
     validateCustomErrorArgShapesInFunction fn spec.errors
+  validateConstructorSpec spec.constructor
   validateInteropConstructorSpec spec.constructor
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext

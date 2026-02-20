@@ -355,6 +355,53 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected constructor low-level call usage to fail compilation")
 
 #eval! do
+  let ctorBoolParamSpec : ContractSpec := {
+    name := "CtorBoolParamNormalization"
+    fields := []
+    constructor := some {
+      params := [{ name := "flag", ty := ParamType.bool }]
+      body := [Stmt.letVar "seen" (Expr.constructorArg 0), Stmt.stop]
+    }
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile ctorBoolParamSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected bool constructor param normalization to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "constructor bool param normalization" rendered ["let arg0 := iszero(iszero(mload(0)))"]
+
+#eval! do
+  let ctorDynamicParamSpec : ContractSpec := {
+    name := "CtorDynamicParamUnsupported"
+    fields := []
+    constructor := some {
+      params := [{ name := "payload", ty := ParamType.bytes }]
+      body := [Stmt.stop]
+    }
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile ctorDynamicParamSpec [1] with
+  | .error err =>
+      if !(contains err "constructor parameter 'payload' uses unsupported type" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ constructor dynamic param diagnostic mismatch: {err}")
+      IO.println "✓ constructor dynamic param unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected dynamic constructor parameter to fail compilation")
+
+#eval! do
   let extCodeSizeSpec : ContractSpec := {
     name := "ExtCodeSizeUnsupported"
     fields := []
