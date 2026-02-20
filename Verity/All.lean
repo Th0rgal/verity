@@ -27,6 +27,7 @@ import Verity.AST.Ledger
 import Verity.AST.Owned
 import Verity.AST.OwnedCounter
 import Verity.AST.SimpleToken
+import Verity.AST.ERC20
 
 -- Common specifications
 import Verity.Specs.Common
@@ -104,6 +105,9 @@ import Verity.Proofs.SimpleToken.Correctness
 import Verity.Proofs.SimpleToken.Supply
 import Verity.Proofs.SimpleToken.Isolation
 
--- ERC20 (foundation scaffold): Spec + Invariants (proofs pending)
+-- ERC20 (foundation scaffold): Spec + initial bridge/basic proofs
 import Verity.Specs.ERC20.Spec
 import Verity.Specs.ERC20.Invariants
+import Verity.Specs.ERC20.Proofs
+import Verity.Proofs.ERC20.Basic
+import Verity.Proofs.ERC20.Correctness

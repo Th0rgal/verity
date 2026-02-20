@@ -20,7 +20,7 @@ EVM Bytecode
 
 ## Unified AST (Issue #364) ✅ **COMPLETE** (all 7 contracts)
 
-**Status**: All 7 compilable contracts migrated with equivalence proofs (27 theorems, zero `sorry`)
+**Status**: All 7 compilable contracts migrated with equivalence proofs (28 theorems, zero `sorry`)
 
 **What This Achieves**: A single deep embedding (`Verity.AST`) maps 1:1 to EDSL primitives. The denotation function (`Verity.Denote`) interprets AST → Contract monad such that `denote ast = edsl_fn` holds by `rfl` (definitional equality). For contracts with helper composition (e.g., `onlyOwner`), `bind_assoc` flattens nested binds before `rfl` closes the goal.
 
