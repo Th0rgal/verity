@@ -375,11 +375,12 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError s!"✗ expected bool constructor param normalization to compile, got: {err}")
   | .ok ir =>
       let rendered := Yul.render (emitYul ir)
-      assertContains "constructor bool param normalization" rendered ["let arg0 := iszero(iszero(mload(0)))"]
+      assertContains "constructor bool param normalization" rendered
+        ["let flag := iszero(iszero(mload(0)))", "let arg0 := flag"]
 
 #eval! do
   let ctorDynamicParamSpec : ContractSpec := {
-    name := "CtorDynamicParamUnsupported"
+    name := "CtorDynamicParamSupported"
     fields := []
     constructor := some {
       params := [{ name := "payload", ty := ParamType.bytes }]
@@ -395,11 +396,62 @@ private def featureSpec : ContractSpec := {
   }
   match compile ctorDynamicParamSpec [1] with
   | .error err =>
-      if !(contains err "constructor parameter 'payload' uses unsupported type" && contains err "Issue #586") then
-        throw (IO.userError s!"✗ constructor dynamic param diagnostic mismatch: {err}")
-      IO.println "✓ constructor dynamic param unsupported diagnostic"
-  | .ok _ =>
-      throw (IO.userError "✗ expected dynamic constructor parameter to fail compilation")
+      throw (IO.userError s!"✗ expected dynamic constructor parameter support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "constructor dynamic param decode" rendered
+        ["let payload_offset := mload(0)", "let payload_length := mload(payload_offset)",
+         "let payload_data_offset := add(payload_offset, 32)", "let arg0 := payload_offset"]
+
+#eval! do
+  let ctorMixedParamSpec : ContractSpec := {
+    name := "CtorMixedParamDecode"
+    fields := []
+    constructor := some {
+      params := [
+        { name := "owner", ty := ParamType.address },
+        { name := "payload", ty := ParamType.bytes }
+      ]
+      body := [Stmt.stop]
+    }
+    events := []
+    errors := []
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile ctorMixedParamSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected mixed constructor parameter support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "constructor mixed param decode" rendered
+        ["let owner := and(mload(0),", "let payload_offset := mload(32)",
+         "let payload_length := mload(payload_offset)", "let arg0 := owner",
+         "let arg1 := payload_offset"]
+
+#eval! do
+  let ctorDynamicReadSpec : ContractSpec := {
+    name := "CtorDynamicReadSource"
+    fields := []
+    constructor := some {
+      params := [{ name := "numbers", ty := ParamType.array ParamType.uint256 }]
+      body := [
+        Stmt.letVar "firstWord" (Expr.arrayElement "numbers" (Expr.literal 0)),
+        Stmt.stop
+      ]
+    }
+    events := []
+    errors := []
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile ctorDynamicReadSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected constructor dynamic read support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "constructor dynamic read source" rendered
+        ["let firstWord := mload(add(numbers_data_offset, mul(0, 32)))"]
+      assertNotContains "constructor dynamic read source" rendered
+        ["let firstWord := calldataload(add(numbers_data_offset, mul(0, 32)))"]
 
 #eval! do
   let extCodeSizeSpec : ContractSpec := {

@@ -314,7 +314,7 @@ Current diagnostic coverage in compiler:
 - Indexed `bytes` event params now emit ABI-style hashed topics (`keccak256(payload)`); indexed tuple/array forms still fail with explicit migration guidance (`use unindexed field + off-chain hash`).
 - Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed-bytes arg-shape checks) to prevent invalid Yul from unresolved dynamic calldata helpers.
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
-- Constructor argument decoding is currently constrained to static ABI words (`uint256`/`address`/`bool`/`bytes32`); unsupported constructor parameter types now fail fast with explicit diagnostics.
+- Constructor argument decoding now reuses ABI head/tail decoding for constructor params (including tuple/array/bytes forms) and exposes both named param bindings plus `constructorArg` index aliases.
 - `verity-compiler` now supports deterministic ABI artifact emission in ContractSpec mode via `--abi-output <dir>` and writes one `<Contract>.abi.json` per compiled spec.
 - All interop diagnostics include an `Issue #586` reference for scope tracking.
 
