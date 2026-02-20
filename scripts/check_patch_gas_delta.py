@@ -113,9 +113,24 @@ def format_delta_pct(value: float) -> str:
     return f"{value:+.2f}%"
 
 
+def percent_delta(baseline: int, patched: int) -> float:
+    delta = patched - baseline
+    if baseline == 0:
+        if patched == 0:
+            return 0.0
+        if patched > 0:
+            return math.inf
+        return -math.inf
+    return delta / baseline * 100.0
+
+
 def render_markdown(
-    median_delta_pct: float,
-    p90_delta_pct: float,
+    median_total_delta_pct: float,
+    p90_total_delta_pct: float,
+    median_deploy_delta_pct: float,
+    p90_deploy_delta_pct: float,
+    median_runtime_delta_pct: float,
+    p90_runtime_delta_pct: float,
     improved_count: int,
     unchanged_count: int,
     regressed_count: int,
@@ -127,8 +142,12 @@ def render_markdown(
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("| :-- | --: |")
-    lines.append(f"| Median total delta | {format_delta_pct(median_delta_pct)} |")
-    lines.append(f"| P90 total delta | {format_delta_pct(p90_delta_pct)} |")
+    lines.append(f"| Median total delta | {format_delta_pct(median_total_delta_pct)} |")
+    lines.append(f"| P90 total delta | {format_delta_pct(p90_total_delta_pct)} |")
+    lines.append(f"| Median deploy delta | {format_delta_pct(median_deploy_delta_pct)} |")
+    lines.append(f"| P90 deploy delta | {format_delta_pct(p90_deploy_delta_pct)} |")
+    lines.append(f"| Median runtime delta | {format_delta_pct(median_runtime_delta_pct)} |")
+    lines.append(f"| P90 runtime delta | {format_delta_pct(p90_runtime_delta_pct)} |")
     lines.append(f"| Improved contracts | {improved_count} |")
     lines.append(f"| Unchanged contracts | {unchanged_count} |")
     lines.append(f"| Regressed contracts | {regressed_count} |")
@@ -179,6 +198,8 @@ def main() -> int:
         return 1
 
     total_deltas_pct: list[float] = []
+    deploy_deltas_pct: list[float] = []
+    runtime_deltas_pct: list[float] = []
     improvements: list[tuple[str, int, float]] = []
     regressions: list[tuple[str, int, float]] = []
     unchanged_count = 0
@@ -187,16 +208,10 @@ def main() -> int:
         base = baseline[name]
         pat = patched[name]
         delta = pat.total - base.total
-        if base.total == 0:
-            if pat.total == 0:
-                pct = 0.0
-            elif pat.total > 0:
-                pct = math.inf
-            else:
-                pct = -math.inf
-        else:
-            pct = delta / base.total * 100.0
+        pct = percent_delta(base.total, pat.total)
         total_deltas_pct.append(pct)
+        deploy_deltas_pct.append(percent_delta(base.deploy, pat.deploy))
+        runtime_deltas_pct.append(percent_delta(base.runtime, pat.runtime))
         if delta < 0:
             improvements.append((name, delta, pct))
         elif delta > 0:
@@ -204,16 +219,24 @@ def main() -> int:
         else:
             unchanged_count += 1
 
-    median_delta_pct = statistics.median(total_deltas_pct)
-    p90_delta_pct = percentile(total_deltas_pct, 0.90)
+    median_total_delta_pct = statistics.median(total_deltas_pct)
+    p90_total_delta_pct = percentile(total_deltas_pct, 0.90)
+    median_deploy_delta_pct = statistics.median(deploy_deltas_pct)
+    p90_deploy_delta_pct = percentile(deploy_deltas_pct, 0.90)
+    median_runtime_delta_pct = statistics.median(runtime_deltas_pct)
+    p90_runtime_delta_pct = percentile(runtime_deltas_pct, 0.90)
     improved_count = len(improvements)
     regressed_count = len(regressions)
 
     best = sorted(improvements, key=lambda row: row[1])[:5]
     worst = sorted(regressions, key=lambda row: row[1], reverse=True)[:5]
     summary = render_markdown(
-        median_delta_pct=median_delta_pct,
-        p90_delta_pct=p90_delta_pct,
+        median_total_delta_pct=median_total_delta_pct,
+        p90_total_delta_pct=p90_total_delta_pct,
+        median_deploy_delta_pct=median_deploy_delta_pct,
+        p90_deploy_delta_pct=p90_deploy_delta_pct,
+        median_runtime_delta_pct=median_runtime_delta_pct,
+        p90_runtime_delta_pct=p90_runtime_delta_pct,
         improved_count=improved_count,
         unchanged_count=unchanged_count,
         regressed_count=regressed_count,
@@ -226,12 +249,14 @@ def main() -> int:
         args.summary_markdown.write_text(summary + "\n", encoding="utf-8")
 
     failures: list[str] = []
-    if median_delta_pct > args.max_median_regression_pct:
+    if median_total_delta_pct > args.max_median_regression_pct:
         failures.append(
-            f"median regression {median_delta_pct:.2f}% exceeds {args.max_median_regression_pct:.2f}%"
+            f"median regression {median_total_delta_pct:.2f}% exceeds {args.max_median_regression_pct:.2f}%"
         )
-    if p90_delta_pct > args.max_p90_regression_pct:
-        failures.append(f"p90 regression {p90_delta_pct:.2f}% exceeds {args.max_p90_regression_pct:.2f}%")
+    if p90_total_delta_pct > args.max_p90_regression_pct:
+        failures.append(
+            f"p90 regression {p90_total_delta_pct:.2f}% exceeds {args.max_p90_regression_pct:.2f}%"
+        )
     if improved_count < args.min_improved_contracts:
         failures.append(
             f"improved contracts {improved_count} is below required minimum {args.min_improved_contracts}"
@@ -245,7 +270,7 @@ def main() -> int:
 
     print(
         "OK: patch gas delta check passed "
-        f"(median={median_delta_pct:.2f}%, p90={p90_delta_pct:.2f}%, improved={improved_count})"
+        f"(median={median_total_delta_pct:.2f}%, p90={p90_total_delta_pct:.2f}%, improved={improved_count})"
     )
     return 0
 

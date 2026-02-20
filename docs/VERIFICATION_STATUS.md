@@ -301,7 +301,7 @@ Implemented:
   - supports `--enable-patches`, `--patch-max-iterations`, and `--patch-report <path>` to export TSV patch coverage per contract/rule
 - CI (`.github/workflows/verify.yml`)
   - produces and uploads `patch-coverage-report` artifact; summary table is included in workflow step summary
-  - computes baseline vs patch-enabled static gas deltas and gates on median/p90 non-regression with a configurable improved-contract floor (currently `0` in CI)
+  - computes baseline vs patch-enabled static gas deltas, reports total/deploy/runtime median+p90 deltas in CI summary, and gates on total median/p90 non-regression with a configurable improved-contract floor (currently `0` in CI)
 
 Current diagnostic coverage in compiler:
 - Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.
