@@ -17,6 +17,7 @@ from pathlib import Path
 from property_utils import ROOT
 
 BUILTINS_FILE = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Builtins.lean"
+ADAPTER_FILE = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends" / "EvmYulLeanAdapter.lean"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_capability_report.json"
 
 BUILTIN_NAME_RE = re.compile(r'func\s*=\s*"([^"]+)"')
@@ -53,6 +54,29 @@ EVMYULLEAN_UNSUPPORTED_BUILTINS = {
 }
 
 
+def extract_adapter_gaps() -> list[dict[str, str]]:
+    if not ADAPTER_FILE.exists():
+        raise FileNotFoundError(f"Missing adapter file: {ADAPTER_FILE.relative_to(ROOT)}")
+
+    branch_re = re.compile(r"^\s*\|\s*\.(?P<node>[A-Za-z0-9_]+)\b")
+    gap_re = re.compile(r'\.error\s+"adapter gap: (?P<reason>[^"]+)"')
+
+    current_node: str | None = None
+    gaps: list[dict[str, str]] = []
+    for line in ADAPTER_FILE.read_text(encoding="utf-8").splitlines():
+        branch_match = branch_re.match(line)
+        if branch_match:
+            current_node = branch_match.group("node")
+            continue
+
+        gap_match = gap_re.search(line)
+        if gap_match and current_node:
+            gaps.append({"node": current_node, "reason": gap_match.group("reason")})
+            current_node = None
+
+    return gaps
+
+
 def build_report() -> dict[str, object]:
     if not BUILTINS_FILE.exists():
         raise FileNotFoundError(f"Missing builtins file: {BUILTINS_FILE.relative_to(ROOT)}")
@@ -64,9 +88,10 @@ def build_report() -> dict[str, object]:
 
     unknown = sorted(found_set - allowed_set)
     unsupported_present = sorted(found_set & EVMYULLEAN_UNSUPPORTED_BUILTINS)
+    adapter_gaps = extract_adapter_gaps()
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "builtins_file": str(BUILTINS_FILE.relative_to(ROOT)),
         "status": "ok" if not unknown and not unsupported_present else "error",
         "found_builtins": found,
@@ -75,6 +100,9 @@ def build_report() -> dict[str, object]:
         "unsupported_builtins": sorted(EVMYULLEAN_UNSUPPORTED_BUILTINS),
         "unknown_builtins_present": unknown,
         "unsupported_builtins_present": unsupported_present,
+        "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
+        "adapter_lowering_status": "partial" if adapter_gaps else "complete",
+        "unsupported_adapter_nodes": adapter_gaps,
     }
 
 

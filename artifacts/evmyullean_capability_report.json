@@ -1,4 +1,6 @@
 {
+  "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+  "adapter_lowering_status": "partial",
   "allowed_overlap_builtins": [
     "add",
     "and",
@@ -44,9 +46,23 @@
     "sub",
     "xor"
   ],
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "ok",
   "unknown_builtins_present": [],
+  "unsupported_adapter_nodes": [
+    {
+      "node": "assign",
+      "reason": "assignment lowering not implemented"
+    },
+    {
+      "node": "for_",
+      "reason": "for-loop init lowering not implemented"
+    },
+    {
+      "node": "funcDef",
+      "reason": "function definition lowering not implemented"
+    }
+  ],
   "unsupported_builtins": [
     "create",
     "create2",
