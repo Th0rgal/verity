@@ -733,7 +733,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       for (p, _) in indexed do
         match p.ty with
         | ParamType.array _ | ParamType.fixedArray _ _ | ParamType.bytes | ParamType.tuple _ =>
-            throw s!"Compilation error: indexed dynamic/tuple param '{p.name}' in event '{eventName}' is not supported yet"
+            throw s!"Compilation error: indexed dynamic/tuple param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref}). Use an unindexed field for now and hash payload data off-chain when topic-style filtering is required."
         | _ => pure ()
       let sig := eventSignature eventDef
       let sigBytes := bytesFromString sig

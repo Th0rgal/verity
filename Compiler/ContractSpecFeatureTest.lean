@@ -390,6 +390,36 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected external create2 declaration to fail compilation")
 
 #eval! do
+  let indexedDynamicEventSpec : ContractSpec := {
+    name := "IndexedDynamicEventUnsupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "BadIndexedBytes"
+        params := [
+          { name := "payload", ty := ParamType.bytes, kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBad"
+        params := [{ name := "payload", ty := ParamType.bytes }]
+        returnType := none
+        body := [Stmt.emit "BadIndexedBytes" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedDynamicEventSpec [1] with
+  | .error err =>
+      if !(contains err "indexed dynamic/tuple param 'payload'" &&
+          contains err "Issue #586" &&
+          contains err "Use an unindexed field for now") then
+        throw (IO.userError s!"✗ indexed dynamic event diagnostic mismatch: {err}")
+      IO.println "✓ indexed dynamic event diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected indexed dynamic event param usage to fail compilation")
+
+#eval! do
   let fallbackSpec : ContractSpec := {
     name := "FallbackSupported"
     fields := []
