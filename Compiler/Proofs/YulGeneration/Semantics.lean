@@ -1,6 +1,7 @@
 import Compiler.Yul.Ast
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.YulGeneration.Builtins
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -15,15 +16,6 @@ This module defines execution semantics for a Yul runtime program. It mirrors
 IRInterpreter but models selector-aware calldata so `emitYul`'s runtime switch
 behaves correctly.
 -/
-
-abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
-
-def selectorModulus : Nat := 2 ^ 32
-
-def selectorShift : Nat := 224
-
-def selectorWord (selector : Nat) : Nat :=
-  (selector % selectorModulus) * (2 ^ selectorShift)
 
 /-- Selector expression used by the runtime switch. -/
 def selectorExpr : YulExpr :=
@@ -107,96 +99,8 @@ decreasing_by
 def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
   | args => do
     let argVals ← evalYulExprs state args
-    if func = "mappingSlot" then
-      match argVals with
-      | [base, key] => some (Compiler.Proofs.abstractMappingSlot base key)
-      | _ => none
-    else if func = "sload" then
-      match argVals with
-      | [slot] =>
-          some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage state.mappings slot)
-      | _ => none
-    else if func = "add" then
-      match argVals with
-      | [a, b] => some ((a + b) % evmModulus)
-      | _ => none
-    else if func = "sub" then
-      match argVals with
-      | [a, b] => some ((evmModulus + a - b) % evmModulus)
-      | _ => none
-    else if func = "mul" then
-      match argVals with
-      | [a, b] => some ((a * b) % evmModulus)
-      | _ => none
-    else if func = "div" then
-      match argVals with
-      | [a, b] => if b = 0 then some 0 else some (a / b)
-      | _ => none
-    else if func = "mod" then
-      match argVals with
-      | [a, b] => if b = 0 then some 0 else some (a % b)
-      | _ => none
-    else if func = "lt" then
-      match argVals with
-      | [a, b] => some (if a < b then 1 else 0)
-      | _ => none
-    else if func = "gt" then
-      match argVals with
-      | [a, b] => some (if a > b then 1 else 0)
-      | _ => none
-    else if func = "eq" then
-      match argVals with
-      | [a, b] => some (if a = b then 1 else 0)
-      | _ => none
-    else if func = "iszero" then
-      match argVals with
-      | [a] => some (if a = 0 then 1 else 0)
-      | _ => none
-    else if func = "and" then
-      match argVals with
-      | [a, b] => some (a &&& b)
-      | _ => none
-    else if func = "or" then
-      match argVals with
-      | [a, b] => some (a ||| b)
-      | _ => none
-    else if func = "xor" then
-      match argVals with
-      | [a, b] => some (Nat.xor a b)
-      | _ => none
-    else if func = "not" then
-      match argVals with
-      | [a] => some (Nat.xor a (evmModulus - 1))
-      | _ => none
-    else if func = "shl" then
-      match argVals with
-      | [shift, value] => some ((value * (2 ^ shift)) % evmModulus)
-      | _ => none
-    else if func = "shr" then
-      match argVals with
-      | [shift, value] => some (value / (2 ^ shift))
-      | _ => none
-    else if func = "caller" then
-      match argVals with
-      | [] => some state.sender
-      | _ => none
-    else if func = "calldataload" then
-      match argVals with
-      | [offset] =>
-          if offset = 0 then
-            some (selectorWord state.selector)
-          else if offset < 4 then
-            some 0
-          else
-            let wordOffset := offset - 4
-            if wordOffset % 32 != 0 then
-              some 0
-            else
-              let idx := wordOffset / 32
-              some (state.calldata.getD idx 0 % evmModulus)
-      | _ => none
-    else
-      none
+    Compiler.Proofs.YulGeneration.evalBuiltinCall
+      state.storage state.mappings state.sender state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   simp [exprsSize, exprSize]

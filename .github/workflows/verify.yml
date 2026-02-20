@@ -121,6 +121,9 @@ jobs:
       - name: Check mapping slot abstraction boundary
         run: python3 scripts/check_mapping_slot_boundary.py
 
+      - name: Check Yul builtin abstraction boundary
+        run: python3 scripts/check_yul_builtin_boundary.py
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20

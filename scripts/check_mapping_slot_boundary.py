@@ -23,6 +23,8 @@ REQUIRED_ABSTRACTION_IMPORTS = {
     PROOFS_DIR / "YulGeneration" / "Semantics.lean",
 }
 
+BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "Builtins.lean"
+
 IMPORT_MAPPING_ENCODING_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingEncoding\s*$", re.MULTILINE)
 IMPORT_MAPPING_SLOT_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingSlot\s*$", re.MULTILINE)
 ABSTRACT_SLOT_REF_RE = re.compile(r"Compiler\.Proofs\.abstractMappingSlot")
@@ -55,12 +57,6 @@ def main() -> int:
         if not IMPORT_MAPPING_SLOT_RE.search(text):
             errors.append(f"{rel}: missing required import Compiler.Proofs.MappingSlot")
 
-        if not ABSTRACT_SLOT_REF_RE.search(text):
-            errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractMappingSlot")
-
-        if not ABSTRACT_LOAD_REF_RE.search(text):
-            errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractLoadStorageOrMapping")
-
         if not ABSTRACT_STORE_REF_RE.search(text):
             errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractStoreStorageOrMapping")
 
@@ -78,6 +74,18 @@ def main() -> int:
                 f"{rel}: legacy mapping symbol names (mappingTag/encodeMappingSlot/decodeMappingSlot) "
                 "are disallowed; use abstractMapping* names directly"
             )
+
+    builtins_text = BUILTINS_FILE.read_text(encoding="utf-8")
+    builtins_rel = BUILTINS_FILE.relative_to(ROOT)
+
+    if not IMPORT_MAPPING_SLOT_RE.search(builtins_text):
+        errors.append(f"{builtins_rel}: missing required import Compiler.Proofs.MappingSlot")
+
+    if not ABSTRACT_SLOT_REF_RE.search(builtins_text):
+        errors.append(f"{builtins_rel}: missing reference to Compiler.Proofs.abstractMappingSlot")
+
+    if not ABSTRACT_LOAD_REF_RE.search(builtins_text):
+        errors.append(f"{builtins_rel}: missing reference to Compiler.Proofs.abstractLoadStorageOrMapping")
 
     if errors:
         print("Mapping slot boundary check failed:", file=sys.stderr)

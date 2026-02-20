@@ -19,6 +19,7 @@
 import Compiler.IR
 import Compiler.ContractSpec
 import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.YulGeneration.Builtins
 import Verity.Proofs.Stdlib.SpecInterpreter
 import Verity.Core
 
@@ -76,8 +77,6 @@ pattern already used by `evalYulExpr` in `Semantics.lean`. The `exprSize`/`exprs
 measures from Semantics.lean are reused.
 -/
 
-abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
-
 /-!
 Mapping slots in Yul are derived via keccak(baseSlot, key). IR proof semantics
 call through the `MappingSlot` abstraction; the current backend is tagged
@@ -114,103 +113,8 @@ identical to the Yul version, enabling direct equivalence proofs without axioms.
 def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
   | args => do
     let argVals ← evalIRExprs state args
-    if func = "mappingSlot" then
-      match argVals with
-      | [base, key] => some (Compiler.Proofs.abstractMappingSlot base key)
-      | _ => none
-    else if func = "sload" then
-      match argVals with
-      | [slot] =>
-          some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage state.mappings slot)
-      | _ => none
-    else if func = "add" then
-      match argVals with
-      | [a, b] => some ((a + b) % evmModulus)  -- EVM modular arithmetic
-      | _ => none
-    else if func = "sub" then
-      match argVals with
-      -- EVM SUB uses modular two's-complement wrapping, not truncating subtraction
-      -- If a >= b: result is a - b
-      -- If a < b: result wraps around: 2^256 - (b - a) = 2^256 + a - b
-      | [a, b] => some ((evmModulus + a - b) % evmModulus)
-      | _ => none
-    else if func = "mul" then
-      match argVals with
-      | [a, b] => some ((a * b) % evmModulus)
-      | _ => none
-    else if func = "div" then
-      match argVals with
-      | [a, b] => if b = 0 then some 0 else some (a / b)
-      | _ => none
-    else if func = "mod" then
-      match argVals with
-      | [a, b] => if b = 0 then some 0 else some (a % b)
-      | _ => none
-    else if func = "lt" then
-      match argVals with
-      | [a, b] => some (if a < b then 1 else 0)
-      | _ => none
-    else if func = "gt" then
-      match argVals with
-      | [a, b] => some (if a > b then 1 else 0)
-      | _ => none
-    else if func = "eq" then
-      match argVals with
-      | [a, b] => some (if a = b then 1 else 0)
-      | _ => none
-    else if func = "iszero" then
-      match argVals with
-      | [a] => some (if a = 0 then 1 else 0)
-      | _ => none
-    else if func = "and" then
-      match argVals with
-      | [a, b] => some (a &&& b)  -- Bitwise AND
-      | _ => none
-    else if func = "or" then
-      match argVals with
-      | [a, b] => some (a ||| b)   -- Bitwise OR
-      | _ => none
-    else if func = "xor" then
-      match argVals with
-      | [a, b] => some (Nat.xor a b)
-      | _ => none
-    else if func = "not" then
-      match argVals with
-      | [a] => some (Nat.xor a (evmModulus - 1))
-      | _ => none
-    else if func = "shl" then
-      match argVals with
-      | [shift, value] => some ((value * (2 ^ shift)) % evmModulus)
-      | _ => none
-    else if func = "shr" then
-      match argVals with
-      | [shift, value] => some (value / (2 ^ shift))
-      | _ => none
-    else if func = "caller" then
-      match argVals with
-      | [] => some state.sender
-      | _ => none
-    else if func = "calldataload" then
-      match argVals with
-      | [offset] =>
-          -- calldataload retrieves 32-byte word from calldata at given offset.
-          -- offset=0 returns the selector word (selector << 224), matching EVM semantics.
-          -- For offsets matching 4 + 32 * i, return args[i]; otherwise return 0.
-          if offset = 0 then
-            -- Selector occupies the high 4 bytes of the 32-byte word
-            some ((state.selector % (2 ^ 32)) * (2 ^ 224))
-          else if offset < 4 then
-            some 0
-          else
-            let wordOffset := offset - 4
-            if wordOffset % 32 != 0 then
-              some 0
-            else
-              let idx := wordOffset / 32
-              some (state.calldata.getD idx 0 % evmModulus)
-      | _ => none
-    else
-      none
+    Compiler.Proofs.YulGeneration.evalBuiltinCall
+      state.storage state.mappings state.sender state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   simp [exprsSize, exprSize]
