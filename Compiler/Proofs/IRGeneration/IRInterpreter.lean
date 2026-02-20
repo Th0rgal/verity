@@ -84,7 +84,6 @@ call through the `MappingSlot` abstraction; the current backend is tagged
 encoding so `sload`/`sstore` can route to `mappings` instead of flat storage.
 -/
 abbrev encodeMappingSlot := Compiler.Proofs.abstractMappingSlot
-abbrev decodeMappingSlot := Compiler.Proofs.abstractDecodeMappingSlot
 
 open Compiler.Proofs.YulGeneration in
 mutual
@@ -123,9 +122,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
     else if func = "sload" then
       match argVals with
       | [slot] =>
-          match decodeMappingSlot slot with
-          | some (baseSlot, key) => some (state.mappings baseSlot key)
-          | none => some (state.storage slot)
+          some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage state.mappings slot)
       | _ => none
     else if func = "add" then
       match argVals with
@@ -285,15 +282,13 @@ def execIRStmt : Nat → IRState → YulStmt → IRExecResult
               | _ =>
                   match evalIRExpr state slotExpr, evalIRExpr state valExpr with
                   | some slot, some val =>
-                    match decodeMappingSlot slot with
-                    | some (baseSlot, key) =>
-                        .continue {
-                          state with
-                          mappings := fun b k =>
-                            if b = baseSlot ∧ k = key then val else state.mappings b k
-                        }
-                    | none =>
-                        .continue { state with storage := fun s => if s = slot then val else state.storage s }
+                      let updated := Compiler.Proofs.abstractStoreStorageOrMapping
+                        state.storage state.mappings slot val
+                      .continue {
+                        state with
+                        storage := updated.1
+                        mappings := updated.2
+                      }
                   | _, _ => .revert state
           | .call "mstore" [offsetExpr, valExpr] =>
               match evalIRExpr state offsetExpr, evalIRExpr state valExpr with
