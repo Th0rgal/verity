@@ -65,7 +65,7 @@ theorem ownedCounter_constructor_correct (state : ContractState) (initialOwner :
     specResult.success = true ∧
     specResult.finalStorage.getSlot 0 = (edslResult.getState.storageAddr 0).val := by
   simp [Verity.Examples.OwnedCounter.constructor, Contract.run, ownedCounterSpec, interpretSpec,
-    setStorageAddr, Verity.Examples.OwnedCounter.owner, Verity.bind, Verity.pure,
+    setStorageAddr, Verity.Examples.OwnedCounter.owner,
     execConstructor, execStmts, execStmt, evalExpr, SpecStorage.setSlot, SpecStorage.getSlot, SpecStorage.empty]
 
 /-- The `increment` function correctly increments when called by owner -/
@@ -119,7 +119,7 @@ theorem ownedCounter_increment_reverts_as_nonowner (state : ContractState) (send
     simp [h_revert, ContractResult.isSuccess]
   · -- Spec reverts when sender is not owner
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      execStmt, evalExpr, SpecStorage.getSlot,
       addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)]
 
 /-- The `decrement` function correctly decrements when called by owner -/
@@ -177,7 +177,7 @@ theorem ownedCounter_decrement_reverts_as_nonowner (state : ContractState) (send
     simp [h_revert, ContractResult.isSuccess]
   · -- Spec reverts when sender is not owner
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      execStmt, evalExpr, SpecStorage.getSlot,
       addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)]
 
 /-- The `getCount` function correctly retrieves the counter value -/
@@ -255,7 +255,7 @@ theorem ownedCounter_transferOwnership_reverts_as_nonowner (state : ContractStat
     simp [h_revert, ContractResult.isSuccess]
   · -- Spec reverts when sender is not owner
     simp [ownedCounterSpec, requireOwner, interpretSpec, ownedCounterEdslToSpecStorage, execFunction, execStmts,
-      execStmt, evalExpr, SpecStorage.getSlot, SpecStorage.setSlot,
+      execStmt, evalExpr, SpecStorage.getSlot,
       addressToNat_beq_false_of_ne sender (state.storageAddr 0) (Ne.symm h)]
 
 /- Helper Properties -/
