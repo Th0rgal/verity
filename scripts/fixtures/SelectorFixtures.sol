@@ -21,7 +21,23 @@ struct Envelope {
     Wad total;
 }
 
+struct MarketParams {
+    address loanToken;
+    address collateralToken;
+    address oracle;
+    address irm;
+    uint256 lltv;
+}
+
+struct DynamicTuple {
+    uint256 amount;
+    bytes payload;
+}
+
 contract SelectorFixtures {
+    event CreateMarket(bytes32 indexed id, MarketParams market);
+    event CompositeEvent(bytes32 indexed id, DynamicTuple payload, uint256[] values, bytes note);
+
     // Parser guard: this commented signature must not be treated as real.
     // function commentedOut(uint256 x) external pure returns (uint256) { return x; }
     /*

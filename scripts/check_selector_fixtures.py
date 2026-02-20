@@ -9,16 +9,20 @@ from __future__ import annotations
 
 import re
 import subprocess
+from typing import Literal
 
-from keccak256 import selector as compute_selector
+from keccak256 import keccak_256, selector as compute_selector
 from property_utils import ROOT, die, report_errors
 FIXTURE = ROOT / "scripts" / "fixtures" / "SelectorFixtures.sol"
+SignatureKind = Literal["function", "event"]
+SignatureKey = tuple[SignatureKind, str]
 
 FUNCTION_START_RE = re.compile(r"\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+EVENT_START_RE = re.compile(r"\bevent\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
 SELECTOR_VISIBILITY_RE = re.compile(r"\b(external|public)\b")
 IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ARRAY_SUFFIX_RE = re.compile(r"(\[[0-9]*\]\s*)+$")
-SELECTOR_RE = re.compile(r"^(0x)?([0-9a-fA-F]{8})$")
+HASH_RE = re.compile(r"^(0x)?([0-9a-fA-F]{8}|[0-9a-fA-F]{64})$")
 CONTRACT_LIKE_DECL_RE = re.compile(r"\b(?:contract|interface|library)\s+([A-Za-z_][A-Za-z0-9_]*)\b")
 ENUM_DECL_RE = re.compile(r"\benum\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{")
 UDVT_DECL_RE = re.compile(r"\btype\s+([A-Za-z_][A-Za-z0-9_]*)\s+is\s+([^;]+);")
@@ -108,8 +112,8 @@ def _canonical_base_type(text: str, user_aliases: dict[str, str]) -> str:
 
 
 def _canonical_param_type(raw: str, user_aliases: dict[str, str]) -> str:
-    # Remove data location and mutability keywords from declarations.
-    text = re.sub(r"\b(memory|calldata|storage|payable)\b", " ", raw)
+    # Remove data location and declaration keywords from declarations.
+    text = re.sub(r"\b(memory|calldata|storage|payable|indexed)\b", " ", raw)
     text = re.sub(r"\s+", " ", text).strip()
     if not text:
         return ""
@@ -340,38 +344,83 @@ def _iter_function_signatures(text: str) -> list[tuple[str, str]]:
     return signatures
 
 
-def load_fixture_signatures() -> list[str]:
+def _iter_event_signatures(text: str) -> list[tuple[str, str]]:
+    signatures: list[tuple[str, str]] = []
+    for match in EVENT_START_RE.finditer(text):
+        name = match.group(1)
+        open_paren = match.end() - 1
+        close_paren = _find_matching_paren(text, open_paren)
+        if close_paren == -1:
+            continue
+        decl_end = _find_header_end(text, close_paren + 1)
+        if decl_end == -1 or text[decl_end] != ";":
+            continue
+        params = text[open_paren + 1 : close_paren].strip()
+        signatures.append((name, params))
+    return signatures
+
+
+def _load_fixture_text_and_aliases() -> tuple[str, dict[str, str]]:
     if not FIXTURE.exists():
         die(f"Missing fixture file: {FIXTURE}")
     text = _strip_solidity_comments_and_strings(FIXTURE.read_text(encoding="utf-8"))
     aliases = _collect_user_defined_type_aliases(text)
+    return text, aliases
+
+
+def _load_function_signatures(text: str, aliases: dict[str, str]) -> list[str]:
     sigs: list[str] = []
     for name, params in _iter_function_signatures(text):
         params = _strip_param_names(params, aliases)
         sigs.append(f"{name}({params})")
-    if not sigs:
-        die("No function signatures found in fixture")
     return sigs
 
 
-def _parse_selector_fixture_line(line: str) -> tuple[str, str] | None:
+def _load_event_signatures(text: str, aliases: dict[str, str]) -> list[str]:
+    sigs: list[str] = []
+    for name, params in _iter_event_signatures(text):
+        params = _strip_param_names(params, aliases)
+        sigs.append(f"{name}({params})")
+    return sigs
+
+
+def load_fixture_signatures() -> tuple[list[str], list[str]]:
+    text, aliases = _load_fixture_text_and_aliases()
+    function_sigs = _load_function_signatures(text, aliases)
+    if not function_sigs:
+        die("No function signatures found in fixture")
+    event_sigs = _load_event_signatures(text, aliases)
+    if not event_sigs:
+        die("No event signatures found in fixture")
+    return function_sigs, event_sigs
+
+
+def _parse_hash_fixture_line(line: str) -> tuple[str, str] | None:
     if ":" not in line:
         return None
     left, right = [part.strip() for part in line.split(":", 1)]
     if not left or not right:
         return None
 
-    left_selector = SELECTOR_RE.fullmatch(left)
-    right_selector = SELECTOR_RE.fullmatch(right)
+    left_hash = HASH_RE.fullmatch(left)
+    right_hash = HASH_RE.fullmatch(right)
 
-    if left_selector and "(" in right and right.endswith(")"):
-        return right, left_selector.group(2).lower()
-    if right_selector and "(" in left and left.endswith(")"):
-        return left, right_selector.group(2).lower()
+    if left_hash and "(" in right and right.endswith(")"):
+        return right, left_hash.group(2).lower()
+    if right_hash and "(" in left and left.endswith(")"):
+        return left, right_hash.group(2).lower()
     return None
 
 
-def run_solc_hashes() -> dict[str, str]:
+def _signature_kind_from_hash(hash_value: str) -> SignatureKind:
+    if len(hash_value) == 8:
+        return "function"
+    if len(hash_value) == 64:
+        return "event"
+    die(f"Unexpected hash width from solc --hashes: {len(hash_value)}")
+
+
+def run_solc_hashes() -> dict[SignatureKey, str]:
     result = subprocess.run(
         ["solc", "--hashes", str(FIXTURE)],
         check=False,
@@ -380,50 +429,55 @@ def run_solc_hashes() -> dict[str, str]:
     )
     if result.returncode != 0:
         die(f"solc --hashes failed: {result.stderr.strip()}")
-    hashes: dict[str, str] = {}
+    hashes: dict[SignatureKey, str] = {}
     for line in result.stdout.splitlines():
         line = line.strip()
         if not line or line.endswith(":"):
             continue
-        parsed = _parse_selector_fixture_line(line)
+        parsed = _parse_hash_fixture_line(line)
         if parsed is not None:
-            signature, selector = parsed
-            hashes[signature] = selector
+            signature, digest = parsed
+            hashes[(_signature_kind_from_hash(digest), signature)] = digest
             continue
     if not hashes:
-        die("No selector hashes parsed from solc output")
+        die("No signature hashes parsed from solc output")
     return hashes
 
 
-def run_keccak(signatures: list[str]) -> dict[str, str]:
-    return {sig: compute_selector(sig).replace("0x", "") for sig in signatures}
+def run_keccak_selectors(signatures: list[str]) -> dict[SignatureKey, str]:
+    return {("function", sig): compute_selector(sig).replace("0x", "") for sig in signatures}
+
+
+def run_keccak_event_hashes(signatures: list[str]) -> dict[SignatureKey, str]:
+    return {("event", sig): keccak_256(sig.encode("utf-8")).hex() for sig in signatures}
 
 
 def main() -> None:
-    signatures = load_fixture_signatures()
+    function_signatures, event_signatures = load_fixture_signatures()
     solc_hashes = run_solc_hashes()
-    keccak_hashes = run_keccak(signatures)
-    signature_set = set(signatures)
+    keccak_selectors = run_keccak_selectors(function_signatures)
+    keccak_event_hashes = run_keccak_event_hashes(event_signatures)
+    expected_hashes = {**keccak_selectors, **keccak_event_hashes}
+    signature_set = set(expected_hashes)
 
     errors: list[str] = []
-    for signature in sorted(solc_hashes):
-        if signature not in signature_set:
-            errors.append(f"Fixture extraction missed solc selector signature: {signature}")
+    for kind, signature in sorted(solc_hashes):
+        if (kind, signature) not in signature_set:
+            errors.append(f"Fixture extraction missed solc {kind} signature: {signature}")
 
-    for signature in signatures:
-        solc_selector = solc_hashes.get(signature)
-        if solc_selector is None:
-            errors.append(f"Missing solc selector for {signature}")
+    for (kind, signature), expected_hash in expected_hashes.items():
+        solc_hash = solc_hashes.get((kind, signature))
+        if solc_hash is None:
+            errors.append(f"Missing solc hash for {kind} {signature}")
             continue
-        keccak_selector = keccak_hashes[signature]
-        if solc_selector != keccak_selector:
+        if solc_hash != expected_hash:
             errors.append(
-                f"Selector mismatch for {signature}: solc={solc_selector} keccak={keccak_selector}"
+                f"Hash mismatch for {kind} {signature}: solc={solc_hash} keccak={expected_hash}"
             )
 
-    report_errors(errors, "Selector fixture check failed")
+    report_errors(errors, "Selector/event fixture check failed")
 
-    print("Selector fixture check passed.")
+    print("Selector/event fixture check passed.")
 
 
 if __name__ == "__main__":
