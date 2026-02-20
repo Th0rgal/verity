@@ -286,6 +286,31 @@ private def yulNegatedBinOp (op : String) (a b : YulExpr) : YulExpr :=
 private def yulToBool (e : YulExpr) : YulExpr :=
   YulExpr.call "iszero" [YulExpr.call "iszero" [e]]
 
+private inductive DynamicDataSource where
+  | calldata
+  | memory
+  deriving DecidableEq
+
+private def dynamicWordLoad (source : DynamicDataSource) (offset : YulExpr) : YulExpr :=
+  match source with
+  | .calldata => YulExpr.call "calldataload" [offset]
+  | .memory => YulExpr.call "mload" [offset]
+
+private def dynamicCopyData (source : DynamicDataSource)
+    (destOffset sourceOffset len : YulExpr) : List YulStmt :=
+  match source with
+  | .calldata =>
+      [YulStmt.expr (YulExpr.call "calldatacopy" [destOffset, sourceOffset, len])]
+  | .memory =>
+      [YulStmt.for_
+        [YulStmt.let_ "__copy_i" (YulExpr.lit 0)]
+        (YulExpr.call "lt" [YulExpr.ident "__copy_i", len])
+        [YulStmt.assign "__copy_i" (YulExpr.call "add" [YulExpr.ident "__copy_i", YulExpr.lit 32])]
+        [YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.call "add" [destOffset, YulExpr.ident "__copy_i"],
+          YulExpr.call "mload" [YulExpr.call "add" [sourceOffset, YulExpr.ident "__copy_i"]]
+        ])]]
+
 private def compileMappingSlotRead (fields : List Field) (field : String) (keyExpr : YulExpr)
     (label : String) : Except String YulExpr :=
   if !isMapping fields field then
@@ -298,14 +323,18 @@ private def compileMappingSlotRead (fields : List Field) (field : String) (keyEx
 
 -- Compile expression to Yul (using mutual recursion for lists)
 mutual
-def compileExprList (fields : List Field) : List Expr → Except String (List YulExpr)
+def compileExprList (fields : List Field)
+    (dynamicSource : DynamicDataSource := .calldata) :
+    List Expr → Except String (List YulExpr)
   | [] => pure []
   | e :: es => do
-      let head ← compileExpr fields e
-      let tail ← compileExprList fields es
+      let head ← compileExpr fields dynamicSource e
+      let tail ← compileExprList fields dynamicSource es
       pure (head :: tail)
 
-def compileExpr (fields : List Field) : Expr → Except String YulExpr
+def compileExpr (fields : List Field)
+    (dynamicSource : DynamicDataSource := .calldata) :
+    Expr → Except String YulExpr
   | Expr.literal n => pure (YulExpr.lit (n % uint256Modulus))
   | Expr.param name => pure (YulExpr.ident name)
   | Expr.constructorArg idx => pure (YulExpr.ident s!"arg{idx}")
@@ -317,65 +346,65 @@ def compileExpr (fields : List Field) : Expr → Except String YulExpr
       | some slot => pure (YulExpr.call "sload" [YulExpr.lit slot])
       | none => throw s!"Compilation error: unknown storage field '{field}'"
   | Expr.mapping field key => do
-      compileMappingSlotRead fields field (← compileExpr fields key) "mapping"
+      compileMappingSlotRead fields field (← compileExpr fields dynamicSource key) "mapping"
   | Expr.mapping2 field key1 key2 =>
     if !isMapping2 fields field then
       throw s!"Compilation error: field '{field}' is not a double mapping"
     else
       match findFieldSlot fields field with
       | some slot => do
-        let key1Expr ← compileExpr fields key1
-        let key2Expr ← compileExpr fields key2
+        let key1Expr ← compileExpr fields dynamicSource key1
+        let key2Expr ← compileExpr fields dynamicSource key2
         let innerSlot := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1Expr]
         pure (YulExpr.call "sload" [YulExpr.call "mappingSlot" [innerSlot, key2Expr]])
       | none => throw s!"Compilation error: unknown mapping field '{field}'"
   | Expr.mappingUint field key => do
-      compileMappingSlotRead fields field (← compileExpr fields key) "mappingUint"
+      compileMappingSlotRead fields field (← compileExpr fields dynamicSource key) "mappingUint"
   | Expr.caller => pure (YulExpr.call "caller" [])
   | Expr.msgValue => pure (YulExpr.call "callvalue" [])
   | Expr.blockTimestamp => pure (YulExpr.call "timestamp" [])
   | Expr.localVar name => pure (YulExpr.ident name)
   | Expr.externalCall name args => do
-      let argExprs ← compileExprList fields args
+      let argExprs ← compileExprList fields dynamicSource args
       pure (YulExpr.call name argExprs)
   | Expr.internalCall functionName args => do
-      let argExprs ← compileExprList fields args
+      let argExprs ← compileExprList fields dynamicSource args
       pure (YulExpr.call s!"internal_{functionName}" argExprs)
   | Expr.arrayLength name => pure (YulExpr.ident s!"{name}_length")
   | Expr.arrayElement name index => do
-      let indexExpr ← compileExpr fields index
-      pure (YulExpr.call "calldataload" [
-        YulExpr.call "add" [
-          YulExpr.ident s!"{name}_data_offset",
-          YulExpr.call "mul" [indexExpr, YulExpr.lit 32]
-        ]
-      ])
-  | Expr.add a b     => return yulBinOp "add" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.sub a b     => return yulBinOp "sub" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.mul a b     => return yulBinOp "mul" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.div a b     => return yulBinOp "div" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.mod a b     => return yulBinOp "mod" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.bitAnd a b  => return yulBinOp "and" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.bitOr a b   => return yulBinOp "or"  (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.bitXor a b  => return yulBinOp "xor" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.bitNot a    => return YulExpr.call "not" [← compileExpr fields a]
-  | Expr.shl s v     => return yulBinOp "shl" (← compileExpr fields s) (← compileExpr fields v)
-  | Expr.shr s v     => return yulBinOp "shr" (← compileExpr fields s) (← compileExpr fields v)
-  | Expr.eq a b      => return yulBinOp "eq"  (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.gt a b      => return yulBinOp "gt"  (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.lt a b      => return yulBinOp "lt"  (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.ge a b      => return yulNegatedBinOp "lt" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.le a b      => return yulNegatedBinOp "gt" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.logicalAnd a b => return yulBinOp "and" (yulToBool (← compileExpr fields a)) (yulToBool (← compileExpr fields b))
-  | Expr.logicalOr a b  => return yulBinOp "or"  (yulToBool (← compileExpr fields a)) (yulToBool (← compileExpr fields b))
-  | Expr.logicalNot a   => return YulExpr.call "iszero" [← compileExpr fields a]
+      let indexExpr ← compileExpr fields dynamicSource index
+      pure (dynamicWordLoad dynamicSource (YulExpr.call "add" [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.call "mul" [indexExpr, YulExpr.lit 32]
+      ]))
+  | Expr.add a b     => return yulBinOp "add" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.sub a b     => return yulBinOp "sub" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.mul a b     => return yulBinOp "mul" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.div a b     => return yulBinOp "div" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.mod a b     => return yulBinOp "mod" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.bitAnd a b  => return yulBinOp "and" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.bitOr a b   => return yulBinOp "or"  (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.bitXor a b  => return yulBinOp "xor" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.bitNot a    => return YulExpr.call "not" [← compileExpr fields dynamicSource a]
+  | Expr.shl s v     => return yulBinOp "shl" (← compileExpr fields dynamicSource s) (← compileExpr fields dynamicSource v)
+  | Expr.shr s v     => return yulBinOp "shr" (← compileExpr fields dynamicSource s) (← compileExpr fields dynamicSource v)
+  | Expr.eq a b      => return yulBinOp "eq"  (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.gt a b      => return yulBinOp "gt"  (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.lt a b      => return yulBinOp "lt"  (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.ge a b      => return yulNegatedBinOp "lt" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.le a b      => return yulNegatedBinOp "gt" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.logicalAnd a b => return yulBinOp "and" (yulToBool (← compileExpr fields dynamicSource a)) (yulToBool (← compileExpr fields dynamicSource b))
+  | Expr.logicalOr a b  => return yulBinOp "or"  (yulToBool (← compileExpr fields dynamicSource a)) (yulToBool (← compileExpr fields dynamicSource b))
+  | Expr.logicalNot a   => return YulExpr.call "iszero" [← compileExpr fields dynamicSource a]
 end
 
 -- Compile require condition to a "failure" predicate to avoid double-negation.
-def compileRequireFailCond (fields : List Field) : Expr → Except String YulExpr
-  | Expr.ge a b => return yulBinOp "lt" (← compileExpr fields a) (← compileExpr fields b)
-  | Expr.le a b => return yulBinOp "gt" (← compileExpr fields a) (← compileExpr fields b)
-  | cond => return YulExpr.call "iszero" [← compileExpr fields cond]
+def compileRequireFailCond (fields : List Field)
+    (dynamicSource : DynamicDataSource := .calldata) :
+    Expr → Except String YulExpr
+  | Expr.ge a b => return yulBinOp "lt" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | Expr.le a b => return yulBinOp "gt" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
+  | cond => return YulExpr.call "iszero" [← compileExpr fields dynamicSource cond]
 
 def bytesFromString (s : String) : List UInt8 :=
   s.toUTF8.data.toList
@@ -737,7 +766,8 @@ private def encodeStaticCustomErrorArg (errorName : String) (ty : ParamType) (ar
   | _ =>
       throw s!"Compilation error: custom error '{errorName}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref})."
 
-private def revertWithCustomError (errorDef : ErrorDef) (sourceArgs : List Expr) (args : List YulExpr) :
+private def revertWithCustomError (dynamicSource : DynamicDataSource)
+    (errorDef : ErrorDef) (sourceArgs : List Expr) (args : List YulExpr) :
     Except String (List YulStmt) := do
   if errorDef.params.length != args.length || sourceArgs.length != args.length then
     throw s!"Compilation error: custom error '{errorDef.name}' expects {errorDef.params.length} args, got {args.length}"
@@ -766,16 +796,15 @@ private def revertWithCustomError (errorDef : ErrorDef) (sourceArgs : List Expr)
             let lenName := s!"__err_arg{idx}_len"
             let dstName := s!"__err_arg{idx}_dst"
             let paddedName := s!"__err_arg{idx}_padded"
-            pure [
+            pure ([
               YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, YulExpr.ident "__err_tail"]),
               YulStmt.let_ lenName (YulExpr.ident s!"{name}_length"),
               YulStmt.let_ dstName (YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident "__err_tail"]),
               YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident dstName, YulExpr.ident lenName]),
-              YulStmt.expr (YulExpr.call "calldatacopy" [
-                YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32],
-                YulExpr.ident s!"{name}_data_offset",
-                YulExpr.ident lenName
-              ]),
+            ] ++ dynamicCopyData dynamicSource
+              (YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32])
+              (YulExpr.ident s!"{name}_data_offset")
+              (YulExpr.ident lenName) ++ [
               YulStmt.let_ paddedName (YulExpr.call "and" [
                 YulExpr.call "add" [YulExpr.ident lenName, YulExpr.lit 31],
                 YulExpr.call "not" [YulExpr.lit 31]
@@ -791,7 +820,7 @@ private def revertWithCustomError (errorDef : ErrorDef) (sourceArgs : List Expr)
                 YulExpr.ident "__err_tail",
                 YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName]
               ])
-            ]
+            ])
         | _ =>
             throw s!"Compilation error: custom error '{errorDef.name}' bytes parameter currently requires direct bytes parameter reference ({issue586Ref})."
     | _ =>
@@ -809,41 +838,46 @@ private def revertWithCustomError (errorDef : ErrorDef) (sourceArgs : List Expr)
 mutual
 def compileStmtList (fields : List Field) (events : List EventDef := [])
     (errors : List ErrorDef := [])
+    (dynamicSource : DynamicDataSource := .calldata)
     (isInternal : Bool := false) :
     List Stmt → Except String (List YulStmt)
   | [] => pure []
   | s :: ss => do
-      let head ← compileStmt fields events errors isInternal s
-      let tail ← compileStmtList fields events errors isInternal ss
+      let head ← compileStmt fields events errors dynamicSource isInternal s
+      let tail ← compileStmtList fields events errors dynamicSource isInternal ss
       pure (head ++ tail)
 
 def compileStmt (fields : List Field) (events : List EventDef := [])
     (errors : List ErrorDef := [])
+    (dynamicSource : DynamicDataSource := .calldata)
     (isInternal : Bool := false) :
     Stmt → Except String (List YulStmt)
   | Stmt.letVar name value => do
-      pure [YulStmt.let_ name (← compileExpr fields value)]
+      pure [YulStmt.let_ name (← compileExpr fields dynamicSource value)]
   | Stmt.assignVar name value => do
-      pure [YulStmt.assign name (← compileExpr fields value)]
+      pure [YulStmt.assign name (← compileExpr fields dynamicSource value)]
   | Stmt.setStorage field value =>
     if isMapping fields field then
       throw s!"Compilation error: field '{field}' is a mapping; use setMapping"
     else
       match findFieldSlot fields field with
       | some slot => do
-          pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, ← compileExpr fields value])]
+          pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, ← compileExpr fields dynamicSource value])]
       | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
   | Stmt.setMapping field key value => do
-      compileMappingSlotWrite fields field (← compileExpr fields key) (← compileExpr fields value) "setMapping"
+      compileMappingSlotWrite fields field
+        (← compileExpr fields dynamicSource key)
+        (← compileExpr fields dynamicSource value)
+        "setMapping"
   | Stmt.setMapping2 field key1 key2 value =>
     if !isMapping2 fields field then
       throw s!"Compilation error: field '{field}' is not a double mapping"
     else
       match findFieldSlot fields field with
       | some slot => do
-          let key1Expr ← compileExpr fields key1
-          let key2Expr ← compileExpr fields key2
-          let valueExpr ← compileExpr fields value
+          let key1Expr ← compileExpr fields dynamicSource key1
+          let key2Expr ← compileExpr fields dynamicSource key2
+          let valueExpr ← compileExpr fields dynamicSource value
           let innerSlot := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1Expr]
           pure [
             YulStmt.expr (YulExpr.call "sstore" [
@@ -853,32 +887,35 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
           ]
       | none => throw s!"Compilation error: unknown mapping field '{field}' in setMapping2"
   | Stmt.setMappingUint field key value => do
-      compileMappingSlotWrite fields field (← compileExpr fields key) (← compileExpr fields value) "setMappingUint"
+      compileMappingSlotWrite fields field
+        (← compileExpr fields dynamicSource key)
+        (← compileExpr fields dynamicSource value)
+        "setMappingUint"
   | Stmt.require cond message =>
     do
-      let failCond ← compileRequireFailCond fields cond
+      let failCond ← compileRequireFailCond fields dynamicSource cond
       pure [
         YulStmt.if_ failCond (revertWithMessage message)
       ]
   | Stmt.requireError cond errorName args => do
-      let failCond ← compileRequireFailCond fields cond
+      let failCond ← compileRequireFailCond fields dynamicSource cond
       let errorDef ←
         match errors.find? (·.name == errorName) with
         | some defn => pure defn
         | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
-      let argExprs ← compileExprList fields args
-      let revertStmts ← revertWithCustomError errorDef args argExprs
+      let argExprs ← compileExprList fields dynamicSource args
+      let revertStmts ← revertWithCustomError dynamicSource errorDef args argExprs
       pure [YulStmt.if_ failCond revertStmts]
   | Stmt.revertError errorName args => do
       let errorDef ←
         match errors.find? (·.name == errorName) with
         | some defn => pure defn
         | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
-      let argExprs ← compileExprList fields args
-      revertWithCustomError errorDef args argExprs
+      let argExprs ← compileExprList fields dynamicSource args
+      revertWithCustomError dynamicSource errorDef args argExprs
   | Stmt.return value =>
     do
-      let valueExpr ← compileExpr fields value
+      let valueExpr ← compileExpr fields dynamicSource value
       if isInternal then
         pure [YulStmt.assign "__ret" valueExpr]
       else
@@ -890,9 +927,9 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
 
   | Stmt.ite cond thenBranch elseBranch => do
       -- If/else: compile to Yul if + negated if (#179)
-      let condExpr ← compileExpr fields cond
-      let thenStmts ← compileStmtList fields events errors isInternal thenBranch
-      let elseStmts ← compileStmtList fields events errors isInternal elseBranch
+      let condExpr ← compileExpr fields dynamicSource cond
+      let thenStmts ← compileStmtList fields events errors dynamicSource isInternal thenBranch
+      let elseStmts ← compileStmtList fields events errors dynamicSource isInternal elseBranch
       if elseBranch.isEmpty then
         -- Simple if (no else)
         pure [YulStmt.if_ condExpr thenStmts]
@@ -908,8 +945,8 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
 
   | Stmt.forEach varName count body => do
       -- Bounded loop: for { let i := 0 } lt(i, count) { i := add(i, 1) } { body } (#179)
-      let countExpr ← compileExpr fields count
-      let bodyStmts ← compileStmtList fields events errors isInternal body
+      let countExpr ← compileExpr fields dynamicSource count
+      let bodyStmts ← compileStmtList fields events errors dynamicSource isInternal body
       let initStmts := [YulStmt.let_ varName (YulExpr.lit 0)]
       let condExpr := YulExpr.call "lt" [YulExpr.ident varName, countExpr]
       let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
@@ -923,7 +960,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         | none => throw s!"Compilation error: unknown event '{eventName}'"
       if args.length != eventDef.params.length then
         throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
-      let compiledArgs ← compileExprList fields args
+      let compiledArgs ← compileExprList fields dynamicSource args
       let zippedWithSource := (eventDef.params.zip args).zip compiledArgs |>.map (fun ((p, srcExpr), argExpr) =>
         (p, srcExpr, argExpr))
       let indexed := zippedWithSource.filter (fun (p, _, _) => p.kind == EventParamKind.indexed)
@@ -963,12 +1000,11 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
             match srcExpr with
             | Expr.param name =>
                 let topicName := s!"__evt_topic{idx + 1}"
-                let hashStmts := [
-                  YulStmt.expr (YulExpr.call "calldatacopy" [
-                    YulExpr.ident "__evt_ptr",
-                    YulExpr.ident s!"{name}_data_offset",
-                    YulExpr.ident s!"{name}_length"
-                  ]),
+                let hashStmts :=
+                  dynamicCopyData dynamicSource
+                    (YulExpr.ident "__evt_ptr")
+                    (YulExpr.ident s!"{name}_data_offset")
+                    (YulExpr.ident s!"{name}_length") ++ [
                   YulStmt.let_ topicName (YulExpr.call "keccak256" [
                     YulExpr.ident "__evt_ptr",
                     YulExpr.ident s!"{name}_length"
@@ -996,13 +1032,13 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
 
   | Stmt.internalCall functionName args => do
       -- Internal function call as statement (#181)
-      let argExprs ← compileExprList fields args
+      let argExprs ← compileExprList fields dynamicSource args
       pure [YulStmt.expr (YulExpr.call s!"internal_{functionName}" argExprs)]
   | Stmt.returnValues values => do
       if values.isEmpty then
         pure [YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 0])]
       else
-        let compiled ← compileExprList fields values
+        let compiled ← compileExprList fields dynamicSource values
         let stores := (compiled.zipIdx.map fun (valueExpr, idx) =>
           YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (idx * 32), valueExpr]))
         pure (stores ++ [YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit (values.length * 32)])])
@@ -1010,12 +1046,12 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let lenIdent := YulExpr.ident s!"{name}_length"
       let dataOffset := YulExpr.ident s!"{name}_data_offset"
       let byteLen := YulExpr.call "mul" [lenIdent, YulExpr.lit 32]
-      pure [
+      pure ([
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
-        YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, byteLen]),
+      ] ++ dynamicCopyData dynamicSource (YulExpr.lit 64) dataOffset byteLen ++ [
         YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, byteLen]])
-      ]
+      ])
   | Stmt.returnBytes name => do
       let lenIdent := YulExpr.ident s!"{name}_length"
       let dataOffset := YulExpr.ident s!"{name}_data_offset"
@@ -1025,13 +1061,13 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
           YulExpr.call "add" [lenIdent, YulExpr.lit 31],
           YulExpr.call "not" [YulExpr.lit 31]
         ]
-      pure [
+      pure ([
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
         YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
-        YulStmt.expr (YulExpr.call "calldatacopy" [YulExpr.lit 64, dataOffset, lenIdent]),
+      ] ++ dynamicCopyData dynamicSource (YulExpr.lit 64) dataOffset lenIdent ++ [
         YulStmt.expr (YulExpr.call "mstore" [tailOffset, YulExpr.lit 0]),
         YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, paddedLen]])
-      ]
+      ])
   | Stmt.returnStorageWords name => do
       let lenIdent := YulExpr.ident s!"{name}_length"
       let dataOffset := YulExpr.ident s!"{name}_data_offset"
@@ -1043,9 +1079,10 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
           (YulExpr.call "lt" [YulExpr.ident "__i", lenIdent])
           [YulStmt.assign "__i" (YulExpr.call "add" [YulExpr.ident "__i", YulExpr.lit 1])]
           [
-            YulStmt.let_ "__slot" (YulExpr.call "calldataload" [
-              YulExpr.call "add" [dataOffset, YulExpr.call "mul" [YulExpr.ident "__i", YulExpr.lit 32]]
-            ]),
+            YulStmt.let_ "__slot" (dynamicWordLoad dynamicSource (YulExpr.call "add" [
+              dataOffset,
+              YulExpr.call "mul" [YulExpr.ident "__i", YulExpr.lit 32]
+            ])),
             YulStmt.expr (YulExpr.call "mstore" [
               YulExpr.call "add" [YulExpr.lit 64, YulExpr.call "mul" [YulExpr.ident "__i", YulExpr.lit 32]],
               YulExpr.call "sload" [YulExpr.ident "__slot"]
@@ -1197,7 +1234,8 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (erro
     | [_] => ["__ret"]
     | [] => []
     | _ => []
-  let bodyStmts ← compileStmtList fields events errors (isInternal := true) spec.body
+  let bodyStmts ← compileStmtList fields events errors
+    (dynamicSource := .calldata) (isInternal := true) spec.body
   pure (YulStmt.funcDef s!"internal_{spec.name}" paramNames retNames bodyStmts)
 
 -- Compile function spec to IR function
@@ -1284,7 +1322,7 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
   | none => return []
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
-    let bodyChunks ← spec.body.mapM (compileStmt fields events errors)
+    let bodyChunks ← spec.body.mapM (compileStmt fields events errors .memory)
     return argLoads ++ bodyChunks.flatten
 
 -- Main compilation function

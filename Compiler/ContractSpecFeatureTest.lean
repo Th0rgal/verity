@@ -429,6 +429,31 @@ private def featureSpec : ContractSpec := {
          "let arg1 := payload_offset"]
 
 #eval! do
+  let ctorDynamicReadSpec : ContractSpec := {
+    name := "CtorDynamicReadSource"
+    fields := []
+    constructor := some {
+      params := [{ name := "numbers", ty := ParamType.array ParamType.uint256 }]
+      body := [
+        Stmt.letVar "firstWord" (Expr.arrayElement "numbers" (Expr.literal 0)),
+        Stmt.stop
+      ]
+    }
+    events := []
+    errors := []
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile ctorDynamicReadSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected constructor dynamic read support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "constructor dynamic read source" rendered
+        ["let firstWord := mload(add(numbers_data_offset, mul(0, 32)))"]
+      assertNotContains "constructor dynamic read source" rendered
+        ["let firstWord := calldataload(add(numbers_data_offset, mul(0, 32)))"]
+
+#eval! do
   let extCodeSizeSpec : ContractSpec := {
     name := "ExtCodeSizeUnsupported"
     fields := []
