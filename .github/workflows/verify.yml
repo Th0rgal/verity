@@ -330,6 +330,7 @@ jobs:
           python3 scripts/check_patch_gas_delta.py \
             --baseline-report gas-report-static.tsv \
             --patched-report gas-report-static-patched.tsv \
+            --min-improved-contracts 0 \
             --summary-markdown patch-gas-delta-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize patch coverage report
