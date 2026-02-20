@@ -28,6 +28,7 @@ import Verity.AST.Owned
 import Verity.AST.OwnedCounter
 import Verity.AST.SimpleToken
 import Verity.AST.ERC20
+import Verity.AST.ERC721
 
 -- Common specifications
 import Verity.Specs.Common
@@ -49,6 +50,7 @@ import Verity.Examples.OwnedCounter
 import Verity.Examples.Ledger
 import Verity.Examples.SimpleToken
 import Verity.Examples.ERC20
+import Verity.Examples.ERC721
 import Verity.Examples.ReentrancyExample
 import Verity.Examples.CryptoHash
 
@@ -111,3 +113,10 @@ import Verity.Specs.ERC20.Invariants
 import Verity.Specs.ERC20.Proofs
 import Verity.Proofs.ERC20.Basic
 import Verity.Proofs.ERC20.Correctness
+
+-- ERC721 (foundation scaffold): Spec + initial bridge/basic proofs
+import Verity.Specs.ERC721.Spec
+import Verity.Specs.ERC721.Invariants
+import Verity.Specs.ERC721.Proofs
+import Verity.Proofs.ERC721.Basic
+import Verity.Proofs.ERC721.Correctness

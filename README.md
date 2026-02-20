@@ -28,7 +28,7 @@ source ~/.elan/env
 # 2. Clone and build
 git clone https://github.com/Th0rgal/verity.git
 cd verity
-lake build                                    # Verifies all 412 theorems
+lake build                                    # Verifies all 423 theorems
 
 # 3. Generate a new contract
 python3 scripts/generate_contract.py MyContract
@@ -88,11 +88,13 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | Ledger | 33 | Deposit/withdraw/transfer with balance conservation |
 | SimpleToken | 61 | Mint/transfer, supply conservation, storage isolation |
 | ERC20 | 11 | Foundation scaffold with initial spec/read-state proofs |
+| ERC721 | 11 | Foundation scaffold with token ownership/approval proof baseline |
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 
 **Unverified examples**:
 - [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.
 - [ERC20](Verity/Examples/ERC20.lean) is a new foundation scaffold with executable logic plus formal spec/invariant modules in `Verity/Specs/ERC20/`, with proof development tracked in [#69](https://github.com/Th0rgal/verity/issues/69).
+- [ERC721](Verity/Examples/ERC721.lean) is a new foundation scaffold with executable logic plus formal spec/invariant modules in `Verity/Specs/ERC721/`, with proof development tracked in [#73](https://github.com/Th0rgal/verity/issues/73).
 
 ### Using External Libraries (Linker)
 
@@ -126,7 +128,7 @@ Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
 
 See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
 
-412 theorems across 10 categories, all fully proven. 376 Foundry tests across 33 test suites. 231 covered by property tests (56% coverage, 181 proof-only exclusions). 1 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
+423 theorems across 11 categories, all fully proven. 377 Foundry tests across 34 test suites. 242 covered by property tests (57% coverage, 181 proof-only exclusions). 1 documented axioms. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)).
 
 ## What's Verified
 
@@ -163,7 +165,7 @@ FOUNDRY_PROFILE=difftest forge test
 <details>
 <summary><strong>Testing</strong></summary>
 
-**Foundry tests** (376 tests) validate EDSL = Yul = EVM execution:
+**Foundry tests** (377 tests) validate EDSL = Yul = EVM execution:
 
 ```bash
 FOUNDRY_PROFILE=difftest forge test                                          # run all

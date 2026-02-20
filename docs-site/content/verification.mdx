@@ -7,11 +7,11 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
 
-**Status**: 412 theorems across 10 categories, all fully proven. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**Status**: 423 theorems across 11 categories, all fully proven. 0 `sorry` — Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
 ## Snapshot (2026-02-17)
 
-- EDSL theorems: 412 across 10 categories (7 contracts + ReentrancyExample + Stdlib).
+- EDSL theorems: 423 across 11 categories (9 contracts + ReentrancyExample + Stdlib).
 - SimpleStorage: 20 total (Basic 13, Correctness 7).
 - Counter: 28 total (Basic 19, Correctness 10; 1 shared between Basic and Correctness).
 - Owned: 23 total (Basic 19, Correctness 4).
@@ -20,6 +20,7 @@ The compiler is verified with IR preservation proofs and Yul equivalence proofs 
 - Ledger: 33 total (Basic 20, Correctness 6, Conservation 7 — all proven).
 - SafeCounter: 25 total (Basic 17, Correctness 8).
 - ERC20: 11 total (Basic 3, Correctness 2).
+- ERC721: 11 total (Basic 6, Correctness 5).
 - ReentrancyExample: 4 total (inline proofs: vulnerability existence, supply invariant).
 - Stdlib: 159 theorems (Math 25, Automation 56, MappingAutomation 37, ListSum 7, AddressAutomation 24; 2 shared between Automation and MappingAutomation).
 
@@ -29,14 +30,14 @@ The unified AST provides a deep embedding (`Verity.AST`) where each constructor 
 
 - **AST types**: `Verity/AST.lean` (unified `Expr`/`Stmt` inductives)
 - **Denotation**: `Verity/Denote.lean` (AST → Contract monad)
-- **Per-contract ASTs + proofs**: `Verity/AST/{Contract}.lean` (28 public + 2 private theorems across 7 contracts)
+- **Per-contract ASTs + proofs**: `Verity/AST/{Contract}.lean` (29 public + 2 private theorems across 9 contracts)
 
 Simple contracts (SimpleStorage, Counter, SafeCounter, Ledger) hold by `rfl`. Contracts with helper composition (Owned, OwnedCounter, SimpleToken) use `bind_assoc` to flatten nested `bind` before `rfl` closes the goal.
 
 ## Compiler Proofs (IR + Yul)
 
 - **Spec semantics**: `Verity/Proofs/Stdlib/SpecInterpreter.lean`
-- **Spec correctness**: `Compiler/Proofs/SpecCorrectness/` (complete for all 7 contracts — proves each ContractSpec matches its EDSL)
+- **Spec correctness**: `Compiler/Proofs/SpecCorrectness/` (complete for all 9 contracts — proves each ContractSpec matches its EDSL)
 - **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + concrete IR proofs in `Expr.lean`)
 - **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/` (complete — PR #42)
 

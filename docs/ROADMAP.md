@@ -9,12 +9,12 @@
 - ✅ **Layer 1 Complete**: 401 theorems across 9 categories (8 contracts + Stdlib math library)
 - ✅ **Layer 2 Complete**: All IR generation with preservation proofs (ContractSpec → IR)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
-- ✅ **Property Testing**: 56% coverage (231/412), all testable properties covered
+- ✅ **Property Testing**: 57% coverage (242/423), all testable properties covered
 - ✅ **Differential Testing**: Production-ready with 70k+ tests
 - ✅ **Trust Reduction Phase 1**: keccak256 axiom + CI validation (PR #43, #46)
 - ✅ **External Linking**: Cryptographic library support (PR #49)
 - ✅ **ContractSpec Real-World Support**: Loops, branching, arrays, events, multi-mappings, internal calls, verified extern linking (#153, #154, #179, #180, #181, #184)
-- ✅ **Unified AST (#364)**: All 7 contracts migrated with equivalence proofs (28 theorems, PR #370)
+- ✅ **Unified AST (#364)**: All 7 contracts migrated with equivalence proofs (29 theorems, PR #370)
 
 ---
 

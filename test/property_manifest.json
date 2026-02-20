@@ -42,6 +42,19 @@
     "getTotalSupply_preserves_state",
     "totalSupply_meets_spec"
   ],
+  "ERC721": [
+    "balanceOf_meets_spec",
+    "balanceOf_preserves_state",
+    "constructor_meets_spec",
+    "getApproved_meets_spec",
+    "getApproved_preserves_state",
+    "isApprovedForAll_meets_spec",
+    "isApprovedForAll_preserves_state",
+    "ownerOf_meets_spec",
+    "ownerOf_preserves_state",
+    "setApprovalForAll_is_balance_neutral_holds",
+    "setApprovalForAll_meets_spec"
+  ],
   "Ledger": [
     "deposit_getBalance_correct",
     "deposit_increases_balance",

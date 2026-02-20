@@ -5,7 +5,7 @@ description: Design decisions, iterations, and proof techniques
 
 # Research & Development
 
-**Compact core, built across 7 iterations. 412 theorems, all fully proven. 1 documented axiom, 0 sorry.**
+**Compact core, built across 7 iterations. 423 theorems, all fully proven. 1 documented axiom, 0 sorry.**
 
 ## Evolution
 
@@ -174,7 +174,7 @@ def ownedSpec : ContractSpec := {
 **Metrics**:
 - Manual IR eliminated in favor of generated IR from the spec
 - Time to add contract dropped significantly in practice
-- Test results: Foundry tests pass (376 as of 2026-02-18), Lean proofs verify (412 theorems as of 2026-02-19)
+- Test results: Foundry tests pass (377 as of 2026-02-18), Lean proofs verify (423 theorems as of 2026-02-19)
 - Code quality: More concise, optimized (expression inlining)
 
 **Features Achieved**:
@@ -188,7 +188,7 @@ def ownedSpec : ContractSpec := {
 ```bash
 lake build verity-compiler    # Build compiler
 lake exe verity-compiler      # Generate all contracts
-FOUNDRY_PROFILE=difftest forge test  # 376/375 tests pass (as of 2026-02-18)
+FOUNDRY_PROFILE=difftest forge test  # 377/375 tests pass (as of 2026-02-18)
 ```
 
 ### Differential Testing (Completed 2026-02-10)
@@ -225,7 +225,7 @@ FOUNDRY_PROFILE=difftest forge test  # 376/375 tests pass (as of 2026-02-18)
 - 10,000+ random transactions pass per contract in CI (large suite)
 - Large suite is sharded across 8 CI jobs to stay within per-test gas limits
 - Zero mismatches detected
-- All Foundry tests passing (376 as of 2026-02-18)
+- All Foundry tests passing (377 as of 2026-02-18)
 - CI: All checks passing
 
 **Usage**:
