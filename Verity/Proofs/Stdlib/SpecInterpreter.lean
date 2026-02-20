@@ -317,6 +317,13 @@ def execStmt (ctx : EvalContext) (fields : List Field) (paramNames : List String
       let cond := evalExpr ctx state.storage fields paramNames externalFns condExpr
       if cond ≠ 0 then some (ctx, state) else none
 
+  | Stmt.requireError condExpr _errorName _args =>
+      let cond := evalExpr ctx state.storage fields paramNames externalFns condExpr
+      if cond ≠ 0 then some (ctx, state) else none
+
+  | Stmt.revertError _errorName _args =>
+      none
+
   | Stmt.return expr =>
       let value := evalExpr ctx state.storage fields paramNames externalFns expr
       some (ctx, { state with returnValue := some value, halted := true })

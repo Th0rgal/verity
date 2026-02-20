@@ -48,6 +48,11 @@ private def featureSpec : ContractSpec := {
       ]
     }
   ]
+  errors := [
+    { name := "Unauthorized"
+      params := [ParamType.address, ParamType.uint256]
+    }
+  ]
   functions := [
     { name := "setFlag"
       params := [{ name := "flag", ty := ParamType.bool }]
@@ -131,12 +136,20 @@ private def featureSpec : ContractSpec := {
       returnType := none
       returns := [ParamType.array ParamType.uint256]
       body := [Stmt.returnStorageWords "slots"]
+    },
+    { name := "guarded"
+      params := [{ name := "who", ty := ParamType.address }, { name := "min", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.requireError (Expr.lt (Expr.param "min") (Expr.literal 1)) "Unauthorized" [Expr.param "who", Expr.param "min"],
+        Stmt.stop
+      ]
     }
   ]
 }
 
 #eval! do
-  match compile featureSpec [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] with
+  match compile featureSpec [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with
   | .error err =>
       throw (IO.userError s!"✗ feature spec compile failed: {err}")
   | .ok ir =>
@@ -154,6 +167,7 @@ private def featureSpec : ContractSpec := {
       assertContains "fixed array of static tuples decode offsets" rendered ["let fa_0_0 := calldataload(4)", "let fa_0_1 := iszero(iszero(calldataload(36)))", "let fa_1_0 := calldataload(68)", "let fa_1_1 := iszero(iszero(calldataload(100)))", "let q := calldataload(132)"]
       assertContains "dynamic bytes ABI return" rendered ["calldatacopy(64, data_data_offset, data_length)", "mstore(add(64, data_length), 0)", "return(0, add(64, and(add(data_length, 31), not(31))))"]
       assertContains "storage-word array return ABI" rendered ["let __slot := calldataload(add(slots_data_offset, mul(__i, 32)))", "mstore(add(64, mul(__i, 32)), sload(__slot))", "return(0, add(64, mul(slots_length, 32)))"]
+      assertContains "custom error revert payload emission" rendered ["let __err_hash := keccak256(__err_ptr,", "mstore(0, __err_selector)", "mstore(4, and(who,", "revert(0, 68)"]
 
 #eval! do
   let conflictingReturnsSpec : ContractSpec := {
@@ -388,6 +402,53 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ external create2 unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected external create2 declaration to fail compilation")
+
+#eval! do
+  let unknownCustomErrorSpec : ContractSpec := {
+    name := "UnknownCustomError"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "bad"
+        params := []
+        returnType := none
+        body := [Stmt.revertError "MissingError" []]
+      }
+    ]
+  }
+  match compile unknownCustomErrorSpec [1] with
+  | .error err =>
+      if !(contains err "unknown custom error 'MissingError'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ unknown custom error diagnostic mismatch: {err}")
+      IO.println "✓ unknown custom error diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected unknown custom error usage to fail compilation")
+
+#eval! do
+  let dynamicCustomErrorSpec : ContractSpec := {
+    name := "DynamicCustomErrorUnsupported"
+    fields := []
+    constructor := none
+    errors := [
+      { name := "BadPayload"
+        params := [ParamType.bytes]
+      }
+    ]
+    functions := [
+      { name := "bad"
+        params := [{ name := "payload", ty := ParamType.bytes }]
+        returnType := none
+        body := [Stmt.revertError "BadPayload" [Expr.param "payload"]]
+      }
+    ]
+  }
+  match compile dynamicCustomErrorSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported dynamic parameter type" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ dynamic custom error diagnostic mismatch: {err}")
+      IO.println "✓ dynamic custom error diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected dynamic custom error params to fail compilation")
 
 #eval! do
   let indexedBytesEventSpec : ContractSpec := {

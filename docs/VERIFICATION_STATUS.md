@@ -267,7 +267,7 @@ Status legend:
 
 | Feature | Spec support | Codegen support | Proof status | Test status | Current status |
 |---|---|---|---|---|---|
-| Custom errors + typed revert payloads | unsupported | unsupported | n/a | n/a | unsupported |
+| Custom errors + typed revert payloads | partial | partial | n/a | partial | partial |
 | Low-level calls (`call` / `staticcall` / `delegatecall`) with returndata | unsupported | unsupported | n/a | n/a | unsupported |
 | `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
 | Event ABI parity for indexed dynamic/tuple payloads | partial | partial | partial | partial | partial |
@@ -281,6 +281,7 @@ Diagnostics policy for unsupported constructs:
 
 Current diagnostic coverage in compiler:
 - Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.
+- Custom errors are now first-class declarations (`errors`) with `Stmt.requireError`/`Stmt.revertError` emission for static payload types (`uint256`, `address`, `bool`, `bytes32`). Dynamic custom error payloads still fail with explicit guidance.
 - `fallback` and `receive` are now modeled as first-class entrypoints in dispatch (empty-calldata routing to `receive`, unmatched selector routing to `fallback`) with compile-time shape checks (`receive` must be payable, both must be parameterless and non-returning).
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.

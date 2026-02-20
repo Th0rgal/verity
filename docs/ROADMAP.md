@@ -50,7 +50,7 @@ Status legend:
 
 | Priority | Feature | Spec support | Codegen support | Proof status | Test status | Current status |
 |---|---|---|---|---|---|---|
-| 1 | Custom errors + typed revert payloads | unsupported | unsupported | n/a | n/a | unsupported |
+| 1 | Custom errors + typed revert payloads | partial | partial | n/a | partial | partial |
 | 2 | Low-level calls (`call`/`staticcall`/`delegatecall`) + returndata handling | unsupported | unsupported | n/a | n/a | unsupported |
 | 3 | `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
 | 4 | Full event ABI parity (indexed dynamic + tuple hashing) | partial | partial | partial | partial | partial |

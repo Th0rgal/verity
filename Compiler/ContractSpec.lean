@@ -132,6 +132,11 @@ structure EventDef where
   params : List EventParam
   deriving Repr
 
+structure ErrorDef where
+  name : String
+  params : List ParamType
+  deriving Repr
+
 /-!
 ### External Function Declarations (#184)
 
@@ -201,6 +206,8 @@ inductive Stmt
   | setMapping2 (field : String) (key1 key2 : Expr) (value : Expr)  -- Double mapping write (#154)
   | setMappingUint (field : String) (key : Expr) (value : Expr)  -- Uint256-keyed mapping write (#154)
   | require (cond : Expr) (message : String)
+  | requireError (cond : Expr) (errorName : String) (args : List Expr)
+  | revertError (errorName : String) (args : List Expr)
   | return (value : Expr)
   | returnValues (values : List Expr)  -- ABI-encode multiple static return words
   | returnArray (name : String)        -- ABI-encode dynamic uint256[] parameter loaded from calldata
@@ -238,6 +245,7 @@ structure ContractSpec where
   constructor : Option ConstructorSpec  -- Deploy-time initialization with params
   functions : List FunctionSpec
   events : List EventDef := []  -- Event definitions (#153)
+  errors : List ErrorDef := []  -- Custom errors (#586)
   externals : List ExternalFunction := []  -- External function declarations (#184)
   deriving Repr
 
@@ -431,6 +439,9 @@ def eventSignature (eventDef : EventDef) : String :=
   let params := eventDef.params.map (fun p => paramTypeToSolidityString p.ty)
   s!"{eventDef.name}(" ++ String.intercalate "," params ++ ")"
 
+def errorSignature (errorDef : ErrorDef) : String :=
+  s!"{errorDef.name}(" ++ String.intercalate "," (errorDef.params.map paramTypeToSolidityString) ++ ")"
+
 def fieldTypeToParamType : FieldType → ParamType
   | FieldType.uint256 => ParamType.uint256
   | FieldType.address => ParamType.address
@@ -557,6 +568,11 @@ private partial def validateInteropStmt (context : String) : Stmt → Except Str
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInteropExpr context value
+  | Stmt.requireError cond _ args => do
+      validateInteropExpr context cond
+      args.forM (validateInteropExpr context)
+  | Stmt.revertError _ args =>
+      args.forM (validateInteropExpr context)
   | Stmt.setMapping _ key value | Stmt.setMappingUint _ key value => do
       validateInteropExpr context key
       validateInteropExpr context value
@@ -622,20 +638,63 @@ private def compileMappingSlotWrite (fields : List Field) (field : String)
         ]
     | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
 
+private def staticCustomErrorParamType : ParamType → Bool
+  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
+  | _ => false
+
+private def encodeCustomErrorArg (errorName : String) (ty : ParamType) (argExpr : YulExpr) :
+    Except String YulExpr :=
+  match ty with
+  | ParamType.uint256 | ParamType.bytes32 =>
+      pure argExpr
+  | ParamType.address =>
+      pure (YulExpr.call "and" [argExpr, YulExpr.hex ((2^160) - 1)])
+  | ParamType.bool =>
+      pure (yulToBool argExpr)
+  | _ =>
+      throw s!"Compilation error: custom error '{errorName}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref})."
+
+private def revertWithCustomError (errorDef : ErrorDef) (args : List YulExpr) :
+    Except String (List YulStmt) := do
+  if errorDef.params.length != args.length then
+    throw s!"Compilation error: custom error '{errorDef.name}' expects {errorDef.params.length} args, got {args.length}"
+  let encodedArgs ← (errorDef.params.zip args).mapM (fun (ty, argExpr) =>
+    encodeCustomErrorArg errorDef.name ty argExpr
+  )
+  let sigBytes := bytesFromString (errorSignature errorDef)
+  let storePtr := YulStmt.let_ "__err_ptr" (YulExpr.call "mload" [YulExpr.lit 0x40])
+  let sigStores := (chunkBytes32 sigBytes).zipIdx.map fun (chunk, idx) =>
+    YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.call "add" [YulExpr.ident "__err_ptr", YulExpr.lit (idx * 32)],
+      YulExpr.hex (wordFromBytes chunk)
+    ])
+  let hashStmt := YulStmt.let_ "__err_hash"
+    (YulExpr.call "keccak256" [YulExpr.ident "__err_ptr", YulExpr.lit sigBytes.length])
+  let selectorStmt := YulStmt.let_ "__err_selector"
+    (YulExpr.call "shl" [YulExpr.lit 224, YulExpr.call "shr" [YulExpr.lit 224, YulExpr.ident "__err_hash"]])
+  let selectorStore := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "__err_selector"])
+  let argStores := encodedArgs.zipIdx.map fun (argExpr, idx) =>
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+  let revertSize := 4 + encodedArgs.length * 32
+  let revertStmt := YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit revertSize])
+  pure [YulStmt.block ([storePtr] ++ sigStores ++ [hashStmt, selectorStmt, selectorStore] ++ argStores ++ [revertStmt])]
+
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value` (for internal Yul functions)
 -- instead of EVM RETURN which terminates the entire call.
 mutual
 def compileStmtList (fields : List Field) (events : List EventDef := [])
+    (errors : List ErrorDef := [])
     (isInternal : Bool := false) :
     List Stmt → Except String (List YulStmt)
   | [] => pure []
   | s :: ss => do
-      let head ← compileStmt fields events isInternal s
-      let tail ← compileStmtList fields events isInternal ss
+      let head ← compileStmt fields events errors isInternal s
+      let tail ← compileStmtList fields events errors isInternal ss
       pure (head ++ tail)
 
 def compileStmt (fields : List Field) (events : List EventDef := [])
+    (errors : List ErrorDef := [])
     (isInternal : Bool := false) :
     Stmt → Except String (List YulStmt)
   | Stmt.letVar name value => do
@@ -677,6 +736,22 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       pure [
         YulStmt.if_ failCond (revertWithMessage message)
       ]
+  | Stmt.requireError cond errorName args => do
+      let failCond ← compileRequireFailCond fields cond
+      let errorDef ←
+        match errors.find? (·.name == errorName) with
+        | some defn => pure defn
+        | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
+      let argExprs ← compileExprList fields args
+      let revertStmts ← revertWithCustomError errorDef argExprs
+      pure [YulStmt.if_ failCond revertStmts]
+  | Stmt.revertError errorName args => do
+      let errorDef ←
+        match errors.find? (·.name == errorName) with
+        | some defn => pure defn
+        | none => throw s!"Compilation error: unknown custom error '{errorName}' ({issue586Ref})"
+      let argExprs ← compileExprList fields args
+      revertWithCustomError errorDef argExprs
   | Stmt.return value =>
     do
       let valueExpr ← compileExpr fields value
@@ -692,8 +767,8 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.ite cond thenBranch elseBranch => do
       -- If/else: compile to Yul if + negated if (#179)
       let condExpr ← compileExpr fields cond
-      let thenStmts ← compileStmtList fields events isInternal thenBranch
-      let elseStmts ← compileStmtList fields events isInternal elseBranch
+      let thenStmts ← compileStmtList fields events errors isInternal thenBranch
+      let elseStmts ← compileStmtList fields events errors isInternal elseBranch
       if elseBranch.isEmpty then
         -- Simple if (no else)
         pure [YulStmt.if_ condExpr thenStmts]
@@ -710,7 +785,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.forEach varName count body => do
       -- Bounded loop: for { let i := 0 } lt(i, count) { i := add(i, 1) } { body } (#179)
       let countExpr ← compileExpr fields count
-      let bodyStmts ← compileStmtList fields events isInternal body
+      let bodyStmts ← compileStmtList fields events errors isInternal body
       let initStmts := [YulStmt.let_ varName (YulExpr.lit 0)]
       let condExpr := YulExpr.call "lt" [YulExpr.ident varName, countExpr]
       let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
@@ -986,7 +1061,8 @@ def genParamLoads (params : List Param) : List YulStmt :=
   go params 4  -- Start after 4-byte selector
 
 -- Compile internal function to a Yul function definition (#181)
-def compileInternalFunction (fields : List Field) (events : List EventDef) (spec : FunctionSpec) :
+def compileInternalFunction (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (spec : FunctionSpec) :
     Except String YulStmt := do
   validateFunctionSpec spec
   let returns ← functionReturns spec
@@ -997,16 +1073,17 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (spec
     | [_] => ["__ret"]
     | [] => []
     | _ => []
-  let bodyStmts ← compileStmtList fields events (isInternal := true) spec.body
+  let bodyStmts ← compileStmtList fields events errors (isInternal := true) spec.body
   pure (YulStmt.funcDef s!"internal_{spec.name}" paramNames retNames bodyStmts)
 
 -- Compile function spec to IR function
-def compileFunctionSpec (fields : List Field) (events : List EventDef) (selector : Nat) (spec : FunctionSpec) :
+def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (selector : Nat) (spec : FunctionSpec) :
     Except String IRFunction := do
   validateFunctionSpec spec
   let returns ← functionReturns spec
   let paramLoads := genParamLoads spec.params
-  let bodyChunks ← spec.body.mapM (compileStmt fields events)
+  let bodyChunks ← spec.body.mapM (compileStmt fields events errors)
   let allStmts := paramLoads ++ bodyChunks.flatten
   let retType := match returns with
     | [single] => single.toIRType
@@ -1020,9 +1097,10 @@ def compileFunctionSpec (fields : List Field) (events : List EventDef) (selector
     body := allStmts
   }
 
-private def compileSpecialEntrypoint (fields : List Field) (events : List EventDef) (spec : FunctionSpec) :
+private def compileSpecialEntrypoint (fields : List Field) (events : List EventDef)
+    (errors : List ErrorDef) (spec : FunctionSpec) :
     Except String IREntrypoint := do
-  let bodyChunks ← spec.body.mapM (compileStmt fields events)
+  let bodyChunks ← spec.body.mapM (compileStmt fields events errors)
   pure {
     payable := spec.isPayable
     body := bodyChunks.flatten
@@ -1063,13 +1141,14 @@ def genConstructorArgLoads (params : List Param) : List YulStmt :=
 
 -- Compile deploy code (constructor)
 -- Note: Don't append datacopy/return here - Codegen.deployCode does that
-def compileConstructor (fields : List Field) (ctor : Option ConstructorSpec) :
+def compileConstructor (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (ctor : Option ConstructorSpec) :
     Except String (List YulStmt) := do
   match ctor with
   | none => return []
   | some spec =>
     let argLoads := genConstructorArgLoads spec.params
-    let bodyChunks ← spec.body.mapM (compileStmt fields)
+    let bodyChunks ← spec.body.mapM (compileStmt fields events errors)
     return argLoads ++ bodyChunks.flatten
 
 -- Main compilation function
@@ -1094,6 +1173,21 @@ def selectorNames (spec : ContractSpec) (selectors : List Nat) (sel : Nat) : Lis
     if s == sel then acc ++ [fn.name] else acc
   ) []
 
+private def firstDuplicateName (names : List String) : Option String :=
+  let rec go (seen : List String) : List String → Option String
+    | [] => none
+    | n :: rest =>
+      if seen.contains n then
+        some n
+      else
+        go (n :: seen) rest
+  go [] names
+
+private def validateErrorDef (err : ErrorDef) : Except String Unit := do
+  for ty in err.params do
+    if !staticCustomErrorParamType ty then
+      throw s!"Compilation error: custom error '{err.name}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref}). Use uint256/address/bool/bytes32 parameters."
+
 def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContract := do
   let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
   let internalFns := spec.functions.filter (·.isInternal)
@@ -1105,6 +1199,13 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
     validateInteropExternalSpec ext
+  match firstDuplicateName (spec.errors.map (·.name)) with
+  | some dup =>
+      throw s!"Compilation error: duplicate custom error declaration '{dup}'"
+  | none =>
+      pure ()
+  for err in spec.errors do
+    validateErrorDef err
   let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
   let receiveSpec ← pickUniqueFunctionByName "receive" spec.functions
   if externalFns.length != selectors.length then
@@ -1116,14 +1217,14 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
       throw s!"Selector collision in {spec.name}: {dup} assigned to {nameStr}"
   | none => pure ()
   let functions ← (externalFns.zip selectors).mapM fun (fnSpec, sel) =>
-    compileFunctionSpec spec.fields spec.events sel fnSpec
+    compileFunctionSpec spec.fields spec.events spec.errors sel fnSpec
   -- Compile internal functions as Yul function definitions (#181)
-  let internalFuncDefs ← internalFns.mapM (compileInternalFunction spec.fields spec.events)
-  let fallbackEntrypoint ← fallbackSpec.mapM (compileSpecialEntrypoint spec.fields spec.events)
-  let receiveEntrypoint ← receiveSpec.mapM (compileSpecialEntrypoint spec.fields spec.events)
+  let internalFuncDefs ← internalFns.mapM (compileInternalFunction spec.fields spec.events spec.errors)
+  let fallbackEntrypoint ← fallbackSpec.mapM (compileSpecialEntrypoint spec.fields spec.events spec.errors)
+  let receiveEntrypoint ← receiveSpec.mapM (compileSpecialEntrypoint spec.fields spec.events spec.errors)
   return {
     name := spec.name
-    deploy := (← compileConstructor spec.fields spec.constructor)
+    deploy := (← compileConstructor spec.fields spec.events spec.errors spec.constructor)
     constructorPayable := spec.constructor.map (·.isPayable) |>.getD false
     functions := functions
     fallbackEntrypoint := fallbackEntrypoint
