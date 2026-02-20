@@ -365,26 +365,31 @@ def _load_fixture_text_and_aliases() -> tuple[str, dict[str, str]]:
     return text, aliases
 
 
-def load_fixture_function_signatures() -> list[str]:
-    text, aliases = _load_fixture_text_and_aliases()
+def _load_function_signatures(text: str, aliases: dict[str, str]) -> list[str]:
     sigs: list[str] = []
     for name, params in _iter_function_signatures(text):
         params = _strip_param_names(params, aliases)
         sigs.append(f"{name}({params})")
-    if not sigs:
-        die("No function signatures found in fixture")
     return sigs
 
 
-def load_fixture_event_signatures() -> list[str]:
-    text, aliases = _load_fixture_text_and_aliases()
+def _load_event_signatures(text: str, aliases: dict[str, str]) -> list[str]:
     sigs: list[str] = []
     for name, params in _iter_event_signatures(text):
         params = _strip_param_names(params, aliases)
         sigs.append(f"{name}({params})")
-    if not sigs:
-        die("No event signatures found in fixture")
     return sigs
+
+
+def load_fixture_signatures() -> tuple[list[str], list[str]]:
+    text, aliases = _load_fixture_text_and_aliases()
+    function_sigs = _load_function_signatures(text, aliases)
+    if not function_sigs:
+        die("No function signatures found in fixture")
+    event_sigs = _load_event_signatures(text, aliases)
+    if not event_sigs:
+        die("No event signatures found in fixture")
+    return function_sigs, event_sigs
 
 
 def _parse_hash_fixture_line(line: str) -> tuple[str, str] | None:
@@ -437,8 +442,7 @@ def run_keccak_event_hashes(signatures: list[str]) -> dict[str, str]:
 
 
 def main() -> None:
-    function_signatures = load_fixture_function_signatures()
-    event_signatures = load_fixture_event_signatures()
+    function_signatures, event_signatures = load_fixture_signatures()
     solc_hashes = run_solc_hashes()
     keccak_selectors = run_keccak_selectors(function_signatures)
     keccak_event_hashes = run_keccak_event_hashes(event_signatures)
