@@ -15,6 +15,8 @@ private structure CliConfig where
   unknownCallCost : Nat := 50000
   unknownForwardedGas : Nat := 50000
   fuel : Nat := 4096
+  patchEnabled : Bool := false
+  patchMaxIterations : Nat := 2
 
 private def parseNatFlag (flag : String) (raw : String) : IO Nat :=
   match raw.toNat? with
@@ -31,6 +33,8 @@ private def printHelp : IO Unit := do
   IO.println "  --unknown-call-cost <n> Fallback cost for unknown builtins/calls (default: 50000)"
   IO.println "  --unknown-forwarded-gas <n> Fallback forwarded gas for CALL-like builtins (default: 50000)"
   IO.println "  --fuel <n>              Structural recursion fuel for analysis (default: 4096)"
+  IO.println "  --enable-patches        Enable deterministic Yul patch pass before gas analysis"
+  IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
   IO.println "  --help                  Show this help message"
 
 private def parseArgs (args : List String) : IO CliConfig := do
@@ -48,16 +52,28 @@ private def parseArgs (args : List String) : IO CliConfig := do
         go tail { cfg with unknownForwardedGas := (← parseNatFlag "--unknown-forwarded-gas" value) }
     | "--fuel" :: value :: tail =>
         go tail { cfg with fuel := (← parseNatFlag "--fuel" value) }
+    | "--enable-patches" :: tail =>
+        go tail { cfg with patchEnabled := true }
+    | "--patch-max-iterations" :: value :: tail =>
+        go tail {
+          cfg with
+            patchEnabled := true
+            patchMaxIterations := (← parseNatFlag "--patch-max-iterations" value)
+        }
     | flag :: _ =>
         throw <| IO.userError s!"Unknown argument: {flag}. Use --help for usage."
   go args {}
 
-private def compileAndBound (cfg : GasConfig) (fuel : Nat) (spec : ContractSpec) : IO (String × Nat × Nat) := do
+private def compileAndBound
+    (cfg : GasConfig)
+    (fuel : Nat)
+    (emitOptions : Compiler.YulEmitOptions)
+    (spec : ContractSpec) : IO (String × Nat × Nat) := do
   let selectors ← computeSelectors spec
   match Compiler.ContractSpec.compile spec selectors with
   | .error err => throw <| IO.userError s!"Failed to compile {spec.name}: {err}"
   | .ok irContract =>
-      let yulObj := Compiler.emitYul irContract
+      let yulObj := Compiler.emitYulWithOptions irContract emitOptions
       let deployBound := stmtsUpperBound cfg fuel yulObj.deployCode
       let runtimeBound := stmtsUpperBound cfg fuel yulObj.runtimeCode
       pure (spec.name, deployBound, runtimeBound)
@@ -73,15 +89,21 @@ def main (args : List String) : IO Unit := do
       unknownCallCost := cli.unknownCallCost
       unknownForwardedGas := cli.unknownForwardedGas
     }
+    let emitOptions : Compiler.YulEmitOptions := {
+      patchConfig := {
+        enabled := cli.patchEnabled
+        maxIterations := cli.patchMaxIterations
+      }
+    }
 
-    IO.println s!"# gas-report loopIterations={cli.loopIterations} unknownCallCost={cli.unknownCallCost} unknownForwardedGas={cli.unknownForwardedGas} fuel={cli.fuel}"
+    IO.println s!"# gas-report loopIterations={cli.loopIterations} unknownCallCost={cli.unknownCallCost} unknownForwardedGas={cli.unknownForwardedGas} fuel={cli.fuel} patchEnabled={cli.patchEnabled} patchMaxIterations={cli.patchMaxIterations}"
     IO.println "contract\tdeploy_upper_bound\truntime_upper_bound\ttotal_upper_bound"
 
     let mut totalDeploy := 0
     let mut totalRuntime := 0
 
     for spec in Compiler.Specs.allSpecs do
-      let (name, deployBound, runtimeBound) ← compileAndBound gasCfg cli.fuel spec
+      let (name, deployBound, runtimeBound) ← compileAndBound gasCfg cli.fuel emitOptions spec
       totalDeploy := totalDeploy + deployBound
       totalRuntime := totalRuntime + runtimeBound
       printRow name deployBound runtimeBound

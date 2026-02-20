@@ -122,6 +122,7 @@ python3 scripts/generate_evmyullean_adapter_report.py
 - **`check_selector_fixtures.py`** - Cross-checks selectors against solc-generated hashes; fixture signature extraction is comment/string-aware so commented examples/debug strings cannot create false selector expectations, scans full function headers (so visibility can appear after modifiers like `virtual`), includes only `public`/`external` selectors (matching `solc --hashes`), canonicalizes ABI-sensitive param forms (`function(...)`, `uint/int` aliases, user-defined `contract`/`enum`/`type` aliases, and struct params into canonical tuple signatures), parses both `solc --hashes` output layouts robustly (including nested tuple signatures), and enforces reverse completeness (every `solc --hashes` signature must be present in extracted fixtures)
 - **`check_yul_compiles.py`** - Ensures generated Yul code compiles with solc, can compare bytecode parity between directories, and can enforce a checked baseline of known compare diffs via allowlist
 - **`check_gas_report.py`** - Validates `lake exe gas-report` output shape, arithmetic consistency of totals, and monotonicity under more conservative static analysis settings
+- **`check_patch_gas_delta.py`** - Compares baseline vs patch-enabled static gas reports, enforces median/p90 non-regression thresholds, and supports configurable minimum improved-contract thresholds
 - **`check_gas_model_coverage.py`** - Verifies that every call emitted in generated Yul has an explicit cost branch in `Compiler/Gas/StaticAnalysis.lean` (prevents silent fallback to unknown-call costs)
 - **`check_gas_calibration.py`** - Compares static bounds (`lake exe gas-report`) against Foundry `--gas-report` measurements for `test/yul/*.t.sol`, requiring runtime bounds + transaction base gas to dominate observed max call gas, deploy bounds + creation/code-deposit overhead to dominate deployment gas, and every static-report contract to have both runtime + deployment Foundry measurements (unless explicitly allowlisted). Parsing is header-driven (not fixed-column) and strips ANSI color escapes to tolerate Foundry output-format drift. Accepts precomputed `--static-report` and `--foundry-report` files for deterministic replay/debugging.
 
@@ -140,6 +141,12 @@ python3 scripts/check_yul_compiles.py \
 python3 scripts/check_gas_model_coverage.py \
   --dir compiler/yul \
   --dir compiler/yul-ast
+
+# Check patch-enabled static gas deltas (median/p90 non-regression + configurable improvement floor)
+python3 scripts/check_patch_gas_delta.py \
+  --baseline-report gas-report-static.tsv \
+  --patched-report gas-report-static-patched.tsv \
+  --min-improved-contracts 0
 ```
 
 ## Contract Scaffold Generator
@@ -199,8 +206,9 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
 5. Static gas model coverage on generated Yul (legacy + AST) (`check_gas_model_coverage.py`)
 6. Selector fixture check (`check_selector_fixtures.py`)
 7. Static gas report invariants (`check_gas_report.py`)
-8. Save static gas report artifact (`gas-report-static.tsv`)
-9. Coverage and storage layout reports in workflow summary
+8. Save baseline + patch-enabled static gas report artifacts (`gas-report-static.tsv`, `gas-report-static-patched.tsv`)
+9. Patch gas delta non-regression + measurable improvement gate (`check_patch_gas_delta.py`)
+10. Coverage and storage layout reports in workflow summary
 
 **`foundry-gas-calibration`** — Static-vs-Foundry gas calibration check (`check_gas_calibration.py`) using build-artifact static report + Foundry gas report (runtime + deployment)
 **`foundry`** — 8-shard parallel Foundry tests with seed 42
