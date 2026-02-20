@@ -499,6 +499,27 @@ private def featureSpec : ContractSpec := {
         ["let firstWord := calldataload(add(numbers_data_offset, mul(0, 32)))"]
 
 #eval! do
+  let callSpec : ContractSpec := {
+    name := "CallUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "unsafe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "call" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile callSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported low-level call 'call'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ call diagnostic mismatch: {err}")
+      IO.println "✓ call unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected call usage to fail compilation")
+
+#eval! do
   let extCodeSizeSpec : ContractSpec := {
     name := "ExtCodeSizeUnsupported"
     fields := []
@@ -518,6 +539,48 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ extcodesize unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected extcodesize usage to fail compilation")
+
+#eval! do
+  let extCodeCopySpec : ContractSpec := {
+    name := "ExtCodeCopyUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "extcodecopy" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile extCodeCopySpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'extcodecopy'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ extcodecopy diagnostic mismatch: {err}")
+      IO.println "✓ extcodecopy unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected extcodecopy usage to fail compilation")
+
+#eval! do
+  let extCodeHashSpec : ContractSpec := {
+    name := "ExtCodeHashUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "extcodehash" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile extCodeHashSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'extcodehash'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ extcodehash diagnostic mismatch: {err}")
+      IO.println "✓ extcodehash unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected extcodehash usage to fail compilation")
 
 #eval! do
   let externalCreate2Spec : ContractSpec := {
@@ -546,6 +609,34 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ external create2 unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected external create2 declaration to fail compilation")
+
+#eval! do
+  let externalCreateSpec : ContractSpec := {
+    name := "ExternalCreateUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "create"
+        params := [ParamType.uint256]
+        returnType := some ParamType.address
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalCreateSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'create'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external create diagnostic mismatch: {err}")
+      IO.println "✓ external create unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external create declaration to fail compilation")
 
 #eval! do
   let unknownCustomErrorSpec : ContractSpec := {
