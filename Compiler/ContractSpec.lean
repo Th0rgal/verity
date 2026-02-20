@@ -563,6 +563,47 @@ private def validateCustomErrorArgShapesInFunction (spec : FunctionSpec) (errors
     Except String Unit := do
   spec.body.forM (validateCustomErrorArgShapesInStmt spec.name spec.params errors)
 
+private partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
+    (events : List EventDef) : Stmt → Except String Unit
+  | Stmt.emit eventName args => do
+      let eventDef ←
+        match events.find? (·.name == eventName) with
+        | some defn => pure defn
+        | none => throw s!"Compilation error: unknown event '{eventName}'"
+      if eventDef.params.length != args.length then
+        throw s!"Compilation error: event '{eventName}' expects {eventDef.params.length} args, got {args.length}"
+      for (eventParam, arg) in eventDef.params.zip args do
+        match arg with
+        | Expr.param name =>
+            match findParamType params name with
+            | some ty =>
+                if ty != eventParam.ty then
+                  throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+            | none =>
+                throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+        | _ => pure ()
+        if eventParam.kind == EventParamKind.indexed && eventParam.ty == ParamType.bytes then
+          match arg with
+          | Expr.param name =>
+              match findParamType params name with
+              | some ParamType.bytes => pure ()
+              | some ty =>
+                  throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
+              | none =>
+                  throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+          | _ =>
+              throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+  | Stmt.ite _ thenBranch elseBranch => do
+      thenBranch.forM (validateEventArgShapesInStmt fnName params events)
+      elseBranch.forM (validateEventArgShapesInStmt fnName params events)
+  | Stmt.forEach _ _ body =>
+      body.forM (validateEventArgShapesInStmt fnName params events)
+  | _ => pure ()
+
+private def validateEventArgShapesInFunction (spec : FunctionSpec) (events : List EventDef) :
+    Except String Unit := do
+  spec.body.forM (validateEventArgShapesInStmt spec.name spec.params events)
+
 private def isLowLevelCallName (name : String) : Bool :=
   ["call", "staticcall", "delegatecall", "callcode"].contains name
 
@@ -1288,6 +1329,7 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
     validateFunctionSpec fn
     validateInteropFunctionSpec fn
     validateSpecialEntrypointSpec fn
+    validateEventArgShapesInFunction fn spec.events
     validateCustomErrorArgShapesInFunction fn spec.errors
   validateConstructorSpec spec.constructor
   validateInteropConstructorSpec spec.constructor

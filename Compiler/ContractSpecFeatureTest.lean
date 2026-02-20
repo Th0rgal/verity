@@ -558,6 +558,36 @@ private def featureSpec : ContractSpec := {
          "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
 
 #eval! do
+  let indexedBytesEventArgTypeMismatchSpec : ContractSpec := {
+    name := "IndexedBytesEventArgTypeMismatch"
+    fields := []
+    constructor := none
+    events := [
+      { name := "IndexedBytes"
+        params := [
+          { name := "payload", ty := ParamType.bytes, kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBadBytes"
+        params := [{ name := "payload", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.emit "IndexedBytes" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedBytesEventArgTypeMismatchSpec [1] with
+  | .error err =>
+      if !(contains err "event 'IndexedBytes' param 'payload' expects" &&
+          contains err "ParamType.bytes" &&
+          contains err "Issue #586") then
+        throw (IO.userError s!"✗ indexed bytes event arg type diagnostic mismatch: {err}")
+      IO.println "✓ indexed bytes event arg type diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected invalid indexed bytes event arg type usage to fail compilation")
+
+#eval! do
   let indexedTupleEventSpec : ContractSpec := {
     name := "IndexedTupleEventUnsupported"
     fields := []
@@ -571,9 +601,9 @@ private def featureSpec : ContractSpec := {
     ]
     functions := [
       { name := "emitBad"
-        params := [{ name := "x", ty := ParamType.uint256 }, { name := "y", ty := ParamType.uint256 }]
+        params := [{ name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.uint256] }]
         returnType := none
-        body := [Stmt.emit "BadIndexedTuple" [Expr.param "x"], Stmt.stop]
+        body := [Stmt.emit "BadIndexedTuple" [Expr.param "payload"], Stmt.stop]
       }
     ]
   }
