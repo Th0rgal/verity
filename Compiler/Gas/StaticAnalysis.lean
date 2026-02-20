@@ -136,6 +136,7 @@ def stmtUpperBoundFuel (cfg : GasConfig) (env : FunctionEnv) : Nat â†’ YulStmt â
   | 0, _ => 0
   | _ + 1, .comment _ => 0
   | fuel + 1, .let_ _ value => exprUpperBoundFuel cfg env fuel value
+  | fuel + 1, .letMany _ value => exprUpperBoundFuel cfg env fuel value
   | fuel + 1, .assign _ value => exprUpperBoundFuel cfg env fuel value
   | fuel + 1, .expr e => exprUpperBoundFuel cfg env fuel e
   | fuel + 1, .if_ cond body => exprUpperBoundFuel cfg env fuel cond + stmtsUpperBoundFuel cfg env fuel body
