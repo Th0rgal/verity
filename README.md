@@ -89,7 +89,9 @@ One spec can have many competing implementations - naive, gas-optimized, packed 
 | SimpleToken | 61 | Mint/transfer, supply conservation, storage isolation |
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
 
-**Unverified examples**: [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.
+**Unverified examples**:
+- [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.
+- [ERC20](Verity/Examples/ERC20.lean) is a new foundation scaffold with executable logic plus formal spec/invariant modules in `Verity/Specs/ERC20/`, with proof development tracked in [#69](https://github.com/Th0rgal/verity/issues/69).
 
 ### Using External Libraries (Linker)
 

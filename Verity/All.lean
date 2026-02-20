@@ -47,6 +47,7 @@ import Verity.Examples.Owned
 import Verity.Examples.OwnedCounter
 import Verity.Examples.Ledger
 import Verity.Examples.SimpleToken
+import Verity.Examples.ERC20
 import Verity.Examples.ReentrancyExample
 import Verity.Examples.CryptoHash
 
@@ -102,3 +103,7 @@ import Verity.Proofs.SimpleToken.Basic
 import Verity.Proofs.SimpleToken.Correctness
 import Verity.Proofs.SimpleToken.Supply
 import Verity.Proofs.SimpleToken.Isolation
+
+-- ERC20 (foundation scaffold): Spec + Invariants (proofs pending)
+import Verity.Specs.ERC20.Spec
+import Verity.Specs.ERC20.Invariants
