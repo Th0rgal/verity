@@ -106,6 +106,9 @@ jobs:
       - name: Check documentation counts
         run: python3 scripts/check_doc_counts.py
 
+      - name: Check solc pin consistency
+        run: python3 scripts/check_solc_pin.py
+
       - name: Check property manifest sync
         run: python3 scripts/check_property_manifest_sync.py
 

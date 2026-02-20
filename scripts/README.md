@@ -82,6 +82,7 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_yul_builtin_boundary.py`** - Enforces a centralized Yul builtin semantics boundary: runtime interpreters must import `Compiler/Proofs/YulGeneration/Builtins.lean`, call `evalBuiltinCall`, and avoid inline builtin dispatch branches (`func = "add"`, `func = "sload"`, etc.)
 - **`check_evmyullean_capability_boundary.py`** - Enforces the current `#294` EVMYulLean overlap capability matrix in `Compiler/Proofs/YulGeneration/Builtins.lean`: allows only the explicit overlap builtin set plus Verity helper `mappingSlot`, and blocks known unsupported builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) from silently entering the migration seam
 - **`check_doc_counts.py`** - Validates theorem, axiom, test, suite, coverage, and contract counts across 14 documentation files (README, llms.txt, compiler.mdx, verification.mdx, research.mdx, index.mdx, core.mdx, examples.mdx, getting-started.mdx, TRUST_ASSUMPTIONS, VERIFICATION_STATUS, ROADMAP, test/README, layout.tsx), theorem-name completeness in verification.mdx tables, and proven-theorem counts in Property*.t.sol file headers
+- **`check_solc_pin.py`** - Enforces pinned solc consistency across CI/tooling/docs: `verify.yml` (`SOLC_VERSION`, `SOLC_URL`, `SOLC_SHA256`), `foundry.toml` (`solc_version`), `setup-solc` action URL/SHA usage, and `TRUST_ASSUMPTIONS.md` pinned version line
 - **`check_axiom_locations.py`** - Validates that AXIOMS.md line number references match actual axiom locations in source files
 - **`check_contract_structure.py`** - Validates all contracts in Examples/ have complete file structure (Spec, Invariants, Basic proofs, Correctness proofs)
 - **`check_lean_hygiene.py`** - Validates proof hygiene (`#eval/#check/#print/#reduce`, `native_decide`, `sorry`) and exactly 1 `allowUnsafeReducibility`; parsing is comment/string-aware (including Lean raw strings) via shared Lean lexer utilities
@@ -163,13 +164,14 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 5 jobs:
 3. Contract file structure validation (`check_contract_structure.py`)
 4. Axiom location validation (`check_axiom_locations.py`)
 5. Documentation count validation (`check_doc_counts.py`)
-6. Property manifest sync (`check_property_manifest_sync.py`)
-7. Storage layout consistency (`check_storage_layout.py`)
-8. Mapping-slot abstraction boundary (`check_mapping_slot_boundary.py`)
-9. Yul builtin abstraction boundary (`check_yul_builtin_boundary.py`)
-10. EVMYulLean capability boundary (`check_evmyullean_capability_boundary.py`)
-11. Lean hygiene (`check_lean_hygiene.py`)
-12. Static gas model builtin coverage (`check_gas_model_coverage.py`)
+6. Solc pin consistency (`check_solc_pin.py`)
+7. Property manifest sync (`check_property_manifest_sync.py`)
+8. Storage layout consistency (`check_storage_layout.py`)
+9. Mapping-slot abstraction boundary (`check_mapping_slot_boundary.py`)
+10. Yul builtin abstraction boundary (`check_yul_builtin_boundary.py`)
+11. EVMYulLean capability boundary (`check_evmyullean_capability_boundary.py`)
+12. Lean hygiene (`check_lean_hygiene.py`)
+13. Static gas model builtin coverage (`check_gas_model_coverage.py`)
 
 **`build` job** (requires `lake build` artifacts):
 1. Keccak-256 self-test (`keccak256.py --self-test`)
