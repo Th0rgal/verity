@@ -26,7 +26,8 @@ REQUIRED_ABSTRACTION_IMPORTS = {
 IMPORT_MAPPING_ENCODING_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingEncoding\s*$", re.MULTILINE)
 IMPORT_MAPPING_SLOT_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingSlot\s*$", re.MULTILINE)
 ABSTRACT_SLOT_REF_RE = re.compile(r"Compiler\.Proofs\.abstractMappingSlot")
-ABSTRACT_DECODE_REF_RE = re.compile(r"Compiler\.Proofs\.abstractDecodeMappingSlot")
+ABSTRACT_LOAD_REF_RE = re.compile(r"Compiler\.Proofs\.abstractLoadStorageOrMapping")
+ABSTRACT_STORE_REF_RE = re.compile(r"Compiler\.Proofs\.abstractStoreStorageOrMapping")
 DIRECT_MAPPING_ENCODING_SYMBOL_REF_RE = re.compile(
     r"Compiler\.Proofs\.(?:mappingTag|encodeMappingSlot|decodeMappingSlot|encodeNestedMappingSlot|normalizeMappingBaseSlot)"
 )
@@ -55,8 +56,11 @@ def main() -> int:
         if not ABSTRACT_SLOT_REF_RE.search(text):
             errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractMappingSlot")
 
-        if not ABSTRACT_DECODE_REF_RE.search(text):
-            errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractDecodeMappingSlot")
+        if not ABSTRACT_LOAD_REF_RE.search(text):
+            errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractLoadStorageOrMapping")
+
+        if not ABSTRACT_STORE_REF_RE.search(text):
+            errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractStoreStorageOrMapping")
 
         if DIRECT_MAPPING_ENCODING_SYMBOL_REF_RE.search(text):
             errors.append(
