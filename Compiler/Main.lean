@@ -14,6 +14,7 @@ Supports:
 
 private structure CLIArgs where
   outDir : String := "compiler/yul"
+  abiOutDir : Option String := none
   libs : List String := []
   verbose : Bool := false
   useAST : Bool := false
@@ -35,6 +36,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --output <dir>     Output directory (default: compiler/yul)"
         IO.println "  -o <dir>           Short form of --output"
         IO.println "  --ast              Use unified AST compilation path (#364)"
+        IO.println "  --abi-output <dir> Output ABI JSON artifacts (one <Contract>.abi.json per spec)"
         IO.println "  --enable-patches   Enable deterministic Yul patch pass"
         IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
         IO.println "  --patch-report <path>       Write TSV patch coverage report"
@@ -52,6 +54,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with libs := path :: cfg.libs }
     | "--output" :: dir :: rest | "-o" :: dir :: rest =>
         go rest { cfg with outDir := dir }
+    | "--abi-output" :: dir :: rest =>
+        go rest { cfg with abiOutDir := some dir }
     | "--ast" :: rest =>
         go rest { cfg with useAST := true }
     | "--enable-patches" :: rest =>
@@ -75,6 +79,9 @@ def main (args : List String) : IO Unit := do
       IO.println s!"Output directory: {cfg.outDir}"
       if cfg.useAST then
         IO.println "Mode: unified AST compilation"
+      match cfg.abiOutDir with
+      | some dir => IO.println s!"ABI output directory: {dir}"
+      | none => pure ()
       if cfg.patchEnabled then
         IO.println s!"Patch pass: enabled (max iterations = {cfg.patchMaxIterations})"
       if !cfg.libs.isEmpty then
@@ -92,9 +99,11 @@ def main (args : List String) : IO Unit := do
       }
     }
     if cfg.useAST then
+      if cfg.abiOutDir.isSome then
+        throw (IO.userError "--abi-output is currently supported only for ContractSpec mode (omit --ast).")
       Compiler.ASTDriver.compileAllASTWithOptions cfg.outDir cfg.verbose cfg.libs options cfg.patchReportPath
     else
-      compileAllWithOptions cfg.outDir cfg.verbose cfg.libs options cfg.patchReportPath
+      compileAllWithOptions cfg.outDir cfg.verbose cfg.libs options cfg.patchReportPath cfg.abiOutDir
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

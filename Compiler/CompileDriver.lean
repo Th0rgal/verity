@@ -4,6 +4,7 @@ import Compiler.Selector
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
+import Compiler.ABI
 
 open Compiler
 open Compiler.Yul
@@ -73,8 +74,12 @@ def compileAllWithOptions
     (verbose : Bool := false)
     (libraryPaths : List String := [])
     (options : YulEmitOptions := {})
-    (patchReportPath : Option String := none) : IO Unit := do
+    (patchReportPath : Option String := none)
+    (abiOutDir : Option String := none) : IO Unit := do
   IO.FS.createDirAll outDir
+  match abiOutDir with
+  | some dir => IO.FS.createDirAll dir
+  | none => pure ()
 
   -- Load libraries once for validation messages
   if !libraryPaths.isEmpty then
@@ -90,6 +95,12 @@ def compileAllWithOptions
 
   let mut patchRows : List (String × Yul.PatchPassReport) := []
   for spec in specs do
+    match abiOutDir with
+    | some dir =>
+        Compiler.ABI.writeContractABIFile dir spec
+        if verbose then
+          IO.println s!"✓ Wrote ABI {dir}/{spec.name}.abi.json"
+    | none => pure ()
     let selectors ← computeSelectors spec
     match compile spec selectors with
     | .ok contract =>
@@ -113,4 +124,4 @@ def compileAllWithOptions
     IO.println s!"Generated {specs.length} contracts in {outDir}"
 
 def compileAll (outDir : String) (verbose : Bool := false) (libraryPaths : List String := []) : IO Unit := do
-  compileAllWithOptions outDir verbose libraryPaths {} none
+  compileAllWithOptions outDir verbose libraryPaths {} none none

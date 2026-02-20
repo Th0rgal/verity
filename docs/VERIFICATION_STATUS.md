@@ -272,7 +272,7 @@ Status legend:
 | `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
 | Event ABI parity for indexed dynamic/tuple payloads | partial | partial | partial | partial | partial |
 | Storage layout controls (packing + explicit slots) | partial | partial | partial | partial | partial |
-| ABI JSON artifact generation | unsupported | unsupported | n/a | n/a | unsupported |
+| ABI JSON artifact generation | partial | partial | n/a | partial | partial |
 
 Diagnostics policy for unsupported constructs:
 1. Report the exact unsupported construct at compile time.
@@ -315,6 +315,7 @@ Current diagnostic coverage in compiler:
 - Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed-bytes arg-shape checks) to prevent invalid Yul from unresolved dynamic calldata helpers.
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
 - Constructor argument decoding is currently constrained to static ABI words (`uint256`/`address`/`bool`/`bytes32`); unsupported constructor parameter types now fail fast with explicit diagnostics.
+- `verity-compiler` now supports deterministic ABI artifact emission in ContractSpec mode via `--abi-output <dir>` and writes one `<Contract>.abi.json` per compiled spec.
 - All interop diagnostics include an `Issue #586` reference for scope tracking.
 
 ### Short Term (1-2 months)
