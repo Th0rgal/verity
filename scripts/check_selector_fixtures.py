@@ -442,6 +442,13 @@ def main() -> None:
     solc_hashes = run_solc_hashes()
     keccak_selectors = run_keccak_selectors(function_signatures)
     keccak_event_hashes = run_keccak_event_hashes(event_signatures)
+    overlap = sorted(set(keccak_selectors).intersection(keccak_event_hashes))
+    if overlap:
+        die(
+            "Fixture contains function/event signature overlaps that make "
+            f"`solc --hashes` mapping ambiguous: {', '.join(overlap)}"
+        )
+
     expected_hashes = {**keccak_selectors, **keccak_event_hashes}
     signature_set = set(expected_hashes)
 
