@@ -15,6 +15,11 @@ open Verity
 open Verity.Specs.ERC20
 open Verity.Examples.ERC20
 
+/-- Spec/EDSL agreement for `constructor`. -/
+theorem erc20_constructor_spec_correct (s : ContractState) (initialOwner : Address) :
+    constructor_spec initialOwner s ((constructor initialOwner).runState s) := by
+  simpa using Verity.Proofs.ERC20.constructor_meets_spec s initialOwner
+
 /-- Spec/EDSL agreement for read-only `balanceOf`. -/
 theorem erc20_balanceOf_spec_correct (s : ContractState) (addr : Address) :
     balanceOf_spec addr ((balanceOf addr).runValue s) s := by
@@ -29,6 +34,11 @@ theorem erc20_allowanceOf_spec_correct (s : ContractState) (ownerAddr spender : 
 theorem erc20_getOwner_spec_correct (s : ContractState) :
     getOwner_spec ((getOwner).runValue s) s := by
   simp [getOwner_spec, getOwner, getStorageAddr, Contract.runValue, owner]
+
+/-- Spec/EDSL agreement for read-only `getTotalSupply`. -/
+theorem erc20_totalSupply_spec_correct (s : ContractState) :
+    totalSupply_spec ((getTotalSupply).runValue s) s := by
+  simpa using Verity.Proofs.ERC20.totalSupply_meets_spec s
 
 /-- Spec/EDSL agreement for `approve` with sender-bound owner. -/
 theorem erc20_approve_spec_correct (s : ContractState) (spender : Address) (amount : Uint256) :
