@@ -67,7 +67,7 @@ Status legend:
 | 3 | `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
 | 4 | Full event ABI parity (indexed dynamic + tuple hashing) | partial | partial | partial | partial | partial |
 | 5 | Storage layout controls (packed fields + explicit slot mapping) | partial | partial | partial | partial | partial |
-| 6 | ABI JSON artifact generation | unsupported | unsupported | n/a | n/a | unsupported |
+| 6 | ABI JSON artifact generation | partial | partial | n/a | partial | partial |
 
 Delivery policy for unsupported features:
 1. Compiler diagnostics must identify the exact unsupported construct.
