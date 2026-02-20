@@ -93,6 +93,8 @@ def load_report(path: Path) -> dict[str, GasRow]:
         name, deploy_raw, runtime_raw, total_raw = cols
         if name == "TOTAL":
             continue
+        if name in rows:
+            raise ValueError(f"{path}: duplicate contract row: {name}")
         deploy = int(deploy_raw)
         runtime = int(runtime_raw)
         total = int(total_raw)
@@ -106,6 +108,8 @@ def load_report(path: Path) -> dict[str, GasRow]:
 
 
 def format_delta_pct(value: float) -> str:
+    if math.isinf(value):
+        return "+inf%" if value > 0 else "-inf%"
     return f"{value:+.2f}%"
 
 
@@ -148,8 +152,12 @@ def render_markdown(
 
 def main() -> int:
     args = parse_args()
-    baseline = load_report(args.baseline_report)
-    patched = load_report(args.patched_report)
+    try:
+        baseline = load_report(args.baseline_report)
+        patched = load_report(args.patched_report)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
     baseline_names = set(baseline)
     patched_names = set(patched)
@@ -179,7 +187,15 @@ def main() -> int:
         base = baseline[name]
         pat = patched[name]
         delta = pat.total - base.total
-        pct = (delta / base.total * 100.0) if base.total > 0 else 0.0
+        if base.total == 0:
+            if pat.total == 0:
+                pct = 0.0
+            elif pat.total > 0:
+                pct = math.inf
+            else:
+                pct = -math.inf
+        else:
+            pct = delta / base.total * 100.0
         total_deltas_pct.append(pct)
         if delta < 0:
             improvements.append((name, delta, pct))
