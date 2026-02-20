@@ -613,32 +613,62 @@ private def featureSpec : ContractSpec := {
 
 #eval! do
   let unindexedTupleEventSpec : ContractSpec := {
-    name := "UnindexedTupleEventUnsupported"
+    name := "UnindexedTupleEventSupported"
     fields := []
     constructor := none
     events := [
-      { name := "BadUnindexedTuple"
+      { name := "UnindexedTuple"
         params := [
-          { name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.uint256], kind := EventParamKind.unindexed }
+          { name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.address], kind := EventParamKind.unindexed }
         ]
       }
     ]
     functions := [
-      { name := "emitBad"
-        params := [{ name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.uint256] }]
+      { name := "emitTuple"
+        params := [{ name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.address] }]
         returnType := none
-        body := [Stmt.emit "BadUnindexedTuple" [Expr.param "payload"], Stmt.stop]
+        body := [Stmt.emit "UnindexedTuple" [Expr.param "payload"], Stmt.stop]
       }
     ]
   }
   match compile unindexedTupleEventSpec [1] with
   | .error err =>
-      if !(contains err "unindexed param 'payload' has composite type" &&
+      throw (IO.userError s!"✗ expected unindexed static tuple event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed static tuple event encoding" rendered
+        ["mstore(add(__evt_ptr, 0), payload_0)",
+         "mstore(add(__evt_ptr, 32), and(payload_1,",
+         "log1(__evt_ptr, 64, __evt_topic0)"]
+
+#eval! do
+  let unindexedDynamicTupleEventSpec : ContractSpec := {
+    name := "UnindexedDynamicTupleEventUnsupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "BadUnindexedDynamicTuple"
+        params := [
+          { name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.bytes], kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBad"
+        params := [{ name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.bytes] }]
+        returnType := none
+        body := [Stmt.emit "BadUnindexedDynamicTuple" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedDynamicTupleEventSpec [1] with
+  | .error err =>
+      if !(contains err "unindexed param 'payload' has dynamic composite type" &&
           contains err "Issue #586") then
-        throw (IO.userError s!"✗ unindexed tuple event diagnostic mismatch: {err}")
-      IO.println "✓ unindexed tuple event diagnostic"
+        throw (IO.userError s!"✗ unindexed dynamic tuple event diagnostic mismatch: {err}")
+      IO.println "✓ unindexed dynamic tuple event diagnostic"
   | .ok _ =>
-      throw (IO.userError "✗ expected unindexed tuple event param usage to fail compilation")
+      throw (IO.userError "✗ expected unindexed dynamic tuple event param usage to fail compilation")
 
 #eval! do
   let indexedBytesEventSpec : ContractSpec := {

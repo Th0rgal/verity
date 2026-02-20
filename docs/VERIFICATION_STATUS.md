@@ -312,7 +312,7 @@ Current diagnostic coverage in compiler:
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
 - Indexed `bytes` event params now emit ABI-style hashed topics (`keccak256(payload)`), and unindexed `bytes` params now emit ABI head/tail event data encoding when sourced from direct bytes parameters. Indexed tuple/array forms still fail with explicit migration guidance (`use unindexed field + off-chain hash`).
-- Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed/unindexed bytes arg-shape checks) and rejects unsupported unindexed composite event payloads (tuple/array/fixed-array) to prevent malformed Yul.
+- Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed/unindexed bytes arg-shape checks), supports unindexed static tuple/fixed-array payload encoding from direct parameters, and rejects dynamic composite unindexed payloads to prevent malformed Yul.
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
 - Constructor argument decoding now reuses ABI head/tail decoding for constructor params (including tuple/array/bytes forms) and exposes both named param bindings plus `constructorArg` index aliases.
 - `verity-compiler` now supports deterministic ABI artifact emission in ContractSpec mode via `--abi-output <dir>` and writes one `<Contract>.abi.json` per compiled spec.
