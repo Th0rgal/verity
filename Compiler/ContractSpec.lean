@@ -570,6 +570,12 @@ private def validateInteropExternalSpec (spec : ExternalFunction) : Except Strin
   if isLowLevelCallName spec.name then
     lowLevelCallUnsupportedError s!"external declaration '{spec.name}'" spec.name
 
+private def validateInteropConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit := do
+  match ctor with
+  | none => pure ()
+  | some spec =>
+      spec.body.forM (validateInteropStmt "constructor")
+
 private def compileMappingSlotWrite (fields : List Field) (field : String)
     (keyExpr valueExpr : YulExpr) (label : String) : Except String (List YulStmt) :=
   if !isMapping fields field then
@@ -1025,6 +1031,7 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   for fn in spec.functions do
     validateFunctionSpec fn
     validateInteropFunctionSpec fn
+  validateInteropConstructorSpec spec.constructor
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
     validateInteropExternalSpec ext
