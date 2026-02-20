@@ -83,7 +83,6 @@ Mapping slots in Yul are derived via keccak(baseSlot, key). IR proof semantics
 call through the `MappingSlot` abstraction; the current backend is tagged
 encoding so `sload`/`sstore` can route to `mappings` instead of flat storage.
 -/
-abbrev mappingTag : Nat := Compiler.Proofs.mappingTag
 abbrev encodeMappingSlot := Compiler.Proofs.abstractMappingSlot
 abbrev decodeMappingSlot := Compiler.Proofs.abstractDecodeMappingSlot
 

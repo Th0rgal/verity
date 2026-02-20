@@ -27,6 +27,9 @@ IMPORT_MAPPING_ENCODING_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.Mapping
 IMPORT_MAPPING_SLOT_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingSlot\s*$", re.MULTILINE)
 ABSTRACT_SLOT_REF_RE = re.compile(r"Compiler\.Proofs\.abstractMappingSlot")
 ABSTRACT_DECODE_REF_RE = re.compile(r"Compiler\.Proofs\.abstractDecodeMappingSlot")
+DIRECT_MAPPING_ENCODING_SYMBOL_REF_RE = re.compile(
+    r"Compiler\.Proofs\.(?:mappingTag|encodeMappingSlot|decodeMappingSlot|encodeNestedMappingSlot|normalizeMappingBaseSlot)"
+)
 
 
 def main() -> int:
@@ -54,6 +57,12 @@ def main() -> int:
 
         if not ABSTRACT_DECODE_REF_RE.search(text):
             errors.append(f"{rel}: missing reference to Compiler.Proofs.abstractDecodeMappingSlot")
+
+        if DIRECT_MAPPING_ENCODING_SYMBOL_REF_RE.search(text):
+            errors.append(
+                f"{rel}: direct reference to MappingEncoding symbol is disallowed; "
+                "use MappingSlot abstraction symbols instead"
+            )
 
     if errors:
         print("Mapping slot boundary check failed:", file=sys.stderr)

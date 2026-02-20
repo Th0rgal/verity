@@ -13,6 +13,10 @@ When issue #259 is implemented, only this module should need backend changes.
 def abstractMappingSlot (baseSlot key : Nat) : Nat :=
   encodeMappingSlot baseSlot key
 
+/-- Active proof-model mapping slot tag sentinel (backend-specific). -/
+def abstractMappingTag : Nat :=
+  mappingTag
+
 /-- Active proof-model mapping slot decoder backend. -/
 def abstractDecodeMappingSlot (slot : Nat) : Option (Nat × Nat) :=
   decodeMappingSlot slot
@@ -23,6 +27,9 @@ def abstractNestedMappingSlot (baseSlot key1 key2 : Nat) : Nat :=
 
 @[simp] theorem abstractMappingSlot_eq_encode (baseSlot key : Nat) :
     abstractMappingSlot baseSlot key = encodeMappingSlot baseSlot key := rfl
+
+@[simp] theorem abstractMappingTag_eq_mappingTag :
+    abstractMappingTag = mappingTag := rfl
 
 @[simp] theorem abstractDecodeMappingSlot_eq_decode (slot : Nat) :
     abstractDecodeMappingSlot slot = decodeMappingSlot slot := rfl
