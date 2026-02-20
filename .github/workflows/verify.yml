@@ -312,6 +312,7 @@ jobs:
             --dir compiler/yul \
             --dir compiler/yul-patched \
             --dir compiler/yul-ast \
+            --require-same-files compiler/yul compiler/yul-patched \
             --compare-dirs compiler/yul compiler/yul-ast \
             --allow-compare-diff-file scripts/fixtures/yul_ast_bytecode_diffs.allowlist
 
