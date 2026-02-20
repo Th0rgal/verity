@@ -307,7 +307,7 @@ Implemented:
 
 Current diagnostic coverage in compiler:
 - Non-payable external functions and constructors now emit a runtime `msg.value == 0` guard, while explicit `isPayable := true` enables `Expr.msgValue` usage.
-- Custom errors are now first-class declarations (`errors`) with `Stmt.requireError`/`Stmt.revertError` emission for static payload types (`uint256`, `address`, `bool`, `bytes32`). Dynamic custom error payloads still fail with explicit guidance.
+- Custom errors are now first-class declarations (`errors`) with `Stmt.requireError`/`Stmt.revertError` emission for static payload types (`uint256`, `address`, `bool`, `bytes32`) plus `bytes` payloads when sourced from direct bytes parameters. Other dynamic custom error payloads still fail with explicit guidance.
 - `fallback` and `receive` are now modeled as first-class entrypoints in dispatch (empty-calldata routing to `receive`, unmatched selector routing to `fallback`) with compile-time shape checks (`receive` must be payable, both must be parameterless and non-returning).
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
