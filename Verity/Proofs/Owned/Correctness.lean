@@ -28,9 +28,9 @@ theorem transferOwnership_reverts_when_not_owner (s : ContractState) (newOwner :
   (h_not_owner : s.sender ≠ s.storageAddr 0) :
   ∃ msg, (transferOwnership newOwner).run s = ContractResult.revert msg s := by
   simp [transferOwnership, onlyOwner, isOwner, owner,
-    msgSender, getStorageAddr, setStorageAddr,
+    msgSender, getStorageAddr,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst,
+    Contract.run,
     address_beq_false_of_ne s.sender (s.storageAddr 0) h_not_owner]
 
 /-! ## Invariant Preservation -/
