@@ -142,6 +142,34 @@ theorem mem_elements_insert [DecidableEq α] (a b : α) (s : FiniteSet α) :
   unfold contains
   simp [FiniteSet.mem]
 
+/-- `isSubset` reflects propositional subset. -/
+@[simp] theorem isSubset_eq_true [DecidableEq α] (s t : FiniteSet α) :
+    s.isSubset t = true ↔ s.subset t := by
+  constructor
+  · intro h
+    intro x hx
+    have hAll := List.all_eq_true.mp h
+    exact (FiniteSet.mem_def x t).2 (decide_eq_true_iff.mp (hAll x hx))
+  · intro h
+    apply List.all_eq_true.mpr
+    intro x hx
+    exact decide_eq_true_iff.mpr ((FiniteSet.mem_def x t).1 (h x ((FiniteSet.mem_def x s).2 hx)))
+
+/-- `isSubset = false` iff propositional subset does not hold. -/
+@[simp] theorem isSubset_eq_false [DecidableEq α] (s t : FiniteSet α) :
+    s.isSubset t = false ↔ ¬ s.subset t := by
+  constructor
+  · intro hFalse hSubset
+    have hTrue : s.isSubset t = true := (isSubset_eq_true s t).2 hSubset
+    rw [hTrue] at hFalse
+    contradiction
+  · intro hNotSubset
+    cases hBool : s.isSubset t with
+    | false => rfl
+    | true =>
+      exfalso
+      exact hNotSubset ((isSubset_eq_true s t).1 hBool)
+
 /-- Sum of empty set is zero -/
 @[simp] theorem sum_empty [Add β] [OfNat β 0] (f : α → β) :
     (empty : FiniteSet α).sum f = 0 := rfl
@@ -235,6 +263,16 @@ def contains (addr : Address) (s : FiniteAddressSet) : Bool :=
   simpa [FiniteAddressSet.mem, FiniteAddressSet.diff] using
     (FiniteSet.mem_elements_diff a s.addresses t.addresses)
 
+@[simp] theorem isSubset_eq_true (s t : FiniteAddressSet) :
+    s.isSubset t = true ↔ s.subset t := by
+  simpa [FiniteAddressSet.isSubset, FiniteAddressSet.subset] using
+    (FiniteSet.isSubset_eq_true s.addresses t.addresses)
+
+@[simp] theorem isSubset_eq_false (s t : FiniteAddressSet) :
+    s.isSubset t = false ↔ ¬ s.subset t := by
+  simpa [FiniteAddressSet.isSubset, FiniteAddressSet.subset] using
+    (FiniteSet.isSubset_eq_false s.addresses t.addresses)
+
 end FiniteAddressSet
 
 /-- Finite set of natural numbers. -/
@@ -323,6 +361,16 @@ def contains (n : Nat) (s : FiniteNatSet) : Bool :=
     a ∈ s.diff t ↔ a ∈ s ∧ a ∉ t := by
   simpa [FiniteNatSet.mem, FiniteNatSet.diff] using
     (FiniteSet.mem_elements_diff a s.nats t.nats)
+
+@[simp] theorem isSubset_eq_true (s t : FiniteNatSet) :
+    s.isSubset t = true ↔ s.subset t := by
+  simpa [FiniteNatSet.isSubset, FiniteNatSet.subset] using
+    (FiniteSet.isSubset_eq_true s.nats t.nats)
+
+@[simp] theorem isSubset_eq_false (s t : FiniteNatSet) :
+    s.isSubset t = false ↔ ¬ s.subset t := by
+  simpa [FiniteNatSet.isSubset, FiniteNatSet.subset] using
+    (FiniteSet.isSubset_eq_false s.nats t.nats)
 
 end FiniteNatSet
 
