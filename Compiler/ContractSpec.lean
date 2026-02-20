@@ -657,6 +657,10 @@ private partial def eventHeadWordSize : ParamType → Nat
         | ParamType.tuple elemTys => (elemTys.map eventHeadWordSize).foldl (· + ·) 0
         | _ => 32
 
+private def indexedDynamicArrayElemSupported : ParamType → Bool
+  | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
+  | _ => false
+
 private partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
     (events : List EventDef) : Stmt → Except String Unit
   | Stmt.emit eventName args => do
@@ -719,8 +723,20 @@ private partial def validateEventArgShapesInStmt (fnName : String) (params : Lis
                       throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
               | _ =>
                   throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
-          | ParamType.array _ =>
-              throw s!"Compilation error: function '{fnName}' event '{eventName}' indexed param '{eventParam.name}' has dynamic composite type {repr eventParam.ty}, which is not supported yet ({issue586Ref})."
+          | ParamType.array elemTy =>
+              if indexedDynamicArrayElemSupported elemTy then
+                match arg with
+                | Expr.param name =>
+                    match findParamType params name with
+                    | some ty =>
+                        if ty != eventParam.ty then
+                          throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+                    | none =>
+                        throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                | _ =>
+                    throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+              else
+                throw s!"Compilation error: function '{fnName}' event '{eventName}' indexed array param '{eventParam.name}' has unsupported element type {repr elemTy} ({issue586Ref})."
           | ParamType.fixedArray _ _ | ParamType.tuple _ =>
               if eventIsDynamicType eventParam.ty then
                 throw s!"Compilation error: function '{fnName}' event '{eventName}' indexed param '{eventParam.name}' has dynamic composite type {repr eventParam.ty}, which is not supported yet ({issue586Ref})."
@@ -1313,8 +1329,28 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
                 pure (hashStmts, YulExpr.ident topicName)
             | _ =>
                 throw s!"Compilation error: indexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
-        | ParamType.array _ =>
-            throw s!"Compilation error: indexed dynamic event param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref})."
+        | ParamType.array elemTy =>
+            if indexedDynamicArrayElemSupported elemTy then
+              match srcExpr with
+              | Expr.param name =>
+                  let topicName := s!"__evt_topic{idx + 1}"
+                  let byteLenName := s!"__evt_arg{idx}_byte_len"
+                  let hashStmts := [
+                    YulStmt.let_ byteLenName (YulExpr.call "mul" [YulExpr.ident s!"{name}_length", YulExpr.lit 32])
+                  ] ++ dynamicCopyData dynamicSource
+                    (YulExpr.ident "__evt_ptr")
+                    (YulExpr.ident s!"{name}_data_offset")
+                    (YulExpr.ident byteLenName) ++ [
+                    YulStmt.let_ topicName (YulExpr.call "keccak256" [
+                      YulExpr.ident "__evt_ptr",
+                      YulExpr.ident byteLenName
+                    ])
+                  ]
+                  pure (hashStmts, YulExpr.ident topicName)
+              | _ =>
+                  throw s!"Compilation error: indexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+            else
+              throw s!"Compilation error: indexed array event param '{p.name}' in event '{eventName}' has unsupported element type {repr elemTy} ({issue586Ref})."
         | ParamType.fixedArray _ _ | ParamType.tuple _ =>
             if eventIsDynamicType p.ty then
               throw s!"Compilation error: indexed dynamic composite event param '{p.name}' in event '{eventName}' is not supported yet ({issue586Ref})."

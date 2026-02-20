@@ -1031,33 +1031,65 @@ private def featureSpec : ContractSpec := {
 
 #eval! do
   let indexedDynamicArrayEventSpec : ContractSpec := {
-    name := "IndexedDynamicArrayEventUnsupported"
+    name := "IndexedDynamicArrayEventSupported"
     fields := []
     constructor := none
     events := [
-      { name := "BadIndexedDynamicArray"
+      { name := "IndexedDynamicArray"
         params := [
           { name := "payload", ty := ParamType.array ParamType.uint256, kind := EventParamKind.indexed }
         ]
       }
     ]
     functions := [
-      { name := "emitBad"
+      { name := "emitArray"
         params := [{ name := "payload", ty := ParamType.array ParamType.uint256 }]
         returnType := none
-        body := [Stmt.emit "BadIndexedDynamicArray" [Expr.param "payload"], Stmt.stop]
+        body := [Stmt.emit "IndexedDynamicArray" [Expr.param "payload"], Stmt.stop]
       }
     ]
   }
   match compile indexedDynamicArrayEventSpec [1] with
   | .error err =>
-      if !(contains err "indexed param 'payload' has dynamic composite type" &&
-          contains err "BadIndexedDynamicArray" &&
+      throw (IO.userError s!"✗ expected indexed dynamic array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "indexed dynamic array topic hashing" rendered
+        ["let __evt_arg0_byte_len := mul(payload_length, 32)",
+         "calldatacopy(__evt_ptr, payload_data_offset, __evt_arg0_byte_len)",
+         "let __evt_topic1 := keccak256(__evt_ptr, __evt_arg0_byte_len)",
+         "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
+
+#eval! do
+  let indexedDynamicCompositeArrayEventSpec : ContractSpec := {
+    name := "IndexedDynamicCompositeArrayEventUnsupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "BadIndexedDynamicCompositeArray"
+        params := [
+          { name := "payload", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.bytes]), kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitBad"
+        params := [{ name := "payload", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.bytes]) }]
+        returnType := none
+        body := [Stmt.emit "BadIndexedDynamicCompositeArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedDynamicCompositeArrayEventSpec [1] with
+  | .error err =>
+      if !(contains err "indexed array param 'payload' has unsupported element type" &&
+          contains err "ParamType.tuple" &&
+          contains err "ParamType.bytes" &&
           contains err "Issue #586") then
-        throw (IO.userError s!"✗ indexed dynamic array event diagnostic mismatch: {err}")
-      IO.println "✓ indexed dynamic array event diagnostic"
+        throw (IO.userError s!"✗ indexed dynamic composite array event diagnostic mismatch: {err}")
+      IO.println "✓ indexed dynamic composite array event diagnostic"
   | .ok _ =>
-      throw (IO.userError "✗ expected indexed dynamic array event param usage to fail compilation")
+      throw (IO.userError "✗ expected indexed dynamic composite array event param usage to fail compilation")
 
 #eval! do
   let internalVoidReturnSpec : ContractSpec := {
