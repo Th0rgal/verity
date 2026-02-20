@@ -18,6 +18,8 @@ structure FoundationEvaluatorLaws (eval : EvalExpr) : Prop where
   or_zero_right : ∀ lhs, eval (.call "or" [lhs, .lit 0]) = eval lhs
   or_zero_left : ∀ rhs, eval (.call "or" [.lit 0, rhs]) = eval rhs
   xor_zero_right : ∀ lhs, eval (.call "xor" [lhs, .lit 0]) = eval lhs
+  xor_zero_left : ∀ rhs, eval (.call "xor" [.lit 0, rhs]) = eval rhs
+  and_zero_right : ∀ lhs, eval (.call "and" [lhs, .lit 0]) = eval (.lit 0)
 
 /-- Obligation for `or(x, 0) -> x`. -/
 def or_zero_right_preserves (eval : EvalExpr) : Prop :=
@@ -31,10 +33,20 @@ def or_zero_left_preserves (eval : EvalExpr) : Prop :=
 def xor_zero_right_preserves (eval : EvalExpr) : Prop :=
   FoundationEvaluatorLaws eval → ExprPatchPreservesUnder eval Compiler.Yul.xorZeroRightRule
 
+/-- Obligation for `xor(0, x) -> x`. -/
+def xor_zero_left_preserves (eval : EvalExpr) : Prop :=
+  FoundationEvaluatorLaws eval → ExprPatchPreservesUnder eval Compiler.Yul.xorZeroLeftRule
+
+/-- Obligation for `and(x, 0) -> 0`. -/
+def and_zero_right_preserves (eval : EvalExpr) : Prop :=
+  FoundationEvaluatorLaws eval → ExprPatchPreservesUnder eval Compiler.Yul.andZeroRightRule
+
 /-- Registry hook: each shipped foundation patch has an explicit proof obligation. -/
 def foundation_patch_pack_obligations (eval : EvalExpr) : Prop :=
   or_zero_right_preserves eval ∧
   or_zero_left_preserves eval ∧
-  xor_zero_right_preserves eval
+  xor_zero_right_preserves eval ∧
+  xor_zero_left_preserves eval ∧
+  and_zero_right_preserves eval
 
 end Compiler.Proofs.YulGeneration.PatchRulesProofs
