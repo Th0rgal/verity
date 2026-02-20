@@ -124,4 +124,20 @@ def emitYulWithOptionsReport (contract : IRContract) (options : YulEmitOptions) 
      runtimeCode := runtimeReport.runtimeCode },
    runtimeReport.patchReport)
 
+/-- Regression guard: report and legacy runtime APIs stay in sync. -/
+example (contract : IRContract) (options : YulEmitOptions) :
+    (runtimeCodeWithOptionsReport contract options).runtimeCode = runtimeCodeWithOptions contract options := by
+  rfl
+
+/-- Regression guard: report and legacy object APIs stay in sync. -/
+example (contract : IRContract) (options : YulEmitOptions) :
+    (emitYulWithOptionsReport contract options).1 = emitYulWithOptions contract options := by
+  rfl
+
+/-- Regression guard: object report API returns the exact patch report from runtime emission. -/
+example (contract : IRContract) (options : YulEmitOptions) :
+    (emitYulWithOptionsReport contract options).2 =
+      (runtimeCodeWithOptionsReport contract options).patchReport := by
+  rfl
+
 end Compiler
