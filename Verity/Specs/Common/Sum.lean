@@ -32,7 +32,7 @@ private theorem foldl_add_zero_acc (l : List α) (f : α → Uint256)
   | nil => rfl
   | cons a t ih =>
     simp only [List.foldl]
-    have ha : f a = 0 := h a (List.mem_cons_self a t)
+    have ha : f a = 0 := h a (by simp)
     rw [ha, Uint256.add_zero]
     exact ih (fun x hx => h x (List.mem_cons_of_mem a hx)) acc
 
@@ -59,7 +59,7 @@ private theorem foldl_congr (l : List α) (f g : α → Uint256) (acc : Uint256)
   | nil => rfl
   | cons a t ih =>
     simp only [List.foldl]
-    have ha : f a = g a := h a (List.mem_cons_self a t)
+    have ha : f a = g a := h a (by simp)
     rw [ha]
     exact ih (acc + g a) (fun x hx => h x (List.mem_cons_of_mem a hx))
 
@@ -130,7 +130,7 @@ private theorem foldl_replace_one (l : List α) [DecidableEq α]
     l.foldl (fun acc x => acc + g x) 0 =
     (l.foldl (fun acc x => acc + f x) 0) - (f target) + new_val := by
   induction l with
-  | nil => exact absurd h_mem (List.not_mem_nil _)
+  | nil => cases h_mem
   | cons a t ih =>
     simp only [List.foldl, Uint256.zero_add]
     have h_nodup_t := (List.nodup_cons.mp h_nodup).2
@@ -163,7 +163,7 @@ private theorem foldl_replace_one (l : List α) [DecidableEq α]
       have h_ne : a ≠ target := by
         intro heq
         exact (List.nodup_cons.mp h_nodup).1 (heq ▸ hmem)
-      rw [h_other a (List.mem_cons_self a t) h_ne]
+      rw [h_other a (by simp) h_ne]
       rw [foldl_acc_comm t g (f a)]
       rw [foldl_acc_comm t f (f a)]
       rw [ih hmem h_nodup_t (fun x hx hne => h_other x (List.mem_cons_of_mem a hx) hne)]

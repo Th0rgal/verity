@@ -486,8 +486,14 @@ theorem token_balanceOf_correct (state : ContractState) (addr : Address) (sender
     specResult.success = true ∧
     specResult.returnValue = some edslValue.val := by
   unfold balanceOf Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
+  have hidx_bal :
+      List.findIdx? (fun x => x.name == "balances")
+        ([{ name := "owner", ty := FieldType.address },
+          { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+          { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 1 := by
+    decide
   simp [getMapping, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getMapping,
-    balances]
+    balances, hidx_bal]
 
 /-- The `getTotalSupply` function correctly retrieves total supply -/
 theorem token_getTotalSupply_correct (state : ContractState) (sender : Address) :
@@ -501,11 +507,17 @@ theorem token_getTotalSupply_correct (state : ContractState) (sender : Address) 
     specResult.success = true ∧
     specResult.returnValue = some edslValue := by
   unfold getTotalSupply Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
+  have hidx_supply :
+      List.findIdx? (fun x => x.name == "totalSupply")
+        ([{ name := "owner", ty := FieldType.address },
+          { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+          { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 2 := by
+    decide
   have h_slot : (List.lookup 2 [(0, (state.storageAddr 0).val), (2, (state.storage 2).val)]).getD 0
       = (state.storage 2).val := by
     simp [(by decide : (0:Nat) ≠ 2)]
   simp [getStorage, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
-    totalSupply, h_slot]
+    totalSupply, h_slot, hidx_supply]
 
 /-- The `getOwner` function correctly retrieves owner -/
 theorem token_getOwner_correct (state : ContractState) (sender : Address) :
@@ -519,8 +531,14 @@ theorem token_getOwner_correct (state : ContractState) (sender : Address) :
     specResult.success = true ∧
     specResult.returnValue = some (edslAddr.val) := by
   unfold getOwner Contract.runValue simpleTokenSpec interpretSpec tokenEdslToSpecStorageWithAddrs
+  have hidx_owner :
+      List.findIdx? (fun x => x.name == "owner")
+        ([{ name := "owner", ty := FieldType.address },
+          { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+          { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 0 := by
+    decide
   simp [getStorageAddr, execFunction, execStmts, execStmt, evalExpr, SpecStorage.getSlot,
-    owner]
+    owner, hidx_owner]
 
 /- Helper Properties -/
 

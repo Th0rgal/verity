@@ -32,6 +32,148 @@ namespace Verity.Proofs.Stdlib.Automation
 
 open Verity
 open Verity.Proofs.Stdlib.SpecInterpreter
+open Compiler.ContractSpec
+
+/-!
+## Index Normalization Helpers
+
+Lean 4.22 is less eager to reduce `List.findIdx?` inside large interpreter terms.
+These simp lemmas keep field/parameter lookup deterministic in spec-correctness proofs.
+-/
+
+@[simp] theorem findIdx_owner_ownedCounter :
+    List.findIdx? (fun x : Field => x.name == "owner")
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "count", ty := FieldType.uint256 }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_owner_ownedCounter_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "owner"))
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "count", ty := FieldType.uint256 }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_count_ownedCounter :
+    List.findIdx? (fun x : Field => x.name == "count")
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "count", ty := FieldType.uint256 }] : List Field) = some 1 := by
+  decide
+
+@[simp] theorem findIdx_count_ownedCounter_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "count"))
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "count", ty := FieldType.uint256 }] : List Field) = some 1 := by
+  decide
+
+@[simp] theorem findIdx_count_safeCounter :
+    List.findIdx? (fun x : Field => x.name == "count")
+      ([{ name := "count", ty := FieldType.uint256 }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_count_safeCounter_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "count"))
+      ([{ name := "count", ty := FieldType.uint256 }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_balances_simpleToken :
+    List.findIdx? (fun x : Field => x.name == "balances")
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+        { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 1 := by
+  decide
+
+@[simp] theorem findIdx_balances_simpleToken_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "balances"))
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+        { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 1 := by
+  decide
+
+@[simp] theorem findIdx_owner_simpleToken :
+    List.findIdx? (fun x : Field => x.name == "owner")
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+        { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_owner_simpleToken_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "owner"))
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+        { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_totalSupply_simpleToken :
+    List.findIdx? (fun x : Field => x.name == "totalSupply")
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+        { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 2 := by
+  decide
+
+@[simp] theorem findIdx_totalSupply_simpleToken_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "totalSupply"))
+      ([{ name := "owner", ty := FieldType.address },
+        { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) },
+        { name := "totalSupply", ty := FieldType.uint256 }] : List Field) = some 2 := by
+  decide
+
+@[simp] theorem findIdx_balances_ledger :
+    List.findIdx? (fun x : Field => x.name == "balances")
+      ([{ name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_balances_ledger_decide :
+    List.findIdx? (fun x : Field => decide (x.name = "balances"))
+      ([{ name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address) }] : List Field) = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_newOwner :
+    List.findIdx? (fun x => x == "newOwner") ["newOwner"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_newOwner_decide :
+    List.findIdx? (fun x => decide (x = "newOwner")) ["newOwner"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_initialOwner :
+    List.findIdx? (fun x => x == "initialOwner") ["initialOwner"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_initialOwner_decide :
+    List.findIdx? (fun x => decide (x = "initialOwner")) ["initialOwner"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_to_to_amount :
+    List.findIdx? (fun x => x == "to") ["to", "amount"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_to_to_amount_decide :
+    List.findIdx? (fun x => decide (x = "to")) ["to", "amount"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_amount_to_amount :
+    List.findIdx? (fun x => x == "amount") ["to", "amount"] = some 1 := by
+  decide
+
+@[simp] theorem findIdx_param_amount_to_amount_decide :
+    List.findIdx? (fun x => decide (x = "amount")) ["to", "amount"] = some 1 := by
+  decide
+
+@[simp] theorem findIdx_param_addr :
+    List.findIdx? (fun x => x == "addr") ["addr"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_addr_decide :
+    List.findIdx? (fun x => decide (x = "addr")) ["addr"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_amount_single :
+    List.findIdx? (fun x => x == "amount") ["amount"] = some 0 := by
+  decide
+
+@[simp] theorem findIdx_param_amount_single_decide :
+    List.findIdx? (fun x => decide (x = "amount")) ["amount"] = some 0 := by
+  decide
 
 /-!
 ## Contract Result Lemmas
@@ -383,24 +525,18 @@ theorem uint256_add_val (a : Verity.Core.Uint256) (amount : Nat) :
       (a.val + amount) % Verity.Core.Uint256.modulus := by
   cases a with
   | mk aval hlt =>
-      let m := Verity.Core.Uint256.modulus
-      have h1 :
-          (Verity.EVM.Uint256.add (Verity.Core.Uint256.mk aval hlt)
-                (Verity.Core.Uint256.ofNat amount)).val =
-            (aval + amount % m) % m := by
-        simp [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
-          Verity.Core.Uint256.val_ofNat, -Verity.Core.Uint256.ofNat_add]
+      have haval : aval % Verity.Core.Uint256.modulus = aval := Nat.mod_eq_of_lt hlt
       calc
         (Verity.EVM.Uint256.add (Verity.Core.Uint256.mk aval hlt)
               (Verity.Core.Uint256.ofNat amount)).val
-            = (aval + amount % m) % m := h1
-        _ = (aval + amount) % m := by
-            calc
-              (aval + amount % m) % m
-                  = ((aval % m) + (amount % m)) % m := by
-                      simp [Nat.mod_eq_of_lt hlt]
-              _ = (aval + amount) % m := by
-                      exact (Nat.add_mod _ _ _).symm
+            = (aval + amount % Verity.Core.Uint256.modulus) % Verity.Core.Uint256.modulus := by
+                simp [Verity.EVM.Uint256.add, Verity.Core.Uint256.add,
+                  Verity.Core.Uint256.val_ofNat, -Verity.Core.Uint256.ofNat_add]
+        _ = ((aval % Verity.Core.Uint256.modulus) + (amount % Verity.Core.Uint256.modulus))
+              % Verity.Core.Uint256.modulus := by
+                simp [haval]
+        _ = (aval + amount) % Verity.Core.Uint256.modulus := by
+                exact (Nat.add_mod _ _ _).symm
 
 -- Helper: EVM sub (Uint256) matches the EDSL modular subtraction formula.
 theorem uint256_sub_val (a : Verity.Core.Uint256) (amount : Nat) :
@@ -410,25 +546,28 @@ theorem uint256_sub_val (a : Verity.Core.Uint256) (amount : Nat) :
       else
         Verity.Core.Uint256.modulus -
           (amount % Verity.Core.Uint256.modulus - a.val)) := by
-  let m := Verity.Core.Uint256.modulus
-  have h_amount_lt : amount % m < m := by
+  have h_amount_lt : amount % Verity.Core.Uint256.modulus < Verity.Core.Uint256.modulus := by
     exact Nat.mod_lt _ Verity.Core.Uint256.modulus_pos
-  by_cases h_le : amount % m ≤ a.val
-  · have h_lt : a.val - amount % m < m := by
+  by_cases h_le : amount % Verity.Core.Uint256.modulus ≤ a.val
+  · have h_lt : a.val - amount % Verity.Core.Uint256.modulus < Verity.Core.Uint256.modulus := by
       exact Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.isLt
     simp [Verity.EVM.Uint256.sub, Verity.Core.Uint256.sub, h_le,
-      Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
-  · have h_not_le : ¬ amount % m ≤ a.val := h_le
-    have h_pos : 0 < amount % m - a.val := by
+      Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_lt]
+  · have h_not_le : ¬ amount % Verity.Core.Uint256.modulus ≤ a.val := h_le
+    have h_pos : 0 < amount % Verity.Core.Uint256.modulus - a.val := by
       exact Nat.sub_pos_of_lt (Nat.lt_of_not_ge h_not_le)
-    have h_le_x : amount % m - a.val ≤ m := by
+    have h_le_x : amount % Verity.Core.Uint256.modulus - a.val ≤ Verity.Core.Uint256.modulus := by
       exact Nat.le_of_lt (Nat.lt_of_le_of_lt (Nat.sub_le _ _) h_amount_lt)
-    have h_lt_add : m < (amount % m - a.val) + m := by
+    have h_lt_add :
+        Verity.Core.Uint256.modulus <
+          (amount % Verity.Core.Uint256.modulus - a.val) + Verity.Core.Uint256.modulus := by
       exact Nat.lt_add_of_pos_left h_pos
-    have h_lt : m - (amount % m - a.val) < m := by
+    have h_lt :
+        Verity.Core.Uint256.modulus - (amount % Verity.Core.Uint256.modulus - a.val) <
+          Verity.Core.Uint256.modulus := by
       exact Nat.sub_lt_left_of_lt_add h_le_x h_lt_add
     simp [Verity.EVM.Uint256.sub, Verity.Core.Uint256.sub, h_not_le,
-      Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_amount_lt, Nat.mod_eq_of_lt h_lt]
+      Verity.Core.Uint256.val_ofNat, Nat.mod_eq_of_lt h_lt]
 
 -- Helper: EVM sub (Uint256) matches Nat subtraction when no underflow.
 theorem uint256_sub_val_of_le (a : Verity.Core.Uint256) (amount : Nat)

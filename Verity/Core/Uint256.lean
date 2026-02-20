@@ -452,10 +452,13 @@ theorem sub_add_cancel_of_lt {a b : Uint256} (ha : a.val < modulus) (hb : b.val 
           calc b
             _ ≤ a + b := hb_le
             _ = (a + b) % m := hmod.symm
+        have hb_le_modulus : b ≤ (a + b) % modulus := by
+          simpa [m] using hb_le'
         -- No overflow: direct cancellation.
-        show (sub (add ⟨a, ha'⟩ ⟨b, hb'⟩) ⟨b, hb'⟩).val = a
-        simp only [add, sub, ofNat, val_ofNat, if_pos hb_le']
-        calc ((a + b) % m - b) % m
+        calc
+          (sub (add ⟨a, ha'⟩ ⟨b, hb'⟩) ⟨b, hb'⟩).val = ((a + b) % m - b) % m := by
+            simp [add, sub, ofNat, hb_le_modulus, m]
+          _ = ((a + b) % m - b) % m := rfl
           _ = (a + b - b) % m := by rw [hmod]
           _ = a % m := by rw [Nat.add_sub_cancel]
           _ = a := Nat.mod_eq_of_lt ha''
@@ -518,9 +521,9 @@ theorem sub_add_cancel_of_lt {a b : Uint256} (ha : a.val < modulus) (hb : b.val 
           calc
             (aU + bU - bU).val = (sub (add aU bU) bU).val := rfl
             _ = (m - (bU.val - (add aU bU).val)) % m := by
-                simp [sub_val_of_gt, hgt']
+                simp [sub_val_of_gt, hgt', m]
             _ = (m - (b - (a + b) % m)) % m := by
-                simp [aU, bU, add, ofNat]
+                simp [aU, bU, add, ofNat, m]
         calc
           (aU + bU - bU).val = (m - (b - (a + b) % m)) % m := hval'
           _ = (m - (b - (a + b - m))) % m := by

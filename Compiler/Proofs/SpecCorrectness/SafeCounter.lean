@@ -280,7 +280,7 @@ theorem safeIncrement_correct (state : ContractState) (sender : Address) :
     -- Unfold spec interpreter to compute finalStorage.getSlot 0
     -- The require passes, so storage is updated to newCount
     -- Combine with the EDSL storage computation
-    simpa [h_edsl_storage_val] using (increment_spec_storage state sender h_gt')
+    exact (increment_spec_storage state sender h_gt').trans h_edsl_storage_val.symm
 
 /- Helper Properties -/
 
@@ -361,7 +361,7 @@ theorem safeDecrement_correct (state : ContractState) (sender : Address) :
         simpa [ContractResult.getState, Verity.EVM.Uint256.sub,
           Verity.Core.Uint256.sub, one_mod_modulus, h_ge, Nat.mod_eq_of_lt h_lt_mod] using h_edsl_storage
       -- Spec: require passes and setStorage stores (count - 1)
-      simpa [h_edsl_storage_val] using (decrement_spec_storage state sender h_ge)
+      exact (decrement_spec_storage state sender h_ge).trans h_edsl_storage_val.symm
   · -- Underflow: count < 1, both EDSL and spec fail
     have h_lt : (state.storage 0 : Nat) < 1 := by omega
     constructor

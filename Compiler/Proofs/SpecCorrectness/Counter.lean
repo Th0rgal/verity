@@ -60,7 +60,7 @@ private theorem evalExpr_decrement_eq (state : ContractState) (sender : Address)
   have hidx :
       (List.findIdx? (fun f : Field => f.name == "count")
           (([{ name := "count", ty := FieldType.uint256 }] : List Field))) = some 0 := by
-    simp [List.findIdx?]
+    decide
   by_cases h : (state.storage 0).val ≥ 1
   · -- No underflow: both sides are val - 1.
     have h_sub : (sub (state.storage 0) 1).val = (state.storage 0).val - 1 := by
