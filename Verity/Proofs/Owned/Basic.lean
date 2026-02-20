@@ -27,38 +27,38 @@ theorem setStorageAddr_updates_owner (s : ContractState) (addr : Address) :
   let slot : StorageSlot Address := owner
   let s' := ((setStorageAddr slot addr).run s).snd
   s'.storageAddr 0 = addr := by
-  simp [setStorageAddr, owner]
+  simp [owner]
 
 theorem getStorageAddr_reads_owner (s : ContractState) :
   let slot : StorageSlot Address := owner
   let result := ((getStorageAddr slot).run s).fst
   result = s.storageAddr 0 := by
-  simp [getStorageAddr, owner]
+  simp [owner]
 
 theorem setStorageAddr_preserves_other_slots (s : ContractState) (addr : Address) (slot_num : Nat)
   (h : slot_num ≠ 0) :
   let slot : StorageSlot Address := owner
   let s' := ((setStorageAddr slot addr).run s).snd
   s'.storageAddr slot_num = s.storageAddr slot_num := by
-  simp [setStorageAddr, owner, h]
+  simp [owner, h]
 
 theorem setStorageAddr_preserves_uint_storage (s : ContractState) (addr : Address) :
   let slot : StorageSlot Address := owner
   let s' := ((setStorageAddr slot addr).run s).snd
   s'.storage = s.storage := by
-  simp [setStorageAddr, owner]
+  simp [owner]
 
 theorem setStorageAddr_preserves_map_storage (s : ContractState) (addr : Address) :
   let slot : StorageSlot Address := owner
   let s' := ((setStorageAddr slot addr).run s).snd
   s'.storageMap = s.storageMap := by
-  simp [setStorageAddr, owner]
+  simp [owner]
 
 theorem setStorageAddr_preserves_context (s : ContractState) (addr : Address) :
   let slot : StorageSlot Address := owner
   let s' := ((setStorageAddr slot addr).run s).snd
   s'.sender = s.sender ∧ s'.thisAddress = s.thisAddress := by
-  simp [setStorageAddr, owner]
+  simp [owner]
 
 /-! ## constructor Correctness -/
 
@@ -68,7 +68,7 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   simp [constructor, constructor_spec, owner, Specs.sameStorageMapContext,
     Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
   intro slot h_neq
-  simp [setStorageAddr, owner, h_neq]
+  simp [h_neq]
 
 theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
   let s' := ((constructor initialOwner).run s).snd
@@ -90,14 +90,14 @@ theorem getOwner_returns_owner (s : ContractState) :
 theorem getOwner_preserves_state (s : ContractState) :
   let s' := ((getOwner).run s).snd
   s' = s := by
-  simp [getOwner, getStorageAddr, owner]
+  simp [getOwner, owner]
 
 /-! ## isOwner Correctness -/
 
 theorem isOwner_meets_spec (s : ContractState) :
   let result := ((isOwner).run s).fst
   isOwner_spec result s := by
-  simp only [isOwner, isOwner_spec, msgSender, getStorageAddr, owner, bind, Bind.bind, Contract.run, pure, ContractResult.fst]
+  simp only [isOwner, isOwner_spec, msgSender, getStorageAddr, owner, bind, Bind.bind, Contract.run, ContractResult.fst]
   rfl
 
 theorem isOwner_returns_correct_value (s : ContractState) :
@@ -131,7 +131,7 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
   simp [transferOwnership, onlyOwner, isOwner, owner,
     msgSender, getStorageAddr, setStorageAddr,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst, h_owner]
+    Contract.run, h_owner]
 
 theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : Address)
   (h_is_owner : s.sender = s.storageAddr 0) :
@@ -141,7 +141,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorageMapContext,
     Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
   intro slot h_neq
-  simp [beq_iff_eq, h_neq]
+  simp [h_neq]
 
 theorem transferOwnership_changes_owner_when_allowed (s : ContractState) (newOwner : Address)
   (h_is_owner : s.sender = s.storageAddr 0) :
