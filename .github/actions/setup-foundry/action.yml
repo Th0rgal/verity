@@ -20,7 +20,15 @@ runs:
       shell: bash
       run: chmod +x .lake/build/bin/difftest-interpreter
 
+    - name: Cache Foundry binaries
+      id: cache-foundry
+      uses: actions/cache@v4
+      with:
+        path: ~/.foundry/bin
+        key: foundry-v1.5.0-linux-amd64
+
     - name: Install Foundry
+      if: steps.cache-foundry.outputs.cache-hit != 'true'
       id: install_foundry_primary
       continue-on-error: true
       uses: foundry-rs/foundry-toolchain@v1
@@ -28,28 +36,42 @@ runs:
         version: v1.5.0
 
     - name: Install Foundry fallback (retry on transient download errors)
-      if: steps.install_foundry_primary.outcome != 'success'
+      if: steps.cache-foundry.outputs.cache-hit != 'true' && steps.install_foundry_primary.outcome != 'success'
       shell: bash
       run: |
         set -euo pipefail
 
-        curl -fsSL https://foundry.paradigm.xyz | bash
         FOUNDRY_BIN="$HOME/.foundry/bin"
-        export PATH="${FOUNDRY_BIN}:$PATH"
-        echo "${FOUNDRY_BIN}" >> "$GITHUB_PATH"
+        mkdir -p "$FOUNDRY_BIN"
+        RELEASE_TAG="v1.5.0"
+        TARBALL_URL="https://github.com/foundry-rs/foundry/releases/download/${RELEASE_TAG}/foundry_${RELEASE_TAG}_linux_amd64.tar.gz"
 
         max_attempts=3
         attempt=1
-        until "${FOUNDRY_BIN}/foundryup" --install 1.5.0; do
+        while true; do
+          echo "Attempt ${attempt}: downloading Foundry ${RELEASE_TAG} from GitHub Releases..."
+          tmp_dir="$(mktemp -d)"
+          if curl -fsSL --retry 3 --retry-delay 5 "$TARBALL_URL" -o "${tmp_dir}/foundry.tar.gz" && \
+             tar -tf "${tmp_dir}/foundry.tar.gz" > /dev/null 2>&1; then
+            tar -xzf "${tmp_dir}/foundry.tar.gz" -C "$FOUNDRY_BIN"
+            rm -rf "$tmp_dir"
+            echo "Foundry ${RELEASE_TAG} installed successfully"
+            break
+          fi
+          rm -rf "$tmp_dir"
           if [ "$attempt" -ge "$max_attempts" ]; then
-            echo "foundryup failed after ${max_attempts} attempts"
+            echo "::error::Foundry download failed after ${max_attempts} attempts"
             exit 1
           fi
-          sleep_seconds=$((attempt * 5))
-          echo "foundryup attempt ${attempt} failed, retrying in ${sleep_seconds}s"
+          sleep_seconds=$((attempt * 10))
+          echo "::warning::Foundry download attempt ${attempt} failed, retrying in ${sleep_seconds}s"
           sleep "$sleep_seconds"
           attempt=$((attempt + 1))
         done
+
+    - name: Add Foundry to PATH
+      shell: bash
+      run: echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
 
     - name: Verify Foundry tools
       shell: bash
