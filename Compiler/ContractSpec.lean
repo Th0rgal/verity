@@ -821,7 +821,7 @@ private def isLowLevelCallName (name : String) : Bool :=
 
 private def isInteropBuiltinCallName (name : String) : Bool :=
   (isLowLevelCallName name) ||
-    ["create", "create2", "extcodesize", "extcodecopy", "extcodehash", "returndatasize", "returndatacopy", "selfdestruct", "invalid"].contains name
+    ["create", "create2", "gasprice", "extcodesize", "extcodecopy", "extcodehash", "returndatasize", "returndatacopy", "selfdestruct", "invalid"].contains name
 
 private def isInteropEntrypointName (name : String) : Bool :=
   ["fallback", "receive"].contains name
