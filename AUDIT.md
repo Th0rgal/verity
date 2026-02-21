@@ -34,7 +34,7 @@ All three layers are fully verified in Lean 4. Zero `sorry` placeholders. One ax
 
 ### Where external input enters
 
-1. **Contract specifications** (`Compiler/Specs.lean`): All specs are Lean source — no runtime input parsing. The `compile` function validates specs exhaustively (7+ validators) before emitting code.
+1. **Contract specifications** (`Compiler/Specs.lean`): All specs are Lean source — no runtime input parsing. The `compile` function validates specs exhaustively (7+ validators for functions, 5 for constructors) before emitting code.
 
 2. **Calldata**: Generated decoder reads ABI-encoded calldata. `calldatasizeGuard` enforces minimum size for fixed params. Dynamic param bounds rely on EVM semantics (out-of-bounds calldataload returns zero), matching solc behavior.
 
@@ -120,3 +120,4 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 - `check_axiom_locations.py`: All axioms documented in AXIOMS.md
 - `check_storage_layout.py`: Storage layout validation
 - `check_solc_pin.py`: solc version pinned
+- `check_builtin_list_sync.py`: Linker/ContractSpec opcode list sync

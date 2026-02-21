@@ -2464,6 +2464,12 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
     validateInternalCallShapesInFunction spec.functions fn
   validateConstructorSpec spec.constructor
   validateInteropConstructorSpec spec.constructor
+  match spec.constructor with
+  | none => pure ()
+  | some ctor => do
+      ctor.body.forM (validateEventArgShapesInStmt "constructor" ctor.params spec.events)
+      ctor.body.forM (validateCustomErrorArgShapesInStmt "constructor" ctor.params spec.errors)
+      ctor.body.forM (validateInternalCallShapesInStmt spec.functions "constructor")
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
     validateInteropExternalSpec ext
