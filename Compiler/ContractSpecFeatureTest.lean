@@ -1288,6 +1288,38 @@ private def featureSpec : ContractSpec := {
          "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
 
 #eval! do
+  let unindexedDynamicBytesArrayEventSpec : ContractSpec := {
+    name := "UnindexedDynamicBytesArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "UnindexedDynamicBytesArray"
+        params := [
+          { name := "payload", ty := ParamType.array ParamType.bytes, kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitArray"
+        params := [{ name := "payload", ty := ParamType.array ParamType.bytes }]
+        returnType := none
+        body := [Stmt.emit "UnindexedDynamicBytesArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedDynamicBytesArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected unindexed dynamic bytes array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed dynamic bytes array event encoding" rendered
+        ["let __evt_data_tail := 32",
+         "let __evt_arg0_head_len := mul(__evt_arg0_len, 32)",
+         "mstore(add(add(__evt_arg0_dst, 32), mul(__evt_arg0_i, 32)), __evt_arg0_tail_len)",
+         "calldatacopy(__evt_arg0_elem_dst, __evt_arg0_elem_data, __evt_arg0_elem_len)",
+         "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
+
+#eval! do
   let unindexedDynamicCompositeArrayEventSpec : ContractSpec := {
     name := "UnindexedDynamicCompositeArrayEventUnsupported"
     fields := []

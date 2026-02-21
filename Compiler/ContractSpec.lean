@@ -683,7 +683,18 @@ private partial def validateEventArgShapesInStmt (fnName : String) (params : Lis
         if eventParam.kind == EventParamKind.unindexed then
           match eventParam.ty with
           | ParamType.array elemTy =>
-              if indexedDynamicArrayElemSupported elemTy then
+              if elemTy == ParamType.bytes then
+                  match arg with
+                  | Expr.param name =>
+                      match findParamType params name with
+                      | some ty =>
+                          if ty != eventParam.ty then
+                            throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+                      | none =>
+                          throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                  | _ =>
+                      throw s!"Compilation error: function '{fnName}' unindexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+              else if indexedDynamicArrayElemSupported elemTy then
                 match arg with
                 | Expr.param name =>
                     match findParamType params name with
@@ -1346,7 +1357,78 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
                   | _ =>
                       throw s!"Compilation error: unindexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
               | ParamType.array elemTy =>
-                  if indexedDynamicArrayElemSupported elemTy then
+                  if elemTy == ParamType.bytes then
+                      match srcExpr with
+                      | Expr.param name =>
+                          let lenName := s!"__evt_arg{argIdx}_len"
+                          let dstName := s!"__evt_arg{argIdx}_dst"
+                          let headLenName := s!"__evt_arg{argIdx}_head_len"
+                          let tailLenName := s!"__evt_arg{argIdx}_tail_len"
+                          let loopIndexName := s!"__evt_arg{argIdx}_i"
+                          let elemOffsetName := s!"__evt_arg{argIdx}_elem_offset"
+                          let elemLenPosName := s!"__evt_arg{argIdx}_elem_len_pos"
+                          let elemLenName := s!"__evt_arg{argIdx}_elem_len"
+                          let elemDataName := s!"__evt_arg{argIdx}_elem_data"
+                          let elemDstName := s!"__evt_arg{argIdx}_elem_dst"
+                          let elemPaddedName := s!"__evt_arg{argIdx}_elem_padded"
+                          pure ([
+                            YulStmt.expr (YulExpr.call "mstore" [curHeadPtr, YulExpr.ident "__evt_data_tail"]),
+                            YulStmt.let_ lenName (YulExpr.ident s!"{name}_length"),
+                            YulStmt.let_ dstName (YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.ident "__evt_data_tail"]),
+                            YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident dstName, YulExpr.ident lenName]),
+                            YulStmt.let_ headLenName (YulExpr.call "mul" [YulExpr.ident lenName, YulExpr.lit 32]),
+                            YulStmt.let_ tailLenName (YulExpr.ident headLenName),
+                            YulStmt.for_
+                              [YulStmt.let_ loopIndexName (YulExpr.lit 0)]
+                              (YulExpr.call "lt" [YulExpr.ident loopIndexName, YulExpr.ident lenName])
+                              [YulStmt.assign loopIndexName (YulExpr.call "add" [YulExpr.ident loopIndexName, YulExpr.lit 1])]
+                              ([
+                                YulStmt.let_ elemOffsetName (dynamicWordLoad dynamicSource (YulExpr.call "add" [
+                                  YulExpr.ident s!"{name}_data_offset",
+                                  YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit 32]
+                                ])),
+                                YulStmt.let_ elemLenPosName (YulExpr.call "add" [
+                                  YulExpr.ident s!"{name}_data_offset",
+                                  YulExpr.ident elemOffsetName
+                                ]),
+                                YulStmt.let_ elemLenName (dynamicWordLoad dynamicSource (YulExpr.ident elemLenPosName)),
+                                YulStmt.let_ elemDataName (YulExpr.call "add" [YulExpr.ident elemLenPosName, YulExpr.lit 32]),
+                                YulStmt.expr (YulExpr.call "mstore" [
+                                  YulExpr.call "add" [
+                                    YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32],
+                                    YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit 32]
+                                  ],
+                                  YulExpr.ident tailLenName
+                                ]),
+                                YulStmt.let_ elemDstName (YulExpr.call "add" [
+                                  YulExpr.call "add" [YulExpr.ident dstName, YulExpr.lit 32],
+                                  YulExpr.ident tailLenName
+                                ])
+                              ] ++ dynamicCopyData dynamicSource
+                                (YulExpr.ident elemDstName)
+                                (YulExpr.ident elemDataName)
+                                (YulExpr.ident elemLenName) ++ [
+                                YulStmt.let_ elemPaddedName (YulExpr.call "and" [
+                                  YulExpr.call "add" [YulExpr.ident elemLenName, YulExpr.lit 31],
+                                  YulExpr.call "not" [YulExpr.lit 31]
+                                ]),
+                                YulStmt.expr (YulExpr.call "mstore" [
+                                  YulExpr.call "add" [YulExpr.ident elemDstName, YulExpr.ident elemLenName],
+                                  YulExpr.lit 0
+                                ]),
+                                YulStmt.assign tailLenName (YulExpr.call "add" [
+                                  YulExpr.ident tailLenName,
+                                  YulExpr.ident elemPaddedName
+                                ])
+                              ]),
+                            YulStmt.assign "__evt_data_tail" (YulExpr.call "add" [
+                              YulExpr.ident "__evt_data_tail",
+                              YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident tailLenName]
+                            ])
+                          ])
+                      | _ =>
+                          throw s!"Compilation error: unindexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                  else if indexedDynamicArrayElemSupported elemTy then
                     match srcExpr with
                     | Expr.param name =>
                         let lenName := s!"__evt_arg{argIdx}_len"
