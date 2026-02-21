@@ -84,6 +84,7 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 | Shared `isDynamicParamType`/`paramHeadSize` | Single definitions used by both event encoding and calldata parameter loading; eliminates divergence risk |
 | Shared `fieldTypeToParamType` | ABI.lean reuses ContractSpec's canonical definition instead of maintaining a private copy; eliminates FieldType→ParamType divergence |
 | Non-short-circuit `logicalAnd`/`logicalOr` | Compiled to EVM bitwise `and`/`or` — both operands always evaluated. Simpler codegen; no side-effecting expressions in current DSL |
+| Shared `Selector.runKeccak` | Single keccak subprocess helper shared between ContractSpec and AST compilation paths; eliminates duplicated subprocess handling |
 
 ## Known risks
 
