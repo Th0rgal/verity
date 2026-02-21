@@ -29,6 +29,7 @@ contract EventAbiParityEmitter {
     event IndexedStaticFixedArray(uint256[2] indexed payload);
     event IndexedDynamicStaticTupleArray(StaticTupleParity[] indexed payload);
     event IndexedDynamicStaticFixedArray(address[2][] indexed payload);
+    event UnindexedDynamicStaticTupleArray(StaticTupleParity[] payload);
     event UnindexedStaticTuple(StaticTupleParity payload);
     event UnindexedStaticFixedArray(uint256[2] payload);
 
@@ -63,6 +64,10 @@ contract EventAbiParityEmitter {
 
     function emitIndexedDynamicStaticFixedArray(address[2][] calldata payload) external {
         emit IndexedDynamicStaticFixedArray(payload);
+    }
+
+    function emitUnindexedDynamicStaticTupleArray(StaticTupleParity[] calldata payload) external {
+        emit UnindexedDynamicStaticTupleArray(payload);
     }
 
     function emitUnindexedStaticTuple(StaticTupleParity calldata payload) external {
@@ -250,6 +255,25 @@ contract EventAbiParityTest is Test {
 
         bytes32 expectedTopic0 = keccak256(bytes("UnindexedStaticTuple((uint256,address))"));
         bytes memory expectedData = abi.encode(payload.amount, payload.recipient);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicStaticTupleArrayDataUsesAbiTailEncoding() public {
+        StaticTupleParity[] memory payload = new StaticTupleParity[](2);
+        payload[0] = StaticTupleParity({amount: 999, recipient: address(0x1111)});
+        payload[1] = StaticTupleParity({amount: 1001, recipient: address(0x2222)});
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicStaticTupleArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicStaticTupleArray((uint256,address)[])"));
+        bytes memory expectedData = abi.encode(payload);
 
         assertEq(logs[0].topics[0], expectedTopic0);
         assertEq(logs[0].data, expectedData);
