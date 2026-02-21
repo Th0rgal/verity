@@ -130,6 +130,9 @@ jobs:
       - name: Check Yul builtin abstraction boundary
         run: python3 scripts/check_yul_builtin_boundary.py
 
+      - name: Check builtin list sync (Linker ↔ ContractSpec)
+        run: python3 scripts/check_builtin_list_sync.py
+
       - name: Check EVMYulLean capability boundary
         run: python3 scripts/check_evmyullean_capability_boundary.py
 
