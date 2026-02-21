@@ -80,6 +80,8 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 | `partial def` in compiler | ~25 functions recurse on `ParamType` (finite depth); termination proofs would add complexity without security value |
 | `allowUnsafeReducibility` | One use in `Semantics.lean:247` for `execYulFuel`; fuel-bounded, provably terminating. See TRUST_ASSUMPTIONS.md §7 |
 | Raw text linker injection | Libraries are inherently outside the proof boundary; semantic validation would require a Yul verifier |
+| Shared `isInteropEntrypointName` | Single definition filters fallback/receive consistently across Selector, ABI, and ContractSpec.compile |
+| Shared `isDynamicParamType`/`paramHeadSize` | Single definitions used by both event encoding and calldata parameter loading; eliminates divergence risk |
 
 ## Known risks
 
