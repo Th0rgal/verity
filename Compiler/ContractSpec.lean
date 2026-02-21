@@ -989,7 +989,7 @@ private def interopBuiltinCallNames : List String :=
    "lt", "gt", "slt", "sgt", "eq", "iszero", "and", "or", "xor", "byte", "shl", "shr", "sar",
    "addmod", "mulmod", "signextend",
    "keccak256", "pop",
-   "mload", "mstore", "mstore8", "sload", "sstore", "msize", "gas", "pc",
+   "mload", "mstore", "mstore8", "sload", "sstore", "tload", "tstore", "msize", "gas", "pc",
    "address", "balance", "selfbalance", "origin", "caller", "callvalue", "gasprice",
    "blockhash", "coinbase", "timestamp", "number", "difficulty", "prevrandao", "gaslimit",
    "chainid", "basefee", "blobbasefee", "blobhash",
