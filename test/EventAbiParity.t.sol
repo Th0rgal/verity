@@ -29,11 +29,15 @@ contract EventAbiParityEmitter {
     event IndexedStaticFixedArray(uint256[2] indexed payload);
     event IndexedDynamicStaticTupleArray(StaticTupleParity[] indexed payload);
     event IndexedDynamicStaticFixedArray(address[2][] indexed payload);
+    event IndexedDynamicUintArray(uint256[] indexed payload);
     event IndexedDynamicAddressArray(address[] indexed payload);
     event IndexedDynamicBoolArray(bool[] indexed payload);
+    event IndexedDynamicBytes32Array(bytes32[] indexed payload);
     event UnindexedDynamicStaticTupleArray(StaticTupleParity[] payload);
+    event UnindexedDynamicUintArray(uint256[] payload);
     event UnindexedDynamicAddressArray(address[] payload);
     event UnindexedDynamicBoolArray(bool[] payload);
+    event UnindexedDynamicBytes32Array(bytes32[] payload);
     event UnindexedDynamicStaticFixedArray(address[2][] payload);
     event UnindexedStaticTuple(StaticTupleParity payload);
     event UnindexedStaticFixedArray(uint256[2] payload);
@@ -71,6 +75,10 @@ contract EventAbiParityEmitter {
         emit IndexedDynamicStaticFixedArray(payload);
     }
 
+    function emitIndexedDynamicUintArray(uint256[] calldata payload) external {
+        emit IndexedDynamicUintArray(payload);
+    }
+
     function emitIndexedDynamicAddressArray(address[] calldata payload) external {
         emit IndexedDynamicAddressArray(payload);
     }
@@ -79,8 +87,16 @@ contract EventAbiParityEmitter {
         emit IndexedDynamicBoolArray(payload);
     }
 
+    function emitIndexedDynamicBytes32Array(bytes32[] calldata payload) external {
+        emit IndexedDynamicBytes32Array(payload);
+    }
+
     function emitUnindexedDynamicStaticTupleArray(StaticTupleParity[] calldata payload) external {
         emit UnindexedDynamicStaticTupleArray(payload);
+    }
+
+    function emitUnindexedDynamicUintArray(uint256[] calldata payload) external {
+        emit UnindexedDynamicUintArray(payload);
     }
 
     function emitUnindexedDynamicAddressArray(address[] calldata payload) external {
@@ -89,6 +105,10 @@ contract EventAbiParityEmitter {
 
     function emitUnindexedDynamicBoolArray(bool[] calldata payload) external {
         emit UnindexedDynamicBoolArray(payload);
+    }
+
+    function emitUnindexedDynamicBytes32Array(bytes32[] calldata payload) external {
+        emit UnindexedDynamicBytes32Array(payload);
     }
 
     function emitUnindexedDynamicStaticFixedArray(address[2][] calldata payload) external {
@@ -265,6 +285,26 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].topics[1], expectedTopic1);
     }
 
+    function testIndexedDynamicUintArrayTopicUsesInPlaceElementEncoding() public {
+        uint256[] memory payload = new uint256[](3);
+        payload[0] = 100;
+        payload[1] = 200;
+        payload[2] = 300;
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicUintArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicUintArray(uint256[])"));
+        bytes32 expectedTopic1 = keccak256(abi.encode(payload[0], payload[1], payload[2]));
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
     function testIndexedDynamicAddressArrayTopicUsesInPlaceElementEncoding() public {
         address[] memory payload = new address[](3);
         payload[0] = address(0x1111);
@@ -279,6 +319,26 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].topics.length, 2);
 
         bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicAddressArray(address[])"));
+        bytes32 expectedTopic1 = keccak256(abi.encode(payload[0], payload[1], payload[2]));
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
+    function testIndexedDynamicBytes32ArrayTopicUsesInPlaceElementEncoding() public {
+        bytes32[] memory payload = new bytes32[](3);
+        payload[0] = keccak256("alpha");
+        payload[1] = keccak256("beta");
+        payload[2] = keccak256("gamma");
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicBytes32Array(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicBytes32Array(bytes32[])"));
         bytes32 expectedTopic1 = keccak256(abi.encode(payload[0], payload[1], payload[2]));
 
         assertEq(logs[0].topics[0], expectedTopic0);
@@ -345,6 +405,26 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].data, expectedData);
     }
 
+    function testUnindexedDynamicUintArrayDataUsesAbiTailEncoding() public {
+        uint256[] memory payload = new uint256[](3);
+        payload[0] = 111;
+        payload[1] = 222;
+        payload[2] = 333;
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicUintArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicUintArray(uint256[])"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
     function testUnindexedStaticFixedArrayDataUsesInPlaceEncoding() public {
         uint256[2] memory payload = [uint256(111), uint256(222)];
 
@@ -356,6 +436,26 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].topics.length, 1);
 
         bytes32 expectedTopic0 = keccak256(bytes("UnindexedStaticFixedArray(uint256[2])"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicBytes32ArrayDataUsesAbiTailEncoding() public {
+        bytes32[] memory payload = new bytes32[](3);
+        payload[0] = keccak256("x");
+        payload[1] = keccak256("y");
+        payload[2] = keccak256("z");
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicBytes32Array(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicBytes32Array(bytes32[])"));
         bytes memory expectedData = abi.encode(payload);
 
         assertEq(logs[0].topics[0], expectedTopic0);

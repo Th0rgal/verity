@@ -1056,6 +1056,39 @@ private def featureSpec : ContractSpec := {
          "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
 
 #eval! do
+  let unindexedDynamicBytes32ArrayEventSpec : ContractSpec := {
+    name := "UnindexedDynamicBytes32ArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "UnindexedDynamicBytes32Array"
+        params := [
+          { name := "payload", ty := ParamType.array ParamType.bytes32, kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitArray"
+        params := [{ name := "payload", ty := ParamType.array ParamType.bytes32 }]
+        returnType := none
+        body := [Stmt.emit "UnindexedDynamicBytes32Array" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedDynamicBytes32ArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected unindexed dynamic bytes32 array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed dynamic bytes32 array event encoding" rendered
+        ["let __evt_data_tail := 32",
+         "let __evt_arg0_byte_len := mul(__evt_arg0_len, 32)",
+         "let __evt_arg0_i := 0",
+         "let __evt_arg0_elem_base := add(payload_data_offset, mul(__evt_arg0_i, 32))",
+         "mstore(add(__evt_arg0_out_base, 0), calldataload(add(__evt_arg0_elem_base, 0)))",
+         "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
+
+#eval! do
   let unindexedDynamicCompositeArrayEventSpec : ContractSpec := {
     name := "UnindexedDynamicCompositeArrayEventUnsupported"
     fields := []
@@ -1330,6 +1363,40 @@ private def featureSpec : ContractSpec := {
          "lt(__evt_arg0_i, payload_length)",
          "mstore(add(__evt_arg0_out_base, 0), and(calldataload(add(__evt_arg0_elem_base, 0))",
          "mstore(add(__evt_arg0_out_base, 32), iszero(iszero(calldataload(add(__evt_arg0_elem_base, 32)))))",
+         "let __evt_topic1 := keccak256(__evt_ptr, __evt_arg0_byte_len)",
+         "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
+
+#eval! do
+  let indexedDynamicBytes32ArrayEventSpec : ContractSpec := {
+    name := "IndexedDynamicBytes32ArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "IndexedDynamicBytes32Array"
+        params := [
+          { name := "payload", ty := ParamType.array ParamType.bytes32, kind := EventParamKind.indexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitArray"
+        params := [{ name := "payload", ty := ParamType.array ParamType.bytes32 }]
+        returnType := none
+        body := [Stmt.emit "IndexedDynamicBytes32Array" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile indexedDynamicBytes32ArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected indexed dynamic bytes32 array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "indexed dynamic bytes32 array topic hashing" rendered
+        ["let __evt_arg0_byte_len := mul(payload_length, 32)",
+         "let __evt_arg0_i := 0",
+         "lt(__evt_arg0_i, payload_length)",
+         "let __evt_arg0_elem_base := add(payload_data_offset, mul(__evt_arg0_i, 32))",
+         "mstore(add(__evt_arg0_out_base, 0), calldataload(add(__evt_arg0_elem_base, 0)))",
          "let __evt_topic1 := keccak256(__evt_ptr, __evt_arg0_byte_len)",
          "log2(__evt_ptr, 0, __evt_topic0, __evt_topic1)"]
 
