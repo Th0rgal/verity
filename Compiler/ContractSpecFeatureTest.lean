@@ -1454,32 +1454,65 @@ private def featureSpec : ContractSpec := {
 
 #eval! do
   let unindexedDynamicTupleEventSpec : ContractSpec := {
-    name := "UnindexedDynamicTupleEventUnsupported"
+    name := "UnindexedDynamicTupleEventSupported"
     fields := []
     constructor := none
     events := [
-      { name := "BadUnindexedDynamicTuple"
+      { name := "UnindexedDynamicTuple"
         params := [
           { name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.bytes], kind := EventParamKind.unindexed }
         ]
       }
     ]
     functions := [
-      { name := "emitBad"
+      { name := "emitDynamicTuple"
         params := [{ name := "payload", ty := ParamType.tuple [ParamType.uint256, ParamType.bytes] }]
         returnType := none
-        body := [Stmt.emit "BadUnindexedDynamicTuple" [Expr.param "payload"], Stmt.stop]
+        body := [Stmt.emit "UnindexedDynamicTuple" [Expr.param "payload"], Stmt.stop]
       }
     ]
   }
   match compile unindexedDynamicTupleEventSpec [1] with
   | .error err =>
-      if !(contains err "unindexed param 'payload' has dynamic composite type" &&
-          contains err "Issue #586") then
-        throw (IO.userError s!"✗ unindexed dynamic tuple event diagnostic mismatch: {err}")
-      IO.println "✓ unindexed dynamic tuple event diagnostic"
-  | .ok _ =>
-      throw (IO.userError "✗ expected unindexed dynamic tuple event param usage to fail compilation")
+      throw (IO.userError s!"✗ expected unindexed dynamic tuple event to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed dynamic tuple event encoding" rendered
+        ["let __evt_data_tail := 32",
+         "mstore(add(__evt_ptr, 0), __evt_data_tail)",
+         "__evt_arg0_tail_len",
+         "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
+
+#eval! do
+  let unindexedDynamicFixedArrayEventSpec : ContractSpec := {
+    name := "UnindexedDynamicFixedArrayEventSupported"
+    fields := []
+    constructor := none
+    events := [
+      { name := "UnindexedDynamicFixedArray"
+        params := [
+          { name := "payload", ty := ParamType.fixedArray (ParamType.tuple [ParamType.uint256, ParamType.bytes]) 2, kind := EventParamKind.unindexed }
+        ]
+      }
+    ]
+    functions := [
+      { name := "emitDynamicFixedArray"
+        params := [{ name := "payload", ty := ParamType.fixedArray (ParamType.tuple [ParamType.uint256, ParamType.bytes]) 2 }]
+        returnType := none
+        body := [Stmt.emit "UnindexedDynamicFixedArray" [Expr.param "payload"], Stmt.stop]
+      }
+    ]
+  }
+  match compile unindexedDynamicFixedArrayEventSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ expected unindexed dynamic fixed-array event to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed dynamic fixed-array event encoding" rendered
+        ["let __evt_data_tail := 32",
+         "mstore(add(__evt_ptr, 0), __evt_data_tail)",
+         "__evt_arg0_fa_tail_len",
+         "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
 
 #eval! do
   let indexedBytesEventSpec : ContractSpec := {
