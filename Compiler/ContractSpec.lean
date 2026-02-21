@@ -819,13 +819,23 @@ private partial def staticCompositeLeafTypeOffsets
 private def isLowLevelCallName (name : String) : Bool :=
   ["call", "staticcall", "delegatecall", "callcode"].contains name
 
+private def interopBuiltinCallNames : List String :=
+  ["stop", "add", "sub", "mul", "div", "sdiv", "mod", "smod", "exp", "not",
+   "lt", "gt", "slt", "sgt", "eq", "iszero", "and", "or", "xor", "byte", "shl", "shr", "sar",
+   "addmod", "mulmod", "signextend",
+   "keccak256", "pop",
+   "mload", "mstore", "mstore8", "sload", "sstore", "msize", "gas", "pc",
+   "address", "balance", "selfbalance", "origin", "caller", "callvalue", "gasprice",
+   "blockhash", "coinbase", "timestamp", "number", "difficulty", "prevrandao", "gaslimit",
+   "chainid", "basefee", "blobbasefee", "blobhash",
+   "calldataload", "calldatasize", "calldatacopy", "codesize", "codecopy",
+   "extcodesize", "extcodecopy", "extcodehash",
+   "returndatasize", "returndatacopy", "mcopy",
+   "create", "create2", "return", "revert", "selfdestruct", "invalid",
+   "log0", "log1", "log2", "log3", "log4"]
+
 private def isInteropBuiltinCallName (name : String) : Bool :=
-  (isLowLevelCallName name) ||
-    ["create", "create2", "balance", "selfbalance", "origin", "caller", "callvalue",
-     "gasprice", "blockhash", "coinbase", "timestamp", "number", "difficulty",
-     "prevrandao", "gaslimit", "chainid", "basefee", "blobbasefee", "blobhash", "gas",
-     "extcodesize", "extcodecopy", "extcodehash", "returndatasize", "returndatacopy",
-     "selfdestruct", "invalid"].contains name
+  (isLowLevelCallName name) || interopBuiltinCallNames.contains name
 
 private def isInteropEntrypointName (name : String) : Bool :=
   ["fallback", "receive"].contains name

@@ -751,6 +751,51 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected invalid builtin usage to fail compilation")
 
 #eval! do
+  let mloadBuiltinSpec : ContractSpec := {
+    name := "MloadBuiltinUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "offset", ty := ParamType.uint256 }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "mload" [Expr.param "offset"])]
+      }
+    ]
+  }
+  match compile mloadBuiltinSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'mload'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ mload builtin diagnostic mismatch: {err}")
+      IO.println "✓ mload builtin unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected mload builtin usage to fail compilation")
+
+#eval! do
+  let sstoreBuiltinSpec : ContractSpec := {
+    name := "SstoreBuiltinUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [
+          { name := "slot", ty := ParamType.uint256 },
+          { name := "value", ty := ParamType.uint256 }
+        ]
+        returnType := none
+        body := [Stmt.letVar "_ignored" (Expr.externalCall "sstore" [Expr.param "slot", Expr.param "value"]), Stmt.stop]
+      }
+    ]
+  }
+  match compile sstoreBuiltinSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'sstore'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ sstore builtin diagnostic mismatch: {err}")
+      IO.println "✓ sstore builtin unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected sstore builtin usage to fail compilation")
+
+#eval! do
   let externalBalanceSpec : ContractSpec := {
     name := "ExternalBalanceUnsupported"
     fields := []
@@ -917,6 +962,62 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ external create unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected external create declaration to fail compilation")
+
+#eval! do
+  let externalMloadSpec : ContractSpec := {
+    name := "ExternalMloadUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "mload"
+        params := [ParamType.uint256]
+        returnType := some ParamType.uint256
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalMloadSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'mload'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external mload diagnostic mismatch: {err}")
+      IO.println "✓ external mload unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external mload declaration to fail compilation")
+
+#eval! do
+  let externalSstoreSpec : ContractSpec := {
+    name := "ExternalSstoreUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "sstore"
+        params := [ParamType.uint256, ParamType.uint256]
+        returnType := none
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalSstoreSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'sstore'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external sstore diagnostic mismatch: {err}")
+      IO.println "✓ external sstore unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external sstore declaration to fail compilation")
 
 #eval! do
   let unknownCustomErrorSpec : ContractSpec := {
