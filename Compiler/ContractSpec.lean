@@ -705,6 +705,17 @@ private partial def validateEventArgShapesInStmt (fnName : String) (params : Lis
                         throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
                 | _ =>
                     throw s!"Compilation error: function '{fnName}' unindexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+              else if eventIsDynamicType elemTy then
+                match arg with
+                | Expr.param name =>
+                    match findParamType params name with
+                    | some ty =>
+                        if ty != eventParam.ty then
+                          throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+                    | none =>
+                        throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                | _ =>
+                    throw s!"Compilation error: function '{fnName}' unindexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               else
                 throw s!"Compilation error: function '{fnName}' event '{eventName}' unindexed array param '{eventParam.name}' has unsupported element type {repr elemTy} ({issue586Ref})."
           | ParamType.fixedArray _ _ | ParamType.tuple _ =>
@@ -1435,8 +1446,103 @@ private partial def compileUnindexedAbiEncode
             pure []
         let elemStmts ← goStaticElems 0
         pure (elemStmts, YulExpr.lit (n * elemWordSize))
-  | ParamType.array _ =>
-      throw s!"Compilation error: nested array in unindexed composite event encoding is not supported ({issue586Ref})."
+  | ParamType.array elemTy =>
+      -- Dynamic array: [length][head_0]...[head_{n-1}][tail_0]...[tail_{n-1}]
+      -- Each head word is an offset (relative to start of elements area) pointing
+      -- to the element's tail data. For static elements the data is inline.
+      let lenName := s!"{stem}_arr_len"
+      let lenStmt := YulStmt.let_ lenName (dynamicWordLoad dynamicSource srcBase)
+      let storeLenStmt := YulStmt.expr (YulExpr.call "mstore" [dstBase, YulExpr.ident lenName])
+      if eventIsDynamicType elemTy then
+        -- Dynamic elements need offset-based head/tail layout
+        let headLenName := s!"{stem}_arr_head_len"
+        let tailLenName := s!"{stem}_arr_tail_len"
+        let loopIdxName := s!"{stem}_arr_i"
+        let elemRelName := s!"{stem}_arr_elem_rel"
+        let elemSrcName := s!"{stem}_arr_elem_src"
+        let elemDstName := s!"{stem}_arr_elem_dst"
+        -- We generate a loop that processes each element:
+        --   1) Read element offset from source, resolve to absolute source position
+        --   2) Store current tail offset as the head word
+        --   3) Recursively encode element data at current tail position
+        --   4) Advance tail offset
+        -- Since element encoding size is data-dependent, we track tail with a mutable var.
+        let (innerStmts, innerLen) ←
+          compileUnindexedAbiEncode dynamicSource elemTy
+            (YulExpr.ident elemSrcName)
+            (YulExpr.ident elemDstName)
+            s!"{stem}_arr_e"
+        let loopBody := [
+          -- Read element's relative offset from source head area
+          YulStmt.let_ elemRelName (dynamicWordLoad dynamicSource (YulExpr.call "add" [
+            YulExpr.call "add" [srcBase, YulExpr.lit 32],
+            YulExpr.call "mul" [YulExpr.ident loopIdxName, YulExpr.lit 32]
+          ])),
+          -- Resolve to absolute source position (relative to array data start = srcBase + 32)
+          YulStmt.let_ elemSrcName (YulExpr.call "add" [
+            YulExpr.call "add" [srcBase, YulExpr.lit 32],
+            YulExpr.ident elemRelName
+          ]),
+          -- Store offset in head area of destination
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.call "add" [
+              YulExpr.call "add" [dstBase, YulExpr.lit 32],
+              YulExpr.call "mul" [YulExpr.ident loopIdxName, YulExpr.lit 32]
+            ],
+            YulExpr.ident tailLenName
+          ]),
+          -- Destination for this element's encoded data
+          YulStmt.let_ elemDstName (YulExpr.call "add" [
+            YulExpr.call "add" [dstBase, YulExpr.lit 32],
+            YulExpr.ident tailLenName
+          ])
+        ] ++ innerStmts ++ [
+          YulStmt.assign tailLenName (YulExpr.call "add" [YulExpr.ident tailLenName, innerLen])
+        ]
+        let loopStmt := YulStmt.for_
+          [YulStmt.let_ loopIdxName (YulExpr.lit 0)]
+          (YulExpr.call "lt" [YulExpr.ident loopIdxName, YulExpr.ident lenName])
+          [YulStmt.assign loopIdxName (YulExpr.call "add" [YulExpr.ident loopIdxName, YulExpr.lit 1])]
+          loopBody
+        pure ([lenStmt, storeLenStmt,
+          YulStmt.let_ headLenName (YulExpr.call "mul" [YulExpr.ident lenName, YulExpr.lit 32]),
+          YulStmt.let_ tailLenName (YulExpr.ident headLenName),
+          loopStmt
+        ], YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident tailLenName])
+      else
+        -- Static elements: each takes a fixed number of words, no offsets needed
+        let elemWordSize := eventHeadWordSize elemTy
+        let byteLenName := s!"{stem}_arr_byte_len"
+        let loopIdxName := s!"{stem}_arr_i"
+        let elemSrcName := s!"{stem}_arr_elem_src"
+        let (innerStmts, _) ←
+          compileUnindexedAbiEncode dynamicSource elemTy
+            (YulExpr.ident elemSrcName)
+            (YulExpr.call "add" [
+              YulExpr.call "add" [dstBase, YulExpr.lit 32],
+              YulExpr.call "mul" [YulExpr.ident loopIdxName, YulExpr.lit elemWordSize]
+            ])
+            s!"{stem}_arr_e"
+        let loopBody := [
+          YulStmt.let_ elemSrcName (YulExpr.call "add" [
+            YulExpr.call "add" [srcBase, YulExpr.lit 32],
+            YulExpr.call "mul" [YulExpr.ident loopIdxName, YulExpr.lit elemWordSize]
+          ])
+        ] ++ innerStmts
+        let loopStmt := YulStmt.for_
+          [YulStmt.let_ loopIdxName (YulExpr.lit 0)]
+          (YulExpr.call "lt" [YulExpr.ident loopIdxName, YulExpr.ident lenName])
+          [YulStmt.assign loopIdxName (YulExpr.call "add" [YulExpr.ident loopIdxName, YulExpr.lit 1])]
+          loopBody
+        let paddedName := s!"{stem}_arr_padded"
+        pure ([lenStmt, storeLenStmt,
+          YulStmt.let_ byteLenName (YulExpr.call "mul" [YulExpr.ident lenName, YulExpr.lit elemWordSize]),
+          loopStmt,
+          YulStmt.let_ paddedName (YulExpr.call "and" [
+            YulExpr.call "add" [YulExpr.ident byteLenName, YulExpr.lit 31],
+            YulExpr.call "not" [YulExpr.lit 31]
+          ])
+        ], YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName])
 
 -- Compile statement to Yul (using mutual recursion for lists).
 -- When isInternal=true, Stmt.return compiles to `__ret := value` (for internal Yul functions)
@@ -1772,6 +1878,21 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
                             YulExpr.ident "__evt_data_tail",
                             YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName]
                           ])
+                        ])
+                    | _ =>
+                        throw s!"Compilation error: unindexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                  else if eventIsDynamicType elemTy then
+                    match srcExpr with
+                    | Expr.param name =>
+                        let dstName := s!"__evt_arg{argIdx}_dst"
+                        let srcBase := indexedDynamicBaseOffsetExpr dynamicSource name
+                        let (encStmts, encLen) ←
+                          compileUnindexedAbiEncode dynamicSource p.ty srcBase (YulExpr.ident dstName) s!"__evt_arg{argIdx}"
+                        pure ([
+                          YulStmt.expr (YulExpr.call "mstore" [curHeadPtr, YulExpr.ident "__evt_data_tail"]),
+                          YulStmt.let_ dstName (YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.ident "__evt_data_tail"])
+                        ] ++ encStmts ++ [
+                          YulStmt.assign "__evt_data_tail" (YulExpr.call "add" [YulExpr.ident "__evt_data_tail", encLen])
                         ])
                     | _ =>
                         throw s!"Compilation error: unindexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."

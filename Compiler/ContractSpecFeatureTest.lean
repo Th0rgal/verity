@@ -1423,34 +1423,34 @@ private def featureSpec : ContractSpec := {
 
 #eval! do
   let unindexedDynamicCompositeArrayEventSpec : ContractSpec := {
-    name := "UnindexedDynamicCompositeArrayEventUnsupported"
+    name := "UnindexedDynamicCompositeArrayEventSupported"
     fields := []
     constructor := none
     events := [
-      { name := "BadUnindexedDynamicCompositeArray"
+      { name := "UnindexedDynamicCompositeArray"
         params := [
           { name := "payload", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.bytes]), kind := EventParamKind.unindexed }
         ]
       }
     ]
     functions := [
-      { name := "emitBad"
+      { name := "emitDynamicCompositeArray"
         params := [{ name := "payload", ty := ParamType.array (ParamType.tuple [ParamType.uint256, ParamType.bytes]) }]
         returnType := none
-        body := [Stmt.emit "BadUnindexedDynamicCompositeArray" [Expr.param "payload"], Stmt.stop]
+        body := [Stmt.emit "UnindexedDynamicCompositeArray" [Expr.param "payload"], Stmt.stop]
       }
     ]
   }
   match compile unindexedDynamicCompositeArrayEventSpec [1] with
   | .error err =>
-      if !(contains err "unindexed array param 'payload' has unsupported element type" &&
-          contains err "ParamType.tuple" &&
-          contains err "ParamType.bytes" &&
-          contains err "Issue #586") then
-        throw (IO.userError s!"✗ unindexed dynamic composite array event diagnostic mismatch: {err}")
-      IO.println "✓ unindexed dynamic composite array event diagnostic"
-  | .ok _ =>
-      throw (IO.userError "✗ expected unindexed dynamic composite array event param usage to fail compilation")
+      throw (IO.userError s!"✗ expected unindexed dynamic composite array event support to compile, got: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "unindexed dynamic composite array event encoding" rendered
+        ["let __evt_data_tail := 32",
+         "mstore(__evt_arg0_dst, __evt_arg0_arr_len)",
+         "let __evt_arg0_arr_tail_len := __evt_arg0_arr_head_len",
+         "log1(__evt_ptr, __evt_data_tail, __evt_topic0)"]
 
 #eval! do
   let unindexedDynamicTupleEventSpec : ContractSpec := {
