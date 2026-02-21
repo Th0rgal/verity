@@ -32,9 +32,12 @@ private def runKeccak (sigs : List String) : IO (List Nat) := do
   return selectors
 
 /-- Compute Solidity-compatible selectors for external functions in a spec.
-    Internal functions are not dispatched via selector, so they are excluded. -/
+    Internal functions and special entrypoints (fallback/receive) are excluded
+    since they are not dispatched via selector. This filter must match the one
+    in `ContractSpec.compile` to avoid a selector count mismatch. -/
 def computeSelectors (spec : ContractSpec) : IO (List Nat) := do
-  let externalFns := spec.functions.filter (!·.isInternal)
+  let externalFns := spec.functions.filter (fun fn =>
+    !fn.isInternal && !["fallback", "receive"].contains fn.name)
   let sigs := externalFns.map functionSignature
   runKeccak sigs
 
