@@ -28,6 +28,7 @@ contract EventAbiParityEmitter {
     event IndexedStaticTuple(StaticTupleParity indexed payload);
     event IndexedStaticFixedArray(uint256[2] indexed payload);
     event IndexedDynamicStaticTupleArray(StaticTupleParity[] indexed payload);
+    event IndexedDynamicStaticFixedArray(address[2][] indexed payload);
     event UnindexedStaticTuple(StaticTupleParity payload);
     event UnindexedStaticFixedArray(uint256[2] payload);
 
@@ -58,6 +59,10 @@ contract EventAbiParityEmitter {
 
     function emitIndexedDynamicStaticTupleArray(StaticTupleParity[] calldata payload) external {
         emit IndexedDynamicStaticTupleArray(payload);
+    }
+
+    function emitIndexedDynamicStaticFixedArray(address[2][] calldata payload) external {
+        emit IndexedDynamicStaticFixedArray(payload);
     }
 
     function emitUnindexedStaticTuple(StaticTupleParity calldata payload) external {
@@ -197,6 +202,32 @@ contract EventAbiParityTest is Test {
                 payload[0].recipient,
                 payload[1].amount,
                 payload[1].recipient
+            )
+        );
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
+    function testIndexedDynamicStaticFixedArrayTopicUsesInPlaceElementEncoding() public {
+        address[2][] memory payload = new address[2][](2);
+        payload[0] = [address(0x1111), address(0x2222)];
+        payload[1] = [address(0x3333), address(0x4444)];
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicStaticFixedArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicStaticFixedArray(address[2][])"));
+        bytes32 expectedTopic1 = keccak256(
+            abi.encode(
+                payload[0][0],
+                payload[0][1],
+                payload[1][0],
+                payload[1][1]
             )
         );
 
