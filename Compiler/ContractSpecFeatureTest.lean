@@ -520,6 +520,27 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected call usage to fail compilation")
 
 #eval! do
+  let gasPriceSpec : ContractSpec := {
+    name := "GasPriceUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := []
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "gasprice" [])]
+      }
+    ]
+  }
+  match compile gasPriceSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'gasprice'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ gasprice diagnostic mismatch: {err}")
+      IO.println "✓ gasprice unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected gasprice usage to fail compilation")
+
+#eval! do
   let extCodeSizeSpec : ContractSpec := {
     name := "ExtCodeSizeUnsupported"
     fields := []
@@ -665,6 +686,34 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ invalid builtin unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected invalid builtin usage to fail compilation")
+
+#eval! do
+  let externalGasPriceSpec : ContractSpec := {
+    name := "ExternalGasPriceUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "gasprice"
+        params := []
+        returnType := some ParamType.uint256
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalGasPriceSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'gasprice'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external gasprice diagnostic mismatch: {err}")
+      IO.println "✓ external gasprice unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external gasprice declaration to fail compilation")
 
 #eval! do
   let externalCreate2Spec : ContractSpec := {
