@@ -562,6 +562,48 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected gasprice usage to fail compilation")
 
 #eval! do
+  let blobBaseFeeSpec : ContractSpec := {
+    name := "BlobBaseFeeUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := []
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "blobbasefee" [])]
+      }
+    ]
+  }
+  match compile blobBaseFeeSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'blobbasefee'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ blobbasefee diagnostic mismatch: {err}")
+      IO.println "✓ blobbasefee unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected blobbasefee usage to fail compilation")
+
+#eval! do
+  let blobHashSpec : ContractSpec := {
+    name := "BlobHashUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "index", ty := ParamType.uint256 }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "blobhash" [Expr.param "index"])]
+      }
+    ]
+  }
+  match compile blobHashSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'blobhash'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ blobhash diagnostic mismatch: {err}")
+      IO.println "✓ blobhash unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected blobhash usage to fail compilation")
+
+#eval! do
   let extCodeSizeSpec : ContractSpec := {
     name := "ExtCodeSizeUnsupported"
     fields := []
@@ -763,6 +805,62 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ external gasprice unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected external gasprice declaration to fail compilation")
+
+#eval! do
+  let externalBlobBaseFeeSpec : ContractSpec := {
+    name := "ExternalBlobBaseFeeUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "blobbasefee"
+        params := []
+        returnType := some ParamType.uint256
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalBlobBaseFeeSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'blobbasefee'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external blobbasefee diagnostic mismatch: {err}")
+      IO.println "✓ external blobbasefee unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external blobbasefee declaration to fail compilation")
+
+#eval! do
+  let externalBlobHashSpec : ContractSpec := {
+    name := "ExternalBlobHashUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "blobhash"
+        params := [ParamType.uint256]
+        returnType := some ParamType.uint256
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalBlobHashSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'blobhash'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external blobhash diagnostic mismatch: {err}")
+      IO.println "✓ external blobhash unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external blobhash declaration to fail compilation")
 
 #eval! do
   let externalCreate2Spec : ContractSpec := {

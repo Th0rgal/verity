@@ -823,7 +823,7 @@ private def isInteropBuiltinCallName (name : String) : Bool :=
   (isLowLevelCallName name) ||
     ["create", "create2", "balance", "selfbalance", "origin", "caller", "callvalue",
      "gasprice", "blockhash", "coinbase", "timestamp", "number", "difficulty",
-     "prevrandao", "gaslimit", "chainid", "basefee", "gas",
+     "prevrandao", "gaslimit", "chainid", "basefee", "blobbasefee", "blobhash", "gas",
      "extcodesize", "extcodecopy", "extcodehash", "returndatasize", "returndatacopy",
      "selfdestruct", "invalid"].contains name
 
