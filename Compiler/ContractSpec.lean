@@ -760,19 +760,16 @@ private partial def validateEventArgShapesInStmt (fnName : String) (params : Lis
                   | _ =>
                       throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               | _ =>
-                  if indexedDynamicArrayElemSupported elemTy then
-                    match arg with
-                    | Expr.param name =>
-                        match findParamType params name with
-                        | some ty =>
-                            if ty != eventParam.ty then
-                              throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
-                        | none =>
-                            throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
-                    | _ =>
-                        throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
-                  else
-                    throw s!"Compilation error: function '{fnName}' event '{eventName}' indexed array param '{eventParam.name}' has unsupported element type {repr elemTy} ({issue586Ref})."
+                  match arg with
+                  | Expr.param name =>
+                      match findParamType params name with
+                      | some ty =>
+                          if ty != eventParam.ty then
+                            throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+                      | none =>
+                          throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                  | _ =>
+                      throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
           | ParamType.fixedArray _ _ | ParamType.tuple _ =>
               match arg with
               | Expr.param name =>
@@ -1786,6 +1783,19 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
                         ])
                       ]
                       pure (hashStmts, YulExpr.ident topicName)
+                  | _ =>
+                      throw s!"Compilation error: indexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                else if eventIsDynamicType elemTy then
+                  match srcExpr with
+                  | Expr.param name =>
+                      let topicName := s!"__evt_topic{idx + 1}"
+                      let srcBase := indexedDynamicBaseOffsetExpr dynamicSource name
+                      let (encodeStmts, encodeLen) ←
+                        compileIndexedInPlaceEncoding dynamicSource p.ty srcBase (YulExpr.ident "__evt_ptr") s!"__evt_arg{idx}_indexed"
+                      pure (encodeStmts ++ [YulStmt.let_ topicName (YulExpr.call "keccak256" [
+                        YulExpr.ident "__evt_ptr",
+                        encodeLen
+                      ])], YulExpr.ident topicName)
                   | _ =>
                       throw s!"Compilation error: indexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
                 else

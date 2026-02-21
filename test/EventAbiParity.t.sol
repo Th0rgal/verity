@@ -35,6 +35,7 @@ contract EventAbiParityEmitter {
     event IndexedDynamicBoolArray(bool[] indexed payload);
     event IndexedDynamicBytes32Array(bytes32[] indexed payload);
     event IndexedDynamicBytesArray(bytes[] indexed payload);
+    event IndexedDynamicDynamicTupleArray(DynamicTupleParity[] indexed payload);
     event UnindexedDynamicStaticTupleArray(StaticTupleParity[] payload);
     event UnindexedDynamicUintArray(uint256[] payload);
     event UnindexedDynamicAddressArray(address[] payload);
@@ -100,6 +101,10 @@ contract EventAbiParityEmitter {
 
     function emitIndexedDynamicBytesArray(bytes[] calldata payload) external {
         emit IndexedDynamicBytesArray(payload);
+    }
+
+    function emitIndexedDynamicDynamicTupleArray(DynamicTupleParity[] calldata payload) external {
+        emit IndexedDynamicDynamicTupleArray(payload);
     }
 
     function emitUnindexedDynamicStaticTupleArray(StaticTupleParity[] calldata payload) external {
@@ -169,6 +174,16 @@ contract EventAbiParityTest is Test {
             padded[i] = payload.payload[i];
         }
         return bytes.concat(abi.encode(payload.amount), padded);
+    }
+
+    function _indexedDynamicTupleArrayInPlace(DynamicTupleParity[] memory payload)
+        internal
+        pure
+        returns (bytes memory out)
+    {
+        for (uint256 i = 0; i < payload.length; i++) {
+            out = bytes.concat(out, _indexedDynamicTupleInPlace(payload[i]));
+        }
     }
 
     function testTopic0MatchesCreateMarketTupleSignature() public {
@@ -442,6 +457,26 @@ contract EventAbiParityTest is Test {
 
         bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicBoolArray(bool[])"));
         bytes32 expectedTopic1 = keccak256(abi.encode(payload[0], payload[1], payload[2], payload[3]));
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
+    function testIndexedDynamicDynamicTupleArrayTopicUsesInPlaceElementEncoding() public {
+        DynamicTupleParity[] memory payload = new DynamicTupleParity[](3);
+        payload[0] = DynamicTupleParity({amount: 1, payload: hex"01"});
+        payload[1] = DynamicTupleParity({amount: 2, payload: hex"aabbccdd"});
+        payload[2] = DynamicTupleParity({amount: 3, payload: hex"11223344556677889900aabbccddeeff"});
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicDynamicTupleArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicDynamicTupleArray((uint256,bytes)[])"));
+        bytes32 expectedTopic1 = keccak256(_indexedDynamicTupleArrayInPlace(payload));
 
         assertEq(logs[0].topics[0], expectedTopic0);
         assertEq(logs[0].topics[1], expectedTopic1);
