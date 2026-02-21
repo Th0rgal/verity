@@ -45,6 +45,8 @@ contract EventAbiParityEmitter {
     event UnindexedDynamicStaticFixedArray(address[2][] payload);
     event UnindexedStaticTuple(StaticTupleParity payload);
     event UnindexedStaticFixedArray(uint256[2] payload);
+    event UnindexedDynamicTuple(DynamicTupleParity payload);
+    event UnindexedDynamicFixedArray(DynamicTupleParity[2] payload);
 
     function emitCreateMarket(bytes32 id, MarketParamsParity calldata market) external {
         emit CreateMarket(id, market);
@@ -141,6 +143,14 @@ contract EventAbiParityEmitter {
 
     function emitUnindexedStaticFixedArray(uint256[2] calldata payload) external {
         emit UnindexedStaticFixedArray(payload);
+    }
+
+    function emitUnindexedDynamicTuple(DynamicTupleParity calldata payload) external {
+        emit UnindexedDynamicTuple(payload);
+    }
+
+    function emitUnindexedDynamicFixedArray(DynamicTupleParity[2] calldata payload) external {
+        emit UnindexedDynamicFixedArray(payload);
     }
 }
 
@@ -653,6 +663,45 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].topics.length, 1);
 
         bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicStaticFixedArray(address[2][])"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicTupleDataUsesAbiEncoding() public {
+        DynamicTupleParity memory payload = DynamicTupleParity({
+            amount: 42,
+            payload: hex"deadbeef"
+        });
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicTuple(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicTuple((uint256,bytes))"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicFixedArrayDataUsesAbiEncoding() public {
+        DynamicTupleParity[2] memory payload;
+        payload[0] = DynamicTupleParity({amount: 10, payload: hex"aa"});
+        payload[1] = DynamicTupleParity({amount: 20, payload: hex"bbcc"});
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicFixedArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicFixedArray((uint256,bytes)[2])"));
         bytes memory expectedData = abi.encode(payload);
 
         assertEq(logs[0].topics[0], expectedTopic0);
