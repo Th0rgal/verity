@@ -625,6 +625,48 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected returndatacopy usage to fail compilation")
 
 #eval! do
+  let selfDestructSpec : ContractSpec := {
+    name := "SelfDestructUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := none
+        body := [Stmt.letVar "_ignored" (Expr.externalCall "selfdestruct" [Expr.param "target"]), Stmt.stop]
+      }
+    ]
+  }
+  match compile selfDestructSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'selfdestruct'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ selfdestruct diagnostic mismatch: {err}")
+      IO.println "✓ selfdestruct unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected selfdestruct usage to fail compilation")
+
+#eval! do
+  let invalidBuiltinSpec : ContractSpec := {
+    name := "InvalidBuiltinUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := []
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "invalid" [])]
+      }
+    ]
+  }
+  match compile invalidBuiltinSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'invalid'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ invalid builtin diagnostic mismatch: {err}")
+      IO.println "✓ invalid builtin unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected invalid builtin usage to fail compilation")
+
+#eval! do
   let externalCreate2Spec : ContractSpec := {
     name := "ExternalCreate2Unsupported"
     fields := []
