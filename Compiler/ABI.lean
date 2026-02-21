@@ -38,8 +38,7 @@ private def fieldTypeToOutputType : FieldType → ParamType
   | .address => .address
   | .mappingTyped _ => .uint256
 
-private def isSpecialEntrypoint (name : String) : Bool :=
-  name == "fallback" || name == "receive"
+-- Uses `isInteropEntrypointName` from ContractSpec for consistent filtering.
 
 private def functionOutputs (fn : FunctionSpec) : List ParamType :=
   if !fn.returns.isEmpty then
@@ -133,8 +132,8 @@ def emitContractABIJson (spec : ContractSpec) : String :=
     match spec.constructor with
     | some ctor => [renderConstructorEntry ctor]
     | none => []
-  let functionEntries := spec.functions.filter (fun fn => !fn.isInternal && !isSpecialEntrypoint fn.name) |>.map renderFunctionEntry
-  let specialEntries := (spec.functions.filter (fun fn => !fn.isInternal && isSpecialEntrypoint fn.name)).filterMap renderSpecialEntry
+  let functionEntries := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name) |>.map renderFunctionEntry
+  let specialEntries := (spec.functions.filter (fun fn => !fn.isInternal && isInteropEntrypointName fn.name)).filterMap renderSpecialEntry
   let eventEntries := spec.events.map renderEventEntry
   let errorEntries := spec.errors.map renderErrorEntry
   let entries := ctorEntries ++ functionEntries ++ eventEntries ++ errorEntries ++ specialEntries

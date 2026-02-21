@@ -179,7 +179,10 @@ def renderWithLibraries (obj : YulObject) (libraries : List LibraryFunction) : E
 ## Validation
 -/
 
--- EVM/Yul built-in opcodes (not user-defined functions)
+-- EVM/Yul built-in opcodes (not user-defined functions).
+-- This list must include all opcodes that linked libraries may call,
+-- otherwise `validateExternalReferences` will reject valid library code.
+-- Keep in sync with `interopBuiltinCallNames` in ContractSpec.lean.
 private def yulBuiltins : List String :=
   ["add", "sub", "mul", "div", "sdiv", "mod", "smod", "exp",
    "not", "lt", "gt", "slt", "sgt", "eq", "iszero", "and", "or", "xor",
@@ -189,9 +192,9 @@ private def yulBuiltins : List String :=
    "calldataload", "calldatasize", "calldatacopy", "codesize", "codecopy",
    "gasprice", "extcodesize", "extcodecopy", "returndatasize", "returndatacopy",
    "extcodehash", "blockhash", "coinbase", "timestamp", "number", "difficulty",
-   "prevrandao", "gaslimit", "chainid", "basefee",
-   "pop", "mload", "mstore", "mstore8", "sload", "sstore",
-   "msize", "gas",
+   "prevrandao", "gaslimit", "chainid", "basefee", "blobbasefee", "blobhash",
+   "pop", "mload", "mstore", "mstore8", "sload", "sstore", "tload", "tstore",
+   "mcopy", "msize", "gas", "pc",
    "log0", "log1", "log2", "log3", "log4",
    "create", "create2", "call", "callcode", "delegatecall", "staticcall",
    "return", "revert", "selfdestruct", "invalid", "stop",

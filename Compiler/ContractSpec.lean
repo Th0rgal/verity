@@ -637,25 +637,34 @@ private def validateCustomErrorArgShapesInFunction (spec : FunctionSpec) (errors
     Except String Unit := do
   spec.body.forM (validateCustomErrorArgShapesInStmt spec.name spec.params errors)
 
-private partial def eventIsDynamicType : ParamType → Bool
+/-- Whether an ABI param type is dynamically sized (requires offset-based encoding).
+    Used by both event encoding and calldata parameter loading. -/
+partial def isDynamicParamType : ParamType → Bool
   | ParamType.uint256 => false
   | ParamType.address => false
   | ParamType.bool => false
   | ParamType.bytes32 => false
   | ParamType.array _ => true
   | ParamType.bytes => true
-  | ParamType.fixedArray elemTy _ => eventIsDynamicType elemTy
-  | ParamType.tuple elemTys => elemTys.any eventIsDynamicType
+  | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
+  | ParamType.tuple elemTys => elemTys.any isDynamicParamType
 
-private partial def eventHeadWordSize : ParamType → Nat
+/-- ABI head size in bytes for a param type. Dynamic types occupy one 32-byte
+    offset word; static composites are the sum of their element head sizes.
+    Used by both event encoding and calldata parameter loading. -/
+partial def paramHeadSize : ParamType → Nat
   | ty =>
-      if eventIsDynamicType ty then
+      if isDynamicParamType ty then
         32
       else
         match ty with
-        | ParamType.fixedArray elemTy n => n * eventHeadWordSize elemTy
-        | ParamType.tuple elemTys => (elemTys.map eventHeadWordSize).foldl (· + ·) 0
+        | ParamType.fixedArray elemTy n => n * paramHeadSize elemTy
+        | ParamType.tuple elemTys => (elemTys.map paramHeadSize).foldl (· + ·) 0
         | _ => 32
+
+-- Legacy aliases used throughout event encoding code.
+private def eventIsDynamicType := isDynamicParamType
+private def eventHeadWordSize := paramHeadSize
 
 private def indexedDynamicArrayElemSupported (elemTy : ParamType) : Bool :=
   !eventIsDynamicType elemTy &&
@@ -1007,7 +1016,11 @@ private def interopBuiltinCallNames : List String :=
 private def isInteropBuiltinCallName (name : String) : Bool :=
   (isLowLevelCallName name) || interopBuiltinCallNames.contains name
 
-private def isInteropEntrypointName (name : String) : Bool :=
+/-- Returns true for special entrypoint names (fallback/receive) that are not
+    dispatched via selector. Used by Selector.computeSelectors, ABI.lean, and
+    ContractSpec.compile to consistently filter these from selector-dispatched
+    external functions. -/
+def isInteropEntrypointName (name : String) : Bool :=
   ["fallback", "receive"].contains name
 
 private def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
@@ -2202,28 +2215,6 @@ end
 private def isScalarParamType : ParamType → Bool
   | ParamType.uint256 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
   | _ => false
-
-partial def isDynamicParamType : ParamType → Bool
-  | ParamType.uint256 => false
-  | ParamType.address => false
-  | ParamType.bool => false
-  | ParamType.bytes32 => false
-  | ParamType.array _ => true
-  | ParamType.bytes => true
-  | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
-  | ParamType.tuple elemTys =>
-      elemTys.any isDynamicParamType
-
--- ABI head size for top-level parameters.
-partial def paramHeadSize : ParamType → Nat
-  | ty =>
-      if isDynamicParamType ty then
-        32
-      else
-        match ty with
-        | ParamType.fixedArray elemTy n => n * paramHeadSize elemTy
-        | ParamType.tuple elemTys => (elemTys.map paramHeadSize).foldl (· + ·) 0
-        | _ => 32
 
 private def genDynamicParamLoads
     (loadWord : YulExpr → YulExpr) (baseOffset : Nat) (name : String) (headOffset : Nat) :
