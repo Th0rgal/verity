@@ -29,7 +29,12 @@ contract EventAbiParityEmitter {
     event IndexedStaticFixedArray(uint256[2] indexed payload);
     event IndexedDynamicStaticTupleArray(StaticTupleParity[] indexed payload);
     event IndexedDynamicStaticFixedArray(address[2][] indexed payload);
+    event IndexedDynamicAddressArray(address[] indexed payload);
+    event IndexedDynamicBoolArray(bool[] indexed payload);
     event UnindexedDynamicStaticTupleArray(StaticTupleParity[] payload);
+    event UnindexedDynamicAddressArray(address[] payload);
+    event UnindexedDynamicBoolArray(bool[] payload);
+    event UnindexedDynamicStaticFixedArray(address[2][] payload);
     event UnindexedStaticTuple(StaticTupleParity payload);
     event UnindexedStaticFixedArray(uint256[2] payload);
 
@@ -66,8 +71,28 @@ contract EventAbiParityEmitter {
         emit IndexedDynamicStaticFixedArray(payload);
     }
 
+    function emitIndexedDynamicAddressArray(address[] calldata payload) external {
+        emit IndexedDynamicAddressArray(payload);
+    }
+
+    function emitIndexedDynamicBoolArray(bool[] calldata payload) external {
+        emit IndexedDynamicBoolArray(payload);
+    }
+
     function emitUnindexedDynamicStaticTupleArray(StaticTupleParity[] calldata payload) external {
         emit UnindexedDynamicStaticTupleArray(payload);
+    }
+
+    function emitUnindexedDynamicAddressArray(address[] calldata payload) external {
+        emit UnindexedDynamicAddressArray(payload);
+    }
+
+    function emitUnindexedDynamicBoolArray(bool[] calldata payload) external {
+        emit UnindexedDynamicBoolArray(payload);
+    }
+
+    function emitUnindexedDynamicStaticFixedArray(address[2][] calldata payload) external {
+        emit UnindexedDynamicStaticFixedArray(payload);
     }
 
     function emitUnindexedStaticTuple(StaticTupleParity calldata payload) external {
@@ -240,6 +265,47 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].topics[1], expectedTopic1);
     }
 
+    function testIndexedDynamicAddressArrayTopicUsesInPlaceElementEncoding() public {
+        address[] memory payload = new address[](3);
+        payload[0] = address(0x1111);
+        payload[1] = address(0x2222);
+        payload[2] = address(0x3333);
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicAddressArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicAddressArray(address[])"));
+        bytes32 expectedTopic1 = keccak256(abi.encode(payload[0], payload[1], payload[2]));
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
+    function testIndexedDynamicBoolArrayTopicUsesInPlaceElementEncoding() public {
+        bool[] memory payload = new bool[](4);
+        payload[0] = true;
+        payload[1] = false;
+        payload[2] = true;
+        payload[3] = true;
+
+        vm.recordLogs();
+        emitter.emitIndexedDynamicBoolArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 2);
+
+        bytes32 expectedTopic0 = keccak256(bytes("IndexedDynamicBoolArray(bool[])"));
+        bytes32 expectedTopic1 = keccak256(abi.encode(payload[0], payload[1], payload[2], payload[3]));
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].topics[1], expectedTopic1);
+    }
+
     function testUnindexedStaticTupleDataUsesInPlaceEncoding() public {
         StaticTupleParity memory payload = StaticTupleParity({
             amount: 321,
@@ -290,6 +356,66 @@ contract EventAbiParityTest is Test {
         assertEq(logs[0].topics.length, 1);
 
         bytes32 expectedTopic0 = keccak256(bytes("UnindexedStaticFixedArray(uint256[2])"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicAddressArrayDataUsesAbiTailEncoding() public {
+        address[] memory payload = new address[](3);
+        payload[0] = address(0xAAAA);
+        payload[1] = address(0xBBBB);
+        payload[2] = address(0xCCCC);
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicAddressArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicAddressArray(address[])"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicBoolArrayDataUsesAbiTailEncoding() public {
+        bool[] memory payload = new bool[](4);
+        payload[0] = true;
+        payload[1] = false;
+        payload[2] = true;
+        payload[3] = false;
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicBoolArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicBoolArray(bool[])"));
+        bytes memory expectedData = abi.encode(payload);
+
+        assertEq(logs[0].topics[0], expectedTopic0);
+        assertEq(logs[0].data, expectedData);
+    }
+
+    function testUnindexedDynamicStaticFixedArrayDataUsesAbiTailEncoding() public {
+        address[2][] memory payload = new address[2][](2);
+        payload[0] = [address(0x1111), address(0x2222)];
+        payload[1] = [address(0x3333), address(0x4444)];
+
+        vm.recordLogs();
+        emitter.emitUnindexedDynamicStaticFixedArray(payload);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics.length, 1);
+
+        bytes32 expectedTopic0 = keccak256(bytes("UnindexedDynamicStaticFixedArray(address[2][])"));
         bytes memory expectedData = abi.encode(payload);
 
         assertEq(logs[0].topics[0], expectedTopic0);
