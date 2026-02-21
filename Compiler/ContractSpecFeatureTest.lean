@@ -520,6 +520,27 @@ private def featureSpec : ContractSpec := {
       throw (IO.userError "✗ expected call usage to fail compilation")
 
 #eval! do
+  let balanceSpec : ContractSpec := {
+    name := "BalanceUnsupported"
+    fields := []
+    constructor := none
+    functions := [
+      { name := "probe"
+        params := [{ name := "target", ty := ParamType.address }]
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.externalCall "balance" [Expr.param "target"])]
+      }
+    ]
+  }
+  match compile balanceSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'balance'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ balance diagnostic mismatch: {err}")
+      IO.println "✓ balance unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected balance usage to fail compilation")
+
+#eval! do
   let gasPriceSpec : ContractSpec := {
     name := "GasPriceUnsupported"
     fields := []
@@ -686,6 +707,34 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ invalid builtin unsupported diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected invalid builtin usage to fail compilation")
+
+#eval! do
+  let externalBalanceSpec : ContractSpec := {
+    name := "ExternalBalanceUnsupported"
+    fields := []
+    constructor := none
+    externals := [
+      { name := "balance"
+        params := [ParamType.address]
+        returnType := some ParamType.uint256
+        axiomNames := []
+      }
+    ]
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile externalBalanceSpec [1] with
+  | .error err =>
+      if !(contains err "unsupported interop builtin call 'balance'" && contains err "Issue #586") then
+        throw (IO.userError s!"✗ external balance diagnostic mismatch: {err}")
+      IO.println "✓ external balance unsupported diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected external balance declaration to fail compilation")
 
 #eval! do
   let externalGasPriceSpec : ContractSpec := {
