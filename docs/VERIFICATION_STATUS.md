@@ -317,6 +317,7 @@ Current diagnostic coverage in compiler:
 - Constructor argument decoding now reuses ABI head/tail decoding for constructor params (including tuple/array/bytes forms) and exposes both named param bindings plus `constructorArg` index aliases.
 - Storage fields now support optional explicit slot overrides (`Field.slot := some n`) with compile-time conflict detection against effective slot assignments (Issue #623).
 - Storage fields now also support compatibility mirror-write aliases (`Field.aliasSlots := [...]`) with compile-time conflict detection across canonical and alias write slots (Issue #623).
+- Contract specs now support declarative reserved slot intervals (`reservedSlotRanges`) with compile-time diagnostics for invalid/overlapping ranges and for field canonical/alias write slots that overlap reserved intervals (Issue #623).
 - `verity-compiler` now supports deterministic ABI artifact emission in ContractSpec mode via `--abi-output <dir>` and writes one `<Contract>.abi.json` per compiled spec.
 - All interop diagnostics include an `Issue #586` reference for scope tracking.
 

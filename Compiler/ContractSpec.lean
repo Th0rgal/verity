@@ -75,6 +75,13 @@ structure Field where
   aliasSlots : List Nat := []
   deriving Repr
 
+structure ReservedSlotRange where
+  /-- Inclusive start slot of a reserved storage interval. -/
+  start : Nat
+  /-- Inclusive end slot of a reserved storage interval. -/
+  end_ : Nat
+  deriving Repr, BEq
+
 /-!
 ### Parameter Types (#180)
 
@@ -249,6 +256,9 @@ structure ConstructorSpec where
 structure ContractSpec where
   name : String
   fields : List Field
+  /-- Storage slots reserved for compatibility policy; compiler rejects field
+      canonical/alias write slots that overlap these intervals. -/
+  reservedSlotRanges : List ReservedSlotRange := []
   constructor : Option ConstructorSpec  -- Deploy-time initialization with params
   functions : List FunctionSpec
   events : List EventDef := []  -- Event definitions (#153)
@@ -2548,6 +2558,49 @@ private def firstDuplicateName (names : List String) : Option String :=
         go (n :: seen) rest
   go [] names
 
+private def slotInReservedRange (slot : Nat) (range : ReservedSlotRange) : Bool :=
+  range.start <= slot && slot <= range.end_
+
+private def firstInvalidReservedRange (ranges : List ReservedSlotRange) :
+    Option (Nat × ReservedSlotRange) :=
+  ranges.zipIdx.findSome? fun (range, idx) =>
+    if range.end_ < range.start then
+      some (idx, range)
+    else
+      none
+
+private def rangesOverlap (a b : ReservedSlotRange) : Bool :=
+  a.start <= b.end_ && b.start <= a.end_
+
+private def firstReservedRangeOverlap (ranges : List ReservedSlotRange) :
+    Option (Nat × ReservedSlotRange × Nat × ReservedSlotRange) :=
+  let rec goOuter (remaining : List ReservedSlotRange) (outerIdx : Nat) :
+      Option (Nat × ReservedSlotRange × Nat × ReservedSlotRange) :=
+    match remaining with
+    | [] => none
+    | current :: rest =>
+        match rest.zipIdx.find? (fun (other, _) => rangesOverlap current other) with
+        | some (other, innerOffset) => some (outerIdx, current, outerIdx + innerOffset + 1, other)
+        | none => goOuter rest (outerIdx + 1)
+  goOuter ranges 0
+
+private def firstReservedSlotWriteConflict (fields : List Field)
+    (ranges : List ReservedSlotRange) : Option (Nat × String × Nat × ReservedSlotRange) :=
+  let rec goFields (remaining : List Field) (idx : Nat) : Option (Nat × String × Nat × ReservedSlotRange) :=
+    match remaining with
+    | [] => none
+    | f :: rest =>
+        let writeSlots : List (Nat × String) :=
+          (f.slot.getD idx, f.name) ::
+            (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) => (slot, s!"{f.name}.aliasSlots[{aliasIdx}]")))
+        match writeSlots.findSome? (fun (slot, ownerName) =>
+          match ranges.zipIdx.find? (fun (range, _) => slotInReservedRange slot range) with
+          | some (range, rangeIdx) => some (slot, ownerName, rangeIdx, range)
+          | none => none) with
+        | some conflict => some conflict
+        | none => goFields rest (idx + 1)
+  goFields fields 0
+
 private def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String × String) :=
   let rec go (seen : List (Nat × String)) (idx : Nat) : List Field → Option (Nat × String × String)
     | [] => none
@@ -2610,6 +2663,21 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   match firstFieldWriteSlotConflict spec.fields with
   | some (slot, existingField, conflictingField) =>
       throw s!"Compilation error: storage slot {slot} is assigned to both fields '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Ensure field slots and aliasSlots are pairwise unique."
+  | none =>
+      pure ()
+  match firstInvalidReservedRange spec.reservedSlotRanges with
+  | some (idx, range) =>
+      throw s!"Compilation error: reservedSlotRanges[{idx}] has invalid interval {range.start}..{range.end_} in {spec.name} ({issue623Ref}). Reserved slot range start must be <= end."
+  | none =>
+      pure ()
+  match firstReservedRangeOverlap spec.reservedSlotRanges with
+  | some (idxA, a, idxB, b) =>
+      throw s!"Compilation error: reserved slot ranges reservedSlotRanges[{idxA}]={a.start}..{a.end_} and reservedSlotRanges[{idxB}]={b.start}..{b.end_} overlap in {spec.name} ({issue623Ref}). Ensure reserved ranges are disjoint."
+  | none =>
+      pure ()
+  match firstReservedSlotWriteConflict spec.fields spec.reservedSlotRanges with
+  | some (slot, ownerName, rangeIdx, range) =>
+      throw s!"Compilation error: field write slot {slot} ('{ownerName}') overlaps reservedSlotRanges[{rangeIdx}]={range.start}..{range.end_} in {spec.name} ({issue623Ref}). Adjust field slot/aliasSlots or reservedSlotRanges."
   | none =>
       pure ()
   match firstDuplicateName (spec.events.map (·.name)) with

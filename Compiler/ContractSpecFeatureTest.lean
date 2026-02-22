@@ -2246,4 +2246,73 @@ private def featureSpec : ContractSpec := {
   | .ok _ =>
       throw (IO.userError "✗ expected conflicting alias slots to fail compilation")
 
+#eval! do
+  let reservedSlotsSpec : ContractSpec := {
+    name := "ReservedSlotsSpec"
+    fields := [
+      { name := "x", ty := FieldType.uint256, slot := some 3 },
+      { name := "y", ty := FieldType.uint256, slot := some 4, aliasSlots := [12] }
+    ]
+    reservedSlotRanges := [{ start := 20, end_ := 23 }]
+    constructor := none
+    functions := [
+      { name := "setX"
+        params := [{ name := "v", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setStorage "x" (Expr.param "v"), Stmt.stop]
+      }
+    ]
+  }
+  match compile reservedSlotsSpec [1] with
+  | .error err =>
+      throw (IO.userError s!"✗ reserved slot ranges compile failed: {err}")
+  | .ok _ =>
+      IO.println "✓ reserved slot ranges accepted when disjoint from field write slots"
+
+#eval! do
+  let reservedSlotConflictSpec : ContractSpec := {
+    name := "ReservedSlotConflictSpec"
+    fields := [
+      { name := "x", ty := FieldType.uint256, slot := some 21 }
+    ]
+    reservedSlotRanges := [{ start := 20, end_ := 23 }]
+    constructor := none
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile reservedSlotConflictSpec [1] with
+  | .error err =>
+      if !(contains err "field write slot 21 ('x') overlaps reservedSlotRanges[0]=20..23" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ reserved slot conflict diagnostic mismatch: {err}")
+      IO.println "✓ reserved slot conflict diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected reserved slot conflict to fail compilation")
+
+#eval! do
+  let overlappingReservedRangesSpec : ContractSpec := {
+    name := "OverlappingReservedRangesSpec"
+    fields := [{ name := "x", ty := FieldType.uint256, slot := some 3 }]
+    reservedSlotRanges := [{ start := 20, end_ := 23 }, { start := 23, end_ := 30 }]
+    constructor := none
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile overlappingReservedRangesSpec [1] with
+  | .error err =>
+      if !(contains err "reserved slot ranges reservedSlotRanges[0]=20..23 and reservedSlotRanges[1]=23..30 overlap" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ reserved range overlap diagnostic mismatch: {err}")
+      IO.println "✓ reserved range overlap diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected overlapping reserved slot ranges to fail compilation")
+
 end Compiler.ContractSpecFeatureTest
