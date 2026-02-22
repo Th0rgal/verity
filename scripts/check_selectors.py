@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, Iterator, List, Tuple
 
 from keccak256 import selector as keccak_selector
 from property_utils import ROOT, YUL_DIR, die, report_errors, strip_lean_comments
@@ -109,16 +109,20 @@ def _is_internal_function(fn_block: str) -> bool:
     return bool(re.search(r"isInternal\s*:=\s*true", fn_block))
 
 
-def extract_functions(spec_block: str) -> List[str]:
+def _iter_function_blocks(spec_block: str) -> Iterator[Tuple[str, str]]:
+    """Yield (fn_name, fn_block) pairs from a functions := [...] block.
+
+    Shared iteration logic for ContractSpec and ASTSpecs function extraction.
+    Callers apply their own filtering and result-building.
+    """
     fn_match = re.search(r"functions\s*:=\s*\[", spec_block)
     if not fn_match:
-        return []
+        return
     list_start = fn_match.end() - 1
     list_end = find_matching(spec_block, list_start, "[", "]")
     if list_end == -1:
         die("Failed to parse functions list")
     functions_block = spec_block[list_start : list_end + 1]
-    sigs: List[str] = []
     idx = 0
     while idx < len(functions_block):
         if functions_block[idx] == "{":
@@ -129,45 +133,35 @@ def extract_functions(spec_block: str) -> List[str]:
             name_match = re.search(r"name\s*:=\s*\"([^\"]+)\"", fn_block)
             if not name_match:
                 die("Function block missing name")
-            fn_name = name_match.group(1)
-            # Skip internal functions and special entrypoints (fallback/receive)
-            # to match Selector.computeSelectors and ContractSpec.compile filtering.
-            if _is_internal_function(fn_block) or fn_name in _SPECIAL_ENTRYPOINTS:
-                idx = end + 1
-                continue
-            params = extract_param_types(fn_block)
-            sigs.append(f"{fn_name}({','.join(params)})")
+            yield name_match.group(1), fn_block
             idx = end + 1
         else:
             idx += 1
+
+
+def _build_signature(fn_block: str, fn_name: str) -> str:
+    """Build a Solidity-style function signature from a parsed function block."""
+    params = extract_param_types(fn_block)
+    return f"{fn_name}({','.join(params)})"
+
+
+def extract_functions(spec_block: str) -> List[str]:
+    """Extract external function signatures from a ContractSpec block.
+
+    Skips internal functions and special entrypoints (fallback/receive)
+    to match Selector.computeSelectors and ContractSpec.compile filtering.
+    """
+    sigs: List[str] = []
+    for fn_name, fn_block in _iter_function_blocks(spec_block):
+        if _is_internal_function(fn_block) or fn_name in _SPECIAL_ENTRYPOINTS:
+            continue
+        sigs.append(_build_signature(fn_block, fn_name))
     return sigs
 
 
 def extract_all_function_names(spec_block: str) -> List[str]:
     """Extract ALL function names from a spec block (including internal/special)."""
-    fn_match = re.search(r"functions\s*:=\s*\[", spec_block)
-    if not fn_match:
-        return []
-    list_start = fn_match.end() - 1
-    list_end = find_matching(spec_block, list_start, "[", "]")
-    if list_end == -1:
-        die("Failed to parse functions list")
-    functions_block = spec_block[list_start : list_end + 1]
-    names: List[str] = []
-    idx = 0
-    while idx < len(functions_block):
-        if functions_block[idx] == "{":
-            end = find_matching(functions_block, idx, "{", "}")
-            if end == -1:
-                die("Failed to parse function block")
-            fn_block = functions_block[idx : end + 1]
-            name_match = re.search(r"name\s*:=\s*\"([^\"]+)\"", fn_block)
-            if name_match:
-                names.append(name_match.group(1))
-            idx = end + 1
-        else:
-            idx += 1
-    return names
+    return [fn_name for fn_name, _ in _iter_function_blocks(spec_block)]
 
 
 def _skip_ws(text: str, pos: int) -> int:
@@ -330,50 +324,40 @@ def extract_ast_functions(spec_block: str) -> List[str]:
     """Extract function signatures from an ASTContractSpec block.
 
     Unlike ContractSpec, ASTSpecs have no isInternal or fallback/receive
-    semantics — all functions are external.
+    semantics — all functions are external (matching ASTDriver.computeSelectors).
     """
-    fn_match = re.search(r"functions\s*:=\s*\[", spec_block)
-    if not fn_match:
-        return []
-    list_start = fn_match.end() - 1
-    list_end = find_matching(spec_block, list_start, "[", "]")
-    if list_end == -1:
-        die("Failed to parse AST functions list")
-    functions_block = spec_block[list_start : list_end + 1]
-    sigs: List[str] = []
-    idx = 0
-    while idx < len(functions_block):
-        if functions_block[idx] == "{":
-            end = find_matching(functions_block, idx, "{", "}")
-            if end == -1:
-                die("Failed to parse AST function block")
-            fn_block = functions_block[idx : end + 1]
-            name_match = re.search(r"name\s*:=\s*\"([^\"]+)\"", fn_block)
-            if not name_match:
-                die("AST function block missing name")
-            fn_name = name_match.group(1)
-            params = extract_param_types(fn_block)
-            sigs.append(f"{fn_name}({','.join(params)})")
-            idx = end + 1
-        else:
-            idx += 1
-    return sigs
+    return [_build_signature(fn_block, fn_name)
+            for fn_name, fn_block in _iter_function_blocks(spec_block)]
 
 
 def check_ast_vs_legacy_signatures(
     legacy_specs: List[SpecInfo], ast_specs: List[SpecInfo]
 ) -> List[str]:
-    """Cross-check that shared contracts have identical signatures."""
+    """Cross-check that shared contracts have equivalent external signatures.
+
+    ContractSpec's ``extract_functions`` filters out isInternal and
+    fallback/receive.  AST's ``extract_ast_functions`` includes everything
+    (ASTFunctionSpec doesn't model those concepts yet).  To compare like
+    with like, we filter AST signatures through the same exclusion set
+    before comparison.
+    """
     errors: List[str] = []
     legacy_map = {spec.contract_name: spec for spec in legacy_specs}
     for ast_spec in ast_specs:
         legacy_spec = legacy_map.get(ast_spec.contract_name)
         if legacy_spec is None:
             continue  # AST-only contract, no cross-check needed
-        if ast_spec.signatures != legacy_spec.signatures:
+        # Filter AST signatures to match ContractSpec filtering (exclude
+        # any functions whose name is in _SPECIAL_ENTRYPOINTS).  AST specs
+        # don't have isInternal, so only entrypoint filtering applies.
+        ast_external_sigs = [
+            sig for sig, name in zip(ast_spec.signatures, ast_spec.all_function_names)
+            if name not in _SPECIAL_ENTRYPOINTS
+        ]
+        if ast_external_sigs != legacy_spec.signatures:
             errors.append(
                 f"{ast_spec.contract_name}: AST and ContractSpec signatures diverge: "
-                f"AST={ast_spec.signatures} vs ContractSpec={legacy_spec.signatures}"
+                f"AST={ast_external_sigs} vs ContractSpec={legacy_spec.signatures}"
             )
     return errors
 
@@ -394,13 +378,12 @@ def extract_compile_selectors(text: str) -> List[CompileSelectors]:
 
 
 def check_reserved_prefix_collisions(specs: List[SpecInfo]) -> List[str]:
-    """Check that no function name uses the reserved internal_ prefix.
+    """Check that no function name (internal or external) starts with ``internal_``.
 
     The compiler prepends ``internal_`` to internal function names in generated
-    Yul.  An external function whose name starts with this prefix would collide
-    with a generated internal function name in the Yul namespace.
-
-    Must match ``internalFunctionPrefix`` in ContractSpec.lean.
+    Yul (see ``internalFunctionPrefix`` in ContractSpec.lean).  Any user-defined
+    function whose name starts with this prefix — regardless of whether it is
+    marked ``isInternal`` — would create confusing or colliding Yul identifiers.
     """
     errors: List[str] = []
     for spec in specs:
