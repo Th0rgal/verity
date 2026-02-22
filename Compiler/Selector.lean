@@ -16,7 +16,7 @@ private def parseSelectorLine (line : String) : Option Nat :=
   let trimmed := line.trim
   parseHexNat? trimmed
 
-private def runKeccak (sigs : List String) : IO (List Nat) := do
+def runKeccak (sigs : List String) : IO (List Nat) := do
   if sigs.isEmpty then
     return []
   let args := #["scripts/keccak256.py"] ++ sigs.toArray

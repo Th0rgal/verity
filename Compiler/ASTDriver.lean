@@ -17,6 +17,7 @@ import Compiler.IR
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
+import Compiler.Selector
 import Compiler.Hex
 
 namespace Compiler.ASTDriver
@@ -28,33 +29,24 @@ open Compiler.ASTCompile (compileStmt)
 open Compiler.ContractSpec (ParamType Param genParamLoads paramTypeToSolidityString)
 open Compiler.Linker
 open Compiler.Hex
+open Compiler.Selector (runKeccak)
 
 /-!
 ## Selector Computation
 
-Computes Solidity selectors for AST functions using the same keccak256
-script as the ContractSpec path.
+Computes Solidity selectors for AST functions using the shared
+`Selector.runKeccak` (no duplication of keccak subprocess handling).
+
+Note: ASTFunctionSpec has no `isInternal` or fallback/receive semantics,
+so all functions are treated as external.  If internal/special entrypoints
+are added to the AST path, filtering must be added here (matching
+Selector.computeSelectors for ContractSpec).
 -/
 
 private def functionSignature (fn : ASTFunctionSpec) : String :=
   let params := fn.params.map (fun p => paramTypeToSolidityString p.ty)
   let paramStr := String.intercalate "," params
   s!"{fn.name}({paramStr})"
-
-private def runKeccak (sigs : List String) : IO (List Nat) := do
-  if sigs.isEmpty then
-    return []
-  let args := #["scripts/keccak256.py"] ++ sigs.toArray
-  let result ← IO.Process.output { cmd := "python3", args := args }
-  if result.exitCode != 0 then
-    throw (IO.userError s!"keccak256.py failed: {result.stderr}")
-  let lines := result.stdout.trim.splitOn "\n"
-  if lines.length != sigs.length then
-    throw (IO.userError s!"keccak256.py returned {lines.length} lines for {sigs.length} signatures: {result.stdout}")
-  let selectors := lines.filterMap fun line => parseHexNat? line.trim
-  if selectors.length != sigs.length then
-    throw (IO.userError s!"Failed to parse selector output: {result.stdout}")
-  return selectors
 
 def computeSelectors (spec : ASTContractSpec) : IO (List Nat) := do
   let sigs := spec.functions.map functionSignature
@@ -82,14 +74,18 @@ private def genConstructorArgLoads (params : List Param) : List YulStmt :=
     ]
     let loadArgs := params.enum.flatMap fun (idx, param) =>
       let offset := idx * 32
+      let load := YulExpr.call "mload" [YulExpr.lit offset]
       match param.ty with
       | ParamType.address =>
         [YulStmt.let_ param.name (YulExpr.call "and" [
-          YulExpr.call "mload" [YulExpr.lit offset],
-          YulExpr.hex ((2^160) - 1)
+          load, YulExpr.hex ((2^160) - 1)
+        ])]
+      | ParamType.bool =>
+        [YulStmt.let_ param.name (YulExpr.call "iszero" [
+          YulExpr.call "iszero" [load]
         ])]
       | _ =>
-        [YulStmt.let_ param.name (YulExpr.call "mload" [YulExpr.lit offset])]
+        [YulStmt.let_ param.name load]
     argsOffset ++ loadArgs
 
 mutual
