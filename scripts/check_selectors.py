@@ -11,6 +11,8 @@ Checks:
 7) Error(string) selector constant sync between ContractSpec and Interpreter.
 8) Address mask constant sync between ContractSpec and Interpreter.
 9) Selector shift constant sync between ContractSpec, Codegen, and Builtins.
+10) Internal function prefix sync between ContractSpec and CI script.
+11) Special entrypoint names sync between ContractSpec and CI script.
 """
 
 from __future__ import annotations
@@ -597,6 +599,70 @@ def check_selector_shift_sync() -> List[str]:
     return errors
 
 
+# ---------------------------------------------------------------------------
+# Internal function prefix sync
+# ---------------------------------------------------------------------------
+
+_INTERNAL_PREFIX_RE = re.compile(
+    r'def\s+internalFunctionPrefix\s*:\s*String\s*:=\s*"([^"]*)"'
+)
+
+
+def check_internal_prefix_sync() -> List[str]:
+    """Verify _INTERNAL_FUNCTION_PREFIX matches ContractSpec.internalFunctionPrefix."""
+    errors: List[str] = []
+    if not CONTRACT_SPEC_FILE.exists():
+        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+        return errors
+    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    m = _INTERNAL_PREFIX_RE.search(text)
+    if not m:
+        errors.append(
+            "ContractSpec.lean: missing internalFunctionPrefix definition"
+        )
+    elif m.group(1) != _INTERNAL_FUNCTION_PREFIX:
+        errors.append(
+            f"ContractSpec.internalFunctionPrefix is {m.group(1)!r} "
+            f"but check_selectors.py uses {_INTERNAL_FUNCTION_PREFIX!r}"
+        )
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Special entrypoint names sync
+# ---------------------------------------------------------------------------
+
+_INTEROP_ENTRYPOINTS_RE = re.compile(
+    r'def\s+isInteropEntrypointName\b.*?:=\s*\[([^\]]*)\]',
+    re.DOTALL,
+)
+
+
+def check_special_entrypoints_sync() -> List[str]:
+    """Verify _SPECIAL_ENTRYPOINTS matches ContractSpec.isInteropEntrypointName."""
+    errors: List[str] = []
+    if not CONTRACT_SPEC_FILE.exists():
+        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+        return errors
+    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    m = _INTEROP_ENTRYPOINTS_RE.search(text)
+    if not m:
+        errors.append(
+            "ContractSpec.lean: missing isInteropEntrypointName definition"
+        )
+        return errors
+    # Parse the Lean list literal: ["fallback", "receive"]
+    lean_names = set(
+        n.strip().strip('"') for n in m.group(1).split(",") if n.strip()
+    )
+    if lean_names != _SPECIAL_ENTRYPOINTS:
+        errors.append(
+            f"ContractSpec.isInteropEntrypointName uses {sorted(lean_names)} "
+            f"but check_selectors.py uses {sorted(_SPECIAL_ENTRYPOINTS)}"
+        )
+    return errors
+
+
 def main() -> None:
     if not SPEC_FILE.exists():
         die(f"Missing specs file: {SPEC_FILE}")
@@ -657,6 +723,12 @@ def main() -> None:
 
     # Validate selector shift constant consistency.
     errors.extend(check_selector_shift_sync())
+
+    # Validate internal function prefix consistency.
+    errors.extend(check_internal_prefix_sync())
+
+    # Validate special entrypoint names consistency.
+    errors.extend(check_special_entrypoints_sync())
 
     report_errors(errors, "Selector checks failed")
     print("Selector checks passed.")

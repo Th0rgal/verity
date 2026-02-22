@@ -137,7 +137,7 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 30+ scripts enforce consistency between proofs, tests, and documentation. Key checks:
 
 - `check_yul_compiles.py`: All generated Yul compiles with solc; legacy/AST bytecode diff baseline
-- `check_selectors.py` / `check_selector_fixtures.py`: Selector cross-validation (both ContractSpec and ASTSpecs; cross-checks signature equivalence; reserved prefix collision check; Error(string) selector constant sync; address mask constant sync; selector shift constant sync)
+- `check_selectors.py` / `check_selector_fixtures.py`: Selector cross-validation (both ContractSpec and ASTSpecs; cross-checks signature equivalence; reserved prefix collision check; Error(string) selector constant sync; address mask constant sync; selector shift constant sync; internal prefix sync; special entrypoint names sync)
 - `check_doc_counts.py`: Theorem/test counts consistent across all docs
 - `check_lean_warning_regression.py`: Zero-warning policy
 - `check_axiom_locations.py`: All axioms documented in AXIOMS.md
