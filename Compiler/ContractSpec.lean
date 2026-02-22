@@ -322,6 +322,15 @@ private def compileMappingSlotRead (fields : List Field) (field : String) (keyEx
       pure (YulExpr.call "sload" [YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr]])
     | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
 
+/-- Prefix prepended to internal function names in generated Yul to avoid
+    collision with external function names and EVM/Yul builtins.
+    Used by compileExpr, compileStmt, and compileInternalFunction. -/
+def internalFunctionPrefix : String := "internal_"
+
+/-- Build the Yul-level name for an internal function. -/
+def internalFunctionYulName (name : String) : String :=
+  s!"{internalFunctionPrefix}{name}"
+
 -- Compile expression to Yul (using mutual recursion for lists)
 mutual
 def compileExprList (fields : List Field)
@@ -370,7 +379,7 @@ def compileExpr (fields : List Field)
       pure (YulExpr.call name argExprs)
   | Expr.internalCall functionName args => do
       let argExprs ← compileExprList fields dynamicSource args
-      pure (YulExpr.call s!"internal_{functionName}" argExprs)
+      pure (YulExpr.call (internalFunctionYulName functionName) argExprs)
   | Expr.arrayLength name => pure (YulExpr.ident s!"{name}_length")
   | Expr.arrayElement name index => do
       let indexExpr ← compileExpr fields dynamicSource index
@@ -2140,10 +2149,10 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
   | Stmt.internalCall functionName args => do
       -- Internal function call as statement (#181)
       let argExprs ← compileExprList fields dynamicSource args
-      pure [YulStmt.expr (YulExpr.call s!"internal_{functionName}" argExprs)]
+      pure [YulStmt.expr (YulExpr.call (internalFunctionYulName functionName) argExprs)]
   | Stmt.internalCallAssign names functionName args => do
       let argExprs ← compileExprList fields dynamicSource args
-      pure [YulStmt.letMany names (YulExpr.call s!"internal_{functionName}" argExprs)]
+      pure [YulStmt.letMany names (YulExpr.call (internalFunctionYulName functionName) argExprs)]
   | Stmt.returnValues values => do
       if isInternal then
         if values.length != internalRetNames.length then
@@ -2326,7 +2335,7 @@ def compileInternalFunction (fields : List Field) (events : List EventDef) (erro
   let retNames := returns.zipIdx.map (fun (_, idx) => s!"__ret{idx}")
   let bodyStmts ← compileStmtList fields events errors
     (dynamicSource := .calldata) (internalRetNames := retNames) (isInternal := true) spec.body
-  pure (YulStmt.funcDef s!"internal_{spec.name}" paramNames retNames bodyStmts)
+  pure (YulStmt.funcDef (internalFunctionYulName spec.name) paramNames retNames bodyStmts)
 
 -- Compile function spec to IR function
 def compileFunctionSpec (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
