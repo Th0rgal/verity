@@ -10,6 +10,7 @@ Checks:
 6) No function name uses the reserved ``internal_`` prefix (Yul namespace collision).
 7) Error(string) selector constant sync between ContractSpec and Interpreter.
 8) Address mask constant sync between ContractSpec and Interpreter.
+9) Selector shift constant sync between ContractSpec, Codegen, and Builtins.
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ AST_SPEC_FILE = ROOT / "Compiler" / "ASTSpecs.lean"
 IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
 CONTRACT_SPEC_FILE = ROOT / "Compiler" / "ContractSpec.lean"
 INTERPRETER_FILE = ROOT / "Compiler" / "Interpreter.lean"
+CODEGEN_FILE = ROOT / "Compiler" / "Codegen.lean"
+BUILTINS_FILE = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Builtins.lean"
 YUL_DIR_LEGACY = ("yul", YUL_DIR)
 YUL_DIR_AST = ("yul-ast", ROOT / "compiler" / "yul-ast")
 
@@ -561,6 +564,39 @@ def check_address_mask_sync() -> List[str]:
     return errors
 
 
+# ---------------------------------------------------------------------------
+# Selector shift constant sync
+# ---------------------------------------------------------------------------
+
+_SELECTOR_SHIFT_RE = re.compile(
+    r"def\s+selectorShift\s*:\s*Nat\s*:=\s*224"
+)
+
+
+def check_selector_shift_sync() -> List[str]:
+    """Verify the selectorShift constant (224) is consistent across files.
+
+    Checks that ContractSpec, Codegen, and Builtins all define selectorShift = 224.
+    """
+    errors: List[str] = []
+    targets = [
+        ("ContractSpec.lean", CONTRACT_SPEC_FILE),
+        ("Codegen.lean", CODEGEN_FILE),
+        ("Builtins.lean", BUILTINS_FILE),
+    ]
+    for label, path in targets:
+        if not path.exists():
+            errors.append(f"Missing {path}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if not _SELECTOR_SHIFT_RE.search(text):
+            errors.append(
+                f"{label}: missing or changed selectorShift definition "
+                f"(expected: def selectorShift : Nat := 224)"
+            )
+    return errors
+
+
 def main() -> None:
     if not SPEC_FILE.exists():
         die(f"Missing specs file: {SPEC_FILE}")
@@ -618,6 +654,9 @@ def main() -> None:
 
     # Validate address mask constant consistency.
     errors.extend(check_address_mask_sync())
+
+    # Validate selector shift constant consistency.
+    errors.extend(check_selector_shift_sync())
 
     report_errors(errors, "Selector checks failed")
     print("Selector checks passed.")
