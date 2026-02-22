@@ -69,6 +69,10 @@ Status legend:
 | 5 | Storage layout controls (packed fields + explicit slot mapping) | partial | partial | partial | partial | partial |
 | 6 | ABI JSON artifact generation | partial | partial | n/a | partial | partial |
 
+Recent progress for storage layout controls (`#623`):
+- `ContractSpec.Field` now supports optional explicit slot assignment (`slot := some <n>`), with backward-compatible positional slots when omitted.
+- Compiler now fails fast on conflicting effective slot assignments with an issue-linked diagnostic.
+
 Delivery policy for unsupported features:
 1. Compiler diagnostics must identify the exact unsupported construct.
 2. Error text must suggest the nearest currently-supported pattern.

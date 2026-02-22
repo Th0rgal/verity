@@ -2131,4 +2131,64 @@ private def featureSpec : ContractSpec := {
   | .ok _ =>
       throw (IO.userError "✗ expected non-payable receive entrypoint to fail compilation")
 
+#eval! do
+  let explicitFieldSlotSpec : ContractSpec := {
+    name := "ExplicitFieldSlotSpec"
+    fields := [
+      { name := "a", ty := FieldType.uint256, slot := some 5 },
+      { name := "b", ty := FieldType.uint256 },
+      { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address), slot := some 9 }
+    ]
+    constructor := none
+    functions := [
+      { name := "setA"
+        params := [{ name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setStorage "a" (Expr.param "x"), Stmt.stop]
+      },
+      { name := "setB"
+        params := [{ name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setStorage "b" (Expr.param "x"), Stmt.stop]
+      },
+      { name := "setBal"
+        params := [{ name := "who", ty := ParamType.address }, { name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setMapping "balances" (Expr.param "who") (Expr.param "x"), Stmt.stop]
+      }
+    ]
+  }
+  match compile explicitFieldSlotSpec [1, 2, 3] with
+  | .error err =>
+      throw (IO.userError s!"✗ explicit field slot compile failed: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "explicit slot setStorage lowering" rendered ["sstore(5, x)"]
+      assertContains "legacy positional slot fallback lowering" rendered ["sstore(1, x)"]
+      assertContains "explicit slot mapping lowering" rendered ["mappingSlot(9, who)"]
+
+#eval! do
+  let conflictingFieldSlotsSpec : ContractSpec := {
+    name := "ConflictingFieldSlotsSpec"
+    fields := [
+      { name := "x", ty := FieldType.uint256, slot := some 3 },
+      { name := "y", ty := FieldType.address, slot := some 3 }
+    ]
+    constructor := none
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile conflictingFieldSlotsSpec [1] with
+  | .error err =>
+      if !(contains err "storage slot 3 is assigned to both fields 'x' and 'y'" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ conflicting explicit field slot diagnostic mismatch: {err}")
+      IO.println "✓ conflicting explicit field slot diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected conflicting explicit field slots to fail compilation")
+
 end Compiler.ContractSpecFeatureTest
