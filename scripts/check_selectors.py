@@ -14,6 +14,7 @@ Checks:
 10) Internal function prefix sync between ContractSpec and CI script.
 11) Special entrypoint names sync between ContractSpec and CI script.
 12) No duplicate function names per contract; compile has all five duplicate-name guards.
+13) Free memory pointer constant matches Solidity convention (0x40).
 """
 
 from __future__ import annotations
@@ -682,6 +683,27 @@ def check_special_entrypoints_sync() -> List[str]:
     return errors
 
 
+def check_free_memory_pointer_sync() -> List[str]:
+    """Verify freeMemoryPointer matches the Solidity convention (0x40)."""
+    errors: List[str] = []
+    if not CONTRACT_SPEC_FILE.exists():
+        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+        return errors
+    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    m = re.search(r"def\s+freeMemoryPointer\s*:\s*Nat\s*:=\s*(0x[0-9a-fA-F]+|\d+)", text)
+    if not m:
+        errors.append(
+            "ContractSpec.lean: missing freeMemoryPointer definition"
+        )
+    else:
+        val = int(m.group(1), 0)
+        if val != 0x40:
+            errors.append(
+                f"ContractSpec.freeMemoryPointer: expected 0x40 (64), got {val}"
+            )
+    return errors
+
+
 def check_compile_duplicate_name_guard() -> List[str]:
     """Verify that ContractSpec.compile checks for duplicate names across all spec lists.
 
@@ -773,7 +795,10 @@ def main() -> None:
     # Validate special entrypoint names consistency.
     errors.extend(check_special_entrypoints_sync())
 
-    # Validate compile function has duplicate function name guard.
+    # Validate free memory pointer matches Solidity convention.
+    errors.extend(check_free_memory_pointer_sync())
+
+    # Validate compile function has all five duplicate-name guards.
     errors.extend(check_compile_duplicate_name_guard())
 
     report_errors(errors, "Selector checks failed")

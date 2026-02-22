@@ -451,6 +451,11 @@ def addressMask : Nat := (2 ^ 160) - 1
     the selector, and error hashes are left-shifted by 224 bits to pack them. -/
 def selectorShift : Nat := 224
 
+/-- Solidity free memory pointer address (0x40 = 64).
+    By convention, `mload(0x40)` returns the next available memory offset.
+    Used in custom error emission and event encoding to allocate scratch space. -/
+def freeMemoryPointer : Nat := 0x40
+
 def revertWithMessage (message : String) : List YulStmt :=
   let bytes := bytesFromString message
   let len := bytes.length
@@ -1279,7 +1284,7 @@ private def revertWithCustomError (dynamicSource : DynamicDataSource)
   if errorDef.params.length != args.length || sourceArgs.length != args.length then
     throw s!"Compilation error: custom error '{errorDef.name}' expects {errorDef.params.length} args, got {args.length}"
   let sigBytes := bytesFromString (errorSignature errorDef)
-  let storePtr := YulStmt.let_ "__err_ptr" (YulExpr.call "mload" [YulExpr.lit 0x40])
+  let storePtr := YulStmt.let_ "__err_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
   let sigStores := (chunkBytes32 sigBytes).zipIdx.map fun (chunk, idx) =>
     YulStmt.expr (YulExpr.call "mstore" [
       YulExpr.call "add" [YulExpr.ident "__err_ptr", YulExpr.lit (idx * 32)],
@@ -1721,7 +1726,7 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         throw s!"Compilation error: event '{eventName}' has {indexed.length} indexed params; max is 3"
       let sig := eventSignature eventDef
       let sigBytes := bytesFromString sig
-      let freeMemPtr := YulExpr.call "mload" [YulExpr.lit 0x40]
+      let freeMemPtr := YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]
       let storePtr := YulStmt.let_ "__evt_ptr" freeMemPtr
       let sigStores := (chunkBytes32 sigBytes).zipIdx.map fun (chunk, idx) =>
         YulStmt.expr (YulExpr.call "mstore" [

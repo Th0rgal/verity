@@ -103,6 +103,7 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 | Shared `errorStringSelectorWord` | `Error(string)` selector (`0x08c379a0 << 224`) defined once in ContractSpec; reused in revert codegen and proof terms. Interpreter keeps a private copy (decimal) to avoid importing ContractSpec; CI validates both values match |
 | Shared `addressMask` | 160-bit address mask `(2^160)-1` defined once in ContractSpec; used across codegen (ContractSpec, ASTDriver) and proof terms (Expr.lean). Interpreter keeps private `addressModulus` (`2^160`); CI validates both |
 | Shared `selectorShift` | Selector shift amount (`224` bits) defined in ContractSpec; Codegen and proof Builtins keep private copies to avoid cross-module imports. CI validates all three definitions match |
+| Named `freeMemoryPointer` | Solidity free memory pointer address (`0x40`) extracted as named constant; used in custom error emission and event encoding. CI validates the value matches the Solidity convention |
 
 ## Known risks
 
