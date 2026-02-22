@@ -76,11 +76,16 @@ private def defaultDispatchCase
           (dispatchBody fb.payable "fallback()" fb.body)
       ]]
 
+-- Selector shift amount (224 = 256 - 32).
+-- Canonical definition: Compiler.ContractSpec.selectorShift
+-- Duplicated here to avoid importing ContractSpec into the lightweight Codegen module.
+private def selectorShift : Nat := 224
+
 def buildSwitch
     (funcs : List IRFunction)
     (fallback : Option IREntrypoint := none)
     (receive : Option IREntrypoint := none) : YulStmt :=
-  let selectorExpr := YulExpr.call "shr" [YulExpr.lit 224, YulExpr.call "calldataload" [YulExpr.lit 0]]
+  let selectorExpr := YulExpr.call "shr" [YulExpr.lit selectorShift, YulExpr.call "calldataload" [YulExpr.lit 0]]
   let cases := funcs.map (fun fn =>
     let body := dispatchBody fn.payable s!"{fn.name}()" ([calldatasizeGuard fn.params.length] ++ fn.body)
     (fn.selector, body)

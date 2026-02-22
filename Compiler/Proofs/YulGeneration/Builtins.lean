@@ -9,6 +9,8 @@ abbrev evmModulus : Nat := Compiler.Proofs.evmModulus
 
 def selectorModulus : Nat := 2 ^ 32
 
+-- Canonical definition: Compiler.ContractSpec.selectorShift
+-- Duplicated here to avoid importing ContractSpec into the proof module.
 def selectorShift : Nat := 224
 
 def selectorWord (selector : Nat) : Nat :=

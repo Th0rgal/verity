@@ -446,6 +446,11 @@ def errorStringSelectorWord : Nat := 0x08c379a0 * (2 ^ 224)
     so the upper 96 bits must be cleared. -/
 def addressMask : Nat := (2 ^ 160) - 1
 
+/-- Selector shift: function selectors occupy the top 4 bytes of a 32-byte
+    EVM word, so calldata word 0 is right-shifted by 224 bits to extract
+    the selector, and error hashes are left-shifted by 224 bits to pack them. -/
+def selectorShift : Nat := 224
+
 def revertWithMessage (message : String) : List YulStmt :=
   let bytes := bytesFromString message
   let len := bytes.length
@@ -1283,7 +1288,7 @@ private def revertWithCustomError (dynamicSource : DynamicDataSource)
   let hashStmt := YulStmt.let_ "__err_hash"
     (YulExpr.call "keccak256" [YulExpr.ident "__err_ptr", YulExpr.lit sigBytes.length])
   let selectorStmt := YulStmt.let_ "__err_selector"
-    (YulExpr.call "shl" [YulExpr.lit 224, YulExpr.call "shr" [YulExpr.lit 224, YulExpr.ident "__err_hash"]])
+    (YulExpr.call "shl" [YulExpr.lit selectorShift, YulExpr.call "shr" [YulExpr.lit selectorShift, YulExpr.ident "__err_hash"]])
   let selectorStore := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "__err_selector"])
   let headSize := errorDef.params.length * 32
   let tailInit := YulStmt.let_ "__err_tail" (YulExpr.lit headSize)
