@@ -270,7 +270,7 @@ Status legend:
 | Custom errors + typed revert payloads | partial | partial | n/a | partial | partial |
 | Low-level calls (`call` / `staticcall` / `delegatecall`) with returndata | unsupported | unsupported | n/a | n/a | unsupported |
 | `fallback` / `receive` / payable entrypoint modeling | partial | partial | n/a | partial | partial |
-| Event ABI parity for indexed dynamic/tuple payloads | partial | partial | partial | partial | partial |
+| Event ABI parity for indexed dynamic/tuple payloads | supported | supported | supported | supported | supported |
 | Storage layout controls (packing + explicit slots) | partial | partial | partial | partial | partial |
 | ABI JSON artifact generation | partial | partial | n/a | partial | partial |
 
@@ -311,7 +311,7 @@ Current diagnostic coverage in compiler:
 - `fallback` and `receive` are now modeled as first-class entrypoints in dispatch (empty-calldata routing to `receive`, unmatched selector routing to `fallback`) with compile-time shape checks (`receive` must be payable, both must be parameterless and non-returning).
 - Low-level call-style names (`call`, `staticcall`, `delegatecall`, `callcode`) now fail with explicit guidance to use verified linked wrappers.
 - Additional interop builtins (`create`, `create2`, `extcodesize`, `extcodecopy`, `extcodehash`) now fail with explicit migration guidance instead of generic external-call handling.
-- Indexed `bytes` event params now emit ABI-style hashed topics (`keccak256(payload)`), indexed static tuple/fixed-array params emit ABI-style hashed topics over canonical static in-place encoding, indexed dynamic arrays whose element type is static (including scalar, static tuple, and static fixed-array elements) now hash canonical in-place element words, and indexed dynamic tuple/fixed-array composite params now hash recursive in-place ABI encodings. Indexed dynamic arrays whose element type contains dynamic members still fail with explicit migration guidance.
+- Indexed `bytes` event params emit ABI-style hashed topics (`keccak256(payload)`), indexed static tuple/fixed-array params emit ABI-style hashed topics over canonical static in-place encoding, indexed dynamic arrays (including arrays with dynamic element payloads) hash canonical in-place ABI preimages, and indexed dynamic tuple/fixed-array composite params hash recursive in-place ABI encodings.
 - Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed/unindexed bytes arg-shape checks), supports unindexed static and dynamic composite tuple/fixed-array payload encoding from direct parameters with recursive ABI head/tail encoding.
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
 - Constructor argument decoding now reuses ABI head/tail decoding for constructor params (including tuple/array/bytes forms) and exposes both named param bindings plus `constructorArg` index aliases.
