@@ -7,12 +7,13 @@ Checks:
 3) Generated Yul files include all expected selector case labels.
 4) ASTSpecs function signatures -> keccak selectors match for yul-ast output.
 5) Cross-check: shared contracts have identical signatures in both spec sets.
+6) No function name uses the reserved ``internal_`` prefix (Yul namespace collision).
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List
 
@@ -39,6 +40,7 @@ class SpecInfo:
     contract_name: str
     signatures: List[str]
     has_externals: bool = False
+    all_function_names: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -76,7 +78,8 @@ def extract_specs(text: str) -> List[SpecInfo]:
         contract_name = name_match.group(1)
         signatures = extract_functions(block)
         has_externals = has_nonempty_externals(block)
-        specs.append(SpecInfo(def_name, contract_name, signatures, has_externals))
+        all_names = extract_all_function_names(block)
+        specs.append(SpecInfo(def_name, contract_name, signatures, has_externals, all_names))
     return specs
 
 
@@ -95,6 +98,10 @@ def has_nonempty_externals(spec_block: str) -> bool:
 # Special entrypoint names that are NOT dispatched by selector.
 # Must match `isInteropEntrypointName` in ContractSpec.lean.
 _SPECIAL_ENTRYPOINTS = {"fallback", "receive"}
+
+# Reserved Yul name prefix for compiler-generated internal functions.
+# Must match `internalFunctionPrefix` in ContractSpec.lean.
+_INTERNAL_FUNCTION_PREFIX = "internal_"
 
 
 def _is_internal_function(fn_block: str) -> bool:
@@ -134,6 +141,33 @@ def extract_functions(spec_block: str) -> List[str]:
         else:
             idx += 1
     return sigs
+
+
+def extract_all_function_names(spec_block: str) -> List[str]:
+    """Extract ALL function names from a spec block (including internal/special)."""
+    fn_match = re.search(r"functions\s*:=\s*\[", spec_block)
+    if not fn_match:
+        return []
+    list_start = fn_match.end() - 1
+    list_end = find_matching(spec_block, list_start, "[", "]")
+    if list_end == -1:
+        die("Failed to parse functions list")
+    functions_block = spec_block[list_start : list_end + 1]
+    names: List[str] = []
+    idx = 0
+    while idx < len(functions_block):
+        if functions_block[idx] == "{":
+            end = find_matching(functions_block, idx, "{", "}")
+            if end == -1:
+                die("Failed to parse function block")
+            fn_block = functions_block[idx : end + 1]
+            name_match = re.search(r"name\s*:=\s*\"([^\"]+)\"", fn_block)
+            if name_match:
+                names.append(name_match.group(1))
+            idx = end + 1
+        else:
+            idx += 1
+    return names
 
 
 def _skip_ws(text: str, pos: int) -> int:
@@ -287,7 +321,8 @@ def extract_ast_specs(text: str) -> List[SpecInfo]:
             die(f"Missing name for AST spec {def_name}")
         contract_name = name_match.group(1)
         signatures = extract_ast_functions(block)
-        specs.append(SpecInfo(def_name, contract_name, signatures))
+        all_names = extract_all_function_names(block)
+        specs.append(SpecInfo(def_name, contract_name, signatures, all_function_names=all_names))
     return specs
 
 
@@ -356,6 +391,27 @@ def extract_compile_selectors(text: str) -> List[CompileSelectors]:
         selectors = [int(x, 16) for x in re.findall(r"0x[0-9a-fA-F]+", raw_list)]
         items.append(CompileSelectors(def_name, selectors))
     return items
+
+
+def check_reserved_prefix_collisions(specs: List[SpecInfo]) -> List[str]:
+    """Check that no function name uses the reserved internal_ prefix.
+
+    The compiler prepends ``internal_`` to internal function names in generated
+    Yul.  An external function whose name starts with this prefix would collide
+    with a generated internal function name in the Yul namespace.
+
+    Must match ``internalFunctionPrefix`` in ContractSpec.lean.
+    """
+    errors: List[str] = []
+    for spec in specs:
+        for name in spec.all_function_names:
+            if name.startswith(_INTERNAL_FUNCTION_PREFIX):
+                errors.append(
+                    f"{spec.contract_name}: function '{name}' uses reserved "
+                    f"prefix '{_INTERNAL_FUNCTION_PREFIX}' (collides with "
+                    f"compiler-generated internal function names)"
+                )
+    return errors
 
 
 def check_unique_selectors(specs: List[SpecInfo]) -> List[str]:
@@ -439,6 +495,7 @@ def main() -> None:
 
     errors: List[str] = []
     errors.extend(check_unique_selectors(specs))
+    errors.extend(check_reserved_prefix_collisions(specs))
     errors.extend(check_compile_lists(specs, compile_lists))
 
     # Validate yul/ (legacy path) against ContractSpec specs.
@@ -452,6 +509,7 @@ def main() -> None:
         ast_check_specs = ast_specs if ast_specs else specs
         errors.extend(check_yul_selectors(ast_check_specs, ast_label, ast_dir))
         errors.extend(check_unique_selectors(ast_specs))
+        errors.extend(check_reserved_prefix_collisions(ast_specs))
 
     # Cross-check: shared contracts must have identical signatures.
     if ast_specs:
