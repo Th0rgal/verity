@@ -67,6 +67,9 @@ inductive FieldType
 structure Field where
   name : String
   ty : FieldType
+  /-- Optional explicit storage slot override.
+      When omitted, the slot defaults to declaration order (legacy behavior). -/
+  slot : Option Nat := none
   deriving Repr
 
 /-!
@@ -258,7 +261,15 @@ Automatically compile a ContractSpec to IRContract.
 
 -- Helper: Find field slot number
 def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
-  fields.findIdx? (·.name == name)
+  let rec go (remaining : List Field) (idx : Nat) : Option Nat :=
+    match remaining with
+    | [] => none
+    | f :: rest =>
+        if f.name == name then
+          some (f.slot.getD idx)
+        else
+          go rest (idx + 1)
+  go fields 0
 
 -- Helper: Is field a mapping?
 def isMapping (fields : List Field) (name : String) : Bool :=
@@ -622,6 +633,9 @@ private def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := d
 
 private def issue586Ref : String :=
   "Issue #586 (Solidity interop profile)"
+
+private def issue623Ref : String :=
+  "Issue #623 (ContractSpec storage layout controls)"
 
 private def validateConstructorSpec (ctor : Option ConstructorSpec) : Except String Unit := do
   match ctor with
@@ -2475,6 +2489,16 @@ private def firstDuplicateName (names : List String) : Option String :=
         go (n :: seen) rest
   go [] names
 
+private def firstFieldSlotConflict (fields : List Field) : Option (Nat × String × String) :=
+  let rec go (seen : List (Nat × String)) (idx : Nat) : List Field → Option (Nat × String × String)
+    | [] => none
+    | f :: rest =>
+      let slot := f.slot.getD idx
+      match seen.find? (fun entry => entry.1 == slot) with
+      | some (_, prevName) => some (slot, prevName, f.name)
+      | none => go ((slot, f.name) :: seen) (idx + 1) rest
+  go [] 0 fields
+
 private def validateErrorDef (err : ErrorDef) : Except String Unit := do
   for ty in err.params do
     if !supportedCustomErrorParamType ty then
@@ -2514,6 +2538,11 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   match firstDuplicateName (spec.fields.map (·.name)) with
   | some dup =>
       throw s!"Compilation error: duplicate field name '{dup}' in {spec.name}"
+  | none =>
+      pure ()
+  match firstFieldSlotConflict spec.fields with
+  | some (slot, existingField, conflictingField) =>
+      throw s!"Compilation error: storage slot {slot} is assigned to both fields '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Use unique slots or remove explicit slot overrides."
   | none =>
       pure ()
   match firstDuplicateName (spec.events.map (·.name)) with

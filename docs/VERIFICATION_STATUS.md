@@ -315,6 +315,7 @@ Current diagnostic coverage in compiler:
 - Event emission now fails fast on `Expr.param` type mismatches against declared event parameter types (including indexed/unindexed bytes arg-shape checks), supports unindexed static and dynamic composite tuple/fixed-array payload encoding from direct parameters with recursive ABI head/tail encoding.
 - Unsupported low-level/interop builtin checks are enforced in constructor bodies and function bodies.
 - Constructor argument decoding now reuses ABI head/tail decoding for constructor params (including tuple/array/bytes forms) and exposes both named param bindings plus `constructorArg` index aliases.
+- Storage fields now support optional explicit slot overrides (`Field.slot := some n`) with compile-time conflict detection against effective slot assignments (Issue #623).
 - `verity-compiler` now supports deterministic ABI artifact emission in ContractSpec mode via `--abi-output <dir>` and writes one `<Contract>.abi.json` per compiled spec.
 - All interop diagnostics include an `Issue #586` reference for scope tracking.
 
