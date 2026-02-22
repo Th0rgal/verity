@@ -74,6 +74,7 @@ Recent progress for storage layout controls (`#623`):
 - Compiler now fails fast on conflicting effective slot assignments with an issue-linked diagnostic.
 - `ContractSpec.Field` now supports compatibility mirror-write slots (`aliasSlots := [...]`), so `setStorage`/`setMapping`/`setMapping2` write to canonical and alias slots in one declarative policy.
 - `ContractSpec` now supports declarative reserved storage slot ranges (`reservedSlotRanges := [{ start := a, end_ := b }, ...]`) with compile-time overlap checks and fail-fast diagnostics when field canonical/alias write slots intersect reserved intervals.
+- `ContractSpec.Field` now supports packed subfield placement (`packedBits := some { offset := o, width := w }`) so multiple fields can share a slot with disjoint bit ranges; codegen performs masked read-modify-write updates and masked reads directly from layout metadata.
 
 Delivery policy for unsupported features:
 1. Compiler diagnostics must identify the exact unsupported construct.

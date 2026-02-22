@@ -64,12 +64,22 @@ inductive FieldType
   | mappingTyped (mt : MappingType)  -- Flexible mapping types (#154)
   deriving Repr, BEq
 
+structure PackedBits where
+  /-- Least-significant bit offset within the 256-bit storage word. -/
+  offset : Nat
+  /-- Bit width of this packed subfield. -/
+  width : Nat
+  deriving Repr, BEq
+
 structure Field where
   name : String
   ty : FieldType
   /-- Optional explicit storage slot override.
       When omitted, the slot defaults to declaration order (legacy behavior). -/
   slot : Option Nat := none
+  /-- Optional packed subfield placement within the storage word.
+      When present, reads/writes are masked and shifted to this bit range. -/
+  packedBits : Option PackedBits := none
   /-- Optional compatibility mirror-write slots.
       Writes to this field also write the same value to each alias slot. -/
   aliasSlots : List Nat := []
@@ -284,6 +294,18 @@ def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
           go rest (idx + 1)
   go fields 0
 
+-- Helper: Find field plus resolved canonical slot.
+def findFieldWithResolvedSlot (fields : List Field) (name : String) : Option (Field × Nat) :=
+  let rec go (remaining : List Field) (idx : Nat) : Option (Field × Nat) :=
+    match remaining with
+    | [] => none
+    | f :: rest =>
+        if f.name == name then
+          some (f, f.slot.getD idx)
+        else
+          go rest (idx + 1)
+  go fields 0
+
 -- Helper: Find all write slots for a field (canonical slot + mirror aliases).
 def findFieldWriteSlots (fields : List Field) (name : String) : Option (List Nat) :=
   let rec go (remaining : List Field) (idx : Nat) : Option (List Nat) :=
@@ -312,6 +334,34 @@ def isMapping2 (fields : List Field) (name : String) : Bool :=
 
 -- Keep compiler literals aligned with Uint256 semantics (mod 2^256).
 def uint256Modulus : Nat := 2 ^ 256
+
+private def packedMaskNat (packed : PackedBits) : Nat :=
+  if packed.width >= 256 then
+    uint256Modulus - 1
+  else
+    (2 ^ packed.width) - 1
+
+private def packedShiftedMaskNat (packed : PackedBits) : Nat :=
+  packedMaskNat packed * (2 ^ packed.offset)
+
+private def packedBitsValid (packed : PackedBits) : Bool :=
+  packed.width > 0 &&
+  packed.width <= 256 &&
+  packed.offset < 256 &&
+  packed.offset + packed.width <= 256
+
+private def packedRangesOverlap (a b : PackedBits) : Bool :=
+  let aStart := a.offset
+  let aEnd := a.offset + a.width
+  let bStart := b.offset
+  let bEnd := b.offset + b.width
+  aStart < bEnd && bStart < aEnd
+
+private def packedSlotsConflict (a b : Option PackedBits) : Bool :=
+  match a, b with
+  | none, _ => true
+  | _, none => true
+  | some pa, some pb => packedRangesOverlap pa pb
 
 -- Helpers for building common Yul patterns (defined outside mutual block for termination)
 private def yulBinOp (op : String) (a b : YulExpr) : YulExpr :=
@@ -388,8 +438,16 @@ def compileExpr (fields : List Field)
     if isMapping fields field then
       throw s!"Compilation error: field '{field}' is a mapping; use Expr.mapping"
     else
-      match findFieldSlot fields field with
-      | some slot => pure (YulExpr.call "sload" [YulExpr.lit slot])
+      match findFieldWithResolvedSlot fields field with
+      | some (f, slot) =>
+          match f.packedBits with
+          | none =>
+              pure (YulExpr.call "sload" [YulExpr.lit slot])
+          | some packed =>
+              pure (YulExpr.call "and" [
+                YulExpr.call "shr" [YulExpr.lit packed.offset, YulExpr.call "sload" [YulExpr.lit slot]],
+                YulExpr.lit (packedMaskNat packed)
+              ])
       | none => throw s!"Compilation error: unknown storage field '{field}'"
   | Expr.mapping field key => do
       compileMappingSlotRead fields field (← compileExpr fields dynamicSource key) "mapping"
@@ -1669,22 +1727,72 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
     if isMapping fields field then
       throw s!"Compilation error: field '{field}' is a mapping; use setMapping"
     else
-      match findFieldWriteSlots fields field with
-      | some slots => do
+      match findFieldWithResolvedSlot fields field with
+      | some (f, slot) => do
+          let slots := slot :: f.aliasSlots
           let valueExpr ← compileExpr fields dynamicSource value
           match slots with
           | [] =>
               throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorage"
-          | [slot] =>
-              pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueExpr])]
+          | [singleSlot] =>
+              match f.packedBits with
+              | none =>
+                  pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit singleSlot, valueExpr])]
+              | some packed =>
+                  let maskNat := packedMaskNat packed
+                  let shiftedMaskNat := packedShiftedMaskNat packed
+                  pure [
+                    YulStmt.block [
+                      YulStmt.let_ "__compat_value" valueExpr,
+                      YulStmt.let_ "__compat_packed" (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit maskNat]),
+                      YulStmt.let_ "__compat_slot_word" (YulExpr.call "sload" [YulExpr.lit singleSlot]),
+                      YulStmt.let_ "__compat_slot_cleared" (YulExpr.call "and" [
+                        YulExpr.ident "__compat_slot_word",
+                        YulExpr.call "not" [YulExpr.lit shiftedMaskNat]
+                      ]),
+                      YulStmt.expr (YulExpr.call "sstore" [
+                        YulExpr.lit singleSlot,
+                        YulExpr.call "or" [
+                          YulExpr.ident "__compat_slot_cleared",
+                          YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]
+                        ]
+                      ])
+                    ]
+                  ]
           | _ =>
-              pure [
-                YulStmt.block (
-                  [YulStmt.let_ "__compat_value" valueExpr] ++
-                  slots.map (fun slot =>
-                    YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident "__compat_value"]))
-                )
-              ]
+              match f.packedBits with
+              | none =>
+                  pure [
+                    YulStmt.block (
+                      [YulStmt.let_ "__compat_value" valueExpr] ++
+                      slots.map (fun writeSlot =>
+                        YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"]))
+                    )
+                  ]
+              | some packed =>
+                  let maskNat := packedMaskNat packed
+                  let shiftedMaskNat := packedShiftedMaskNat packed
+                  pure [
+                    YulStmt.block (
+                      [YulStmt.let_ "__compat_value" valueExpr,
+                       YulStmt.let_ "__compat_packed" (YulExpr.call "and" [YulExpr.ident "__compat_value", YulExpr.lit maskNat])] ++
+                      slots.map (fun writeSlot =>
+                        YulStmt.block [
+                          YulStmt.let_ "__compat_slot_word" (YulExpr.call "sload" [YulExpr.lit writeSlot]),
+                          YulStmt.let_ "__compat_slot_cleared" (YulExpr.call "and" [
+                            YulExpr.ident "__compat_slot_word",
+                            YulExpr.call "not" [YulExpr.lit shiftedMaskNat]
+                          ]),
+                          YulStmt.expr (YulExpr.call "sstore" [
+                            YulExpr.lit writeSlot,
+                            YulExpr.call "or" [
+                              YulExpr.ident "__compat_slot_cleared",
+                              YulExpr.call "shl" [YulExpr.lit packed.offset, YulExpr.ident "__compat_packed"]
+                            ]
+                          ])
+                        ])
+                    )
+                  ]
       | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
   | Stmt.setMapping field key value => do
       compileMappingSlotWrite fields field
@@ -2601,19 +2709,48 @@ private def firstReservedSlotWriteConflict (fields : List Field)
         | none => goFields rest (idx + 1)
   goFields fields 0
 
-private def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String × String) :=
-  let rec go (seen : List (Nat × String)) (idx : Nat) : List Field → Option (Nat × String × String)
+private def firstInvalidPackedBits (fields : List Field) :
+    Option (String × PackedBits) :=
+  let rec go (remaining : List Field) : Option (String × PackedBits) :=
+    match remaining with
     | [] => none
     | f :: rest =>
-      let writeSlots : List (Nat × String) :=
-        (f.slot.getD idx, f.name) ::
-          (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) => (slot, s!"{f.name}.aliasSlots[{aliasIdx}]")))
-      let rec firstInFieldConflict (seenSlots : List (Nat × String)) : List (Nat × String) → Option (Nat × String × String)
+        match f.packedBits with
+        | some packed =>
+            if packedBitsValid packed then
+              go rest
+            else
+              some (f.name, packed)
+        | none => go rest
+  go fields
+
+private def firstMappingPackedBits (fields : List Field) :
+    Option String :=
+  let rec go (remaining : List Field) : Option String :=
+    match remaining with
+    | [] => none
+    | f :: rest =>
+        match f.ty, f.packedBits with
+        | FieldType.mappingTyped _, some _ => some f.name
+        | _, _ => go rest
+  go fields
+
+private def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String × String) :=
+  let rec go (seen : List (Nat × String × Option PackedBits)) (idx : Nat) :
+      List Field → Option (Nat × String × String)
+    | [] => none
+    | f :: rest =>
+      let writeSlots : List (Nat × String × Option PackedBits) :=
+        (f.slot.getD idx, f.name, f.packedBits) ::
+          (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) =>
+            (slot, s!"{f.name}.aliasSlots[{aliasIdx}]", f.packedBits)))
+      let rec firstInFieldConflict (seenSlots : List (Nat × String × Option PackedBits)) :
+          List (Nat × String × Option PackedBits) → Option (Nat × String × String)
         | [] => none
-        | (slot, ownerName) :: tail =>
-            match seenSlots.find? (fun entry => entry.1 == slot) with
-            | some (_, prevName) => some (slot, prevName, ownerName)
-            | none => firstInFieldConflict ((slot, ownerName) :: seenSlots) tail
+        | (slot, ownerName, packed) :: tail =>
+            match seenSlots.find? (fun entry => entry.1 == slot && packedSlotsConflict entry.2.2 packed) with
+            | some (_, prevName, _) => some (slot, prevName, ownerName)
+            | none => firstInFieldConflict ((slot, ownerName, packed) :: seenSlots) tail
       match firstInFieldConflict seen writeSlots with
       | some conflict => some conflict
       | none => go (writeSlots.reverse ++ seen) (idx + 1) rest
@@ -2660,9 +2797,19 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
       throw s!"Compilation error: duplicate field name '{dup}' in {spec.name}"
   | none =>
       pure ()
+  match firstInvalidPackedBits spec.fields with
+  | some (fieldName, packed) =>
+      throw s!"Compilation error: field '{fieldName}' has invalid packedBits offset={packed.offset} width={packed.width} in {spec.name} ({issue623Ref}). Require 0 < width <= 256, offset < 256, and offset + width <= 256."
+  | none =>
+      pure ()
+  match firstMappingPackedBits spec.fields with
+  | some fieldName =>
+      throw s!"Compilation error: field '{fieldName}' is a mapping and cannot declare packedBits in {spec.name} ({issue623Ref}). Packed subfields are only supported for value-word fields."
+  | none =>
+      pure ()
   match firstFieldWriteSlotConflict spec.fields with
   | some (slot, existingField, conflictingField) =>
-      throw s!"Compilation error: storage slot {slot} is assigned to both fields '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Ensure field slots and aliasSlots are pairwise unique."
+      throw s!"Compilation error: storage slot {slot} has overlapping write ranges for '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Ensure full-slot writes are unique and packed bit ranges are disjoint per slot."
   | none =>
       pure ()
   match firstInvalidReservedRange spec.reservedSlotRanges with

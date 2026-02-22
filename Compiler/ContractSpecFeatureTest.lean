@@ -2199,6 +2199,99 @@ private def featureSpec : ContractSpec := {
         ["mappingSlot(9, __compat_key)", "mappingSlot(21, __compat_key)"]
 
 #eval! do
+  let packedSubfieldSpec : ContractSpec := {
+    name := "PackedSubfieldSpec"
+    fields := [
+      { name := "lower", ty := FieldType.uint256, slot := some 4, packedBits := some { offset := 0, width := 128 } },
+      { name := "upper", ty := FieldType.uint256, slot := some 4, packedBits := some { offset := 128, width := 128 } }
+    ]
+    constructor := none
+    functions := [
+      { name := "setLower"
+        params := [{ name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setStorage "lower" (Expr.param "x"), Stmt.stop]
+      },
+      { name := "setUpper"
+        params := [{ name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setStorage "upper" (Expr.param "x"), Stmt.stop]
+      },
+      { name := "getLower"
+        params := []
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.storage "lower")]
+      },
+      { name := "getUpper"
+        params := []
+        returnType := some FieldType.uint256
+        body := [Stmt.return (Expr.storage "upper")]
+      }
+    ]
+  }
+  match compile packedSubfieldSpec [1, 2, 3, 4] with
+  | .error err =>
+      throw (IO.userError s!"✗ packed subfield compile failed: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "packed setStorage lowers masked read-modify-write" rendered
+        ["let __compat_slot_word := sload(4)", "sstore(4, or(__compat_slot_cleared, shl(0, __compat_packed)))", "sstore(4, or(__compat_slot_cleared, shl(128, __compat_packed)))"]
+      assertContains "packed Expr.storage lowers masked shifted reads" rendered
+        ["and(shr(0, sload(4)),", "and(shr(128, sload(4)),"]
+
+#eval! do
+  let overlappingPackedSubfieldSpec : ContractSpec := {
+    name := "OverlappingPackedSubfieldSpec"
+    fields := [
+      { name := "a", ty := FieldType.uint256, slot := some 7, packedBits := some { offset := 0, width := 128 } },
+      { name := "b", ty := FieldType.uint256, slot := some 7, packedBits := some { offset := 64, width := 128 } }
+    ]
+    constructor := none
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile overlappingPackedSubfieldSpec [1] with
+  | .error err =>
+      if !(contains err "storage slot 7 has overlapping write ranges for 'a' and 'b'" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ overlapping packed subfield diagnostic mismatch: {err}")
+      IO.println "✓ overlapping packed subfield diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected overlapping packed subfields to fail compilation")
+
+#eval! do
+  let invalidPackedBitsSpec : ContractSpec := {
+    name := "InvalidPackedBitsSpec"
+    fields := [
+      { name := "x", ty := FieldType.uint256, slot := some 2, packedBits := some { offset := 200, width := 80 } }
+    ]
+    constructor := none
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile invalidPackedBitsSpec [1] with
+  | .error err =>
+      if !(contains err "field 'x' has invalid packedBits offset=200 width=80" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ invalid packedBits diagnostic mismatch: {err}")
+      IO.println "✓ invalid packedBits diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected invalid packedBits to fail compilation")
+
+#eval! do
+  let packedMappingRejectedSpec : ContractSpec := {
+    name := "PackedMappingRejectedSpec"
+    fields := [
+      { name := "m", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address), slot := some 5, packedBits := some { offset := 0, width := 128 } }
+    ]
+    constructor := none
+    functions := [{ name := "noop", params := [], returnType := none, body := [Stmt.stop] }]
+  }
+  match compile packedMappingRejectedSpec [1] with
+  | .error err =>
+      if !(contains err "field 'm' is a mapping and cannot declare packedBits" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ packed mapping diagnostic mismatch: {err}")
+      IO.println "✓ packed mapping diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected mapping packedBits to fail compilation")
+
+#eval! do
   let conflictingFieldSlotsSpec : ContractSpec := {
     name := "ConflictingFieldSlotsSpec"
     fields := [
@@ -2216,7 +2309,7 @@ private def featureSpec : ContractSpec := {
   }
   match compile conflictingFieldSlotsSpec [1] with
   | .error err =>
-      if !(contains err "storage slot 3 is assigned to both fields 'x' and 'y'" && contains err "Issue #623") then
+      if !(contains err "storage slot 3 has overlapping write ranges for 'x' and 'y'" && contains err "Issue #623") then
         throw (IO.userError s!"✗ conflicting explicit field slot diagnostic mismatch: {err}")
       IO.println "✓ conflicting explicit field slot diagnostic"
   | .ok _ =>
@@ -2240,7 +2333,7 @@ private def featureSpec : ContractSpec := {
   }
   match compile conflictingAliasSlotsSpec [1] with
   | .error err =>
-      if !(contains err "storage slot 7 is assigned to both fields 'x.aliasSlots[0]' and 'y.aliasSlots[0]'" && contains err "Issue #623") then
+      if !(contains err "storage slot 7 has overlapping write ranges for 'x.aliasSlots[0]' and 'y.aliasSlots[0]'" && contains err "Issue #623") then
         throw (IO.userError s!"✗ conflicting alias slot diagnostic mismatch: {err}")
       IO.println "✓ conflicting alias slot diagnostic"
   | .ok _ =>
