@@ -2168,6 +2168,37 @@ private def featureSpec : ContractSpec := {
       assertContains "explicit slot mapping lowering" rendered ["mappingSlot(9, who)"]
 
 #eval! do
+  let aliasSlotMirrorWriteSpec : ContractSpec := {
+    name := "AliasSlotMirrorWriteSpec"
+    fields := [
+      { name := "a", ty := FieldType.uint256, slot := some 8, aliasSlots := [20] },
+      { name := "balances", ty := FieldType.mappingTyped (MappingType.simple MappingKeyType.address), slot := some 9, aliasSlots := [21] }
+    ]
+    constructor := none
+    functions := [
+      { name := "setA"
+        params := [{ name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setStorage "a" (Expr.param "x"), Stmt.stop]
+      },
+      { name := "setBal"
+        params := [{ name := "who", ty := ParamType.address }, { name := "x", ty := ParamType.uint256 }]
+        returnType := none
+        body := [Stmt.setMapping "balances" (Expr.param "who") (Expr.param "x"), Stmt.stop]
+      }
+    ]
+  }
+  match compile aliasSlotMirrorWriteSpec [1, 2] with
+  | .error err =>
+      throw (IO.userError s!"✗ alias slot mirror-write compile failed: {err}")
+  | .ok ir =>
+      let rendered := Yul.render (emitYul ir)
+      assertContains "setStorage mirror writes to alias slots" rendered
+        ["sstore(8, __compat_value)", "sstore(20, __compat_value)"]
+      assertContains "setMapping mirror writes to alias slots" rendered
+        ["mappingSlot(9, __compat_key)", "mappingSlot(21, __compat_key)"]
+
+#eval! do
   let conflictingFieldSlotsSpec : ContractSpec := {
     name := "ConflictingFieldSlotsSpec"
     fields := [
@@ -2190,5 +2221,29 @@ private def featureSpec : ContractSpec := {
       IO.println "✓ conflicting explicit field slot diagnostic"
   | .ok _ =>
       throw (IO.userError "✗ expected conflicting explicit field slots to fail compilation")
+
+#eval! do
+  let conflictingAliasSlotsSpec : ContractSpec := {
+    name := "ConflictingAliasSlotsSpec"
+    fields := [
+      { name := "x", ty := FieldType.uint256, slot := some 3, aliasSlots := [7] },
+      { name := "y", ty := FieldType.address, slot := some 4, aliasSlots := [7] }
+    ]
+    constructor := none
+    functions := [
+      { name := "noop"
+        params := []
+        returnType := none
+        body := [Stmt.stop]
+      }
+    ]
+  }
+  match compile conflictingAliasSlotsSpec [1] with
+  | .error err =>
+      if !(contains err "storage slot 7 is assigned to both fields 'x.aliasSlots[0]' and 'y.aliasSlots[0]'" && contains err "Issue #623") then
+        throw (IO.userError s!"✗ conflicting alias slot diagnostic mismatch: {err}")
+      IO.println "✓ conflicting alias slot diagnostic"
+  | .ok _ =>
+      throw (IO.userError "✗ expected conflicting alias slots to fail compilation")
 
 end Compiler.ContractSpecFeatureTest
