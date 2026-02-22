@@ -107,21 +107,18 @@ private def renderConstructorEntry (ctor : ConstructorSpec) : String :=
     s!"\"stateMutability\": {jsonString stateMutability}"
   ] ++ "}"
 
+/-- Render an ABI entry for a special entrypoint (fallback/receive).
+    Uses `isInteropEntrypointName` so this stays in sync with selector filtering.
+    The caller (`emitContractABIJson`) already filters to `isInteropEntrypointName`
+    entries, so this always returns `some` for valid input. -/
 private def renderSpecialEntry (fn : FunctionSpec) : Option String :=
-  if fn.isInternal then
+  if !isInteropEntrypointName fn.name then
     none
-  else if fn.name == "fallback" then
-    some ("{" ++ joinJsonFields [
-      "\"type\": \"fallback\"",
-      s!"\"stateMutability\": {jsonString (if fn.isPayable then "payable" else "nonpayable")}"
-    ] ++ "}")
-  else if fn.name == "receive" then
-    some ("{" ++ joinJsonFields [
-      "\"type\": \"receive\"",
-      s!"\"stateMutability\": {jsonString (if fn.isPayable then "payable" else "nonpayable")}"
-    ] ++ "}")
   else
-    none
+    some ("{" ++ joinJsonFields [
+      s!"\"type\": {jsonString fn.name}",
+      s!"\"stateMutability\": {jsonString (if fn.isPayable then "payable" else "nonpayable")}"
+    ] ++ "}")
 
 def emitContractABIJson (spec : ContractSpec) : String :=
   let ctorEntries :=

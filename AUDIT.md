@@ -94,7 +94,7 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 | `partial def` in compiler | ~25 functions recurse on `ParamType` (finite depth); termination proofs would add complexity without security value |
 | `allowUnsafeReducibility` | One use in `Semantics.lean:247` for `execYulFuel`; fuel-bounded, provably terminating. See TRUST_ASSUMPTIONS.md §7 |
 | Raw text linker injection | Libraries are inherently outside the proof boundary; semantic validation would require a Yul verifier |
-| Shared `isInteropEntrypointName` | Single definition filters fallback/receive consistently across Selector, ABI, and ContractSpec.compile |
+| Shared `isInteropEntrypointName` | Single definition filters fallback/receive consistently across Selector, ABI (`renderSpecialEntry` uses it as guard + derives ABI type from `fn.name`), and ContractSpec.compile |
 | Shared `isDynamicParamType`/`paramHeadSize` | Single definitions used by both event encoding and calldata parameter loading; eliminates divergence risk |
 | Shared `fieldTypeToParamType` | ABI.lean reuses ContractSpec's canonical definition instead of maintaining a private copy; eliminates FieldType→ParamType divergence |
 | Non-short-circuit `logicalAnd`/`logicalOr` | Compiled to EVM bitwise `and`/`or` — both operands always evaluated. Simpler codegen; no side-effecting expressions in current DSL |
@@ -133,7 +133,7 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 30+ scripts enforce consistency between proofs, tests, and documentation. Key checks:
 
 - `check_yul_compiles.py`: All generated Yul compiles with solc; legacy/AST bytecode diff baseline
-- `check_selectors.py` / `check_selector_fixtures.py`: Selector cross-validation
+- `check_selectors.py` / `check_selector_fixtures.py`: Selector cross-validation (both ContractSpec and ASTSpecs; cross-checks signature equivalence)
 - `check_doc_counts.py`: Theorem/test counts consistent across all docs
 - `check_lean_warning_regression.py`: Zero-warning policy
 - `check_axiom_locations.py`: All axioms documented in AXIOMS.md

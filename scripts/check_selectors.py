@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Verify selector hashing against ContractSpec and IR/Yul artifacts.
+"""Verify selector hashing against ContractSpec, ASTSpecs, and IR/Yul artifacts.
 
 Checks:
 1) ContractSpec function signatures -> keccak selectors are unique per contract.
 2) Compiler/Proofs/IRGeneration/Expr.lean compile selector lists match the spec.
 3) Generated Yul files include all expected selector case labels.
+4) ASTSpecs function signatures -> keccak selectors match for yul-ast output.
+5) Cross-check: shared contracts have identical signatures in both spec sets.
 """
 
 from __future__ import annotations
@@ -17,11 +19,10 @@ from typing import Iterable, List
 from keccak256 import selector as keccak_selector
 from property_utils import ROOT, YUL_DIR, die, report_errors, strip_lean_comments
 SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
+AST_SPEC_FILE = ROOT / "Compiler" / "ASTSpecs.lean"
 IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
-YUL_DIRS = [
-    ("yul", YUL_DIR),
-    ("yul-ast", ROOT / "compiler" / "yul-ast"),
-]
+YUL_DIR_LEGACY = ("yul", YUL_DIR)
+YUL_DIR_AST = ("yul-ast", ROOT / "compiler" / "yul-ast")
 
 SIMPLE_PARAM_MAP = {
     "uint256": "uint256",
@@ -266,6 +267,82 @@ def extract_param_types(fn_block: str) -> List[str]:
     return sol_types
 
 
+def extract_ast_specs(text: str) -> List[SpecInfo]:
+    """Extract specs from ASTSpecs.lean (ASTContractSpec definitions).
+
+    ASTSpecs functions have no isInternal or special entrypoint semantics,
+    so all functions are treated as external (matching ASTDriver.computeSelectors).
+    """
+    specs: List[SpecInfo] = []
+    spec_re = re.compile(r"def\s+(\w+)\s*:\s*ASTContractSpec\s*:=\s*\{")
+    for match in spec_re.finditer(text):
+        def_name = match.group(1)
+        block_start = match.end() - 1
+        block_end = find_matching(text, block_start, "{", "}")
+        if block_end == -1:
+            die(f"Failed to parse AST spec block for {def_name}")
+        block = text[block_start : block_end + 1]
+        name_match = re.search(r"name\s*:=\s*\"([^\"]+)\"", block)
+        if not name_match:
+            die(f"Missing name for AST spec {def_name}")
+        contract_name = name_match.group(1)
+        signatures = extract_ast_functions(block)
+        specs.append(SpecInfo(def_name, contract_name, signatures))
+    return specs
+
+
+def extract_ast_functions(spec_block: str) -> List[str]:
+    """Extract function signatures from an ASTContractSpec block.
+
+    Unlike ContractSpec, ASTSpecs have no isInternal or fallback/receive
+    semantics — all functions are external.
+    """
+    fn_match = re.search(r"functions\s*:=\s*\[", spec_block)
+    if not fn_match:
+        return []
+    list_start = fn_match.end() - 1
+    list_end = find_matching(spec_block, list_start, "[", "]")
+    if list_end == -1:
+        die("Failed to parse AST functions list")
+    functions_block = spec_block[list_start : list_end + 1]
+    sigs: List[str] = []
+    idx = 0
+    while idx < len(functions_block):
+        if functions_block[idx] == "{":
+            end = find_matching(functions_block, idx, "{", "}")
+            if end == -1:
+                die("Failed to parse AST function block")
+            fn_block = functions_block[idx : end + 1]
+            name_match = re.search(r"name\s*:=\s*\"([^\"]+)\"", fn_block)
+            if not name_match:
+                die("AST function block missing name")
+            fn_name = name_match.group(1)
+            params = extract_param_types(fn_block)
+            sigs.append(f"{fn_name}({','.join(params)})")
+            idx = end + 1
+        else:
+            idx += 1
+    return sigs
+
+
+def check_ast_vs_legacy_signatures(
+    legacy_specs: List[SpecInfo], ast_specs: List[SpecInfo]
+) -> List[str]:
+    """Cross-check that shared contracts have identical signatures."""
+    errors: List[str] = []
+    legacy_map = {spec.contract_name: spec for spec in legacy_specs}
+    for ast_spec in ast_specs:
+        legacy_spec = legacy_map.get(ast_spec.contract_name)
+        if legacy_spec is None:
+            continue  # AST-only contract, no cross-check needed
+        if ast_spec.signatures != legacy_spec.signatures:
+            errors.append(
+                f"{ast_spec.contract_name}: AST and ContractSpec signatures diverge: "
+                f"AST={ast_spec.signatures} vs ContractSpec={legacy_spec.signatures}"
+            )
+    return errors
+
+
 def compute_selectors(signatures: Iterable[str]) -> List[int]:
     return [int(keccak_selector(sig), 16) for sig in signatures]
 
@@ -354,12 +431,31 @@ def main() -> None:
     compile_text = strip_lean_comments(IR_EXPR_FILE.read_text(encoding="utf-8"))
     compile_lists = extract_compile_selectors(compile_text)
 
+    # Extract AST specs for yul-ast validation (if file exists).
+    ast_specs: List[SpecInfo] = []
+    if AST_SPEC_FILE.exists():
+        ast_text = strip_lean_comments(AST_SPEC_FILE.read_text(encoding="utf-8"))
+        ast_specs = extract_ast_specs(ast_text)
+
     errors: List[str] = []
     errors.extend(check_unique_selectors(specs))
     errors.extend(check_compile_lists(specs, compile_lists))
-    for label, yul_dir in YUL_DIRS:
-        if yul_dir.exists():
-            errors.extend(check_yul_selectors(specs, label, yul_dir))
+
+    # Validate yul/ (legacy path) against ContractSpec specs.
+    yul_label, yul_dir = YUL_DIR_LEGACY
+    if yul_dir.exists():
+        errors.extend(check_yul_selectors(specs, yul_label, yul_dir))
+
+    # Validate yul-ast/ against AST specs (or fall back to ContractSpec).
+    ast_label, ast_dir = YUL_DIR_AST
+    if ast_dir.exists():
+        ast_check_specs = ast_specs if ast_specs else specs
+        errors.extend(check_yul_selectors(ast_check_specs, ast_label, ast_dir))
+        errors.extend(check_unique_selectors(ast_specs))
+
+    # Cross-check: shared contracts must have identical signatures.
+    if ast_specs:
+        errors.extend(check_ast_vs_legacy_signatures(specs, ast_specs))
 
     report_errors(errors, "Selector checks failed")
     print("Selector checks passed.")
