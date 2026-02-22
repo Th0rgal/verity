@@ -13,6 +13,7 @@ Checks:
 9) Selector shift constant sync between ContractSpec, Codegen, and Builtins.
 10) Internal function prefix sync between ContractSpec and CI script.
 11) Special entrypoint names sync between ContractSpec and CI script.
+12) No duplicate function names per contract; compile function has the guard.
 """
 
 from __future__ import annotations
@@ -407,6 +408,24 @@ def check_reserved_prefix_collisions(specs: List[SpecInfo]) -> List[str]:
     return errors
 
 
+def check_unique_function_names(specs: List[SpecInfo]) -> List[str]:
+    """Check that no contract has duplicate function names.
+
+    Mirrors the ``firstDuplicateName (spec.functions.map (·.name))`` check in
+    ``ContractSpec.compile``.
+    """
+    errors: List[str] = []
+    for spec in specs:
+        seen: set[str] = set()
+        for name in spec.all_function_names:
+            if name in seen:
+                errors.append(
+                    f"{spec.contract_name}: duplicate function name '{name}'"
+                )
+            seen.add(name)
+    return errors
+
+
 def check_unique_selectors(specs: List[SpecInfo]) -> List[str]:
     errors: List[str] = []
     for spec in specs:
@@ -663,6 +682,29 @@ def check_special_entrypoints_sync() -> List[str]:
     return errors
 
 
+def check_compile_duplicate_name_guard() -> List[str]:
+    """Verify that ContractSpec.compile checks for duplicate function names.
+
+    Ensures the compile function calls ``firstDuplicateName`` on
+    ``spec.functions`` (not just on ``spec.errors``), preventing regression
+    of the duplicate function name validation.
+    """
+    errors: List[str] = []
+    if not CONTRACT_SPEC_FILE.exists():
+        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+        return errors
+    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    # Look for the duplicate function name check pattern inside compile
+    if not re.search(
+        r"firstDuplicateName\s*\(spec\.functions\.map", text
+    ):
+        errors.append(
+            "ContractSpec.compile: missing duplicate function name check "
+            "(expected firstDuplicateName (spec.functions.map ...))"
+        )
+    return errors
+
+
 def main() -> None:
     if not SPEC_FILE.exists():
         die(f"Missing specs file: {SPEC_FILE}")
@@ -687,6 +729,7 @@ def main() -> None:
 
     errors: List[str] = []
     errors.extend(check_unique_selectors(specs))
+    errors.extend(check_unique_function_names(specs))
     errors.extend(check_reserved_prefix_collisions(specs))
     errors.extend(check_compile_lists(specs, compile_lists))
 
@@ -709,6 +752,7 @@ def main() -> None:
             ast_check_specs = specs
         errors.extend(check_yul_selectors(ast_check_specs, ast_label, ast_dir))
         errors.extend(check_unique_selectors(ast_specs))
+        errors.extend(check_unique_function_names(ast_specs))
         errors.extend(check_reserved_prefix_collisions(ast_specs))
 
     # Cross-check: shared contracts must have identical signatures.
@@ -729,6 +773,9 @@ def main() -> None:
 
     # Validate special entrypoint names consistency.
     errors.extend(check_special_entrypoints_sync())
+
+    # Validate compile function has duplicate function name guard.
+    errors.extend(check_compile_duplicate_name_guard())
 
     report_errors(errors, "Selector checks failed")
     print("Selector checks passed.")

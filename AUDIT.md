@@ -47,7 +47,7 @@ All three ContractSpec layers are fully verified in Lean 4. Zero `sorry` placeho
 
 ### Where external input enters
 
-1. **Contract specifications** (`Compiler/Specs.lean`): All specs are Lean source — no runtime input parsing. The `compile` function validates specs exhaustively (7+ validators for functions, 5 for constructors) before emitting code.
+1. **Contract specifications** (`Compiler/Specs.lean`): All specs are Lean source — no runtime input parsing. The `compile` function validates specs exhaustively (7+ validators for functions, 5 for constructors, duplicate function/error name rejection) before emitting code.
 
 2. **Calldata**: Generated decoder reads ABI-encoded calldata. `calldatasizeGuard` enforces minimum size for fixed params. Dynamic param bounds rely on EVM semantics (out-of-bounds calldataload returns zero), matching solc behavior.
 
@@ -137,7 +137,7 @@ EDSL uses **wrapping** `mod 2^256` arithmetic. Solidity uses **checked** arithme
 30+ scripts enforce consistency between proofs, tests, and documentation. Key checks:
 
 - `check_yul_compiles.py`: All generated Yul compiles with solc; legacy/AST bytecode diff baseline
-- `check_selectors.py` / `check_selector_fixtures.py`: Selector cross-validation (both ContractSpec and ASTSpecs; cross-checks signature equivalence; reserved prefix collision check; Error(string) selector constant sync; address mask constant sync; selector shift constant sync; internal prefix sync; special entrypoint names sync)
+- `check_selectors.py` / `check_selector_fixtures.py`: Selector cross-validation (both ContractSpec and ASTSpecs; cross-checks signature equivalence; reserved prefix collision check; duplicate function name check; Error(string) selector constant sync; address mask constant sync; selector shift constant sync; internal prefix sync; special entrypoint names sync; compile duplicate-name guard presence)
 - `check_doc_counts.py`: Theorem/test counts consistent across all docs
 - `check_lean_warning_regression.py`: Zero-warning policy
 - `check_axiom_locations.py`: All axioms documented in AXIOMS.md

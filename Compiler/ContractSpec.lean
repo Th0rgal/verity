@@ -2496,6 +2496,11 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
   for ext in spec.externals do
     let _ ← externalFunctionReturns ext
     validateInteropExternalSpec ext
+  match firstDuplicateName (spec.functions.map (·.name)) with
+  | some dup =>
+      throw s!"Compilation error: duplicate function name '{dup}' in {spec.name}"
+  | none =>
+      pure ()
   match firstDuplicateName (spec.errors.map (·.name)) with
   | some dup =>
       throw s!"Compilation error: duplicate custom error declaration '{dup}'"
