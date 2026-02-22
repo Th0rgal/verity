@@ -70,6 +70,9 @@ structure Field where
   /-- Optional explicit storage slot override.
       When omitted, the slot defaults to declaration order (legacy behavior). -/
   slot : Option Nat := none
+  /-- Optional compatibility mirror-write slots.
+      Writes to this field also write the same value to each alias slot. -/
+  aliasSlots : List Nat := []
   deriving Repr
 
 /-!
@@ -267,6 +270,18 @@ def findFieldSlot (fields : List Field) (name : String) : Option Nat :=
     | f :: rest =>
         if f.name == name then
           some (f.slot.getD idx)
+        else
+          go rest (idx + 1)
+  go fields 0
+
+-- Helper: Find all write slots for a field (canonical slot + mirror aliases).
+def findFieldWriteSlots (fields : List Field) (name : String) : Option (List Nat) :=
+  let rec go (remaining : List Field) (idx : Nat) : Option (List Nat) :=
+    match remaining with
+    | [] => none
+    | f :: rest =>
+        if f.name == name then
+          some ((f.slot.getD idx) :: f.aliasSlots)
         else
           go rest (idx + 1)
   go fields 0
@@ -1266,14 +1281,29 @@ private def compileMappingSlotWrite (fields : List Field) (field : String)
   if !isMapping fields field then
     throw s!"Compilation error: field '{field}' is not a mapping"
   else
-    match findFieldSlot fields field with
-    | some slot =>
-        pure [
-          YulStmt.expr (YulExpr.call "sstore" [
-            YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr],
-            valueExpr
-          ])
-        ]
+    match findFieldWriteSlots fields field with
+    | some slots =>
+        match slots with
+        | [] =>
+            throw s!"Compilation error: internal invariant failure: no write slots for mapping field '{field}' in {label}"
+        | [slot] =>
+            pure [
+              YulStmt.expr (YulExpr.call "sstore" [
+                YulExpr.call "mappingSlot" [YulExpr.lit slot, keyExpr],
+                valueExpr
+              ])
+            ]
+        | _ =>
+            pure [
+              YulStmt.block (
+                [YulStmt.let_ "__compat_key" keyExpr, YulStmt.let_ "__compat_value" valueExpr] ++
+                slots.map (fun slot =>
+                  YulStmt.expr (YulExpr.call "sstore" [
+                    YulExpr.call "mappingSlot" [YulExpr.lit slot, YulExpr.ident "__compat_key"],
+                    YulExpr.ident "__compat_value"
+                  ]))
+              )
+            ]
     | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
 
 private def supportedCustomErrorParamType : ParamType → Bool
@@ -1629,9 +1659,22 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
     if isMapping fields field then
       throw s!"Compilation error: field '{field}' is a mapping; use setMapping"
     else
-      match findFieldSlot fields field with
-      | some slot => do
-          pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, ← compileExpr fields dynamicSource value])]
+      match findFieldWriteSlots fields field with
+      | some slots => do
+          let valueExpr ← compileExpr fields dynamicSource value
+          match slots with
+          | [] =>
+              throw s!"Compilation error: internal invariant failure: no write slots for field '{field}' in setStorage"
+          | [slot] =>
+              pure [YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueExpr])]
+          | _ =>
+              pure [
+                YulStmt.block (
+                  [YulStmt.let_ "__compat_value" valueExpr] ++
+                  slots.map (fun slot =>
+                    YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident "__compat_value"]))
+                )
+              ]
       | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
   | Stmt.setMapping field key value => do
       compileMappingSlotWrite fields field
@@ -1642,18 +1685,34 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
     if !isMapping2 fields field then
       throw s!"Compilation error: field '{field}' is not a double mapping"
     else
-      match findFieldSlot fields field with
-      | some slot => do
+      match findFieldWriteSlots fields field with
+      | some slots => do
           let key1Expr ← compileExpr fields dynamicSource key1
           let key2Expr ← compileExpr fields dynamicSource key2
           let valueExpr ← compileExpr fields dynamicSource value
-          let innerSlot := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1Expr]
-          pure [
-            YulStmt.expr (YulExpr.call "sstore" [
-              YulExpr.call "mappingSlot" [innerSlot, key2Expr],
-              valueExpr
-            ])
-          ]
+          match slots with
+          | [] =>
+              throw s!"Compilation error: internal invariant failure: no write slots for mapping field '{field}' in setMapping2"
+          | [slot] =>
+              let innerSlot := YulExpr.call "mappingSlot" [YulExpr.lit slot, key1Expr]
+              pure [
+                YulStmt.expr (YulExpr.call "sstore" [
+                  YulExpr.call "mappingSlot" [innerSlot, key2Expr],
+                  valueExpr
+                ])
+              ]
+          | _ =>
+              pure [
+                YulStmt.block (
+                  [YulStmt.let_ "__compat_key1" key1Expr, YulStmt.let_ "__compat_key2" key2Expr, YulStmt.let_ "__compat_value" valueExpr] ++
+                  slots.map (fun slot =>
+                    let innerSlot := YulExpr.call "mappingSlot" [YulExpr.lit slot, YulExpr.ident "__compat_key1"]
+                    YulStmt.expr (YulExpr.call "sstore" [
+                      YulExpr.call "mappingSlot" [innerSlot, YulExpr.ident "__compat_key2"],
+                      YulExpr.ident "__compat_value"
+                    ]))
+                )
+              ]
       | none => throw s!"Compilation error: unknown mapping field '{field}' in setMapping2"
   | Stmt.setMappingUint field key value => do
       compileMappingSlotWrite fields field
@@ -2489,14 +2548,22 @@ private def firstDuplicateName (names : List String) : Option String :=
         go (n :: seen) rest
   go [] names
 
-private def firstFieldSlotConflict (fields : List Field) : Option (Nat × String × String) :=
+private def firstFieldWriteSlotConflict (fields : List Field) : Option (Nat × String × String) :=
   let rec go (seen : List (Nat × String)) (idx : Nat) : List Field → Option (Nat × String × String)
     | [] => none
     | f :: rest =>
-      let slot := f.slot.getD idx
-      match seen.find? (fun entry => entry.1 == slot) with
-      | some (_, prevName) => some (slot, prevName, f.name)
-      | none => go ((slot, f.name) :: seen) (idx + 1) rest
+      let writeSlots : List (Nat × String) :=
+        (f.slot.getD idx, f.name) ::
+          (f.aliasSlots.zipIdx.map (fun (slot, aliasIdx) => (slot, s!"{f.name}.aliasSlots[{aliasIdx}]")))
+      let rec firstInFieldConflict (seenSlots : List (Nat × String)) : List (Nat × String) → Option (Nat × String × String)
+        | [] => none
+        | (slot, ownerName) :: tail =>
+            match seenSlots.find? (fun entry => entry.1 == slot) with
+            | some (_, prevName) => some (slot, prevName, ownerName)
+            | none => firstInFieldConflict ((slot, ownerName) :: seenSlots) tail
+      match firstInFieldConflict seen writeSlots with
+      | some conflict => some conflict
+      | none => go (writeSlots.reverse ++ seen) (idx + 1) rest
   go [] 0 fields
 
 private def validateErrorDef (err : ErrorDef) : Except String Unit := do
@@ -2540,9 +2607,9 @@ def compile (spec : ContractSpec) (selectors : List Nat) : Except String IRContr
       throw s!"Compilation error: duplicate field name '{dup}' in {spec.name}"
   | none =>
       pure ()
-  match firstFieldSlotConflict spec.fields with
+  match firstFieldWriteSlotConflict spec.fields with
   | some (slot, existingField, conflictingField) =>
-      throw s!"Compilation error: storage slot {slot} is assigned to both fields '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Use unique slots or remove explicit slot overrides."
+      throw s!"Compilation error: storage slot {slot} is assigned to both fields '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Ensure field slots and aliasSlots are pairwise unique."
   | none =>
       pure ()
   match firstDuplicateName (spec.events.map (·.name)) with
