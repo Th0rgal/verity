@@ -125,7 +125,8 @@
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal retVal); return (localVar tmp)`, preserving clause-list short-circuit revert behavior together with local-binding return semantics.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (add (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (sub (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (mul (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions."
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (mul (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
+        "Introduce one generic dispatcher theorem over supported require-clause-list sequencing tails (`setStorage literal`, `return literal`, `let-return local`, `let-assign-{add,sub,mul}-setStorage local`) to reduce pattern-by-pattern theorem surface into a single reusable 2.2 artifact without deleting existing obligations."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
@@ -139,10 +140,10 @@
         "python3 scripts/check_issue_1060_integrity.py"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T12:00:11Z artifact_sha256=be4b3f90e8]",
-        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T12:00:11Z artifact_sha256=be4b3f90e8]",
-        "pass: lake build [run_id=2026-03-02T12:00:11Z artifact_sha256=be4b3f90e8]",
-        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T12:00:11Z artifact_sha256=be4b3f90e8]"
+        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T12:05:08Z artifact_sha256=15138f2]",
+        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T12:05:08Z artifact_sha256=15138f2]",
+        "pass: lake build [run_id=2026-03-02T12:05:08Z artifact_sha256=15138f2]",
+        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T12:05:08Z artifact_sha256=15138f2]"
       ],
       "evidence": {
         "theorems": [
@@ -385,6 +386,21 @@
             "name": "compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-mul/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_tail_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Generic sequencing semantic-preservation theorem over supported tails after unified require guard-family clause lists, proved by tail-family case split reusing existing specialized theorems."
+          },
+          {
+            "name": "execCompiledRequireFamilyClausesThenTail",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Compiled semantics dispatcher over the supported tail family after unified require guard-family clause lists."
+          },
+          {
+            "name": "execSourceRequireFamilyClausesThenTail",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Source semantics dispatcher over the supported tail family after unified require guard-family clause lists."
           }
         ],
         "tests": [
@@ -417,21 +433,19 @@
           "TypedIRTests: example instantiating compile_require_family_clauses_then_let_return_local_literal_semantics over arbitrary fields/tmp/init/guard-family clauses/retVal",
           "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
           "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions"
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_tail_semantics over arbitrary fields/init/guard-family clauses/supported tail family"
         ]
       },
       "obligation_delta": {
-        "removed_sorries": [],
         "added_sorries": [],
-        "sorry_delta": {
-          "added": 0,
-          "removed": 0
-        }
+        "removed_sorries": [],
+        "removed_or_reframed_obligations": []
       },
-      "notes": "2.2 remains partial: this slice adds sequencing semantic preservation for unified require guard-family clause lists followed by `letVar tmp (literal n); assignVar tmp (mul (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)` via `compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics`, without deleting prior obligations. A single generic theorem over the full declared supported fragment is still pending.",
+      "notes": "2.2 remains partial: this run introduces `compile_require_family_clauses_then_tail_semantics` as one generic theorem spanning the currently supported require-clause-list continuation family without deleting prior obligations. Uncovered fragment remains full statement-fragment-wide source\u2194typed theorem over arbitrary supported statement lists.",
       "uncovered_fragments": [
-        "No single generic theorem yet covers the full declared supported statement fragment for source-semantics \u2194 typed-semantics preservation.",
-        "Pattern-by-pattern theorems remain; proof is not yet generalized to one fragment-wide theorem with empty uncovered set."
+        "No single theorem yet states source-semantics \u2194 typed-semantics preservation for arbitrary lists of the declared supported statement fragment.",
+        "Current genericization is over require-clause-list continuation tails only; broader statement constructors still require integration into one fragment-wide theorem."
       ]
     },
     "2.3": {

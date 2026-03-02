@@ -1108,4 +1108,101 @@ theorem compile_require_family_clauses_then_let_assign_mul_setStorage_local_lite
     compile_require_literal_guard_family_clauses_semantics,
     compile_let_assign_mul_setStorage_local_literal_semantics, hfind]
 
+/-- Supported continuation family after a unified `require` guard-family
+clause list for generic sequencing preservation in roadmap item 2.2. -/
+inductive RequireFamilyClausesTail (fields : List Field) where
+  | setStorageLiteral (fieldName : String) (slot : Nat) (writeVal : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | returnLiteral (retVal : Nat)
+  | letReturnLocalLiteral (tmp : String) (retVal : Nat)
+  | letAssignAddSetStorageLocalLiteral
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | letAssignSubSetStorageLocalLiteral
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | letAssignMulSetStorageLocalLiteral
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+
+/-- Source semantics dispatcher for the supported continuation family after
+unified `require` guard-family clause lists. -/
+def execSourceRequireFamilyClausesThenTail
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (tail : RequireFamilyClausesTail fields) : TExecResult :=
+  match tail with
+  | .setStorageLiteral _ slot writeVal _ =>
+      execSourceRequireFamilyClausesThenSetStorageLiteral init clauses slot writeVal
+  | .returnLiteral retVal =>
+      execSourceRequireFamilyClausesThenReturnLiteral init clauses retVal
+  | .letReturnLocalLiteral _ retVal =>
+      execSourceRequireFamilyClausesThenLetReturnLocalLiteral init clauses retVal
+  | .letAssignAddSetStorageLocalLiteral _ _ slot n m _ =>
+      execSourceRequireFamilyClausesThenLetAssignAddSetStorageLocalLiteral init clauses slot n m
+  | .letAssignSubSetStorageLocalLiteral _ _ slot n m _ =>
+      execSourceRequireFamilyClausesThenLetAssignSubSetStorageLocalLiteral init clauses slot n m
+  | .letAssignMulSetStorageLocalLiteral _ _ slot n m _ =>
+      execSourceRequireFamilyClausesThenLetAssignMulSetStorageLocalLiteral init clauses slot n m
+
+/-- Compiled semantics dispatcher for the supported continuation family after
+unified `require` guard-family clause lists. -/
+def execCompiledRequireFamilyClausesThenTail
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (tail : RequireFamilyClausesTail fields) : TExecResult :=
+  match tail with
+  | .setStorageLiteral fieldName _ writeVal _ =>
+      execCompiledRequireFamilyClausesThenSetStorageLiteral fields fieldName init clauses writeVal
+  | .returnLiteral retVal =>
+      execCompiledRequireFamilyClausesThenReturnLiteral fields init clauses retVal
+  | .letReturnLocalLiteral tmp retVal =>
+      execCompiledRequireFamilyClausesThenLetReturnLocalLiteral fields tmp init clauses retVal
+  | .letAssignAddSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      execCompiledRequireFamilyClausesThenLetAssignAddSetStorageLocalLiteral
+        fields fieldName tmp init clauses n m
+  | .letAssignSubSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      execCompiledRequireFamilyClausesThenLetAssignSubSetStorageLocalLiteral
+        fields fieldName tmp init clauses n m
+  | .letAssignMulSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      execCompiledRequireFamilyClausesThenLetAssignMulSetStorageLocalLiteral
+        fields fieldName tmp init clauses n m
+
+/-- Generic sequencing semantic-preservation theorem over the supported tail
+family after unified `require` guard-family clause lists. -/
+theorem compile_require_family_clauses_then_tail_semantics
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (tail : RequireFamilyClausesTail fields) :
+    execCompiledRequireFamilyClausesThenTail fields init clauses tail =
+      execSourceRequireFamilyClausesThenTail fields init clauses tail := by
+  cases tail with
+  | setStorageLiteral fieldName slot writeVal hfind =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_setStorage_literal_semantics
+          fields fieldName slot init clauses writeVal hfind
+  | returnLiteral retVal =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_return_literal_semantics fields init clauses retVal
+  | letReturnLocalLiteral tmp retVal =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_let_return_local_literal_semantics
+          fields tmp init clauses retVal
+  | letAssignAddSetStorageLocalLiteral fieldName tmp slot n m hfind =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics
+          fields fieldName tmp slot init clauses n m hfind
+  | letAssignSubSetStorageLocalLiteral fieldName tmp slot n m hfind =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics
+          fields fieldName tmp slot init clauses n m hfind
+  | letAssignMulSetStorageLocalLiteral fieldName tmp slot n m hfind =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics
+          fields fieldName tmp slot init clauses n m hfind
+
 end Verity.Core.Free

@@ -1328,4 +1328,12 @@ example (family : RequireLiteralGuardFamily)
   compile_require_family_then_return_literal_semantics
     family fields init n m p q message retVal
 
+example (fields : List Compiler.CompilationModel.Field)
+    (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (tail : RequireFamilyClausesTail fields) :
+    execCompiledRequireFamilyClausesThenTail fields init clauses tail =
+      execSourceRequireFamilyClausesThenTail fields init clauses tail :=
+  compile_require_family_clauses_then_tail_semantics fields init clauses tail
+
 end Verity.Core.Free
