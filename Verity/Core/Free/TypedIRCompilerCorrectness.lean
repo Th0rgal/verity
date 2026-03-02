@@ -1205,4 +1205,49 @@ theorem compile_require_family_clauses_then_tail_semantics
         using compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics
           fields fieldName tmp slot init clauses n m hfind
 
+/-- Program fragment in the currently supported 2.2 generic family:
+one unified require-clause list followed by one supported tail. -/
+structure RequireFamilyClausesTailProgram (fields : List Field) where
+  clauses : List RequireLiteralGuardFamilyClause
+  tail : RequireFamilyClausesTail fields
+
+/-- Source semantics dispatcher for lists of supported 2.2 generic program
+fragments. Evaluation short-circuits on revert. -/
+def execSourceRequireFamilyClausesTailPrograms
+    (fields : List Field) (init : TExecState)
+    (programs : List (RequireFamilyClausesTailProgram fields)) : TExecResult :=
+  match programs with
+  | [] => .ok init
+  | program :: rest =>
+      match execSourceRequireFamilyClausesThenTail fields init program.clauses program.tail with
+      | .ok st => execSourceRequireFamilyClausesTailPrograms fields st rest
+      | .revert reason => .revert reason
+
+/-- Compiled semantics dispatcher for lists of supported 2.2 generic program
+fragments. Evaluation short-circuits on revert. -/
+def execCompiledRequireFamilyClausesTailPrograms
+    (fields : List Field) (init : TExecState)
+    (programs : List (RequireFamilyClausesTailProgram fields)) : TExecResult :=
+  match programs with
+  | [] => .ok init
+  | program :: rest =>
+      match execCompiledRequireFamilyClausesThenTail fields init program.clauses program.tail with
+      | .ok st => execCompiledRequireFamilyClausesTailPrograms fields st rest
+      | .revert reason => .revert reason
+
+/-- Structural-induction semantic-preservation theorem over lists of supported
+2.2 generic fragments `(require-clause-list + tail)`. -/
+theorem compile_require_family_clauses_tail_programs_semantics
+    (fields : List Field) (init : TExecState)
+    (programs : List (RequireFamilyClausesTailProgram fields)) :
+    execCompiledRequireFamilyClausesTailPrograms fields init programs =
+      execSourceRequireFamilyClausesTailPrograms fields init programs := by
+  induction programs generalizing init with
+  | nil =>
+      simp [execCompiledRequireFamilyClausesTailPrograms, execSourceRequireFamilyClausesTailPrograms]
+  | cons program rest ih =>
+      simp [execCompiledRequireFamilyClausesTailPrograms,
+        execSourceRequireFamilyClausesTailPrograms,
+        compile_require_family_clauses_then_tail_semantics, ih]
+
 end Verity.Core.Free
