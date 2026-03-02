@@ -131,7 +131,8 @@
         "Introduce one generic dispatcher theorem over supported require-clause-list sequencing tails (`setStorage literal`, `return literal`, `let-return local`, `let-setStorage local`, `let-assign literal setStorage local`, `let-assign-{add,sub,mul}-setStorage local`) to reduce pattern-by-pattern theorem surface into a single reusable 2.2 artifact without deleting existing obligations.",
         "Extend the generic require-clause-list tail theorem to structural induction over lists of supported `(require-clause-list + tail)` program fragments, preserving short-circuit revert behavior across fragment sequencing.",
         "Add append/composition preservation for supported `(require-clause-list + tail)` program lists from arbitrary initial execution states, for both source and compiled semantics, and connect them under one generic semantic-preservation theorem.",
-        "Define an explicit supported statement-fragment grammar and prove one generic list-level semantic-preservation theorem over that grammar, reducing dependence on ad-hoc wrapper structures while preserving existing obligations."
+        "Define an explicit supported statement-fragment grammar and prove one generic list-level semantic-preservation theorem over that grammar, reducing dependence on ad-hoc wrapper structures while preserving existing obligations.",
+        "Add one semantic-preservation theorem stated over arbitrary raw `List Stmt` with an explicit declared-fragment witness (`SupportedStmtList`), connecting back to the generic fragment semantics without deleting existing obligations."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
@@ -145,10 +146,10 @@
         "python3 scripts/check_issue_1060_integrity.py"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T12:27:19Z artifact_sha256=working-tree]",
-        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T12:27:19Z artifact_sha256=working-tree]",
-        "pass: lake build [run_id=2026-03-02T12:27:19Z artifact_sha256=working-tree]",
-        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T12:27:19Z artifact_sha256=working-tree]"
+        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T12:53:00Z artifact_sha256=working-tree]",
+        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T12:53:00Z artifact_sha256=working-tree]",
+        "pass: lake build [run_id=2026-03-02T12:53:00Z artifact_sha256=working-tree]",
+        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T12:53:00Z artifact_sha256=working-tree]"
       ],
       "evidence": {
         "theorems": [
@@ -461,6 +462,11 @@
             "name": "execSourceSupportedStmtFragments",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source semantics dispatcher over lists of explicit supported statement fragments."
+          },
+          {
+            "name": "compile_supported_stmt_list_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For arbitrary raw statement lists witnessed to belong to the declared supported fragment grammar, there exists a fragment decomposition whose compiled and source semantics are equal."
           }
         ],
         "tests": [
@@ -499,7 +505,8 @@
           "TypedIRTests: example instantiating compile_require_family_clauses_then_tail_semantics over arbitrary fields/init/guard-family clauses/supported tail family",
           "TypedIRTests: example instantiating compile_require_family_clauses_tail_programs_semantics over arbitrary fields/init/lists of supported require-clause-list plus tail fragments",
           "TypedIRTests: example instantiating compile_require_family_clauses_tail_programs_append_semantics over arbitrary fields/init/pre/post supported require-clause-list plus tail fragment lists",
-          "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments"
+          "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments",
+          "TypedIRTests example instantiating compile_supported_stmt_list_semantics"
         ]
       },
       "obligation_delta": {
@@ -507,10 +514,10 @@
         "removed_sorries": [],
         "removed_or_reframed_obligations": []
       },
-      "notes": "2.2 remains partial: this run introduces an explicit supported statement-fragment grammar (`SupportedStmtFragment`) and one generic list-level theorem (`compile_supported_stmt_fragments_semantics`) over that grammar, reusing existing `(require-clause-list + tail)` preservation artifacts without deleting prior obligations. Uncovered fragment remains full statement-fragment-wide source\u2194typed theorem over arbitrary supported statement lists.",
+      "notes": "Status remains partial. Added raw List Stmt theorem with explicit supported-fragment witness (SupportedStmtList) and focused test instantiation. Uncovered: no single theorem yet directly equates source-semantics and typed-semantics for arbitrary raw supported statement lists without decomposition witnesses; broader supported constructors remain unintegrated into one fragment-wide theorem.",
       "uncovered_fragments": [
-        "No single theorem yet states source-semantics \u2194 typed-semantics preservation for arbitrary lists of raw supported statements (`List Stmt`) in the declared fragment.",
-        "Current explicit grammar theorem still factors through require-clause-list + supported-tail fragment structures; broader supported statement constructors are not yet integrated into one raw statement-list theorem."
+        "No single theorem yet directly equates source-semantics and typed-semantics for arbitrary raw supported statement lists (`List Stmt`) without requiring a decomposition witness.",
+        "Current raw-list theorem proves equality via explicit decomposition into `SupportedStmtFragment`; broader supported statement constructors are not yet integrated into one direct fragment-wide theorem."
       ]
     },
     "2.3": {

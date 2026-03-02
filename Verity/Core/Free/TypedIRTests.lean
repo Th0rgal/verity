@@ -1381,4 +1381,14 @@ example (fields : List Compiler.CompilationModel.Field)
       execSourceSupportedStmtFragments fields init fragments :=
   compile_supported_stmt_fragments_semantics fields init fragments
 
+example (fields : List Compiler.CompilationModel.Field)
+    (init : TExecState)
+    (stmts : List Compiler.CompilationModel.Stmt)
+    (hSupported : SupportedStmtList fields stmts) :
+    ∃ fragments : List (SupportedStmtFragment fields),
+      supportedStmtFragmentsToStmts fragments = stmts ∧
+      execCompiledSupportedStmtFragments fields init fragments =
+        execSourceSupportedStmtFragments fields init fragments :=
+  compile_supported_stmt_list_semantics fields init stmts hSupported
+
 end Verity.Core.Free

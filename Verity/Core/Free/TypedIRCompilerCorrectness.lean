@@ -1506,6 +1506,87 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
       { clauses := clauses
         tail := .letAssignMulSetStorageLocalLiteral fieldName tmp slot n m hfind }
 
+/-- Encode one unified `require` guard-family clause into a source `Stmt.require`. -/
+def RequireLiteralGuardFamilyClause.toStmt (clause : RequireLiteralGuardFamilyClause) : Stmt :=
+  let guardExpr :=
+    match clause.family with
+    | .binary .eq =>
+        Expr.eq (Expr.literal clause.n) (Expr.literal clause.m)
+    | .binary .notEq =>
+        Expr.logicalNot (Expr.eq (Expr.literal clause.n) (Expr.literal clause.m))
+    | .binary .lt =>
+        Expr.lt (Expr.literal clause.n) (Expr.literal clause.m)
+    | .binary .gt =>
+        Expr.gt (Expr.literal clause.n) (Expr.literal clause.m)
+    | .binary .ge =>
+        Expr.ge (Expr.literal clause.n) (Expr.literal clause.m)
+    | .binary .le =>
+        Expr.le (Expr.literal clause.n) (Expr.literal clause.m)
+    | .andEqLt =>
+        Expr.logicalAnd
+          (Expr.eq (Expr.literal clause.n) (Expr.literal clause.m))
+          (Expr.lt (Expr.literal clause.p) (Expr.literal clause.q))
+    | .orEqLt =>
+        Expr.logicalOr
+          (Expr.eq (Expr.literal clause.n) (Expr.literal clause.m))
+          (Expr.lt (Expr.literal clause.p) (Expr.literal clause.q))
+  Stmt.require guardExpr clause.message
+
+/-- Encode one supported continuation tail into a source statement list. -/
+def RequireFamilyClausesTail.toStmts
+    {fields : List Field} (tail : RequireFamilyClausesTail fields) : List Stmt :=
+  match tail with
+  | .setStorageLiteral fieldName _ writeVal _ =>
+      [Stmt.setStorage fieldName (Expr.literal writeVal)]
+  | .returnLiteral retVal =>
+      [Stmt.return (Expr.literal retVal)]
+  | .letReturnLocalLiteral tmp retVal =>
+      [Stmt.letVar tmp (Expr.literal retVal), Stmt.return (Expr.localVar tmp)]
+  | .letSetStorageLocalLiteral fieldName tmp _ n _ =>
+      [Stmt.letVar tmp (Expr.literal n), Stmt.setStorage fieldName (Expr.localVar tmp)]
+  | .letAssignSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      [ Stmt.letVar tmp (Expr.literal n)
+      , Stmt.assignVar tmp (Expr.literal m)
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      ]
+  | .letAssignAddSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      [ Stmt.letVar tmp (Expr.literal n)
+      , Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      ]
+  | .letAssignSubSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      [ Stmt.letVar tmp (Expr.literal n)
+      , Stmt.assignVar tmp (Expr.sub (Expr.localVar tmp) (Expr.literal m))
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      ]
+  | .letAssignMulSetStorageLocalLiteral fieldName tmp _ n m _ =>
+      [ Stmt.letVar tmp (Expr.literal n)
+      , Stmt.assignVar tmp (Expr.mul (Expr.localVar tmp) (Expr.literal m))
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      ]
+
+/-- Encode one supported `(require-clause-list + tail)` program into raw source
+statement lists. -/
+def RequireFamilyClausesTailProgram.toStmts
+    {fields : List Field} (program : RequireFamilyClausesTailProgram fields) : List Stmt :=
+  program.clauses.map RequireLiteralGuardFamilyClause.toStmt ++
+    program.tail.toStmts
+
+/-- Encode one explicit supported fragment into raw source statement lists. -/
+def SupportedStmtFragment.toStmts
+    {fields : List Field} (fragment : SupportedStmtFragment fields) : List Stmt :=
+  (fragment.toRequireFamilyClausesTailProgram).toStmts
+
+/-- Raw statement-list projection of explicit supported fragments. -/
+def supportedStmtFragmentsToStmts
+    {fields : List Field} (fragments : List (SupportedStmtFragment fields)) : List Stmt :=
+  (fragments.map SupportedStmtFragment.toStmts).foldr (· ++ ·) []
+
+/-- Raw `List Stmt` membership in the declared supported fragment grammar. -/
+def SupportedStmtList (fields : List Field) (stmts : List Stmt) : Prop :=
+  ∃ fragments : List (SupportedStmtFragment fields),
+    supportedStmtFragmentsToStmts fragments = stmts
+
 /-- Source semantics for lists of explicit supported statement fragments. -/
 def execSourceSupportedStmtFragments
     (fields : List Field) (init : TExecState)
@@ -1530,5 +1611,18 @@ theorem compile_supported_stmt_fragments_semantics
   simpa [execCompiledSupportedStmtFragments, execSourceSupportedStmtFragments]
     using compile_require_family_clauses_tail_programs_semantics fields init
       (fragments.map SupportedStmtFragment.toRequireFamilyClausesTailProgram)
+
+/-- Raw-statement-list semantic-preservation theorem for arbitrary lists in the
+declared supported statement fragment (witnessed by `SupportedStmtList`). -/
+theorem compile_supported_stmt_list_semantics
+    (fields : List Field) (init : TExecState) (stmts : List Stmt)
+    (hSupported : SupportedStmtList fields stmts) :
+    ∃ fragments : List (SupportedStmtFragment fields),
+      supportedStmtFragmentsToStmts fragments = stmts ∧
+      execCompiledSupportedStmtFragments fields init fragments =
+        execSourceSupportedStmtFragments fields init fragments := by
+  rcases hSupported with ⟨fragments, hfragments⟩
+  refine ⟨fragments, hfragments, ?_⟩
+  exact compile_supported_stmt_fragments_semantics fields init fragments
 
 end Verity.Core.Free
