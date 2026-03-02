@@ -107,8 +107,17 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_lean_warning_regression.py`** - Enforces Lean warning non-regression from `lake build` output against `artifacts/lean_warning_baseline.json` (allows warning reduction, blocks warning increases by total/file/message), with strict baseline schema enforcement (required keys, no null counters, no boolean-as-integer coercions) and fail-closed UTF-8 log decoding
 - **`check_proof_length.py`** - Enforces proof length limits: soft limit at 30 lines, hard limit at 50 lines with an explicit allowlist for pre-existing long proofs; reports proof length distribution as a CI summary table (`--format=markdown`); comment/string-aware via shared Lean lexer utilities
 - **`check_issue_1060_integrity.py`** - Enforces non-inflated completion evidence for issue #1060 ledger entries (`artifacts/issue_1060_progress.json`): every `complete` item must include acceptance criteria, changed files, verification commands/results (including `lake build`), test evidence, theorem evidence for semantic-proof items, and non-weakened obligation mapping for removed `sorry` goals
+- **`run_1060_fast_gate.sh`** - Fast local issue #1060 gate: refreshes verification artifact, validates doc counts + integrity ledger, checks artifact freshness, and runs integrity checker unit tests (optional `--with-build` includes `lake build`)
+- **`refresh_verification_artifacts.sh`** - Regenerates `artifacts/verification_status.json`, auto-fixes stale documentation counts (`check_doc_counts.py --fix`), then re-validates
+- **`install_pre_push_fast_gate.sh`** - Installs a local `.git/hooks/pre-push` hook that runs `scripts/run_1060_fast_gate.sh`
 
 ```bash
+# Quick issue #1060 loop
+make ci-fast
+make ci-fast-build
+make refresh-status
+make install-fast-hook
+
 # Run locally before submitting documentation changes
 python3 scripts/generate_verification_status.py
 python3 scripts/check_doc_counts.py

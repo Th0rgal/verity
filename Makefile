@@ -5,7 +5,8 @@
 
 .PHONY: help setup setup-elan setup-solc setup-foundry \
         verify test test-foundry test-python axiom-report \
-        compile generate-yul check all clean
+        compile generate-yul check ci-fast ci-fast-build \
+        refresh-status install-fast-hook all clean
 
 # Pinned versions (must match .github/workflows/verify.yml)
 ELAN_VERSION     := v4.1.2
@@ -101,6 +102,18 @@ check: ## Run all CI validation scripts (no Lean build required)
 	python3 scripts/check_lean_hygiene.py
 	python3 scripts/generate_print_axioms.py --check
 	@echo "All checks passed."
+
+ci-fast: ## Fast local gate for issue #1060 progress runs (no Lean build)
+	scripts/run_1060_fast_gate.sh
+
+ci-fast-build: ## Fast local gate + Lean build for issue #1060 progress runs
+	scripts/run_1060_fast_gate.sh --with-build
+
+refresh-status: ## Regenerate verification artifact and auto-fix doc counts
+	scripts/refresh_verification_artifacts.sh
+
+install-fast-hook: ## Install a pre-push hook that runs the issue #1060 fast gate
+	scripts/install_pre_push_fast_gate.sh
 
 # ---------------------------------------------------------------------------
 # Full pipeline

@@ -87,7 +87,14 @@ Proceed without approval:
 
 ```bash
 lake build
+make ci-fast
 FOUNDRY_PROFILE=difftest forge test
+```
+
+Optional one-time setup to enforce the fast gate before every push:
+
+```bash
+make install-fast-hook
 ```
 
 ## Notes
