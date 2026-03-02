@@ -811,6 +811,45 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_th
   simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
+/-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
+          [return (literal thenVal)]
+          [setStorage fieldName (literal elseVal)]]
+     [setStorage fieldName (literal outerElseVal)]`
+lowers to one typed outer `if_` whose true branch contains a typed inner `if_`
+with heterogeneous `return`/`setStorage` branches and whose false branch
+writes storage directly, from an empty compile state. -/
+theorem compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorage_literal_run
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (n m p q thenVal elseVal outerElseVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [Stmt.ite
+        (Expr.eq (Expr.literal n) (Expr.literal m))
+        [Stmt.ite
+          (Expr.eq (Expr.literal p) (Expr.literal q))
+          [Stmt.return (Expr.literal thenVal)]
+          [Stmt.setStorage fieldName (Expr.literal elseVal)]]
+        [Stmt.setStorage fieldName (Expr.literal outerElseVal)] ]).run {} =
+      Except.ok ((),
+        { nextId := 0
+          vars := []
+          params := #[]
+          locals := #[]
+          body := #[
+            TStmt.if_
+              (TExpr.eq (TExpr.uintLit n) (TExpr.uintLit m))
+              [TStmt.if_
+                (TExpr.eq (TExpr.uintLit p) (TExpr.uintLit q))
+                [TStmt.returnUint (TExpr.uintLit thenVal)]
+                [TStmt.setStorage slot (TExpr.uintLit elseVal)]]
+              [TStmt.setStorage slot (TExpr.uintLit outerElseVal)]
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  rfl
+
 /-- Single-statement compilation shape for a broader supported require subset:
 `require (eq (literal n) (literal m)) message`
 lowers to one typed `if_` with an else-branch `revert`, from an empty compile state. -/
