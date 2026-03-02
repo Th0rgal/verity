@@ -1151,4 +1151,14 @@ example (fields : List Compiler.CompilationModel.Field)
       execSourceLetReturnLocalLiteral init n :=
   compile_let_return_local_literal_semantics fields tmp init n
 
+example (fields : List Compiler.CompilationModel.Field)
+    (fieldName : String) (slotIdx : Nat)
+    (init : TExecState) (n m thenVal elseVal : Nat)
+    (hfind : Compiler.CompilationModel.findFieldWithResolvedSlot fields fieldName =
+      some (({ name := fieldName, ty := Compiler.CompilationModel.FieldType.uint256 } : Compiler.CompilationModel.Field), slotIdx)) :
+    execCompiledIteEqSetStorageLiterals fields fieldName init n m thenVal elseVal =
+      .ok { init with world := execSourceIteEqSetStorageLiterals init.world slotIdx n m thenVal elseVal } :=
+  compile_ite_eq_setStorage_literals_semantics
+    fields fieldName slotIdx init n m thenVal elseVal hfind
+
 end Verity.Core.Free

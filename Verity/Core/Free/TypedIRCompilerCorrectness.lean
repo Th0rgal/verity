@@ -126,6 +126,31 @@ def execCompiledLetReturnLocalLiteral
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Direct source semantics for a broader supported branch subset:
+`ite (eq (literal n) (literal m))
+     [setStorage fieldName (literal thenVal)]
+     [setStorage fieldName (literal elseVal)]`
+updates the resolved storage slot based on the equality guard. -/
+def execSourceIteEqSetStorageLiterals
+    (world : Verity.ContractState) (slot : Nat)
+    (n m thenVal elseVal : Nat) : Verity.ContractState :=
+  if (n : Verity.Core.Uint256) == (m : Verity.Core.Uint256) then
+    execSourceSetStorageLiteral world slot thenVal
+  else
+    execSourceSetStorageLiteral world slot elseVal
+
+/-- Compile + execute a broader supported branch subset statement through typed IR. -/
+def execCompiledIteEqSetStorageLiterals
+    (fields : List Field) (fieldName : String) (init : TExecState)
+    (n m thenVal elseVal : Nat) : TExecResult :=
+  match (compileStmts fields
+      [Stmt.ite
+        (Expr.eq (Expr.literal n) (Expr.literal m))
+        [Stmt.setStorage fieldName (Expr.literal thenVal)]
+        [Stmt.setStorage fieldName (Expr.literal elseVal)] ]).run {} with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Semantic-preservation theorem for the supported 2.2 subset:
 compiling and running `setStorage fieldName (literal n)` matches direct source execution,
 under explicit field-resolution assumptions. -/
@@ -262,5 +287,25 @@ theorem compile_let_return_local_literal_semantics
   simp [execCompiledLetReturnLocalLiteral, execSourceLetReturnLocalLiteral,
     compileStmts_let_return_local_literal_run, evalTStmts, defaultEvalFuel]
   simp [evalTStmtsFuel, evalTStmtFuel]
+
+/-- Semantic-preservation theorem for a broader supported branch subset:
+compiling and running
+`ite (eq (literal n) (literal m))
+     [setStorage fieldName (literal thenVal)]
+     [setStorage fieldName (literal elseVal)]`
+matches direct source branch semantics under explicit field-resolution assumptions. -/
+theorem compile_ite_eq_setStorage_literals_semantics
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (init : TExecState) (n m thenVal elseVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    execCompiledIteEqSetStorageLiterals fields fieldName init n m thenVal elseVal =
+      .ok { init with world := execSourceIteEqSetStorageLiterals init.world slot n m thenVal elseVal } := by
+  simp [execCompiledIteEqSetStorageLiterals, execSourceIteEqSetStorageLiterals,
+    execSourceSetStorageLiteral, compileStmts_single_ite_eq_setStorage_literals_run,
+    hfind, evalTStmts, defaultEvalFuel]
+  by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
 
 end Verity.Core.Free
