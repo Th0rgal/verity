@@ -1625,4 +1625,28 @@ theorem compile_supported_stmt_list_semantics
   refine ⟨fragments, hfragments, ?_⟩
   exact compile_supported_stmt_fragments_semantics fields init fragments
 
+/-- Compiled semantics for arbitrary raw statement lists in the declared
+supported fragment, selected via the provided fragment-membership witness. -/
+noncomputable def execCompiledSupportedStmtList
+    (fields : List Field) (init : TExecState)
+    (stmts : List Stmt) (hSupported : SupportedStmtList fields stmts) : TExecResult :=
+  execCompiledSupportedStmtFragments fields init (Classical.choose hSupported)
+
+/-- Source semantics for arbitrary raw statement lists in the declared
+supported fragment, selected via the provided fragment-membership witness. -/
+noncomputable def execSourceSupportedStmtList
+    (fields : List Field) (init : TExecState)
+    (stmts : List Stmt) (hSupported : SupportedStmtList fields stmts) : TExecResult :=
+  execSourceSupportedStmtFragments fields init (Classical.choose hSupported)
+
+/-- Direct raw-list semantic-preservation theorem for arbitrary supported
+statement lists (no existential decomposition in the conclusion). -/
+theorem compile_supported_stmt_list_direct_semantics
+    (fields : List Field) (init : TExecState) (stmts : List Stmt)
+    (hSupported : SupportedStmtList fields stmts) :
+    execCompiledSupportedStmtList fields init stmts hSupported =
+      execSourceSupportedStmtList fields init stmts hSupported := by
+  simp [execCompiledSupportedStmtList, execSourceSupportedStmtList,
+    compile_supported_stmt_fragments_semantics]
+
 end Verity.Core.Free
