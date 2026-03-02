@@ -712,4 +712,47 @@ theorem compile_require_literal_guard_family_semantics
       simpa [execCompiledRequireLiteralGuardFamily, execSourceRequireLiteralGuardFamily]
         using compile_require_or_eq_lt_literals_semantics fields init n m p q message
 
+/-- Source semantics for a broader supported sequencing subset:
+run one supported `require` guard-family clause, then perform
+`setStorage fieldName (literal writeVal)` only on success. -/
+def execSourceRequireFamilyThenSetStorageLiteral
+    (family : RequireLiteralGuardFamily)
+    (init : TExecState) (slot : Nat)
+    (n m p q : Nat) (message : String) (writeVal : Nat) : TExecResult :=
+  match execSourceRequireLiteralGuardFamily family init n m p q message with
+  | .ok st => .ok { st with world := execSourceSetStorageLiteral st.world slot writeVal }
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for the same broader supported sequencing subset:
+run compiled one-clause `require` guard-family semantics, then run
+compiled `setStorage fieldName (literal writeVal)` on success. -/
+def execCompiledRequireFamilyThenSetStorageLiteral
+    (family : RequireLiteralGuardFamily)
+    (fields : List Field) (fieldName : String) (init : TExecState)
+    (n m p q : Nat) (message : String) (writeVal : Nat) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamily family fields init n m p q message with
+  | .ok st => execCompiledSetStorageLiteral fields fieldName st writeVal
+  | .revert reason => .revert reason
+
+/-- Sequencing semantic-preservation theorem for a broader supported subset:
+for unified `require` guard families followed by `setStorage literal`,
+compiled execution matches direct source sequencing semantics under
+explicit field-resolution assumptions. -/
+theorem compile_require_family_then_setStorage_literal_semantics
+    (family : RequireLiteralGuardFamily)
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (init : TExecState)
+    (n m p q : Nat) (message : String) (writeVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    execCompiledRequireFamilyThenSetStorageLiteral
+        family fields fieldName init n m p q message writeVal =
+      execSourceRequireFamilyThenSetStorageLiteral
+        family init slot n m p q message writeVal := by
+  simp [execCompiledRequireFamilyThenSetStorageLiteral,
+    execSourceRequireFamilyThenSetStorageLiteral,
+    compile_require_literal_guard_family_semantics, compile_setStorage_literal_semantics,
+    hfind]
+  rfl
+
 end Verity.Core.Free
