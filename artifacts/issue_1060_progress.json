@@ -115,7 +115,8 @@
         "Extend semantic-preservation coverage to a composite-guard require subset where `require (logicalAnd (eq (literal n) (literal m)) (lt (literal p) (literal q))) message` preserves source short-circuit guard/revert behavior.",
         "Extend semantic-preservation coverage to a composite-guard require subset where `require (logicalOr (eq (literal n) (literal m)) (lt (literal p) (literal q))) message` preserves source short-circuit guard/revert behavior.",
         "Generalize single-guard require semantic preservation into one theorem over a guard family (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) without deleting existing specialized obligations.",
-        "Extend semantic-preservation coverage to lists of supported single-guard `require` literals via structural induction, preserving short-circuit revert behavior."
+        "Extend semantic-preservation coverage to lists of supported single-guard `require` literals via structural induction, preserving short-circuit revert behavior.",
+        "Generalize require semantic preservation into one theorem over a unified guard family combining binary guards (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) with composite guards (`logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) without deleting existing obligations."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompiler.lean",
@@ -326,6 +327,11 @@
             "name": "compile_require_binary_literal_clauses_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Structural-induction theorem: for lists of supported single-guard require clauses, compiled evaluation equals source evaluation with identical short-circuit revert behavior."
+          },
+          {
+            "name": "compile_require_literal_guard_family_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Generalized theorem: for unified require guard families (binary guard set plus and(eq,lt)/or(eq,lt)), compiled single-require execution equals source require semantics."
           }
         ],
         "tests": [
@@ -348,13 +354,14 @@
           "TypedIRTests: example instantiating compile_require_binary_literal_guard_semantics over arbitrary guard/fields/init/n/m/message",
           "TypedIRTests: example instantiating compile_require_binary_literal_clauses_semantics over arbitrary fields/init/clauses",
           "TypedIRTests: example instantiating compile_require_and_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
-          "TypedIRTests: example instantiating compile_require_or_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message"
+          "TypedIRTests: example instantiating compile_require_or_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
+          "TypedIRTests: example instantiating compile_require_literal_guard_family_semantics over arbitrary family/fields/init/n/m/p/q/message"
         ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": "2.2 remains partial: this slice adds list-level structural-induction semantic preservation via `compile_require_binary_literal_clauses_semantics` on top of guard-family generalization for `eq/notEq/lt/gt/ge/le`, preserving short-circuit revert behavior for supported require sequences. It still does not provide a full source-vs-typed semantic-preservation theorem for the broader supported statement fragment."
+      "notes": "2.2 remains partial: this slice adds unified-guard semantic preservation via `compile_require_literal_guard_family_semantics`, covering binary guard family (`eq/notEq/lt/gt/ge/le`) plus composite guards (`logicalAnd(eq,lt)` and `logicalOr(eq,lt)`) without deleting prior obligations. Full source-vs-typed semantic preservation over the broader supported statement fragment is still pending."
     },
     "2.3": {
       "status": "open",

@@ -1222,4 +1222,11 @@ example (fields : List Compiler.CompilationModel.Field)
       execSourceRequireOrEqLtLiterals init n m p q message :=
   compile_require_or_eq_lt_literals_semantics fields init n m p q message
 
+example (family : RequireLiteralGuardFamily)
+    (fields : List Compiler.CompilationModel.Field)
+    (init : TExecState) (n m p q : Nat) (message : String) :
+    execCompiledRequireLiteralGuardFamily family fields init n m p q message =
+      execSourceRequireLiteralGuardFamily family init n m p q message :=
+  compile_require_literal_guard_family_semantics family fields init n m p q message
+
 end Verity.Core.Free

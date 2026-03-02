@@ -668,4 +668,48 @@ theorem compile_require_binary_literal_clauses_semantics
         compile_require_binary_literal_guard_semantics, ih]
       rfl
 
+/-- Unified guard family for semantic-preservation coverage across supported
+single-guard and composite-guard `require` literal subsets. -/
+inductive RequireLiteralGuardFamily where
+  | binary (guard : RequireBinaryLiteralGuard)
+  | andEqLt
+  | orEqLt
+deriving DecidableEq, Repr
+
+/-- Source semantics dispatcher for the unified `require` guard family. -/
+def execSourceRequireLiteralGuardFamily
+    (family : RequireLiteralGuardFamily)
+    (init : TExecState) (n m p q : Nat) (message : String) : TExecResult :=
+  match family with
+  | .binary guard => execSourceRequireBinaryLiteralGuard guard init n m message
+  | .andEqLt => execSourceRequireAndEqLtLiterals init n m p q message
+  | .orEqLt => execSourceRequireOrEqLtLiterals init n m p q message
+
+/-- Compiled semantics dispatcher for the unified `require` guard family. -/
+def execCompiledRequireLiteralGuardFamily
+    (family : RequireLiteralGuardFamily)
+    (fields : List Field) (init : TExecState) (n m p q : Nat) (message : String) : TExecResult :=
+  match family with
+  | .binary guard => execCompiledRequireBinaryLiteralGuard guard fields init n m message
+  | .andEqLt => execCompiledRequireAndEqLtLiterals fields init n m p q message
+  | .orEqLt => execCompiledRequireOrEqLtLiterals fields init n m p q message
+
+/-- Generalized semantic-preservation theorem over the supported unified
+`require` guard family (`eq/notEq/lt/gt/ge/le`, `and(eq,lt)`, `or(eq,lt)`). -/
+theorem compile_require_literal_guard_family_semantics
+    (family : RequireLiteralGuardFamily)
+    (fields : List Field) (init : TExecState) (n m p q : Nat) (message : String) :
+    execCompiledRequireLiteralGuardFamily family fields init n m p q message =
+      execSourceRequireLiteralGuardFamily family init n m p q message := by
+  cases family with
+  | binary guard =>
+      simpa [execCompiledRequireLiteralGuardFamily, execSourceRequireLiteralGuardFamily]
+        using compile_require_binary_literal_guard_semantics guard fields init n m message
+  | andEqLt =>
+      simpa [execCompiledRequireLiteralGuardFamily, execSourceRequireLiteralGuardFamily]
+        using compile_require_and_eq_lt_literals_semantics fields init n m p q message
+  | orEqLt =>
+      simpa [execCompiledRequireLiteralGuardFamily, execSourceRequireLiteralGuardFamily]
+        using compile_require_or_eq_lt_literals_semantics fields init n m p q message
+
 end Verity.Core.Free
