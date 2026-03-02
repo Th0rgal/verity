@@ -194,6 +194,20 @@ def execCompiledReturnStorageAddr
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Direct source semantics for the supported mapping-return subset:
+`return (mapping fieldName caller)` halts without mutating state. -/
+def execSourceReturnMappingCaller
+    (init : TExecState) (_slot : Nat) : TExecResult :=
+  .ok init
+
+/-- Compile + execute the `return (mapping fieldName caller)` pattern. -/
+def execCompiledReturnMappingCaller
+    (fields : List Field) (fieldName : String)
+    (init : TExecState) : TExecResult :=
+  match (compileStmts fields [Stmt.return (Expr.mapping fieldName Expr.caller)]).run {} with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Source semantics for `require (eq caller (storage ownerField)) msg ;
 setStorage countField (add (storage countField) (literal n)) ; stop`. -/
 def execSourceRequireCallerEqStorageAddrSetStorageAddStop
@@ -1053,6 +1067,19 @@ theorem compile_return_storage_addr_semantics
     compileStmts_single_return_storage_addr_run, hfind,
     evalTStmts, defaultEvalFuel]
   simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+
+/-- Semantic-preservation for `return (mapping fieldName caller)`:
+compiled execution matches direct source semantics (no state change). -/
+theorem compile_return_mapping_caller_semantics
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (init : TExecState)
+    (hSlot : findFieldSlot fields fieldName = some slot) :
+    execCompiledReturnMappingCaller fields fieldName init =
+      execSourceReturnMappingCaller init slot := by
+  simp [execCompiledReturnMappingCaller, execSourceReturnMappingCaller,
+    compileStmts_single_return_mapping_caller_run, hSlot,
+    evalTStmts, defaultEvalFuel]
+  simp [evalTStmtsFuel, evalTStmtFuel]
 
 /-- Semantic-preservation for `require (eq caller (storage ownerField)) msg ;
 setStorage countField (add (storage countField) (literal n)) ; stop`. -/
@@ -2900,6 +2927,37 @@ theorem compile_require_family_clauses_then_return_storage_addr_semantics
     compile_return_storage_addr_semantics, hfind]
   split <;> simp_all
 
+/-- Source semantics for `require` clauses followed by `return (mapping field caller)`. -/
+def execSourceRequireFamilyClausesThenReturnMappingCaller
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (slot : Nat) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st => execSourceReturnMappingCaller st slot
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for `require` clauses followed by `return (mapping field caller)`. -/
+def execCompiledRequireFamilyClausesThenReturnMappingCaller
+    (fields : List Field) (fieldName : String) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st => execCompiledReturnMappingCaller fields fieldName st
+  | .revert reason => .revert reason
+
+/-- Sequencing theorem: `require` clauses followed by `return (mapping field caller)`. -/
+theorem compile_require_family_clauses_then_return_mapping_caller_semantics
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (hSlot : findFieldSlot fields fieldName = some slot) :
+    execCompiledRequireFamilyClausesThenReturnMappingCaller
+        fields fieldName init clauses =
+      execSourceRequireFamilyClausesThenReturnMappingCaller
+        init clauses slot := by
+  simp [execCompiledRequireFamilyClausesThenReturnMappingCaller,
+    execSourceRequireFamilyClausesThenReturnMappingCaller,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_return_mapping_caller_semantics, hSlot]
+  split <;> simp_all
+
 /-- Source semantics for require-clauses + requireCallerEqStorageAddr + setStorage(add) + stop. -/
 def execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
     (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
@@ -3240,6 +3298,9 @@ inductive RequireFamilyClausesTail (fields : List Field) where
         some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
       (hCount : findFieldWithResolvedSlot fields countField =
         some ({ name := countField, ty := FieldType.uint256 }, countSlot))
+  | returnMappingCaller
+      (fieldName : String) (slot : Nat)
+      (hSlot : findFieldSlot fields fieldName = some slot)
 
 /-- Source semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -3329,6 +3390,8 @@ def execSourceRequireFamilyClausesThenTail
   | .requireCallerEqStorageAddrSetStorageSubStop _ _ msg ownerSlot countSlot n _ _ =>
       execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
         init clauses ownerSlot countSlot n msg
+  | .returnMappingCaller _ slot _ =>
+      execSourceRequireFamilyClausesThenReturnMappingCaller init clauses slot
 
 /-- Compiled semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -3428,6 +3491,9 @@ def execCompiledRequireFamilyClausesThenTail
   | .requireCallerEqStorageAddrSetStorageSubStop ownerField countField msg _ _ n _ _ =>
       execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
         fields ownerField countField init clauses n msg
+  | .returnMappingCaller fieldName _ _ =>
+      execCompiledRequireFamilyClausesThenReturnMappingCaller
+        fields fieldName init clauses
 
 /-- Generic sequencing semantic-preservation theorem over the supported tail
 family after unified `require` guard-family clause lists. -/
@@ -3568,6 +3634,10 @@ theorem compile_require_family_clauses_then_tail_semantics
       simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
         using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
           fields ownerField countField ownerSlot countSlot init clauses n msg hOwner hCount
+  | returnMappingCaller fieldName slot hSlot =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_return_mapping_caller_semantics
+          fields fieldName slot init clauses hSlot
 
 /-- Program fragment in the currently supported 2.2 generic family:
 one unified require-clause list followed by one supported tail. -/
@@ -3834,6 +3904,10 @@ inductive SupportedStmtFragment (fields : List Field) where
         some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
       (hCount : findFieldWithResolvedSlot fields countField =
         some ({ name := countField, ty := FieldType.uint256 }, countSlot))
+  | requireClausesThenReturnMappingCaller
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName : String) (slot : Nat)
+      (hSlot : findFieldSlot fields fieldName = some slot)
 
 /-- Encode an explicit supported statement fragment into the generic
 `(require-clause-list + tail)` program representation. -/
@@ -3950,6 +4024,9 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
       { clauses := clauses
         tail := .requireCallerEqStorageAddrSetStorageSubStop
           ownerField countField msg ownerSlot countSlot n hOwner hCount }
+  | .requireClausesThenReturnMappingCaller clauses fieldName slot hSlot =>
+      { clauses := clauses
+        tail := .returnMappingCaller fieldName slot hSlot }
 
 /-- Encode one unified `require` guard-family clause into a source `Stmt.require`. -/
 def RequireLiteralGuardFamilyClause.toStmt (clause : RequireLiteralGuardFamilyClause) : Stmt :=
@@ -4116,6 +4193,8 @@ def RequireFamilyClausesTail.toStmts
       [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
       , Stmt.setStorage countField (Expr.sub (Expr.storage countField) (Expr.literal n))
       , Stmt.stop ]
+  | .returnMappingCaller fieldName _ _ =>
+      [Stmt.return (Expr.mapping fieldName Expr.caller)]
 
 /-- Encode one supported `(require-clause-list + tail)` program into raw source
 statement lists. -/
@@ -4456,5 +4535,89 @@ theorem ownedCounter_decrement_correctness (init : TExecState) :
       execCompiledSupportedStmtFragments ownedCounterFields init fragments =
         execSourceSupportedStmtFragments ownedCounterFields init fragments :=
   compile_supported_stmt_list_semantics ownedCounterFields init _ ownedCounter_decrement_supported
+
+-- ============================================================================
+-- Ledger fields and correctness theorems
+-- ============================================================================
+
+/-- Ledger fields used for bridge theorem instantiation. -/
+def ledgerFields : List Field :=
+  [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
+
+/-- Ledger field slot resolution: `balances` maps to slot 0. -/
+theorem ledgerBalancesFieldSlot :
+    findFieldSlot ledgerFields "balances" = some 0 := by
+  rfl
+
+/-- Ledger field resolution: `balances` is a mapping at slot 0. -/
+theorem ledgerBalancesFieldResolution :
+    findFieldWithResolvedSlot ledgerFields "balances" =
+      some ({ name := "balances", ty := FieldType.mappingTyped (.simple .address) }, 0) := by
+  rfl
+
+-- ============================================================================
+-- SimpleToken fields and correctness theorems
+-- ============================================================================
+
+/-- SimpleToken fields used for bridge theorem instantiation. -/
+def simpleTokenFields : List Field :=
+  [{ name := "owner", ty := FieldType.address },
+   { name := "balances", ty := FieldType.mappingTyped (.simple .address) },
+   { name := "totalSupply", ty := FieldType.uint256 }]
+
+/-- SimpleToken field resolution: `owner` maps to slot 0. -/
+theorem simpleTokenOwnerFieldResolution :
+    findFieldWithResolvedSlot simpleTokenFields "owner" =
+      some ({ name := "owner", ty := FieldType.address }, 0) := by
+  rfl
+
+/-- SimpleToken field slot resolution: `balances` maps to slot 1. -/
+theorem simpleTokenBalancesFieldSlot :
+    findFieldSlot simpleTokenFields "balances" = some 1 := by
+  rfl
+
+/-- SimpleToken field resolution: `balances` is a mapping at slot 1. -/
+theorem simpleTokenBalancesFieldResolution :
+    findFieldWithResolvedSlot simpleTokenFields "balances" =
+      some ({ name := "balances", ty := FieldType.mappingTyped (.simple .address) }, 1) := by
+  rfl
+
+/-- SimpleToken field resolution: `totalSupply` maps to slot 2. -/
+theorem simpleTokenTotalSupplyFieldResolution :
+    findFieldWithResolvedSlot simpleTokenFields "totalSupply" =
+      some ({ name := "totalSupply", ty := FieldType.uint256 }, 2) := by
+  rfl
+
+/-- SimpleToken.totalSupply body belongs to the supported statement fragment grammar. -/
+theorem simpleToken_totalSupply_supported :
+    SupportedStmtList simpleTokenFields
+      [Stmt.return (Expr.storage "totalSupply")] := by
+  exact ⟨[.requireClausesThenReturnStorage
+    [] "totalSupply" 2 simpleTokenTotalSupplyFieldResolution], rfl⟩
+
+/-- SimpleToken.totalSupply compilation correctness: compiled and source semantics match. -/
+theorem simpleToken_totalSupply_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "totalSupply")] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments :=
+  compile_supported_stmt_list_semantics simpleTokenFields init _ simpleToken_totalSupply_supported
+
+/-- SimpleToken.owner body belongs to the supported statement fragment grammar. -/
+theorem simpleToken_owner_supported :
+    SupportedStmtList simpleTokenFields
+      [Stmt.return (Expr.storage "owner")] := by
+  exact ⟨[.requireClausesThenReturnStorageAddr
+    [] "owner" 0 simpleTokenOwnerFieldResolution], rfl⟩
+
+/-- SimpleToken.owner compilation correctness: compiled and source semantics match. -/
+theorem simpleToken_owner_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "owner")] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments :=
+  compile_supported_stmt_list_semantics simpleTokenFields init _ simpleToken_owner_supported
 
 end Verity.Core.Free

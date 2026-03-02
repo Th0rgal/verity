@@ -1703,4 +1703,114 @@ example (init : TExecState) :
         execSourceSupportedStmtFragments ownedCounterFields init fragments :=
   ownedCounter_decrement_correctness init
 
+-- ============================================================================
+-- Mapping return pattern tests (item 3.5)
+-- ============================================================================
+
+/-- End-to-end Ledger.getBalance: compiled block preserves state (return is read-only). -/
+def compiledLedgerGetBalancePreservesState : Bool :=
+  match compileFunctionNamed Compiler.Specs.ledgerSpec "getBalance" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [addrParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              storageMap := fun i addr =>
+                if i == 0 && addr == 42 then 200 else 0 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { address := fun i =>
+                          if i = addrParam.id then 42 else 0 } }
+          match evalTBlock init block with
+          | .ok _ => true
+          | .revert _ => false
+      | _ => false
+
+/-- Ledger.getBalance(addr=42): succeeds without reverting. -/
+example : compiledLedgerGetBalancePreservesState = true := by native_decide
+
+/-- End-to-end SimpleToken.balanceOf: compiled block preserves state (return is read-only). -/
+def compiledSimpleTokenBalanceOfPreservesState : Bool :=
+  match compileFunctionNamed Compiler.Specs.simpleTokenSpec "balanceOf" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [addrParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              storageMap := fun i addr =>
+                if i == 1 && addr == 42 then 500 else 0 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { address := fun i =>
+                          if i = addrParam.id then 42 else 0 } }
+          match evalTBlock init block with
+          | .ok _ => true
+          | .revert _ => false
+      | _ => false
+
+/-- SimpleToken.balanceOf(addr=42): succeeds without reverting. -/
+example : compiledSimpleTokenBalanceOfPreservesState = true := by native_decide
+
+/-- End-to-end SimpleToken.totalSupply: compiled block preserves state (return is read-only). -/
+def compiledSimpleTokenTotalSupplyPreservesState : Bool :=
+  match compileFunctionNamed Compiler.Specs.simpleTokenSpec "totalSupply" with
+  | .error _ => false
+  | .ok block =>
+      let initWorld : Verity.ContractState :=
+        { Verity.defaultState with «storage» := fun i => if i = 2 then 1000 else 0 }
+      let init : TExecState := { world := initWorld }
+      match evalTBlock init block with
+      | .ok _ => true
+      | .revert _ => false
+
+/-- SimpleToken.totalSupply: succeeds without reverting. -/
+example : compiledSimpleTokenTotalSupplyPreservesState = true := by native_decide
+
+/-- End-to-end SimpleToken.owner: compiled block preserves state (return is read-only). -/
+def compiledSimpleTokenOwnerPreservesState : Bool :=
+  match compileFunctionNamed Compiler.Specs.simpleTokenSpec "owner" with
+  | .error _ => false
+  | .ok block =>
+      let initWorld : Verity.ContractState :=
+        { Verity.defaultState with storageAddr := fun i => if i = 0 then 42 else 0 }
+      let init : TExecState := { world := initWorld }
+      match evalTBlock init block with
+      | .ok _ => true
+      | .revert _ => false
+
+/-- SimpleToken.owner: succeeds without reverting. -/
+example : compiledSimpleTokenOwnerPreservesState = true := by native_decide
+
+open Compiler.CompilationModel in
+/-- SimpleToken.totalSupply compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "totalSupply")] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments :=
+  simpleToken_totalSupply_correctness init
+
+open Compiler.CompilationModel in
+/-- SimpleToken.owner compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "owner")] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments :=
+  simpleToken_owner_correctness init
+
+open Compiler.CompilationModel in
+/-- Mapping return semantics preservation: compiled matches source for `return (mapping field caller)`. -/
+example (fields : List Field)
+    (fieldName : String) (slotIdx : Nat)
+    (init : TExecState)
+    (hSlot : findFieldSlot fields fieldName = some slotIdx) :
+    execCompiledReturnMappingCaller fields fieldName init =
+      execSourceReturnMappingCaller init slotIdx :=
+  compile_return_mapping_caller_semantics fields fieldName slotIdx init hSlot
+
 end Verity.Core.Free

@@ -1310,4 +1310,15 @@ theorem compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_liter
     hOwner, hCount, asBool, asUInt256, liftExcept, emit]
   rfl
 
+/-- Single-statement compilation shape for mapping return with caller key:
+`return (mapping fieldName caller)` lowers to `returnUint (getMapping slot sender)`. -/
+theorem compileStmts_single_return_mapping_caller_run
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (st : CompileState)
+    (hSlot : findFieldSlot fields fieldName = some slot) :
+    (compileStmts fields [Stmt.return (Expr.mapping fieldName Expr.caller)]).run st =
+      Except.ok ((), { st with body := st.body.push (TStmt.returnUint (TExpr.getMapping slot TExpr.sender)) }) := by
+  simp [compileStmts, compileStmt, compileExpr, asAddress, hSlot, emit, liftExcept]
+  rfl
+
 end Verity.Core.Free
