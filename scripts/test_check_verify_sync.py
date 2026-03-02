@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import io
+import json
+import sys
+import tempfile
+import textwrap
+import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import check_verify_sync as check
+
+
+class VerifySyncTests(unittest.TestCase):
+    def _run_jobs_check(self, workflow_text: str, expected_jobs: list[str]) -> tuple[int, str, str]:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
+            root = Path(td)
+            verify = root / "verify.yml"
+            spec = root / "verify_sync_spec.json"
+            verify.write_text(workflow_text, encoding="utf-8")
+            spec.write_text(json.dumps({"expected_jobs": expected_jobs}), encoding="utf-8")
+
+            old_verify = check.VERIFY_YML
+            old_spec = check.SPEC_PATH
+            check.VERIFY_YML = verify
+            check.SPEC_PATH = spec
+            old_argv = sys.argv
+            sys.argv = ["check_verify_sync.py", "--only", "jobs"]
+            try:
+                stderr = io.StringIO()
+                stdout = io.StringIO()
+                with redirect_stderr(stderr), redirect_stdout(stdout):
+                    rc = check.main()
+                return rc, stdout.getvalue(), stderr.getvalue()
+            finally:
+                check.VERIFY_YML = old_verify
+                check.SPEC_PATH = old_spec
+                sys.argv = old_argv
+
+    def test_jobs_check_passes_when_order_matches(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps: []
+              checks:
+                runs-on: ubuntu-latest
+                steps: []
+            """
+        )
+        rc, out, err = self._run_jobs_check(workflow, ["changes", "checks"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] jobs", out)
+
+    def test_jobs_check_fails_when_order_drifts(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              checks:
+                runs-on: ubuntu-latest
+                steps: []
+              changes:
+                runs-on: ubuntu-latest
+                steps: []
+            """
+        )
+        rc, _, err = self._run_jobs_check(workflow, ["changes", "checks"])
+        self.assertEqual(rc, 1)
+        self.assertIn("[FAIL] jobs", err)
+
+
+if __name__ == "__main__":
+    unittest.main()

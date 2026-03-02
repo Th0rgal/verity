@@ -96,6 +96,72 @@ class Issue1060IntegrityTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("complete but has no theorem evidence", stderr)
 
+    def test_fails_when_multiple_active_items(self) -> None:
+        import json
+
+        entries = {
+            item: {
+                "status": "open",
+                "acceptance_criteria": [],
+                "files_changed": [],
+                "verification_commands": [],
+                "verification_results": [],
+                "evidence": {"theorems": [], "tests": []},
+                "obligation_delta": {"removed_sorries": []},
+                "notes": "",
+            }
+            for item in guard.ROADMAP_ITEMS
+        }
+        entries["2.2"]["status"] = "partial"
+        entries["2.3"]["status"] = "in_progress"
+
+        payload = json.dumps({
+            "issue": "#1060",
+            "pr": "#1065",
+            "baseline_sorry": 0,
+            "items": entries,
+        })
+        rc, stderr = self._run_check(payload)
+        self.assertEqual(rc, 1)
+        self.assertIn("at most one roadmap item may be active", stderr)
+
+    def test_fails_when_active_item_result_lacks_run_marker(self) -> None:
+        import json
+
+        entries = {
+            item: {
+                "status": "open",
+                "acceptance_criteria": [],
+                "files_changed": [],
+                "verification_commands": [],
+                "verification_results": [],
+                "evidence": {"theorems": [], "tests": []},
+                "obligation_delta": {"removed_sorries": []},
+                "notes": "",
+            }
+            for item in guard.ROADMAP_ITEMS
+        }
+        entries["2.2"] = {
+            "status": "partial",
+            "acceptance_criteria": ["criterion"],
+            "files_changed": ["Verity/Core/Free/TypedIRCompilerCorrectness.lean"],
+            "verification_commands": ["lake build"],
+            "verification_results": ["pass: lake build"],
+            "evidence": {"theorems": [], "tests": ["test"]},
+            "obligation_delta": {"removed_sorries": []},
+            "notes": "",
+        }
+
+        payload = json.dumps({
+            "issue": "#1060",
+            "pr": "#1065",
+            "baseline_sorry": 0,
+            "items": entries,
+        })
+        rc, stderr = self._run_check(payload)
+        self.assertEqual(rc, 1)
+        self.assertIn("run_id=<...> or artifact_sha256=<...>", stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

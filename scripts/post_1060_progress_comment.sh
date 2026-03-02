@@ -63,7 +63,6 @@ else:
     body.append("- **Risks/follow-ups**: none recorded")
 
 out_path.write_text("\n\n".join(body) + "\n", encoding="utf-8")
-print(str(out_path))
 PY
 
 if [[ "$DRY_RUN" == "true" ]]; then
@@ -73,6 +72,41 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
-gh pr comment 1065 --repo Th0rgal/verity --body-file "$TMP_BODY"
-echo "[post-1060-comment] posted comment for item $ITEM_ID"
+MARKER="<!-- issue-1060-progress:${ITEM_ID} -->"
+EXISTING_ID="$(
+  gh api repos/Th0rgal/verity/issues/1065/comments --paginate \
+    | python3 -c 'from __future__ import annotations
+import json
+import sys
+
+marker = sys.argv[1]
+raw = sys.stdin.read()
+decoder = json.JSONDecoder()
+idx = 0
+matches = []
+while idx < len(raw):
+    while idx < len(raw) and raw[idx].isspace():
+        idx += 1
+    if idx >= len(raw):
+        break
+    value, end = decoder.raw_decode(raw, idx)
+    idx = end
+    if isinstance(value, list):
+        for c in value:
+            if isinstance(c, dict) and isinstance(c.get("body"), str) and marker in c["body"]:
+                matches.append(c)
+if matches:
+    print(matches[-1].get("id", ""))' "$MARKER"
+)"
+
+if [[ -n "$EXISTING_ID" ]]; then
+  BODY_CONTENT="$(cat "$TMP_BODY")"
+  gh api "repos/Th0rgal/verity/issues/comments/$EXISTING_ID" \
+    --method PATCH \
+    --raw-field "body=$BODY_CONTENT" >/dev/null
+  echo "[post-1060-comment] updated existing comment for item $ITEM_ID (id=$EXISTING_ID)"
+else
+  gh pr comment 1065 --repo Th0rgal/verity --body-file "$TMP_BODY" >/dev/null
+  echo "[post-1060-comment] posted new comment for item $ITEM_ID"
+fi
 rm -f "$TMP_BODY"

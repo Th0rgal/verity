@@ -1,0 +1,82 @@
+{
+  "check_only_paths": [
+    "docs/**",
+    "docs-site/**",
+    "AXIOMS.md",
+    "README.md",
+    "TRUST_ASSUMPTIONS.md"
+  ],
+  "expected_jobs": [
+    "changes",
+    "checks",
+    "build",
+    "build-compiler",
+    "foundry-gas-calibration",
+    "foundry",
+    "foundry-patched",
+    "foundry-multi-seed",
+    "failure-hints"
+  ],
+  "expected_checks_commands": [
+    "check_property_manifest.py",
+    "check_property_coverage.py",
+    "check_contract_structure.py",
+    "check_case_insensitive_path_conflicts.py",
+    "check_axiom_locations.py",
+    "generate_verification_status.py --check",
+    "check_doc_counts.py",
+    "check_interop_matrix_sync.py",
+    "check_verify_sync.py",
+    "check_solc_pin.py",
+    "check_property_manifest_sync.py",
+    "check_macro_property_test_generation.py --check",
+    "check_storage_layout.py",
+    "check_manual_spec_quarantine.py",
+    "check_spec_proof_migration_boundary.py",
+    "check_lean_hygiene.py",
+    "check_gas_model_coverage.py",
+    "check_mapping_slot_boundary.py",
+    "check_yul_builtin_boundary.py",
+    "check_builtin_list_sync.py",
+    "check_evmyullean_capability_boundary.py",
+    "generate_evmyullean_capability_report.py --check",
+    "generate_evmyullean_adapter_report.py --check",
+    "generate_print_axioms.py --check",
+    "check_proof_length.py",
+    "check_issue_1060_integrity.py"
+  ],
+  "expected_build_commands": [
+    "check_lean_warning_regression.py --log lake-build.log",
+    "check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY",
+    "report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY",
+    "check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY"
+  ],
+  "expected_build_compiler_commands": [
+    "check_gas_model_coverage.py --dir compiler/yul --dir compiler/yul-patched",
+    "keccak256.py --self-test",
+    "check_selectors.py",
+    "check_yul_compiles.py --dir compiler/yul --dir compiler/yul-patched --require-same-files compiler/yul compiler/yul-patched",
+    "check_selector_fixtures.py",
+    "check_gas_report.py",
+    "check_patch_gas_delta.py --baseline-report gas-report-static.tsv --patched-report gas-report-static-patched.tsv --min-improved-contracts 0 --summary-markdown patch-gas-delta-summary.md >> \"$GITHUB_STEP_SUMMARY\""
+  ],
+  "expected_foundry": {
+    "shards": 8,
+    "seed": 42
+  },
+  "expected_foundry_patched": {
+    "seed": 42,
+    "shard_count": 1,
+    "shard_index": 0,
+    "no_match_test": "Random10000"
+  },
+  "expected_foundry_multi_seed": {
+    "seeds": [0, 1, 42, 123, 999, 12345, 67890]
+  },
+  "expected_foundry_gas_calibration": {
+    "profile": "difftest",
+    "artifact": "static-gas-report",
+    "command": "python3 scripts/check_gas_calibration.py --static-report gas-report-static.tsv"
+  },
+  "artifact_producer_jobs": ["build", "build-compiler"]
+}

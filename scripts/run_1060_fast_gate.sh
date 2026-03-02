@@ -77,6 +77,9 @@ fi
 echo "[1060-fast-gate] Validating integrity ledger"
 python3 scripts/check_issue_1060_integrity.py
 
+echo "[1060-fast-gate] Validating verify workflow sync contract"
+python3 scripts/check_verify_sync.py
+
 if [[ "$run_artifact_refresh" == "true" ]]; then
   echo "[1060-fast-gate] Verifying artifact freshness"
   python3 scripts/generate_verification_status.py --check

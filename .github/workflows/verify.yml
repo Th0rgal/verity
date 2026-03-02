@@ -115,35 +115,8 @@ jobs:
       - name: Check Solidity interop matrix sync
         run: python3 scripts/check_interop_matrix_sync.py
 
-      - name: Check verify.yml path filter sync
-        run: python3 scripts/check_verify_paths_sync.py
-
-      - name: Check verify checks/docs sync
-        run: python3 scripts/check_verify_checks_docs_sync.py
-
-      - name: Check verify build/docs sync
-        run: python3 scripts/check_verify_build_docs_sync.py
-
-      - name: Check verify CI job/docs sync
-        run: python3 scripts/check_verify_ci_jobs_docs_sync.py
-
-      - name: Check verify multi-seed sync
-        run: python3 scripts/check_verify_multiseed_sync.py
-
-      - name: Check verify foundry shard sync
-        run: python3 scripts/check_verify_foundry_shard_sync.py
-
-      - name: Check verify foundry-patched sync
-        run: python3 scripts/check_verify_foundry_patched_sync.py
-
-      - name: Check verify foundry job sync
-        run: python3 scripts/check_verify_foundry_job_sync.py
-
-      - name: Check verify foundry-gas-calibration sync
-        run: python3 scripts/check_verify_foundry_gas_calibration_sync.py
-
-      - name: Check verify artifact sync
-        run: python3 scripts/check_verify_artifact_sync.py
+      - name: Check verify workflow sync invariants
+        run: python3 scripts/check_verify_sync.py
 
       - name: Check solc pin consistency
         run: python3 scripts/check_solc_pin.py

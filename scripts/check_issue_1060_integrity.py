@@ -24,6 +24,8 @@ SEMANTIC_THEOREM_ITEMS = {
 ALLOWED_STATUS = {"open", "in_progress", "partial", "complete"}
 WEAKENING_ALLOWED = {"unchanged", "strengthened"}
 TRIVIAL_SUMMARY_RE = re.compile(r"\b(rfl|refl|trivial|tautolog|definitional equality)\b", re.IGNORECASE)
+RUN_MARKER_RE = re.compile(r"\b(run_id=[^\s\]]+|artifact_sha256=[0-9a-fA-F]{7,64})\b")
+SYMBOL_DECL_RE_TEMPLATE = r"\b(?:theorem|lemma|def)\s+{name}\b"
 
 
 def _err(errors: list[str], msg: str) -> None:
@@ -53,6 +55,8 @@ def _expect_list(errors: list[str], where: str, value: object) -> list:
 
 def validate(data: dict) -> list[str]:
     errors: list[str] = []
+    active_items: list[str] = []
+    file_cache: dict[Path, str] = {}
 
     if not isinstance(data, dict):
         return ["ledger root must be an object"]
@@ -84,6 +88,8 @@ def validate(data: dict) -> list[str]:
         status = entry.get("status")
         if status not in ALLOWED_STATUS:
             _err(errors, f"items.{item_id}.status must be one of {sorted(ALLOWED_STATUS)}")
+        if status in {"partial", "in_progress"}:
+            active_items.append(item_id)
 
         acceptance = _expect_list(errors, f"items.{item_id}.acceptance_criteria", entry.get("acceptance_criteria"))
         files_changed = _expect_list(errors, f"items.{item_id}.files_changed", entry.get("files_changed"))
@@ -119,6 +125,47 @@ def validate(data: dict) -> list[str]:
             if strength not in WEAKENING_ALLOWED:
                 _err(errors, f"{where}.strength_change must be one of {sorted(WEAKENING_ALLOWED)}")
 
+        # Verify theorem artifacts reference real declarations at HEAD.
+        for idx, thm in enumerate(theorems):
+            where = f"items.{item_id}.evidence.theorems[{idx}]"
+            if not isinstance(thm, dict):
+                continue
+            name = thm.get("name")
+            file_rel = thm.get("file")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            if not isinstance(file_rel, str) or not file_rel.strip():
+                continue
+            file_path = ROOT / file_rel
+            if not file_path.is_file():
+                _err(errors, f"{where}.file does not exist in repository: {file_rel}")
+                continue
+            if file_path not in file_cache:
+                file_cache[file_path] = file_path.read_text(encoding="utf-8")
+            symbol_re = re.compile(SYMBOL_DECL_RE_TEMPLATE.format(name=re.escape(name)))
+            if not symbol_re.search(file_cache[file_path]):
+                _err(errors, f"{where}.name not found as theorem/lemma/def in {file_rel}: {name}")
+
+        # Evidence for active/complete runs must include traceable execution markers.
+        if status in {"partial", "complete"}:
+            if verification and verification_results and len(verification_results) != len(verification):
+                _err(
+                    errors,
+                    f"items.{item_id} has mismatched verification_commands ({len(verification)}) "
+                    f"and verification_results ({len(verification_results)})",
+                )
+            if verification_results:
+                for idx, result in enumerate(verification_results):
+                    if not isinstance(result, str):
+                        _err(errors, f"items.{item_id}.verification_results[{idx}] must be a string")
+                        continue
+                    if not RUN_MARKER_RE.search(result):
+                        _err(
+                            errors,
+                            f"items.{item_id}.verification_results[{idx}] must include "
+                            "run_id=<...> or artifact_sha256=<...>",
+                        )
+
         if status == "complete":
             if not acceptance:
                 _err(errors, f"items.{item_id} is complete but has empty acceptance_criteria")
@@ -147,6 +194,13 @@ def validate(data: dict) -> list[str]:
                     _expect_str(errors, f"{where}.statement_summary", summary)
                     if isinstance(summary, str) and TRIVIAL_SUMMARY_RE.search(summary):
                         _err(errors, f"{where}.statement_summary looks trivial; provide semantic content")
+
+    if len(active_items) > 1:
+        _err(
+            errors,
+            "at most one roadmap item may be active (status in {in_progress, partial}); "
+            f"found {len(active_items)}: {', '.join(active_items)}",
+        )
 
     return errors
 
