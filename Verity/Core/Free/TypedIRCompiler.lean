@@ -733,6 +733,48 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_literals_then_setStorage_l
   simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
+/-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
+          [return (literal thenVal)]
+          [return (literal elseVal)]]
+     [setStorage fieldName (literal outerElseWriteVal);
+      return (literal outerElseRetVal)]`
+lowers to one typed outer `if_` whose true branch contains a typed inner `if_`
+and whose false branch performs storage write then return, from an empty compile
+state. -/
+theorem compileStmts_single_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_run
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (n m p q thenVal elseVal outerElseWriteVal outerElseRetVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [Stmt.ite
+        (Expr.eq (Expr.literal n) (Expr.literal m))
+        [Stmt.ite
+          (Expr.eq (Expr.literal p) (Expr.literal q))
+          [Stmt.return (Expr.literal thenVal)]
+          [Stmt.return (Expr.literal elseVal)]]
+        [Stmt.setStorage fieldName (Expr.literal outerElseWriteVal),
+         Stmt.return (Expr.literal outerElseRetVal)] ]).run {} =
+      Except.ok ((),
+        { nextId := 0
+          vars := []
+          params := #[]
+          locals := #[]
+          body := #[
+            TStmt.if_
+              (TExpr.eq (TExpr.uintLit n) (TExpr.uintLit m))
+              [TStmt.if_
+                (TExpr.eq (TExpr.uintLit p) (TExpr.uintLit q))
+                [TStmt.returnUint (TExpr.uintLit thenVal)]
+                [TStmt.returnUint (TExpr.uintLit elseVal)]]
+              [TStmt.setStorage slot (TExpr.uintLit outerElseWriteVal),
+               TStmt.returnUint (TExpr.uintLit outerElseRetVal)]
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  rfl
+
 /-- Single-statement compilation shape for a broader supported nested storage branch subset:
 `ite (eq (literal n) (literal m))
      [ite (eq (literal p) (literal q))

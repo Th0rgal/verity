@@ -1449,6 +1449,19 @@ example (fields : List Compiler.CompilationModel.Field)
 example (fields : List Compiler.CompilationModel.Field)
     (fieldName : String) (slotIdx : Nat) (init : TExecState)
     (clauses : List RequireLiteralGuardFamilyClause)
+    (n m p q thenVal elseVal outerElseWriteVal outerElseRetVal : Nat)
+    (hfind : Compiler.CompilationModel.findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := Compiler.CompilationModel.FieldType.uint256 }, slotIdx)) :
+    execCompiledRequireFamilyClausesThenIteEqThenIteEqReturnLiteralsThenSetStorageLiteralThenReturnLiteral
+        fields fieldName init clauses n m p q thenVal elseVal outerElseWriteVal outerElseRetVal =
+      execSourceRequireFamilyClausesThenIteEqThenIteEqReturnLiteralsThenSetStorageLiteralThenReturnLiteral
+        init clauses slotIdx n m p q thenVal elseVal outerElseWriteVal outerElseRetVal :=
+  compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_semantics
+    fields fieldName slotIdx init clauses n m p q thenVal elseVal outerElseWriteVal outerElseRetVal hfind
+
+example (fields : List Compiler.CompilationModel.Field)
+    (fieldName : String) (slotIdx : Nat) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
     (n m p q thenVal elseVal outerElseVal : Nat)
     (hfind : Compiler.CompilationModel.findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := Compiler.CompilationModel.FieldType.uint256 }, slotIdx)) :
