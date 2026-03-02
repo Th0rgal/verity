@@ -88,6 +88,8 @@ Proceed without approval:
 ```bash
 lake build
 make ci-fast
+make ci-fast-changed
+make pr-fast
 FOUNDRY_PROFILE=difftest forge test
 ```
 
@@ -97,9 +99,16 @@ Optional one-time setup to enforce the fast gate before every push:
 make install-fast-hook
 ```
 
+Post a standardized issue #1060 PR update comment from the progress ledger:
+
+```bash
+make post-1060-comment ITEM=2.2
+```
+
 ## Notes
 
 - Layer 3 proofs are complete.
 - For new contracts, scaffold with `python3 scripts/generate_contract.py <Name>` and follow `/add-contract`.
 - For compiler changes, read `Compiler/Specs.lean` and verify proofs still build.
 - For strict non-inflation #1060 execution protocol, use `docs/ISSUE_1060_AGENT_PROMPT.md`.
+- For a single-command PR startup sweep (repo/PR/checks/comments + local gate), use `make pr-fast`.

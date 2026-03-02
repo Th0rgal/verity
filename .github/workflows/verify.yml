@@ -683,3 +683,75 @@ jobs:
         run: |
           echo "::error::Tests failed with seed ${{ matrix.seed }}"
           echo "::notice::Reproduce locally: FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=${{ matrix.seed }} forge test -vv"
+
+  failure-hints:
+    runs-on: ubuntu-latest
+    needs: [checks, build, build-compiler, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Post CI failure hints
+        uses: actions/github-script@v7
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        with:
+          script: |
+            const marker = "<!-- issue-1060-ci-failure-hints -->";
+            const needs = JSON.parse(process.env.NEEDS_JSON || "{}");
+            const failed = Object.entries(needs)
+              .filter(([, info]) => info && info.result === "failure")
+              .map(([name]) => name);
+            if (failed.length === 0) {
+              core.info("No failed jobs; no hint comment needed.");
+              return;
+            }
+
+            const lines = [];
+            lines.push(marker);
+            lines.push("### CI Failure Hints");
+            lines.push("");
+            lines.push(`Failed jobs: ${failed.map((n) => `\\`${n}\\``).join(", ")}`);
+            lines.push("");
+            lines.push("Copy-paste local triage:");
+            lines.push("```bash");
+            lines.push("make ci-fast");
+            lines.push("make ci-fast-build");
+            lines.push("python3 scripts/generate_verification_status.py --check");
+            lines.push("python3 scripts/check_doc_counts.py");
+            lines.push("python3 scripts/check_issue_1060_integrity.py");
+            lines.push("lake build");
+            lines.push("FOUNDRY_PROFILE=difftest forge test -vv");
+            lines.push("```");
+            lines.push("");
+            lines.push("If this is an issue #1060 run, keep exactly one roadmap item in progress and post evidence from `artifacts/issue_1060_progress.json`.");
+            const body = lines.join("\\n");
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100
+            });
+            const existing = comments.find((c) =>
+              c.user && c.user.type === "Bot" && typeof c.body === "string" && c.body.includes(marker)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+            }

@@ -5,7 +5,8 @@
 
 .PHONY: help setup setup-elan setup-solc setup-foundry \
         verify test test-foundry test-python axiom-report \
-        compile generate-yul check ci-fast ci-fast-build \
+        compile generate-yul check ci-fast ci-fast-build ci-fast-changed \
+        pr-fast pr-fast-build post-1060-comment \
         refresh-status install-fast-hook all clean
 
 # Pinned versions (must match .github/workflows/verify.yml)
@@ -108,6 +109,19 @@ ci-fast: ## Fast local gate for issue #1060 progress runs (no Lean build)
 
 ci-fast-build: ## Fast local gate + Lean build for issue #1060 progress runs
 	scripts/run_1060_fast_gate.sh --with-build
+
+ci-fast-changed: ## Changed-files-aware fast gate (base ref: BASE=origin/main)
+	scripts/run_1060_fast_gate.sh --changed-only --base-ref $(if $(BASE),$(BASE),origin/main)
+
+pr-fast: ## Run PR #1065 startup checks + fast gate
+	scripts/run_1060_pr_fast.sh
+
+pr-fast-build: ## Run PR #1065 startup checks + fast gate + Lean build
+	scripts/run_1060_pr_fast.sh --with-build
+
+post-1060-comment: ## Post PR #1065 progress comment (usage: make post-1060-comment ITEM=2.2 [DRY_RUN=1])
+	@if [ -z "$(ITEM)" ]; then echo "ITEM is required, e.g. make post-1060-comment ITEM=2.2"; exit 1; fi
+	scripts/post_1060_progress_comment.sh $(ITEM) $(if $(DRY_RUN),--dry-run,)
 
 refresh-status: ## Regenerate verification artifact and auto-fix doc counts
 	scripts/refresh_verification_artifacts.sh

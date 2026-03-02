@@ -107,7 +107,9 @@ These CI-critical scripts validate cross-layer consistency:
 - **`check_lean_warning_regression.py`** - Enforces Lean warning non-regression from `lake build` output against `artifacts/lean_warning_baseline.json` (allows warning reduction, blocks warning increases by total/file/message), with strict baseline schema enforcement (required keys, no null counters, no boolean-as-integer coercions) and fail-closed UTF-8 log decoding
 - **`check_proof_length.py`** - Enforces proof length limits: soft limit at 30 lines, hard limit at 50 lines with an explicit allowlist for pre-existing long proofs; reports proof length distribution as a CI summary table (`--format=markdown`); comment/string-aware via shared Lean lexer utilities
 - **`check_issue_1060_integrity.py`** - Enforces non-inflated completion evidence for issue #1060 ledger entries (`artifacts/issue_1060_progress.json`): every `complete` item must include acceptance criteria, changed files, verification commands/results (including `lake build`), test evidence, theorem evidence for semantic-proof items, and non-weakened obligation mapping for removed `sorry` goals
-- **`run_1060_fast_gate.sh`** - Fast local issue #1060 gate: refreshes verification artifact, validates doc counts + integrity ledger, checks artifact freshness, and runs integrity checker unit tests (optional `--with-build` includes `lake build`)
+- **`run_1060_fast_gate.sh`** - Fast local issue #1060 gate: refreshes verification artifact, validates doc counts + integrity ledger, checks artifact freshness, and runs integrity checker unit tests (optional `--with-build` includes `lake build`; optional `--changed-only --base-ref <ref>` limits work to changed-file-sensitive checks while always keeping integrity validation enabled)
+- **`run_1060_pr_fast.sh`** - One-command PR #1065 startup sequence (`gh` default repo, fetch, PR metadata/checks, latest review feedback snapshot) plus `run_1060_fast_gate.sh`
+- **`post_1060_progress_comment.sh`** - Posts a standardized PR #1065 progress comment from `artifacts/issue_1060_progress.json` for one roadmap item (`--dry-run` supported)
 - **`refresh_verification_artifacts.sh`** - Regenerates `artifacts/verification_status.json`, auto-fixes stale documentation counts (`check_doc_counts.py --fix`), then re-validates
 - **`install_pre_push_fast_gate.sh`** - Installs a local `.git/hooks/pre-push` hook that runs `scripts/run_1060_fast_gate.sh`
 
@@ -115,8 +117,12 @@ These CI-critical scripts validate cross-layer consistency:
 # Quick issue #1060 loop
 make ci-fast
 make ci-fast-build
+make ci-fast-changed
+make pr-fast
+make pr-fast-build
 make refresh-status
 make install-fast-hook
+make post-1060-comment ITEM=2.2 DRY_RUN=1
 
 # Run locally before submitting documentation changes
 python3 scripts/generate_verification_status.py
@@ -243,7 +249,7 @@ Identifier rules (fail-fast validation):
 
 ## CI Integration
 
-Scripts run automatically in GitHub Actions (`verify.yml`) across 8 jobs:
+Scripts run automatically in GitHub Actions (`verify.yml`) across 9 jobs:
 
 **`changes`** — Path filter that gates code-dependent jobs (doc-only PRs skip build/test)
 
@@ -303,6 +309,7 @@ Scripts run automatically in GitHub Actions (`verify.yml`) across 8 jobs:
 **`foundry`** — 8-shard parallel Foundry tests with seed 42
 **`foundry-patched`** — Patched-Yul smoke gate on differential/property harness (seed 42, single shard, no `Random10000`)
 **`foundry-multi-seed`** — 7-seed flakiness detection (seeds: 0, 1, 42, 123, 999, 12345, 67890)
+**`failure-hints`** — PR-only helper comment with copy-paste local reproduction commands when CI jobs fail
 
 ## Adding New Property Tests
 
