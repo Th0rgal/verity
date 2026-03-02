@@ -106,7 +106,8 @@
         "Extend semantic-preservation coverage to a return subset where `return (literal n)` preserves source halting semantics.",
         "Extend semantic-preservation coverage to a let-then-return subset where `letVar tmp (literal n); return (localVar tmp)` preserves source variable-binding and halting semantics.",
         "Extend semantic-preservation coverage to a branch subset where `ite (eq (literal n) (literal m))` selects between two `setStorage` literal writes under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a require subset where `require (eq (literal n) (literal m)) message` preserves source guard/revert behavior."
+        "Extend semantic-preservation coverage to a require subset where `require (eq (literal n) (literal m)) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a require subset where `require (lt (literal n) (literal m)) message` preserves source guard/revert behavior."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompiler.lean",
@@ -237,6 +238,16 @@
             "name": "compile_require_eq_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged on true, revert on false)."
+          },
+          {
+            "name": "compileStmts_single_require_lt_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(lt(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
+          },
+          {
+            "name": "compile_require_lt_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported require-lt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n < m, revert otherwise)."
           }
         ],
         "tests": [
@@ -250,13 +261,14 @@
           "TypedIRTests: example instantiating compile_return_literal_semantics over arbitrary fields/init/n",
           "TypedIRTests: example instantiating compile_let_return_local_literal_semantics over arbitrary fields/tmp/init/n",
           "TypedIRTests: example instantiating compile_ite_eq_setStorage_literals_semantics over arbitrary fields/fieldName/slot/init/n/m/thenVal/elseVal assumptions",
-          "TypedIRTests: example instantiating compile_require_eq_literals_semantics over arbitrary fields/init/n/m/message"
+          "TypedIRTests: example instantiating compile_require_eq_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_lt_literals_semantics over arbitrary fields/init/n/m/message"
         ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": "2.2 remains partial: this slice extends semantic-preservation evidence with a require theorem for `require (eq (literal n) (literal m)) message`, in addition to prior branch (`ite eq`) and return/arithmetic subsets, but does not yet prove full source-vs-typed semantics for the broader supported statement fragment."
+      "notes": "2.2 remains partial: this slice extends semantic-preservation evidence with a require theorem for `require (lt (literal n) (literal m)) message`, in addition to prior require-eq, branch (`ite eq`), return, and arithmetic subsets, but does not yet prove full source-vs-typed semantics for the broader supported statement fragment."
     },
     "2.3": {
       "status": "open",
