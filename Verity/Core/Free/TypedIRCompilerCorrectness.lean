@@ -777,6 +777,58 @@ def execCompiledRequireFamilyThenReturnLiteral
   | .ok st => execCompiledReturnLiteral fields st retVal
   | .revert reason => .revert reason
 
+/-- Clause payload for list-level semantic preservation over the unified
+`require` guard family. -/
+structure RequireLiteralGuardFamilyClause where
+  family : RequireLiteralGuardFamily
+  n : Nat
+  m : Nat
+  p : Nat
+  q : Nat
+  message : String
+deriving DecidableEq, Repr
+
+/-- Source semantics dispatcher for a list of unified `require` guard-family
+clauses. Evaluation short-circuits on revert. -/
+def execSourceRequireLiteralGuardFamilyClauses
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause) : TExecResult :=
+  match clauses with
+  | [] => .ok init
+  | clause :: rest =>
+      match execSourceRequireLiteralGuardFamily
+          clause.family init clause.n clause.m clause.p clause.q clause.message with
+      | .ok st => execSourceRequireLiteralGuardFamilyClauses st rest
+      | .revert reason => .revert reason
+
+/-- Compiled semantics dispatcher for a list of unified `require` guard-family
+clauses. Evaluation short-circuits on revert. -/
+def execCompiledRequireLiteralGuardFamilyClauses
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) : TExecResult :=
+  match clauses with
+  | [] => .ok init
+  | clause :: rest =>
+      match execCompiledRequireLiteralGuardFamily
+          clause.family fields init clause.n clause.m clause.p clause.q clause.message with
+      | .ok st => execCompiledRequireLiteralGuardFamilyClauses fields st rest
+      | .revert reason => .revert reason
+
+/-- Structural-induction semantic-preservation theorem for sequences of unified
+`require` guard-family clauses (`binary`, `andEqLt`, `orEqLt`). -/
+theorem compile_require_literal_guard_family_clauses_semantics
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) :
+    execCompiledRequireLiteralGuardFamilyClauses fields init clauses =
+      execSourceRequireLiteralGuardFamilyClauses init clauses := by
+  induction clauses generalizing init with
+  | nil =>
+      simp [execCompiledRequireLiteralGuardFamilyClauses, execSourceRequireLiteralGuardFamilyClauses]
+  | cons clause rest ih =>
+      simp [execCompiledRequireLiteralGuardFamilyClauses,
+        execSourceRequireLiteralGuardFamilyClauses,
+        compile_require_literal_guard_family_semantics, ih]
+      rfl
+
 /-- Sequencing semantic-preservation theorem for a broader supported subset:
 for unified `require` guard families followed by `return literal`,
 compiled execution matches direct source sequencing semantics. -/

@@ -118,7 +118,8 @@
         "Extend semantic-preservation coverage to lists of supported single-guard `require` literals via structural induction, preserving short-circuit revert behavior.",
         "Generalize require semantic preservation into one theorem over a unified guard family combining binary guards (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) with composite guards (`logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) without deleting existing obligations.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause executes before `setStorage fieldName (literal writeVal)`, preserving short-circuit revert behavior and subsequent storage update under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause executes before `return (literal retVal)`, preserving short-circuit revert vs halting semantics."
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause executes before `return (literal retVal)`, preserving short-circuit revert vs halting semantics.",
+        "Extend semantic-preservation coverage to lists of unified require guard-family clauses (`binary`, `logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) via structural induction, preserving short-circuit revert behavior."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
@@ -343,6 +344,11 @@
             "name": "compile_require_family_then_return_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard families followed by return-literal, compiled execution matches source short-circuit require semantics and halting behavior."
+          },
+          {
+            "name": "compile_require_literal_guard_family_clauses_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Structural-induction theorem: for lists of unified require guard-family clauses (`binary`, `andEqLt`, `orEqLt`), compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           }
         ],
         "tests": [
@@ -368,13 +374,14 @@
           "TypedIRTests: example instantiating compile_require_or_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
           "TypedIRTests: example instantiating compile_require_literal_guard_family_semantics over arbitrary family/fields/init/n/m/p/q/message",
           "TypedIRTests: example instantiating compile_require_family_then_setStorage_literal_semantics over arbitrary family/fields/fieldName/slot/init/n/m/p/q/message/writeVal assumptions",
-          "TypedIRTests: example instantiating compile_require_family_then_return_literal_semantics over arbitrary family/fields/init/n/m/p/q/message/retVal"
+          "TypedIRTests: example instantiating compile_require_family_then_return_literal_semantics over arbitrary family/fields/init/n/m/p/q/message/retVal",
+          "TypedIRTests: example instantiating compile_require_literal_guard_family_clauses_semantics over arbitrary fields/init/guard-family clauses"
         ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": "2.2 remains partial: this slice adds sequencing semantic preservation via `compile_require_family_then_return_literal_semantics`, showing unified require guard-family semantics composed with return-literal halting behavior, without deleting prior obligations. Full source-vs-typed semantic preservation over the broader supported statement fragment is still pending."
+      "notes": "2.2 remains partial: this slice adds structural-induction semantic preservation for lists of unified require guard-family clauses via `compile_require_literal_guard_family_clauses_semantics`, without deleting prior obligations. Full source-vs-typed semantic preservation over the broader supported statement fragment is still pending."
     },
     "2.3": {
       "status": "open",

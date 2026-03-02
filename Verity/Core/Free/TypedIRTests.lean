@@ -1229,6 +1229,13 @@ example (family : RequireLiteralGuardFamily)
       execSourceRequireLiteralGuardFamily family init n m p q message :=
   compile_require_literal_guard_family_semantics family fields init n m p q message
 
+example (fields : List Compiler.CompilationModel.Field)
+    (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) :
+    execCompiledRequireLiteralGuardFamilyClauses fields init clauses =
+      execSourceRequireLiteralGuardFamilyClauses init clauses :=
+  compile_require_literal_guard_family_clauses_semantics fields init clauses
+
 example (family : RequireLiteralGuardFamily)
     (fields : List Compiler.CompilationModel.Field)
     (fieldName : String) (slotIdx : Nat) (init : TExecState)
