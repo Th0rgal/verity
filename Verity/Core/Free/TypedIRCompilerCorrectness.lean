@@ -356,6 +356,39 @@ def execCompiledIteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Direct source semantics for a broader supported nested heterogeneous branch
+subset:
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
+          [return (literal thenVal)]
+          [setStorage fieldName (literal elseVal)]]
+     [return (literal outerElseVal)]`
+evaluates the inner heterogeneous branch on outer-guard success and returns on
+outer-guard failure. -/
+def execSourceIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+    (init : TExecState) (slot : Nat)
+    (n m p q thenVal elseVal outerElseVal : Nat) : TExecResult :=
+  if (n : Verity.Core.Uint256) == (m : Verity.Core.Uint256) then
+    execSourceIteEqReturnThenSetStorageLiteral init slot p q thenVal elseVal
+  else
+    execSourceReturnLiteral init outerElseVal
+
+/-- Compile + execute a broader supported nested heterogeneous branch subset
+through typed IR. -/
+def execCompiledIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+    (fields : List Field) (fieldName : String) (init : TExecState)
+    (n m p q thenVal elseVal outerElseVal : Nat) : TExecResult :=
+  match (compileStmts fields
+      [Stmt.ite
+        (Expr.eq (Expr.literal n) (Expr.literal m))
+        [Stmt.ite
+          (Expr.eq (Expr.literal p) (Expr.literal q))
+          [Stmt.return (Expr.literal thenVal)]
+          [Stmt.setStorage fieldName (Expr.literal elseVal)]]
+        [Stmt.return (Expr.literal outerElseVal)] ]).run {} with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Direct source semantics for a broader supported require subset:
 `require (eq (literal n) (literal m)) message`
 halts with revert on guard failure and leaves state unchanged otherwise. -/
@@ -877,6 +910,36 @@ theorem compile_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_s
     execSourceIteEqSetStorageLiterals,
     compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_run,
     execSourceSetStorageLiteral, hfind, evalTStmts, defaultEvalFuel]
+  by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
+  · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
+    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
+    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+
+/-- Semantic-preservation theorem for a broader supported nested heterogeneous
+branch subset:
+compiling and running
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
+          [return (literal thenVal)]
+          [setStorage fieldName (literal elseVal)]]
+     [return (literal outerElseVal)]`
+matches direct source nested-branch semantics under explicit field-resolution
+assumptions. -/
+theorem compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (init : TExecState) (n m p q thenVal elseVal outerElseVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    execCompiledIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        fields fieldName init n m p q thenVal elseVal outerElseVal =
+      execSourceIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        init slot n m p q thenVal elseVal outerElseVal := by
+  simp [execCompiledIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral,
+    execSourceIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral,
+    execSourceIteEqReturnThenSetStorageLiteral,
+    compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_run,
+    execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
     · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
@@ -1471,6 +1534,40 @@ def execCompiledRequireFamilyClausesThenIteEqThenIteEqReturnLiteralsThenSetStora
 run a list of supported unified `require` guard-family clauses, then perform
 `ite (eq (literal n) (literal m))
      [ite (eq (literal p) (literal q))
+          [return (literal thenVal)]
+          [setStorage fieldName (literal elseVal)]]
+     [return (literal outerElseVal)]` only on success. -/
+def execSourceRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (slot : Nat) (n m p q thenVal elseVal outerElseVal : Nat) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st =>
+      execSourceIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        st slot n m p q thenVal elseVal outerElseVal
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for the same broader supported sequencing subset:
+run compiled unified `require` guard-family clause-list semantics, then run
+compiled
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
+          [return (literal thenVal)]
+          [setStorage fieldName (literal elseVal)]]
+     [return (literal outerElseVal)]` on success. -/
+def execCompiledRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+    (fields : List Field) (fieldName : String) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (n m p q thenVal elseVal outerElseVal : Nat) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st =>
+      execCompiledIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        fields fieldName st n m p q thenVal elseVal outerElseVal
+  | .revert reason => .revert reason
+
+/-- Source semantics for a broader supported sequencing subset:
+run a list of supported unified `require` guard-family clauses, then perform
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
           [setStorage fieldName (literal thenVal)]
           [setStorage fieldName (literal elseVal)]]
      [setStorage fieldName (literal outerElseVal)]` only on success. -/
@@ -1689,6 +1786,28 @@ theorem compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_litera
     execSourceRequireFamilyClausesThenIteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral,
     compile_require_literal_guard_family_clauses_semantics,
     compile_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics, hfind]
+  rfl
+
+/-- Sequencing semantic-preservation theorem for a broader supported subset:
+for unified `require` guard-family clause lists followed by nested
+`ite(eq(literal,literal))` with inner return/storage branches and outer false-
+branch return, compiled execution matches direct source sequencing semantics
+under explicit field-resolution assumptions. -/
+theorem compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (n m p q thenVal elseVal outerElseVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    execCompiledRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        fields fieldName init clauses n m p q thenVal elseVal outerElseVal =
+      execSourceRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        init clauses slot n m p q thenVal elseVal outerElseVal := by
+  simp [execCompiledRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral,
+    execSourceRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics, hfind]
   rfl
 
 /-- Source semantics for a broader supported sequencing subset:
@@ -2063,6 +2182,11 @@ inductive RequireFamilyClausesTail (fields : List Field) where
       (n m p q thenVal elseVal outerElseVal : Nat)
       (hfind : findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      (fieldName : String) (slot : Nat)
+      (n m p q thenVal elseVal outerElseVal : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
   | returnLiteral (retVal : Nat)
   | letReturnLocalLiteral (tmp : String) (retVal : Nat)
   | letSetStorageLocalLiteral
@@ -2124,6 +2248,10 @@ def execSourceRequireFamilyClausesThenTail
       _ slot n m p q thenVal elseVal outerElseVal _ =>
       execSourceRequireFamilyClausesThenIteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
         init clauses slot n m p q thenVal elseVal outerElseVal
+  | .iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      _ slot n m p q thenVal elseVal outerElseVal _ =>
+      execSourceRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+        init clauses slot n m p q thenVal elseVal outerElseVal
   | .returnLiteral retVal =>
       execSourceRequireFamilyClausesThenReturnLiteral init clauses retVal
   | .letReturnLocalLiteral _ retVal =>
@@ -2176,6 +2304,10 @@ def execCompiledRequireFamilyClausesThenTail
   | .iteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
       fieldName _ n m p q thenVal elseVal outerElseVal _ =>
       execCompiledRequireFamilyClausesThenIteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
+        fields fieldName init clauses n m p q thenVal elseVal outerElseVal
+  | .iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
+      execCompiledRequireFamilyClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
         fields fieldName init clauses n m p q thenVal elseVal outerElseVal
   | .returnLiteral retVal =>
       execCompiledRequireFamilyClausesThenReturnLiteral fields init clauses retVal
@@ -2250,6 +2382,12 @@ theorem compile_require_family_clauses_then_tail_semantics
       simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
         using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics
+            fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
+  | iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using
+          compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | returnLiteral retVal =>
       simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
@@ -2446,6 +2584,12 @@ inductive SupportedStmtFragment (fields : List Field) where
       (n m p q thenVal elseVal outerElseVal : Nat)
       (hfind : findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | requireClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName : String) (slot : Nat)
+      (n m p q thenVal elseVal outerElseVal : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
   | requireClausesThenReturnLiteral
       (clauses : List RequireLiteralGuardFamilyClause) (retVal : Nat)
   | requireClausesThenLetReturnLocalLiteral
@@ -2519,6 +2663,11 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
       clauses fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
       { clauses := clauses
         tail := .iteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
+          fieldName slot n m p q thenVal elseVal outerElseVal hfind }
+  | .requireClausesThenIteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      clauses fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
+      { clauses := clauses
+        tail := .iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
           fieldName slot n m p q thenVal elseVal outerElseVal hfind }
   | .requireClausesThenReturnLiteral clauses retVal =>
       { clauses := clauses
@@ -2619,6 +2768,13 @@ def RequireFamilyClausesTail.toStmts
             [Stmt.setStorage fieldName (Expr.literal thenVal)]
             [Stmt.setStorage fieldName (Expr.literal elseVal)]]
           [Stmt.setStorage fieldName (Expr.literal outerElseVal)]]
+  | .iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
+      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
+      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
+          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
+            [Stmt.return (Expr.literal thenVal)]
+            [Stmt.setStorage fieldName (Expr.literal elseVal)]]
+          [Stmt.return (Expr.literal outerElseVal)]]
   | .returnLiteral retVal =>
       [Stmt.return (Expr.literal retVal)]
   | .letReturnLocalLiteral tmp retVal =>

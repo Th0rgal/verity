@@ -144,7 +144,8 @@
         "Generalize single-guard require semantic preservation into one theorem over a guard family (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) without deleting existing specialized obligations.",
         "Introduce one generic dispatcher theorem over supported require-clause-list sequencing tails (`setStorage literal`, `return literal`, `let-return local`, `let-setStorage local`, `let-assign literal setStorage local`, `let-assign-{add,sub,mul}-setStorage local`) to reduce pattern-by-pattern theorem surface into a single reusable 2.2 artifact without deleting existing obligations.",
         "Prove list-compilation composition for compileStmts by structural induction.",
-        "Strengthen append theorem so it can be instantiated from any initial CompileState."
+        "Strengthen append theorem so it can be instantiated from any initial CompileState.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [return (literal thenVal)] [setStorage fieldName (literal elseVal)]] [return (literal outerElseVal)]`, preserving clause-list short-circuit revert behavior together with nested heterogeneous return/storage semantics under explicit field-resolution assumptions."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompiler.lean",
@@ -159,10 +160,10 @@
         "python3 scripts/check_issue_1060_integrity.py"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree]",
-        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
-        "pass: lake build [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
-        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree]"
+        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree]",
+        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
+        "pass: lake build [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
+        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree]"
       ],
       "evidence": {
         "theorems": [
@@ -590,6 +591,21 @@
             "name": "execSourceSupportedStmtFragments",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source semantics dispatcher over lists of explicit supported statement fragments."
+          },
+          {
+            "name": "compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner return/setStorage branches and outer false-branch return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For nested ite(eq(literal,literal)) with inner return/setStorage branches and outer false-branch return, compiled typed-IR execution matches direct source semantics under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by nested ite(eq) with inner return/setStorage and outer false-branch return, compiled execution matches source clause-list short-circuit semantics under explicit field-resolution assumptions."
           }
         ],
         "tests": [
@@ -667,7 +683,12 @@
           "TypedIRTests: example instantiating compile_require_or_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
           "TypedIRTests: example instantiating compile_return_literal_semantics over arbitrary fields/init/n",
           "TypedIRTests: example instantiating compile_setStorage_literal_semantics over arbitrary fields/fieldName/slot assumptions",
-          "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments"
+          "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments",
+          {
+            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/setStorage branches and outer false-branch return under explicit field-resolution assumptions."
+          }
         ]
       },
       "obligation_delta": {
@@ -675,9 +696,9 @@
         "removed_sorries": [],
         "reframed_or_deleted_obligations": []
       },
-      "notes": "Status remains partial. Added semantic-preservation coverage for clause-list sequencing into nested `ite(eq)` with inner storage/storage branches and outer false-branch storage write, and integrated it into the generic tail/fragment dispatch surface without reducing obligations. Uncovered fragments remain: general nested/heterogeneous `Stmt.ite` programs beyond the declared literal-equality guard and the currently declared literal branch continuations are not yet part of the supported fragment grammar.",
+      "notes": "Status remains partial. Added semantic-preservation coverage for clause-list sequencing into nested `ite(eq)` with inner return/setStorage branches and outer false-branch return, and integrated it into the generic tail/fragment dispatch surface without reducing obligations. Uncovered fragments remain: general nested/heterogeneous `Stmt.ite` programs beyond the declared literal-equality guard and the currently declared literal branch continuations are not yet part of the supported fragment grammar.",
       "uncovered_fragments": [
-        "General nested/heterogeneous `Stmt.ite` programs beyond the declared literal-equality guard and the currently declared literal branch continuations (including nested forms now covering return-only, inner-storage/outer-return, and inner-return/outer-storage shapes) are not yet part of the supported fragment grammar."
+        "General nested/heterogeneous `Stmt.ite` programs beyond the declared literal-equality guard and the currently declared literal branch continuations (including nested forms now covering return-only, inner-storage/outer-return, inner-return/outer-storage, inner-storage/outer-storage, and inner-return-storage/outer-return shapes) are not yet part of the supported fragment grammar."
       ]
     },
     "2.3": {
