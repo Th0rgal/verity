@@ -1175,6 +1175,12 @@ example (fields : List Compiler.CompilationModel.Field)
 
 example (fields : List Compiler.CompilationModel.Field)
     (init : TExecState) (n m : Nat) (message : String) :
+    execCompiledRequireGtLiterals fields init n m message =
+      execSourceRequireGtLiterals init n m message :=
+  compile_require_gt_literals_semantics fields init n m message
+
+example (fields : List Compiler.CompilationModel.Field)
+    (init : TExecState) (n m : Nat) (message : String) :
     execCompiledRequireGeLiterals fields init n m message =
       execSourceRequireGeLiterals init n m message :=
   compile_require_ge_literals_semantics fields init n m message
