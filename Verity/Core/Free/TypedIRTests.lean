@@ -1649,4 +1649,58 @@ example (init : TExecState) :
         execSourceSupportedStmtFragments ownedFields init fragments :=
   owned_getOwner_correctness init
 
+open Compiler.CompilationModel in
+/-- SafeCounter.getCount compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment safeCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "count")] ∧
+      execCompiledSupportedStmtFragments safeCounterFields init fragments =
+        execSourceSupportedStmtFragments safeCounterFields init fragments :=
+  safeCounter_getCount_correctness init
+
+open Compiler.CompilationModel in
+/-- OwnedCounter.getCount compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "count")] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  ownedCounter_getCount_correctness init
+
+open Compiler.CompilationModel in
+/-- OwnedCounter.getOwner compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "owner")] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  ownedCounter_getOwner_correctness init
+
+open Compiler.CompilationModel in
+/-- OwnedCounter.increment compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+        , Stmt.setStorage "count" (Expr.add (Expr.storage "count") (Expr.literal 1))
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  ownedCounter_increment_correctness init
+
+open Compiler.CompilationModel in
+/-- OwnedCounter.decrement compilation correctness follows from the generic theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+        , Stmt.setStorage "count" (Expr.sub (Expr.storage "count") (Expr.literal 1))
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  ownedCounter_decrement_correctness init
+
 end Verity.Core.Free

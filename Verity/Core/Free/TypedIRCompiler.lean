@@ -1256,4 +1256,58 @@ theorem compileStmts_single_return_storage_addr_run
   simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy, hfind, emit]
   rfl
 
+/-- Compilation shape for `require (eq caller (storage ownerField)) msg ; setStorage countField (add (storage countField) (literal n)) ; stop`.
+This pattern is used by OwnedCounter.increment. -/
+theorem compileStmts_require_caller_eq_storage_addr_setStorage_add_storage_literal_stop_run
+    (fields : List Field) (ownerField countField msg : String)
+    (ownerSlot countSlot : Nat) (n : Nat)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hCount : findFieldWithResolvedSlot fields countField =
+      some ({ name := countField, ty := FieldType.uint256 }, countSlot)) :
+    (compileStmts fields
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
+      , Stmt.setStorage countField (Expr.add (Expr.storage countField) (Expr.literal n))
+      , Stmt.stop ]).run {} =
+      Except.ok ((),
+        { nextId := 0
+          vars := []
+          params := #[]
+          locals := #[]
+          body := #[
+            TStmt.if_ (TExpr.eq TExpr.sender (TExpr.getStorageAddr ownerSlot)) [] [TStmt.revert msg],
+            TStmt.setStorage countSlot (TExpr.add (TExpr.getStorage countSlot) (TExpr.uintLit n)),
+            TStmt.stop
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy,
+    hOwner, hCount, asBool, asUInt256, liftExcept, emit]
+  rfl
+
+/-- Compilation shape for `require (eq caller (storage ownerField)) msg ; setStorage countField (sub (storage countField) (literal n)) ; stop`.
+This pattern is used by OwnedCounter.decrement. -/
+theorem compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_literal_stop_run
+    (fields : List Field) (ownerField countField msg : String)
+    (ownerSlot countSlot : Nat) (n : Nat)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hCount : findFieldWithResolvedSlot fields countField =
+      some ({ name := countField, ty := FieldType.uint256 }, countSlot)) :
+    (compileStmts fields
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
+      , Stmt.setStorage countField (Expr.sub (Expr.storage countField) (Expr.literal n))
+      , Stmt.stop ]).run {} =
+      Except.ok ((),
+        { nextId := 0
+          vars := []
+          params := #[]
+          locals := #[]
+          body := #[
+            TStmt.if_ (TExpr.eq TExpr.sender (TExpr.getStorageAddr ownerSlot)) [] [TStmt.revert msg],
+            TStmt.setStorage countSlot (TExpr.sub (TExpr.getStorage countSlot) (TExpr.uintLit n)),
+            TStmt.stop
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy,
+    hOwner, hCount, asBool, asUInt256, liftExcept, emit]
+  rfl
+
 end Verity.Core.Free

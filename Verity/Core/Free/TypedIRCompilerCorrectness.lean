@@ -194,6 +194,52 @@ def execCompiledReturnStorageAddr
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Source semantics for `require (eq caller (storage ownerField)) msg ;
+setStorage countField (add (storage countField) (literal n)) ; stop`. -/
+def execSourceRequireCallerEqStorageAddrSetStorageAddStop
+    (init : TExecState) (ownerSlot countSlot : Nat) (n : Nat)
+    (msg : String) : TExecResult :=
+  if decide (init.env.sender = init.world.storageAddr ownerSlot) then
+    .ok { init with world := { init.world with
+      storage := fun i => if i == countSlot then
+        Verity.Core.Uint256.add (init.world.storage countSlot) n else init.world.storage i } }
+  else .revert msg
+
+/-- Compiled semantics for `require (eq caller (storage ownerField)) msg ;
+setStorage countField (add (storage countField) (literal n)) ; stop`. -/
+def execCompiledRequireCallerEqStorageAddrSetStorageAddStop
+    (fields : List Field) (ownerField countField : String)
+    (init : TExecState) (n : Nat) (msg : String) : TExecResult :=
+  match (compileStmts fields
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
+      , Stmt.setStorage countField (Expr.add (Expr.storage countField) (Expr.literal n))
+      , Stmt.stop ]).run {} with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
+/-- Source semantics for `require (eq caller (storage ownerField)) msg ;
+setStorage countField (sub (storage countField) (literal n)) ; stop`. -/
+def execSourceRequireCallerEqStorageAddrSetStorageSubStop
+    (init : TExecState) (ownerSlot countSlot : Nat) (n : Nat)
+    (msg : String) : TExecResult :=
+  if decide (init.env.sender = init.world.storageAddr ownerSlot) then
+    .ok { init with world := { init.world with
+      storage := fun i => if i == countSlot then
+        Verity.Core.Uint256.sub (init.world.storage countSlot) n else init.world.storage i } }
+  else .revert msg
+
+/-- Compiled semantics for `require (eq caller (storage ownerField)) msg ;
+setStorage countField (sub (storage countField) (literal n)) ; stop`. -/
+def execCompiledRequireCallerEqStorageAddrSetStorageSubStop
+    (fields : List Field) (ownerField countField : String)
+    (init : TExecState) (n : Nat) (msg : String) : TExecResult :=
+  match (compileStmts fields
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
+      , Stmt.setStorage countField (Expr.sub (Expr.storage countField) (Expr.literal n))
+      , Stmt.stop ]).run {} with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Direct source semantics for the supported return subset:
 `return (literal n)` halts without mutating state. -/
 def execSourceReturnLiteral (init : TExecState) (_n : Nat) : TExecResult :=
@@ -1007,6 +1053,48 @@ theorem compile_return_storage_addr_semantics
     compileStmts_single_return_storage_addr_run, hfind,
     evalTStmts, defaultEvalFuel]
   simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+
+/-- Semantic-preservation for `require (eq caller (storage ownerField)) msg ;
+setStorage countField (add (storage countField) (literal n)) ; stop`. -/
+theorem compile_require_caller_eq_storage_addr_setStorage_add_stop_semantics
+    (fields : List Field) (ownerField countField : String)
+    (ownerSlot countSlot : Nat) (init : TExecState) (n : Nat) (msg : String)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hCount : findFieldWithResolvedSlot fields countField =
+      some ({ name := countField, ty := FieldType.uint256 }, countSlot)) :
+    execCompiledRequireCallerEqStorageAddrSetStorageAddStop
+        fields ownerField countField init n msg =
+      execSourceRequireCallerEqStorageAddrSetStorageAddStop
+        init ownerSlot countSlot n msg := by
+  simp [execCompiledRequireCallerEqStorageAddrSetStorageAddStop,
+    execSourceRequireCallerEqStorageAddrSetStorageAddStop,
+    compileStmts_require_caller_eq_storage_addr_setStorage_add_storage_literal_stop_run,
+    hOwner, hCount, evalTStmts, defaultEvalFuel]
+  by_cases hEq : init.env.sender = init.world.storageAddr ownerSlot
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+
+/-- Semantic-preservation for `require (eq caller (storage ownerField)) msg ;
+setStorage countField (sub (storage countField) (literal n)) ; stop`. -/
+theorem compile_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
+    (fields : List Field) (ownerField countField : String)
+    (ownerSlot countSlot : Nat) (init : TExecState) (n : Nat) (msg : String)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hCount : findFieldWithResolvedSlot fields countField =
+      some ({ name := countField, ty := FieldType.uint256 }, countSlot)) :
+    execCompiledRequireCallerEqStorageAddrSetStorageSubStop
+        fields ownerField countField init n msg =
+      execSourceRequireCallerEqStorageAddrSetStorageSubStop
+        init ownerSlot countSlot n msg := by
+  simp [execCompiledRequireCallerEqStorageAddrSetStorageSubStop,
+    execSourceRequireCallerEqStorageAddrSetStorageSubStop,
+    compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_literal_stop_run,
+    hOwner, hCount, evalTStmts, defaultEvalFuel]
+  by_cases hEq : init.env.sender = init.world.storageAddr ownerSlot
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
 
 /-- Semantic-preservation theorem for a broader supported subset:
 compiling and running `return (literal n)` matches direct source return semantics. -/
@@ -2812,6 +2900,78 @@ theorem compile_require_family_clauses_then_return_storage_addr_semantics
     compile_return_storage_addr_semantics, hfind]
   split <;> simp_all
 
+/-- Source semantics for require-clauses + requireCallerEqStorageAddr + setStorage(add) + stop. -/
+def execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (ownerSlot countSlot : Nat) (n : Nat) (msg : String) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st => execSourceRequireCallerEqStorageAddrSetStorageAddStop st ownerSlot countSlot n msg
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for require-clauses + requireCallerEqStorageAddr + setStorage(add) + stop. -/
+def execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+    (fields : List Field) (ownerField countField : String)
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (n : Nat) (msg : String) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st => execCompiledRequireCallerEqStorageAddrSetStorageAddStop fields ownerField countField st n msg
+  | .revert reason => .revert reason
+
+/-- Sequencing: require-clauses + requireCallerEqStorageAddr + setStorage(add) + stop. -/
+theorem compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_add_stop_semantics
+    (fields : List Field) (ownerField countField : String)
+    (ownerSlot countSlot : Nat) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) (n : Nat) (msg : String)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hCount : findFieldWithResolvedSlot fields countField =
+      some ({ name := countField, ty := FieldType.uint256 }, countSlot)) :
+    execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+        fields ownerField countField init clauses n msg =
+      execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+        init clauses ownerSlot countSlot n msg := by
+  simp [execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop,
+    execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_require_caller_eq_storage_addr_setStorage_add_stop_semantics, hOwner, hCount]
+  split <;> simp_all
+
+/-- Source semantics for require-clauses + requireCallerEqStorageAddr + setStorage(sub) + stop. -/
+def execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (ownerSlot countSlot : Nat) (n : Nat) (msg : String) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st => execSourceRequireCallerEqStorageAddrSetStorageSubStop st ownerSlot countSlot n msg
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for require-clauses + requireCallerEqStorageAddr + setStorage(sub) + stop. -/
+def execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+    (fields : List Field) (ownerField countField : String)
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (n : Nat) (msg : String) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st => execCompiledRequireCallerEqStorageAddrSetStorageSubStop fields ownerField countField st n msg
+  | .revert reason => .revert reason
+
+/-- Sequencing: require-clauses + requireCallerEqStorageAddr + setStorage(sub) + stop. -/
+theorem compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
+    (fields : List Field) (ownerField countField : String)
+    (ownerSlot countSlot : Nat) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) (n : Nat) (msg : String)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hCount : findFieldWithResolvedSlot fields countField =
+      some ({ name := countField, ty := FieldType.uint256 }, countSlot)) :
+    execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+        fields ownerField countField init clauses n msg =
+      execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+        init clauses ownerSlot countSlot n msg := by
+  simp [execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop,
+    execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_require_caller_eq_storage_addr_setStorage_sub_stop_semantics, hOwner, hCount]
+  split <;> simp_all
+
 /-- Sequencing semantic-preservation theorem for a broader supported subset:
 for unified `require` guard-family clause lists followed by `return literal`,
 compiled execution matches direct source sequencing semantics. -/
@@ -3068,6 +3228,18 @@ inductive RequireFamilyClausesTail (fields : List Field) where
       (fieldName : String) (slot : Nat)
       (hfind : findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.address }, slot))
+  | requireCallerEqStorageAddrSetStorageAddStop
+      (ownerField countField msg : String) (ownerSlot countSlot : Nat) (n : Nat)
+      (hOwner : findFieldWithResolvedSlot fields ownerField =
+        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+      (hCount : findFieldWithResolvedSlot fields countField =
+        some ({ name := countField, ty := FieldType.uint256 }, countSlot))
+  | requireCallerEqStorageAddrSetStorageSubStop
+      (ownerField countField msg : String) (ownerSlot countSlot : Nat) (n : Nat)
+      (hOwner : findFieldWithResolvedSlot fields ownerField =
+        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+      (hCount : findFieldWithResolvedSlot fields countField =
+        some ({ name := countField, ty := FieldType.uint256 }, countSlot))
 
 /-- Source semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -3151,6 +3323,12 @@ def execSourceRequireFamilyClausesThenTail
       execSourceRequireFamilyClausesThenReturnStorage init clauses slot
   | .returnStorageAddr _ slot _ =>
       execSourceRequireFamilyClausesThenReturnStorageAddr init clauses slot
+  | .requireCallerEqStorageAddrSetStorageAddStop _ _ msg ownerSlot countSlot n _ _ =>
+      execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+        init clauses ownerSlot countSlot n msg
+  | .requireCallerEqStorageAddrSetStorageSubStop _ _ msg ownerSlot countSlot n _ _ =>
+      execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+        init clauses ownerSlot countSlot n msg
 
 /-- Compiled semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -3244,6 +3422,12 @@ def execCompiledRequireFamilyClausesThenTail
   | .returnStorageAddr fieldName _ _ =>
       execCompiledRequireFamilyClausesThenReturnStorageAddr
         fields fieldName init clauses
+  | .requireCallerEqStorageAddrSetStorageAddStop ownerField countField msg _ _ n _ _ =>
+      execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+        fields ownerField countField init clauses n msg
+  | .requireCallerEqStorageAddrSetStorageSubStop ownerField countField msg _ _ n _ _ =>
+      execCompiledRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+        fields ownerField countField init clauses n msg
 
 /-- Generic sequencing semantic-preservation theorem over the supported tail
 family after unified `require` guard-family clause lists. -/
@@ -3376,6 +3560,14 @@ theorem compile_require_family_clauses_then_tail_semantics
       simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
         using compile_require_family_clauses_then_return_storage_addr_semantics
           fields fieldName slot init clauses hfind
+  | requireCallerEqStorageAddrSetStorageAddStop ownerField countField msg ownerSlot countSlot n hOwner hCount =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_add_stop_semantics
+          fields ownerField countField ownerSlot countSlot init clauses n msg hOwner hCount
+  | requireCallerEqStorageAddrSetStorageSubStop ownerField countField msg ownerSlot countSlot n hOwner hCount =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
+          fields ownerField countField ownerSlot countSlot init clauses n msg hOwner hCount
 
 /-- Program fragment in the currently supported 2.2 generic family:
 one unified require-clause list followed by one supported tail. -/
@@ -3628,6 +3820,20 @@ inductive SupportedStmtFragment (fields : List Field) where
       (fieldName : String) (slot : Nat)
       (hfind : findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.address }, slot))
+  | requireClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (ownerField countField msg : String) (ownerSlot countSlot : Nat) (n : Nat)
+      (hOwner : findFieldWithResolvedSlot fields ownerField =
+        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+      (hCount : findFieldWithResolvedSlot fields countField =
+        some ({ name := countField, ty := FieldType.uint256 }, countSlot))
+  | requireClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (ownerField countField msg : String) (ownerSlot countSlot : Nat) (n : Nat)
+      (hOwner : findFieldWithResolvedSlot fields ownerField =
+        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+      (hCount : findFieldWithResolvedSlot fields countField =
+        some ({ name := countField, ty := FieldType.uint256 }, countSlot))
 
 /-- Encode an explicit supported statement fragment into the generic
 `(require-clause-list + tail)` program representation. -/
@@ -3734,6 +3940,16 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
   | .requireClausesThenReturnStorageAddr clauses fieldName slot hfind =>
       { clauses := clauses
         tail := .returnStorageAddr fieldName slot hfind }
+  | .requireClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+      clauses ownerField countField msg ownerSlot countSlot n hOwner hCount =>
+      { clauses := clauses
+        tail := .requireCallerEqStorageAddrSetStorageAddStop
+          ownerField countField msg ownerSlot countSlot n hOwner hCount }
+  | .requireClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+      clauses ownerField countField msg ownerSlot countSlot n hOwner hCount =>
+      { clauses := clauses
+        tail := .requireCallerEqStorageAddrSetStorageSubStop
+          ownerField countField msg ownerSlot countSlot n hOwner hCount }
 
 /-- Encode one unified `require` guard-family clause into a source `Stmt.require`. -/
 def RequireLiteralGuardFamilyClause.toStmt (clause : RequireLiteralGuardFamilyClause) : Stmt :=
@@ -3892,6 +4108,14 @@ def RequireFamilyClausesTail.toStmts
       [Stmt.return (Expr.storage fieldName)]
   | .returnStorageAddr fieldName _ _ =>
       [Stmt.return (Expr.storage fieldName)]
+  | .requireCallerEqStorageAddrSetStorageAddStop ownerField countField msg _ _ n _ _ =>
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
+      , Stmt.setStorage countField (Expr.add (Expr.storage countField) (Expr.literal n))
+      , Stmt.stop ]
+  | .requireCallerEqStorageAddrSetStorageSubStop ownerField countField msg _ _ n _ _ =>
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage ownerField)) msg
+      , Stmt.setStorage countField (Expr.sub (Expr.storage countField) (Expr.literal n))
+      , Stmt.stop ]
 
 /-- Encode one supported `(require-clause-list + tail)` program into raw source
 statement lists. -/
@@ -4107,5 +4331,130 @@ theorem owned_getOwner_correctness (init : TExecState) :
       execCompiledSupportedStmtFragments ownedFields init fragments =
         execSourceSupportedStmtFragments ownedFields init fragments :=
   compile_supported_stmt_list_semantics ownedFields init _ owned_getOwner_supported
+
+-- ============================================================================
+-- SafeCounter fields and correctness theorems
+-- ============================================================================
+
+/-- SafeCounter fields used for bridge theorem instantiation. -/
+def safeCounterFields : List Field :=
+  [{ name := "count", ty := FieldType.uint256 }]
+
+/-- SafeCounter field resolution: `count` maps to slot 0. -/
+theorem safeCounterFieldResolution :
+    findFieldWithResolvedSlot safeCounterFields "count" =
+      some ({ name := "count", ty := FieldType.uint256 }, 0) := by
+  rfl
+
+/-- SafeCounter.getCount body belongs to the supported statement fragment grammar. -/
+theorem safeCounter_getCount_supported :
+    SupportedStmtList safeCounterFields
+      [Stmt.return (Expr.storage "count")] := by
+  exact ⟨[.requireClausesThenReturnStorage
+    [] "count" 0 safeCounterFieldResolution], rfl⟩
+
+/-- SafeCounter.getCount compilation correctness: compiled and source semantics match. -/
+theorem safeCounter_getCount_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment safeCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "count")] ∧
+      execCompiledSupportedStmtFragments safeCounterFields init fragments =
+        execSourceSupportedStmtFragments safeCounterFields init fragments :=
+  compile_supported_stmt_list_semantics safeCounterFields init _ safeCounter_getCount_supported
+
+-- ============================================================================
+-- OwnedCounter fields and correctness theorems
+-- ============================================================================
+
+/-- OwnedCounter fields used for bridge theorem instantiation. -/
+def ownedCounterFields : List Field :=
+  [{ name := "count", ty := FieldType.uint256 },
+   { name := "owner", ty := FieldType.address }]
+
+/-- OwnedCounter field resolution: `count` maps to slot 0. -/
+theorem ownedCounterCountFieldResolution :
+    findFieldWithResolvedSlot ownedCounterFields "count" =
+      some ({ name := "count", ty := FieldType.uint256 }, 0) := by
+  rfl
+
+/-- OwnedCounter field resolution: `owner` maps to slot 1. -/
+theorem ownedCounterOwnerFieldResolution :
+    findFieldWithResolvedSlot ownedCounterFields "owner" =
+      some ({ name := "owner", ty := FieldType.address }, 1) := by
+  rfl
+
+/-- OwnedCounter.getCount body belongs to the supported statement fragment grammar. -/
+theorem ownedCounter_getCount_supported :
+    SupportedStmtList ownedCounterFields
+      [Stmt.return (Expr.storage "count")] := by
+  exact ⟨[.requireClausesThenReturnStorage
+    [] "count" 0 ownedCounterCountFieldResolution], rfl⟩
+
+/-- OwnedCounter.getCount compilation correctness. -/
+theorem ownedCounter_getCount_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "count")] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  compile_supported_stmt_list_semantics ownedCounterFields init _ ownedCounter_getCount_supported
+
+/-- OwnedCounter.getOwner body belongs to the supported statement fragment grammar. -/
+theorem ownedCounter_getOwner_supported :
+    SupportedStmtList ownedCounterFields
+      [Stmt.return (Expr.storage "owner")] := by
+  exact ⟨[.requireClausesThenReturnStorageAddr
+    [] "owner" 1 ownedCounterOwnerFieldResolution], rfl⟩
+
+/-- OwnedCounter.getOwner compilation correctness. -/
+theorem ownedCounter_getOwner_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.return (Expr.storage "owner")] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  compile_supported_stmt_list_semantics ownedCounterFields init _ ownedCounter_getOwner_supported
+
+/-- OwnedCounter.increment body belongs to the supported statement fragment grammar. -/
+theorem ownedCounter_increment_supported :
+    SupportedStmtList ownedCounterFields
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+      , Stmt.setStorage "count" (Expr.add (Expr.storage "count") (Expr.literal 1))
+      , Stmt.stop ] := by
+  exact ⟨[.requireClausesThenRequireCallerEqStorageAddrSetStorageAddStop
+    [] "owner" "count" "Not owner" 1 0 1
+    ownedCounterOwnerFieldResolution ownedCounterCountFieldResolution], rfl⟩
+
+/-- OwnedCounter.increment compilation correctness. -/
+theorem ownedCounter_increment_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+        , Stmt.setStorage "count" (Expr.add (Expr.storage "count") (Expr.literal 1))
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  compile_supported_stmt_list_semantics ownedCounterFields init _ ownedCounter_increment_supported
+
+/-- OwnedCounter.decrement body belongs to the supported statement fragment grammar. -/
+theorem ownedCounter_decrement_supported :
+    SupportedStmtList ownedCounterFields
+      [ Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+      , Stmt.setStorage "count" (Expr.sub (Expr.storage "count") (Expr.literal 1))
+      , Stmt.stop ] := by
+  exact ⟨[.requireClausesThenRequireCallerEqStorageAddrSetStorageSubStop
+    [] "owner" "count" "Not owner" 1 0 1
+    ownedCounterOwnerFieldResolution ownedCounterCountFieldResolution], rfl⟩
+
+/-- OwnedCounter.decrement compilation correctness. -/
+theorem ownedCounter_decrement_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment ownedCounterFields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner"
+        , Stmt.setStorage "count" (Expr.sub (Expr.storage "count") (Expr.literal 1))
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments ownedCounterFields init fragments =
+        execSourceSupportedStmtFragments ownedCounterFields init fragments :=
+  compile_supported_stmt_list_semantics ownedCounterFields init _ ownedCounter_decrement_supported
 
 end Verity.Core.Free

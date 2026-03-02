@@ -1254,19 +1254,167 @@
       "notes": "Extended the supported fragment grammar with 2 new return-storage patterns (returnStorage for uint256, returnStorageAddr for address). SupportedStmtFragment now has 27 constructors. Proved compilation correctness for SimpleStorage.retrieve and Owned.getOwner parameterless getter functions. SimpleStorage.store and Owned.transferOwnership require param-based patterns which are deferred to future items (3.4+)."
     },
     "3.4": {
-      "status": "open",
-      "acceptance_criteria": [],
-      "files_changed": [],
-      "verification_commands": [],
-      "verification_results": [],
+      "status": "complete",
+      "acceptance_criteria": [
+        "SupportedStmtFragment extended with 2 new constructors: requireClausesThenRequireCallerEqStorageAddrSetStorageAddStop and requireClausesThenRequireCallerEqStorageAddrSetStorageSubStop.",
+        "RequireFamilyClausesTail extended with 2 matching tail constructors: requireCallerEqStorageAddrSetStorageAddStop and requireCallerEqStorageAddrSetStorageSubStop.",
+        "Compilation-shape theorems prove SSA output for require(caller==storage) + setStorage(add/sub) + stop patterns.",
+        "Semantic-preservation theorems prove source/compiled equivalence for both add and sub variants, using by_cases on address equality.",
+        "Sequencing theorems compose require-family prefix with requireCallerEqStorageAddr tails.",
+        "SafeCounter field definitions and bridge correctness theorem for getCount.",
+        "OwnedCounter field definitions and bridge correctness theorems for getCount, getOwner, increment, and decrement.",
+        "Test examples in TypedIRTests.lean exercise all new bridge correctness theorems."
+      ],
+      "files_changed": [
+        "Verity/Core/Free/TypedIRCompiler.lean",
+        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+        "Verity/Core/Free/TypedIRTests.lean",
+        "artifacts/issue_1060_progress.json"
+      ],
+      "verification_commands": [
+        "lake build Verity.Core.Free.TypedIRCompiler",
+        "lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests",
+        "lake build",
+        "python3 scripts/check_issue_1060_integrity.py",
+        "python3 scripts/check_proof_length.py"
+      ],
+      "verification_results": [
+        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
+        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2; non-blocking warnings: unused evalTExpr simp arg at lines 1042/1055, unnecessary simpa at line 3676]",
+        "pass: lake build [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
+        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
+        "pass: python3 scripts/check_proof_length.py [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]"
+      ],
       "evidence": {
-        "theorems": [],
-        "tests": []
+        "theorems": [
+          {
+            "name": "compileStmts_require_caller_eq_storage_addr_setStorage_add_storage_literal_stop_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Compiling [require(eq caller (storage ownerField)) msg, setStorage countField (add (storage countField) (literal n)), stop] emits the expected TStmt.if_ with getStorageAddr guard, TStmt.setStorage with add, and TStmt.stop."
+          },
+          {
+            "name": "compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_literal_stop_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Compiling [require(eq caller (storage ownerField)) msg, setStorage countField (sub (storage countField) (literal n)), stop] emits the expected TStmt.if_ with getStorageAddr guard, TStmt.setStorage with sub, and TStmt.stop."
+          },
+          {
+            "name": "compile_require_caller_eq_storage_addr_setStorage_add_stop_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Source and compiled semantics agree for the require(caller==storage owner) + setStorage(add) + stop pattern under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_caller_eq_storage_addr_setStorage_sub_stop_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Source and compiled semantics agree for the require(caller==storage owner) + setStorage(sub) + stop pattern under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_add_stop_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by require(caller==storage) + setStorage(add) + stop, compiled execution matches source semantics."
+          },
+          {
+            "name": "compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by require(caller==storage) + setStorage(sub) + stop, compiled execution matches source semantics."
+          },
+          {
+            "name": "safeCounterFieldResolution",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "findFieldWithResolvedSlot safeCounterFields 'count' resolves to ({name := 'count', ty := FieldType.uint256}, 0)."
+          },
+          {
+            "name": "safeCounter_getCount_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "SafeCounter.getCount body [return (storage 'count')] belongs to SupportedStmtList safeCounterFields."
+          },
+          {
+            "name": "safeCounter_getCount_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "SafeCounter.getCount compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
+          },
+          {
+            "name": "ownedCounterCountFieldResolution",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "findFieldWithResolvedSlot ownedCounterFields 'count' resolves to ({name := 'count', ty := FieldType.uint256}, 0)."
+          },
+          {
+            "name": "ownedCounterOwnerFieldResolution",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "findFieldWithResolvedSlot ownedCounterFields 'owner' resolves to ({name := 'owner', ty := FieldType.address}, 1)."
+          },
+          {
+            "name": "ownedCounter_getCount_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.getCount body [return (storage 'count')] belongs to SupportedStmtList ownedCounterFields."
+          },
+          {
+            "name": "ownedCounter_getCount_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.getCount compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
+          },
+          {
+            "name": "ownedCounter_getOwner_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.getOwner body [return (storage 'owner')] belongs to SupportedStmtList ownedCounterFields."
+          },
+          {
+            "name": "ownedCounter_getOwner_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.getOwner compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
+          },
+          {
+            "name": "ownedCounter_increment_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.increment body [require(eq caller (storage 'owner')) 'Not owner', setStorage 'count' (add (storage 'count') (literal 1)), stop] belongs to SupportedStmtList ownedCounterFields."
+          },
+          {
+            "name": "ownedCounter_increment_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.increment compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
+          },
+          {
+            "name": "ownedCounter_decrement_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.decrement body [require(eq caller (storage 'owner')) 'Not owner', setStorage 'count' (sub (storage 'count') (literal 1)), stop] belongs to SupportedStmtList ownedCounterFields."
+          },
+          {
+            "name": "ownedCounter_decrement_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "OwnedCounter.decrement compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
+          }
+        ],
+        "tests": [
+          {
+            "name": "safeCounter_getCount_test",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Example verifying SafeCounter.getCount correctness theorem instantiation."
+          },
+          {
+            "name": "ownedCounter_getCount_test",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Example verifying OwnedCounter.getCount correctness theorem instantiation."
+          },
+          {
+            "name": "ownedCounter_getOwner_test",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Example verifying OwnedCounter.getOwner correctness theorem instantiation."
+          },
+          {
+            "name": "ownedCounter_increment_test",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Example verifying OwnedCounter.increment correctness theorem instantiation."
+          },
+          {
+            "name": "ownedCounter_decrement_test",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Example verifying OwnedCounter.decrement correctness theorem instantiation."
+          }
+        ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": ""
+      "notes": "New patterns added: require(eq caller (storage addr)) + setStorage(add/sub)(storage, literal) + stop. These cover OwnedCounter.increment and OwnedCounter.decrement which use access-controlled arithmetic storage mutations. SafeCounter.increment/decrement use checked arithmetic (safeAdd/safeSub with requireSomeUint) which requires safe-arithmetic/Option fragment grammar extensions beyond the current supported fragment. OwnedCounter.constructor/transferOwnership/isOwner use composition patterns (setStorageAddr without require, onlyOwner + setStorageAddr, local var binding + comparison + return bool) not yet in the grammar. These are deferred to future items (4.x or grammar extensions)."
     },
     "3.5": {
       "status": "open",
