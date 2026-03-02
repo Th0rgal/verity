@@ -61,6 +61,19 @@ def execCompiledLetAssignSetStorageLocalLiteral
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Compile + execute an arithmetic supported subset sequence:
+`letVar tmp (literal n); assignVar tmp (add (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`. -/
+def execCompiledLetAssignAddSetStorageLocalLiteral
+    (fields : List Field) (fieldName tmp : String) (init : TExecState) (n m : Nat) :
+    TExecResult :=
+  match (compileStmts fields
+      [ Stmt.letVar tmp (Expr.literal n)
+      , Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      ]).run {} with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Semantic-preservation theorem for the supported 2.2 subset:
 compiling and running `setStorage fieldName (literal n)` matches direct source execution,
 under explicit field-resolution assumptions. -/
@@ -110,6 +123,28 @@ theorem compile_let_assign_setStorage_local_literal_semantics
               { id := 1, ty := Ty.uint256 } (m : Verity.Core.Uint256) }) := by
   simp [execCompiledLetAssignSetStorageLocalLiteral, execSourceSetStorageLiteral,
     compileStmts_let_assign_literal_setStorage_local_run, hfind, evalTStmts, defaultEvalFuel]
+  simp [evalTStmtsFuel, evalTStmtFuel]
+
+/-- Semantic-preservation theorem for an arithmetic supported three-statement subset:
+compiling and running
+`letVar tmp (literal n); assignVar tmp (add (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`
+matches direct source storage update semantics under explicit field-resolution assumptions. -/
+theorem compile_let_assign_add_setStorage_local_literal_semantics
+    (fields : List Field) (fieldName tmp : String) (slot : Nat)
+    (init : TExecState) (n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    execCompiledLetAssignAddSetStorageLocalLiteral fields fieldName tmp init n m =
+      .ok
+        ({ init with
+            world := execSourceSetStorageLiteral init.world slot
+              ((n : Verity.Core.Uint256).add (m : Verity.Core.Uint256))
+            vars := TVars.set
+              (TVars.set init.vars { id := 0, ty := Ty.uint256 } (n : Verity.Core.Uint256))
+              { id := 1, ty := Ty.uint256 }
+                ((n : Verity.Core.Uint256).add (m : Verity.Core.Uint256)) }) := by
+  simp [execCompiledLetAssignAddSetStorageLocalLiteral, execSourceSetStorageLiteral,
+    compileStmts_let_assign_add_literal_setStorage_local_run, hfind, evalTStmts, defaultEvalFuel]
   simp [evalTStmtsFuel, evalTStmtFuel]
 
 end Verity.Core.Free

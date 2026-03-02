@@ -99,7 +99,8 @@
         "Prove list-compilation composition for compileStmts by structural induction.",
         "Strengthen append theorem so it can be instantiated from any initial CompileState.",
         "Add a non-trivial semantic-preservation theorem artifact for a supported compilation subset without weakening obligations.",
-        "Extend semantic-preservation coverage to the supported letVar/assignVar/setStorage(localVar) subset with explicit field-resolution assumptions."
+        "Extend semantic-preservation coverage to the supported letVar/assignVar/setStorage(localVar) subset with explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses add(localVar,tmpLiteral) before setStorage."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompiler.lean",
@@ -160,19 +161,30 @@
             "name": "compile_let_assign_setStorage_local_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported letVar/assignVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA rebinding sequence."
+          },
+          {
+            "name": "compileStmts_let_assign_add_literal_setStorage_local_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Three-statement compilation for letVar-literal; assignVar-add(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed addition and typed setStorage sequence from empty compile state."
+          },
+          {
+            "name": "compile_let_assign_add_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported arithmetic letVar/assignVar-add/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n + m) and the expected SSA rebinding effect."
           }
         ],
         "tests": [
           "TypedIRTests: example instantiating compileStmts_append_from over arbitrary fields/pre/post/state",
           "TypedIRTests: example instantiating compile_setStorage_literal_semantics over arbitrary fields/fieldName/slot assumptions",
           "TypedIRTests: example instantiating compile_let_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
-          "TypedIRTests: example instantiating compile_let_assign_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions"
+          "TypedIRTests: example instantiating compile_let_assign_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
+          "TypedIRTests: example instantiating compile_let_assign_add_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions"
         ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": "2.2 remains partial: this slice extends semantic-preservation evidence to a broader three-statement subset (letVar literal; assignVar literal; setStorage localVar) under explicit field-resolution assumptions, but does not yet prove full source-vs-typed semantics for the broader supported statement fragment."
+      "notes": "2.2 remains partial: this slice extends semantic-preservation evidence to a broader arithmetic three-statement subset (letVar literal; assignVar add(localVar,literal); setStorage localVar) under explicit field-resolution assumptions, but does not yet prove full source-vs-typed semantics for the broader supported statement fragment."
     },
     "2.3": {
       "status": "open",

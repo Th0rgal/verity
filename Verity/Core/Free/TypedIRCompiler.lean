@@ -389,4 +389,33 @@ theorem compileStmts_let_assign_literal_setStorage_local_run
     lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
+/-- Three-statement compilation shape for an arithmetic supported subset:
+`letVar tmp (literal n); assignVar tmp (add (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`
+lowers to two SSA `let_` bindings and one typed `setStorage`, from an empty compile state. -/
+theorem compileStmts_let_assign_add_literal_setStorage_local_run
+    (fields : List Field) (fieldName tmp : String) (slot : Nat)
+    (n m : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [ Stmt.letVar tmp (Expr.literal n)
+      , Stmt.assignVar tmp (Expr.add (Expr.localVar tmp) (Expr.literal m))
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      ]).run {} =
+      Except.ok ((),
+        { nextId := 2
+          vars := [ (tmp, { id := 1, ty := Ty.uint256 })
+                  , (tmp, { id := 0, ty := Ty.uint256 })]
+          params := #[]
+          locals := #[{ id := 0, ty := Ty.uint256 }, { id := 1, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 0, ty := Ty.uint256 } (TExpr.uintLit n),
+            TStmt.let_ { id := 1, ty := Ty.uint256 }
+              (TExpr.add (TExpr.var { id := 0, ty := Ty.uint256 }) (TExpr.uintLit m)),
+            TStmt.setStorage slot (TExpr.var { id := 1, ty := Ty.uint256 })
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+    lookupVar, fieldTypeToTy, hfind, emit]
+  rfl
+
 end Verity.Core.Free
