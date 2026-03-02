@@ -1374,4 +1374,11 @@ example (fields : List Compiler.CompilationModel.Field)
       execSourceRequireFamilyClausesTailPrograms fields init (pre ++ post) :=
   compile_require_family_clauses_tail_programs_append_semantics fields init pre post
 
+example (fields : List Compiler.CompilationModel.Field)
+    (init : TExecState)
+    (fragments : List (SupportedStmtFragment fields)) :
+    execCompiledSupportedStmtFragments fields init fragments =
+      execSourceSupportedStmtFragments fields init fragments :=
+  compile_supported_stmt_fragments_semantics fields init fragments
+
 end Verity.Core.Free

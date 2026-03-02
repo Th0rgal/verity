@@ -1438,4 +1438,97 @@ theorem compile_require_family_clauses_tail_programs_append_semantics
           simpa using
             (execSourceRequireFamilyClausesTailPrograms_append_from fields init pre post).symm
 
+/-- Explicit statement-fragment grammar for the currently supported generic 2.2
+subset: one require-clause-list prefix followed by one supported continuation. -/
+inductive SupportedStmtFragment (fields : List Field) where
+  | requireClausesThenSetStorageLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName : String) (slot : Nat) (writeVal : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | requireClausesThenReturnLiteral
+      (clauses : List RequireLiteralGuardFamilyClause) (retVal : Nat)
+  | requireClausesThenLetReturnLocalLiteral
+      (clauses : List RequireLiteralGuardFamilyClause) (tmp : String) (retVal : Nat)
+  | requireClausesThenLetSetStorageLocalLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName tmp : String) (slot : Nat) (n : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | requireClausesThenLetAssignSetStorageLocalLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | requireClausesThenLetAssignAddSetStorageLocalLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | requireClausesThenLetAssignSubSetStorageLocalLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+  | requireClausesThenLetAssignMulSetStorageLocalLiteral
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName tmp : String) (slot : Nat) (n m : Nat)
+      (hfind : findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+
+/-- Encode an explicit supported statement fragment into the generic
+`(require-clause-list + tail)` program representation. -/
+def SupportedStmtFragment.toRequireFamilyClausesTailProgram
+    {fields : List Field} :
+    SupportedStmtFragment fields → RequireFamilyClausesTailProgram fields
+  | .requireClausesThenSetStorageLiteral clauses fieldName slot writeVal hfind =>
+      { clauses := clauses
+        tail := .setStorageLiteral fieldName slot writeVal hfind }
+  | .requireClausesThenReturnLiteral clauses retVal =>
+      { clauses := clauses
+        tail := .returnLiteral retVal }
+  | .requireClausesThenLetReturnLocalLiteral clauses tmp retVal =>
+      { clauses := clauses
+        tail := .letReturnLocalLiteral tmp retVal }
+  | .requireClausesThenLetSetStorageLocalLiteral clauses fieldName tmp slot n hfind =>
+      { clauses := clauses
+        tail := .letSetStorageLocalLiteral fieldName tmp slot n hfind }
+  | .requireClausesThenLetAssignSetStorageLocalLiteral clauses fieldName tmp slot n m hfind =>
+      { clauses := clauses
+        tail := .letAssignSetStorageLocalLiteral fieldName tmp slot n m hfind }
+  | .requireClausesThenLetAssignAddSetStorageLocalLiteral clauses fieldName tmp slot n m hfind =>
+      { clauses := clauses
+        tail := .letAssignAddSetStorageLocalLiteral fieldName tmp slot n m hfind }
+  | .requireClausesThenLetAssignSubSetStorageLocalLiteral clauses fieldName tmp slot n m hfind =>
+      { clauses := clauses
+        tail := .letAssignSubSetStorageLocalLiteral fieldName tmp slot n m hfind }
+  | .requireClausesThenLetAssignMulSetStorageLocalLiteral clauses fieldName tmp slot n m hfind =>
+      { clauses := clauses
+        tail := .letAssignMulSetStorageLocalLiteral fieldName tmp slot n m hfind }
+
+/-- Source semantics for lists of explicit supported statement fragments. -/
+def execSourceSupportedStmtFragments
+    (fields : List Field) (init : TExecState)
+    (fragments : List (SupportedStmtFragment fields)) : TExecResult :=
+  execSourceRequireFamilyClausesTailPrograms fields init
+    (fragments.map SupportedStmtFragment.toRequireFamilyClausesTailProgram)
+
+/-- Compiled semantics for lists of explicit supported statement fragments. -/
+def execCompiledSupportedStmtFragments
+    (fields : List Field) (init : TExecState)
+    (fragments : List (SupportedStmtFragment fields)) : TExecResult :=
+  execCompiledRequireFamilyClausesTailPrograms fields init
+    (fragments.map SupportedStmtFragment.toRequireFamilyClausesTailProgram)
+
+/-- One generic list-level semantic-preservation theorem over the explicit
+supported statement-fragment grammar for roadmap item 2.2. -/
+theorem compile_supported_stmt_fragments_semantics
+    (fields : List Field) (init : TExecState)
+    (fragments : List (SupportedStmtFragment fields)) :
+    execCompiledSupportedStmtFragments fields init fragments =
+      execSourceSupportedStmtFragments fields init fragments := by
+  simpa [execCompiledSupportedStmtFragments, execSourceSupportedStmtFragments]
+    using compile_require_family_clauses_tail_programs_semantics fields init
+      (fragments.map SupportedStmtFragment.toRequireFamilyClausesTailProgram)
+
 end Verity.Core.Free
