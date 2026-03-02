@@ -1270,6 +1270,30 @@ example (fields : List Compiler.CompilationModel.Field)
 
 example (fields : List Compiler.CompilationModel.Field)
     (fieldName tmp : String) (slotIdx : Nat) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) (n : Nat)
+    (hfind : Compiler.CompilationModel.findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := Compiler.CompilationModel.FieldType.uint256 }, slotIdx)) :
+    execCompiledRequireFamilyClausesThenLetSetStorageLocalLiteral
+        fields fieldName tmp init clauses n =
+      execSourceRequireFamilyClausesThenLetSetStorageLocalLiteral
+        init clauses slotIdx n :=
+  compile_require_family_clauses_then_let_setStorage_local_literal_semantics
+    fields fieldName tmp slotIdx init clauses n hfind
+
+example (fields : List Compiler.CompilationModel.Field)
+    (fieldName tmp : String) (slotIdx : Nat) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) (n m : Nat)
+    (hfind : Compiler.CompilationModel.findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := Compiler.CompilationModel.FieldType.uint256 }, slotIdx)) :
+    execCompiledRequireFamilyClausesThenLetAssignSetStorageLocalLiteral
+        fields fieldName tmp init clauses n m =
+      execSourceRequireFamilyClausesThenLetAssignSetStorageLocalLiteral
+        init clauses slotIdx n m :=
+  compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics
+    fields fieldName tmp slotIdx init clauses n m hfind
+
+example (fields : List Compiler.CompilationModel.Field)
+    (fieldName tmp : String) (slotIdx : Nat) (init : TExecState)
     (clauses : List RequireLiteralGuardFamilyClause) (n m : Nat)
     (hfind : Compiler.CompilationModel.findFieldWithResolvedSlot fields fieldName =
       some ({ name := fieldName, ty := Compiler.CompilationModel.FieldType.uint256 }, slotIdx)) :
