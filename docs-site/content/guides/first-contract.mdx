@@ -51,7 +51,7 @@ python3 scripts/generate_contract.py TipJar \
 This creates all required files:
 - `Verity/Specs/TipJar/Spec.lean` — formal specification
 - `Verity/Specs/TipJar/Invariants.lean` — state invariants
-- `Verity/Specs/TipJar/Proofs.lean` — Layer 2 proof re-export (imports from `Compiler/Proofs/SpecCorrectness/`)
+- `Verity/Specs/TipJar/Proofs.lean` — compilation correctness proof re-export
 - `Verity/Examples/TipJar.lean` — EDSL implementation
 - `Verity/Proofs/TipJar/Basic.lean` — basic correctness proofs (EDSL matches spec)
 - `Verity/Proofs/TipJar/Correctness.lean` — advanced correctness proofs
@@ -383,52 +383,13 @@ Function selectors (the first 4 bytes of `keccak256("functionName(paramTypes)")`
 
 > **Tip**: Run `python3 scripts/check_selectors.py` to verify that the auto-computed selectors match `solc --hashes` output. You can also compute selectors manually with `python3 scripts/keccak256.py "tip(uint256)" "getBalance(address)"`.
 
-### 5.3 Write Layer 2 Proofs
+### 5.3 Compilation Correctness
 
-Layer 1 bridge proofs show that the `CompilationModel` faithfully represents the EDSL implementation. Create `Compiler/Proofs/SpecCorrectness/TipJar.lean` (Lake discovers all `.lean` files under `Compiler/` automatically via `globs := #[.andSubmodules `Compiler]` in `lakefile.lean`, so no registration is needed):
+When you define a contract using the `verity_contract` macro (in `Verity/Examples/MacroContracts.lean`), the framework automatically provides compilation correctness via the generic typed-IR theorem in `Verity/Core/Free/TypedIRCompilerCorrectness.lean`. This theorem covers a grammar of 36+ supported statement fragments, so no per-contract compilation proofs are needed for standard patterns.
 
-```lean
-/-
-  Compiler.Proofs.SpecCorrectness.TipJar
+The bridge between EDSL semantics and the compilation model is maintained in `Compiler/Proofs/SemanticBridge.lean`. For contracts using only supported patterns (storage reads/writes, mappings, require guards, arithmetic, conditionals), compilation correctness is fully automatic with zero `sorry`.
 
-  Prove that tipJarSpec accurately represents the TipJar EDSL.
-
-  Strategy:
-  - Define state conversion between EDSL ContractState and Spec evaluation
-  - Prove each function in the spec produces the same result as the EDSL
--/
-
-import Compiler.Specs
-import Verity.Proofs.Stdlib.SpecInterpreter
-import Verity.Examples.TipJar
-
-namespace Compiler.Proofs.SpecCorrectness
-
-open Compiler.CompilationModel
-open Compiler.Specs
-open Verity.Proofs.Stdlib.SpecInterpreter
-open Verity
-open Verity.Examples.TipJar
-
--- Prove that the spec interpretation of `tip` matches the EDSL `tip`
--- Prove that the spec interpretation of `getBalance` matches the EDSL `getBalance`
--- See Counter.lean or SimpleStorage.lean for the full pattern
-
-end Compiler.Proofs.SpecCorrectness
-```
-
-> **Tip**: Study `Compiler/Proofs/SpecCorrectness/Counter.lean` (simplest) or `SimpleStorage.lean` — they follow a consistent pattern: define a state conversion, then prove each function matches.
-
-Once this file compiles, activate the re-export shim in `Verity/Specs/TipJar/Proofs.lean`:
-
-```lean
-import Compiler.Proofs.SpecCorrectness.TipJar
-
-/-
-  Layer 2 proof re-export.
-  This keeps the user-facing path stable while reusing the core proof module.
--/
-```
+> **Tip**: Study `Verity/Core/Free/TypedIRCompilerCorrectness.lean` to see the supported statement fragment grammar and bridge theorem examples for Counter, SimpleStorage, ERC20, and ERC721.
 
 ### 5.4 Generate Yul Code
 

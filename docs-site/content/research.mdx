@@ -104,7 +104,7 @@ Each contract has:
 - `Verity/Specs/X/Invariants.lean` — State properties that should hold
 - `Verity/Proofs/X/Basic.lean` — Layer 1: Spec conformance, basic properties
 - `Verity/Proofs/X/Correctness.lean` — Layer 1: Revert proofs, composition, end-to-end
-- `Verity/Specs/X/Proofs.lean` — Layer 2 re-export (imports from `Compiler/Proofs/SpecCorrectness/`)
+- `Verity/Core/Free/TypedIRCompilerCorrectness.lean` — Compilation correctness (generic theorem, 36 supported fragments)
 
 Some contracts have additional proof files:
 - `Verity/Proofs/SimpleToken/Supply.lean` — Supply conservation equations

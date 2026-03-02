@@ -6,13 +6,14 @@ Formal verification proofs for the Verity compiler, proving correctness across t
 
 ## Verification Layers
 
-- **Layer 1: EDSL ≡ CompilationModel (`CompilationModel`)** — User contracts satisfy their compilation models (`Verity/Proofs/<Name>/` + `Compiler/Proofs/SpecCorrectness/`). Uses a hybrid strategy: generated proofs for the supported subset, manual escape hatch for advanced constructs.
+- **Layer 1: EDSL ≡ CompilationModel (`CompilationModel`)** — User contracts satisfy their compilation models (`Verity/Proofs/<Name>/` + `Compiler/Proofs/SemanticBridge.lean`). The hybrid typed-IR pipeline (`Verity/Core/Free/TypedIRCompilerCorrectness.lean`) provides a generic compilation-correctness theorem; macro-generated bridge theorems eliminate `sorry` for the supported subset.
 - **Layer 2: CompilationModel (`CompilationModel`) → IR** — IR generation preserves compilation-model semantics (`Compiler/Proofs/IRGeneration/`).
 - **Layer 3: IR → Yul** — All statement equivalence proofs proven (`Compiler/Proofs/YulGeneration/`).
 
 Key entry points:
 
-- Spec semantics: `Verity/Proofs/Stdlib/SpecInterpreter.lean`
+- Semantic bridge: `Compiler/Proofs/SemanticBridge.lean`
+- Typed IR correctness: `Verity/Core/Free/TypedIRCompilerCorrectness.lean`
 - IR generation and proofs: `Compiler/Proofs/IRGeneration/`
 - Lowering boundary scaffolding proofs: `Compiler/Proofs/Lowering/`
 - Yul semantics and preservation: `Compiler/Proofs/YulGeneration/`
@@ -93,7 +94,7 @@ It also exposes API-boundary preservation lemmas for both transition entrypoints
 `lowerFromEDSLSubset_supported_preserves_interpretSpec` and
 `lowerFromEDSLSubset_manualBridge_preserves_interpretSpec`.
 
-Layer 1 proofs live in `Verity/Proofs/<Name>/Basic.lean` and `Correctness.lean`. The re-export shim at `Verity/Specs/<Name>/Proofs.lean` imports Layer 1 spec-correctness proofs from `Compiler/Proofs/SpecCorrectness/<Name>.lean`.
+Layer 1 proofs live in `Verity/Proofs/<Name>/Basic.lean` and `Correctness.lean`. The typed-IR compilation correctness pipeline is in `Verity/Core/Free/TypedIRCompilerCorrectness.lean`, with cross-layer bridge proofs in `Compiler/Proofs/SemanticBridge.lean`.
 
 ## Build
 
