@@ -1977,4 +1977,75 @@ example (init : TExecState) :
         execSourceSupportedStmtFragments erc20Fields init fragments :=
   erc20_approve_correctness init
 
+-- ============================================================
+-- ERC721 bridge theorem tests
+-- ============================================================
+
+/-- End-to-end ERC721.getApproved: compiled block executes without reverting. -/
+def compiledERC721GetApprovedPreservesState : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "getApproved" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [tokenIdParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              storageMapUint := fun i key =>
+                if i == 4 && key == 7 then 999 else 0 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { uint256 := fun i =>
+                          if i = tokenIdParam.id then 7 else 0 } }
+          match evalTBlock init block with
+          | .ok _ => true
+          | .revert _ => false
+      | _ => false
+
+/-- ERC721.getApproved: succeeds without reverting. -/
+example : compiledERC721GetApprovedPreservesState = true := by native_decide
+
+/-- End-to-end ERC721.approve: compiled block executes without reverting. -/
+def compiledERC721ApprovePreservesState : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "approve" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [approvedParam, tokenIdParam] =>
+          let initWorld : Verity.ContractState := Verity.defaultState
+          let init : TExecState :=
+            { world := initWorld
+              vars := { uint256 := fun i =>
+                          if i = approvedParam.id then 33
+                          else if i = tokenIdParam.id then 7
+                          else 0 } }
+          match evalTBlock init block with
+          | .ok _ => true
+          | .revert _ => false
+      | _ => false
+
+/-- ERC721.approve: succeeds without reverting. -/
+example : compiledERC721ApprovePreservesState = true := by native_decide
+
+open Compiler.CompilationModel in
+/-- ERC721.getApproved correctness instantiation. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment erc721Fields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.letVar "approvedWord" (Expr.mappingUint "tokenApprovalsSlot" (Expr.param "tokenId"))
+        , Stmt.return (Expr.localVar "approvedWord") ] ∧
+      execCompiledSupportedStmtFragments erc721Fields init fragments =
+        execSourceSupportedStmtFragments erc721Fields init fragments :=
+  erc721_getApproved_correctness init
+
+open Compiler.CompilationModel in
+/-- ERC721.approve correctness instantiation. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment erc721Fields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.setMappingUint "tokenApprovalsSlot" (Expr.param "tokenId") (Expr.param "approved")
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments erc721Fields init fragments =
+        execSourceSupportedStmtFragments erc721Fields init fragments :=
+  erc721_approve_correctness init
+
 end Verity.Core.Free

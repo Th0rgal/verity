@@ -1737,19 +1737,101 @@
       "notes": "5 of 8 ERC20 functions proven correct (totalSupply, owner, balanceOf, allowanceOf, approve). Deferred: mint, transfer, transferFrom (require safe arithmetic, control flow, multiple storage writes). Introduced context-aware compilation with pre-populated CompileState and beq_false_of_ne for parametric string distinctness in compilation-shape theorems. 4 new RequireFamilyClausesTail constructors, 4 new SupportedStmtFragment constructors (34 total), 18 new theorems."
     },
     "4.2": {
-      "status": "open",
-      "acceptance_criteria": [],
-      "files_changed": [],
-      "verification_commands": [],
-      "verification_results": [],
+      "status": "complete",
+      "acceptance_criteria": [
+        "ERC721 field definitions (`erc721Fields`) match MacroContracts.lean layout (5 fields: ownerSlot/address, totalSupplySlot/uint256, nextTokenIdSlot/uint256, ownersSlot/mappingUint, tokenApprovalsSlot/mappingUint).",
+        "Compilation-shape theorems for Uint256-keyed mapping patterns: `compileStmts_let_mappingUint_param_return_local_run` and `compileStmts_setMappingUint_params_stop_run`.",
+        "Source/compiled semantics + semantic-preservation theorems for both Uint256-keyed mapping patterns.",
+        "2 new RequireFamilyClausesTail constructors (`letMappingUintParamReturnLocal`, `setMappingUintParamsStop`) fully wired into dispatchers.",
+        "2 new SupportedStmtFragment constructors (`requireClausesThenLetMappingUintParamReturnLocal`, `requireClausesThenSetMappingUintParamsStop`) with toStmts + toRequireFamilyClausesTailProgram.",
+        "Bridge theorems for ERC721.getApproved and ERC721.approve (both `_supported` and `_correctness`).",
+        "End-to-end native_decide tests for both ERC721 functions.",
+        "`lake build` passes all 1140 modules with 0 errors."
+      ],
+      "files_changed": [
+        "Verity/Core/Free/TypedIRCompiler.lean",
+        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+        "Verity/Core/Free/TypedIRTests.lean",
+        "Compiler/Specs.lean"
+      ],
+      "verification_commands": [
+        "lake build",
+        "python3 scripts/check_issue_1060_integrity.py",
+        "python3 scripts/check_proof_length.py",
+        "python3 scripts/sync_1060_trackers.py"
+      ],
+      "verification_results": [
+        "pass: lake build (1140 modules, 0 errors) [run_id=4.2-build-001, artifact_sha256=cc0c105ebd47]",
+        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=4.2-integrity-001]",
+        "pass: python3 scripts/check_proof_length.py [run_id=4.2-prooflength-001]",
+        "pass: python3 scripts/sync_1060_trackers.py [run_id=4.2-sync-001]"
+      ],
       "evidence": {
-        "theorems": [],
-        "tests": []
+        "theorems": [
+          {
+            "name": "erc721_getApproved_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "description": "ERC721.getApproved body belongs to the supported statement fragment grammar",
+            "statement_summary": "SupportedStmtList erc721Fields [letVar approvedWord (mappingUint tokenApprovalsSlot (param tokenId)), return (localVar approvedWord)]"
+          },
+          {
+            "name": "erc721_getApproved_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "description": "ERC721.getApproved compilation correctness: compiled and source semantics agree",
+            "statement_summary": "∃ fragments, supportedStmtFragmentsToStmts fragments = [getApproved stmts] ∧ execCompiled = execSource"
+          },
+          {
+            "name": "erc721_approve_supported",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "description": "ERC721.approve body belongs to the supported statement fragment grammar",
+            "statement_summary": "SupportedStmtList erc721Fields [setMappingUint tokenApprovalsSlot (param tokenId) (param approved), stop]"
+          },
+          {
+            "name": "erc721_approve_correctness",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "description": "ERC721.approve compilation correctness: compiled and source semantics agree",
+            "statement_summary": "∃ fragments, supportedStmtFragmentsToStmts fragments = [approve stmts] ∧ execCompiled = execSource"
+          },
+          {
+            "name": "compile_let_mappingUint_param_return_local_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "description": "Semantic-preservation for Uint256-keyed mapping read + return pattern",
+            "statement_summary": "execCompiledLetMappingUintParamReturnLocal = execSourceLetMappingUintParamReturnLocal"
+          },
+          {
+            "name": "compile_setMappingUint_params_stop_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "description": "Semantic-preservation for Uint256-keyed setMappingUint + stop pattern",
+            "statement_summary": "execCompiledSetMappingUintParamsStop = execSourceSetMappingUintParamsStop"
+          }
+        ],
+        "tests": [
+          {
+            "name": "compiledERC721GetApprovedPreservesState",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "description": "End-to-end ERC721.getApproved: compiled block executes without reverting (native_decide)"
+          },
+          {
+            "name": "compiledERC721ApprovePreservesState",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "description": "End-to-end ERC721.approve: compiled block executes without reverting (native_decide)"
+          },
+          {
+            "name": "erc721_getApproved_correctness_instantiation",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "description": "ERC721.getApproved correctness theorem instantiation example"
+          },
+          {
+            "name": "erc721_approve_correctness_instantiation",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "description": "ERC721.approve correctness theorem instantiation example"
+          }
+        ]
       },
       "obligation_delta": {
         "removed_sorries": []
       },
-      "notes": ""
+      "notes": "Covers 2 of 6 ERC721 functions (getApproved, approve). Remaining 4 (constructor, ownerOf, mint, transferFrom) require patterns not yet in the grammar: ownerOf needs require-on-local-var, mint needs safe arithmetic, transferFrom needs nested control flow."
     },
     "4.3": {
       "status": "open",

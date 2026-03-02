@@ -308,6 +308,57 @@ def execCompiledLetCallerSetMapping2Stop
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Source semantics for `letVar tmp (mappingUint field (param p)); return (localVar tmp)`.
+Reads a Uint256-keyed mapping at slot using param 0 (Uint256) as key. -/
+def execSourceLetMappingUintParamReturnLocal
+    (init : TExecState) (slot : Nat) : TExecResult :=
+  .ok { init with
+    vars := TVars.set init.vars { id := 1, ty := Ty.uint256 }
+      (init.world.storageMapUint slot (init.vars.uint256 0)) }
+
+/-- Compile + execute the mappingUint(param) read + return pattern,
+from a pre-populated 1-Uint256-param CompileState. -/
+def execCompiledLetMappingUintParamReturnLocal
+    (fields : List Field) (fieldName paramName tmp : String)
+    (init : TExecState) : TExecResult :=
+  match (compileStmts fields
+      [ Stmt.letVar tmp (Expr.mappingUint fieldName (Expr.param paramName))
+      , Stmt.return (Expr.localVar tmp)
+      ]).run
+      (CompileState.mk 1
+        [(paramName, { id := 0, ty := Ty.uint256 })]
+        #[{ id := 0, ty := Ty.uint256 }]
+        #[] #[]) with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
+/-- Source semantics for `setMappingUint field (param p1) (param p2); stop`.
+Sets a Uint256-keyed mapping at slot: mapping[p1] = p2. -/
+def execSourceSetMappingUintParamsStop
+    (init : TExecState) (slot : Nat) : TExecResult :=
+  .ok { init with world := { init.world with
+    storageMapUint := fun i key' =>
+      if i == slot && key' == init.vars.uint256 0
+      then init.vars.uint256 1
+      else init.world.storageMapUint i key' } }
+
+/-- Compile + execute the setMappingUint(param1, param2) + stop pattern,
+from a pre-populated 2-Uint256-param CompileState. -/
+def execCompiledSetMappingUintParamsStop
+    (fields : List Field) (fieldName p1 p2 : String)
+    (init : TExecState) : TExecResult :=
+  match (compileStmts fields
+      [ Stmt.setMappingUint fieldName (Expr.param p1) (Expr.param p2)
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 2
+        [(p2, { id := 1, ty := Ty.uint256 }),
+         (p1, { id := 0, ty := Ty.uint256 })]
+        #[{ id := 0, ty := Ty.uint256 }, { id := 1, ty := Ty.uint256 }]
+        #[] #[]) with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Source semantics for `require (eq caller (storage ownerField)) msg ;
 setStorage countField (add (storage countField) (literal n)) ; stop`. -/
 def execSourceRequireCallerEqStorageAddrSetStorageAddStop
@@ -1234,6 +1285,31 @@ theorem compile_let_caller_setMapping2_stop_semantics
     h1, h2, h3, h4, h5, h6,
     evalTStmts, defaultEvalFuel]
   simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, TVars.get, TVars.set]
+
+/-- Semantic-preservation for the mappingUint(param) read + return pattern. -/
+theorem compile_let_mappingUint_param_return_local_semantics
+    (fields : List Field) (fieldName paramName tmp : String) (slot : Nat)
+    (init : TExecState)
+    (hSlot : findFieldSlot fields fieldName = some slot) :
+    execCompiledLetMappingUintParamReturnLocal fields fieldName paramName tmp init =
+      execSourceLetMappingUintParamReturnLocal init slot := by
+  simp [execCompiledLetMappingUintParamReturnLocal, execSourceLetMappingUintParamReturnLocal,
+    compileStmts_let_mappingUint_param_return_local_run, hSlot,
+    evalTStmts, defaultEvalFuel]
+  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, TVars.get]
+
+/-- Semantic-preservation for the setMappingUint(param1, param2) + stop pattern. -/
+theorem compile_setMappingUint_params_stop_semantics
+    (fields : List Field) (fieldName p1 p2 : String) (slot : Nat)
+    (init : TExecState)
+    (hSlot : findFieldSlot fields fieldName = some slot)
+    (hp : p1 ≠ p2) :
+    execCompiledSetMappingUintParamsStop fields fieldName p1 p2 init =
+      execSourceSetMappingUintParamsStop init slot := by
+  simp [execCompiledSetMappingUintParamsStop, execSourceSetMappingUintParamsStop,
+    compileStmts_setMappingUint_params_stop_run, hSlot, hp,
+    evalTStmts, defaultEvalFuel]
+  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, TVars.get]
 
 /-- Semantic-preservation for `require (eq caller (storage ownerField)) msg ;
 setStorage countField (add (storage countField) (literal n)) ; stop`. -/
@@ -3237,6 +3313,68 @@ theorem compile_require_family_clauses_then_let_caller_setMapping2_stop_semantic
     compile_let_caller_setMapping2_stop_semantics, hSlot,
     h1, h2, h3, h4, h5, h6]
 
+/-- Source semantics for require-clauses + letMappingUintParam + return. -/
+def execSourceRequireFamilyClausesThenLetMappingUintParamReturnLocal
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (slot : Nat) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st => execSourceLetMappingUintParamReturnLocal st slot
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for require-clauses + letMappingUintParam + return. -/
+def execCompiledRequireFamilyClausesThenLetMappingUintParamReturnLocal
+    (fields : List Field) (fieldName paramName tmp : String) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st => execCompiledLetMappingUintParamReturnLocal fields fieldName paramName tmp st
+  | .revert reason => .revert reason
+
+/-- Sequencing: require clauses + mappingUint(param) read + return. -/
+theorem compile_require_family_clauses_then_let_mappingUint_param_return_local_semantics
+    (fields : List Field) (fieldName paramName tmp : String) (slot : Nat)
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (hSlot : findFieldSlot fields fieldName = some slot) :
+    execCompiledRequireFamilyClausesThenLetMappingUintParamReturnLocal
+        fields fieldName paramName tmp init clauses =
+      execSourceRequireFamilyClausesThenLetMappingUintParamReturnLocal
+        init clauses slot := by
+  simp [execCompiledRequireFamilyClausesThenLetMappingUintParamReturnLocal,
+    execSourceRequireFamilyClausesThenLetMappingUintParamReturnLocal,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_let_mappingUint_param_return_local_semantics, hSlot]
+
+/-- Source semantics for require-clauses + setMappingUint(params) + stop. -/
+def execSourceRequireFamilyClausesThenSetMappingUintParamsStop
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (slot : Nat) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st => execSourceSetMappingUintParamsStop st slot
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for require-clauses + setMappingUint(params) + stop. -/
+def execCompiledRequireFamilyClausesThenSetMappingUintParamsStop
+    (fields : List Field) (fieldName p1 p2 : String) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st => execCompiledSetMappingUintParamsStop fields fieldName p1 p2 st
+  | .revert reason => .revert reason
+
+/-- Sequencing: require clauses + setMappingUint(params) + stop. -/
+theorem compile_require_family_clauses_then_setMappingUint_params_stop_semantics
+    (fields : List Field) (fieldName p1 p2 : String) (slot : Nat)
+    (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
+    (hSlot : findFieldSlot fields fieldName = some slot)
+    (hp : p1 ≠ p2) :
+    execCompiledRequireFamilyClausesThenSetMappingUintParamsStop
+        fields fieldName p1 p2 init clauses =
+      execSourceRequireFamilyClausesThenSetMappingUintParamsStop
+        init clauses slot := by
+  simp [execCompiledRequireFamilyClausesThenSetMappingUintParamsStop,
+    execSourceRequireFamilyClausesThenSetMappingUintParamsStop,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_setMappingUint_params_stop_semantics, hSlot, hp]
+  cases h : execSourceRequireLiteralGuardFamilyClauses init clauses <;> rfl
+
 /-- Source semantics for require-clauses + requireCallerEqStorageAddr + setStorage(add) + stop. -/
 def execSourceRequireFamilyClausesThenRequireCallerEqStorageAddrSetStorageAddStop
     (init : TExecState) (clauses : List RequireLiteralGuardFamilyClause)
@@ -3596,6 +3734,13 @@ inductive RequireFamilyClausesTail (fields : List Field) where
       (hSlot : findFieldSlot fields fieldName = some slot)
       (h1 : senderVar ≠ p2) (h2 : senderVar ≠ p1) (h3 : p2 ≠ p1)
       (h4 : p1 ≠ p2) (h5 : p1 ≠ senderVar) (h6 : p2 ≠ senderVar)
+  | letMappingUintParamReturnLocal
+      (fieldName paramName tmp : String) (slot : Nat)
+      (hSlot : findFieldSlot fields fieldName = some slot)
+  | setMappingUintParamsStop
+      (fieldName p1 p2 : String) (slot : Nat)
+      (hSlot : findFieldSlot fields fieldName = some slot)
+      (hp : p1 ≠ p2)
 
 /-- Source semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -3695,6 +3840,10 @@ def execSourceRequireFamilyClausesThenTail
       execSourceRequireFamilyClausesThenLetMapping2ParamsReturnLocal init clauses slot
   | .letCallerSetMapping2Stop _ _ _ _ slot _ _ _ _ _ _ _ =>
       execSourceRequireFamilyClausesThenLetCallerSetMapping2Stop init clauses slot
+  | .letMappingUintParamReturnLocal _ _ _ slot _ =>
+      execSourceRequireFamilyClausesThenLetMappingUintParamReturnLocal init clauses slot
+  | .setMappingUintParamsStop _ _ _ slot _ _ =>
+      execSourceRequireFamilyClausesThenSetMappingUintParamsStop init clauses slot
 
 /-- Compiled semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -3809,6 +3958,12 @@ def execCompiledRequireFamilyClausesThenTail
   | .letCallerSetMapping2Stop fieldName senderVar p1 p2 _ _ _ _ _ _ _ _ =>
       execCompiledRequireFamilyClausesThenLetCallerSetMapping2Stop
         fields fieldName senderVar p1 p2 init clauses
+  | .letMappingUintParamReturnLocal fieldName paramName tmp _ _ =>
+      execCompiledRequireFamilyClausesThenLetMappingUintParamReturnLocal
+        fields fieldName paramName tmp init clauses
+  | .setMappingUintParamsStop fieldName p1 p2 _ _ _ =>
+      execCompiledRequireFamilyClausesThenSetMappingUintParamsStop
+        fields fieldName p1 p2 init clauses
 
 /-- Generic sequencing semantic-preservation theorem over the supported tail
 family after unified `require` guard-family clause lists. -/
@@ -3969,6 +4124,14 @@ theorem compile_require_family_clauses_then_tail_semantics
       simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
         using compile_require_family_clauses_then_let_caller_setMapping2_stop_semantics
           fields fieldName senderVar p1 p2 slot init clauses hSlot h1 h2 h3 h4 h5 h6
+  | letMappingUintParamReturnLocal fieldName paramName tmp slot hSlot =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_let_mappingUint_param_return_local_semantics
+          fields fieldName paramName tmp slot init clauses hSlot
+  | setMappingUintParamsStop fieldName p1 p2 slot hSlot hp =>
+      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
+        using compile_require_family_clauses_then_setMappingUint_params_stop_semantics
+          fields fieldName p1 p2 slot init clauses hSlot hp
 
 /-- Program fragment in the currently supported 2.2 generic family:
 one unified require-clause list followed by one supported tail. -/
@@ -4259,6 +4422,15 @@ inductive SupportedStmtFragment (fields : List Field) where
       (hSlot : findFieldSlot fields fieldName = some slot)
       (h1 : senderVar ≠ p2) (h2 : senderVar ≠ p1) (h3 : p2 ≠ p1)
       (h4 : p1 ≠ p2) (h5 : p1 ≠ senderVar) (h6 : p2 ≠ senderVar)
+  | requireClausesThenLetMappingUintParamReturnLocal
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName paramName tmp : String) (slot : Nat)
+      (hSlot : findFieldSlot fields fieldName = some slot)
+  | requireClausesThenSetMappingUintParamsStop
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (fieldName p1 p2 : String) (slot : Nat)
+      (hSlot : findFieldSlot fields fieldName = some slot)
+      (hp : p1 ≠ p2)
 
 /-- Encode an explicit supported statement fragment into the generic
 `(require-clause-list + tail)` program representation. -/
@@ -4390,6 +4562,12 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
   | .requireClausesThenLetCallerSetMapping2Stop clauses fieldName senderVar p1 p2 slot hSlot h1 h2 h3 h4 h5 h6 =>
       { clauses := clauses
         tail := .letCallerSetMapping2Stop fieldName senderVar p1 p2 slot hSlot h1 h2 h3 h4 h5 h6 }
+  | .requireClausesThenLetMappingUintParamReturnLocal clauses fieldName paramName tmp slot hSlot =>
+      { clauses := clauses
+        tail := .letMappingUintParamReturnLocal fieldName paramName tmp slot hSlot }
+  | .requireClausesThenSetMappingUintParamsStop clauses fieldName p1 p2 slot hSlot hp =>
+      { clauses := clauses
+        tail := .setMappingUintParamsStop fieldName p1 p2 slot hSlot hp }
 
 /-- Encode one unified `require` guard-family clause into a source `Stmt.require`. -/
 def RequireLiteralGuardFamilyClause.toStmt (clause : RequireLiteralGuardFamilyClause) : Stmt :=
@@ -4570,6 +4748,12 @@ def RequireFamilyClausesTail.toStmts
   | .letCallerSetMapping2Stop fieldName senderVar p1 p2 _ _ _ _ _ _ _ _ =>
       [ Stmt.letVar senderVar Expr.caller
       , Stmt.setMapping2 fieldName (Expr.localVar senderVar) (Expr.param p1) (Expr.param p2)
+      , Stmt.stop ]
+  | .letMappingUintParamReturnLocal fieldName paramName tmp _ _ =>
+      [ Stmt.letVar tmp (Expr.mappingUint fieldName (Expr.param paramName))
+      , Stmt.return (Expr.localVar tmp) ]
+  | .setMappingUintParamsStop fieldName p1 p2 _ _ _ =>
+      [ Stmt.setMappingUint fieldName (Expr.param p1) (Expr.param p2)
       , Stmt.stop ]
 
 /-- Encode one supported `(require-clause-list + tail)` program into raw source
@@ -5134,5 +5318,66 @@ theorem erc20_approve_correctness (init : TExecState) :
       execCompiledSupportedStmtFragments erc20Fields init fragments =
         execSourceSupportedStmtFragments erc20Fields init fragments :=
   compile_supported_stmt_list_semantics erc20Fields init _ erc20_approve_supported
+
+-- ============================================================
+-- ERC721 field definitions and bridge theorems
+-- ============================================================
+
+/-- ERC721 contract field layout (matching MacroContracts.lean):
+ownerSlot (address, slot 0), totalSupplySlot (uint256, slot 1),
+nextTokenIdSlot (uint256, slot 2), ownersSlot (uint256→uint256, slot 3),
+tokenApprovalsSlot (uint256→uint256, slot 4). -/
+def erc721Fields : List Field :=
+  [{ name := "ownerSlot", ty := FieldType.address },
+   { name := "totalSupplySlot", ty := FieldType.uint256 },
+   { name := "nextTokenIdSlot", ty := FieldType.uint256 },
+   { name := "ownersSlot", ty := FieldType.mappingTyped (.simple .uint256) },
+   { name := "tokenApprovalsSlot", ty := FieldType.mappingTyped (.simple .uint256) }]
+
+/-- ERC721 field slot: tokenApprovalsSlot at slot 4. -/
+theorem erc721TokenApprovalsSlotFieldSlot :
+    findFieldSlot erc721Fields "tokenApprovalsSlot" = some 4 := by rfl
+
+-- -- getApproved(tokenId) -- --
+
+/-- ERC721.getApproved body belongs to the supported statement fragment grammar. -/
+theorem erc721_getApproved_supported :
+    SupportedStmtList erc721Fields
+      [ Stmt.letVar "approvedWord" (Expr.mappingUint "tokenApprovalsSlot" (Expr.param "tokenId"))
+      , Stmt.return (Expr.localVar "approvedWord") ] := by
+  exact ⟨[.requireClausesThenLetMappingUintParamReturnLocal
+    [] "tokenApprovalsSlot" "tokenId" "approvedWord" 4
+    erc721TokenApprovalsSlotFieldSlot], rfl⟩
+
+/-- ERC721.getApproved compilation correctness. -/
+theorem erc721_getApproved_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment erc721Fields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.letVar "approvedWord" (Expr.mappingUint "tokenApprovalsSlot" (Expr.param "tokenId"))
+        , Stmt.return (Expr.localVar "approvedWord") ] ∧
+      execCompiledSupportedStmtFragments erc721Fields init fragments =
+        execSourceSupportedStmtFragments erc721Fields init fragments :=
+  compile_supported_stmt_list_semantics erc721Fields init _ erc721_getApproved_supported
+
+-- -- approve(approved, tokenId) -- --
+
+/-- ERC721.approve body belongs to the supported statement fragment grammar. -/
+theorem erc721_approve_supported :
+    SupportedStmtList erc721Fields
+      [ Stmt.setMappingUint "tokenApprovalsSlot" (Expr.param "tokenId") (Expr.param "approved")
+      , Stmt.stop ] := by
+  exact ⟨[.requireClausesThenSetMappingUintParamsStop
+    [] "tokenApprovalsSlot" "tokenId" "approved" 4
+    erc721TokenApprovalsSlotFieldSlot (by decide)], rfl⟩
+
+/-- ERC721.approve compilation correctness. -/
+theorem erc721_approve_correctness (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment erc721Fields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.setMappingUint "tokenApprovalsSlot" (Expr.param "tokenId") (Expr.param "approved")
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments erc721Fields init fragments =
+        execSourceSupportedStmtFragments erc721Fields init fragments :=
+  compile_supported_stmt_list_semantics erc721Fields init _ erc721_approve_supported
 
 end Verity.Core.Free

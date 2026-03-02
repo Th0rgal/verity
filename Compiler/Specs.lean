@@ -457,6 +457,9 @@ Selectors are still auto-computed by `computeSelectors`.
 /-- ERC20 spec alias for test/proof convenience. Uses the macro-generated spec. -/
 def erc20Spec : CompilationModel := Verity.Examples.MacroContracts.ERC20.spec
 
+/-- ERC721 spec alias for test/proof convenience. Uses the macro-generated spec. -/
+def erc721Spec : CompilationModel := Verity.Examples.MacroContracts.ERC721.spec
+
 def allSpecs : List CompilationModel := [
   -- Authoritative compiler input now comes from macro-generated contracts.
   Verity.Examples.MacroContracts.SimpleStorage.spec,

@@ -1449,4 +1449,62 @@ theorem compileStmts_let_caller_setMapping2_stop_run
     bindVar, pushLocal, lookupVar, asAddress, asUInt256, liftExcept, hSlot, emit,
     List.find?, hne1, hne2, hne3]; rfl
 
+/-- Two-statement compilation shape for mappingUint(param) read + return from 1-param Uint256 state. -/
+theorem compileStmts_let_mappingUint_param_return_local_run
+    (fields : List Field) (fieldName paramName tmp : String) (slot : Nat)
+    (hSlot : findFieldSlot fields fieldName = some slot) :
+    (compileStmts fields
+      [ Stmt.letVar tmp (Expr.mappingUint fieldName (Expr.param paramName))
+      , Stmt.return (Expr.localVar tmp)
+      ]).run
+      (CompileState.mk 1
+        [(paramName, { id := 0, ty := Ty.uint256 })]
+        #[{ id := 0, ty := Ty.uint256 }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 2
+          vars := [(tmp, { id := 1, ty := Ty.uint256 }),
+                   (paramName, { id := 0, ty := Ty.uint256 })]
+          params := #[{ id := 0, ty := Ty.uint256 }]
+          locals := #[{ id := 1, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 1, ty := Ty.uint256 }
+              (TExpr.getMappingUint slot (TExpr.var { id := 0, ty := Ty.uint256 })),
+            TStmt.returnUint (TExpr.var { id := 1, ty := Ty.uint256 })
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+    bindVar, pushLocal, lookupVar, asUInt256, liftExcept, hSlot, emit,
+    List.find?]; rfl
+
+/-- Two-statement compilation shape for setMappingUint(param1, param2) + stop from 2-param Uint256 state. -/
+theorem compileStmts_setMappingUint_params_stop_run
+    (fields : List Field) (fieldName p1 p2 : String) (slot : Nat)
+    (hSlot : findFieldSlot fields fieldName = some slot)
+    (hp : p1 ≠ p2) :
+    (compileStmts fields
+      [ Stmt.setMappingUint fieldName (Expr.param p1) (Expr.param p2)
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 2
+        [(p2, { id := 1, ty := Ty.uint256 }),
+         (p1, { id := 0, ty := Ty.uint256 })]
+        #[{ id := 0, ty := Ty.uint256 }, { id := 1, ty := Ty.uint256 }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 2
+          vars := [(p2, { id := 1, ty := Ty.uint256 }),
+                   (p1, { id := 0, ty := Ty.uint256 })]
+          params := #[{ id := 0, ty := Ty.uint256 }, { id := 1, ty := Ty.uint256 }]
+          locals := #[]
+          body := #[
+            TStmt.setMappingUint slot
+              (TExpr.var { id := 0, ty := Ty.uint256 })
+              (TExpr.var { id := 1, ty := Ty.uint256 }),
+            TStmt.stop
+          ] }) := by
+  have hne : (p2 == p1) = false := beq_false_of_ne hp.symm
+  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+    bindVar, pushLocal, lookupVar, asUInt256, liftExcept, hSlot, emit,
+    List.find?, hne]; rfl
+
 end Verity.Core.Free
