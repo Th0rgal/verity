@@ -685,7 +685,7 @@ jobs:
             lines.push(marker);
             lines.push("### CI Failure Hints");
             lines.push("");
-            lines.push(`Failed jobs: ${failed.map((n) => `\\`${n}\\``).join(", ")}`);
+            lines.push("Failed jobs: " + failed.map((n) => "`" + n + "`").join(", "));
             lines.push("");
             lines.push("Copy-paste local triage:");
             lines.push("```bash");

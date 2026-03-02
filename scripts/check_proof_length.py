@@ -69,6 +69,10 @@ ALLOWLIST: set[str] = {
     # Statement equivalence core recursion proof (Lean 4.22 transport-heavy);
     # decomposition planned after stabilization of helper lemmas.
     "stmt_and_stmts_equiv",
+    # Issue #1060 stabilization: fragment-dispatch semantic theorem currently
+    # centralizes many continuation cases; temporary allowlist to unblock CI
+    # while decomposing into helper lemmas in follow-up 2.2 slices.
+    "compile_require_family_clauses_then_tail_semantics",
 }
 
 # Directories containing proof files to scan.
