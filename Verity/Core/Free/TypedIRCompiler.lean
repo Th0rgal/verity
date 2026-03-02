@@ -656,6 +656,45 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_literals_run
   simp [compileStmts, compileStmt, compileExpr, compileBranch, emit]
   rfl
 
+/-- Single-statement compilation shape for a broader supported nested-branch subset:
+`ite (eq (literal n) (literal m))
+     [ite (eq (literal p) (literal q))
+          [setStorage fieldName (literal thenVal)]
+          [setStorage fieldName (literal elseVal)]]
+     [return (literal outerElseVal)]`
+lowers to one typed outer `if_` whose true branch contains a typed inner `if_`
+with storage writes and whose false branch returns directly, from an empty
+compile state. -/
+theorem compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_run
+    (fields : List Field) (fieldName : String) (slot : Nat)
+    (n m p q thenVal elseVal outerElseVal : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [Stmt.ite
+        (Expr.eq (Expr.literal n) (Expr.literal m))
+        [Stmt.ite
+          (Expr.eq (Expr.literal p) (Expr.literal q))
+          [Stmt.setStorage fieldName (Expr.literal thenVal)]
+          [Stmt.setStorage fieldName (Expr.literal elseVal)]]
+        [Stmt.return (Expr.literal outerElseVal)] ]).run {} =
+      Except.ok ((),
+        { nextId := 0
+          vars := []
+          params := #[]
+          locals := #[]
+          body := #[
+            TStmt.if_
+              (TExpr.eq (TExpr.uintLit n) (TExpr.uintLit m))
+              [TStmt.if_
+                (TExpr.eq (TExpr.uintLit p) (TExpr.uintLit q))
+                [TStmt.setStorage slot (TExpr.uintLit thenVal)]
+                [TStmt.setStorage slot (TExpr.uintLit elseVal)]]
+              [TStmt.returnUint (TExpr.uintLit outerElseVal)]
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  rfl
+
 /-- Single-statement compilation shape for a broader supported require subset:
 `require (eq (literal n) (literal m)) message`
 lowers to one typed `if_` with an else-branch `revert`, from an empty compile state. -/
