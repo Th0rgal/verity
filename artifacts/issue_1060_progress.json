@@ -96,54 +96,55 @@
     "2.2": {
       "status": "partial",
       "acceptance_criteria": [
-        "Prove list-compilation composition for compileStmts by structural induction.",
-        "Strengthen append theorem so it can be instantiated from any initial CompileState.",
         "Add a non-trivial semantic-preservation theorem artifact for a supported compilation subset without weakening obligations.",
-        "Extend semantic-preservation coverage to the supported letVar/assignVar/setStorage(localVar) subset with explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses add(localVar,tmpLiteral) before setStorage.",
-        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses sub(localVar,tmpLiteral) before setStorage.",
-        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses mul(localVar,tmpLiteral) before setStorage.",
-        "Extend semantic-preservation coverage to a return subset where `return (literal n)` preserves source halting semantics.",
-        "Extend semantic-preservation coverage to a let-then-return subset where `letVar tmp (literal n); return (localVar tmp)` preserves source variable-binding and halting semantics.",
+        "Add append/composition preservation for supported `(require-clause-list + tail)` program lists from arbitrary initial execution states, for both source and compiled semantics, and connect them under one generic semantic-preservation theorem.",
+        "Add one direct semantic-preservation theorem over arbitrary raw supported `List Stmt` (no existential decomposition in the theorem conclusion), using the declared-fragment witness only as an assumption.",
+        "Add one semantic-preservation theorem stated over arbitrary raw `List Stmt` with an explicit declared-fragment witness (`SupportedStmtList`), connecting back to the generic fragment semantics without deleting existing obligations.",
+        "Define an explicit supported statement-fragment grammar and prove one generic list-level semantic-preservation theorem over that grammar, reducing dependence on ad-hoc wrapper structures while preserving existing obligations.",
         "Extend semantic-preservation coverage to a branch subset where `ite (eq (literal n) (literal m))` selects between two `setStorage` literal writes under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a require subset where `require (eq (literal n) (literal m)) message` preserves source guard/revert behavior.",
-        "Extend semantic-preservation coverage to a require subset where `require (lt (literal n) (literal m)) message` preserves source guard/revert behavior.",
-        "Extend semantic-preservation coverage to a require subset where `require (gt (literal n) (literal m)) message` preserves source guard/revert behavior.",
-        "Extend semantic-preservation coverage to a require subset where `require (ge (literal n) (literal m)) message` preserves source guard/revert behavior.",
-        "Extend semantic-preservation coverage to a require subset where `require (le (literal n) (literal m)) message` preserves source guard/revert behavior.",
-        "Extend semantic-preservation coverage to a require subset where `require (logicalNot (eq (literal n) (literal m))) message` preserves source guard/revert behavior.",
         "Extend semantic-preservation coverage to a composite-guard require subset where `require (logicalAnd (eq (literal n) (literal m)) (lt (literal p) (literal q))) message` preserves source short-circuit guard/revert behavior.",
         "Extend semantic-preservation coverage to a composite-guard require subset where `require (logicalOr (eq (literal n) (literal m)) (lt (literal p) (literal q))) message` preserves source short-circuit guard/revert behavior.",
-        "Generalize single-guard require semantic preservation into one theorem over a guard family (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) without deleting existing specialized obligations.",
-        "Extend semantic-preservation coverage to lists of supported single-guard `require` literals via structural induction, preserving short-circuit revert behavior.",
-        "Generalize require semantic preservation into one theorem over a unified guard family combining binary guards (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) with composite guards (`logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) without deleting existing obligations.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause executes before `setStorage fieldName (literal writeVal)`, preserving short-circuit revert behavior and subsequent storage update under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a let-then-return subset where `letVar tmp (literal n); return (localVar tmp)` preserves source variable-binding and halting semantics.",
+        "Extend semantic-preservation coverage to a require subset where `require (eq (literal n) (literal m)) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a require subset where `require (ge (literal n) (literal m)) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a require subset where `require (gt (literal n) (literal m)) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a require subset where `require (le (literal n) (literal m)) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a require subset where `require (logicalNot (eq (literal n) (literal m))) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a require subset where `require (lt (literal n) (literal m)) message` preserves source guard/revert behavior.",
+        "Extend semantic-preservation coverage to a return subset where `return (literal n)` preserves source halting semantics.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause executes before `return (literal retVal)`, preserving short-circuit revert vs halting semantics.",
-        "Extend semantic-preservation coverage to lists of unified require guard-family clauses (`binary`, `logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) via structural induction, preserving short-circuit revert behavior.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `setStorage fieldName (literal writeVal)`, preserving clause-list short-circuit revert behavior and subsequent storage update under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `return (literal retVal)`, preserving clause-list short-circuit revert vs halting semantics.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal retVal); return (localVar tmp)`, preserving clause-list short-circuit revert behavior together with local-binding return semantics.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (add (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (sub (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (mul (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with local-binding storage semantics under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (literal m); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with literal rebinding/storage semantics under explicit field-resolution assumptions.",
-        "Introduce one generic dispatcher theorem over supported require-clause-list sequencing tails (`setStorage literal`, `return literal`, `let-return local`, `let-setStorage local`, `let-assign literal setStorage local`, `let-assign-{add,sub,mul}-setStorage local`) to reduce pattern-by-pattern theorem surface into a single reusable 2.2 artifact without deleting existing obligations.",
-        "Extend the generic require-clause-list tail theorem to structural induction over lists of supported `(require-clause-list + tail)` program fragments, preserving short-circuit revert behavior across fragment sequencing.",
-        "Add append/composition preservation for supported `(require-clause-list + tail)` program lists from arbitrary initial execution states, for both source and compiled semantics, and connect them under one generic semantic-preservation theorem.",
-        "Define an explicit supported statement-fragment grammar and prove one generic list-level semantic-preservation theorem over that grammar, reducing dependence on ad-hoc wrapper structures while preserving existing obligations.",
-        "Add one semantic-preservation theorem stated over arbitrary raw `List Stmt` with an explicit declared-fragment witness (`SupportedStmtList`), connecting back to the generic fragment semantics without deleting existing obligations.",
-        "Add one direct semantic-preservation theorem over arbitrary raw supported `List Stmt` (no existential decomposition in the theorem conclusion), using the declared-fragment witness only as an assumption.",
-        "Extend the declared supported statement-fragment constructors and generic semantics dispatch to include both `require`-only clause lists and clause-list sequencing into `ite(eq(literal,literal))` with literal `setStorage` branches.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `ite (eq (literal n) (literal m)) [setStorage fieldName (literal thenVal)] [return (literal elseVal)]`, preserving clause-list short-circuit revert behavior together with heterogeneous branch storage/return semantics under explicit field-resolution assumptions.",
-        "Extend the declared supported statement-fragment constructors and generic tail dispatch to include the heterogeneous `ite(eq)` continuation with `setStorage` true branch and `return` false branch.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `ite (eq (literal n) (literal m)) [return (literal thenVal)] [setStorage fieldName (literal elseVal)]`, preserving clause-list short-circuit revert behavior together with heterogeneous branch return/storage semantics under explicit field-resolution assumptions.",
-        "Extend the declared supported statement-fragment constructors and generic tail dispatch to include the heterogeneous `ite(eq)` continuation with `return` true branch and `setStorage` false branch.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause executes before `setStorage fieldName (literal writeVal)`, preserving short-circuit revert behavior and subsequent storage update under explicit field-resolution assumptions.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `ite (eq (literal n) (literal m)) [return (literal thenVal)] [return (literal elseVal)]`, preserving clause-list short-circuit revert behavior together with return/return branch semantics.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `ite (eq (literal n) (literal m)) [return (literal thenVal)] [setStorage fieldName (literal elseVal)]`, preserving clause-list short-circuit revert behavior together with heterogeneous branch return/storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `ite (eq (literal n) (literal m)) [setStorage fieldName (literal thenVal)] [return (literal elseVal)]`, preserving clause-list short-circuit revert behavior together with heterogeneous branch storage/return semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (add (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (literal m); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with literal rebinding/storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (mul (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); assignVar tmp (sub (localVar tmp) (literal m)); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with arithmetic rebinding/storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal n); setStorage fieldName (localVar tmp)`, preserving clause-list short-circuit revert behavior together with local-binding storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `letVar tmp (literal retVal); return (localVar tmp)`, preserving clause-list short-circuit revert behavior together with local-binding return semantics.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `return (literal retVal)`, preserving clause-list short-circuit revert vs halting semantics.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before `setStorage fieldName (literal writeVal)`, preserving clause-list short-circuit revert behavior and subsequent storage update under explicit field-resolution assumptions.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [return (literal thenVal)] [return (literal elseVal)]] [return (literal outerElseVal)]`, preserving clause-list short-circuit revert behavior together with nested return-branch semantics.",
-        "Extend the declared supported statement-fragment constructors and generic tail dispatch to include nested `ite(eq)` continuation with an inner `ite(eq)` return/return true branch and return false branch.",
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [return (literal thenVal)] [return (literal elseVal)]] [setStorage fieldName (literal outerElseVal)]`, preserving clause-list short-circuit revert behavior together with nested return-branch/storage semantics under explicit field-resolution assumptions.",
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [setStorage fieldName (literal thenVal)] [setStorage fieldName (literal elseVal)]] [return (literal outerElseVal)]`, preserving clause-list short-circuit revert behavior together with nested storage-branch/return semantics under explicit field-resolution assumptions.",
-        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [return (literal thenVal)] [return (literal elseVal)]] [setStorage fieldName (literal outerElseVal)]`, preserving clause-list short-circuit revert behavior together with nested return-branch/storage semantics under explicit field-resolution assumptions."
+        "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [setStorage fieldName (literal thenVal)] [setStorage fieldName (literal elseVal)]] [setStorage fieldName (literal outerElseVal)]`, preserving clause-list short-circuit revert behavior together with nested storage-branch/storage semantics under explicit field-resolution assumptions.",
+        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses add(localVar,tmpLiteral) before setStorage.",
+        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses mul(localVar,tmpLiteral) before setStorage.",
+        "Extend semantic-preservation coverage to an arithmetic subset where assignVar rebinding uses sub(localVar,tmpLiteral) before setStorage.",
+        "Extend semantic-preservation coverage to lists of supported single-guard `require` literals via structural induction, preserving short-circuit revert behavior.",
+        "Extend semantic-preservation coverage to lists of unified require guard-family clauses (`binary`, `logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) via structural induction, preserving short-circuit revert behavior.",
+        "Extend semantic-preservation coverage to the supported letVar/assignVar/setStorage(localVar) subset with explicit field-resolution assumptions.",
+        "Extend the declared supported statement-fragment constructors and generic semantics dispatch to include both `require`-only clause lists and clause-list sequencing into `ite(eq(literal,literal))` with literal `setStorage` branches.",
+        "Extend the declared supported statement-fragment constructors and generic tail dispatch to include nested `ite(eq)` continuation with an inner `ite(eq)` return/return true branch and return false branch.",
+        "Extend the declared supported statement-fragment constructors and generic tail dispatch to include the heterogeneous `ite(eq)` continuation with `return` true branch and `setStorage` false branch.",
+        "Extend the declared supported statement-fragment constructors and generic tail dispatch to include the heterogeneous `ite(eq)` continuation with `setStorage` true branch and `return` false branch.",
+        "Extend the generic require-clause-list tail theorem to structural induction over lists of supported `(require-clause-list + tail)` program fragments, preserving short-circuit revert behavior across fragment sequencing.",
+        "Generalize require semantic preservation into one theorem over a unified guard family combining binary guards (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) with composite guards (`logicalAnd(eq,lt)`, `logicalOr(eq,lt)`) without deleting existing obligations.",
+        "Generalize single-guard require semantic preservation into one theorem over a guard family (`eq`, `notEq`, `lt`, `gt`, `ge`, `le`) without deleting existing specialized obligations.",
+        "Introduce one generic dispatcher theorem over supported require-clause-list sequencing tails (`setStorage literal`, `return literal`, `let-return local`, `let-setStorage local`, `let-assign literal setStorage local`, `let-assign-{add,sub,mul}-setStorage local`) to reduce pattern-by-pattern theorem surface into a single reusable 2.2 artifact without deleting existing obligations.",
+        "Prove list-compilation composition for compileStmts by structural induction.",
+        "Strengthen append theorem so it can be instantiated from any initial CompileState."
       ],
       "files_changed": [
         "Verity/Core/Free/TypedIRCompiler.lean",
@@ -158,10 +159,10 @@
         "python3 scripts/check_issue_1060_integrity.py"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree]",
-        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
-        "pass: lake build [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
-        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T13:56:00Z artifact_sha256=working-tree]"
+        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree]",
+        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
+        "pass: lake build [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree; non-blocking warning: unnecessary simpa]",
+        "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T13:36:59Z artifact_sha256=working-tree]"
       ],
       "evidence": {
         "theorems": [
@@ -176,24 +177,9 @@
             "statement_summary": "The append-composition theorem holds when run from any initial CompileState."
           },
           {
-            "name": "compileStmts_single_setStorage_literal_run",
+            "name": "compileStmts_let_assign_add_literal_setStorage_local_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for setStorage literal emits the expected typed setStorage write under explicit field-resolution assumptions."
-          },
-          {
-            "name": "compile_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported setStorage-literal subset, compiled typed-IR execution matches direct source-level storage update semantics."
-          },
-          {
-            "name": "compileStmts_let_literal_setStorage_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Two-statement compilation for letVar-literal followed by setStorage-localVar emits the expected SSA let and typed setStorage sequence from empty compile state."
-          },
-          {
-            "name": "compile_let_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported letVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA variable binding effect."
+            "statement_summary": "Three-statement compilation for letVar-literal; assignVar-add(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed addition and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_assign_literal_setStorage_local_run",
@@ -201,19 +187,9 @@
             "statement_summary": "Three-statement compilation for letVar-literal; assignVar-literal; setStorage-localVar emits the expected two SSA lets and typed setStorage sequence from empty compile state."
           },
           {
-            "name": "compile_let_assign_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported letVar/assignVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA rebinding sequence."
-          },
-          {
-            "name": "compileStmts_let_assign_add_literal_setStorage_local_run",
+            "name": "compileStmts_let_assign_mul_literal_setStorage_local_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Three-statement compilation for letVar-literal; assignVar-add(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed addition and typed setStorage sequence from empty compile state."
-          },
-          {
-            "name": "compile_let_assign_add_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported arithmetic letVar/assignVar-add/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n + m) and the expected SSA rebinding effect."
+            "statement_summary": "Three-statement compilation for letVar-literal; assignVar-mul(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed multiplication and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_assign_sub_literal_setStorage_local_run",
@@ -221,29 +197,9 @@
             "statement_summary": "Three-statement compilation for letVar-literal; assignVar-sub(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed subtraction and typed setStorage sequence from empty compile state."
           },
           {
-            "name": "compile_let_assign_sub_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported arithmetic letVar/assignVar-sub/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n - m) and the expected SSA rebinding effect."
-          },
-          {
-            "name": "compileStmts_let_assign_mul_literal_setStorage_local_run",
+            "name": "compileStmts_let_literal_setStorage_local_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Three-statement compilation for letVar-literal; assignVar-mul(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed multiplication and typed setStorage sequence from empty compile state."
-          },
-          {
-            "name": "compile_let_assign_mul_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported arithmetic letVar/assignVar-mul/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n * m) and the expected SSA rebinding effect."
-          },
-          {
-            "name": "compileStmts_single_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for return literal emits the expected typed returnUint statement from any initial compile state."
-          },
-          {
-            "name": "compile_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported return-literal subset, compiled typed-IR execution preserves direct source return semantics (state unchanged, halting)."
+            "statement_summary": "Two-statement compilation for letVar-literal followed by setStorage-localVar emits the expected SSA let and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_return_local_literal_run",
@@ -251,9 +207,14 @@
             "statement_summary": "Two-statement compilation for letVar-literal; return-localVar emits the expected SSA let and typed returnUint sequence from empty compile state."
           },
           {
-            "name": "compile_let_return_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported let-then-return subset, compiled typed-IR execution preserves source variable-binding and halting semantics."
+            "name": "compileStmts_single_ite_eq_return_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with return on both branches emits the expected typed if_ with two returnUint branches from empty compile state."
+          },
+          {
+            "name": "compileStmts_single_ite_eq_return_then_setStorage_literal_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with return-then/setStorage-else branches emits the expected typed if_ with heterogeneous branch statements from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_setStorage_literals_run",
@@ -261,69 +222,24 @@
             "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with setStorage literal branches emits the expected typed if_ with typed setStorage branches from empty compile state."
           },
           {
-            "name": "compile_ite_eq_setStorage_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported branch subset with an equality guard over literals, compiled typed-IR execution preserves source branch-selected storage update semantics."
-          },
-          {
-            "name": "compileStmts_single_require_eq_literals_run",
+            "name": "compileStmts_single_ite_eq_setStorage_then_return_literal_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for require(eq(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
+            "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with setStorage-then/return-else branches emits the expected typed if_ with heterogeneous branch statements from empty compile state."
           },
           {
-            "name": "compile_require_eq_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported require-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged on true, revert on false)."
-          },
-          {
-            "name": "compileStmts_single_require_not_eq_literals_run",
+            "name": "compileStmts_single_ite_eq_then_ite_eq_return_literals_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for require(logicalNot(eq(literal,literal)), message) emits the expected typed if_ with a typed not(eq(...)) guard and revert else-branch from empty compile state."
+            "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with return-only leaves emits the expected typed nested if_ structure from empty compile state."
           },
           {
-            "name": "compile_require_not_eq_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported require-not-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n != m, revert otherwise)."
-          },
-          {
-            "name": "compileStmts_single_require_lt_literals_run",
+            "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for require(lt(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
+            "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/setStorage branches and outer false-branch return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
-            "name": "compile_require_lt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported require-lt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n < m, revert otherwise)."
-          },
-          {
-            "name": "compileStmts_single_require_gt_literals_run",
+            "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_run",
             "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for require(gt(literal,literal), message) emits the expected typed if_ with guard lt(rhs,lhs) and a revert else-branch from empty compile state."
-          },
-          {
-            "name": "compile_require_gt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported require-gt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n > m, revert otherwise)."
-          },
-          {
-            "name": "compileStmts_single_require_ge_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for require(ge(literal,literal), message) emits the expected typed if_ with guard not(lt(...)) and a revert else-branch from empty compile state."
-          },
-          {
-            "name": "compile_require_ge_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported require-ge-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n >= m, revert otherwise)."
-          },
-          {
-            "name": "compileStmts_single_require_le_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for require(le(literal,literal), message) emits the expected typed if_ with guard not(lt(rhs,lhs)) and a revert else-branch from empty compile state."
-          },
-          {
-            "name": "compile_require_le_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported require-le-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n <= m, revert otherwise)."
+            "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/setStorage branches and outer false-branch setStorage emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_require_and_eq_lt_literals_run",
@@ -331,9 +247,34 @@
             "statement_summary": "Single-statement compilation for require(logicalAnd(eq(literal,literal), lt(literal,literal)), message) emits the expected typed if_ with a typed and-guard and revert else-branch from empty compile state."
           },
           {
-            "name": "compile_require_and_eq_lt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported composite require guard subset (eq && lt over literals), compiled typed-IR execution preserves direct source short-circuit require semantics."
+            "name": "compileStmts_single_require_eq_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(eq(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
+          },
+          {
+            "name": "compileStmts_single_require_ge_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(ge(literal,literal), message) emits the expected typed if_ with guard not(lt(...)) and a revert else-branch from empty compile state."
+          },
+          {
+            "name": "compileStmts_single_require_gt_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(gt(literal,literal), message) emits the expected typed if_ with guard lt(rhs,lhs) and a revert else-branch from empty compile state."
+          },
+          {
+            "name": "compileStmts_single_require_le_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(le(literal,literal), message) emits the expected typed if_ with guard not(lt(rhs,lhs)) and a revert else-branch from empty compile state."
+          },
+          {
+            "name": "compileStmts_single_require_lt_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(lt(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
+          },
+          {
+            "name": "compileStmts_single_require_not_eq_literals_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for require(logicalNot(eq(literal,literal)), message) emits the expected typed if_ with a typed not(eq(...)) guard and revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_or_eq_lt_literals_run",
@@ -341,14 +282,84 @@
             "statement_summary": "Single-statement compilation for require(logicalOr(eq(literal,literal), lt(literal,literal)), message) emits the expected typed if_ with a typed or-guard and revert else-branch from empty compile state."
           },
           {
-            "name": "compile_require_or_eq_lt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported composite require guard subset (eq || lt over literals), compiled typed-IR execution preserves direct source short-circuit require semantics."
+            "name": "compileStmts_single_return_literal_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for return literal emits the expected typed returnUint statement from any initial compile state."
           },
           {
-            "name": "compile_require_binary_literal_guard_semantics",
+            "name": "compileStmts_single_setStorage_literal_run",
+            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "statement_summary": "Single-statement compilation for setStorage literal emits the expected typed setStorage write under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_ite_eq_return_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Generalized theorem: for guard family `eq/notEq/lt/gt/ge/le`, compiled single-guard require execution equals source require semantics."
+            "statement_summary": "For the supported branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with return on both branches."
+          },
+          {
+            "name": "compile_ite_eq_return_then_setStorage_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported heterogeneous branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with return true branch and setStorage false branch under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_ite_eq_setStorage_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported branch subset with an equality guard over literals, compiled typed-IR execution preserves source branch-selected storage update semantics."
+          },
+          {
+            "name": "compile_ite_eq_setStorage_then_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported heterogeneous branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with setStorage true branch and return false branch under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_ite_eq_then_ite_eq_return_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported nested-branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner return/return ite(eq) and a direct return branch."
+          },
+          {
+            "name": "compile_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported nested heterogeneous branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner storage/storage ite(eq) and a return false branch under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported nested storage branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner storage/storage ite(eq) and a storage false branch under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_let_assign_add_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported arithmetic letVar/assignVar-add/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n + m) and the expected SSA rebinding effect."
+          },
+          {
+            "name": "compile_let_assign_mul_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported arithmetic letVar/assignVar-mul/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n * m) and the expected SSA rebinding effect."
+          },
+          {
+            "name": "compile_let_assign_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported letVar/assignVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA rebinding sequence."
+          },
+          {
+            "name": "compile_let_assign_sub_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported arithmetic letVar/assignVar-sub/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n - m) and the expected SSA rebinding effect."
+          },
+          {
+            "name": "compile_let_return_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported let-then-return subset, compiled typed-IR execution preserves source variable-binding and halting semantics."
+          },
+          {
+            "name": "compile_let_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported letVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA variable binding effect."
+          },
+          {
+            "name": "compile_require_and_eq_lt_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported composite require guard subset (eq && lt over literals), compiled typed-IR execution preserves direct source short-circuit require semantics."
           },
           {
             "name": "compile_require_binary_literal_clauses_semantics",
@@ -356,34 +367,34 @@
             "statement_summary": "Structural-induction theorem: for lists of supported single-guard require clauses, compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           },
           {
-            "name": "compile_require_literal_guard_family_semantics",
+            "name": "compile_require_binary_literal_guard_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Generalized theorem: for unified require guard families (binary guard set plus and(eq,lt)/or(eq,lt)), compiled single-require execution equals source require semantics."
+            "statement_summary": "Generalized theorem: for guard family `eq/notEq/lt/gt/ge/le`, compiled single-guard require execution equals source require semantics."
           },
           {
-            "name": "compile_require_family_then_setStorage_literal_semantics",
+            "name": "compile_require_eq_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard families followed by setStorage-literal, compiled execution matches source short-circuit require semantics plus storage update under explicit field-resolution assumptions."
+            "statement_summary": "For the supported require-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged on true, revert on false)."
           },
           {
-            "name": "compile_require_family_then_return_literal_semantics",
+            "name": "compile_require_family_clauses_tail_programs_append_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard families followed by return-literal, compiled execution matches source short-circuit require semantics and halting behavior."
+            "statement_summary": "Generic append/composition theorem connecting compiled and source semantics over concatenated supported `(require-clause-list + tail)` program lists."
           },
           {
-            "name": "compile_require_literal_guard_family_clauses_semantics",
+            "name": "compile_require_family_clauses_tail_programs_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Structural-induction theorem: for lists of unified require guard-family clauses (`binary`, `andEqLt`, `orEqLt`), compiled evaluation equals source evaluation with identical short-circuit revert behavior."
+            "statement_summary": "Structural-induction theorem: for lists of supported `(require-clause-list + tail)` fragments, compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           },
           {
-            "name": "compile_require_family_clauses_then_noop_semantics",
+            "name": "compile_require_family_clauses_then_ite_eq_return_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists with no continuation tail, compiled execution matches source clause-list short-circuit semantics."
+            "statement_summary": "For unified require-family clause lists sequenced before ite(eq) with return on both branches, compiled execution preserves source short-circuit/revert and branch behavior."
           },
           {
-            "name": "compile_require_family_clauses_then_setStorage_literal_semantics",
+            "name": "compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by setStorage-literal, compiled execution matches source clause-list short-circuit semantics plus storage update under explicit field-resolution assumptions."
+            "statement_summary": "For unified require-family clause lists sequenced before heterogeneous ite(eq) (return true branch, setStorage false branch), compiled execution preserves source short-circuit/revert and branch behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_setStorage_literals_semantics",
@@ -391,9 +402,49 @@
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by ite(eq(literal,literal)) with literal-storage branches, compiled execution matches source clause-list short-circuit semantics plus branch-selected storage update under explicit field-resolution assumptions."
           },
           {
-            "name": "compile_require_family_clauses_then_return_literal_semantics",
+            "name": "compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by return-literal, compiled execution matches source clause-list short-circuit semantics and halting behavior."
+            "statement_summary": "For unified require-family clause lists sequenced before heterogeneous ite(eq) (setStorage true branch, return false branch), compiled execution preserves source short-circuit/revert and branch behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with return-only leaves, compiled execution preserves source short-circuit/revert and nested branch behavior."
+          },
+          {
+            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner return/return branches and outer false-branch storage write, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner storage/storage branches and outer false-branch return, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner storage/storage branches and outer false-branch storage write, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-add/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-mul/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar-literal; assignVar-literal; setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with literal rebinding/storage behavior under explicit field-resolution assumptions."
+          },
+          {
+            "name": "compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-sub/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_let_return_local_literal_semantics",
@@ -406,24 +457,19 @@
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar-literal then setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with local-binding storage behavior under explicit field-resolution assumptions."
           },
           {
-            "name": "compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics",
+            "name": "compile_require_family_clauses_then_noop_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar-literal; assignVar-literal; setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with literal rebinding/storage behavior under explicit field-resolution assumptions."
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists with no continuation tail, compiled execution matches source clause-list short-circuit semantics."
           },
           {
-            "name": "compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics",
+            "name": "compile_require_family_clauses_then_return_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-add/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by return-literal, compiled execution matches source clause-list short-circuit semantics and halting behavior."
           },
           {
-            "name": "compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics",
+            "name": "compile_require_family_clauses_then_setStorage_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-sub/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
-          },
-          {
-            "name": "compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-mul/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
+            "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by setStorage-literal, compiled execution matches source clause-list short-circuit semantics plus storage update under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_tail_semantics",
@@ -431,44 +477,64 @@
             "statement_summary": "Generic sequencing semantic-preservation theorem over supported tails after unified require guard-family clause lists, proved by tail-family case split reusing existing specialized theorems."
           },
           {
-            "name": "compile_require_family_clauses_tail_programs_semantics",
+            "name": "compile_require_family_then_return_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Structural-induction theorem: for lists of supported `(require-clause-list + tail)` fragments, compiled evaluation equals source evaluation with identical short-circuit revert behavior."
+            "statement_summary": "Sequencing theorem: for unified require guard families followed by return-literal, compiled execution matches source short-circuit require semantics and halting behavior."
           },
           {
-            "name": "execSourceRequireFamilyClausesTailPrograms_append_from",
+            "name": "compile_require_family_then_setStorage_literal_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Structural append theorem for source semantics over supported `(require-clause-list + tail)` program lists from arbitrary initial execution states."
+            "statement_summary": "Sequencing theorem: for unified require guard families followed by setStorage-literal, compiled execution matches source short-circuit require semantics plus storage update under explicit field-resolution assumptions."
           },
           {
-            "name": "execCompiledRequireFamilyClausesTailPrograms_append_from",
+            "name": "compile_require_ge_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Structural append theorem for compiled semantics over supported `(require-clause-list + tail)` program lists from arbitrary initial execution states."
+            "statement_summary": "For the supported require-ge-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n >= m, revert otherwise)."
           },
           {
-            "name": "compile_require_family_clauses_tail_programs_append_semantics",
+            "name": "compile_require_gt_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Generic append/composition theorem connecting compiled and source semantics over concatenated supported `(require-clause-list + tail)` program lists."
+            "statement_summary": "For the supported require-gt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n > m, revert otherwise)."
           },
           {
-            "name": "execCompiledRequireFamilyClausesThenTail",
+            "name": "compile_require_le_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Compiled semantics dispatcher over the supported tail family after unified require guard-family clause lists."
+            "statement_summary": "For the supported require-le-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n <= m, revert otherwise)."
           },
           {
-            "name": "execSourceRequireFamilyClausesThenTail",
+            "name": "compile_require_literal_guard_family_clauses_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Source semantics dispatcher over the supported tail family after unified require guard-family clause lists."
+            "statement_summary": "Structural-induction theorem: for lists of unified require guard-family clauses (`binary`, `andEqLt`, `orEqLt`), compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           },
           {
-            "name": "execCompiledRequireFamilyClausesTailPrograms",
+            "name": "compile_require_literal_guard_family_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Compiled semantics dispatcher over lists of supported `(require-clause-list + tail)` fragments."
+            "statement_summary": "Generalized theorem: for unified require guard families (binary guard set plus and(eq,lt)/or(eq,lt)), compiled single-require execution equals source require semantics."
           },
           {
-            "name": "execSourceRequireFamilyClausesTailPrograms",
+            "name": "compile_require_lt_literals_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Source semantics dispatcher over lists of supported `(require-clause-list + tail)` fragments."
+            "statement_summary": "For the supported require-lt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n < m, revert otherwise)."
+          },
+          {
+            "name": "compile_require_not_eq_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported require-not-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n != m, revert otherwise)."
+          },
+          {
+            "name": "compile_require_or_eq_lt_literals_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported composite require guard subset (eq || lt over literals), compiled typed-IR execution preserves direct source short-circuit require semantics."
+          },
+          {
+            "name": "compile_return_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported return-literal subset, compiled typed-IR execution preserves direct source return semantics (state unchanged, halting)."
+          },
+          {
+            "name": "compile_setStorage_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "statement_summary": "For the supported setStorage-literal subset, compiled typed-IR execution matches direct source-level storage update semantics."
           },
           {
             "name": "compile_supported_stmt_fragments_semantics",
@@ -476,14 +542,9 @@
             "statement_summary": "One generic list-level semantic-preservation theorem over the explicit supported statement-fragment grammar (`SupportedStmtFragment`)."
           },
           {
-            "name": "execCompiledSupportedStmtFragments",
+            "name": "compile_supported_stmt_list_direct_semantics",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Compiled semantics dispatcher over lists of explicit supported statement fragments."
-          },
-          {
-            "name": "execSourceSupportedStmtFragments",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "Source semantics dispatcher over lists of explicit supported statement fragments."
+            "statement_summary": "For arbitrary raw statement lists in the declared supported fragment, compiled and source semantics are directly equal without existential decomposition in the conclusion."
           },
           {
             "name": "compile_supported_stmt_list_semantics",
@@ -491,136 +552,51 @@
             "statement_summary": "For arbitrary raw statement lists witnessed to belong to the declared supported fragment grammar, there exists a fragment decomposition whose compiled and source semantics are equal."
           },
           {
-            "name": "compile_supported_stmt_list_direct_semantics",
+            "name": "execCompiledRequireFamilyClausesTailPrograms",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For arbitrary raw statement lists in the declared supported fragment, compiled and source semantics are directly equal without existential decomposition in the conclusion."
+            "statement_summary": "Compiled semantics dispatcher over lists of supported `(require-clause-list + tail)` fragments."
           },
           {
-            "name": "compileStmts_single_ite_eq_setStorage_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with setStorage-then/return-else branches emits the expected typed if_ with heterogeneous branch statements from empty compile state."
-          },
-          {
-            "name": "compile_ite_eq_setStorage_then_return_literal_semantics",
+            "name": "execCompiledRequireFamilyClausesTailPrograms_append_from",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported heterogeneous branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with setStorage true branch and return false branch under explicit field-resolution assumptions."
+            "statement_summary": "Structural append theorem for compiled semantics over supported `(require-clause-list + tail)` program lists from arbitrary initial execution states."
           },
           {
-            "name": "compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics",
+            "name": "execCompiledRequireFamilyClausesThenTail",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For unified require-family clause lists sequenced before heterogeneous ite(eq) (setStorage true branch, return false branch), compiled execution preserves source short-circuit/revert and branch behavior under explicit field-resolution assumptions."
+            "statement_summary": "Compiled semantics dispatcher over the supported tail family after unified require guard-family clause lists."
           },
           {
-            "name": "compileStmts_single_ite_eq_return_then_setStorage_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with return-then/setStorage-else branches emits the expected typed if_ with heterogeneous branch statements from empty compile state."
-          },
-          {
-            "name": "compile_ite_eq_return_then_setStorage_literal_semantics",
+            "name": "execCompiledSupportedStmtFragments",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported heterogeneous branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with return true branch and setStorage false branch under explicit field-resolution assumptions."
+            "statement_summary": "Compiled semantics dispatcher over lists of explicit supported statement fragments."
           },
           {
-            "name": "compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics",
+            "name": "execSourceRequireFamilyClausesTailPrograms",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For unified require-family clause lists sequenced before heterogeneous ite(eq) (return true branch, setStorage false branch), compiled execution preserves source short-circuit/revert and branch behavior under explicit field-resolution assumptions."
+            "statement_summary": "Source semantics dispatcher over lists of supported `(require-clause-list + tail)` fragments."
           },
           {
-            "name": "compileStmts_single_ite_eq_return_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with return on both branches emits the expected typed if_ with two returnUint branches from empty compile state."
-          },
-          {
-            "name": "compile_ite_eq_return_literals_semantics",
+            "name": "execSourceRequireFamilyClausesTailPrograms_append_from",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with return on both branches."
+            "statement_summary": "Structural append theorem for source semantics over supported `(require-clause-list + tail)` program lists from arbitrary initial execution states."
           },
           {
-            "name": "compile_require_family_clauses_then_ite_eq_return_literals_semantics",
+            "name": "execSourceRequireFamilyClausesThenTail",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For unified require-family clause lists sequenced before ite(eq) with return on both branches, compiled execution preserves source short-circuit/revert and branch behavior."
+            "statement_summary": "Source semantics dispatcher over the supported tail family after unified require guard-family clause lists."
           },
           {
-            "name": "compileStmts_single_ite_eq_then_ite_eq_return_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with return-only leaves emits the expected typed nested if_ structure from empty compile state."
-          },
-          {
-            "name": "compile_ite_eq_then_ite_eq_return_literals_semantics",
+            "name": "execSourceSupportedStmtFragments",
             "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported nested-branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner return/return ite(eq) and a direct return branch."
-          },
-          {
-            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with return-only leaves, compiled execution preserves source short-circuit/revert and nested branch behavior."
-          },
-          {
-            "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
-            "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/setStorage branches and outer false-branch return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
-          },
-          {
-            "name": "compile_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For the supported nested heterogeneous branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner storage/storage ite(eq) and a return false branch under explicit field-resolution assumptions."
-          },
-          {
-            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner storage/storage branches and outer false-branch return, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
-          },
-          {
-            "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-            "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner return/return branches and outer false-branch storage write, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
+            "statement_summary": "Source semantics dispatcher over lists of explicit supported statement fragments."
           }
         ],
         "tests": [
-          "TypedIRTests: example instantiating compileStmts_append_from over arbitrary fields/pre/post/state",
-          "TypedIRTests: example instantiating compile_setStorage_literal_semantics over arbitrary fields/fieldName/slot assumptions",
-          "TypedIRTests: example instantiating compile_let_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
-          "TypedIRTests: example instantiating compile_let_assign_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
-          "TypedIRTests: example instantiating compile_let_assign_add_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
-          "TypedIRTests: example instantiating compile_let_assign_sub_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
-          "TypedIRTests: example instantiating compile_let_assign_mul_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
-          "TypedIRTests: example instantiating compile_return_literal_semantics over arbitrary fields/init/n",
-          "TypedIRTests: example instantiating compile_let_return_local_literal_semantics over arbitrary fields/tmp/init/n",
-          "TypedIRTests: example instantiating compile_ite_eq_setStorage_literals_semantics over arbitrary fields/fieldName/slot/init/n/m/thenVal/elseVal assumptions",
-          "TypedIRTests: example instantiating compile_require_eq_literals_semantics over arbitrary fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_not_eq_literals_semantics over arbitrary fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_lt_literals_semantics over arbitrary fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_gt_literals_semantics over arbitrary fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_ge_literals_semantics over arbitrary fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_le_literals_semantics over arbitrary fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_binary_literal_guard_semantics over arbitrary guard/fields/init/n/m/message",
-          "TypedIRTests: example instantiating compile_require_binary_literal_clauses_semantics over arbitrary fields/init/clauses",
-          "TypedIRTests: example instantiating compile_require_and_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
-          "TypedIRTests: example instantiating compile_require_or_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
-          "TypedIRTests: example instantiating compile_require_literal_guard_family_semantics over arbitrary family/fields/init/n/m/p/q/message",
-          "TypedIRTests: example instantiating compile_require_family_then_setStorage_literal_semantics over arbitrary family/fields/fieldName/slot/init/n/m/p/q/message/writeVal assumptions",
-          "TypedIRTests: example instantiating compile_require_family_then_return_literal_semantics over arbitrary family/fields/init/n/m/p/q/message/retVal",
-          "TypedIRTests: example instantiating compile_require_literal_guard_family_clauses_semantics over arbitrary fields/init/guard-family clauses",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_noop_semantics over arbitrary fields/init/guard-family clauses",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_setStorage_literal_semantics over arbitrary fields/fieldName/slot/init/guard-family clauses/writeVal assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_ite_eq_setStorage_literals_semantics over arbitrary fields/fieldName/slot/init/guard-family clauses/n/m/thenVal/elseVal assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_return_literal_semantics over arbitrary fields/init/guard-family clauses/retVal",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_return_local_literal_semantics over arbitrary fields/tmp/init/guard-family clauses/retVal",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
-          "TypedIRTests: example instantiating compile_require_family_clauses_then_tail_semantics over arbitrary fields/init/guard-family clauses/supported tail family",
-          "TypedIRTests: example instantiating compile_require_family_clauses_tail_programs_semantics over arbitrary fields/init/lists of supported require-clause-list plus tail fragments",
-          "TypedIRTests: example instantiating compile_require_family_clauses_tail_programs_append_semantics over arbitrary fields/init/pre/post supported require-clause-list plus tail fragment lists",
-          "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments",
-          "TypedIRTests example instantiating compile_supported_stmt_list_semantics",
-          "TypedIRTests example instantiating compile_supported_stmt_list_direct_semantics",
           {
-            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics",
+            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_return_literals_semantics",
             "file": "Verity/Core/Free/TypedIRTests.lean",
-            "assertion_summary": "Checks clause-list sequencing semantic preservation for heterogeneous ite(eq) continuation with setStorage true branch and return false branch under explicit field-resolution assumptions."
+            "assertion_summary": "Checks clause-list sequencing semantic preservation for ite(eq) continuation with return on both branches."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics",
@@ -628,9 +604,9 @@
             "assertion_summary": "Checks clause-list sequencing semantic preservation for heterogeneous ite(eq) continuation with return true branch and setStorage false branch under explicit field-resolution assumptions."
           },
           {
-            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_return_literals_semantics",
+            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics",
             "file": "Verity/Core/Free/TypedIRTests.lean",
-            "assertion_summary": "Checks clause-list sequencing semantic preservation for ite(eq) continuation with return on both branches."
+            "assertion_summary": "Checks clause-list sequencing semantic preservation for heterogeneous ite(eq) continuation with setStorage true branch and return false branch under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics",
@@ -638,15 +614,60 @@
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/return branches and outer false-branch return."
           },
           {
+            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics",
+            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/return branches and outer false-branch storage write under explicit field-resolution assumptions."
+          },
+          {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
             "file": "Verity/Core/Free/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner storage/storage branches and outer false-branch return under explicit field-resolution assumptions."
           },
           {
-            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics",
+            "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics",
             "file": "Verity/Core/Free/TypedIRTests.lean",
-            "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/return branches and outer false-branch storage write under explicit field-resolution assumptions."
-          }
+            "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner storage/storage branches and outer false-branch storage write under explicit field-resolution assumptions."
+          },
+          "TypedIRTests example instantiating compile_supported_stmt_list_direct_semantics",
+          "TypedIRTests example instantiating compile_supported_stmt_list_semantics",
+          "TypedIRTests: example instantiating compileStmts_append_from over arbitrary fields/pre/post/state",
+          "TypedIRTests: example instantiating compile_ite_eq_setStorage_literals_semantics over arbitrary fields/fieldName/slot/init/n/m/thenVal/elseVal assumptions",
+          "TypedIRTests: example instantiating compile_let_assign_add_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
+          "TypedIRTests: example instantiating compile_let_assign_mul_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
+          "TypedIRTests: example instantiating compile_let_assign_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
+          "TypedIRTests: example instantiating compile_let_assign_sub_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
+          "TypedIRTests: example instantiating compile_let_return_local_literal_semantics over arbitrary fields/tmp/init/n",
+          "TypedIRTests: example instantiating compile_let_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot assumptions",
+          "TypedIRTests: example instantiating compile_require_and_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
+          "TypedIRTests: example instantiating compile_require_binary_literal_clauses_semantics over arbitrary fields/init/clauses",
+          "TypedIRTests: example instantiating compile_require_binary_literal_guard_semantics over arbitrary guard/fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_eq_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_family_clauses_tail_programs_append_semantics over arbitrary fields/init/pre/post supported require-clause-list plus tail fragment lists",
+          "TypedIRTests: example instantiating compile_require_family_clauses_tail_programs_semantics over arbitrary fields/init/lists of supported require-clause-list plus tail fragments",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_ite_eq_setStorage_literals_semantics over arbitrary fields/fieldName/slot/init/guard-family clauses/n/m/thenVal/elseVal assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n/m assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_return_local_literal_semantics over arbitrary fields/tmp/init/guard-family clauses/retVal",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_let_setStorage_local_literal_semantics over arbitrary fields/fieldName/tmp/slot/init/guard-family clauses/n assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_noop_semantics over arbitrary fields/init/guard-family clauses",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_return_literal_semantics over arbitrary fields/init/guard-family clauses/retVal",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_setStorage_literal_semantics over arbitrary fields/fieldName/slot/init/guard-family clauses/writeVal assumptions",
+          "TypedIRTests: example instantiating compile_require_family_clauses_then_tail_semantics over arbitrary fields/init/guard-family clauses/supported tail family",
+          "TypedIRTests: example instantiating compile_require_family_then_return_literal_semantics over arbitrary family/fields/init/n/m/p/q/message/retVal",
+          "TypedIRTests: example instantiating compile_require_family_then_setStorage_literal_semantics over arbitrary family/fields/fieldName/slot/init/n/m/p/q/message/writeVal assumptions",
+          "TypedIRTests: example instantiating compile_require_ge_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_gt_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_le_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_literal_guard_family_clauses_semantics over arbitrary fields/init/guard-family clauses",
+          "TypedIRTests: example instantiating compile_require_literal_guard_family_semantics over arbitrary family/fields/init/n/m/p/q/message",
+          "TypedIRTests: example instantiating compile_require_lt_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_not_eq_literals_semantics over arbitrary fields/init/n/m/message",
+          "TypedIRTests: example instantiating compile_require_or_eq_lt_literals_semantics over arbitrary fields/init/n/m/p/q/message",
+          "TypedIRTests: example instantiating compile_return_literal_semantics over arbitrary fields/init/n",
+          "TypedIRTests: example instantiating compile_setStorage_literal_semantics over arbitrary fields/fieldName/slot assumptions",
+          "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments"
         ]
       },
       "obligation_delta": {
@@ -654,7 +675,7 @@
         "removed_sorries": [],
         "reframed_or_deleted_obligations": []
       },
-      "notes": "Status remains partial. Added semantic-preservation coverage for clause-list sequencing into nested `ite(eq)` with inner return-only branches and outer false-branch storage write, and integrated it into the generic tail/fragment dispatch surface without reducing obligations.",
+      "notes": "Status remains partial. Added semantic-preservation coverage for clause-list sequencing into nested `ite(eq)` with inner storage/storage branches and outer false-branch storage write, and integrated it into the generic tail/fragment dispatch surface without reducing obligations. Uncovered fragments remain: general nested/heterogeneous `Stmt.ite` programs beyond the declared literal-equality guard and the currently declared literal branch continuations are not yet part of the supported fragment grammar.",
       "uncovered_fragments": [
         "General nested/heterogeneous `Stmt.ite` programs beyond the declared literal-equality guard and the currently declared literal branch continuations (including nested forms now covering return-only, inner-storage/outer-return, and inner-return/outer-storage shapes) are not yet part of the supported fragment grammar."
       ]
