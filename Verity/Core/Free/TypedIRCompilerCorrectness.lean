@@ -1204,7 +1204,7 @@ theorem compile_return_storage_semantics
   simp [execCompiledReturnStorage, execSourceReturnStorage,
     compileStmts_single_return_storage_run, hfind,
     evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp [evalTStmtsFuel, evalTStmtFuel]
 
 /-- Semantic-preservation theorem for `return (storage field)` (address). -/
 theorem compile_return_storage_addr_semantics
@@ -1217,7 +1217,7 @@ theorem compile_return_storage_addr_semantics
   simp [execCompiledReturnStorageAddr, execSourceReturnStorageAddr,
     compileStmts_single_return_storage_addr_run, hfind,
     evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp [evalTStmtsFuel, evalTStmtFuel]
 
 /-- Semantic-preservation for `return (mapping fieldName caller)`:
 compiled execution matches direct source semantics (no state change). -/
@@ -4237,13 +4237,7 @@ theorem compile_require_family_clauses_tail_programs_append_semantics
           match execSourceRequireFamilyClausesTailPrograms fields init pre with
           | .ok st => execSourceRequireFamilyClausesTailPrograms fields st post
           | .revert reason => .revert reason := by
-            simpa [compile_require_family_clauses_tail_programs_semantics] using
-              congrArg
-                (fun r =>
-                  match r with
-                  | .ok st => execCompiledRequireFamilyClausesTailPrograms fields st post
-                  | .revert reason => .revert reason)
-                (compile_require_family_clauses_tail_programs_semantics fields init pre)
+            simp [compile_require_family_clauses_tail_programs_semantics]
     _ = execSourceRequireFamilyClausesTailPrograms fields init (pre ++ post) := by
           simpa using
             (execSourceRequireFamilyClausesTailPrograms_append_from fields init pre post).symm

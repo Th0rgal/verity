@@ -1416,7 +1416,7 @@ theorem compileStmts_let_caller_setMapping2_stop_run
     (fields : List Field) (fieldName senderVar p1 p2 : String) (slot : Nat)
     (hSlot : findFieldSlot fields fieldName = some slot)
     (h1 : senderVar ≠ p2) (h2 : senderVar ≠ p1) (h3 : p2 ≠ p1)
-    (h4 : p1 ≠ p2) (h5 : p1 ≠ senderVar) (h6 : p2 ≠ senderVar) :
+    (_ : p1 ≠ p2) (_ : p1 ≠ senderVar) (_ : p2 ≠ senderVar) :
     (compileStmts fields
       [ Stmt.letVar senderVar Expr.caller
       , Stmt.setMapping2 fieldName (Expr.localVar senderVar) (Expr.param p1) (Expr.param p2)
@@ -1503,8 +1503,8 @@ theorem compileStmts_setMappingUint_params_stop_run
             TStmt.stop
           ] }) := by
   have hne : (p2 == p1) = false := beq_false_of_ne hp.symm
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
-    bindVar, pushLocal, lookupVar, asUInt256, liftExcept, hSlot, emit,
+  simp [compileStmts, compileStmt, compileExpr,
+    lookupVar, asUInt256, liftExcept, hSlot, emit,
     List.find?, hne]; rfl
 
 end Verity.Core.Free
