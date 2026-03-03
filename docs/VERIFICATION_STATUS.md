@@ -291,7 +291,7 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 ### Current Coverage
 
 - **Total Properties**: 425
-- **Covered**: 220 (55%)
+- **Covered**: 250 (59%)
 - **Excluded**: 175 (all proof-only)
 - **Missing**: 0
 
@@ -299,14 +299,16 @@ All 8 statement types (assign, storage load/store, mapping load/store, condition
 
 | Contract | Coverage | Exclusions | Status |
 |----------|----------|------------|--------|
+| ERC20 | 100% (19/19) | 0 | ✅ Complete |
+| ERC721 | 100% (11/11) | 0 | ✅ Complete |
 | SafeCounter | 100% (25/25) | 0 | ✅ Complete |
 | ReentrancyExample | 100% (4/4) | 0 | ✅ Complete |
+| Ledger | 100% (33/33) | 0 | ✅ Complete |
 | SimpleStorage | 95% (19/20) | 1 proof-only | ✅ Near-complete |
-| Owned | 87% (20/23) | 3 proof-only | ✅ Near-complete |
 | OwnedCounter | 92% (44/48) | 4 proof-only | ✅ Near-complete |
+| Owned | 87% (20/23) | 3 proof-only | ✅ Near-complete |
 | SimpleToken | 85% (52/61) | 9 proof-only | ✅ High coverage |
 | Counter | 82% (23/28) | 5 proof-only | ✅ High coverage |
-| Ledger | 100% (33/33) | 0 | ✅ Complete |
 | Stdlib | 0% (0/153) | 153 proof-only | — Internal |
 
 ### Exclusion Categories

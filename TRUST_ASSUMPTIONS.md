@@ -158,26 +158,6 @@ See [`docs/REVERT_STATE_MODEL.md`](docs/REVERT_STATE_MODEL.md) for the precise m
 7. Review ECM axiom report (`--verbose`) and confirm all module trust assumptions are acceptable.
 8. If third-party ECMs are used, audit their `AXIOMS.md` and `compile` implementations.
 
-## Change Control Requirement
-
-Any source change that affects architecture, semantics, trust boundary, or CI safeguards must update this file in the same change set.
-
-If this file is stale, audit conclusions may be invalid.
-
-## Related Documents
-
-- [AUDIT.md](AUDIT.md)
-- [AXIOMS.md](AXIOMS.md)
-- [docs/ARITHMETIC_PROFILE.md](docs/ARITHMETIC_PROFILE.md)
-- [docs/REVERT_STATE_MODEL.md](docs/REVERT_STATE_MODEL.md)
-- [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md)
-- [docs/SOLIDITY_PARITY_PROFILE.md](docs/SOLIDITY_PARITY_PROFILE.md)
-- [docs/PARITY_PACKS.md](docs/PARITY_PACKS.md)
-- [docs/REWRITE_RULES.md](docs/REWRITE_RULES.md)
-- [docs/IDENTITY_CHECKER.md](docs/IDENTITY_CHECKER.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)
-
 ### 9. Macro Elaborator (`verity_contract`)
 
 - Role: generates both the EDSL `Contract` monad value and the `CompilationModel`
@@ -230,5 +210,25 @@ Roadmap:
    `interpretSpec` in the TCB.
 4. 🔲 Expand DSL coverage (dynamic arrays, structs, try/catch, create/create2).
 
-**Last Updated**: 2026-03-02
+## Change Control Requirement
+
+Any source change that affects architecture, semantics, trust boundary, or CI safeguards must update this file in the same change set.
+
+If this file is stale, audit conclusions may be invalid.
+
+## Related Documents
+
+- [AUDIT.md](AUDIT.md)
+- [AXIOMS.md](AXIOMS.md)
+- [docs/ARITHMETIC_PROFILE.md](docs/ARITHMETIC_PROFILE.md)
+- [docs/REVERT_STATE_MODEL.md](docs/REVERT_STATE_MODEL.md)
+- [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md)
+- [docs/SOLIDITY_PARITY_PROFILE.md](docs/SOLIDITY_PARITY_PROFILE.md)
+- [docs/PARITY_PACKS.md](docs/PARITY_PACKS.md)
+- [docs/REWRITE_RULES.md](docs/REWRITE_RULES.md)
+- [docs/IDENTITY_CHECKER.md](docs/IDENTITY_CHECKER.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)
+
+**Last Updated**: 2026-03-03
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.
