@@ -38,7 +38,7 @@ EVM Bytecode
 | Stdlib | 153 | Internal | `Verity/Proofs/Stdlib/` |
 | **Total** | **425** | | |
 
-Layer 1 uses macro-generated bridge theorems backed by a generic typed-IR compilation-correctness theorem ([`TypedIRCompilerCorrectness.lean`](../Compiler/Proofs/TypedIRCompilerCorrectness.lean)). Advanced constructs (linked libraries, ECMs, custom ABI) are expressed directly in `CompilationModel` and trusted at that boundary.
+Layer 1 uses macro-generated bridge theorems backed by a generic typed-IR compilation-correctness theorem ([`TypedIRCompilerCorrectness.lean`](../Verity/Core/Free/TypedIRCompilerCorrectness.lean)). Advanced constructs (linked libraries, ECMs, custom ABI) are expressed directly in `CompilationModel` and trusted at that boundary.
 
 ### Lowering Bridge
 
