@@ -380,6 +380,10 @@ jobs:
             lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-
             lake-compiler-${{ hashFiles('lean-toolchain') }}-
 
+      - name: Clear stale Lake cache on partial hit
+        if: steps.cache-lake-compiler.outputs.cache-hit != 'true'
+        run: rm -rf .lake
+
       - name: Fetch mathlib compiled cache
         run: lake exe cache get
 
