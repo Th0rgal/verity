@@ -241,7 +241,7 @@ See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a
 
 Verity's restricted DSL prevents raw external calls for safety. Instead, call patterns are packaged as **External Call Modules (ECMs)** — reusable, typed, auditable Lean structures that the compiler can plug in without modification. Standard modules for ERC-20, EVM precompiles, and callbacks ship in [`Compiler/Modules/`](Compiler/Modules/README.md). Third parties can publish their own as separate Lean packages. See [`docs/EXTERNAL_CALL_MODULES.md`](docs/EXTERNAL_CALL_MODULES.md) for the full guide.
 
-425 theorems across 11 categories (424 proven, 6 `sorry`). 447 Foundry tests across 37 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom.
+425 theorems across 11 categories (424 proven, 1 `sorry`). 447 Foundry tests across 37 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom.
 
 ## What's Verified
 

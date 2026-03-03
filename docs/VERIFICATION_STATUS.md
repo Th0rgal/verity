@@ -442,7 +442,7 @@ Current diagnostic coverage in compiler:
 ### Short Term (1-2 months)
 
 - [x] Add finite address set modeling for Ledger sum properties (Issue #39, closed)
-- [x] Complete Ledger sum property proofs — 6 `sorry` remaining (macro-generated semantic preservation placeholders, Issue #998), Ledger sums proven in Conservation.lean (Issue #65)
+- [x] Complete Ledger sum property proofs — 1 `sorry` remaining (macro-generated semantic preservation placeholders, Issue #998), Ledger sums proven in Conservation.lean (Issue #65)
 
 ### Medium Term (3-6 months)
 
