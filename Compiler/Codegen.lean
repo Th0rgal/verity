@@ -26,7 +26,7 @@ structure YulEmitOptions where
   mappingSlotScratchBase : Nat := 0
 
 /-- Runtime emission output plus patch audit report for tool/CI consumption. -/
-structure RuntimeEmitReport where
+private structure RuntimeEmitReport where
   runtimeCode : List YulStmt
   patchReport : Yul.PatchPassReport
 
@@ -43,7 +43,7 @@ private def yulReturnRuntime : YulStmt :=
     YulExpr.call "datasize" [YulExpr.str "runtime"]
   ])
 
-def mappingSlotFuncAt (scratchBase : Nat) : YulStmt :=
+private def mappingSlotFuncAt (scratchBase : Nat) : YulStmt :=
   let keyPtr := scratchBase
   let slotPtr := scratchBase + 32
   YulStmt.funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] [
@@ -52,7 +52,7 @@ def mappingSlotFuncAt (scratchBase : Nat) : YulStmt :=
     YulStmt.assign "slot" (YulExpr.call "keccak256" [YulExpr.lit keyPtr, YulExpr.lit 64])
   ]
 
-def mappingSlotFunc : YulStmt :=
+private def mappingSlotFunc : YulStmt :=
   mappingSlotFuncAt 0
 
 /-- Revert if ETH is sent to a non-payable function. -/
@@ -105,7 +105,7 @@ private def insertBy [LT β] [DecidableRel (α := β) (· < ·)] (key : α → �
 private def insertionSortBy [LT β] [DecidableRel (α := β) (· < ·)] (key : α → β) (xs : List α) : List α :=
   xs.foldl (fun acc x => insertBy key x acc) []
 
-def buildSwitch
+private def buildSwitch
     (funcs : List IRFunction)
     (fallback : Option IREntrypoint := none)
     (receive : Option IREntrypoint := none)
@@ -167,7 +167,7 @@ private def internalHelpersForProfile (profile : BackendProfile) (helpers : List
   else
     helpers
 
-def runtimeCodeWithEmitOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
+private def runtimeCodeWithEmitOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
   let mapping := if contract.usesMapping then [mappingSlotFuncAt options.mappingSlotScratchBase] else []
   let internals := internalHelpersForProfile options.backendProfile contract.internalFunctions
   let sortCases := profileSortsDispatchCases options.backendProfile
@@ -232,12 +232,12 @@ private def emitYulWithOptionsInternal
     patchReport := mergedPatchReport }
 
 /-- Emit runtime code and keep the patch pass report (manifest + iteration count). -/
-def runtimeCodeWithOptionsReport (contract : IRContract) (options : YulEmitOptions) : RuntimeEmitReport :=
+private def runtimeCodeWithOptionsReport (contract : IRContract) (options : YulEmitOptions) : RuntimeEmitReport :=
   let report := emitYulWithOptionsInternal contract options
   { runtimeCode := report.patched.runtimeCode
     patchReport := report.patchReport }
 
-def runtimeCodeWithOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
+private def runtimeCodeWithOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
   (runtimeCodeWithOptionsReport contract options).runtimeCode
 
 def emitYul (contract : IRContract) : YulObject :=

@@ -23,7 +23,7 @@ theorem emitYul_runtimeCode_eq (contract : IRContract) :
 
 /-- Selector extraction via `selectorExpr` yields the 4-byte selector. -/
 @[simp]
-theorem evalYulExpr_selectorExpr (state : YulState) :
+private theorem evalYulExpr_selectorExpr (state : YulState) :
     evalYulExpr state selectorExpr = some (state.selector % selectorModulus) :=
 by
   simpa using (Compiler.Proofs.YulGeneration.evalYulExpr_selectorExpr_semantics state)
@@ -46,7 +46,7 @@ def switchCases (fns : List IRFunction) : List (Prod Nat (List YulStmt)) :=
   fns.map (fun f => (f.selector, switchCaseBody f))
 
 /-- Default dispatch body used by `buildSwitch`. -/
-def switchDefaultCase
+private def switchDefaultCase
     (fallback : Option IREntrypoint)
     (receive : Option IREntrypoint) : List YulStmt :=
   match receive, fallback with
@@ -76,7 +76,7 @@ def switchDefaultCase
       ]]
 
 /-- If the selector matches a case, the switch executes that case body (fueled). -/
-theorem execYulStmtFuel_switch_match
+private theorem execYulStmtFuel_switch_match
     (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
     (hEval : evalYulExpr state expr = some v)
@@ -90,13 +90,13 @@ theorem execYulStmtFuel_switch_match
     state expr cases' defaultCase fuel v body hEval hFind')
 
 /-- If no selector case matches, the switch executes the default (or continues). -/
-def execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
+private def execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
     (defaultCase : Option (List YulStmt)) : YulExecResult :=
   match defaultCase with
   | some body => execYulStmtsFuel fuel state body
   | none => YulExecResult.continue state
 
-theorem execYulStmtFuel_switch_miss
+private theorem execYulStmtFuel_switch_miss
     (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat)
     (hEval : evalYulExpr state expr = some v)
