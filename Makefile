@@ -67,7 +67,7 @@ setup-foundry: ## Install Foundry (forge, cast, anvil)
 verify: ## Verify all proofs (lake build)
 	lake build
 
-axiom-report: ## Generate axiom dependency report for all 569 theorems
+axiom-report: ## Generate axiom dependency report for all 556 theorems
 	lake env lean PrintAxioms.lean 2>&1 | tee axiom-report-raw.log
 	python3 scripts/check_axiom_report.py --log axiom-report-raw.log
 

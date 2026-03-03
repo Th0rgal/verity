@@ -120,8 +120,8 @@ Every claim below is enforced by CI on every commit. Each one can be independent
 | Proven theorems | 425 | `make verify` |
 | Incomplete proofs (`sorry`) | 0 | `make verify` (Lean rejects sorry) |
 | Project-specific axioms | 1 ([documented](AXIOMS.md)) | `make axiom-report` |
-| Axiom dependency audit | 613 theorems checked | `make axiom-report` |
-| Foundry runtime tests | 445 across 37 suites | `make test-foundry` |
+| Axiom dependency audit | 556 theorems checked | `make axiom-report` |
+| Foundry runtime tests | 447 across 37 suites | `make test-foundry` |
 | Property test coverage | 250/425 (59%) | `python3 scripts/check_property_coverage.py` |
 | CI validation scripts | 30 | `make check` |
 | Proof length enforcement | 92% under 30 lines | `python3 scripts/check_proof_length.py` |
