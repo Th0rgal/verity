@@ -105,8 +105,8 @@ EVM Bytecode
 
 | Layer | What it proves | Key file |
 |-------|---------------|----------|
-| 1 | EDSL execution = CompilationModel interpretation | [SemanticBridge.lean](Compiler/Proofs/SemanticBridge.lean) |
-| 2 | CompilationModel compilation preserves behavior | [EndToEnd.lean](Compiler/Proofs/EndToEnd.lean) |
+| 1 | EDSL execution = CompilationModel interpretation | [TypedIRCompilerCorrectness.lean](Verity/Core/Free/TypedIRCompilerCorrectness.lean) |
+| 2 | CompilationModel → IR preserves behavior | [IRInterpreter.lean](Compiler/Proofs/IRGeneration/IRInterpreter.lean) |
 | 3 | IR → Yul codegen preserves behavior | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
 Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 1 axiom: [`keccak256_first_4_bytes`](Compiler/Selectors.lean) for function selector computation, validated by CI against `solc --hashes`. See [AXIOMS.md](AXIOMS.md).
@@ -137,7 +137,7 @@ FOUNDRY_PROFILE=difftest forge test    # 447 tests across 37 suites
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-425 theorems across 11 categories (424 proven, 1 `sorry`). 447 Foundry tests across 37 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom.
+425 theorems across 11 categories. 447 Foundry tests across 37 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 19 `sorry` placeholders (18 in cross-layer bridge proofs, 1 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
 
 ---
 
@@ -190,8 +190,8 @@ Every claim is enforced by CI on every commit:
 
 | Claim | Value | Verify locally |
 |-------|-------|----------------|
-| Proven theorems | 425 | `make verify` |
-| Incomplete proofs (`sorry`) | 1 | `make verify` |
+| Tracked theorems | 425 across 11 categories | `make verify` |
+| Incomplete proofs (`sorry`) | 19 (18 bridge + 1 Yul) | `python3 scripts/check_lean_hygiene.py` |
 | Project-specific axioms | 1 ([documented](AXIOMS.md)) | `make axiom-report` |
 | Foundry runtime tests | 447 across 37 suites | `make test-foundry` |
 | Property test coverage | 250/425 (59%) | `python3 scripts/check_property_coverage.py` |

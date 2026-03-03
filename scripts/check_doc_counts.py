@@ -85,8 +85,22 @@ def get_core_line_count() -> int:
 
 
 def get_sorry_count() -> int:
-    """Count sorry statements in Lean proof files."""
-    return _count_lean_lines(r"^\s*(·\s*)?sorry\b")
+    """Count sorry statements in Lean proof files.
+
+    Uses ``search`` (not the ``match`` used by ``_count_lean_lines``) so that
+    ``by sorry`` at end-of-line is detected, matching ``check_lean_hygiene.py``.
+    """
+    matcher = re.compile(r"\bsorry\b")
+    count = 0
+    for d in [ROOT / "Compiler", ROOT / "Verity"]:
+        if not d.exists():
+            continue
+        for lean in d.rglob("*.lean"):
+            text = strip_lean_comments(lean.read_text(encoding="utf-8"))
+            for line in text.splitlines():
+                if matcher.search(line):
+                    count += 1
+    return count
 
 
 def get_contract_count() -> int:
@@ -691,7 +705,7 @@ def main(argv: list[str] | None = None) -> None:
                 ),
                 (
                     "theorem count in links",
-                    re.compile(r"Verification.+ — (\d+) proven theorems"),
+                    re.compile(r"Verification.+ — (\d+) tracked theorems"),
                     str(total_theorems),
                 ),
                 (
@@ -742,7 +756,7 @@ def main(argv: list[str] | None = None) -> None:
         check_required_and_forbidden_substrings(
             compiler_mdx,
             required=[
-                "- **Machine-checked proofs**: 1 documented axiom (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)) — `keccak256_first_4_bytes` only, 0 sorry."
+                "- **Machine-checked proofs**: 1 documented axiom (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)) — `keccak256_first_4_bytes` only, 19 sorry (18 SemanticBridge + 1 Preservation)."
             ],
             forbidden=["address injectivity"],
         )
@@ -1043,7 +1057,7 @@ def main(argv: list[str] | None = None) -> None:
                 ),
                 (
                     "theorem count in header",
-                    re.compile(r"(\d+) theorems, all fully proven"),
+                    re.compile(r"(\d+) theorems, \d+ fully proven"),
                     str(total_theorems),
                 ),
                 (

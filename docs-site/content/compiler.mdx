@@ -26,7 +26,7 @@ Important: Verity has two different "spec" concepts.
 - **Layer 1 per contract**: EDSL behavior is proven equivalent to its `CompilationModel`.
 - **Layer 2 framework proof**: `CompilationModel -> IR` preserves semantics.
 - **Layer 3 framework proof**: `IR -> Yul` preserves semantics.
-- **Machine-checked proofs**: 1 documented axiom (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)) — `keccak256_first_4_bytes` only, 0 sorry.
+- **Machine-checked proofs**: 1 documented axiom (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)) — `keccak256_first_4_bytes` only, 19 sorry (18 SemanticBridge + 1 Preservation).
 - **Interpreter semantics**: Spec, IR, and Yul semantics defined and linked in Lean
 
 ### What's Tested (High Confidence)
@@ -751,5 +751,5 @@ def ownedSpec : CompilationModel := {
 
 - [Research & Development](/research) — Design decisions and proof techniques
 - [Examples](/examples) — 12 example contracts
-- [Verification](/verification) — 425 proven theorems
+- [Verification](/verification) — 425 tracked theorems (406 proven, 19 sorry)
 - [GitHub Repository](https://github.com/Th0rgal/verity) — Source code

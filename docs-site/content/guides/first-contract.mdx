@@ -387,7 +387,7 @@ Function selectors (the first 4 bytes of `keccak256("functionName(paramTypes)")`
 
 When you define a contract using the `verity_contract` macro (in `Verity/Examples/MacroContracts.lean`), the framework automatically provides compilation correctness via the generic typed-IR theorem in `Verity/Core/Free/TypedIRCompilerCorrectness.lean`. This theorem covers a grammar of 36+ supported statement fragments, so no per-contract compilation proofs are needed for standard patterns.
 
-The bridge between EDSL semantics and the compilation model is maintained in `Compiler/Proofs/SemanticBridge.lean`. For contracts using only supported patterns (storage reads/writes, mappings, require guards, arithmetic, conditionals), compilation correctness is fully automatic with zero `sorry`.
+The bridge between EDSL semantics and the compilation model is maintained in `Compiler/Proofs/SemanticBridge.lean`. The bridge theorem *statements* are fully defined for all supported patterns (storage reads/writes, mappings, require guards, arithmetic, conditionals), but 18 proof terms currently use `sorry` (blocked by heartbeat limits after the `evalBuiltinCall` refactor). The typed-IR compilation path (`TypedIRCompilerCorrectness.lean`) carries zero `sorry`.
 
 > **Tip**: Study `Verity/Core/Free/TypedIRCompilerCorrectness.lean` to see the supported statement fragment grammar and bridge theorem examples for Counter, SimpleStorage, ERC20, and ERC721.
 

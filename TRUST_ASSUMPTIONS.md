@@ -23,7 +23,7 @@ All three layers are proven in Lean. The single axiom is `keccak256_first_4_byte
 - **Layer 1**: EDSL behavior matches its CompilationModel. For supported contracts, a generic typed-IR compilation-correctness theorem eliminates per-contract manual proofs.
 - **Layer 2**: CompilationModel → IR preserves behavior.
 - **Layer 3**: IR → Yul preserves behavior (1 axiom for keccak-based selectors).
-- **Cross-layer**: `Compiler/Proofs/SemanticBridge.lean` states per-function EDSL ≡ IR equivalence. `Compiler/Proofs/EndToEnd.lean` composes Layers 2+3.
+- **Cross-layer**: `Compiler/Proofs/SemanticBridge.lean` *states* per-function EDSL ≡ IR equivalence theorems (18 theorems, all currently `sorry` — blocked by heartbeat limits after `evalBuiltinCall` refactor). `Compiler/Proofs/EndToEnd.lean` composes Layers 2+3.
 
 425 theorems across 11 categories. 250 theorems have corresponding Foundry property tests. 59% runtime test coverage.
 

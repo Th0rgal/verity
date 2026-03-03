@@ -18,7 +18,7 @@ EVM Bytecode
 
 ## Layer 1: EDSL ≡ CompilationModel — COMPLETE
 
-**What it proves**: User-facing EDSL contracts satisfy their human-readable specifications.
+**What it proves**: The EDSL `Contract` monad execution is equivalent to `CompilationModel` interpretation for all supported contracts. Per-contract proofs under `Verity/Proofs/` then show these contracts satisfy their human-readable specifications.
 
 ### Verified Contracts
 
@@ -104,7 +104,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 
 **Proof-Only Properties (175 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-1 `sorry` remaining (macro-generated semantic preservation placeholders).
+19 `sorry` remaining: 18 in `Compiler/Proofs/SemanticBridge.lean` (EDSL ≡ IR bridge theorem proofs, blocked by `evalBuiltinCall` heartbeat limit after callvalue/calldatasize refactor) and 1 in `Compiler/Proofs/YulGeneration/Preservation.lean` (switchCaseBody connection). The theorem *statements* are preserved; only the proof terms use placeholders.
 
 ## Differential Testing
 
