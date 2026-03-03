@@ -206,10 +206,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .lake
-          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Verity/**/*.lean', 'Compiler/**/*.lean') }}
+          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Verity/**/*.lean', 'Compiler/**/*.lean') }}
           restore-keys: |
-            lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-
-            lake-${{ hashFiles('lean-toolchain') }}-
+            lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
 
       - name: Fetch mathlib compiled cache
         run: lake exe cache get
@@ -323,11 +323,11 @@ jobs:
         run: python3 scripts/check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY
 
       - name: Save Lake packages cache
-        if: always() && steps.cache-lake.outputs.cache-hit != 'true'
+        if: success() && steps.cache-lake.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
-          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Verity/**/*.lean', 'Compiler/**/*.lean') }}
+          key: lake-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Verity/**/*.lean', 'Compiler/**/*.lean') }}
 
       - name: Upload axiom dependency report
         uses: actions/upload-artifact@v4
@@ -375,10 +375,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .lake
-          key: lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean') }}
+          key: lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean') }}
           restore-keys: |
-            lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-
-            lake-compiler-${{ hashFiles('lean-toolchain') }}-
+            lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
 
       - name: Clear stale Lake cache on partial hit
         if: steps.cache-lake-compiler.outputs.cache-hit != 'true'
@@ -481,11 +481,11 @@ jobs:
           PY
 
       - name: Save Lake compiler cache
-        if: always() && steps.cache-lake-compiler.outputs.cache-hit != 'true'
+        if: success() && steps.cache-lake-compiler.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
-          key: lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean') }}
+          key: lake-compiler-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean') }}
 
       - name: Upload generated Yul
         uses: actions/upload-artifact@v4
@@ -544,6 +544,7 @@ jobs:
       - name: Check static-vs-foundry gas calibration
         env:
           FOUNDRY_PROFILE: difftest
+          DIFFTEST_YUL_DIR: "compiler/yul"
         run: python3 scripts/check_gas_calibration.py --static-report gas-report-static.tsv
 
   foundry:

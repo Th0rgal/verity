@@ -8,7 +8,7 @@
 # This script runs the full test suite with different random seeds to detect
 # seed-dependent test failures that could indicate flakiness or edge cases.
 
-set -e
+set -euo pipefail
 
 # Default seeds (same as CI)
 DEFAULT_SEEDS=(0 1 42 123 999 12345 67890)
@@ -34,8 +34,7 @@ for seed in "${SEEDS[@]}"; do
     echo "Testing seed: $seed"
     echo "--------------------------------------"
 
-    # Skip Random10000 tests to avoid out-of-gas errors (see issue #96)
-    if FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=$seed forge test --no-match-test "Random10000"; then
+    if FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED="$seed" DIFFTEST_SHARD_COUNT=1 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_SMALL=100 DIFFTEST_RANDOM_LARGE=10000 forge test; then
         echo "✅ Seed $seed: PASSED"
     else
         echo "❌ Seed $seed: FAILED"
@@ -57,7 +56,7 @@ if [ ${#FAILED_SEEDS[@]} -gt 0 ]; then
     echo ""
     echo "To reproduce a failure:"
     for failed_seed in "${FAILED_SEEDS[@]}"; do
-        echo "  FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=$failed_seed forge test --no-match-test \"Random10000\" -vv"
+        echo "  FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=$failed_seed DIFFTEST_SHARD_COUNT=1 DIFFTEST_SHARD_INDEX=0 DIFFTEST_RANDOM_SMALL=100 DIFFTEST_RANDOM_LARGE=10000 forge test -vv"
     done
     exit 1
 else
