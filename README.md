@@ -5,8 +5,7 @@
 <h1 align="center">Verity</h1>
 
 <p align="center">
-  <strong>Formally verified smart contracts. From spec to bytecode.</strong><br>
-  <em>Write simple rules. Let agents implement. Math proves the rest.</em>
+  <strong>Formally verified smart contracts. From spec to bytecode.</strong>
 </p>
 
 <p align="center">
@@ -18,412 +17,240 @@
 
 ---
 
-## 5-Minute Quick Start
+## What is Verity?
 
-```bash
-# 1. Install Lean 4
-curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-source ~/.elan/env
+Verity is a **formally verified smart contract compiler** written in [Lean 4](https://lean-lang.org/). You write contracts in an embedded DSL (domain-specific language), write specs describing what the contract should do, prove the specs hold, and compile to Yul/EVM bytecode — with machine-checked proofs that compilation preserves semantics.
 
-# 2. Clone and build
-git clone https://github.com/Th0rgal/verity.git
-cd verity
-lake build                                    # Verifies all 425 theorems
-
-# 3. Generate a new contract
-python3 scripts/generate_contract.py MyContract
-
-# 4. Compile to Yul/EVM
-lake build verity-compiler
-lake exe verity-compiler                      # Output in artifacts/yul/
-lake exe verity-compiler --edsl-contract counter
-```
-
-The compiler CLI now uses the EDSL/macro lowering boundary only.
-It compiles the supported suite through
-`Compiler/Lowering/FromEDSL.lean` and
-`Compiler/Proofs/Lowering/FromEDSL.lean`.
-That proof module now includes transition bridge lemmas that connect lowered
-supported inputs to existing Layer-1 EDSL correctness theorems, including both
-write and read paths across the currently supported subset, including
-`simple-storage`, `counter`, `owned`, `ledger`, `owned-counter`,
-`simple-token`, and `safe-counter`.
-It also includes explicit fail-path bridge coverage for owner-gated and
-insufficient-balance cases in `owned`, `owned-counter`, `ledger`, and
-`simple-token`, plus overflow/underflow fail-path bridges for `safe-counter`.
-`--edsl-contract <id>` can be repeated to compile only selected supported EDSL
-contracts (for example `counter`, `simple-storage`, `owned-counter`).
-
-**With external libraries (e.g., Poseidon hash):**
-```bash
-# Link your Yul library at compile time
-lake exe verity-compiler --link examples/external-libs/MyLib.yul -o artifacts/yul
-```
-
-**With deterministic Yul patch pass + coverage report:**
-```bash
-lake exe verity-compiler \
-  --enable-patches \
-  --patch-max-iterations 2 \
-  --patch-report artifacts/patch-report.tsv \
-  --mapping-slot-scratch-base 128 \
-  -o artifacts/yul-patched
-```
-
-`--mapping-slot-scratch-base` controls where compiler-generated `mappingSlot` helpers write temporary words before `keccak256`.
-
-**With backend profile (issue #802, opt-in):**
-```bash
-# Default semantic profile
-lake exe verity-compiler --backend-profile semantic
-
-# Solidity-parity ordering only: sort dispatch `case` blocks by selector
-lake exe verity-compiler --backend-profile solidity-parity-ordering
-
-# Full Solidity-parity profile (current MVP):
-# - sort dispatch `case` blocks by selector
-# - enable deterministic patch pass
-lake exe verity-compiler --backend-profile solidity-parity
-
-# Versioned parity-pack selection (pinned tuple)
-lake exe verity-compiler --parity-pack solc-0.8.28-o200-viair-false-evm-shanghai
-lake exe verity-compiler --parity-pack solc-0.8.28-o999999-viair-true-evm-paris
-```
-
-Normalization rules, scope levels, and reproducibility guarantees are versioned in [`docs/SOLIDITY_PARITY_PROFILE.md`](docs/SOLIDITY_PARITY_PROFILE.md).
-Groundwork docs for parity packs, rewrite rules, and identity checking are tracked in
-[`docs/PARITY_PACKS.md`](docs/PARITY_PACKS.md),
-[`docs/REWRITE_RULES.md`](docs/REWRITE_RULES.md), and
-[`docs/IDENTITY_CHECKER.md`](docs/IDENTITY_CHECKER.md).
-
-For mapping-backed struct layouts, `CompilationModel` supports:
-- `Expr.mappingWord field key wordOffset`
-- `Stmt.setMappingWord field key wordOffset value`
-- `Expr.mappingPackedWord field key wordOffset { offset, width }`
-- `Stmt.setMappingPackedWord field key wordOffset { offset, width } value`
-
-The `mappingPackedWord` forms perform masked/shifted packed read-modify-write at `mappingSlot(base,key) + wordOffset`.
-
-**Run tests:**
-```bash
-FOUNDRY_PROFILE=difftest forge test           # 447 tests across 37 suites
-```
+**In short**: write a contract, state what it should do, prove it, compile it, and the compiler is proven to not break anything along the way.
 
 ---
 
-## Verification Guarantees
+## How it works
 
-Every claim below is enforced by CI on every commit. Each one can be independently reproduced with a single command.
+### 1. Write a contract in the EDSL
 
-| Claim | Value | Verify locally |
-|-------|-------|----------------|
-| Proven theorems | 425 | `make verify` |
-| Incomplete proofs (`sorry`) | 0 | `make verify` (Lean rejects sorry) |
-| Project-specific axioms | 1 ([documented](AXIOMS.md)) | `make axiom-report` |
-| Axiom dependency audit | 551 theorems checked | `make axiom-report` |
-| Foundry runtime tests | 447 across 37 suites | `make test-foundry` |
-| Property test coverage | 250/425 (59%) | `python3 scripts/check_property_coverage.py` |
-| CI validation scripts | 30 | `make check` |
-| Proof length enforcement | 92% under 30 lines | `python3 scripts/check_proof_length.py` |
-
-See [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) for the full trust model and [CONTRIBUTING.md](CONTRIBUTING.md) for the proof hygiene requirements enforced on every PR.
-
----
-
-## Hybrid Migration Status
-
-Issue [#1060](https://github.com/Th0rgal/verity/issues/1060) is delivered on this branch:
-
-- the typed IR pipeline is the canonical compilation path for the supported contract suite;
-- macro-generated bridge theorems now expose concrete semantic-preservation facts;
-- compilation-correctness `sorry` placeholders on the active path are eliminated.
-
-For current guarantees and trust boundaries, use `TRUST_ASSUMPTIONS.md` and `AXIOMS.md` as the canonical references.
-
----
-
-Verity is a Lean 4 framework that lets you write smart contracts in a domain specific language, prove key properties, and compile to EVM bytecode.
-
-The project has three contract artifacts. Keep them separate:
-1. `EDSL implementation` (`Verity/Examples/*`): executable Lean code in the `Contract` monad.
-2. `Logical spec` (`Verity/Specs/*/Spec.lean`): `Prop` statements that describe intended behavior.
-3. `CompilationModel` (`Compiler/CompilationModel.lean`): declarative compiler-facing model with function bodies (`Expr`/`Stmt`), used for IR and Yul generation.
-
-## How It Works
+Contracts look like Lean `do`-notation with storage declarations:
 
 ```lean
--- 1) Logical spec (property, not compiler input)
-def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
-  s'.storage 0 = value ∧
+-- Verity/Examples/Counter.lean
+def count : StorageSlot Uint256 := ⟨0⟩
+
+def increment : Contract Unit := do
+  let current ← getStorage count
+  setStorage count (add current 1)
+
+def getCount : Contract Uint256 := do
+  getStorage count
+```
+
+`Contract α` is a state monad: `ContractState → ContractResult α`. Operations like `getStorage`, `setStorage`, `require` manipulate blockchain state (storage slots, sender address, etc).
+
+The `verity_contract` [macro](Verity/Macro/Elaborate.lean) can also generate these definitions from a more concise syntax:
+
+```lean
+-- Verity/Examples/MacroContracts.lean
+verity_contract Counter where
+  storage
+    count : Uint256 := slot 0
+
+  function increment () : Unit := do
+    let current ← getStorage count
+    setStorage count (add current 1)
+```
+
+### 2. Write a spec
+
+Specs are plain Lean predicates describing what the contract should do:
+
+```lean
+-- Verity/Specs/Counter/Spec.lean
+def increment_spec (s s' : ContractState) : Prop :=
+  s'.storage 0 = add (s.storage 0) 1 ∧
   storageUnchangedExcept 0 s s' ∧
   sameAddrMapContext s s'
-
--- 2) EDSL implementation (executable)
-def store (value : Uint256) : Contract Unit := do
-  setStorage storedData value
-
--- 3) Prove implementation satisfies the logical spec
-theorem store_meets_spec (s : ContractState) (value : Uint256) :
-  store_spec value s (((store value).run s).snd) := by
-  simp [store, store_spec, storedData, setStorage, storageUnchangedExcept, sameAddrMapContext]
 ```
 
-Then separately, the compilation model (`CompilationModel`/`CompilationModel`) drives compilation. It is more than an ABI: it includes storage layout plus function bodies.
+This says: after `increment`, slot 0 increased by 1, no other slot changed, and context (sender, address maps) is preserved.
+
+### 3. Prove the spec
+
+Proofs show the contract satisfies its spec. Lean's type checker verifies them:
 
 ```lean
-def simpleStorageSpec : CompilationModel := {
-  name := "SimpleStorage"
-  fields := [{ name := "storedData", ty := .uint256 }]
-  constructor := none
-  functions := [
-    { name := "store"
-      params := [{ name := "value", ty := .uint256 }]
-      returnType := none
-      body := [Stmt.setStorage "storedData" (Expr.param "value"), Stmt.stop]
-    }
-  ]
-}
+-- Verity/Proofs/Counter/Basic.lean
+theorem increment_meets_spec (s : ContractState) :
+    let s' := ((increment).run s).snd
+    increment_spec s s' := by
+  refine ⟨?_, ?_, ?_⟩
+  · rfl
+  · intro slot h_neq; simp [increment, count, ...]; split <;> simp_all
+  · simp [sameAddrMapContext, ...]
 ```
 
-One logical spec can have many implementations, and one implementation can have multiple compiler backends, as long as the proof obligations hold.
+### 4. Compile — with proven correctness
 
-## Verified Contracts
+The compiler turns contracts into Yul (Solidity's low-level IR) through three layers, each proven to preserve semantics:
 
-| Contract | Theorems | Description |
-|----------|----------|-------------|
-| SimpleStorage | 20 | Store/retrieve with roundtrip proof |
-| Counter | 28 | Increment/decrement with wrapping, composition proofs |
-| SafeCounter | 25 | Overflow/underflow revert proofs |
-| Owned | 23 | Access control and ownership transfer |
-| OwnedCounter | 48 | Cross-pattern composition, lockout proofs |
-| Ledger | 33 | Deposit/withdraw/transfer with balance conservation |
-| SimpleToken | 61 | Mint/transfer, supply conservation, storage isolation |
-| ERC20 | 19 | Foundation scaffold with initial spec/read-state proofs |
-| ERC721 | 11 | Foundation scaffold with token ownership/approval proof baseline |
-| ReentrancyExample | 4 | Reentrancy vulnerability vs safe withdrawal |
+```
+EDSL contract (Lean)
+  ↓  Layer 1: EDSL ≡ CompilationModel     [PROVEN]
+CompilationModel (declarative IR spec)
+  ↓  Layer 2: CompilationModel → IR        [PROVEN]
+Intermediate Representation
+  ↓  Layer 3: IR → Yul                     [PROVEN, 1 axiom]
+Yul
+  ↓  solc (trusted external compiler)
+EVM Bytecode
+```
 
-**Unverified examples**:
-- [CryptoHash](Verity/Examples/CryptoHash.lean) demonstrates external library linking via the [Linker](Compiler/Linker.lean) but has no specs or proofs.
+| Layer | What it proves | Key file |
+|-------|---------------|----------|
+| 1 | EDSL execution = CompilationModel interpretation | [SemanticBridge.lean](Compiler/Proofs/SemanticBridge.lean) |
+| 2 | CompilationModel compilation preserves behavior | [EndToEnd.lean](Compiler/Proofs/EndToEnd.lean) |
+| 3 | IR → Yul codegen preserves behavior | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
-### Using External Libraries (Linker)
+Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 1 axiom: [`keccak256_first_4_bytes`](Compiler/Selectors.lean) for function selector computation, validated by CI against `solc --hashes`. See [AXIOMS.md](AXIOMS.md).
 
-Verity supports linking external Yul libraries (e.g., cryptographic libraries) to your verified contracts. Prove your contract logic with simple placeholders, then swap in production implementations at compile time.
+### 5. Test the compiled output (belt and suspenders)
 
-**The pattern:**
-1. Write a simple Lean placeholder (e.g., `add a b` for a hash function)
-2. Add an `externalCall` in your compilation model (`CompilationModel`)
-3. Link your production Yul library at compile time
+**Foundry tests** (447 tests) validate EDSL = Yul = EVM execution. 447 Foundry tests across 37 test suites run the compiled Yul on a real EVM. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
 
 ```bash
-# Compile with external libraries
-lake exe verity-compiler \
-    --link examples/external-libs/PoseidonT3.yul \
-    --link examples/external-libs/PoseidonT4.yul \
-    -o artifacts/yul
+FOUNDRY_PROFILE=difftest forge test    # 447 tests across 37 suites
 ```
 
-**Minimal example:**
+---
 
-```lean
--- 1. Lean placeholder (for proofs)
-def myHash (a b : Uint256) : Contract Uint256 := do
-  return (a + b)  -- simple placeholder
+## Verified contracts
 
--- 2. CompilationModel calls the real library
-Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
-
--- 3. Compile with: lake exe verity-compiler --link examples/external-libs/MyHash.yul
-```
-
-See [`examples/external-libs/README.md`](examples/external-libs/README.md) for a step-by-step guide and [`docs-site/content/guides/linking-libraries.mdx`](docs-site/content/guides/linking-libraries.mdx) for the full documentation.
-
-### External Call Modules
-
-Verity's restricted DSL prevents raw external calls for safety. Instead, call patterns are packaged as **External Call Modules (ECMs)** — reusable, typed, auditable Lean structures that the compiler can plug in without modification. Standard modules for ERC-20, EVM precompiles, and callbacks ship in [`Compiler/Modules/`](Compiler/Modules/README.md). Third parties can publish their own as separate Lean packages. See [`docs/EXTERNAL_CALL_MODULES.md`](docs/EXTERNAL_CALL_MODULES.md) for the full guide.
+| Contract | Theorems | What it demonstrates |
+|----------|----------|---------------------|
+| SimpleStorage | 20 | Store/retrieve with roundtrip proof |
+| Counter | 28 | Increment/decrement, composition proofs |
+| SafeCounter | 25 | Overflow/underflow revert proofs |
+| Owned | 23 | Access control, ownership transfer |
+| OwnedCounter | 48 | Cross-pattern composition, lockout proofs |
+| Ledger | 33 | Deposit/withdraw/transfer, balance conservation |
+| SimpleToken | 61 | Mint/transfer, supply conservation |
+| ERC20 | 19 | ERC-20 baseline with approve/transfer |
+| ERC721 | 11 | NFT ownership/approval baseline |
+| ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
+| CryptoHash | — | External library linking demo (no proofs) |
 
 425 theorems across 11 categories (424 proven, 1 `sorry`). 447 Foundry tests across 37 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom.
 
-## What's Verified
+---
 
-- **Layer 1 (framework + per contract)**: EDSL behavior matches its compilation model (`CompilationModel`). For the supported contract suite, a single generic typed-IR compilation-correctness theorem eliminates per-contract manual proofs.
-- **Layer 2 (framework)**: compilation model → `IR` preserves behavior.
-- **Layer 3 (framework)**: `IR -> Yul` preserves behavior.
-- **Proof-chain note**: Layer 1 equivalence is proven for all supported contracts via the generic typed-IR compilation-correctness theorem (`TypedIRCompilerCorrectness.lean`), and the CLI compiles through the EDSL/macro lowering boundary with optional `--edsl-contract` selection. Coverage expansion to additional DSL forms (try/catch, create/create2, dynamic arrays) is planned future work. Layers 2 and 3 (`CompilationModel -> IR -> Yul`) are verified with 1 axiom.
-- **Lowering-boundary note**: Lowering remains centralized in `Compiler.Lowering.lowerModelPath`, and CLI selection now routes through `lowerRequestedEDSLContracts`.
-- **Lowering bridge note**: `Compiler/Proofs/Lowering/FromEDSL.lean` provides transition bridge theorems for all currently supported EDSL contracts (`simple-storage`, `counter`, `owned`, `ledger`, `owned-counter`, `simple-token`, `safe-counter`), including write/read bridges for mutating and getter entrypoints in that subset.
-  This includes mutating bridge coverage for `ledger.transfer`, `simple-token.mint`, and `simple-token.transfer` under their existing Layer-1 preconditions, plus explicit revert-path bridges for owner-gated, insufficient-balance, and safe-counter overflow/underflow cases.
-  Getter-side read-only state-preservation bridges are also explicit for `simple-storage.retrieve`, `counter.getCount`, `owned.getOwner`, `ledger.getBalance`, `owned-counter` getters, `simple-token` getters, and `safe-counter.getCount`.
-  The same proof module now also proves parser determinism for `--edsl-contract` IDs (injective name map, unique roundtrip, and no-duplicate supported name list), composes parsed IDs with lowering-boundary preservation (`lowerFromParsedSupportedContract_preserves_interpretSpec`), and includes singleton/cons/pair selected-ID map traversal helper lemmas (`lowerFromParsedSupportedContract_singleton_eq_ok`, `lowerFromParsedSupportedContract_singleton_eq_ok_of_parse_ok`, `lowerFromParsedSupportedContract_singleton_eq_error`, `lowerFromParsedSupportedContract_cons_eq_ok_of_lower_ok`, `lowerFromParsedSupportedContract_cons_eq_error_of_head_error`, `lowerFromParsedSupportedContract_cons_eq_error_of_tail_error`, `lowerFromParsedSupportedContract_pair_eq_ok_of_lower_ok`, `lowerFromParsedSupportedContract_pair_eq_ok_of_parse_ok`, `lowerFromParsedSupportedContract_mapM_eq_ok_of_parse_ok`, `lowerFromParsedSupportedContract_append_eq_ok_of_parse_ok`) through the centralized parsing/lowering helpers (`parseSupportedEDSLContract`, `lowerFromParsedSupportedContract`, `lowerRequestedSupportedEDSLContracts`).
-  Unknown selected-ID fail-closed behavior is also centralized at the parser boundary via `parseSupportedEDSLContract_eq_error_of_unknown`, and reused directly by parsed-ID and selected-ID unknown-path lowering lemmas.
-  It also includes append-position parse-error propagation helpers with parse-prefix witnesses:
-  `lowerFromParsedSupportedContract_append_eq_error_of_parse_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_eq_error_of_prefix_parse_ok`.
-  It also includes centralized selected/default helper lemmas:
-  `lowerRequestedSupportedEDSLContracts_default_eq`,
-  `supportedEDSLContractNames_mapM_lowerFromParsed_eq_ok`,
-  `lowerRequestedSupportedEDSLContracts_default_eq_ok_supported`,
-  `lowerRequestedSupportedEDSLContracts_duplicate_eq_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_eq`,
-  `lowerRequestedSupportedEDSLContracts_selected_eq_ok_of_mapM_lower_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_eq_ok_of_parse_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_eq_ok_of_lower_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_eq_ok_of_split_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_eq_ok_of_parse_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_ok_of_lower_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_ok_of_parse_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_ok_of_tail_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_error_of_head_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_error_of_tail_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_error_of_lower_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_cons_eq_error_of_parse_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_eq_error_of_mapM_lower_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_eq_error_of_lower_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_singleton_eq_error_of_lower_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_singleton_eq_error_of_parse_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_head_eq_error_of_parse_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_tail_eq_error_of_parse_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_eq_error_of_parse_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_unknown_eq_error_of_prefix_parse_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_unknown_head_eq_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_singleton_unknown_eq_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_unknown_tail_eq_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_append_unknown_eq_error`,
-  `lowerRequestedSupportedEDSLContracts_selected_singleton_eq_ok_of_parse_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_singleton_eq_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_pair_eq_ok`,
-  `lowerRequestedSupportedEDSLContracts_selected_triple_eq_ok`,
-  `lowerRequestedSupportedEDSLContracts_full_eq_default`,
-  proving empty-selection, duplicate fail-closed behavior, unknown-ID fail-closed behavior on the selected path, non-empty duplicate-free selected-ID lowering behavior, and explicit-full-list/default equivalence.
-  `Compiler/CompileDriver.lean` now consumes this same centralized selected/default helper path directly for `--edsl-contract` lowering, keeping runtime parse/lower behavior aligned with the proven boundary.
-- **Trusted boundary**: `solc` compiles Yul to bytecode correctly.
+## External calls
 
-**Layer-1 architecture note**: Layer 1 uses macro-generated bridge theorems backed by a generic typed-IR compilation-correctness theorem for the supported contract suite. Advanced constructs (linked libraries, ECMs, custom ABI) are expressed directly in `CompilationModel` and trusted at that boundary. See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for details.
+Verity's DSL prevents raw external calls for safety. Instead, you can:
 
-See [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) for trust boundaries, [`AXIOMS.md`](AXIOMS.md) for axiom documentation, and [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) for full status.
-Revert-state caveat details are documented in [`docs/REVERT_STATE_MODEL.md`](docs/REVERT_STATE_MODEL.md).
+1. **Link external Yul libraries** (e.g., Poseidon hash) at compile time:
+   ```bash
+   lake exe verity-compiler --link examples/external-libs/PoseidonT3.yul -o artifacts/yul
+   ```
+   The linked library's correctness is a trust assumption. See [examples/external-libs/](examples/external-libs/).
 
-## How Verity Compares
+2. **Use External Call Modules (ECMs)** for typed, auditable call patterns (ERC-20 transfers, precompiles, callbacks). See [Compiler/Modules/](Compiler/Modules/) and [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md).
 
-Smart contract verification is an active field with already strong tooling today. Verity uses Lean 4 as an interactive theorem prover across the full compilation pipeline. This gives unbounded proofs with no loop-depth limits at the cost of more effort per property.
+---
 
-| | Certora | Halmos | Runtime Monitoring | Verity |
-|---|---|---|---|---|
-| **Approach** | Bounded model checking via custom prover | Symbolic execution via Z3 | Runtime assertions | Interactive theorem proving (Lean 4) |
-| **Strengths** | Excellent automation, large ecosystem, battle-tested on production protocols | Free and open-source, integrates with Foundry, good for finding concrete bugs | Zero overhead at deploy time (checks only in testing), catches real transactions | Unbounded proofs (no loop depth limits), verified compiler, machine-checked by Lean kernel |
-| **Trade-offs** | Bounded (may miss bugs beyond loop unrolling depth), closed-source prover | Bounded (path explosion on complex contracts), depends on Z3 solver completeness | Cannot prove absence of bugs, only detects them at runtime | Higher effort per property today, smaller ecosystem, requires Lean expertise |
-| **Compiler trust** | Trusts Solidity compiler entirely | Trusts Solidity compiler entirely | N/A | Verifies 3 compilation layers; trusts only `solc` Yul-to-bytecode |
-| **Best for** | Production protocol audits at scale | Bug-finding in Foundry-based workflows | Monitoring deployed contracts | High-assurance contracts where unbounded correctness guarantees matter |
-
-Verity is not a replacement for any of these tools. For most teams, Certora or Halmos will be the practical choice because their automation is far ahead. Verity is for cases where you need mathematical certainty that a property holds for all possible inputs and all possible execution paths, and you are willing to invest the proof engineering effort to get there.
-
-The effort gap is narrowing. Much of this repository was built with heavy AI assistance, with every proof machine-checked by Lean regardless of origin. As agents improve at interactive theorem proving, the cost of writing unbounded proofs will continue to drop, potentially making full formal verification practical for a much wider range of contracts.
-
-## Getting Started
-
-<details>
-<summary><strong>Building</strong></summary>
+## Quick start
 
 ```bash
-# Install Lean 4 via elan
+# Install Lean 4
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 source ~/.elan/env
 
-# Build the project
+# Clone and build — Verifies all 425 theorems
+git clone https://github.com/Th0rgal/verity.git && cd verity
 lake build
 
-# Build and run the compiler
-lake build verity-compiler
-lake exe verity-compiler
+# Compile contracts to Yul
+lake exe verity-compiler                              # all contracts
+lake exe verity-compiler --edsl-contract counter      # specific contract
 
-# Run Foundry tests (requires difftest profile for FFI access)
-FOUNDRY_PROFILE=difftest forge test
+# Run Foundry tests
+FOUNDRY_PROFILE=difftest forge test    # 447 tests across 37 suites
 ```
 
-</details>
-
-<details>
-<summary><strong>Testing</strong></summary>
-
-**Foundry tests** (447 tests) validate EDSL = Yul = EVM execution:
-
-```bash
-FOUNDRY_PROFILE=difftest forge test                                          # run all
-FOUNDRY_PROFILE=difftest forge test -vvv                                     # verbose
-FOUNDRY_PROFILE=difftest forge test --match-path test/PropertyCounter.t.sol  # specific file
-```
-
-> **Note**: Tests require `FOUNDRY_PROFILE=difftest` because they compile Yul via `solc` using `vm.ffi()`. The default profile has FFI disabled for security. See [foundry.toml](foundry.toml).
-
-**Differential tests** compare EDSL interpreter output against Solidity-compiled EVM to catch compiler bugs. See [`test/README.md`](test/README.md).
-
-</details>
-
-<details>
-<summary><strong>Adding a contract</strong></summary>
-
+**Scaffold a new contract**:
 ```bash
 python3 scripts/generate_contract.py MyContract
 python3 scripts/generate_contract.py MyToken --fields "balances:mapping,totalSupply:uint256,owner:address"
 ```
 
-This scaffolds the full file layout:
+This creates: implementation, spec, invariants, proofs, and Foundry test files.
 
-1. **Implementation** - `Verity/Examples/<Name>.lean`
-2. **Spec** - `Verity/Specs/<Name>/Spec.lean`
-3. **Invariants** - `Verity/Specs/<Name>/Invariants.lean`
-4. **Layer 2 Proof Re-export** - `Verity/Specs/<Name>/Proofs.lean`
-5. **Basic Proofs** - `Verity/Proofs/<Name>/Basic.lean`
-6. **Correctness Proofs** - `Verity/Proofs/<Name>/Correctness.lean`
-7. **Tests** - `test/Property<Name>.t.sol`
+---
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for conventions and workflow.
+## Verification guarantees
 
-</details>
+Every claim is enforced by CI on every commit:
 
-<details>
-<summary><strong>Linking external libraries</strong></summary>
+| Claim | Value | Verify locally |
+|-------|-------|----------------|
+| Proven theorems | 425 | `make verify` |
+| Incomplete proofs (`sorry`) | 1 | `make verify` |
+| Project-specific axioms | 1 ([documented](AXIOMS.md)) | `make axiom-report` |
+| Foundry runtime tests | 447 across 37 suites | `make test-foundry` |
+| Property test coverage | 250/425 (59%) | `python3 scripts/check_property_coverage.py` |
 
-Use the Linker to integrate production cryptographic libraries (Poseidon, Groth16, etc.) with formally verified contract logic:
+---
 
-1. **Write a placeholder** in your Lean contract:
-```lean
--- Placeholder: simple addition for proofs
-def hash (a b : Uint256) : Contract Uint256 := do
-  return add a b
-```
+## How Verity compares
 
-2. **Add external call** in `Compiler/Specs.lean`:
-```lean
-Stmt.letVar "h" (Expr.externalCall "poseidonHash" [Expr.param "a", Expr.param "b"])
-```
+| | Certora | Halmos | Verity |
+|---|---|---|---|
+| **Approach** | Bounded model checking | Symbolic execution (Z3) | Interactive theorem proving (Lean 4) |
+| **Strengths** | Great automation, battle-tested | Free, integrates with Foundry | Unbounded proofs, verified compiler |
+| **Trade-offs** | Bounded (may miss edge cases) | Bounded (path explosion) | Higher per-property effort |
+| **Compiler trust** | Trusts solc entirely | Trusts solc entirely | Verifies 3 compilation layers |
+| **Best for** | Production audits at scale | Bug-finding in Foundry | High-assurance contracts |
 
-3. **Compile with linking**:
-```bash
-lake exe verity-compiler --link examples/external-libs/MyHash.yul -o artifacts/yul
-```
+Verity is not a replacement for these tools. It's for cases where you need mathematical certainty across all inputs and execution paths. The effort gap is narrowing as AI improves at interactive theorem proving.
 
-The compiler validates function names, arities, and prevents name collisions. See [`examples/external-libs/README.md`](examples/external-libs/README.md) for detailed guidance.
-
-</details>
+---
 
 ## Documentation
 
-**Full documentation**: [verity.thomas.md](https://verity.thomas.md/) — guides, DSL reference, examples, and verification details.
+| Document | What it covers |
+|----------|---------------|
+| **[TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md)** | What's verified vs trusted, trust reduction roadmap |
+| **[AXIOMS.md](AXIOMS.md)** | All axioms with soundness justifications |
+| **[docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)** | Per-contract theorem status, coverage tables |
+| **[docs/ROADMAP.md](docs/ROADMAP.md)** | Verification progress, planned features |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Coding conventions, PR guidelines |
+| [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md) | ECM framework guide |
+| [docs/ARITHMETIC_PROFILE.md](docs/ARITHMETIC_PROFILE.md) | Wrapping arithmetic specification |
+| [Docs site](https://verity.thomas.md/) | Full documentation with guides |
 
-| | |
-|---|---|
-| [Docs Site](https://verity.thomas.md/) | Full documentation site with guides and DSL reference |
-| [`TRUST_ASSUMPTIONS.md`](TRUST_ASSUMPTIONS.md) | What's verified, what's trusted, trust reduction roadmap |
-| [`AXIOMS.md`](AXIOMS.md) | All axioms with soundness justifications (1 remaining) |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Coding conventions, workflow, PR guidelines |
-| [`docs/EXTERNAL_CALL_MODULES.md`](docs/EXTERNAL_CALL_MODULES.md) | ECM framework: writing and using external call modules |
-| [`docs/SOLIDITY_PARITY_PROFILE.md`](docs/SOLIDITY_PARITY_PROFILE.md) | Backend profile levels and parity scope |
-| [`docs/PARITY_PACKS.md`](docs/PARITY_PACKS.md) | Planned parity-pack format, lifecycle, and CI contract |
-| [`docs/REWRITE_RULES.md`](docs/REWRITE_RULES.md) | Planned proof-carrying subtree rewrite model |
-| [`docs/IDENTITY_CHECKER.md`](docs/IDENTITY_CHECKER.md) | Planned AST identity checker workflow and report schema |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Verification progress, planned features |
-| [`docs/VERIFICATION_STATUS.md`](docs/VERIFICATION_STATUS.md) | Per-theorem status |
+---
+
+## Project structure
+
+```
+verity/
+├── Verity/              # EDSL framework
+│   ├── Core/            #   Core types: Contract monad, ContractState, Uint256
+│   ├── Examples/        #   Verified contract implementations
+│   ├── Specs/           #   Formal specifications (what contracts should do)
+│   ├── Proofs/          #   Correctness proofs (contracts meet specs)
+│   ├── Macro/           #   verity_contract macro elaborator
+│   └── Stdlib/          #   Proven helper lemmas (arithmetic, automation)
+├── Compiler/            # Compilation pipeline
+│   ├── CompilationModel.lean  # Declarative compiler-facing contract model
+│   ├── Proofs/          #   Compilation correctness proofs (Layers 1-3)
+│   │   ├── SemanticBridge.lean      # EDSL ≡ IR bridge theorems
+│   │   ├── EndToEnd.lean            # Layers 2+3 composition
+│   │   └── YulGeneration/           # IR → Yul preservation
+│   ├── Yul/             #   Yul code generation
+│   └── Modules/         #   External Call Modules (ECMs)
+├── test/                # Foundry tests (447 tests)
+├── artifacts/yul/       # Compiled Yul output
+└── scripts/             # CI validation scripts
+```
 
 ## License
 
-MIT - See [LICENSE.md](LICENSE.md) for details.
+MIT - See [LICENSE.md](LICENSE.md).
