@@ -89,14 +89,17 @@ def get_sorry_count() -> int:
 
     Uses ``search`` (not the ``match`` used by ``_count_lean_lines``) so that
     ``by sorry`` at end-of-line is detected, matching ``check_lean_hygiene.py``.
+    Strips both comments and string literals to avoid false positives.
     """
+    from check_lean_hygiene import scrub_lean_code
+
     matcher = re.compile(r"\bsorry\b")
     count = 0
     for d in [ROOT / "Compiler", ROOT / "Verity"]:
         if not d.exists():
             continue
         for lean in d.rglob("*.lean"):
-            text = strip_lean_comments(lean.read_text(encoding="utf-8"))
+            text = scrub_lean_code(lean.read_text(encoding="utf-8"))
             for line in text.splitlines():
                 if matcher.search(line):
                     count += 1
