@@ -15,7 +15,6 @@ lean_lib «Verity» where
     .andSubmodules `Verity.EVM,
     .andSubmodules `Verity.Macro,
     .andSubmodules `Verity.Stdlib,
-    .one `Verity.Specs.Common,
     .andSubmodules `Verity.Specs.Common,
     .andSubmodules `Verity.Proofs.Stdlib
   ]
