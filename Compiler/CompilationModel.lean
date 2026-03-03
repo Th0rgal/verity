@@ -153,13 +153,6 @@ structure Param where
   deriving Repr
 
 -- Convert to IR types
-def FieldType.toIRType : FieldType → IRType
-  | uint256 => IRType.uint256
-  | address => IRType.address
-  | mappingTyped _ => IRType.uint256  -- All mappings return uint256
-  | mappingStruct _ _ => IRType.uint256  -- Struct members are accessed individually as uint256
-  | mappingStruct2 _ _ _ => IRType.uint256
-
 def ParamType.toIRType : ParamType → IRType
   | uint256 => IRType.uint256
   | uint8 => IRType.uint256
