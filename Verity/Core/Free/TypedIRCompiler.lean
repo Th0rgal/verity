@@ -1507,4 +1507,286 @@ theorem compileStmts_setMappingUint_params_stop_run
     lookupVar, asUInt256, liftExcept, hSlot, emit,
     List.find?, hne]; rfl
 
+/-- Compilation shape for the Morpho `setOwner` pattern:
+`letVar senderVar caller ; letVar ownerVar (storage ownerField) ;
+ require (eq (localVar senderVar) (localVar ownerVar)) msg1 ;
+ require (logicalNot (eq (param paramName) (localVar ownerVar))) msg2 ;
+ setStorage ownerField (param paramName) ; stop`.
+This pattern is used by Morpho Blue's `setOwner` and `setFeeRecipient` admin functions. -/
+theorem compileStmts_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_run
+    (fields : List Field) (ownerField senderVar ownerVar paramName msg1 msg2 : String)
+    (ownerSlot : Nat)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hne_sv_p : senderVar ≠ paramName)
+    (hne_ov_p : ownerVar ≠ paramName)
+    (hne_ov_sv : ownerVar ≠ senderVar) :
+    (compileStmts fields
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar ownerVar (Expr.storage ownerField)
+      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+      , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
+      , Stmt.setStorage ownerField (Expr.param paramName)
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 1
+        [(paramName, { id := 0, ty := Ty.address })]
+        #[{ id := 0, ty := Ty.address }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 3
+          vars := [(ownerVar, { id := 2, ty := Ty.address }),
+                   (senderVar, { id := 1, ty := Ty.address }),
+                   (paramName, { id := 0, ty := Ty.address })]
+          params := #[{ id := 0, ty := Ty.address }]
+          locals := #[{ id := 1, ty := Ty.address }, { id := 2, ty := Ty.address }]
+          body := #[
+            TStmt.let_ { id := 1, ty := Ty.address } TExpr.sender,
+            TStmt.let_ { id := 2, ty := Ty.address } (TExpr.getStorageAddr ownerSlot),
+            TStmt.if_ (TExpr.eq
+                (TExpr.var { id := 1, ty := Ty.address })
+                (TExpr.var { id := 2, ty := Ty.address }))
+              [] [TStmt.revert msg1],
+            TStmt.if_ (TExpr.not (TExpr.eq
+                (TExpr.var { id := 0, ty := Ty.address })
+                (TExpr.var { id := 2, ty := Ty.address })))
+              [] [TStmt.revert msg2],
+            TStmt.setStorageAddr ownerSlot (TExpr.var { id := 0, ty := Ty.address }),
+            TStmt.stop
+          ] }) := by
+  have h1 : (senderVar == paramName) = false := beq_false_of_ne hne_sv_p
+  have h2 : (ownerVar == paramName) = false := beq_false_of_ne hne_ov_p
+  have h3 : (ownerVar == senderVar) = false := beq_false_of_ne hne_ov_sv
+  have hsr : compileStorageRead fields ownerField =
+      Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
+    simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
+  simp [compileStmts, compileStmt, compileExpr, hsr, hOwner, fieldTypeToTy,
+    emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asBool,
+    liftExcept, emit, List.find?, h1, h2, h3, monadLift]; rfl
+
+/-- Compilation shape for the Morpho `enableIrm` pattern:
+`letVar senderVar caller ; letVar ownerVar (storage ownerField) ;
+ require (eq (localVar senderVar) (localVar ownerVar)) msg1 ;
+ letVar currentVar (mapping mappingField (param keyParam)) ;
+ require (eq (localVar currentVar) (literal 0)) msg2 ;
+ setMapping mappingField (param keyParam) (literal writeVal) ; stop`.
+This pattern is used by Morpho Blue's `enableIrm` admin function. -/
+theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_run
+    (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam msg1 msg2 : String)
+    (ownerSlot mappingSlot : Nat) (writeVal : Nat)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
+    (hne_sv_kp : senderVar ≠ keyParam)
+    (hne_ov_kp : ownerVar ≠ keyParam)
+    (hne_ov_sv : ownerVar ≠ senderVar)
+    (hne_cv_kp : currentVar ≠ keyParam) :
+    (compileStmts fields
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar ownerVar (Expr.storage ownerField)
+      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+      , Stmt.letVar currentVar (Expr.mapping mappingField (Expr.param keyParam))
+      , Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg2
+      , Stmt.setMapping mappingField (Expr.param keyParam) (Expr.literal writeVal)
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 1
+        [(keyParam, { id := 0, ty := Ty.address })]
+        #[{ id := 0, ty := Ty.address }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 4
+          vars := [(currentVar, { id := 3, ty := Ty.uint256 }),
+                   (ownerVar, { id := 2, ty := Ty.address }),
+                   (senderVar, { id := 1, ty := Ty.address }),
+                   (keyParam, { id := 0, ty := Ty.address })]
+          params := #[{ id := 0, ty := Ty.address }]
+          locals := #[{ id := 1, ty := Ty.address }, { id := 2, ty := Ty.address },
+                      { id := 3, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 1, ty := Ty.address } TExpr.sender,
+            TStmt.let_ { id := 2, ty := Ty.address } (TExpr.getStorageAddr ownerSlot),
+            TStmt.if_ (TExpr.eq
+                (TExpr.var { id := 1, ty := Ty.address })
+                (TExpr.var { id := 2, ty := Ty.address }))
+              [] [TStmt.revert msg1],
+            TStmt.let_ { id := 3, ty := Ty.uint256 }
+              (TExpr.getMapping mappingSlot (TExpr.var { id := 0, ty := Ty.address })),
+            TStmt.if_ (TExpr.eq
+                (TExpr.var { id := 3, ty := Ty.uint256 })
+                (TExpr.uintLit 0))
+              [] [TStmt.revert msg2],
+            TStmt.setMapping mappingSlot
+              (TExpr.var { id := 0, ty := Ty.address })
+              (TExpr.uintLit writeVal),
+            TStmt.stop
+          ] }) := by
+  have h1 : (senderVar == keyParam) = false := beq_false_of_ne hne_sv_kp
+  have h2 : (ownerVar == keyParam) = false := beq_false_of_ne hne_ov_kp
+  have h3 : (ownerVar == senderVar) = false := beq_false_of_ne hne_ov_sv
+  have h4 : (currentVar == keyParam) = false := beq_false_of_ne hne_cv_kp
+  have hsr : compileStorageRead fields ownerField =
+      Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
+    simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
+  simp [compileStmts, compileStmt, compileExpr, hsr, emitSSABind, freshVar,
+    bindVar, pushLocal, lookupVar, asAddress, asBool, asUInt256, liftExcept,
+    hMapping, emit, List.find?, h1, h2, h3, h4]; rfl
+
+/-- Compilation shape for the Morpho `enableLltv` pattern:
+`letVar senderVar caller ; letVar ownerVar (storage ownerField) ;
+ require (eq (localVar senderVar) (localVar ownerVar)) msg1 ;
+ letVar currentVar (mappingUint mappingField (param keyParam)) ;
+ require (eq (localVar currentVar) (literal 0)) msg2 ;
+ require (lt (param keyParam) (literal bound)) msg3 ;
+ setMappingUint mappingField (param keyParam) (literal writeVal) ; stop`.
+This pattern is used by Morpho Blue's `enableLltv` admin function. -/
+theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_run
+    (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam msg1 msg2 msg3 : String)
+    (ownerSlot mappingSlot : Nat) (bound writeVal : Nat)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
+    (hne_sv_kp : senderVar ≠ keyParam)
+    (hne_ov_kp : ownerVar ≠ keyParam)
+    (hne_ov_sv : ownerVar ≠ senderVar)
+    (hne_cv_kp : currentVar ≠ keyParam) :
+    (compileStmts fields
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar ownerVar (Expr.storage ownerField)
+      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+      , Stmt.letVar currentVar (Expr.mappingUint mappingField (Expr.param keyParam))
+      , Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg2
+      , Stmt.require (Expr.lt (Expr.param keyParam) (Expr.literal bound)) msg3
+      , Stmt.setMappingUint mappingField (Expr.param keyParam) (Expr.literal writeVal)
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 1
+        [(keyParam, { id := 0, ty := Ty.uint256 })]
+        #[{ id := 0, ty := Ty.uint256 }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 4
+          vars := [(currentVar, { id := 3, ty := Ty.uint256 }),
+                   (ownerVar, { id := 2, ty := Ty.address }),
+                   (senderVar, { id := 1, ty := Ty.address }),
+                   (keyParam, { id := 0, ty := Ty.uint256 })]
+          params := #[{ id := 0, ty := Ty.uint256 }]
+          locals := #[{ id := 1, ty := Ty.address }, { id := 2, ty := Ty.address },
+                      { id := 3, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 1, ty := Ty.address } TExpr.sender,
+            TStmt.let_ { id := 2, ty := Ty.address } (TExpr.getStorageAddr ownerSlot),
+            TStmt.if_ (TExpr.eq
+                (TExpr.var { id := 1, ty := Ty.address })
+                (TExpr.var { id := 2, ty := Ty.address }))
+              [] [TStmt.revert msg1],
+            TStmt.let_ { id := 3, ty := Ty.uint256 }
+              (TExpr.getMappingUint mappingSlot (TExpr.var { id := 0, ty := Ty.uint256 })),
+            TStmt.if_ (TExpr.eq
+                (TExpr.var { id := 3, ty := Ty.uint256 })
+                (TExpr.uintLit 0))
+              [] [TStmt.revert msg2],
+            TStmt.if_ (TExpr.lt
+                (TExpr.var { id := 0, ty := Ty.uint256 })
+                (TExpr.uintLit bound))
+              [] [TStmt.revert msg3],
+            TStmt.setMappingUint mappingSlot
+              (TExpr.var { id := 0, ty := Ty.uint256 })
+              (TExpr.uintLit writeVal),
+            TStmt.stop
+          ] }) := by
+  have h1 : (senderVar == keyParam) = false := beq_false_of_ne hne_sv_kp
+  have h2 : (ownerVar == keyParam) = false := beq_false_of_ne hne_ov_kp
+  have h3 : (ownerVar == senderVar) = false := beq_false_of_ne hne_ov_sv
+  have h4 : (currentVar == keyParam) = false := beq_false_of_ne hne_cv_kp
+  have hsr : compileStorageRead fields ownerField =
+      Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
+    simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
+  simp [compileStmts, compileStmt, compileExpr, hsr, emitSSABind, freshVar,
+    bindVar, pushLocal, lookupVar, asBool, asUInt256, liftExcept, hMapping,
+    emit, List.find?, h1, h2, h3, h4]; rfl
+
+/-- Compilation shape for the Morpho `setAuthorization` pattern:
+`letVar senderVar caller ;
+ letVar currentVar (mapping2 mappingField (localVar senderVar) (param authParam)) ;
+ ite (param boolParam)
+   [require (eq (localVar currentVar) (literal 0)) msg1,
+    setMapping2 mappingField (localVar senderVar) (param authParam) (literal 1)]
+   [require (logicalNot (eq (localVar currentVar) (literal 0))) msg2,
+    setMapping2 mappingField (localVar senderVar) (param authParam) (literal 0)] ;
+ stop`.
+This pattern is used by Morpho Blue's `setAuthorization` admin function. -/
+theorem compileStmts_letCallerLetMapping2IteParamReqSetMapping2Stop_run
+    (fields : List Field) (mappingField senderVar currentVar authParam boolParam msg1 msg2 : String)
+    (mappingSlot : Nat)
+    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
+    (hne_sv_bp : senderVar ≠ boolParam)
+    (hne_sv_ap : senderVar ≠ authParam)
+    (hne_cv_bp : currentVar ≠ boolParam)
+    (hne_cv_ap : currentVar ≠ authParam)
+    (hne_cv_sv : currentVar ≠ senderVar)
+    (hne_bp_ap : boolParam ≠ authParam) :
+    (compileStmts fields
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar currentVar
+          (Expr.mapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam))
+      , Stmt.ite (Expr.param boolParam)
+          [ Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg1
+          , Stmt.setMapping2 mappingField
+              (Expr.localVar senderVar) (Expr.param authParam) (Expr.literal 1) ]
+          [ Stmt.require (Expr.logicalNot
+              (Expr.eq (Expr.localVar currentVar) (Expr.literal 0))) msg2
+          , Stmt.setMapping2 mappingField
+              (Expr.localVar senderVar) (Expr.param authParam) (Expr.literal 0) ]
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 2
+        [(boolParam, { id := 1, ty := Ty.bool }),
+         (authParam, { id := 0, ty := Ty.address })]
+        #[{ id := 0, ty := Ty.address }, { id := 1, ty := Ty.bool }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 4
+          vars := [(currentVar, { id := 3, ty := Ty.uint256 }),
+                   (senderVar, { id := 2, ty := Ty.address }),
+                   (boolParam, { id := 1, ty := Ty.bool }),
+                   (authParam, { id := 0, ty := Ty.address })]
+          params := #[{ id := 0, ty := Ty.address }, { id := 1, ty := Ty.bool }]
+          locals := #[{ id := 2, ty := Ty.address }, { id := 3, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 2, ty := Ty.address } TExpr.sender,
+            TStmt.let_ { id := 3, ty := Ty.uint256 }
+              (TExpr.getMapping2 mappingSlot
+                (TExpr.var { id := 2, ty := Ty.address })
+                (TExpr.var { id := 0, ty := Ty.address })),
+            TStmt.if_
+              (TExpr.var { id := 1, ty := Ty.bool })
+              [ TStmt.if_ (TExpr.eq
+                    (TExpr.var { id := 3, ty := Ty.uint256 })
+                    (TExpr.uintLit 0))
+                  [] [TStmt.revert msg1],
+                TStmt.setMapping2 mappingSlot
+                  (TExpr.var { id := 2, ty := Ty.address })
+                  (TExpr.var { id := 0, ty := Ty.address })
+                  (TExpr.uintLit 1) ]
+              [ TStmt.if_ (TExpr.not (TExpr.eq
+                    (TExpr.var { id := 3, ty := Ty.uint256 })
+                    (TExpr.uintLit 0)))
+                  [] [TStmt.revert msg2],
+                TStmt.setMapping2 mappingSlot
+                  (TExpr.var { id := 2, ty := Ty.address })
+                  (TExpr.var { id := 0, ty := Ty.address })
+                  (TExpr.uintLit 0) ]
+          , TStmt.stop
+          ] }) := by
+  have h1 : (senderVar == boolParam) = false := beq_false_of_ne hne_sv_bp
+  have h2 : (senderVar == authParam) = false := beq_false_of_ne hne_sv_ap
+  have h3 : (currentVar == boolParam) = false := beq_false_of_ne hne_cv_bp
+  have h4 : (currentVar == authParam) = false := beq_false_of_ne hne_cv_ap
+  have h5 : (currentVar == senderVar) = false := beq_false_of_ne hne_cv_sv
+  have h6 : (boolParam == authParam) = false := beq_false_of_ne hne_bp_ap
+  simp [compileStmts, compileStmt, compileBranch, compileExpr, emitSSABind, freshVar,
+    bindVar, pushLocal, lookupVar, asAddress, asBool, asUInt256, liftExcept,
+    hMapping, emit, List.find?, h1, h2, h3, h4, h5, h6]; rfl
+
 end Verity.Core.Free
