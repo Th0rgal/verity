@@ -106,6 +106,14 @@ def evalBuiltinCall
     match argVals with
     | [offset] => some (calldataloadWord selector calldata offset)
     | _ => none
+  else if func = "callvalue" then
+    match argVals with
+    | [] => some 0
+    | _ => none
+  else if func = "calldatasize" then
+    match argVals with
+    | [] => some (4 + calldata.length * 32)
+    | _ => none
   else
     none
 
