@@ -31,7 +31,7 @@ All three layers are proven in Lean. The single axiom is `keccak256_first_4_byte
 
 ### 1. Solidity Compiler (`solc`)
 - **Role**: Compiles Yul → EVM bytecode.
-- **Version**: 0.8.33 (pinned in `foundry.toml`).
+- **Version**: 0.8.33+commit.64118f21 (pinned).
 - **Mitigation**: CI enforces pin and Yul compileability checks.
 
 ### 2. Keccak-based Selector Computation
