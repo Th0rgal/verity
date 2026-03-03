@@ -700,16 +700,12 @@ jobs:
             lines.push("");
             lines.push("Copy-paste local triage:");
             lines.push("```bash");
-            lines.push("make ci-fast");
-            lines.push("make ci-fast-build");
+            lines.push("make check");
             lines.push("python3 scripts/generate_verification_status.py --check");
             lines.push("python3 scripts/check_doc_counts.py");
-            lines.push("python3 scripts/check_issue_1060_integrity.py");
             lines.push("lake build");
             lines.push("FOUNDRY_PROFILE=difftest forge test -vv");
             lines.push("```");
-            lines.push("");
-            lines.push("If this is an issue #1060 run, keep exactly one roadmap item in progress and post evidence from `artifacts/issue_1060_progress.json`.");
             const body = lines.join("\\n");
 
             const owner = context.repo.owner;
