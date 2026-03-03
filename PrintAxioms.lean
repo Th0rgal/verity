@@ -33,7 +33,6 @@ import Compiler.Proofs.EndToEnd
 import Compiler.Proofs.IRGeneration.Conversions
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.SemanticBridge
-import Compiler.Proofs.SemanticBridgeTest
 import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Verity/Proofs/Counter/Basic.lean
@@ -633,10 +632,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.SemanticBridge.simpleStorage_retrieve_edsl_to_yul
 #print axioms Compiler.Proofs.SemanticBridge.counter_increment_edsl_to_yul
 
--- Compiler/Proofs/SemanticBridgeTest.lean
-#print axioms Compiler.Proofs.SemanticBridgeTest.simpleStorageIRContract_eq
-#print axioms Compiler.Proofs.SemanticBridgeTest.simpleStorage_store_test
-
 -- Compiler/Proofs/YulGeneration/Equivalence.lean
 #print axioms Compiler.Proofs.YulGeneration.resultsMatch_of_execResultsAligned
 #print axioms Compiler.Proofs.YulGeneration.statesAligned_refl
@@ -653,4 +648,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 552 theorems/lemmas (532 public, 20 private)
+-- Total: 550 theorems/lemmas (530 public, 20 private)
