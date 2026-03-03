@@ -19,7 +19,7 @@ executing an IR function body matches executing the same Yul statements.
 See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
 -/
 
-@[simp] theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
+@[simp] private theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body
         { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
@@ -27,11 +27,11 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
   rfl
 
 /-- Helper: initial Yul state aligned with the IR transaction/state. -/
-def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
+private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage
 
 @[simp]
-theorem evalYulExpr_selectorExpr_initial
+private theorem evalYulExpr_selectorExpr_initial
     (tx : YulTransaction) (state : IRState)
     (hselector : tx.functionSelector < selectorModulus) :
     evalYulExpr (initialYulState tx state) selectorExpr = some tx.functionSelector := by

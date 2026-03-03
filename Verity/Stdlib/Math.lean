@@ -16,8 +16,8 @@ namespace Verity.Stdlib.Math
 open Verity
 
 -- Maximum value for Uint256 (2^256 - 1)
--- For Lean's Nat, we define a practical upper bound
-def MAX_UINT256 : Nat := 2^256 - 1
+-- Alias of Verity.Core.MAX_UINT256 for backwards compatibility.
+abbrev MAX_UINT256 : Nat := Core.MAX_UINT256
 
 -- Safe addition: returns None on overflow
 def safeAdd (a b : Uint256) : Option Uint256 :=

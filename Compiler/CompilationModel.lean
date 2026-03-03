@@ -475,7 +475,7 @@ def findStructMember (members : List StructMember) (memberName : String) : Optio
   members.find? (·.name == memberName)
 
 -- Keep compiler literals aligned with Uint256 semantics (mod 2^256).
-def uint256Modulus : Nat := 2 ^ 256
+private def uint256Modulus : Nat := 2 ^ 256
 
 private def packedMaskNat (packed : PackedBits) : Nat :=
   if packed.width >= 256 then
