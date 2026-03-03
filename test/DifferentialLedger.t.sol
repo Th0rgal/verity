@@ -343,6 +343,64 @@ contract DifferentialLedger is YulTestBase, DiffTestConfig, DifferentialTestBase
         assertTrue(success, "Insufficient balance test failed");
     }
 
+    function testDifferential_TransferInsufficientBalance() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Alice deposits 50
+        bool success1 = executeDifferentialTest("deposit", alice, address(0), 50);
+        assertTrue(success1, "Deposit failed");
+
+        // Alice tries to transfer 100 to Bob (only has 50) — should revert
+        bool success2 = executeDifferentialTest("transfer", alice, bob, 100);
+        assertTrue(success2, "Transfer insufficient balance test failed");
+    }
+
+    function testDifferential_WithdrawMoreThanBalance() public {
+        address alice = address(0xA11CE);
+
+        // Alice deposits 30
+        bool success1 = executeDifferentialTest("deposit", alice, address(0), 30);
+        assertTrue(success1, "Deposit failed");
+
+        // Alice tries to withdraw 50 (only has 30) — should revert
+        bool success2 = executeDifferentialTest("withdraw", alice, address(0), 50);
+        assertTrue(success2, "Withdraw more than balance test failed");
+    }
+
+    function testDifferential_WithdrawExactBalance() public {
+        address alice = address(0xA11CE);
+
+        // Alice deposits 100
+        bool success1 = executeDifferentialTest("deposit", alice, address(0), 100);
+        assertTrue(success1, "Deposit failed");
+
+        // Alice withdraws exactly 100 — should succeed (leaves 0)
+        bool success2 = executeDifferentialTest("withdraw", alice, address(0), 100);
+        assertTrue(success2, "Withdraw exact balance test failed");
+
+        // Alice tries to withdraw 1 more — should revert
+        bool success3 = executeDifferentialTest("withdraw", alice, address(0), 1);
+        assertTrue(success3, "Withdraw from empty balance test failed");
+    }
+
+    function testDifferential_TransferExactBalance() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Alice deposits 100
+        bool success1 = executeDifferentialTest("deposit", alice, address(0), 100);
+        assertTrue(success1, "Deposit failed");
+
+        // Alice transfers exactly 100 to Bob — should succeed
+        bool success2 = executeDifferentialTest("transfer", alice, bob, 100);
+        assertTrue(success2, "Transfer exact balance test failed");
+
+        // Alice tries to transfer 1 more — should revert (0 balance)
+        bool success3 = executeDifferentialTest("transfer", alice, bob, 1);
+        assertTrue(success3, "Transfer from empty balance test failed");
+    }
+
     /**
      * @notice Exercise edge amounts for deposit/withdraw/transfer.
      */
