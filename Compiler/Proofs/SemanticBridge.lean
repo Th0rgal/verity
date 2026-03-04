@@ -73,6 +73,29 @@ def encodeEvent (ev : Event) : List Nat :=
 def encodeEvents (events : List Event) : List (List Nat) :=
   events.map encodeEvent
 
+/-- Shared constructor for IR transactions used in semantic-bridge statements. -/
+def mkIRTransaction (sender : Address) (selector : Nat) (args : List Nat) : IRTransaction := {
+  sender := sender.val
+  functionSelector := selector
+  args := args
+}
+
+/-- Shared constructor for IR state fixtures used in semantic-bridge statements. -/
+def mkIRState
+    (state : ContractState)
+    (sender : Address)
+    (selector : Nat)
+    (calldata : List Nat)
+    (encodeStorageFn : ContractState → Nat → Nat) : IRState := {
+  vars := []
+  «storage» := encodeStorageFn state
+  memory := fun _ => 0
+  calldata := calldata
+  returnValue := none
+  sender := sender.val
+  selector := selector
+}
+
 /-! ## Layer 2 Generic Theorem Spine -/
 
 /-- Generic Layer-2 bridge theorem: once a contract-specific postcondition is
@@ -107,20 +130,8 @@ theorem spec_to_ir_preserves_semantics
 theorem simpleStorage_store_semantic_bridge
     (state : ContractState) (sender : Address) (value : Uint256) :
     let edslResult := Contract.run (Verity.Examples.store value) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x6057361d
-      args := [value.val]
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := [value.val]
-      returnValue := none
-      sender := sender.val
-      selector := 0x6057361d
-    }
+    let tx := mkIRTransaction sender 0x6057361d [value.val]
+    let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR simpleStorageIRContract tx irState
@@ -134,20 +145,8 @@ theorem simpleStorage_store_semantic_bridge
 theorem simpleStorage_retrieve_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.retrieve) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x2e64cec1
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x2e64cec1
-    }
+    let tx := mkIRTransaction sender 0x2e64cec1 []
+    let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR simpleStorageIRContract tx irState
@@ -164,20 +163,8 @@ theorem simpleStorage_retrieve_semantic_bridge
 theorem counter_increment_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.Counter.increment) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xd09de08a
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xd09de08a
-    }
+    let tx := mkIRTransaction sender 0xd09de08a []
+    let irState := mkIRState state sender 0xd09de08a [] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR counterIRContract tx irState
@@ -191,20 +178,8 @@ theorem counter_increment_semantic_bridge
 theorem counter_decrement_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.Counter.decrement) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x2baeceb7
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x2baeceb7
-    }
+    let tx := mkIRTransaction sender 0x2baeceb7 []
+    let irState := mkIRState state sender 0x2baeceb7 [] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR counterIRContract tx irState
@@ -218,20 +193,8 @@ theorem counter_decrement_semantic_bridge
 theorem counter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.Counter.getCount) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xa87d942c
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xa87d942c
-    }
+    let tx := mkIRTransaction sender 0xa87d942c []
+    let irState := mkIRState state sender 0xa87d942c [] encodeStorage
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR counterIRContract tx irState
@@ -252,20 +215,8 @@ def encodeStorageAddr (state : ContractState) : Nat → Nat :=
 theorem owned_getOwner_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.Owned.getOwner) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x893d20e8
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorageAddr state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x893d20e8
-    }
+    let tx := mkIRTransaction sender 0x893d20e8 []
+    let irState := mkIRState state sender 0x893d20e8 [] encodeStorageAddr
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR ownedIRContract tx irState
@@ -282,20 +233,8 @@ theorem owned_transferOwnership_semantic_bridge
     (hOwner : sender = state.storageAddr 0) :
     let edslResult := Contract.run (Verity.Examples.Owned.transferOwnership newOwner)
         { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xf2fde38b
-      args := [newOwner.val]
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorageAddr state
-      memory := fun _ => 0
-      calldata := [newOwner.val]
-      returnValue := none
-      sender := sender.val
-      selector := 0xf2fde38b
-    }
+    let tx := mkIRTransaction sender 0xf2fde38b [newOwner.val]
+    let irState := mkIRState state sender 0xf2fde38b [newOwner.val] encodeStorageAddr
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR ownedIRContract tx irState
@@ -311,20 +250,8 @@ theorem owned_transferOwnership_semantic_bridge
 theorem safeCounter_increment_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.SafeCounter.increment) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xd09de08a
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xd09de08a
-    }
+    let tx := mkIRTransaction sender 0xd09de08a []
+    let irState := mkIRState state sender 0xd09de08a [] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR safeCounterIRContract tx irState
@@ -340,20 +267,8 @@ theorem safeCounter_increment_semantic_bridge
 theorem safeCounter_decrement_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.SafeCounter.decrement) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x2baeceb7
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x2baeceb7
-    }
+    let tx := mkIRTransaction sender 0x2baeceb7 []
+    let irState := mkIRState state sender 0x2baeceb7 [] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR safeCounterIRContract tx irState
@@ -369,20 +284,8 @@ theorem safeCounter_decrement_semantic_bridge
 theorem safeCounter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.SafeCounter.getCount) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xa87d942c
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xa87d942c
-    }
+    let tx := mkIRTransaction sender 0xa87d942c []
+    let irState := mkIRState state sender 0xa87d942c [] encodeStorage
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR safeCounterIRContract tx irState
@@ -405,20 +308,8 @@ def encodeOwnedCounterStorage (state : ContractState) : Nat → Nat :=
 theorem ownedCounter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.OwnedCounter.getCount) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xa87d942c
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeOwnedCounterStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xa87d942c
-    }
+    let tx := mkIRTransaction sender 0xa87d942c []
+    let irState := mkIRState state sender 0xa87d942c [] encodeOwnedCounterStorage
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR ownedCounterIRContract tx irState
@@ -434,20 +325,8 @@ theorem ownedCounter_getCount_semantic_bridge
 theorem ownedCounter_getOwner_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.OwnedCounter.getOwner) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x893d20e8
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeOwnedCounterStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x893d20e8
-    }
+    let tx := mkIRTransaction sender 0x893d20e8 []
+    let irState := mkIRState state sender 0x893d20e8 [] encodeOwnedCounterStorage
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR ownedCounterIRContract tx irState
@@ -464,20 +343,8 @@ theorem ownedCounter_increment_semantic_bridge
     (state : ContractState) (sender : Address)
     (hOwner : sender = state.storageAddr 0) :
     let edslResult := Contract.run (Verity.Examples.OwnedCounter.increment) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xd09de08a
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeOwnedCounterStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xd09de08a
-    }
+    let tx := mkIRTransaction sender 0xd09de08a []
+    let irState := mkIRState state sender 0xd09de08a [] encodeOwnedCounterStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR ownedCounterIRContract tx irState
@@ -493,20 +360,8 @@ theorem ownedCounter_decrement_semantic_bridge
     (state : ContractState) (sender : Address)
     (hOwner : sender = state.storageAddr 0) :
     let edslResult := Contract.run (Verity.Examples.OwnedCounter.decrement) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x2baeceb7
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeOwnedCounterStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x2baeceb7
-    }
+    let tx := mkIRTransaction sender 0x2baeceb7 []
+    let irState := mkIRState state sender 0x2baeceb7 [] encodeOwnedCounterStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR ownedCounterIRContract tx irState
@@ -523,20 +378,8 @@ theorem ownedCounter_transferOwnership_semantic_bridge
     (hOwner : sender = state.storageAddr 0) :
     let edslResult := Contract.run (Verity.Examples.OwnedCounter.transferOwnership newOwner)
         { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xf2fde38b
-      args := [newOwner.val]
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeOwnedCounterStorage state
-      memory := fun _ => 0
-      calldata := [newOwner.val]
-      returnValue := none
-      sender := sender.val
-      selector := 0xf2fde38b
-    }
+    let tx := mkIRTransaction sender 0xf2fde38b [newOwner.val]
+    let irState := mkIRState state sender 0xf2fde38b [newOwner.val] encodeOwnedCounterStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR ownedCounterIRContract tx irState
@@ -553,20 +396,8 @@ theorem ownedCounter_transferOwnership_semantic_bridge
 theorem simpleStorage_store_edsl_to_yul
     (state : ContractState) (sender : Address) (value : Uint256) :
     let edslResult := Contract.run (Verity.Examples.store value) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x6057361d
-      args := [value.val]
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := [value.val]
-      returnValue := none
-      sender := sender.val
-      selector := 0x6057361d
-    }
+    let tx := mkIRTransaction sender 0x6057361d [value.val]
+    let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR simpleStorageIRContract tx irState
@@ -582,20 +413,8 @@ theorem simpleStorage_store_edsl_to_yul
 theorem simpleStorage_retrieve_edsl_to_yul
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.retrieve) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0x2e64cec1
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0x2e64cec1
-    }
+    let tx := mkIRTransaction sender 0x2e64cec1 []
+    let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
     match edslResult with
     | .success val s' =>
         let irResult := interpretIR simpleStorageIRContract tx irState
@@ -612,20 +431,8 @@ theorem simpleStorage_retrieve_edsl_to_yul
 theorem counter_increment_edsl_to_yul
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.Counter.increment) { state with sender := sender }
-    let tx : IRTransaction := {
-      sender := sender.val
-      functionSelector := 0xd09de08a
-      args := []
-    }
-    let irState : IRState := {
-      vars := []
-      «storage» := encodeStorage state
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := sender.val
-      selector := 0xd09de08a
-    }
+    let tx := mkIRTransaction sender 0xd09de08a []
+    let irState := mkIRState state sender 0xd09de08a [] encodeStorage
     match edslResult with
     | .success _ s' =>
         let irResult := interpretIR counterIRContract tx irState
