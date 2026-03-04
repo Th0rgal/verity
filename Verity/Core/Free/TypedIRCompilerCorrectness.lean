@@ -3,6 +3,13 @@ import Verity.Core.Free.TypedIRCompiler
 namespace Verity.Core.Free
 open Compiler.CompilationModel
 
+/-- Shared simplification wrappers for repeated typed-IR evaluator unfolding patterns. -/
+syntax "simp_tir_eval" : tactic
+
+macro_rules
+  | `(tactic| simp_tir_eval) =>
+      `(tactic| simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr])
+
 /-- Generic structural-induction theorem: compiling concatenated statement lists
 is equivalent to compiling the prefix then the suffix. -/
 theorem compileStmts_append (fields : List Field) (pre post : List Stmt) :
@@ -1119,7 +1126,7 @@ theorem compile_let_assign_sub_setStorage_local_literal_semantics
                 ((n : Verity.Core.Uint256).sub (m : Verity.Core.Uint256)) }) := by
   simp [execCompiledLetAssignSubSetStorageLocalLiteral, execSourceSetStorageLiteral,
     compileStmts_let_assign_sub_literal_setStorage_local_run, hfind, evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp_tir_eval
 
 /-- Semantic-preservation theorem for an arithmetic supported three-statement subset:
 compiling and running
@@ -1141,7 +1148,7 @@ theorem compile_let_assign_mul_setStorage_local_literal_semantics
                 ((n : Verity.Core.Uint256).mul (m : Verity.Core.Uint256)) }) := by
   simp [execCompiledLetAssignMulSetStorageLocalLiteral, execSourceSetStorageLiteral,
     compileStmts_let_assign_mul_literal_setStorage_local_run, hfind, evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp_tir_eval
 
 /-- Semantic-preservation theorem for the storage-read + add + setStorage + stop pattern:
 compiling and running
@@ -1158,7 +1165,7 @@ theorem compile_let_storage_setStorage_add_local_stop_semantics
     execSourceLetStorageSetStorageAddLocalStop, execSourceSetStorageLiteral,
     compileStmts_let_storage_setStorage_add_local_stop_run, hfind,
     evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp_tir_eval
 
 /-- Semantic-preservation theorem for the storage-read + sub + setStorage + stop pattern:
 compiling and running
@@ -1175,7 +1182,7 @@ theorem compile_let_storage_setStorage_sub_local_stop_semantics
     execSourceLetStorageSetStorageSubLocalStop, execSourceSetStorageLiteral,
     compileStmts_let_storage_setStorage_sub_local_stop_run, hfind,
     evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp_tir_eval
 
 /-- Semantic-preservation theorem for the storage-read + return pattern:
 compiling and running
@@ -1191,7 +1198,7 @@ theorem compile_let_storage_return_local_semantics
   simp [execCompiledLetStorageReturnLocal, execSourceLetStorageReturnLocal,
     compileStmts_let_storage_return_local_run, hfind,
     evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp_tir_eval
 
 /-- Semantic-preservation theorem for `return (storage field)` (uint256). -/
 theorem compile_return_storage_semantics
@@ -1243,7 +1250,7 @@ theorem compile_let_storage_addr_return_local_semantics
   simp [execCompiledLetStorageAddrReturnLocal, execSourceLetStorageAddrReturnLocal,
     compileStmts_let_storage_addr_return_local_run, hfind,
     evalTStmts, defaultEvalFuel]
-  simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr]
+  simp_tir_eval
 
 /-- Semantic-preservation for the mapping(param) read + return pattern. -/
 theorem compile_let_mapping_param_return_local_semantics
