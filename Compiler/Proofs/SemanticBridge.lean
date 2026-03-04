@@ -318,7 +318,17 @@ theorem owned_transferOwnership_semantic_bridge
         ∧
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
-    := by sorry
+    := by
+  subst hOwner
+  simp [Contract.run, Verity.Examples.MacroContracts.Owned.transferOwnership,
+    Verity.Examples.MacroContracts.Owned.owner,
+    getStorageAddr, setStorageAddr,
+    mkIRTransaction, mkIRState, interpretIR, ownedIRContract,
+    execIRFunction, execIRStmts, execIRStmt,
+    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+    encodeStorageAddr, encodeEvents,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+    Compiler.Proofs.YulGeneration.evalBuiltinCall]
 
 /-! ## Target Theorems: SafeCounter -/
 
