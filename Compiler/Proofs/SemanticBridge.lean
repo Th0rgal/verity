@@ -240,7 +240,15 @@ theorem counter_decrement_semantic_bridge
         ∧
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
-    := by sorry
+    := by
+  simp [Contract.run, Verity.Examples.Counter.decrement, Verity.Examples.Counter.count,
+    getStorage, setStorage, sub,
+    mkIRTransaction, mkIRState, interpretIR, counterIRContract,
+    execIRFunction, execIRStmts, execIRStmt,
+    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+    encodeStorage, encodeEvents,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+    Compiler.Proofs.YulGeneration.evalBuiltinCall]
 
 theorem counter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
