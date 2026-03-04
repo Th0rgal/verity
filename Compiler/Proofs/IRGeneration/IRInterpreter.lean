@@ -72,17 +72,6 @@ def IRState.initial (sender : Nat) : IRState :=
     selector := 0
     events := [] }
 
-def isLogBuiltin (func : String) : Bool :=
-  func = "log0" || func = "log1" || func = "log2" || func = "log3" || func = "log4"
-
-def expectedLogArgCount (func : String) : Option Nat :=
-  if func = "log0" then some 2
-  else if func = "log1" then some 3
-  else if func = "log2" then some 4
-  else if func = "log3" then some 5
-  else if func = "log4" then some 6
-  else none
-
 /-- Lookup variable in state -/
 def IRState.getVar (s : IRState) (name : String) : Option Nat :=
   s.vars.find? (·.1 == name) |>.map (·.2)
@@ -233,21 +222,6 @@ def execIRStmt : Nat → IRState → YulStmt → IRExecResult
                 else
                   .return 0 state
               | _, _ => .revert state
-          | .call func args =>
-              if isLogBuiltin func then
-                match expectedLogArgCount func, evalIRExprs state args with
-                | some expected, some vals =>
-                    if vals.length = expected then
-                      .continue { state with events := state.events ++ [vals] }
-                    else
-                      .revert state
-                | _, _ => .revert state
-              else
-                -- Keep expression-statement behavior aligned with Yul:
-                -- evaluate the expression and revert on evaluation failure.
-                match evalIRExpr state e with
-                | some _ => .continue state
-                | none => .revert state
           | _ =>
               -- Keep expression-statement behavior aligned with Yul:
               -- evaluate the expression and revert on evaluation failure.

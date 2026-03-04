@@ -62,17 +62,6 @@ def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
     sender := tx.sender
     events := events }
 
-def isLogBuiltin (func : String) : Bool :=
-  func = "log0" || func = "log1" || func = "log2" || func = "log3" || func = "log4"
-
-def expectedLogArgCount (func : String) : Option Nat :=
-  if func = "log0" then some 2
-  else if func = "log1" then some 3
-  else if func = "log2" then some 4
-  else if func = "log3" then some 5
-  else if func = "log4" then some 6
-  else none
-
 /-- Lookup variable in state -/
 def YulState.getVar (s : YulState) (name : String) : Option Nat :=
   s.vars.find? (·.1 == name) |>.map (·.2)
@@ -203,19 +192,6 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                         .return 0 state
                   | _, _ => .revert state
               | .call "revert" [_, _] => .revert state
-              | .call func args =>
-                  if isLogBuiltin func then
-                    match expectedLogArgCount func, evalYulExprs state args with
-                    | some expected, some vals =>
-                        if vals.length = expected then
-                          .continue { state with events := state.events ++ [vals] }
-                        else
-                          .revert state
-                    | _, _ => .revert state
-                  else
-                    match evalYulExpr state e with
-                    | some _ => .continue state
-                    | none => .revert state
               | _ =>
                   match evalYulExpr state e with
                   | some _ => .continue state
