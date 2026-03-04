@@ -23,9 +23,7 @@ PROOF_ROOTS = [
     ROOT / "Verity" / "Proofs",
 ]
 
-ALLOWLIST = {
-    Path("Compiler/Proofs/SemanticBridge.lean"),
-}
+ALLOWLIST: set[Path] = set()
 
 LEGACY_RE = re.compile(
     r"\b(?:"

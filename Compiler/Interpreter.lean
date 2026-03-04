@@ -13,7 +13,6 @@
 
 import Compiler.Constants
 import Verity.Examples.SimpleStorage
-import Verity.Examples.Counter
 import Verity.Examples.SafeCounter
 import Verity.Examples.Owned
 import Verity.Examples.MacroContracts.Tokens
@@ -339,6 +338,14 @@ These keep interpreter call-sites stable while contract implementations move
 from `Verity.Examples.*` to `Verity.Examples.MacroContracts.*`.
 -/
 namespace Compat
+namespace Counter
+
+abbrev increment := Verity.Examples.MacroContracts.Counter.increment
+abbrev decrement := Verity.Examples.MacroContracts.Counter.decrement
+abbrev getCount := Verity.Examples.MacroContracts.Counter.getCount
+
+end Counter
+
 namespace Owned
 
 abbrev transferOwnership := Verity.Examples.Owned.transferOwnership
@@ -397,9 +404,9 @@ def interpretSimpleStorage (tx : Transaction) (state : ContractState) : Executio
 
 def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (fun _ => runUnit Counter.increment state [0] [] []),
-    case0 "decrement" tx (fun _ => runUnit Counter.decrement state [0] [] []),
-    case0 "getCount" tx (fun _ => runUint Counter.getCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit Compat.Counter.increment state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit Compat.Counter.decrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint Compat.Counter.getCount state [0] [] [])
   ]
 
 /-!
