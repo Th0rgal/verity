@@ -116,6 +116,30 @@ theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr
           unfold execResultsAligned statesAligned yulStateOfIR
           simp [IRState.setVar, YulState.setVar]
 
+private theorem stmts_align_contra
+    {selector fuel : Nat} {stmts : List YulStmt} {irState : IRState} {yulState : YulState}
+    {irExec : IRExecResult} {yulExec : YulExecResult}
+    (hStmts : execResultsAligned selector
+      (execIRStmtsFuel fuel irState stmts)
+      (execYulStmtsFuel fuel yulState stmts))
+    (hIR : execIRStmtsFuel fuel irState stmts = irExec)
+    (hYul : execYulStmtsFuel fuel yulState stmts = yulExec)
+    (hImpossible : ¬ execResultsAligned selector irExec yulExec) : False := by
+  apply hImpossible
+  simpa [hIR, hYul] using hStmts
+
+private theorem stmt_align_contra
+    {selector fuel : Nat} {stmt : YulStmt} {irState : IRState} {yulState : YulState}
+    {irExec : IRExecResult} {yulExec : YulExecResult}
+    (hStmt : execResultsAligned selector
+      (execIRStmtFuel fuel irState stmt)
+      (execYulStmtFuel fuel yulState stmt))
+    (hIR : execIRStmtFuel fuel irState stmt = irExec)
+    (hYul : execYulStmtFuel fuel yulState stmt = yulExec)
+    (hImpossible : ¬ execResultsAligned selector irExec yulExec) : False := by
+  apply hImpossible
+  simpa [hIR, hYul] using hStmt
+
 set_option maxHeartbeats 800000 in
 private theorem stmt_and_stmts_equiv :
     ∀ fuel,
@@ -320,77 +344,47 @@ private theorem stmt_and_stmts_equiv :
                                           simp_all [execIRStmt_equiv_execYulStmt_goal, execIRStmtFuel,
                                             execYulStmtFuel, execYulStmtsFuel, yulStateOfIR]
                                       | «return» _ _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «stop» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «revert» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                   | «return» _ _ =>
                                       cases hYulPost : execYulStmtsFuel fuel (yulStateOfIR selector irAfterBody) post with
                                       | «return» _ _ =>
                                           simp_all [execResultsAligned, statesAligned, yulStateOfIR]
                                       | «continue» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «stop» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «revert» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                   | «stop» _ =>
                                       cases hYulPost : execYulStmtsFuel fuel (yulStateOfIR selector irAfterBody) post with
                                       | «stop» _ =>
                                           simp_all [execResultsAligned, statesAligned, yulStateOfIR]
                                       | «continue» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «return» _ _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «revert» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                   | «revert» _ =>
                                       cases hYulPost : execYulStmtsFuel fuel (yulStateOfIR selector irAfterBody) post with
                                       | «revert» _ =>
                                           simp_all [execResultsAligned, statesAligned, yulStateOfIR]
                                       | «continue» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «return» _ _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                                       | «stop» _ =>
-                                          have : False := by
-                                            simpa [execResultsAligned, hIRPost, hYulPost] using hPost
-                                          cases this
+                                          exact False.elim (stmts_align_contra (hStmts := hPost) (hIR := hIRPost) (hYul := hYulPost) (by simp [execResultsAligned]))
                               | «return» _ _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «stop» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «revert» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                           | «return» _ _ =>
                               cases hYulBody : execYulStmtsFuel fuel (yulStateOfIR selector irAfterInit) body with
                               | «return» _ _ =>
@@ -401,17 +395,11 @@ private theorem stmt_and_stmts_equiv :
                                     hIRBody, hYulBody, execResultsAligned,
                                     statesAligned, yulStateOfIR, hBody]
                               | «continue» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «stop» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «revert» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                           | «stop» _ =>
                               cases hYulBody : execYulStmtsFuel fuel (yulStateOfIR selector irAfterInit) body with
                               | «stop» _ =>
@@ -422,17 +410,11 @@ private theorem stmt_and_stmts_equiv :
                                     hIRBody, hYulBody, execResultsAligned,
                                     statesAligned, yulStateOfIR, hBody]
                               | «continue» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «return» _ _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «revert» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                           | «revert» _ =>
                               cases hYulBody : execYulStmtsFuel fuel (yulStateOfIR selector irAfterInit) body with
                               | «revert» _ =>
@@ -443,35 +425,21 @@ private theorem stmt_and_stmts_equiv :
                                     hIRBody, hYulBody, execResultsAligned,
                                     statesAligned, yulStateOfIR, hBody]
                               | «continue» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «return» _ _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                               | «stop» _ =>
-                                  have : False := by
-                                    simpa [execResultsAligned, hIRBody, hYulBody] using hBody
-                                  cases this
+                                  exact False.elim (stmts_align_contra (hStmts := hBody) (hIR := hIRBody) (hYul := hYulBody) (by simp [execResultsAligned]))
                 | «return» _ _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «stop» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «revert» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
             | «return» retVal retState =>
                 cases hYulInit : execYulStmtsFuel fuel (yulStateOfIR selector irState) init with
                 | «continue» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «return» _ _ =>
                     have hInit' :
                         execResultsAligned selector (IRExecResult.return retVal retState)
@@ -480,23 +448,15 @@ private theorem stmt_and_stmts_equiv :
                     simp_all [execIRStmt_equiv_execYulStmt_goal, execIRStmtFuel,
                       execYulStmtFuel, execYulStmtsFuel, execResultsAligned, statesAligned, yulStateOfIR]
                 | «stop» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «revert» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
             | «stop» retState =>
                 cases hYulInit : execYulStmtsFuel fuel (yulStateOfIR selector irState) init with
                 | «continue» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «return» _ _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «stop» _ =>
                     have hInit' :
                         execResultsAligned selector (IRExecResult.stop retState)
@@ -505,23 +465,15 @@ private theorem stmt_and_stmts_equiv :
                     simp_all [execIRStmt_equiv_execYulStmt_goal, execIRStmtFuel,
                       execYulStmtFuel, execYulStmtsFuel, execResultsAligned, statesAligned, yulStateOfIR]
                 | «revert» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
             | «revert» retState =>
                 cases hYulInit : execYulStmtsFuel fuel (yulStateOfIR selector irState) init with
                 | «continue» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «return» _ _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «stop» _ =>
-                    have : False := by
-                      simpa [execResultsAligned, hIRInit, hYulInit] using hInit
-                    cases this
+                    exact False.elim (stmts_align_contra (hStmts := hInit) (hIR := hIRInit) (hYul := hYulInit) (by simp [execResultsAligned]))
                 | «revert» _ =>
                     have hInit' :
                         execResultsAligned selector (IRExecResult.revert retState)
@@ -555,68 +507,44 @@ private theorem stmt_and_stmts_equiv :
                     simpa [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execIRStmts,
                       execYulStmtsFuel_cons, hIR, hYul] using hRest
                 | «return» _ _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «stop» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «revert» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
             | «return» _ _ =>
                 cases hYul : execYulStmtFuel fuel (yulStateOfIR selector irState) stmt with
                 | «return» _ _ =>
                     simpa [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execIRStmts,
                       execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
                 | «continue» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «stop» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «revert» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
             | «stop» _ =>
                 cases hYul : execYulStmtFuel fuel (yulStateOfIR selector irState) stmt with
                 | «stop» _ =>
                     simpa [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execIRStmts,
                       execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
                 | «continue» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «return» _ _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «revert» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
             | «revert» _ =>
                 cases hYul : execYulStmtFuel fuel (yulStateOfIR selector irState) stmt with
                 | «revert» _ =>
                     simpa [execIRStmts_equiv_execYulStmts_goal, execIRStmtsFuel, execIRStmts,
                       execYulStmtsFuel_cons, execResultsAligned, hIR, hYul] using hStmt
                 | «continue» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «return» _ _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
                 | «stop» _ =>
-                    have : False := by
-                      simp [execResultsAligned, hIR, hYul] at hStmt
-                    cases this
+                    exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
 
 theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
     execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState := by
