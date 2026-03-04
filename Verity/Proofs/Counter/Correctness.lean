@@ -13,7 +13,7 @@ import Verity.Proofs.Stdlib.Automation
 namespace Verity.Proofs.Counter.Correctness
 
 open Verity
-open Verity.Examples.Counter
+open Verity.Examples.MacroContracts.Counter
 open Verity.Specs.Counter
 open Verity.Proofs.Counter
 open Verity.Proofs.Stdlib.Automation (wf_of_state_eq)

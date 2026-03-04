@@ -303,9 +303,6 @@ theorem yulCodegen_preserves_semantics
       -- The selector evaluates the same way
       have hSelEval := evalSelectorExpr_setVar_has_selector yulInitState 1 (by
         rw [hSelEq]; exact hselector)
-      -- Bridge hcase with yulInitState.selector
-      have hcase' := find_switch_case_of_find_function contract.functions
-        yulInitState.selector fn (hSelEq ▸ hFind)
       -- Rewrite to the transaction selector shape expected by the switch-match lemma.
       have hcase : (switchCases contract.functions).find? (fun (c, _) => c = tx.functionSelector) =
           some (tx.functionSelector, switchCaseBody fn) := by

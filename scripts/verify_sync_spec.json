@@ -12,6 +12,7 @@
     "Compiler/**",
     "Compiler.lean",
     "examples/**",
+    "test/**",
     "scripts/**",
     "lakefile.lean",
     "lake-manifest.json",

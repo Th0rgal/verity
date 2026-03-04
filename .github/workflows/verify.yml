@@ -90,6 +90,7 @@ jobs:
               - 'Compiler/**'
               - 'Compiler.lean'
               - 'examples/**'
+              - 'test/**'
               - 'scripts/**'
               - 'lakefile.lean'
               - 'lake-manifest.json'
@@ -591,7 +592,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [changes, build, build-compiler]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.compiler == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -621,7 +622,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [changes, build, build-compiler]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.compiler == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -658,7 +659,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [changes, build, build-compiler]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.compiler == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -692,7 +693,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [changes, build, build-compiler]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.compiler == 'true'
     strategy:
       fail-fast: false  # Test all seeds even if one fails
       matrix:

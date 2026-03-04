@@ -10,7 +10,7 @@ import Verity.Specs.Counter.Invariants
 namespace Verity.Proofs.Counter
 
 open Verity
-open Verity.Examples.Counter
+open Verity.Examples.MacroContracts.Counter
 open Verity.Specs.Counter
 
 /-! ## Basic Lemmas about setStorage and getStorage
@@ -19,39 +19,39 @@ These reuse patterns from SimpleStorage proofs.
 -/
 
 theorem setStorage_updates_count (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := count
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := count
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storage 0 = value := by
   simp [count]
 
 theorem getStorage_reads_count (s : ContractState) :
-  let slot : StorageSlot Uint256 := count
-  let result := ((getStorage slot).run s).fst
+  let slotIdx : StorageSlot Uint256 := count
+  let result := ((getStorage slotIdx).run s).fst
   result = s.storage 0 := by
   simp [count]
 
 theorem setStorage_preserves_other_slots (s : ContractState) (value : Uint256) (slot_num : Nat)
   (h : slot_num ≠ 0) :
-  let slot : StorageSlot Uint256 := count
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := count
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storage slot_num = s.storage slot_num := by
   simp [count, h]
 
 theorem setStorage_preserves_context (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := count
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := count
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.sender = s.sender ∧ s'.thisAddress = s.thisAddress := by
   simp [count]
 
 theorem setStorage_preserves_addr_storage (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := count
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := count
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storageAddr = s.storageAddr := by
   simp [count]
 
 theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := count
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := count
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storageMap = s.storageMap := by
   simp [count]
 
@@ -62,11 +62,11 @@ theorem increment_meets_spec (s : ContractState) :
   increment_spec s s' := by
   refine ⟨?_, ?_, ?_⟩
   · rfl
-  · intro slot h_neq
+  · intro slotIdx h_neq
     simp only [increment, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
     split
     · next h =>
-      have : slot = 0 := beq_iff_eq.mp h
+      have : slotIdx = 0 := beq_iff_eq.mp h
       exact absurd this h_neq
     · rfl
   · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
@@ -84,11 +84,11 @@ theorem decrement_meets_spec (s : ContractState) :
   decrement_spec s s' := by
   refine ⟨?_, ?_, ?_⟩
   · rfl
-  · intro slot h_neq
+  · intro slotIdx h_neq
     simp only [decrement, count, getStorage, setStorage, bind, Contract.run, Bind.bind, ContractResult.snd]
     split
     · next h =>
-      have : slot = 0 := beq_iff_eq.mp h
+      have : slotIdx = 0 := beq_iff_eq.mp h
       exact absurd this h_neq
     · rfl
   · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
@@ -104,7 +104,7 @@ theorem decrement_subtracts_one (s : ContractState) :
 theorem getCount_meets_spec (s : ContractState) :
   let result := ((getCount).run s).fst
   getCount_spec result s := by
-  simp [getCount, getCount_spec, count]
+  simp [getCount, getCount_spec, count, getStorage, Contract.run, bind, Bind.bind, Pure.pure, pure]
 
 theorem getCount_reads_count_value (s : ContractState) :
   let result := ((getCount).run s).fst
@@ -170,6 +170,6 @@ theorem decrement_preserves_wellformedness (s : ContractState) (h : WellFormedSt
 theorem getCount_preserves_state (s : ContractState) :
   let s' := ((getCount).run s).snd
   s' = s := by
-  simp [getCount]
+  simp [getCount, count, getStorage, Contract.run, bind, Bind.bind, Pure.pure, pure]
 
 end Verity.Proofs.Counter
