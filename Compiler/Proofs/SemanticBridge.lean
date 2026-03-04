@@ -352,7 +352,26 @@ theorem safeCounter_increment_semantic_bridge
     | .revert _ _ =>
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = false
-    := by sorry
+    := by
+  by_cases hOverflow : state.storage 0 = (Uint256.max)
+  · simp [Contract.run, Verity.Examples.MacroContracts.SafeCounter.increment,
+      Verity.Examples.MacroContracts.SafeCounter.count, getStorage, setStorage,
+      requireSomeUint, safeAdd, Uint256.max, hOverflow,
+      mkIRTransaction, mkIRState, interpretIR, safeCounterIRContract,
+      execIRFunction, execIRStmts, execIRStmt,
+      evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+      encodeStorage, encodeEvents,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+      Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  · simp [Contract.run, Verity.Examples.MacroContracts.SafeCounter.increment,
+      Verity.Examples.MacroContracts.SafeCounter.count, getStorage, setStorage,
+      requireSomeUint, safeAdd, Uint256.max, hOverflow,
+      mkIRTransaction, mkIRState, interpretIR, safeCounterIRContract,
+      execIRFunction, execIRStmts, execIRStmt,
+      evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+      encodeStorage, encodeEvents,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+      Compiler.Proofs.YulGeneration.evalBuiltinCall]
 
 theorem safeCounter_decrement_semantic_bridge
     (state : ContractState) (sender : Address) :
