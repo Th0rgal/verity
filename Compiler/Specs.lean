@@ -52,30 +52,8 @@ def requireOwner : Stmt :=
 ## SimpleStorage Specification
 -/
 
-def simpleStorageSpec : CompilationModel := {
-  name := "SimpleStorage"
-  fields := [
-    { name := "storedData", ty := FieldType.uint256 }
-  ]
-  «constructor» := none  -- No initialization needed
-  functions := [
-    { name := "store"
-      params := [{ name := "value", ty := ParamType.uint256 }]
-      returnType := none
-      body := [
-        Stmt.setStorage "storedData" (Expr.param "value"),
-        Stmt.stop
-      ]
-    },
-    { name := "retrieve"
-      params := []
-      returnType := some FieldType.uint256
-      body := [
-        Stmt.return (Expr.storage "storedData")
-      ]
-    }
-  ]
-}
+/-- Legacy compatibility alias. Canonical source is macro-generated. -/
+def simpleStorageSpec : CompilationModel := Verity.Examples.MacroContracts.SimpleStorage.spec
 
 
 /-!
