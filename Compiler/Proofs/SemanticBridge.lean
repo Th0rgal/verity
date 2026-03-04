@@ -94,6 +94,7 @@ def mkIRState
   returnValue := none
   sender := sender.val
   selector := selector
+  events := encodeEvents state.events
 }
 
 /-! ## Layer 2 Generic Theorem Spine -/
