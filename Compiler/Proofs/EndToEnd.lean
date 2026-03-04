@@ -64,17 +64,18 @@ private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRS
     args := tx.args
   }
   execYulStmts (yulStateOfIR 0 paramState) fn.body =
-    execYulStmts (YulState.initial yulTx state.storage) fn.body
+    execYulStmts (YulState.initial yulTx state.storage state.events) fn.body
 
 /-- Result wrapping equivalence: `interpretYulRuntime` produces the same `YulResult`
 as `yulResultOfExecWithRollback` when the rollback storage matches. -/
 theorem interpretYulRuntime_eq_yulResultOfExec
-    (stmts : List Yul.YulStmt) (tx : YulTransaction) (stor : Nat → Nat) :
-    interpretYulRuntime stmts tx stor =
-      yulResultOfExecWithRollback (YulState.initial tx stor)
-        (execYulStmts (YulState.initial tx stor) stmts) := by
+    (stmts : List Yul.YulStmt) (tx : YulTransaction) (stor : Nat → Nat)
+    (events : List (List Nat)) :
+    interpretYulRuntime stmts tx stor events =
+      yulResultOfExecWithRollback (YulState.initial tx stor events)
+        (execYulStmts (YulState.initial tx stor events) stmts) := by
   simp [interpretYulRuntime]
-  cases execYulStmts (YulState.initial tx stor) stmts with
+  cases execYulStmts (YulState.initial tx stor events) stmts with
   | «continue» s => simp [yulResultOfExecWithRollback]
   | «return» v s => simp [yulResultOfExecWithRollback]
   | «stop» s => simp [yulResultOfExecWithRollback]
@@ -92,7 +93,7 @@ theorem yulStateOfIR_eq_initial
     (hvars : state.vars = []) :
     yulStateOfIR sel state =
       YulState.initial { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
-        state.storage := by
+        state.storage state.events := by
   simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hselector, hreturn]
 
 /-- Hypothesis-driven param-load erasure. -/
@@ -135,7 +136,7 @@ theorem yulBody_from_state_eq_yulBody
   rw [h_exec]
   exact (interpretYulRuntime_eq_yulResultOfExec fn.body
     { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
-    state.storage).symm
+    state.storage state.events).symm
 
 /-! ## Layer 3 Contract-Level: IR → Yul (via runtime dispatch) -/
 

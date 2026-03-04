@@ -275,6 +275,7 @@ private def mkIRStateFromTyped (state : Verity.Core.Free.TExecState.{0}) (block 
     none
     state.env.sender
     0
+    []
 
 private def execLoweredSlot0 (fuel : Nat) (state : IRState) (block : TBlock) : Option Nat :=
   match execIRStmts fuel state (lowerTBlock block) with

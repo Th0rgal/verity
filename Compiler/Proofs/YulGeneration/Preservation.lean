@@ -23,12 +23,12 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body
         { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
-        state.storage := by
+        state.storage state.events := by
   rfl
 
 /-- Helper: initial Yul state aligned with the IR transaction/state. -/
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
-  YulState.initial tx state.storage
+  YulState.initial tx state.storage state.events
 
 @[simp]
 private theorem evalYulExpr_selectorExpr_initial
@@ -211,7 +211,7 @@ theorem yulCodegen_preserves_semantics
     have : selectorModulus = 4294967296 := by simp [selectorModulus]
     rw [← this]; exact Nat.mod_eq_of_lt hselector
   -- The Yul initial state for the switch dispatch
-  set yulInitState := YulState.initial yulTx irState.storage with hYulInitDef
+  set yulInitState := YulState.initial yulTx irState.storage irState.events with hYulInitDef
   -- Key fact: yulInitState.selector = tx.functionSelector
   have hSelEq : yulInitState.selector = tx.functionSelector := rfl
   -- Now case-split on whether any function matches the selector

@@ -231,7 +231,8 @@ private theorem stmt_and_stmts_equiv :
                     evalYulExpr
                       { vars := irState.vars, storage := irState.storage, memory := irState.memory,
                         calldata := irState.calldata, selector := irState.selector,
-                        returnValue := irState.returnValue, sender := irState.sender } expr = none := by
+                        returnValue := irState.returnValue, sender := irState.sender,
+                        events := irState.events } expr = none := by
                   simpa [yulStateOfIR] using hEval
                 simp [hEval', execResultsAligned, statesAligned, yulStateOfIR]
             | some v =>
@@ -239,7 +240,8 @@ private theorem stmt_and_stmts_equiv :
                     evalYulExpr
                       { vars := irState.vars, storage := irState.storage, memory := irState.memory,
                         calldata := irState.calldata, selector := irState.selector,
-                        returnValue := irState.returnValue, sender := irState.sender } expr = some v := by
+                        returnValue := irState.returnValue, sender := irState.sender,
+                        events := irState.events } expr = some v := by
                   simpa [yulStateOfIR] using hEval
                 simp [hEval']
                 cases hFind : cases.find? (fun x => decide (x.fst = v)) with

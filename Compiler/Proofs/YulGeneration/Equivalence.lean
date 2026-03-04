@@ -17,7 +17,8 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     calldata := state.calldata
     selector := state.selector
     returnValue := state.returnValue
-    sender := state.sender }
+    sender := state.sender
+    events := state.events }
 
 def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
   yul = yulStateOfIR selector ir
@@ -34,7 +35,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
     functionSelector := tx.functionSelector
     args := tx.args
   }
-  interpretYulRuntime (Compiler.emitYul contract).runtimeCode yulTx state.storage
+  interpretYulRuntime (Compiler.emitYul contract).runtimeCode yulTx state.storage state.events
 
 /-- Interpret just a function body as Yul runtime code. -/
 noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
@@ -43,7 +44,7 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
     functionSelector := tx.functionSelector
     args := tx.args
   }
-  interpretYulRuntime fn.body yulTx state.storage
+  interpretYulRuntime fn.body yulTx state.storage state.events
 
 /-- Interpret a function body starting from an aligned IR-derived state. -/
 def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
@@ -51,7 +52,8 @@ def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
   ir.success == yul.success &&
   ir.returnValue == yul.returnValue &&
   slots.all (fun slot => ir.finalStorage slot == yul.finalStorage slot) &&
-  mappingKeys.all (fun (base, key) => ir.finalMappings base key == yul.finalMappings base key)
+  mappingKeys.all (fun (base, key) => ir.finalMappings base key == yul.finalMappings base key) &&
+  ir.events == yul.events
 
 /-! ## Layer 3 Equivalence Scaffolding
 
@@ -72,51 +74,60 @@ def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
   ir.success = yul.success ∧
   ir.returnValue = yul.returnValue ∧
   (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
-  (∀ base key, ir.finalMappings base key = yul.finalMappings base key)
+  (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
+  ir.events = yul.events
 
 def irResultOfExecWithRollback (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
         returnValue := s.returnValue
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .return v s =>
       { success := true
         returnValue := some v
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .stop s =>
       { success := true
         returnValue := none
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .revert _ =>
       { success := false
         returnValue := none
         finalStorage := rollback.storage
-        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
+        events := rollback.events }
 
 def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulResult
   | .continue s =>
       { success := true
         returnValue := s.returnValue
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .return v s =>
       { success := true
         returnValue := some v
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .stop s =>
       { success := true
         returnValue := none
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .revert _ =>
       { success := false
         returnValue := none
         finalStorage := rollback.storage
-        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
+        events := rollback.events }
 
 /-- Interpret a function body starting from an aligned IR-derived state. -/
 noncomputable def interpretYulBodyFromState
@@ -287,22 +298,26 @@ def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initial
       { success := true
         returnValue := s.returnValue
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .return v s =>
       { success := true
         returnValue := some v
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .stop s =>
       { success := true
         returnValue := none
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .revert _ =>
       { success := false
         returnValue := none
         finalStorage := initialState.storage
-        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events }
 
 def ir_yul_function_equiv_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) : Prop :=
@@ -463,6 +478,7 @@ def execIRFunctionFuel_adequate_goal
 theorem execIRFunctionFuel_adequate
     (fn : IRFunction) (args : List Nat) (initialState : IRState) :
     execIRFunctionFuel_adequate_goal fn args initialState := by
+  unfold execIRFunctionFuel_adequate_goal execIRFunctionFuel execIRFunction execIRStmtsFuel
   rfl
 
 theorem ir_yul_function_equiv_from_state_of_fuel_goal

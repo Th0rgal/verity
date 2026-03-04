@@ -57,6 +57,8 @@ structure IRState where
   sender : Nat
   /-- Function selector (4-byte value used by calldataload(0)) -/
   selector : Nat
+  /-- Emitted log records for this execution. -/
+  events : List (List Nat) := []
   deriving Nonempty
 
 /-- Initial state for IR execution -/
@@ -67,7 +69,8 @@ def IRState.initial (sender : Nat) : IRState :=
     calldata := []
     returnValue := none
     sender := sender
-    selector := 0 }
+    selector := 0
+    events := [] }
 
 /-- Lookup variable in state -/
 def IRState.getVar (s : IRState) (name : String) : Option Nat :=
@@ -288,6 +291,7 @@ structure IRResult where
   returnValue : Option Nat
   finalStorage : Nat → Nat
   finalMappings : Nat → Nat → Nat
+  events : List (List Nat)
 
 /-- Execute an IR function with given arguments.
 Uses `sizeOf fn.body + 1` fuel, which is sufficient for any terminating execution
@@ -303,23 +307,27 @@ noncomputable def execIRFunction (fn : IRFunction) (args : List Nat) (initialSta
     { success := true
       returnValue := s.returnValue
       finalStorage := s.storage
-      finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+      finalMappings := Compiler.Proofs.storageAsMappings s.storage
+      events := s.events }
   | .return v s =>
     { success := true
       returnValue := some v
       finalStorage := s.storage
-      finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+      finalMappings := Compiler.Proofs.storageAsMappings s.storage
+      events := s.events }
   | .stop s =>
     { success := true
       returnValue := none
       finalStorage := s.storage
-      finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+      finalMappings := Compiler.Proofs.storageAsMappings s.storage
+      events := s.events }
   | .revert _ =>
     { success := false
       returnValue := none
       -- On revert, storage and mappings roll back to the initial state
       finalStorage := initialState.storage
-      finalMappings := Compiler.Proofs.storageAsMappings initialState.storage }
+      finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+      events := initialState.events }
 
 /-- Interpret an entire IR contract execution -/
 noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (initialState : IRState) : IRResult :=
@@ -333,6 +341,7 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
     { success := false
       returnValue := none
       finalStorage := initialState.storage
-      finalMappings := Compiler.Proofs.storageAsMappings initialState.storage }
+      finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+      events := initialState.events }
 
 end Compiler.Proofs.IRGeneration

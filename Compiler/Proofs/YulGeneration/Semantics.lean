@@ -41,6 +41,7 @@ structure YulState where
   selector : Nat
   returnValue : Option Nat
   sender : Nat
+  events : List (List Nat) := []
   deriving Nonempty
 
 structure YulTransaction where
@@ -49,15 +50,17 @@ structure YulTransaction where
   args : List Nat
   deriving Repr
 
-/-- Initial state for Yul execution -/
-def YulState.initial (tx : YulTransaction) (storage : Nat → Nat) : YulState :=
+/-- Initial state for Yul execution. -/
+def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
+    (events : List (List Nat) := []) : YulState :=
   { vars := []
     storage := storage
     memory := fun _ => 0
     calldata := tx.args
     selector := tx.functionSelector
     returnValue := none
-    sender := tx.sender }
+    sender := tx.sender
+    events := events }
 
 /-- Lookup variable in state -/
 def YulState.getVar (s : YulState) (name : String) : Option Nat :=
@@ -258,36 +261,41 @@ structure YulResult where
   returnValue : Option Nat
   finalStorage : Nat → Nat
   finalMappings : Nat → Nat → Nat
+  events : List (List Nat)
 
 /-- Execute a Yul runtime program with selector-aware calldata -/
 noncomputable def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTransaction)
-    (storage : Nat → Nat) : YulResult :=
-  let initialState := YulState.initial tx storage
+    (storage : Nat → Nat) (events : List (List Nat) := []) : YulResult :=
+  let initialState := YulState.initial tx storage events
   match execYulStmts initialState runtimeCode with
   | .continue s =>
       { success := true
         returnValue := s.returnValue
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .return v s =>
       { success := true
         returnValue := some v
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .stop s =>
       { success := true
         returnValue := none
         finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage }
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
   | .revert _ =>
       { success := false
         returnValue := none
         finalStorage := storage
-        finalMappings := Compiler.Proofs.storageAsMappings storage }
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialState.events }
 
 /-- Interpret a Yul object by executing its runtime code. -/
 noncomputable def interpretYulObject (obj : YulObject) (tx : YulTransaction)
-    (storage : Nat → Nat) : YulResult :=
-  interpretYulRuntime obj.runtimeCode tx storage
+    (storage : Nat → Nat) (events : List (List Nat) := []) : YulResult :=
+  interpretYulRuntime obj.runtimeCode tx storage events
 
 end Compiler.Proofs.YulGeneration
