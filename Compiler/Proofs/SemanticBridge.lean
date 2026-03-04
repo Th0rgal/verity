@@ -179,6 +179,7 @@ theorem simpleStorage_store_semantic_bridge
     simpa [Verity.Examples.storedData] using hmod.symm
   · simp [Verity.Examples.storedData, hx]
 
+set_option maxHeartbeats 1200000000 in
 theorem simpleStorage_retrieve_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.retrieve) { state with sender := sender }
@@ -193,7 +194,12 @@ theorem simpleStorage_retrieve_semantic_bridge
         ∧
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
-    := by sorry
+    := by
+  simp [Contract.run, Verity.Examples.retrieve, Verity.Examples.storedData,
+    mkIRTransaction, mkIRState, interpretIR, simpleStorageIRContract,
+    execIRFunction, execIRStmts, execIRStmt,
+    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+    encodeStorage, encodeEvents]
 
 /-! ## Target Theorems: Counter -/
 

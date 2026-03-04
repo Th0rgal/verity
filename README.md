@@ -137,7 +137,7 @@ FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-425 theorems across 11 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 17 `sorry` placeholders (18 in cross-layer bridge proofs, 1 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
+425 theorems across 11 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 16 `sorry` placeholders (16 in cross-layer bridge proofs, 0 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
 
 ---
 
@@ -191,7 +191,7 @@ Every claim is enforced by CI on every commit:
 | Claim | Value | Verify locally |
 |-------|-------|----------------|
 | Tracked theorems | 425 across 11 categories | `make verify` |
-| Incomplete proofs (`sorry`) | 19 (18 bridge + 1 Yul) | `python3 scripts/check_lean_hygiene.py` |
+| Incomplete proofs (`sorry`) | 16 (16 bridge + 0 Yul) | `python3 scripts/check_lean_hygiene.py` |
 | Project-specific axioms | 1 ([documented](AXIOMS.md)) | `make axiom-report` |
 | Foundry runtime tests | 472 across 37 suites | `make test-foundry` |
 | Property test coverage | 250/425 (59%) | `python3 scripts/check_property_coverage.py` |
