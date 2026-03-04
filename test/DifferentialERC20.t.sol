@@ -72,7 +72,9 @@ contract ERC20DiffModel {
     }
 }
 
-contract DifferentialERC20 is DiffTestConfig, DifferentialTestBase {
+import "./yul/YulTestBase.sol";
+
+contract DifferentialERC20 is YulTestBase, DiffTestConfig, DifferentialTestBase {
     ERC20DiffModel private token;
 
     mapping(address => uint256) private edslBalances; // slot 2
@@ -459,5 +461,264 @@ contract DifferentialERC20 is DiffTestConfig, DifferentialTestBase {
         assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 40));
         // TransferFrom 1 more — should revert (allowance is now 0)
         assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 1));
+    }
+
+    // ---- Randomized multi-seed differential tests ----
+
+    address[] private _actors;
+
+    function _initActors() internal {
+        _actors = new address[](5);
+        _actors[0] = address(this); // Owner / deployer
+        _actors[1] = address(0xA11CE);
+        _actors[2] = address(0xB0B);
+        _actors[3] = address(0xCA501);
+        _actors[4] = address(0xDABE);
+    }
+
+    function _buildMapStateAll() internal view returns (string memory) {
+        string memory out = "";
+        bool first = true;
+        for (uint256 i = 0; i < _actors.length; i++) {
+            address k = _actors[i];
+            if (edslBalances[k] == 0) continue;
+            if (!first) out = string.concat(out, ",");
+            out = string.concat(out, "2:", _toLowerCase(vm.toString(k)), ":", vm.toString(edslBalances[k]));
+            first = false;
+        }
+        return out;
+    }
+
+    function _buildMap2StateAll() internal view returns (string memory) {
+        string memory out = "";
+        bool first = true;
+        for (uint256 i = 0; i < _actors.length; i++) {
+            for (uint256 j = 0; j < _actors.length; j++) {
+                uint256 val = edslAllowances[_actors[i]][_actors[j]];
+                if (val == 0) continue;
+                if (!first) out = string.concat(out, ",");
+                out = string.concat(
+                    out,
+                    "3:",
+                    _toLowerCase(vm.toString(_actors[i])),
+                    ":",
+                    _toLowerCase(vm.toString(_actors[j])),
+                    ":",
+                    vm.toString(val)
+                );
+                first = false;
+            }
+        }
+        return out;
+    }
+
+    function _executeRandomDifferentialTest(
+        string memory functionName,
+        address sender,
+        address arg0,
+        address arg1,
+        uint256 arg2
+    ) internal returns (bool) {
+        vm.prank(sender);
+
+        bool evmSuccess;
+        bytes memory evmReturnData;
+
+        bytes32 functionSig = keccak256(bytes(functionName));
+        if (functionSig == keccak256(bytes("mint"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("mint(address,uint256)", arg0, arg2));
+        } else if (functionSig == keccak256(bytes("transfer"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("transfer(address,uint256)", arg0, arg2));
+        } else if (functionSig == keccak256(bytes("approve"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("approve(address,uint256)", arg0, arg2));
+        } else if (functionSig == keccak256(bytes("transferFrom"))) {
+            (evmSuccess, evmReturnData) = address(token).call(
+                abi.encodeWithSignature("transferFrom(address,address,uint256)", arg0, arg1, arg2)
+            );
+        } else if (functionSig == keccak256(bytes("balanceOf"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("balanceOf(address)", arg0));
+        } else if (functionSig == keccak256(bytes("allowanceOf"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("allowanceOf(address,address)", arg0, arg1));
+        } else if (functionSig == keccak256(bytes("totalSupply"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("totalSupply()"));
+        } else if (functionSig == keccak256(bytes("owner"))) {
+            (evmSuccess, evmReturnData) = address(token).call(abi.encodeWithSignature("owner()"));
+        } else {
+            revert("Unknown function");
+        }
+
+        uint256 evmReturnValue = 0;
+        address evmReturnAddress = address(0);
+        if (evmSuccess && evmReturnData.length > 0) {
+            if (functionSig == keccak256(bytes("owner"))) {
+                evmReturnAddress = abi.decode(evmReturnData, (address));
+            } else {
+                evmReturnValue = abi.decode(evmReturnData, (uint256));
+            }
+        }
+
+        string memory edslResult = _runInterpreter(
+            functionName,
+            sender,
+            arg0,
+            arg1,
+            arg2,
+            _buildMapStateAll(),
+            _buildMap2StateAll()
+        );
+        bool edslSuccess = contains(edslResult, "\"success\":true");
+
+        if (evmSuccess != edslSuccess) {
+            testsFailed++;
+            return false;
+        }
+
+        if (!contains(edslResult, "\"returnValue\":")) {
+            testsFailed++;
+            return false;
+        }
+
+        uint256 edslReturnValue = _extractReturnValue(edslResult);
+        if (functionSig == keccak256(bytes("owner"))) {
+            if (uint256(uint160(evmReturnAddress)) != edslReturnValue) {
+                testsFailed++;
+                return false;
+            }
+        } else if (
+            functionSig == keccak256(bytes("balanceOf"))
+                || functionSig == keccak256(bytes("allowanceOf"))
+                || functionSig == keccak256(bytes("totalSupply"))
+        ) {
+            if (evmReturnValue != edslReturnValue) {
+                testsFailed++;
+                return false;
+            }
+        }
+
+        _updateStateFromEDSL(edslResult, sender, arg0, arg1);
+
+        if (token.totalSupply() != edslStorage[1]) {
+            testsFailed++;
+            return false;
+        }
+        if (token.owner() != edslStorageAddr[0]) {
+            testsFailed++;
+            return false;
+        }
+        for (uint256 i = 0; i < _actors.length; i++) {
+            if (token.balanceOf(_actors[i]) != edslBalances[_actors[i]]) {
+                testsFailed++;
+                return false;
+            }
+        }
+        for (uint256 i = 0; i < _actors.length; i++) {
+            for (uint256 j = 0; j < _actors.length; j++) {
+                if (token.allowanceOf(_actors[i], _actors[j]) != edslAllowances[_actors[i]][_actors[j]]) {
+                    testsFailed++;
+                    return false;
+                }
+            }
+        }
+
+        testsPassed++;
+        return true;
+    }
+
+    function _randomTransaction(uint256 seed)
+        internal
+        view
+        returns (
+            string memory funcName,
+            address sender,
+            address arg0,
+            address arg1,
+            uint256 arg2
+        )
+    {
+        uint256 rand1 = _lcg(seed);
+        uint256 rand2 = _lcg(rand1);
+        uint256 rand3 = _lcg(rand2);
+        uint256 rand4 = _lcg(rand3);
+        uint256 rand5 = _lcg(rand4);
+
+        // Choose function (25% mint, 20% transfer, 15% approve, 20% transferFrom, 20% views)
+        uint256 funcChoice = rand1 % 100;
+        if (funcChoice < 25) {
+            funcName = "mint";
+        } else if (funcChoice < 45) {
+            funcName = "transfer";
+        } else if (funcChoice < 60) {
+            funcName = "approve";
+        } else if (funcChoice < 80) {
+            funcName = "transferFrom";
+        } else if (funcChoice < 90) {
+            funcName = "balanceOf";
+        } else if (funcChoice < 95) {
+            funcName = "allowanceOf";
+        } else {
+            funcName = "totalSupply";
+        }
+
+        // Sender: 50% owner (for mint), 50% random actor
+        uint256 senderChoice = rand2 % 100;
+        if (senderChoice < 50) {
+            sender = edslStorageAddr[0]; // Current owner
+        } else {
+            sender = _actors[rand2 % _actors.length];
+        }
+
+        arg0 = _actors[rand3 % _actors.length];
+        arg1 = _actors[rand4 % _actors.length];
+        arg2 = _coerceRandomUint256(rand5, 1000);
+    }
+
+    function testDifferential_Random100() public {
+        _initActors();
+
+        (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
+        uint256 seed = _diffRandomSeed("ERC20");
+
+        for (uint256 i = 0; i < count; i++) {
+            (
+                string memory funcName,
+                address sender,
+                address arg0,
+                address arg1,
+                uint256 arg2
+            ) = _randomTransaction(seed + startIndex + i);
+
+            bool success = _executeRandomDifferentialTest(funcName, sender, arg0, arg1, arg2);
+            _assertRandomSuccess(success, startIndex + i);
+        }
+
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
+    }
+
+    function testDifferential_Random10000() public {
+        _initActors();
+
+        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
+        uint256 seed = _diffRandomSeed("ERC20");
+
+        vm.pauseGasMetering();
+        for (uint256 i = 0; i < count; i++) {
+            (
+                string memory funcName,
+                address sender,
+                address arg0,
+                address arg1,
+                uint256 arg2
+            ) = _randomTransaction(seed + startIndex + i);
+
+            bool success = _executeRandomDifferentialTest(funcName, sender, arg0, arg1, arg2);
+            _assertRandomSuccess(success, startIndex + i);
+        }
+        vm.resumeGasMetering();
+
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
     }
 }
