@@ -92,16 +92,33 @@ test-python: ## Run Python unit tests
 test-foundry: ## Run Foundry differential tests (requires solc + forge + generated Yul)
 	FOUNDRY_PROFILE=difftest forge test
 
-check: ## Run local CI-equivalent validation subset (no Lean build)
-	@echo "Running local CI-equivalent validation subset..."
+check: ## Run local CI-equivalent checks job (no Lean build, no solc)
+	@echo "Running CI-equivalent checks job..."
 	python3 scripts/check_property_manifest.py
 	python3 scripts/check_property_coverage.py
 	python3 scripts/check_contract_structure.py
+	python3 scripts/check_case_insensitive_path_conflicts.py
 	python3 scripts/check_axiom_locations.py
+	python3 scripts/generate_verification_status.py --check
 	python3 scripts/check_doc_counts.py
-	python3 scripts/check_lean_hygiene.py
+	python3 scripts/check_interop_matrix_sync.py
 	python3 scripts/check_verify_sync.py
+	python3 scripts/check_solc_pin.py
+	python3 scripts/check_property_manifest_sync.py
+	python3 scripts/check_macro_property_test_generation.py --check
+	python3 scripts/check_storage_layout.py
+	python3 scripts/check_manual_spec_quarantine.py
+	python3 scripts/check_spec_proof_migration_boundary.py
+	python3 scripts/check_lean_hygiene.py
+	python3 scripts/check_gas_model_coverage.py
+	python3 scripts/check_mapping_slot_boundary.py
+	python3 scripts/check_yul_builtin_boundary.py
+	python3 scripts/check_builtin_list_sync.py
+	python3 scripts/check_evmyullean_capability_boundary.py
+	python3 scripts/generate_evmyullean_capability_report.py --check
+	python3 scripts/generate_evmyullean_adapter_report.py --check
 	python3 scripts/generate_print_axioms.py --check
+	python3 scripts/check_proof_length.py
 	python3 scripts/check_issue_1060_integrity.py
 	@echo "All checks passed."
 
