@@ -15,7 +15,7 @@ import Compiler.Constants
 import Verity.Examples.MacroContracts.Tokens
 import Verity.Examples.MacroContracts.Core
 import Verity.Examples.MacroContracts.Compat.ERC721
-import Verity.Examples.CryptoHash
+import Verity.Examples.MacroContracts.Compat.CryptoHash
 import Compiler.DiffTestTypes
 import Compiler.Hex
 
@@ -421,6 +421,14 @@ abbrev totalSupply : StorageSlot Uint256 := Verity.Examples.MacroContracts.Compa
 abbrev nextTokenId : StorageSlot Uint256 := Verity.Examples.MacroContracts.Compat.ERC721.nextTokenId
 
 end ERC721
+
+namespace CryptoHash
+
+abbrev storeHashTwo := Verity.Examples.MacroContracts.Compat.CryptoHash.storeHashTwo
+abbrev storeHashThree := Verity.Examples.MacroContracts.Compat.CryptoHash.storeHashThree
+abbrev getLastHash := Verity.Examples.MacroContracts.Compat.CryptoHash.getLastHash
+
+end CryptoHash
 end Compat
 
 /-!
@@ -647,13 +655,13 @@ def interpretERC721 (tx : Transaction) (state : ContractState) : ExecutionResult
 def interpretCryptoHash (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case2 "storeHashTwo" tx (fun a b =>
-      runUnit (CryptoHash.storeHashTwo a b) state [0] [] []
+      runUnit (Compat.CryptoHash.storeHashTwo a b) state [0] [] []
     ),
     case3 "storeHashThree" tx (fun a b c =>
-      runUnit (CryptoHash.storeHashThree a b c) state [0] [] []
+      runUnit (Compat.CryptoHash.storeHashThree a b c) state [0] [] []
     ),
     case0 "getLastHash" tx (fun _ =>
-      runUint CryptoHash.getLastHash state [0] [] []
+      runUint Compat.CryptoHash.getLastHash state [0] [] []
     )
   ]
 
