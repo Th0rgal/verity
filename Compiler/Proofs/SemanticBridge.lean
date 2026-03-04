@@ -31,7 +31,6 @@ import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.EndToEnd
 import Compiler.Specs
 import Verity.Core
-import Verity.Examples.SimpleStorage
 import Verity.Examples.MacroContracts.Core
 import Verity.Examples.Counter
 import Verity.Examples.Owned
@@ -131,7 +130,8 @@ theorem spec_to_ir_preserves_semantics
 set_option maxHeartbeats 1200000000 in
 theorem simpleStorage_store_semantic_bridge
     (state : ContractState) (sender : Address) (value : Uint256) :
-    let edslResult := Contract.run (Verity.Examples.store value) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.SimpleStorage.store value)
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0x6057361d [value.val]
     let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
     match edslResult with
@@ -143,7 +143,7 @@ theorem simpleStorage_store_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Verity.Examples.store, setStorage]
+  simp [Contract.run, Verity.Examples.MacroContracts.SimpleStorage.store, setStorage]
   simp [mkIRTransaction, mkIRState, encodeStorage,
     simpleStorageIRContract, interpretIR, execIRFunction,
     IRState.setVar, IRState.getVar, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
@@ -176,13 +176,14 @@ theorem simpleStorage_store_semantic_bridge
     have hmod : value.val % Compiler.Constants.evmModulus = value.val := by
       simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using
         (Nat.mod_eq_of_lt value.isLt)
-    simpa [Verity.Examples.storedData] using hmod.symm
-  · simp [Verity.Examples.storedData, hx]
+    simpa [Verity.Examples.MacroContracts.SimpleStorage.storedData] using hmod.symm
+  · simp [Verity.Examples.MacroContracts.SimpleStorage.storedData, hx]
 
 set_option maxHeartbeats 1200000000 in
 theorem simpleStorage_retrieve_semantic_bridge
     (state : ContractState) (sender : Address) :
-    let edslResult := Contract.run (Verity.Examples.retrieve) { state with sender := sender }
+    let edslResult := Contract.run Verity.Examples.MacroContracts.SimpleStorage.retrieve
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0x2e64cec1 []
     let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
     match edslResult with
@@ -195,7 +196,8 @@ theorem simpleStorage_retrieve_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Verity.Examples.retrieve, Verity.Examples.storedData,
+  simp [Contract.run, Verity.Examples.MacroContracts.SimpleStorage.retrieve,
+    Verity.Examples.MacroContracts.SimpleStorage.storedData,
     mkIRTransaction, mkIRState, interpretIR, simpleStorageIRContract,
     execIRFunction, execIRStmts, execIRStmt,
     evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
@@ -441,7 +443,8 @@ theorem ownedCounter_transferOwnership_semantic_bridge
 
 theorem simpleStorage_store_edsl_to_yul
     (state : ContractState) (sender : Address) (value : Uint256) :
-    let edslResult := Contract.run (Verity.Examples.store value) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.SimpleStorage.store value)
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0x6057361d [value.val]
     let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
     match edslResult with
@@ -458,7 +461,8 @@ theorem simpleStorage_store_edsl_to_yul
 
 theorem simpleStorage_retrieve_edsl_to_yul
     (state : ContractState) (sender : Address) :
-    let edslResult := Contract.run (Verity.Examples.retrieve) { state with sender := sender }
+    let edslResult := Contract.run Verity.Examples.MacroContracts.SimpleStorage.retrieve
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0x2e64cec1 []
     let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
     match edslResult with

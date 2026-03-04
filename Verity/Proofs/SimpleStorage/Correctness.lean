@@ -13,7 +13,7 @@ import Verity.Proofs.Stdlib.Automation
 namespace Verity.Proofs.SimpleStorage.Correctness
 
 open Verity
-open Verity.Examples
+open Verity.Examples.MacroContracts.SimpleStorage
 open Verity.Specs.SimpleStorage
 open Verity.Proofs.SimpleStorage
 open Verity.Proofs.Stdlib.Automation (wf_of_state_eq)
@@ -39,11 +39,11 @@ Prove that store satisfies each invariant from Invariants.lean individually.
 -/
 
 /-- store preserves storage isolation: slot 0 update doesn't affect other slots. -/
-theorem store_preserves_storage_isolated (s : ContractState) (value : Uint256) (slot : Nat) :
+theorem store_preserves_storage_isolated (s : ContractState) (value : Uint256) (slotIdx : Nat) :
   let s' := ((store value).run s).snd
-  storage_isolated s s' slot := by
+  storage_isolated s s' slotIdx := by
   simp [storage_isolated]; intro h_ne
-  have h := store_meets_spec s value; simp [store_spec] at h; exact h.2.1 slot h_ne
+  have h := store_meets_spec s value; simp [store_spec] at h; exact h.2.1 slotIdx h_ne
 
 /-- store preserves address storage. -/
 theorem store_preserves_addr_storage (s : ContractState) (value : Uint256) :

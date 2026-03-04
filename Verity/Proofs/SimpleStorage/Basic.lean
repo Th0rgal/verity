@@ -6,65 +6,65 @@
   Status: Complete — all 13 proofs proven with zero axioms and zero sorry.
 -/
 
-import Verity.Examples.SimpleStorage
+import Verity.Examples.MacroContracts.Core
 import Verity.Specs.SimpleStorage.Spec
 import Verity.Specs.SimpleStorage.Invariants
 
 namespace Verity.Proofs.SimpleStorage
 
 open Verity
-open Verity.Examples
+open Verity.Examples.MacroContracts.SimpleStorage
 open Verity.Specs.SimpleStorage
 
 -- Lemma: setStorage updates the correct slot
 theorem setStorage_updates_slot (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := storedData
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storage 0 = value := by
   -- Unfold definitions
-  simp
+  simp [storedData]
 
 -- Lemma: getStorage reads from the correct slot
 theorem getStorage_reads_slot (s : ContractState) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let result := ((getStorage slot).run s).fst
+  let slotIdx : StorageSlot Uint256 := storedData
+  let result := ((getStorage slotIdx).run s).fst
   result = s.storage 0 := by
-  simp
+  simp [storedData]
 
 -- Lemma: setStorage preserves other slots
 theorem setStorage_preserves_other_slots (s : ContractState) (value : Uint256) (n : Nat)
   (h : n ≠ 0) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := storedData
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storage n = s.storage n := by
-  simp [h]
+  simp [storedData, h]
 
 -- Lemma: setStorage preserves context (sender, thisAddress)
 theorem setStorage_preserves_sender (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := storedData
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.sender = s.sender := by
-  simp
+  simp [storedData]
 
 theorem setStorage_preserves_address (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := storedData
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.thisAddress = s.thisAddress := by
-  simp
+  simp [storedData]
 
 -- Lemma: setStorage preserves address storage
 theorem setStorage_preserves_addr_storage (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := storedData
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storageAddr = s.storageAddr := by
-  simp
+  simp [storedData]
 
 -- Lemma: setStorage preserves mapping storage
 theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
-  let slot : StorageSlot Uint256 := ⟨0⟩
-  let s' := ((setStorage slot value).run s).snd
+  let slotIdx : StorageSlot Uint256 := storedData
+  let s' := ((setStorage slotIdx value).run s).snd
   s'.storageMap = s.storageMap := by
-  simp
+  simp [storedData]
 
 -- Main theorem: store meets its specification
 theorem store_meets_spec (s : ContractState) (value : Uint256) :
@@ -72,14 +72,15 @@ theorem store_meets_spec (s : ContractState) (value : Uint256) :
   store_spec value s s' := by
   simp [store, storedData, store_spec, Specs.sameAddrMapContext,
     Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
-  intro slot h_neq
+  intro slotIdx h_neq
   simp [h_neq]
 
 -- Main theorem: retrieve meets its specification
 theorem retrieve_meets_spec (s : ContractState) :
   let result := ((retrieve).run s).fst
   retrieve_spec result s := by
-  simp [retrieve, storedData, retrieve_spec]
+  simp [retrieve, storedData, retrieve_spec, getStorage, Contract.run,
+    Verity.bind, Bind.bind, Verity.pure, Pure.pure]
 
 -- Main theorem: store then retrieve returns the stored value
 -- This is the key correctness property!
@@ -109,7 +110,8 @@ theorem store_preserves_wellformedness (s : ContractState) (value : Uint256)
 theorem retrieve_preserves_state (s : ContractState) :
   let s' := ((retrieve).run s).snd
   s' = s := by
-  simp [retrieve, storedData]
+  simp [retrieve, storedData, getStorage, Contract.run,
+    Verity.bind, Bind.bind, Verity.pure, Pure.pure]
 
 -- Theorem: retrieve is idempotent (running twice is the same as once)
 theorem retrieve_twice_idempotent (s : ContractState) :
