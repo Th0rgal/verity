@@ -155,4 +155,20 @@ def evalBuiltinCallWithBackend
     evalBuiltinCall storage sender selector calldata "caller" [] = some sender := by
   simp [evalBuiltinCall]
 
+@[simp] theorem calldataloadWord_offset4
+    (selector : Nat) (calldata : List Nat) :
+    calldataloadWord selector calldata 4 = calldata.getD 0 0 % evmModulus := by
+  simp [calldataloadWord]
+
+@[simp] theorem evalBuiltinCall_calldataload_offset4_single
+    (storage : Nat → Nat) (sender selector value : Nat) :
+    evalBuiltinCall storage sender selector [value] "calldataload" [4] = some (value % evmModulus) := by
+  simp [evalBuiltinCall, calldataloadWord]
+
+@[simp] theorem evalBuiltinCallWithBackend_calldataload_offset4_single
+    (storage : Nat → Nat) (sender selector value : Nat) :
+    evalBuiltinCallWithBackend defaultBuiltinBackend storage sender selector [value] "calldataload" [4] =
+      some (value % evmModulus) := by
+  simp [evalBuiltinCallWithBackend]
+
 end Compiler.Proofs.YulGeneration
