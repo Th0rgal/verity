@@ -4362,6 +4362,12 @@ def execCompiledRequireFamilyClausesThenTail
 
 /-- Generic sequencing semantic-preservation theorem over the supported tail
 family after unified `require` guard-family clause lists. -/
+syntax "simpa_require_family_tail" " using " term : tactic
+
+macro_rules
+  | `(tactic| simpa_require_family_tail using $h) =>
+      `(tactic| simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail] using $h)
+
 theorem compile_require_family_clauses_then_tail_semantics
     (fields : List Field) (init : TExecState)
     (clauses : List RequireLiteralGuardFamilyClause)
@@ -4370,162 +4376,126 @@ theorem compile_require_family_clauses_then_tail_semantics
       execSourceRequireFamilyClausesThenTail fields init clauses tail := by
   cases tail with
   | noOp =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_noop_semantics fields init clauses
+      simpa_require_family_tail using compile_require_family_clauses_then_noop_semantics fields init clauses
   | setStorageLiteral fieldName slot writeVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_setStorage_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_setStorage_literal_semantics
           fields fieldName slot init clauses writeVal hfind
   | iteEqSetStorageLiterals fieldName slot n m thenVal elseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_ite_eq_setStorage_literals_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_ite_eq_setStorage_literals_semantics
           fields fieldName slot init clauses n m thenVal elseVal hfind
   | iteEqSetStorageThenReturnLiteral fieldName slot n m thenVal elseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics
           fields fieldName slot init clauses n m thenVal elseVal hfind
   | iteEqReturnThenSetStorageLiteral fieldName slot n m thenVal elseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics
           fields fieldName slot init clauses n m thenVal elseVal hfind
   | iteEqReturnLiterals n m thenVal elseVal =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_ite_eq_return_literals_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_ite_eq_return_literals_semantics
           fields init clauses n m thenVal elseVal
   | iteEqThenIteEqReturnLiterals n m p q thenVal elseVal outerElseVal =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics
           fields init clauses n m p q thenVal elseVal outerElseVal
   | iteEqThenIteEqSetStorageLiteralsThenReturnLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | iteEqThenIteEqReturnLiteralsThenSetStorageLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | iteEqThenIteEqReturnLiteralsThenSetStorageLiteralThenReturnLiteral
       fieldName slot n m p q thenVal elseVal outerElseWriteVal outerElseRetVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseWriteVal outerElseRetVal hfind
   | iteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | iteEqThenIteEqSetStorageThenReturnLiteralThenReturnLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_then_return_literal_then_return_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | iteEqThenIteEqSetStorageThenReturnLiteralThenSetStorageLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_then_return_literal_then_setStorage_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | iteEqThenIteEqReturnThenSetStorageLiteralThenSetStorageLiteral
       fieldName slot n m p q thenVal elseVal outerElseVal hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using
+      simpa_require_family_tail using
           compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorage_literal_semantics
             fields fieldName slot init clauses n m p q thenVal elseVal outerElseVal hfind
   | returnLiteral retVal =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_return_literal_semantics fields init clauses retVal
+      simpa_require_family_tail using compile_require_family_clauses_then_return_literal_semantics fields init clauses retVal
   | letReturnLocalLiteral tmp retVal =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_return_local_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_return_local_literal_semantics
           fields tmp init clauses retVal
   | letSetStorageLocalLiteral fieldName tmp slot n hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_setStorage_local_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_setStorage_local_literal_semantics
           fields fieldName tmp slot init clauses n hfind
   | letAssignSetStorageLocalLiteral fieldName tmp slot n m hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics
           fields fieldName tmp slot init clauses n m hfind
   | letAssignAddSetStorageLocalLiteral fieldName tmp slot n m hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics
           fields fieldName tmp slot init clauses n m hfind
   | letAssignSubSetStorageLocalLiteral fieldName tmp slot n m hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics
           fields fieldName tmp slot init clauses n m hfind
   | letAssignMulSetStorageLocalLiteral fieldName tmp slot n m hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics
           fields fieldName tmp slot init clauses n m hfind
   | letStorageSetStorageAddLocalStop fieldName tmp slot m hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_storage_setStorage_add_local_stop_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_storage_setStorage_add_local_stop_semantics
           fields fieldName tmp slot init clauses m hfind
   | letStorageSetStorageSubLocalStop fieldName tmp slot m hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_storage_setStorage_sub_local_stop_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_storage_setStorage_sub_local_stop_semantics
           fields fieldName tmp slot init clauses m hfind
   | letStorageReturnLocal fieldName tmp slot hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_storage_return_local_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_storage_return_local_semantics
           fields fieldName tmp slot init clauses hfind
   | returnStorage fieldName slot hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_return_storage_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_return_storage_semantics
           fields fieldName slot init clauses hfind
   | returnStorageAddr fieldName slot hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_return_storage_addr_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_return_storage_addr_semantics
           fields fieldName slot init clauses hfind
   | requireCallerEqStorageAddrSetStorageAddStop ownerField countField msg ownerSlot countSlot n hOwner hCount =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_add_stop_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_add_stop_semantics
           fields ownerField countField ownerSlot countSlot init clauses n msg hOwner hCount
   | requireCallerEqStorageAddrSetStorageSubStop ownerField countField msg ownerSlot countSlot n hOwner hCount =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
           fields ownerField countField ownerSlot countSlot init clauses n msg hOwner hCount
   | returnMappingCaller fieldName slot hSlot =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_return_mapping_caller_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_return_mapping_caller_semantics
           fields fieldName slot init clauses hSlot
   | letStorageAddrReturnLocal fieldName tmp slot hfind =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_storage_addr_return_local_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_storage_addr_return_local_semantics
           fields fieldName tmp slot init clauses hfind
   | letMappingParamReturnLocal fieldName paramName tmp slot hSlot =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_mapping_param_return_local_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_mapping_param_return_local_semantics
           fields fieldName paramName tmp slot init clauses hSlot
   | letMapping2ParamsReturnLocal fieldName p1 p2 tmp slot hSlot hp =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_mapping2_params_return_local_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_mapping2_params_return_local_semantics
           fields fieldName p1 p2 tmp slot init clauses hSlot hp
   | letCallerSetMapping2Stop fieldName senderVar p1 p2 slot hSlot h1 h2 h3 h4 h5 h6 =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_caller_setMapping2_stop_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_caller_setMapping2_stop_semantics
           fields fieldName senderVar p1 p2 slot init clauses hSlot h1 h2 h3 h4 h5 h6
   | letMappingUintParamReturnLocal fieldName paramName tmp slot hSlot =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_let_mappingUint_param_return_local_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_let_mappingUint_param_return_local_semantics
           fields fieldName paramName tmp slot init clauses hSlot
   | setMappingUintParamsStop fieldName p1 p2 slot hSlot hp =>
-      simpa [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail]
-        using compile_require_family_clauses_then_setMappingUint_params_stop_semantics
+      simpa_require_family_tail using compile_require_family_clauses_then_setMappingUint_params_stop_semantics
           fields fieldName p1 p2 slot init clauses hSlot hp
   -- Morpho admin tails
   | letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
