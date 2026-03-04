@@ -137,7 +137,7 @@ FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-425 theorems across 11 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 19 `sorry` placeholders (18 in cross-layer bridge proofs, 1 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
+425 theorems across 11 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 18 `sorry` placeholders (18 in cross-layer bridge proofs, 1 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
 
 ---
 

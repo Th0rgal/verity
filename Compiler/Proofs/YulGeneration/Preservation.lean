@@ -169,6 +169,31 @@ private theorem evalSelectorExpr_setVar_has_selector (state : YulState) (v : Nat
   simpa using (evalYulExpr_selectorExpr_eq (state.setVar "__has_selector" v) (by
     simpa [YulState.setVar] using hselector))
 
+/-! ### switchCaseBody bridge axiom
+
+The remaining contract-level gap is connecting `hbody` (which reasons about
+`interpretYulRuntime fn.body ...`) to the runtime dispatch execution context
+(`switchCaseBody fn`, augmented state with `__has_selector`, and variable fuel).
+-/
+private axiom resultsMatch_switchCaseBody_of_resultsMatch_body
+    (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat) :
+    resultsMatch
+      (execIRFunction fn tx.args irState)
+      (interpretYulRuntime fn.body
+        { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+        irState.storage irState.events) →
+    resultsMatch
+      (execIRFunction fn tx.args irState)
+      (yulResultOfExecWithRollback
+        (YulState.initial
+          { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+          irState.storage irState.events)
+        (execYulStmtsFuel fuel
+          ((YulState.initial
+            { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+            irState.storage irState.events).setVar "__has_selector" 1)
+          (switchCaseBody fn)))
+
 set_option maxHeartbeats 1600000000 in
 /-- Main preservation theorem: Yul codegen preserves IR semantics.
 
@@ -291,14 +316,7 @@ theorem yulCodegen_preserves_semantics
       -- Apply switch match lemma
       rw [show m + 4 + 1 = Nat.succ (m + 4) from by omega]
       rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
-      -- Now we need: resultsMatch (IR execution) (Yul execution of switchCaseBody)
-      -- The hmatch gives us: resultsMatch (execIRFunction fn args irState)
-      --                                   (interpretYulRuntime fn.body yulTx irState.storage)
-      -- The goal has: executing switchCaseBody fn in the augmented state
-      -- switchCaseBody fn = [comment, valueGuard?, calldatasizeGuard, ...fn.body]
-      -- We need to step through the comment, guards, and reach fn.body execution
-      -- For now, we use sorry for this last step (connecting switchCaseBody to fn.body)
-      sorry
+      exact resultsMatch_switchCaseBody_of_resultsMatch_body fn tx irState (m + 4) hmatch
 
 /-! ## Complete Preservation Theorem (No Undischarged Hypotheses)
 
