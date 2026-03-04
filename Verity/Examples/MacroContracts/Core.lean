@@ -141,8 +141,9 @@ verity_contract Ledger where
       pure ()
     else
       let recipientBalance ← getMapping balances to
+      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
       setMapping balances sender (sub senderBalance amount)
-      setMapping balances to (add recipientBalance amount)
+      setMapping balances to newRecipientBalance
 
   function getBalance (addr : Address) : Uint256 := do
     let currentBalance ← getMapping balances addr

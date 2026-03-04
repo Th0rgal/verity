@@ -5,12 +5,12 @@
 import Verity.Specs.Common
 import Verity.Specs.Common.Sum
 import Verity.EVM.Uint256
-import Verity.Examples.Ledger
+import Verity.Examples.MacroContracts.Core
 
 namespace Verity.Specs.Ledger
 
 open Verity
-open Verity.Examples.Ledger
+open Verity.Examples.MacroContracts.Ledger
 open Verity.EVM.Uint256
 open Verity.Specs.Common (sumBalances balancesFinite)
 

@@ -17,7 +17,7 @@ import Verity.Proofs.Stdlib.Automation
 namespace Verity.Proofs.Ledger
 
 open Verity
-open Verity.Examples.Ledger
+open Verity.Examples.MacroContracts.Ledger
 open Verity.Specs.Ledger
 open Verity.Stdlib.Math (safeAdd requireSomeUint MAX_UINT256)
 open Verity.Proofs.Stdlib.Math (safeAdd_some safeAdd_none)
@@ -28,35 +28,39 @@ open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne uint256_ge_val_le)
 theorem getBalance_meets_spec (s : ContractState) (addr : Address) :
   let result := ((getBalance addr).run s).fst
   getBalance_spec addr result s := by
-  simp [getBalance, getMapping, balances, getBalance_spec, Contract.run, ContractResult.fst]
+  unfold getBalance
+  simp [getBalance_spec, Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run, getMapping,
+    balances]
 
 theorem getBalance_returns_balance (s : ContractState) (addr : Address) :
   ((getBalance addr).run s).fst = s.storageMap 0 addr := by
-  simp [getBalance, getMapping, balances, Contract.run, ContractResult.fst]
+  unfold getBalance
+  simp [Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run, getMapping, balances]
 
 theorem getBalance_preserves_state (s : ContractState) (addr : Address) :
   ((getBalance addr).run s).snd = s := by
-  simp [getBalance, getMapping, balances, Contract.run, ContractResult.snd]
+  unfold getBalance
+  simp [Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run, getMapping, balances]
 
 /-! ## Deposit Correctness -/
 
 /-- Helper: unfold deposit computation -/
 private theorem deposit_unfold (s : ContractState) (amount : Uint256) :
   (deposit amount).run s = ContractResult.success ()
-    { storage := s.storage,
+    { «storage» := s.storage,
       storageAddr := s.storageAddr,
-      storageMap := fun slot addr =>
-        if (slot == 0 && addr == s.sender) = true then EVM.Uint256.add (s.storageMap 0 s.sender) amount
-        else s.storageMap slot addr,
+      storageMap := fun slotIdx addr =>
+        if (slotIdx == 0 && addr == s.sender) = true then EVM.Uint256.add (s.storageMap 0 s.sender) amount
+        else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
       storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := fun slot =>
-        if slot == 0 then (s.knownAddresses slot).insert s.sender
-        else s.knownAddresses slot,
+      knownAddresses := fun slotIdx =>
+        if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
+        else s.knownAddresses slotIdx,
       events := s.events } := by
   simp only [deposit, msgSender, getMapping, setMapping, balances,
     Verity.bind, Bind.bind, Contract.run]
@@ -70,7 +74,7 @@ theorem deposit_meets_spec (s : ContractState) (amount : Uint256) :
   · refine ⟨?_, ?_⟩
     · intro addr h_ne
       simp [ContractResult.snd, beq_iff_eq, h_ne]
-    · intro slot h_ne addr
+    · intro slotIdx h_ne addr
       simp [ContractResult.snd, beq_iff_eq, h_ne]
   · rfl
   · rfl
@@ -93,20 +97,20 @@ theorem deposit_preserves_other_balances (s : ContractState) (amount : Uint256)
 private theorem withdraw_unfold (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
   (withdraw amount).run s = ContractResult.success ()
-    { storage := s.storage,
+    { «storage» := s.storage,
       storageAddr := s.storageAddr,
-      storageMap := fun slot addr =>
-        if (slot == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
-        else s.storageMap slot addr,
+      storageMap := fun slotIdx addr =>
+        if (slotIdx == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
+        else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
       storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := fun slot =>
-        if slot == 0 then (s.knownAddresses slot).insert s.sender
-        else s.knownAddresses slot,
+      knownAddresses := fun slotIdx =>
+        if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
+        else s.knownAddresses slotIdx,
       events := s.events } := by
   simp [withdraw, msgSender, getMapping, setMapping, balances,
     Verity.require, Verity.bind, Bind.bind, Contract.run, h_balance]
@@ -121,7 +125,7 @@ theorem withdraw_meets_spec (s : ContractState) (amount : Uint256)
   · refine ⟨?_, ?_⟩
     · intro addr h_ne
       simp [ContractResult.snd, beq_iff_eq, h_ne]
-    · intro slot h_ne addr
+    · intro slotIdx h_ne addr
       simp [ContractResult.snd, beq_iff_eq, h_ne]
   · rfl
   · rfl
@@ -158,23 +162,23 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
   (h_ne : s.sender ≠ to)
   (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
   (transfer to amount).run s = ContractResult.success ()
-    { storage := s.storage,
+    { «storage» := s.storage,
       storageAddr := s.storageAddr,
-      storageMap := fun slot addr =>
-        if (slot == 0 && addr == to) = true then EVM.Uint256.add (s.storageMap 0 to) amount
-        else if (slot == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
-        else s.storageMap slot addr,
+      storageMap := fun slotIdx addr =>
+        if (slotIdx == 0 && addr == to) = true then EVM.Uint256.add (s.storageMap 0 to) amount
+        else if (slotIdx == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
+        else s.storageMap slotIdx addr,
       storageMapUint := s.storageMapUint,
       storageMap2 := s.storageMap2,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
-      knownAddresses := fun slot =>
-        if slot == 0 then ((s.knownAddresses slot).insert s.sender).insert to
-        else s.knownAddresses slot,
+      knownAddresses := fun slotIdx =>
+        if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert to
+        else s.knownAddresses slotIdx,
       events := s.events } := by
-  simp only [transfer, Examples.Ledger.balances,
+  simp only [transfer, Examples.MacroContracts.Ledger.balances,
     msgSender, getMapping, setMapping,
     requireSomeUint,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
@@ -182,7 +186,7 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
     decide_eq_true_eq, ite_true, ite_false, HAdd.hAdd]
   congr 1
   congr 1
-  funext slot
+  funext slotIdx
   split <;> simp [*]
 
 theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
@@ -209,7 +213,7 @@ theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256
       refine ⟨?_, ?_⟩
       · intro addr h_ne_sender h_ne_to
         simp [h_ne_sender, h_ne_to]
-      · intro slot h_slot addr
+      · intro slotIdx h_slot addr
         simp [h_slot]
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameContext]
 
@@ -255,7 +259,7 @@ theorem transfer_reverts_recipient_overflow (s : ContractState) (to : Address) (
   (h_ne : s.sender ≠ to)
   (h_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) > MAX_UINT256) :
   ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
-  simp [transfer, requireSomeUint, Examples.Ledger.balances,
+  simp [transfer, requireSomeUint, Examples.MacroContracts.Ledger.balances,
     msgSender, getMapping,
     Verity.require, Verity.bind, Bind.bind, Contract.run,
     uint256_ge_val_le h_balance, h_ne, beq_iff_eq,
@@ -298,7 +302,9 @@ theorem deposit_getBalance_correct (s : ContractState) (amount : Uint256) :
   let s' := ((deposit amount).run s).snd
   ((getBalance s.sender).run s').fst = EVM.Uint256.add (s.storageMap 0 s.sender) amount := by
   rw [deposit_unfold]
-  simp [ContractResult.snd, getBalance, getMapping, balances, Contract.run, ContractResult.fst]
+  unfold getBalance
+  simp [ContractResult.snd, Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run,
+    getMapping, balances]
 
 /-! ## Summary of Proven Properties
 

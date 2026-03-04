@@ -17,7 +17,7 @@ import Verity.Proofs.Stdlib.ListSum
 namespace Verity.Proofs.Ledger.Conservation
 
 open Verity
-open Verity.Examples.Ledger
+open Verity.Examples.MacroContracts.Ledger
 open Verity.Specs.Ledger
 open Verity.Proofs.Ledger
 open Verity.Proofs.Stdlib.ListSum (countOcc countOccU countOcc_cons_eq countOcc_cons_ne

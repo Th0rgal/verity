@@ -12,7 +12,7 @@ import Verity.Proofs.Ledger.Basic
 namespace Verity.Proofs.Ledger.Correctness
 
 open Verity
-open Verity.Examples.Ledger
+open Verity.Examples.MacroContracts.Ledger
 open Verity.Specs.Ledger
 open Verity.Proofs.Ledger
 open Verity.Stdlib.Math (MAX_UINT256)

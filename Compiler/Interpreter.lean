@@ -16,7 +16,6 @@ import Verity.Examples.SimpleStorage
 import Verity.Examples.Counter
 import Verity.Examples.SafeCounter
 import Verity.Examples.Owned
-import Verity.Examples.Ledger
 import Verity.Examples.SimpleToken
 import Verity.Examples.MacroContracts.Core
 import Verity.Examples.ERC20
@@ -356,6 +355,15 @@ abbrev getOwner := Verity.Examples.MacroContracts.OwnedCounter.getOwner
 abbrev transferOwnership := Verity.Examples.MacroContracts.OwnedCounter.transferOwnership
 
 end OwnedCounter
+
+namespace Ledger
+
+abbrev deposit := Verity.Examples.MacroContracts.Ledger.deposit
+abbrev withdraw := Verity.Examples.MacroContracts.Ledger.withdraw
+abbrev transfer := Verity.Examples.MacroContracts.Ledger.transfer
+abbrev getBalance := Verity.Examples.MacroContracts.Ledger.getBalance
+
+end Ledger
 end Compat
 
 /-!
@@ -416,23 +424,23 @@ def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult
     case1 "deposit" tx (fun amount =>
       -- Track mapping changes for sender's balance
       let senderKey := (0, tx.sender)
-      runUnit (Ledger.deposit amount) state [] [] [senderKey]
+      runUnit (Compat.Ledger.deposit amount) state [] [] [senderKey]
     ),
     case1 "withdraw" tx (fun amount =>
       -- Track mapping changes for sender's balance
       let senderKey := (0, tx.sender)
-      runUnit (Ledger.withdraw amount) state [] [] [senderKey]
+      runUnit (Compat.Ledger.withdraw amount) state [] [] [senderKey]
     ),
     case2AddressNat "transfer" tx (fun toAddr amount =>
       -- Track mapping changes for both sender and recipient
       let senderKey := (0, tx.sender)
       let recipientKey := (0, toAddr)
-      runUnit (Ledger.transfer toAddr amount) state [] [] [senderKey, recipientKey]
+      runUnit (Compat.Ledger.transfer toAddr amount) state [] [] [senderKey, recipientKey]
     ),
     case1Address "getBalance" tx (fun addr =>
       -- Track mapping for the queried address
       let addrKey := (0, addr)
-      runUint (Ledger.getBalance addr) state [] [] [addrKey]
+      runUint (Compat.Ledger.getBalance addr) state [] [] [addrKey]
     )
   ]
 
