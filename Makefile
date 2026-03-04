@@ -109,6 +109,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_storage_layout.py
 	python3 scripts/check_manual_spec_quarantine.py
 	python3 scripts/check_spec_proof_migration_boundary.py
+	python3 scripts/check_layer2_universality.py
 	python3 scripts/check_lean_hygiene.py
 	python3 scripts/check_gas_model_coverage.py
 	python3 scripts/check_mapping_slot_boundary.py

@@ -33,6 +33,7 @@
     "check_storage_layout.py",
     "check_manual_spec_quarantine.py",
     "check_spec_proof_migration_boundary.py",
+    "check_layer2_universality.py",
     "check_lean_hygiene.py",
     "check_gas_model_coverage.py",
     "check_mapping_slot_boundary.py",

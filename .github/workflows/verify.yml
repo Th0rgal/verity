@@ -136,6 +136,9 @@ jobs:
       - name: Check SpecCorrectness migration boundary
         run: python3 scripts/check_spec_proof_migration_boundary.py
 
+      - name: Check Layer-2 sender/storage universality
+        run: python3 scripts/check_layer2_universality.py
+
       - name: Check Lean hygiene
         run: python3 scripts/check_lean_hygiene.py
 
