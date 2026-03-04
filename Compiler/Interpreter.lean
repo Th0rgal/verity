@@ -13,7 +13,6 @@
 
 import Compiler.Constants
 import Verity.Examples.SimpleStorage
-import Verity.Examples.Owned
 import Verity.Examples.MacroContracts.Tokens
 import Verity.Examples.MacroContracts.Core
 import Verity.Examples.ERC20
@@ -355,8 +354,8 @@ end SafeCounter
 
 namespace Owned
 
-abbrev transferOwnership := Verity.Examples.Owned.transferOwnership
-abbrev getOwner := Verity.Examples.Owned.getOwner
+abbrev transferOwnership := Verity.Examples.MacroContracts.Owned.transferOwnership
+abbrev getOwner := Verity.Examples.MacroContracts.Owned.getOwner
 
 end Owned
 
