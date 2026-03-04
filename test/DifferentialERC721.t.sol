@@ -85,7 +85,9 @@ contract ERC721DiffModel {
     }
 }
 
-contract DifferentialERC721 is DiffTestConfig, DifferentialTestBase {
+import "./yul/YulTestBase.sol";
+
+contract DifferentialERC721 is YulTestBase, DiffTestConfig, DifferentialTestBase {
     ERC721DiffModel private nft;
 
     mapping(address => uint256) private edslBalances; // slot 3
@@ -535,5 +537,346 @@ contract DifferentialERC721 is DiffTestConfig, DifferentialTestBase {
     function testDifferential_GetApprovedNonexistent() public {
         // getApproved for nonexistent token — ownerOf check reverts internally
         assertTrue(executeDifferentialTest("getApproved", address(this), address(0), address(0), 99));
+    }
+
+    // ---- Randomized multi-seed differential tests ----
+
+    address[] private _actors;
+
+    function _initActors() internal {
+        _actors = new address[](5);
+        _actors[0] = address(this); // Owner / deployer
+        _actors[1] = address(0xA11CE);
+        _actors[2] = address(0xB0B);
+        _actors[3] = address(0xCA501);
+        _actors[4] = address(0xDABE);
+    }
+
+    function _buildMapStateAll() internal view returns (string memory) {
+        string memory out = "";
+        bool first = true;
+        for (uint256 i = 0; i < _actors.length; i++) {
+            address k = _actors[i];
+            if (edslBalances[k] == 0) continue;
+            if (!first) out = string.concat(out, ",");
+            out = string.concat(out, "3:", _toLowerCase(vm.toString(k)), ":", vm.toString(edslBalances[k]));
+            first = false;
+        }
+        return out;
+    }
+
+    function _buildMapUintStateAll() internal view returns (string memory) {
+        string memory out = "";
+        bool first = true;
+        uint256 nextId = edslStorage[2];
+        for (uint256 t = 0; t < nextId; t++) {
+            if (!first) out = string.concat(out, ",");
+            out = string.concat(
+                out,
+                "4:",
+                vm.toString(t),
+                ":",
+                vm.toString(uint256(uint160(edslOwners[t]))),
+                ",5:",
+                vm.toString(t),
+                ":",
+                vm.toString(uint256(uint160(edslTokenApprovals[t])))
+            );
+            first = false;
+        }
+        return out;
+    }
+
+    function _buildMap2StateAll() internal view returns (string memory) {
+        string memory out = "";
+        bool first = true;
+        for (uint256 i = 0; i < _actors.length; i++) {
+            for (uint256 j = 0; j < _actors.length; j++) {
+                if (i == j) continue;
+                if (!edslOperatorApprovals[_actors[i]][_actors[j]]) continue;
+                if (!first) out = string.concat(out, ",");
+                out = string.concat(
+                    out,
+                    "6:",
+                    _toLowerCase(vm.toString(_actors[i])),
+                    ":",
+                    _toLowerCase(vm.toString(_actors[j])),
+                    ":1"
+                );
+                first = false;
+            }
+        }
+        return out;
+    }
+
+    function _executeRandomDifferentialTest(
+        string memory functionName,
+        address sender,
+        address arg0,
+        address arg1,
+        uint256 arg2
+    ) internal returns (bool) {
+        vm.prank(sender);
+
+        bool evmSuccess;
+        bytes memory evmReturnData;
+
+        bytes32 functionSig = keccak256(bytes(functionName));
+        if (functionSig == keccak256(bytes("mint"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("mint(address)", arg0));
+        } else if (functionSig == keccak256(bytes("balanceOf"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("balanceOf(address)", arg0));
+        } else if (functionSig == keccak256(bytes("ownerOf"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("ownerOf(uint256)", arg2));
+        } else if (functionSig == keccak256(bytes("approve"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("approve(address,uint256)", arg0, arg2));
+        } else if (functionSig == keccak256(bytes("getApproved"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("getApproved(uint256)", arg2));
+        } else if (functionSig == keccak256(bytes("setApprovalForAll"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("setApprovalForAll(address,bool)", arg0, arg2 != 0));
+        } else if (functionSig == keccak256(bytes("isApprovedForAll"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("isApprovedForAll(address,address)", arg0, arg1));
+        } else if (functionSig == keccak256(bytes("transferFrom"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(
+                abi.encodeWithSignature("transferFrom(address,address,uint256)", arg0, arg1, arg2)
+            );
+        } else if (functionSig == keccak256(bytes("totalSupply"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("totalSupply()"));
+        } else if (functionSig == keccak256(bytes("nextTokenId"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("nextTokenId()"));
+        } else if (functionSig == keccak256(bytes("owner"))) {
+            (evmSuccess, evmReturnData) = address(nft).call(abi.encodeWithSignature("owner()"));
+        } else {
+            revert("Unknown function");
+        }
+
+        uint256 evmReturnValue = 0;
+        if (evmSuccess && evmReturnData.length > 0) {
+            evmReturnValue = abi.decode(evmReturnData, (uint256));
+        }
+
+        uint256 tokenIdHint = arg2;
+        if (functionSig == keccak256(bytes("mint")) && evmSuccess) tokenIdHint = evmReturnValue;
+
+        // Build full state strings for the interpreter
+        string memory mapStr = _buildMapStateAll();
+        string memory mapUintStr = _buildMapUintStateAll();
+        string memory map2Str = _buildMap2StateAll();
+
+        string[] memory inputs = new string[](3);
+        inputs[0] = "bash";
+        inputs[1] = "-c";
+
+        string memory argsStr = "";
+        if (functionSig == keccak256(bytes("mint")) || functionSig == keccak256(bytes("balanceOf"))) {
+            argsStr = vm.toString(uint256(uint160(arg0)));
+        } else if (functionSig == keccak256(bytes("ownerOf")) || functionSig == keccak256(bytes("getApproved"))) {
+            argsStr = vm.toString(arg2);
+        } else if (functionSig == keccak256(bytes("approve")) || functionSig == keccak256(bytes("setApprovalForAll"))) {
+            argsStr = string.concat(vm.toString(uint256(uint160(arg0))), " ", vm.toString(arg2));
+        } else if (functionSig == keccak256(bytes("isApprovedForAll"))) {
+            argsStr = string.concat(vm.toString(uint256(uint160(arg0))), " ", vm.toString(uint256(uint160(arg1))));
+        } else if (functionSig == keccak256(bytes("transferFrom"))) {
+            argsStr = string.concat(
+                vm.toString(uint256(uint160(arg0))),
+                " ",
+                vm.toString(uint256(uint160(arg1))),
+                " ",
+                vm.toString(arg2)
+            );
+        }
+
+        string memory storageStr = string.concat("storage=1:", vm.toString(edslStorage[1]), ",2:", vm.toString(edslStorage[2]));
+        string memory addrStr = string.concat("addr=0:", _addressToString(edslStorageAddr[0]));
+
+        inputs[2] = string.concat(
+            _interpreterPreamble(),
+            " ERC721 ",
+            functionName,
+            " ",
+            _addressToString(sender),
+            bytes(argsStr).length > 0 ? string.concat(" ", argsStr) : "",
+            " ",
+            storageStr,
+            " ",
+            addrStr,
+            bytes(mapStr).length > 0 ? string.concat(" map=\"", mapStr, "\"") : "",
+            " mapuint=\"",
+            mapUintStr,
+            "\"",
+            bytes(map2Str).length > 0 ? string.concat(" map2=\"", map2Str, "\"") : "",
+            " value=0 timestamp=",
+            vm.toString(block.timestamp)
+        );
+
+        string memory edslResult = string(vm.ffi(inputs));
+        bool edslSuccess = contains(edslResult, "\"success\":true");
+
+        if (evmSuccess != edslSuccess) {
+            testsFailed++;
+            return false;
+        }
+
+        if (!contains(edslResult, "\"returnValue\":")) {
+            testsFailed++;
+            return false;
+        }
+
+        uint256 edslReturnValue = _extractReturnValue(edslResult);
+        if (
+            functionSig == keccak256(bytes("balanceOf"))
+                || functionSig == keccak256(bytes("totalSupply"))
+                || functionSig == keccak256(bytes("nextTokenId"))
+                || functionSig == keccak256(bytes("mint"))
+                || functionSig == keccak256(bytes("isApprovedForAll"))
+                || functionSig == keccak256(bytes("owner"))
+                || functionSig == keccak256(bytes("ownerOf"))
+                || functionSig == keccak256(bytes("getApproved"))
+        ) {
+            if (evmSuccess && evmReturnValue != edslReturnValue) {
+                testsFailed++;
+                return false;
+            }
+        }
+
+        _updateStateFromEDSL(edslResult, sender, arg0, arg1, tokenIdHint);
+
+        if (nft.totalSupply() != edslStorage[1]) {
+            testsFailed++;
+            return false;
+        }
+        if (nft.nextTokenId() != edslStorage[2]) {
+            testsFailed++;
+            return false;
+        }
+        if (nft.owner() != edslStorageAddr[0]) {
+            testsFailed++;
+            return false;
+        }
+        for (uint256 i = 0; i < _actors.length; i++) {
+            if (nft.balanceOf(_actors[i]) != edslBalances[_actors[i]]) {
+                testsFailed++;
+                return false;
+            }
+        }
+
+        testsPassed++;
+        return true;
+    }
+
+    function _randomTransaction(uint256 seed)
+        internal
+        view
+        returns (
+            string memory funcName,
+            address sender,
+            address arg0,
+            address arg1,
+            uint256 arg2
+        )
+    {
+        uint256 rand1 = _lcg(seed);
+        uint256 rand2 = _lcg(rand1);
+        uint256 rand3 = _lcg(rand2);
+        uint256 rand4 = _lcg(rand3);
+        uint256 rand5 = _lcg(rand4);
+
+        uint256 nextId = edslStorage[2];
+
+        // Choose function (30% mint, 20% transferFrom, 15% approve, 10% setApprovalForAll, 25% views)
+        uint256 funcChoice = rand1 % 100;
+        if (funcChoice < 30) {
+            funcName = "mint";
+        } else if (funcChoice < 50) {
+            funcName = "transferFrom";
+        } else if (funcChoice < 65) {
+            funcName = "approve";
+        } else if (funcChoice < 75) {
+            funcName = "setApprovalForAll";
+        } else if (funcChoice < 80) {
+            funcName = "balanceOf";
+        } else if (funcChoice < 85) {
+            funcName = "ownerOf";
+        } else if (funcChoice < 90) {
+            funcName = "getApproved";
+        } else if (funcChoice < 95) {
+            funcName = "isApprovedForAll";
+        } else {
+            funcName = "totalSupply";
+        }
+
+        // Sender: 50% owner (for mint), 50% random actor
+        uint256 senderChoice = rand2 % 100;
+        if (senderChoice < 50) {
+            sender = edslStorageAddr[0];
+        } else {
+            sender = _actors[rand2 % _actors.length];
+        }
+
+        arg0 = _actors[rand3 % _actors.length];
+        arg1 = _actors[rand4 % _actors.length];
+
+        // For token-ID-based operations, use existing token IDs when possible
+        if (nextId > 0) {
+            arg2 = rand5 % (nextId + 1); // +1 to occasionally test nonexistent token
+        } else {
+            arg2 = 0;
+        }
+
+        // For setApprovalForAll, arg2 is a boolean (0 or 1)
+        bytes32 sig = keccak256(bytes(funcName));
+        if (sig == keccak256(bytes("setApprovalForAll"))) {
+            arg2 = rand5 % 2;
+        }
+    }
+
+    function testDifferential_Random100() public {
+        _initActors();
+
+        (uint256 startIndex, uint256 count) = _diffRandomSmallRange();
+        uint256 seed = _diffRandomSeed("ERC721");
+
+        for (uint256 i = 0; i < count; i++) {
+            (
+                string memory funcName,
+                address sender,
+                address arg0,
+                address arg1,
+                uint256 arg2
+            ) = _randomTransaction(seed + startIndex + i);
+
+            bool success = _executeRandomDifferentialTest(funcName, sender, arg0, arg1, arg2);
+            _assertRandomSuccess(success, startIndex + i);
+        }
+
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
+    }
+
+    function testDifferential_Random10000() public {
+        _initActors();
+
+        (uint256 startIndex, uint256 count) = _diffRandomLargeRange();
+        uint256 seed = _diffRandomSeed("ERC721");
+
+        vm.pauseGasMetering();
+        for (uint256 i = 0; i < count; i++) {
+            (
+                string memory funcName,
+                address sender,
+                address arg0,
+                address arg1,
+                uint256 arg2
+            ) = _randomTransaction(seed + startIndex + i);
+
+            bool success = _executeRandomDifferentialTest(funcName, sender, arg0, arg1, arg2);
+            _assertRandomSuccess(success, startIndex + i);
+        }
+        vm.resumeGasMetering();
+
+        if (_diffVerbose()) console2.log("Random tests passed:", testsPassed);
+        if (_diffVerbose()) console2.log("Random tests failed:", testsFailed);
+        assertEq(testsFailed, 0, "Some random tests failed");
     }
 }
