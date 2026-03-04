@@ -108,7 +108,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 
 ## Differential Testing
 
-**Status**: Scaled to 90,000+ tests (10,000 per contract x 9 contracts) with 8-shard CI parallelization. Randomized inputs covering edge cases, comparing EDSL interpreter output against Solidity-compiled EVM execution.
+**Status**: Scaled to 100,000+ tests (10,000 per contract x 9 contracts) with 8-shard CI parallelization. Randomized inputs covering edge cases, comparing EDSL interpreter output against Solidity-compiled EVM execution.
 
 ## Solidity Interop Support Matrix (Issue #586)
 

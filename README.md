@@ -113,10 +113,10 @@ Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 1 axiom: [`
 
 ### 5. Test the compiled output (belt and suspenders)
 
-**Foundry tests** (472 tests) validate EDSL = Yul = EVM execution. 472 Foundry tests across 37 test suites run the compiled Yul on a real EVM. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
+**Foundry tests** (475 tests) validate EDSL = Yul = EVM execution. 475 Foundry tests across 38 test suites run the compiled Yul on a real EVM. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
 
 ```bash
-FOUNDRY_PROFILE=difftest forge test    # 472 tests across 37 suites
+FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
 ```
 
 ---
@@ -137,7 +137,7 @@ FOUNDRY_PROFILE=difftest forge test    # 472 tests across 37 suites
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-425 theorems across 11 categories. 472 Foundry tests across 37 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 19 `sorry` placeholders (18 in cross-layer bridge proofs, 1 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
+425 theorems across 11 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (59% coverage, 175 proof-only exclusions). 1 documented axiom. 19 `sorry` placeholders (18 in cross-layer bridge proofs, 1 in Yul preservation — see [VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md)).
 
 ---
 
@@ -171,7 +171,7 @@ lake exe verity-compiler                              # all contracts
 lake exe verity-compiler --edsl-contract counter      # specific contract
 
 # Run Foundry tests
-FOUNDRY_PROFILE=difftest forge test    # 472 tests across 37 suites
+FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
 ```
 
 **Scaffold a new contract**:
@@ -246,7 +246,7 @@ verity/
 │   │   └── YulGeneration/           # IR → Yul preservation
 │   ├── Yul/             #   Yul code generation
 │   └── Modules/         #   External Call Modules (ECMs)
-├── test/                # Foundry tests (472 tests)
+├── test/                # Foundry tests (475 tests)
 ├── artifacts/yul/       # Compiled Yul output
 └── scripts/             # CI validation scripts
 ```
