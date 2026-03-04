@@ -1644,8 +1644,8 @@ theorem compile_require_caller_eq_storage_addr_setStorage_add_stop_semantics
     compileStmts_require_caller_eq_storage_addr_setStorage_add_storage_literal_stop_run,
     hOwner, hCount, evalTStmts, defaultEvalFuel]
   by_cases hEq : init.env.sender = init.world.storageAddr ownerSlot
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation for `require (eq caller (storage ownerField)) msg ;
 setStorage countField (sub (storage countField) (literal n)) ; stop`. -/
@@ -1665,8 +1665,8 @@ theorem compile_require_caller_eq_storage_addr_setStorage_sub_stop_semantics
     compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_literal_stop_run,
     hOwner, hCount, evalTStmts, defaultEvalFuel]
   by_cases hEq : init.env.sender = init.world.storageAddr ownerSlot
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported subset:
 compiling and running `return (literal n)` matches direct source return semantics. -/
@@ -1705,8 +1705,8 @@ theorem compile_ite_eq_setStorage_literals_semantics
     execSourceSetStorageLiteral, compileStmts_single_ite_eq_setStorage_literals_run,
     hfind, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported heterogeneous branch subset:
 compiling and running
@@ -1726,8 +1726,8 @@ theorem compile_ite_eq_setStorage_then_return_literal_semantics
     compileStmts_single_ite_eq_setStorage_then_return_literal_run,
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported heterogeneous branch subset:
 compiling and running
@@ -1747,8 +1747,8 @@ theorem compile_ite_eq_return_then_setStorage_literal_semantics
     compileStmts_single_ite_eq_return_then_setStorage_literal_run,
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported branch subset:
 compiling and running
@@ -1765,8 +1765,8 @@ theorem compile_ite_eq_return_literals_semantics
     compileStmts_single_ite_eq_return_literals_run,
     execSourceReturnLiteral, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported nested-branch subset:
 compiling and running
@@ -1789,9 +1789,9 @@ theorem compile_ite_eq_then_ite_eq_return_literals_semantics
     execSourceReturnLiteral, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -1818,9 +1818,9 @@ theorem compile_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_seman
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -1848,9 +1848,9 @@ theorem compile_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_seman
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -1879,9 +1879,9 @@ theorem compile_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested storage branch
 subset:
@@ -1909,9 +1909,9 @@ theorem compile_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_s
     execSourceSetStorageLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -1939,9 +1939,9 @@ theorem compile_ite_eq_then_ite_eq_setStorage_then_return_literal_then_return_li
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -1969,9 +1969,9 @@ theorem compile_ite_eq_then_ite_eq_setStorage_then_return_literal_then_setStorag
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -1999,9 +1999,9 @@ theorem compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_li
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported nested heterogeneous
 branch subset:
@@ -2029,9 +2029,9 @@ theorem compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorag
     execSourceSetStorageLiteral, execSourceReturnLiteral, hfind, evalTStmts, defaultEvalFuel]
   by_cases hEqOuter : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
   · by_cases hEqInner : (p : Verity.Core.Uint256) = (q : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter, hEqInner]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEqOuter]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+    · simp_tir_eval; simp [hEqOuter, hEqInner]
+  · simp_tir_eval; simp [hEqOuter]
 
 /-- Semantic-preservation theorem for a broader supported require subset:
 compiling and running `require (eq (literal n) (literal m)) message`
@@ -2043,8 +2043,8 @@ theorem compile_require_eq_literals_semantics
   simp [execCompiledRequireEqLiterals, execSourceRequireEqLiterals,
     compileStmts_single_require_eq_literals_run, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported require subset:
 compiling and running `require (logicalNot (eq (literal n) (literal m))) message`
@@ -2056,8 +2056,8 @@ theorem compile_require_not_eq_literals_semantics
   simp [execCompiledRequireNotEqLiterals, execSourceRequireNotEqLiterals,
     compileStmts_single_require_not_eq_literals_run, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported require subset:
 compiling and running `require (lt (literal n) (literal m)) message`
@@ -2145,7 +2145,7 @@ theorem compile_require_and_eq_lt_literals_semantics
     · have hLtNat : q % Verity.Core.Uint256.modulus ≤ p % Verity.Core.Uint256.modulus := by
         exact Nat.not_lt.mp (by simpa [Verity.Core.Uint256.lt_def] using hLt)
       simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq, hLt, hLtNat]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
 
 /-- Semantic-preservation theorem for a broader supported require subset:
 compiling and running
@@ -2158,7 +2158,7 @@ theorem compile_require_or_eq_lt_literals_semantics
   simp [execCompiledRequireOrEqLtLiterals, execSourceRequireOrEqLtLiterals,
     compileStmts_single_require_or_eq_lt_literals_run, evalTStmts, defaultEvalFuel]
   by_cases hEq : (n : Verity.Core.Uint256) = (m : Verity.Core.Uint256)
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq]
+  · simp_tir_eval; simp [hEq]
   · by_cases hLt : (p : Verity.Core.Uint256) < (q : Verity.Core.Uint256)
     · have hLtNat : p % Verity.Core.Uint256.modulus < q % Verity.Core.Uint256.modulus := by
         simpa [Verity.Core.Uint256.lt_def] using hLt
