@@ -335,7 +335,9 @@ abstract contract DifferentialTestBase {
         bytes memory keyBytes = bytes(keyStr);
         bytes memory keyBytesLower = bytes(_toLowerCase(keyStr));
 
-        for (uint i = 0; i < jsonBytes.length - keyBytes.length; i++) {
+        if (jsonBytes.length < keyBytes.length) return 0;
+
+        for (uint i = 0; i <= jsonBytes.length - keyBytes.length; i++) {
             bool found = true;
             bool foundLower = true;
             for (uint j = 0; j < keyBytes.length; j++) {
@@ -345,8 +347,10 @@ abstract contract DifferentialTestBase {
                 if (jsonBytes[i + j] != keyBytesLower[j]) {
                     foundLower = false;
                 }
+                if (!found && !foundLower) break;
             }
             if (found || foundLower) {
+                if (jsonBytes.length < 8) return 0;
                 for (uint k = i + keyBytes.length; k < jsonBytes.length - 7; k++) {
                     if (jsonBytes[k] == '"' && jsonBytes[k+1] == 'v' &&
                         jsonBytes[k+2] == 'a' && jsonBytes[k+3] == 'l' &&
