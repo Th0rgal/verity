@@ -394,4 +394,70 @@ contract DifferentialERC20 is DiffTestConfig, DifferentialTestBase {
         assertTrue(executeDifferentialTest("mint", address(0xDEAD), alice, address(0), 7));
         assertTrue(executeDifferentialTest("transferFrom", bob, alice, bob, 1));
     }
+
+    function testDifferential_TransferInsufficientBalance() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Mint 50 to Alice
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 50));
+        // Alice tries to transfer 100 (more than her 50 balance) — should revert
+        assertTrue(executeDifferentialTest("transfer", alice, bob, address(0), 100));
+    }
+
+    function testDifferential_TransferFromInsufficientBalance() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        address spender = address(0xBEEF);
+
+        // Mint 30 to Alice, approve spender for 100
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 30));
+        assertTrue(executeDifferentialTest("approve", alice, spender, address(0), 100));
+        // Spender tries to transferFrom 50 (Alice only has 30) — should revert
+        assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 50));
+    }
+
+    function testDifferential_TransferFromInsufficientAllowance() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        address spender = address(0xBEEF);
+
+        // Mint 100 to Alice, approve spender for only 20
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 100));
+        assertTrue(executeDifferentialTest("approve", alice, spender, address(0), 20));
+        // Spender tries to transferFrom 50 (allowance is only 20) — should revert
+        assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 50));
+    }
+
+    function testDifferential_TransferZeroAmount() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Transfer 0 with no balance — should succeed (0 >= 0)
+        assertTrue(executeDifferentialTest("transfer", alice, bob, address(0), 0));
+    }
+
+    function testDifferential_TransferFromZeroAmount() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        address spender = address(0xBEEF);
+
+        // Approve 0, transferFrom 0 — should succeed (0 >= 0 for both checks)
+        assertTrue(executeDifferentialTest("approve", alice, spender, address(0), 0));
+        assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 0));
+    }
+
+    function testDifferential_TransferFromExactAllowance() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        address spender = address(0xBEEF);
+
+        // Mint 100 to Alice, approve spender for exactly 40
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 100));
+        assertTrue(executeDifferentialTest("approve", alice, spender, address(0), 40));
+        // TransferFrom exactly 40 — should succeed and consume allowance
+        assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 40));
+        // TransferFrom 1 more — should revert (allowance is now 0)
+        assertTrue(executeDifferentialTest("transferFrom", spender, alice, bob, 1));
+    }
 }

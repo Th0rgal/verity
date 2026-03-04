@@ -473,4 +473,67 @@ contract DifferentialERC721 is DiffTestConfig, DifferentialTestBase {
         assertTrue(executeDifferentialTest("mint", address(0xDEAD), alice, address(0), 0));
         assertTrue(executeDifferentialTest("transferFrom", bob, alice, bob, 0));
     }
+
+    function testDifferential_MintToZeroAddress() public {
+        // Minting to address(0) should revert ("Invalid recipient")
+        assertTrue(executeDifferentialTest("mint", address(this), address(0), address(0), 0));
+    }
+
+    function testDifferential_OwnerOfNonexistent() public {
+        // ownerOf for a token that hasn't been minted should revert
+        assertTrue(executeDifferentialTest("ownerOf", address(this), address(0), address(0), 99));
+    }
+
+    function testDifferential_ApproveNonexistentToken() public {
+        address alice = address(0xA11CE);
+
+        // Approve on a token that doesn't exist — ownerOf reverts internally
+        assertTrue(executeDifferentialTest("approve", alice, address(0xB0B), address(0), 99));
+    }
+
+    function testDifferential_ApproveByNonOwner() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Mint token 0 to Alice
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 0));
+        // Bob tries to approve on Alice's token — should revert ("Not token owner")
+        assertTrue(executeDifferentialTest("approve", bob, address(0xBEEF), address(0), 0));
+    }
+
+    function testDifferential_TransferFromNotAuthorized() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        address carol = address(0xCA501);
+
+        // Mint token 0 to Alice
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 0));
+        // Carol (not owner, not approved, not operator) tries to transfer — should revert
+        assertTrue(executeDifferentialTest("transferFrom", carol, alice, bob, 0));
+    }
+
+    function testDifferential_TransferFromToZeroAddress() public {
+        address alice = address(0xA11CE);
+
+        // Mint token 0 to Alice
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 0));
+        // Alice tries to transfer to address(0) — should revert ("Invalid recipient")
+        assertTrue(executeDifferentialTest("transferFrom", alice, alice, address(0), 0));
+    }
+
+    function testDifferential_TransferFromWrongOwner() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        address carol = address(0xCA501);
+
+        // Mint token 0 to Alice
+        assertTrue(executeDifferentialTest("mint", address(this), alice, address(0), 0));
+        // Alice tries transferFrom(bob, carol, 0) but bob is not the owner — should revert
+        assertTrue(executeDifferentialTest("transferFrom", alice, bob, carol, 0));
+    }
+
+    function testDifferential_GetApprovedNonexistent() public {
+        // getApproved for nonexistent token — ownerOf check reverts internally
+        assertTrue(executeDifferentialTest("getApproved", address(this), address(0), address(0), 99));
+    }
 }

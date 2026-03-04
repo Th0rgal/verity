@@ -446,6 +446,40 @@ contract DifferentialSimpleToken is YulTestBase, DiffTestConfig, DifferentialTes
         assertTrue(success, "Insufficient balance test failed");
     }
 
+    function testDifferential_TransferMoreThanBalance() public {
+        address owner = address(this);
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Mint 50 to Alice
+        assertTrue(executeDifferentialTest("mint", owner, alice, 50));
+        // Alice tries to transfer 100 (only has 50) — should revert
+        assertTrue(executeDifferentialTest("transfer", alice, bob, 100));
+    }
+
+    function testDifferential_TransferExactThenRevert() public {
+        address owner = address(this);
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        // Mint 100 to Alice
+        assertTrue(executeDifferentialTest("mint", owner, alice, 100));
+        // Alice transfers exactly 100 — should succeed
+        assertTrue(executeDifferentialTest("transfer", alice, bob, 100));
+        // Alice tries to transfer 1 more — should revert (balance is now 0)
+        assertTrue(executeDifferentialTest("transfer", alice, bob, 1));
+    }
+
+    function testDifferential_MintOverflow() public {
+        address owner = address(this);
+        address alice = address(0xA11CE);
+
+        // Mint max uint256 to Alice
+        assertTrue(executeDifferentialTest("mint", owner, alice, type(uint256).max));
+        // Mint 1 more — should revert ("Balance overflow" from safeAdd)
+        assertTrue(executeDifferentialTest("mint", owner, alice, 1));
+    }
+
     /**
      * @notice Exercise edge amounts for mint/transfer.
      */
