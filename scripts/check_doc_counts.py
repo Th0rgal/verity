@@ -778,15 +778,38 @@ def main(argv: list[str] | None = None) -> None:
         )
     )
 
-    # Check trust-model wording in index.mdx
+    # Check index.mdx counts and trust-model wording
     index_mdx = ROOT / "docs-site" / "content" / "index.mdx"
+    errors.extend(
+        check_and_maybe_fix(
+            index_mdx,
+            [
+                (
+                    "sorry count in current status",
+                    re.compile(r"(\d+) `sorry` placeholders"),
+                    str(sorry_count),
+                ),
+                (
+                    "test count in current status",
+                    re.compile(r"(\d+) Foundry tests across"),
+                    str(test_count),
+                ),
+                (
+                    "test suite count in current status",
+                    re.compile(r"Foundry tests across (\d+) suites"),
+                    str(suite_count),
+                ),
+            ],
+            args.fix,
+        )
+    )
     errors.extend(
         check_required_and_forbidden_substrings(
             index_mdx,
             required=[
                 "**What are axioms?** Statements assumed true without proof. This project uses 1 documented axiom: `keccak256_first_4_bytes` for selector hashing (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md))."
             ],
-            forbidden=["address injectivity"],
+            forbidden=["address injectivity", "0 `sorry`"],
         )
     )
 
@@ -1043,6 +1066,11 @@ def main(argv: list[str] | None = None) -> None:
                 (
                     "test count in forge test comment",
                     re.compile(r"forge test\s+#\s*(\d+)/\d+ tests pass"),
+                    str(test_count),
+                ),
+                (
+                    "test denominator in forge test comment",
+                    re.compile(r"forge test\s+#\s*\d+/(\d+) tests pass"),
                     str(test_count),
                 ),
                 (
