@@ -27,4 +27,57 @@ Compiler/Interpreter.lean @Th0rgal
 
 # CI pipeline — governs what gets checked
 .github/workflows/ @Th0rgal
-scripts/ @Th0rgal
+scripts/ @Th0rgalimport torch
+import torch.nn as nn
+import torch.optim as optim
+
+# XOR dataset
+X = torch.tensor([[0.,0.],
+                  [0.,1.],
+                  [1.,0.],
+                  [1.,1.]])
+
+y = torch.tensor([[0.],
+                  [1.],
+                  [1.],
+                  [0.]])
+
+# Deep Neural Network
+class DeepXORNet(nn.Module):
+    def __init__(self):
+        super(DeepXORNet, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(2, 8),
+            nn.ReLU(),
+            nn.Linear(8, 8),
+            nn.ReLU(),
+            nn.Linear(8, 4),
+            nn.ReLU(),
+            nn.Linear(4, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+# Initialize model
+model = DeepXORNet()
+
+# Loss and optimizer
+criterion = nn.BCELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+# Training
+epochs = 5000
+for epoch in range(epochs):
+    optimizer.zero_grad()
+    outputs = model(X)
+    loss = criterion(outputs, y)
+    loss.backward()
+    optimizer.step()
+
+# Test
+with torch.no_grad():
+    predictions = model(X)
+    print("Final Output:")
+    print(torch.round(predictions))
