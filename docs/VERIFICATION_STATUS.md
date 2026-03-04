@@ -104,7 +104,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 
 **Proof-Only Properties (175 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-11 `sorry` remaining: 12 in `Compiler/Proofs/SemanticBridge.lean` (EDSL ≡ IR bridge theorem proofs, blocked by `evalBuiltinCall` heartbeat limit after callvalue/calldatasize refactor) and 0 in `Compiler/Proofs/YulGeneration/Preservation.lean`. The theorem *statements* are preserved; only the proof terms use placeholders.
+10 `sorry` remaining: 12 in `Compiler/Proofs/SemanticBridge.lean` (EDSL ≡ IR bridge theorem proofs, blocked by `evalBuiltinCall` heartbeat limit after callvalue/calldatasize refactor) and 0 in `Compiler/Proofs/YulGeneration/Preservation.lean`. The theorem *statements* are preserved; only the proof terms use placeholders.
 
 ## Differential Testing
 

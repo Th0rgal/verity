@@ -383,7 +383,16 @@ theorem safeCounter_getCount_semantic_bridge
         ∧
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
-    := by sorry
+    := by
+  simp [Contract.run, Verity.Examples.MacroContracts.SafeCounter.getCount,
+    Verity.Examples.MacroContracts.SafeCounter.count,
+    getStorage,
+    mkIRTransaction, mkIRState, interpretIR, safeCounterIRContract,
+    execIRFunction, execIRStmts, execIRStmt,
+    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+    encodeStorage, encodeEvents,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+    Compiler.Proofs.YulGeneration.evalBuiltinCall]
 
 /-! ## Target Theorems: OwnedCounter -/
 
