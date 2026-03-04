@@ -46,14 +46,16 @@ abstract contract DiffTestConfig is Test {
         uint256 overrideCount = _diffRandomOverride();
         uint256 totalCount =
             overrideCount != 0 ? overrideCount : vm.envOr("DIFFTEST_RANDOM_SMALL", uint256(100));
-        return _diffShardRange(totalCount);
+        (start, count) = _diffShardRange(totalCount);
+        require(count > 0, "Random small range produced 0 transactions — check DIFFTEST_RANDOM_SMALL and shard config");
     }
 
     function _diffRandomLargeRange() internal view returns (uint256 start, uint256 count) {
         uint256 overrideCount = _diffRandomOverride();
         uint256 totalCount =
             overrideCount != 0 ? overrideCount : vm.envOr("DIFFTEST_RANDOM_LARGE", uint256(10000));
-        return _diffShardRange(totalCount);
+        (start, count) = _diffShardRange(totalCount);
+        require(count > 0, "Random large range produced 0 transactions — check DIFFTEST_RANDOM_LARGE and shard config");
     }
 
     function _diffRandomBaseSeed() internal view returns (uint256) {
