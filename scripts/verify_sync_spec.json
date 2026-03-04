@@ -45,6 +45,9 @@
     "check_proof_length.py",
     "check_issue_1060_integrity.py"
   ],
+  "expected_checks_other_commands": [
+    "python3 -m unittest discover -s scripts -p 'test_*.py' -v"
+  ],
   "expected_build_commands": [
     "check_lean_warning_regression.py --log lake-build.log",
     "check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY",

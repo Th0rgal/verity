@@ -530,11 +530,11 @@ def check_artifacts(snapshot: Snapshot, spec: dict) -> CheckResult:
     return CheckResult("artifacts", errors)
 
 
-def _extract_makefile_check_scripts() -> list[str]:
-    """Extract python3 scripts/... commands from the Makefile 'check' target."""
+def _extract_makefile_check_commands() -> list[str]:
+    """Extract python3 commands from the Makefile 'check' target."""
     text = MAKEFILE.read_text(encoding="utf-8")
     in_check = False
-    scripts: list[str] = []
+    commands: list[str] = []
     for line in text.splitlines():
         if re.match(r"^check:", line):
             in_check = True
@@ -542,21 +542,22 @@ def _extract_makefile_check_scripts() -> list[str]:
         if in_check:
             if line and not line[0].isspace():
                 break
-            m = re.search(r"python3 scripts/(\S+(?:\s+\S+)*)", line)
-            if m:
-                scripts.append(m.group(1))
-    return scripts
+            stripped = line.strip()
+            if stripped.startswith("python3 "):
+                commands.append(stripped)
+    return commands
 
 
 def check_makefile(_snapshot: Snapshot, spec: dict) -> CheckResult:
     errors: list[str] = []
-    makefile_scripts = _extract_makefile_check_scripts()
-    expected = spec["expected_checks_commands"]
+    makefile_commands = _extract_makefile_check_commands()
+    expected = [f"python3 scripts/{cmd}" for cmd in spec["expected_checks_commands"]]
+    expected.extend(spec.get("expected_checks_other_commands", []))
     errors.extend(
         _compare_lists(
-            "Makefile check scripts",
-            makefile_scripts,
-            "spec checks scripts",
+            "Makefile check commands",
+            makefile_commands,
+            "spec checks commands",
             expected,
         )
     )
