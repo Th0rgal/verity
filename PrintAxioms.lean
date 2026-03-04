@@ -609,6 +609,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractStoreStorageOrMapping_eq
 
 -- Compiler/Proofs/SemanticBridge.lean
+#print axioms Compiler.Proofs.SemanticBridge.spec_to_ir_preserves_semantics
 #print axioms Compiler.Proofs.SemanticBridge.simpleStorage_store_semantic_bridge
 #print axioms Compiler.Proofs.SemanticBridge.simpleStorage_retrieve_semantic_bridge
 #print axioms Compiler.Proofs.SemanticBridge.counter_increment_semantic_bridge
@@ -645,4 +646,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 550 theorems/lemmas (529 public, 21 private)
+-- Total: 551 theorems/lemmas (530 public, 21 private)

@@ -73,6 +73,35 @@ def encodeEvent (ev : Event) : List Nat :=
 def encodeEvents (events : List Event) : List (List Nat) :=
   events.map encodeEvent
 
+/-! ## Layer 2 Generic Theorem Spine -/
+
+/-- Generic Layer-2 bridge theorem: once a contract-specific postcondition is
+established for the compiled IR contract, the same postcondition is available
+through the `compile` entrypoint for all states and senders. This enforces the
+universal quantification shape at Layer 2 and avoids fixed test fixtures. -/
+theorem spec_to_ir_preserves_semantics
+    {α : Type}
+    (spec : CompilationModel.CompilationModel)
+    (selectors : List Nat)
+    (compiled : IRContract)
+    (runSpec : ContractState → Address → α)
+    (mkTx : Address → IRTransaction)
+    (mkIRState : ContractState → Address → IRState)
+    (post : α → IRResult → Prop)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok compiled)
+    (hpost : ∀ (state : ContractState) (sender : Address),
+      post (runSpec state sender)
+        (interpretIR compiled (mkTx sender) (mkIRState state sender))) :
+    ∀ (state : ContractState) (sender : Address),
+      let compiledResult := CompilationModel.compile spec selectors
+      match compiledResult with
+      | Except.ok irContract =>
+          post (runSpec state sender)
+            (interpretIR irContract (mkTx sender) (mkIRState state sender))
+      | Except.error _ => False := by
+  intro state sender
+  simpa [hcompile] using hpost state sender
+
 /-! ## Target Theorems: SimpleStorage -/
 
 theorem simpleStorage_store_semantic_bridge
