@@ -4,12 +4,12 @@
 
 import Verity.Specs.Common
 import Verity.EVM.Uint256
-import Verity.Examples.OwnedCounter
+import Verity.Examples.MacroContracts.Core
 
 namespace Verity.Specs.OwnedCounter
 
 open Verity
-open Verity.Examples.OwnedCounter
+open Verity.Examples.MacroContracts.OwnedCounter
 open Verity.EVM.Uint256
 
 /-! ## Operation Specifications -/

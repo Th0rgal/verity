@@ -185,9 +185,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.OwnedCounter.constructor_meets_spec
 #print axioms Verity.Proofs.OwnedCounter.constructor_sets_owner
 #print axioms Verity.Proofs.OwnedCounter.constructor_preserves_count
+-- #print axioms Verity.Proofs.OwnedCounter.getCount_run  -- private
 #print axioms Verity.Proofs.OwnedCounter.getCount_meets_spec
 #print axioms Verity.Proofs.OwnedCounter.getCount_returns_count
 #print axioms Verity.Proofs.OwnedCounter.getCount_preserves_state
+-- #print axioms Verity.Proofs.OwnedCounter.getOwner_run  -- private
 #print axioms Verity.Proofs.OwnedCounter.getOwner_meets_spec
 #print axioms Verity.Proofs.OwnedCounter.getOwner_returns_owner
 #print axioms Verity.Proofs.OwnedCounter.getOwner_preserves_state
@@ -668,4 +670,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 567 theorems/lemmas (545 public, 22 private)
+-- Total: 569 theorems/lemmas (545 public, 24 private)

@@ -17,8 +17,8 @@ import Verity.Examples.Counter
 import Verity.Examples.SafeCounter
 import Verity.Examples.Owned
 import Verity.Examples.Ledger
-import Verity.Examples.OwnedCounter
 import Verity.Examples.SimpleToken
+import Verity.Examples.MacroContracts.Core
 import Verity.Examples.ERC20
 import Verity.Examples.ERC721
 import Verity.Examples.CryptoHash
@@ -58,17 +58,17 @@ Execute contracts using their verified EDSL definitions.
 
 -- Helper: Extract storage changes from before/after states
 def extractStorageChanges (before after : ContractState) (slots : List Nat) : List (Nat × Nat) :=
-  slots.filterMap fun slot =>
-    let oldVal := before.storage slot
-    let newVal := after.storage slot
-    if oldVal ≠ newVal then some (slot, newVal) else none
+  slots.filterMap fun slotIdx =>
+    let oldVal := before.storage slotIdx
+    let newVal := after.storage slotIdx
+    if oldVal ≠ newVal then some (slotIdx, newVal) else none
 
 -- Helper: Extract address storage changes from before/after states
 def extractStorageAddrChanges (before after : ContractState) (slots : List Nat) : List (Nat × Address) :=
-  slots.filterMap fun slot =>
-    let oldVal := before.storageAddr slot
-    let newVal := after.storageAddr slot
-    if oldVal ≠ newVal then some (slot, newVal) else none
+  slots.filterMap fun slotIdx =>
+    let oldVal := before.storageAddr slotIdx
+    let newVal := after.storageAddr slotIdx
+    if oldVal ≠ newVal then some (slotIdx, newVal) else none
 
 -- Helper: Extract mapping changes from before/after states
 private def dedupeMappingKeys (keys : List (Nat × Address)) : List (Nat × Address) :=
@@ -79,10 +79,10 @@ private def dedupeMappingKeys (keys : List (Nat × Address)) : List (Nat × Addr
 
 def extractMappingChanges (before after : ContractState) (keys : List (Nat × Address)) : List (Nat × Address × Nat) :=
   let deduped := dedupeMappingKeys keys
-  deduped.filterMap fun (slot, key) =>
-    let oldVal := before.storageMap slot key
-    let newVal := after.storageMap slot key
-    if oldVal ≠ newVal then some (slot, key, newVal) else none
+  deduped.filterMap fun (slotIdx, key) =>
+    let oldVal := before.storageMap slotIdx key
+    let newVal := after.storageMap slotIdx key
+    if oldVal ≠ newVal then some (slotIdx, key, newVal) else none
 
 private def dedupeMappingUintKeys (keys : List (Nat × Uint256)) : List (Nat × Uint256) :=
   let deduped := keys.foldl (fun acc key =>
@@ -93,10 +93,10 @@ private def dedupeMappingUintKeys (keys : List (Nat × Uint256)) : List (Nat × 
 def extractMappingUintChanges (before after : ContractState) (keys : List (Nat × Uint256)) :
     List (Nat × Nat × Nat) :=
   let deduped := dedupeMappingUintKeys keys
-  deduped.filterMap fun (slot, key) =>
-    let oldVal := before.storageMapUint slot key
-    let newVal := after.storageMapUint slot key
-    if oldVal ≠ newVal then some (slot, key.val, newVal.val) else none
+  deduped.filterMap fun (slotIdx, key) =>
+    let oldVal := before.storageMapUint slotIdx key
+    let newVal := after.storageMapUint slotIdx key
+    if oldVal ≠ newVal then some (slotIdx, key.val, newVal.val) else none
 
 private def dedupeMapping2Keys (keys : List (Nat × Address × Address)) : List (Nat × Address × Address) :=
   let deduped := keys.foldl (fun acc key =>
@@ -107,10 +107,10 @@ private def dedupeMapping2Keys (keys : List (Nat × Address × Address)) : List 
 def extractMapping2Changes (before after : ContractState) (keys : List (Nat × Address × Address)) :
     List (Nat × Address × Address × Nat) :=
   let deduped := dedupeMapping2Keys keys
-  deduped.filterMap fun (slot, key1, key2) =>
-    let oldVal := before.storageMap2 slot key1 key2
-    let newVal := after.storageMap2 slot key1 key2
-    if oldVal ≠ newVal then some (slot, key1, key2, newVal.val) else none
+  deduped.filterMap fun (slotIdx, key1, key2) =>
+    let oldVal := before.storageMap2 slotIdx key1 key2
+    let newVal := after.storageMap2 slotIdx key1 key2
+    if oldVal ≠ newVal then some (slotIdx, key1, key2, newVal.val) else none
 
 private def revertReturnValue (msg : String) : Nat :=
   if msg.isEmpty then 0 else errorStringSelectorWord
@@ -143,7 +143,7 @@ def resultToExecutionResult
       returnValue := some returnVal
       revertReason := none
       storageChanges := extractStorageChanges initialState finalState slotsToCheck
-      storageAddrChanges := addrChanges.map (fun (slot, addr) => (slot, addressToNat addr))
+      storageAddrChanges := addrChanges.map (fun (slotIdx, addr) => (slotIdx, addressToNat addr))
       mappingChanges := extractMappingChanges initialState finalState mappingKeysToCheck
       mappingUintChanges := extractMappingUintChanges initialState finalState mappingUintKeysToCheck
       mapping2Changes := extractMapping2Changes initialState finalState mapping2KeysToCheck
@@ -346,6 +346,16 @@ abbrev transferOwnership := Verity.Examples.Owned.transferOwnership
 abbrev getOwner := Verity.Examples.Owned.getOwner
 
 end Owned
+
+namespace OwnedCounter
+
+abbrev increment := Verity.Examples.MacroContracts.OwnedCounter.increment
+abbrev decrement := Verity.Examples.MacroContracts.OwnedCounter.decrement
+abbrev getCount := Verity.Examples.MacroContracts.OwnedCounter.getCount
+abbrev getOwner := Verity.Examples.MacroContracts.OwnedCounter.getOwner
+abbrev transferOwnership := Verity.Examples.MacroContracts.OwnedCounter.transferOwnership
+
+end OwnedCounter
 end Compat
 
 /-!
@@ -434,17 +444,17 @@ def interpretOwnedCounter (tx : Transaction) (state : ContractState) : Execution
   dispatch tx [
     case0 "increment" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
-      runUnit OwnedCounter.increment state [1] [0] []
+      runUnit Compat.OwnedCounter.increment state [1] [0] []
     ),
     case0 "decrement" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
-      runUnit OwnedCounter.decrement state [1] [0] []
+      runUnit Compat.OwnedCounter.decrement state [1] [0] []
     ),
-    case0 "getCount" tx (fun _ => runUint OwnedCounter.getCount state [1] [] []),
-    case0 "getOwner" tx (fun _ => runAddress OwnedCounter.getOwner state [] [0] []),
+    case0 "getCount" tx (fun _ => runUint Compat.OwnedCounter.getCount state [1] [] []),
+    case0 "getOwner" tx (fun _ => runAddress Compat.OwnedCounter.getOwner state [] [0] []),
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
       -- Track owner address storage slot 0
-      runUnit (OwnedCounter.transferOwnership newOwnerAddr) state [] [0] []
+      runUnit (Compat.OwnedCounter.transferOwnership newOwnerAddr) state [] [0] []
     )
   ]
 
@@ -636,25 +646,25 @@ def ExecutionResult.toJSON (r : ExecutionResult) : String :=
   let revertStr := match r.revertReason with
     | some msg => "\"" ++ escapeJsonString msg ++ "\""
     | none => "null"
-  let changesStr := r.storageChanges.foldl (fun acc (slot, val) =>
-    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"value\":" ++ toString val ++ "}"
+  let changesStr := r.storageChanges.foldl (fun acc (slotIdx, val) =>
+    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slotIdx ++ ",\"value\":" ++ toString val ++ "}"
   ) "["
   let changesStr := changesStr ++ "]"
-  let addrChangesStr := r.storageAddrChanges.foldl (fun acc (slot, val) =>
-    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"value\":" ++ toString val ++ "}"
+  let addrChangesStr := r.storageAddrChanges.foldl (fun acc (slotIdx, val) =>
+    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slotIdx ++ ",\"value\":" ++ toString val ++ "}"
   ) "["
   let addrChangesStr := addrChangesStr ++ "]"
-  let mappingChangesStr := r.mappingChanges.foldl (fun acc (slot, key, val) =>
-    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"key\":\"" ++ addressToHexString key ++ "\",\"value\":" ++ toString val ++ "}"
+  let mappingChangesStr := r.mappingChanges.foldl (fun acc (slotIdx, key, val) =>
+    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slotIdx ++ ",\"key\":\"" ++ addressToHexString key ++ "\",\"value\":" ++ toString val ++ "}"
   ) "["
   let mappingChangesStr := mappingChangesStr ++ "]"
-  let mappingUintChangesStr := r.mappingUintChanges.foldl (fun acc (slot, key, val) =>
-    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slot ++ ",\"key\":" ++ toString key ++ ",\"value\":" ++ toString val ++ "}"
+  let mappingUintChangesStr := r.mappingUintChanges.foldl (fun acc (slotIdx, key, val) =>
+    acc ++ (if acc == "[" then "" else ",") ++ "{\"slot\":" ++ toString slotIdx ++ ",\"key\":" ++ toString key ++ ",\"value\":" ++ toString val ++ "}"
   ) "["
   let mappingUintChangesStr := mappingUintChangesStr ++ "]"
-  let mapping2ChangesStr := r.mapping2Changes.foldl (fun acc (slot, key1, key2, val) =>
+  let mapping2ChangesStr := r.mapping2Changes.foldl (fun acc (slotIdx, key1, key2, val) =>
     acc ++ (if acc == "[" then "" else ",")
-      ++ "{\"slot\":" ++ toString slot
+      ++ "{\"slot\":" ++ toString slotIdx
       ++ ",\"key1\":\"" ++ addressToHexString key1 ++ "\""
       ++ ",\"key2\":\"" ++ addressToHexString key2 ++ "\""
       ++ ",\"value\":" ++ toString val ++ "}"
@@ -697,11 +707,11 @@ private def parseSlotPairs (storageStr : String) (parseVal : String → Option �
     else match pair.splitOn ":" with
       | [slotStr, valStr] =>
         match parseArgNat? slotStr, parseVal valStr with
-        | some slot, some val => acc ++ [(slot, val)]
+        | some slotIdx, some val => acc ++ [(slotIdx, val)]
         | _, _ => acc
       | _ => acc
   ) []
-  fun slot => (entries.find? (fun (s, _) => s == slot)).map Prod.snd |>.getD default
+  fun slotIdx => (entries.find? (fun (s, _) => s == slotIdx)).map Prod.snd |>.getD default
 
 -- Parse storage state: "slot0:value0,slot1:value1,..."
 def parseStorage (storageStr : String) : Nat → Uint256 :=
@@ -760,25 +770,25 @@ def parseStorageMap (storageStr : String) : Nat → Address → Uint256 :=
       match entry.splitOn ":" with
       | [slotStr, key, valStr] =>
         match parseArgNat? slotStr, parseArgNat? valStr with
-        | some slot, some val =>
+        | some slotIdx, some val =>
           let valU : Uint256 := val
           let keyAddr := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress key))
-          acc ++ [(slot, keyAddr, valU)]
+          acc ++ [(slotIdx, keyAddr, valU)]
         | _, _ => acc
       | [slotStr, rest] =>
         match rest.splitOn "=" with
         | [key, valStr] =>
           match parseArgNat? slotStr, parseArgNat? valStr with
-          | some slot, some val =>
+          | some slotIdx, some val =>
             let valU : Uint256 := val
             let keyAddr := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress key))
-            acc ++ [(slot, keyAddr, valU)]
+            acc ++ [(slotIdx, keyAddr, valU)]
           | _, _ => acc
         | _ => acc
       | _ => acc
   ) []
-  fun slot key =>
-    (mapping.find? (fun (s, k, _) => s == slot && k == key)).map (fun (_, _, v) => v) |>.getD 0
+  fun slotIdx key =>
+    (mapping.find? (fun (s, k, _) => s == slotIdx && k == key)).map (fun (_, _, v) => v) |>.getD 0
 
 def parseStorageMapUint (storageStr : String) : Nat → Uint256 → Uint256 :=
   let entries := storageStr.splitOn ","
@@ -789,21 +799,21 @@ def parseStorageMapUint (storageStr : String) : Nat → Uint256 → Uint256 :=
       match entry.splitOn ":" with
       | [slotStr, keyStr, valStr] =>
         match parseArgNat? slotStr, parseArgNat? keyStr, parseArgNat? valStr with
-        | some slot, some key, some val =>
-          acc ++ [(slot, (key : Uint256), (val : Uint256))]
+        | some slotIdx, some key, some val =>
+          acc ++ [(slotIdx, (key : Uint256), (val : Uint256))]
         | _, _, _ => acc
       | [slotStr, rest] =>
         match rest.splitOn "=" with
         | [keyStr, valStr] =>
           match parseArgNat? slotStr, parseArgNat? keyStr, parseArgNat? valStr with
-          | some slot, some key, some val =>
-            acc ++ [(slot, (key : Uint256), (val : Uint256))]
+          | some slotIdx, some key, some val =>
+            acc ++ [(slotIdx, (key : Uint256), (val : Uint256))]
           | _, _, _ => acc
         | _ => acc
       | _ => acc
   ) []
-  fun slot key =>
-    (mapping.find? (fun (s, k, _) => s == slot && k == key)).map (fun (_, _, v) => v) |>.getD 0
+  fun slotIdx key =>
+    (mapping.find? (fun (s, k, _) => s == slotIdx && k == key)).map (fun (_, _, v) => v) |>.getD 0
 
 def parseStorageMap2 (storageStr : String) : Nat → Address → Address → Uint256 :=
   let entries := storageStr.splitOn ","
@@ -814,15 +824,15 @@ def parseStorageMap2 (storageStr : String) : Nat → Address → Address → Uin
       match entry.splitOn ":" with
       | [slotStr, key1Str, key2Str, valStr] =>
         match parseArgNat? slotStr, parseArgNat? valStr with
-        | some slot, some val =>
+        | some slotIdx, some val =>
           let key1 := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress key1Str))
           let key2 := Verity.Core.Address.ofNat (Compiler.Hex.addressToNat (normalizeAddress key2Str))
-          acc ++ [(slot, key1, key2, (val : Uint256))]
+          acc ++ [(slotIdx, key1, key2, (val : Uint256))]
         | _, _ => acc
       | _ => acc
   ) []
-  fun slot key1 key2 =>
-    (mapping.find? (fun (s, k1, k2, _) => s == slot && k1 == key1 && k2 == key2)).map (fun (_, _, _, v) => v) |>.getD 0
+  fun slotIdx key1 key2 =>
+    (mapping.find? (fun (s, k1, k2, _) => s == slotIdx && k1 == key1 && k2 == key2)).map (fun (_, _, _, v) => v) |>.getD 0
 
 private def parseArgs (args : List String) : Except String (List Nat) :=
   let parsed := args.foldl (fun acc s =>
@@ -945,7 +955,7 @@ def main (args : List String) : IO Unit := do
       | none => fun _ _ _ => 0 -- Default: empty 2-key mapping storage
 
     let initialState : ContractState := {
-      storage := storageState
+      «storage» := storageState
       storageAddr := storageAddrState
       storageMap := storageMapState
       storageMapUint := storageMapUintState

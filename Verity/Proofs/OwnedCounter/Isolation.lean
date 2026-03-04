@@ -16,7 +16,7 @@ import Verity.Proofs.OwnedCounter.Basic
 namespace Verity.Proofs.OwnedCounter.Isolation
 
 open Verity
-open Verity.Examples.OwnedCounter
+open Verity.Examples.MacroContracts.OwnedCounter
 open Verity.Specs.OwnedCounter
 open Verity.Proofs.OwnedCounter
 
@@ -40,7 +40,7 @@ theorem decrement_count_preserves_owner (s : ContractState)
 
 /-- Constructor preserves counter storage. -/
 theorem constructor_owner_preserves_count (s : ContractState) (initialOwner : Address) :
-  owner_preserves_count s ((constructor initialOwner).run s).snd :=
+  owner_preserves_count s ((setStorageAddr owner initialOwner).run s).snd :=
   constructor_preserves_count s initialOwner
 
 /-! ## Owner operations preserve counter storage (owner_preserves_count)
@@ -61,8 +61,8 @@ All successful operations preserve sender and thisAddress.
 
 /-- Constructor preserves context. -/
 theorem constructor_context_preserved (s : ContractState) (initialOwner : Address) :
-  context_preserved s ((constructor initialOwner).run s).snd := by
-  simp [context_preserved, Specs.sameContext, constructor, setStorageAddr, owner, Contract.run, ContractResult.snd]
+  context_preserved s ((setStorageAddr owner initialOwner).run s).snd := by
+  simp [context_preserved, Specs.sameContext, setStorageAddr, owner, Contract.run, ContractResult.snd]
 
 /-- Increment preserves context (when authorized). -/
 theorem increment_context_preserved (s : ContractState)
@@ -88,12 +88,14 @@ theorem transferOwnership_context_preserved (s : ContractState) (newOwner : Addr
 /-- getCount preserves context. -/
 theorem getCount_context_preserved (s : ContractState) :
   context_preserved s (getCount.run s).snd := by
-  simp [context_preserved, Specs.sameContext, getCount, getStorage, count, Contract.run, ContractResult.snd]
+  rw [getCount_preserves_state s]
+  simp [context_preserved, Specs.sameContext]
 
 /-- getOwner preserves context. -/
 theorem getOwner_context_preserved (s : ContractState) :
   context_preserved s (getOwner.run s).snd := by
-  simp [context_preserved, Specs.sameContext, getOwner, getStorageAddr, owner, Contract.run, ContractResult.snd]
+  rw [getOwner_preserves_state s]
+  simp [context_preserved, Specs.sameContext]
 
 /-! ## Mapping storage isolation
 
@@ -103,8 +105,8 @@ doesn't use mappings at all).
 
 /-- Constructor preserves mapping storage. -/
 theorem constructor_preserves_map_storage (s : ContractState) (initialOwner : Address) :
-  ((constructor initialOwner).run s).snd.storageMap = s.storageMap := by
-  simp [constructor, setStorageAddr, owner, Contract.run, ContractResult.snd]
+  ((setStorageAddr owner initialOwner).run s).snd.storageMap = s.storageMap := by
+  simp [setStorageAddr, owner, Contract.run, ContractResult.snd]
 
 /-- Increment preserves mapping storage. -/
 theorem increment_preserves_map_storage (s : ContractState)

@@ -33,7 +33,6 @@ import Compiler.Specs
 import Verity.Core
 import Verity.Examples.MacroContracts.Core
 import Verity.Examples.Counter
-import Verity.Examples.OwnedCounter
 
 namespace Compiler.Proofs.SemanticBridge
 
@@ -378,7 +377,8 @@ def encodeOwnedCounterStorage (state : ContractState) : Nat → Nat :=
 
 theorem ownedCounter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
-    let edslResult := Contract.run (Verity.Examples.OwnedCounter.getCount) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.OwnedCounter.getCount)
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0xa87d942c []
     let irState := mkIRState state sender 0xa87d942c [] encodeOwnedCounterStorage
     match edslResult with
@@ -395,7 +395,8 @@ theorem ownedCounter_getCount_semantic_bridge
 
 theorem ownedCounter_getOwner_semantic_bridge
     (state : ContractState) (sender : Address) :
-    let edslResult := Contract.run (Verity.Examples.OwnedCounter.getOwner) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.OwnedCounter.getOwner)
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0x893d20e8 []
     let irState := mkIRState state sender 0x893d20e8 [] encodeOwnedCounterStorage
     match edslResult with
@@ -413,7 +414,8 @@ theorem ownedCounter_getOwner_semantic_bridge
 theorem ownedCounter_increment_semantic_bridge
     (state : ContractState) (sender : Address)
     (hOwner : sender = state.storageAddr 0) :
-    let edslResult := Contract.run (Verity.Examples.OwnedCounter.increment) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.OwnedCounter.increment)
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0xd09de08a []
     let irState := mkIRState state sender 0xd09de08a [] encodeOwnedCounterStorage
     match edslResult with
@@ -430,7 +432,8 @@ theorem ownedCounter_increment_semantic_bridge
 theorem ownedCounter_decrement_semantic_bridge
     (state : ContractState) (sender : Address)
     (hOwner : sender = state.storageAddr 0) :
-    let edslResult := Contract.run (Verity.Examples.OwnedCounter.decrement) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.OwnedCounter.decrement)
+      { state with sender := sender }
     let tx := mkIRTransaction sender 0x2baeceb7 []
     let irState := mkIRState state sender 0x2baeceb7 [] encodeOwnedCounterStorage
     match edslResult with
@@ -447,7 +450,7 @@ theorem ownedCounter_decrement_semantic_bridge
 theorem ownedCounter_transferOwnership_semantic_bridge
     (state : ContractState) (sender : Address) (newOwner : Address)
     (hOwner : sender = state.storageAddr 0) :
-    let edslResult := Contract.run (Verity.Examples.OwnedCounter.transferOwnership newOwner)
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.OwnedCounter.transferOwnership newOwner)
         { state with sender := sender }
     let tx := mkIRTransaction sender 0xf2fde38b [newOwner.val]
     let irState := mkIRState state sender 0xf2fde38b [newOwner.val] encodeOwnedCounterStorage

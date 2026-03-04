@@ -16,7 +16,7 @@ import Verity.Proofs.Stdlib.Automation
 namespace Verity.Proofs.OwnedCounter
 
 open Verity
-open Verity.Examples.OwnedCounter
+open Verity.Examples.MacroContracts.OwnedCounter
 open Verity.Specs.OwnedCounter
 open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne)
 
@@ -36,50 +36,64 @@ private theorem guarded_reverts (f : Unit → Contract α) (s : ContractState)
 /-! ## Constructor Correctness -/
 
 theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
-  let s' := ((constructor initialOwner).run s).snd
+  let s' := ((setStorageAddr owner initialOwner).run s).snd
   constructor_spec initialOwner s s' := by
-  simp [constructor, setStorageAddr, owner, constructor_spec, Contract.run, ContractResult.snd,
+  simp [setStorageAddr, owner, constructor_spec, Contract.run, ContractResult.snd,
     Specs.sameStorageMapContext, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
-  intro slot h_neq
+  intro slotIdx h_neq
   simp [h_neq]
 
 theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
-  let s' := ((constructor initialOwner).run s).snd
+  let s' := ((setStorageAddr owner initialOwner).run s).snd
   s'.storageAddr 0 = initialOwner := by
-  simp [constructor, setStorageAddr, owner, Contract.run, ContractResult.snd]
+  simp [setStorageAddr, owner, Contract.run, ContractResult.snd]
 
 theorem constructor_preserves_count (s : ContractState) (initialOwner : Address) :
-  let s' := ((constructor initialOwner).run s).snd
+  let s' := ((setStorageAddr owner initialOwner).run s).snd
   s'.storage = s.storage := by
-  simp [constructor, setStorageAddr, owner, Contract.run, ContractResult.snd]
+  simp [setStorageAddr, owner, Contract.run, ContractResult.snd]
 
 /-! ## Read Operation Correctness -/
+
+private theorem getCount_run (s : ContractState) :
+  (getCount).run s = ContractResult.success (s.storage 1) s := by
+  simp [getCount, count, getStorage, Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run]
 
 theorem getCount_meets_spec (s : ContractState) :
   let result := ((getCount).run s).fst
   getCount_spec result s := by
-  simp [getCount, getStorage, count, getCount_spec, Contract.run, ContractResult.fst]
+  rw [getCount_run s]
+  simp [getCount_spec]
 
 theorem getCount_returns_count (s : ContractState) :
   ((getCount).run s).fst = s.storage 1 := by
-  simp [getCount, getStorage, count, Contract.run, ContractResult.fst]
+  rw [getCount_run s]
+  simp
 
 theorem getCount_preserves_state (s : ContractState) :
   ((getCount).run s).snd = s := by
-  simp [getCount, getStorage, count, Contract.run, ContractResult.snd]
+  rw [getCount_run s]
+  simp
+
+private theorem getOwner_run (s : ContractState) :
+  (getOwner).run s = ContractResult.success (s.storageAddr 0) s := by
+  simp [getOwner, owner, getStorageAddr, Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run]
 
 theorem getOwner_meets_spec (s : ContractState) :
   let result := ((getOwner).run s).fst
   getOwner_spec result s := by
-  simp [getOwner, getStorageAddr, owner, getOwner_spec, Contract.run, ContractResult.fst]
+  rw [getOwner_run s]
+  simp [getOwner_spec]
 
 theorem getOwner_returns_owner (s : ContractState) :
   ((getOwner).run s).fst = s.storageAddr 0 := by
-  simp [getOwner, getStorageAddr, owner, Contract.run, ContractResult.fst]
+  rw [getOwner_run s]
+  simp
 
 theorem getOwner_preserves_state (s : ContractState) :
   ((getOwner).run s).snd = s := by
-  simp [getOwner, getStorageAddr, owner, Contract.run, ContractResult.snd]
+  rw [getOwner_run s]
+  simp
 
 /-! ## isOwner Correctness -/
 
@@ -95,7 +109,7 @@ theorem isOwner_correct (s : ContractState) :
 theorem increment_unfold (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (increment.run s) = ContractResult.success ()
-    { storage := fun slot => if (slot == 1) = true then EVM.Uint256.add (s.storage 1) 1 else s.storage slot,
+    { «storage» := fun slotIdx => if (slotIdx == 1) = true then EVM.Uint256.add (s.storage 1) 1 else s.storage slotIdx,
       storageAddr := s.storageAddr,
       storageMap := s.storageMap,
       storageMapUint := s.storageMapUint,
@@ -118,7 +132,7 @@ theorem increment_meets_spec_when_owner (s : ContractState)
   rw [increment_unfold s h_owner]
   simp [increment_spec, ContractResult.snd, Specs.sameAddrMapContext,
     Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
-  intro slot h_neq
+  intro slotIdx h_neq
   simp [h_neq]
 
 theorem increment_adds_one_when_owner (s : ContractState)
@@ -139,7 +153,7 @@ theorem increment_reverts_when_not_owner (s : ContractState)
 theorem decrement_unfold (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (decrement.run s) = ContractResult.success ()
-    { storage := fun slot => if (slot == 1) = true then EVM.Uint256.sub (s.storage 1) 1 else s.storage slot,
+    { «storage» := fun slotIdx => if (slotIdx == 1) = true then EVM.Uint256.sub (s.storage 1) 1 else s.storage slotIdx,
       storageAddr := s.storageAddr,
       storageMap := s.storageMap,
       storageMapUint := s.storageMapUint,
@@ -162,7 +176,7 @@ theorem decrement_meets_spec_when_owner (s : ContractState)
   rw [decrement_unfold s h_owner]
   simp [decrement_spec, ContractResult.snd, Specs.sameAddrMapContext,
     Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
-  intro slot h_neq
+  intro slotIdx h_neq
   simp [h_neq]
 
 theorem decrement_subtracts_one_when_owner (s : ContractState)
@@ -182,8 +196,8 @@ theorem decrement_reverts_when_not_owner (s : ContractState)
 theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
   (transferOwnership newOwner).run s = ContractResult.success ()
-    { storage := s.storage,
-      storageAddr := fun slot => if (slot == 0) = true then newOwner else s.storageAddr slot,
+    { «storage» := s.storage,
+      storageAddr := fun slotIdx => if (slotIdx == 0) = true then newOwner else s.storageAddr slotIdx,
       storageMap := s.storageMap,
       storageMapUint := s.storageMapUint,
       storageMap2 := s.storageMap2,
@@ -205,7 +219,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   rw [transferOwnership_unfold s newOwner h_owner]
   simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorageMapContext,
     Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
-  intro slot h_neq
+  intro slotIdx h_neq
   simp [h_neq]
 
 theorem transferOwnership_changes_owner (s : ContractState) (newOwner : Address)
@@ -251,7 +265,7 @@ theorem transferOwnership_preserves_count (s : ContractState) (newOwner : Addres
 
 theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner : Address)
   (h : WellFormedState s) (h_owner : initialOwner ≠ 0) :
-  let s' := ((constructor initialOwner).run s).snd
+  let s' := ((setStorageAddr owner initialOwner).run s).snd
   WellFormedState s' := by
   have h_spec := constructor_meets_spec s initialOwner
   rcases h_spec with ⟨h_set, _h_other_addr, h_same⟩
@@ -276,11 +290,11 @@ theorem decrement_preserves_wellformedness (s : ContractState)
 
 theorem constructor_increment_getCount (s : ContractState) (initialOwner : Address)
   (h_sender : s.sender = initialOwner) :
-  let s1 := ((constructor initialOwner).run s).snd
+  let s1 := ((setStorageAddr owner initialOwner).run s).snd
   let s2 := (increment.run s1).snd
   (getCount.run s2).fst = EVM.Uint256.add (s.storage 1) 1 := by
   -- Fully unfold constructor → increment → getCount in one go
-  simp only [constructor, increment, onlyOwner, isOwner, owner, count,
+  simp only [setStorageAddr, increment, onlyOwner, isOwner, owner, count,
     getCount, getStorage, getStorageAddr, setStorage, setStorageAddr,
     msgSender, Verity.require, Verity.pure, Verity.bind,
     Bind.bind, Pure.pure, Contract.run, ContractResult.snd, ContractResult.fst]
