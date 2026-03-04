@@ -12,7 +12,7 @@ import Verity.Proofs.Owned.Basic
 namespace Verity.Proofs.Owned.Correctness
 
 open Verity
-open Verity.Examples.Owned
+open Verity.Examples.MacroContracts.Owned
 open Verity.Specs.Owned
 open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne)
 open Verity.Proofs.Owned
@@ -50,10 +50,10 @@ theorem transferOwnership_preserves_wellformedness (s : ContractState) (newOwner
     Proves the full lifecycle: create → transfer → read. -/
 theorem constructor_transferOwnership_getOwner (s : ContractState) (initialOwner newOwner : Address)
   (h_sender : s.sender = initialOwner) :
-  let s1 := ((constructor initialOwner).run s).snd
+  let s1 := ((setStorageAddr owner initialOwner).run s).snd
   let s2 := ((transferOwnership newOwner).run s1).snd
   ((getOwner).run s2).fst = newOwner := by
-  simp [constructor, transferOwnership, onlyOwner, isOwner, owner, getOwner,
+  simp [setStorageAddr, transferOwnership, onlyOwner, isOwner, owner, getOwner,
     msgSender, getStorageAddr, setStorageAddr,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst, h_sender]

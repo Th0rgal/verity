@@ -28,8 +28,6 @@ ALLOWLIST = {
     Path("Verity/Proofs/Ledger/Basic.lean"),
     Path("Verity/Proofs/Ledger/Conservation.lean"),
     Path("Verity/Proofs/Ledger/Correctness.lean"),
-    Path("Verity/Proofs/Owned/Basic.lean"),
-    Path("Verity/Proofs/Owned/Correctness.lean"),
     Path("Verity/Proofs/OwnedCounter/Basic.lean"),
     Path("Verity/Proofs/OwnedCounter/Correctness.lean"),
     Path("Verity/Proofs/OwnedCounter/Isolation.lean"),

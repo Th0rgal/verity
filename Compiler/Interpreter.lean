@@ -334,6 +334,21 @@ private def dispatch (tx : Transaction) (cases : List (String × (Unit → Execu
   | none => unknownFunctionResult
 
 /-!
+Compatibility shims for per-contract migration.
+
+These keep interpreter call-sites stable while contract implementations move
+from `Verity.Examples.*` to `Verity.Examples.MacroContracts.*`.
+-/
+namespace Compat
+namespace Owned
+
+abbrev transferOwnership := Verity.Examples.Owned.transferOwnership
+abbrev getOwner := Verity.Examples.Owned.getOwner
+
+end Owned
+end Compat
+
+/-!
 ## Example: SimpleStorage Interpreter
 
 Demonstrate how to wrap EDSL contract for differential testing.
@@ -377,9 +392,9 @@ def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionR
 def interpretOwned (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
-      runUnit (Owned.transferOwnership newOwnerAddr) state [] [0] []
+      runUnit (Compat.Owned.transferOwnership newOwnerAddr) state [] [0] []
     ),
-    case0 "getOwner" tx (fun _ => runAddress Owned.getOwner state [] [0] [])
+    case0 "getOwner" tx (fun _ => runAddress Compat.Owned.getOwner state [] [0] [])
   ]
 
 /-!

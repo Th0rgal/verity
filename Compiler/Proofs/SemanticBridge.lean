@@ -33,7 +33,6 @@ import Compiler.Specs
 import Verity.Core
 import Verity.Examples.MacroContracts.Core
 import Verity.Examples.Counter
-import Verity.Examples.Owned
 import Verity.Examples.OwnedCounter
 
 namespace Compiler.Proofs.SemanticBridge
@@ -267,7 +266,7 @@ def encodeStorageAddr (state : ContractState) : Nat → Nat :=
 
 theorem owned_getOwner_semantic_bridge
     (state : ContractState) (sender : Address) :
-    let edslResult := Contract.run (Verity.Examples.Owned.getOwner) { state with sender := sender }
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.Owned.getOwner) { state with sender := sender }
     let tx := mkIRTransaction sender 0x893d20e8 []
     let irState := mkIRState state sender 0x893d20e8 [] encodeStorageAddr
     match edslResult with
@@ -284,7 +283,7 @@ theorem owned_getOwner_semantic_bridge
 theorem owned_transferOwnership_semantic_bridge
     (state : ContractState) (sender : Address) (newOwner : Address)
     (hOwner : sender = state.storageAddr 0) :
-    let edslResult := Contract.run (Verity.Examples.Owned.transferOwnership newOwner)
+    let edslResult := Contract.run (Verity.Examples.MacroContracts.Owned.transferOwnership newOwner)
         { state with sender := sender }
     let tx := mkIRTransaction sender 0xf2fde38b [newOwner.val]
     let irState := mkIRState state sender 0xf2fde38b [newOwner.val] encodeStorageAddr

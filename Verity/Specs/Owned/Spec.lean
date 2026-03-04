@@ -3,12 +3,12 @@
 -/
 
 import Verity.Specs.Common
-import Verity.Examples.Owned
+import Verity.Examples.MacroContracts.Core
 
 namespace Verity.Specs.Owned
 
 open Verity
-open Verity.Examples.Owned
+open Verity.Examples.MacroContracts.Owned
 
 /-! ## Operation Specifications -/
 
