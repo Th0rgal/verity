@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Expected sorry count matches actual.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 16  # 16 in SemanticBridge
+    expected_sorry = 15  # 15 in SemanticBridge
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

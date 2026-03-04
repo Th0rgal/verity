@@ -151,6 +151,7 @@ theorem simpleStorage_store_semantic_bridge
     evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
     encodeStorage, encodeEvents, hmod]
 
+set_option maxHeartbeats 1000000000 in
 theorem simpleStorage_retrieve_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.retrieve) { state with sender := sender }
@@ -174,6 +175,7 @@ theorem simpleStorage_retrieve_semantic_bridge
 
 /-! ## Target Theorems: Counter -/
 
+set_option maxHeartbeats 1000000000 in
 theorem counter_increment_semantic_bridge
     (state : ContractState) (sender : Address) :
     let edslResult := Contract.run (Verity.Examples.MacroContracts.Counter.increment) { state with sender := sender }
@@ -187,7 +189,11 @@ theorem counter_increment_semantic_bridge
         ∧
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
-    := by sorry
+    := by
+  simp [Contract.run, Verity.Examples.MacroContracts.Counter.increment, Verity.Examples.MacroContracts.Counter.count,
+    setStorage, mkIRTransaction, mkIRState, interpretIR, counterIRContract, execIRFunction, execIRStmts, execIRStmt,
+    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+    encodeStorage, encodeEvents]
 
 theorem counter_decrement_semantic_bridge
     (state : ContractState) (sender : Address) :
