@@ -63,6 +63,16 @@ def encodeStorage (state : ContractState) : Nat → Nat :=
 def encodeSender (state : ContractState) : Nat :=
   state.sender.val
 
+/-- Encode an EDSL event as an IR-level flat log payload. -/
+def encodeEvent (ev : Event) : List Nat :=
+  (ev.name.toList.map Char.toNat) ++
+    (0 :: (ev.args.map (fun arg => arg.val))) ++
+    (0 :: (ev.indexedArgs.map (fun arg => arg.val)))
+
+/-- Encode the full append-only EDSL event log for IR-level comparison. -/
+def encodeEvents (events : List Event) : List (List Nat) :=
+  events.map encodeEvent
+
 /-! ## Target Theorems: SimpleStorage -/
 
 theorem simpleStorage_store_semantic_bridge
@@ -87,6 +97,8 @@ theorem simpleStorage_store_semantic_bridge
         let irResult := interpretIR simpleStorageIRContract tx irState
         irResult.success = true ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -113,6 +125,8 @@ theorem simpleStorage_retrieve_semantic_bridge
         irResult.success = true ∧
         irResult.returnValue = some val.val ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -140,6 +154,8 @@ theorem counter_increment_semantic_bridge
         let irResult := interpretIR counterIRContract tx irState
         irResult.success = true ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -165,6 +181,8 @@ theorem counter_decrement_semantic_bridge
         let irResult := interpretIR counterIRContract tx irState
         irResult.success = true ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -191,6 +209,8 @@ theorem counter_getCount_semantic_bridge
         irResult.success = true ∧
         irResult.returnValue = some val.val ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -223,6 +243,8 @@ theorem owned_getOwner_semantic_bridge
         irResult.success = true ∧
         irResult.returnValue = some val.val ∧
         ∀ «slot», (s'.storageAddr «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -250,6 +272,8 @@ theorem owned_transferOwnership_semantic_bridge
         let irResult := interpretIR ownedIRContract tx irState
         irResult.success = true ∧
         ∀ «slot», (s'.storageAddr «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -277,6 +301,8 @@ theorem safeCounter_increment_semantic_bridge
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = true ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ =>
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = false
@@ -304,6 +330,8 @@ theorem safeCounter_decrement_semantic_bridge
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = true ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ =>
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = false
@@ -332,6 +360,8 @@ theorem safeCounter_getCount_semantic_bridge
         irResult.success = true ∧
         irResult.returnValue = some val.val ∧
         ∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -367,6 +397,8 @@ theorem ownedCounter_getCount_semantic_bridge
         irResult.returnValue = some val.val ∧
         ∀ «slot», (if «slot» = 0 then (s'.storageAddr 0).val else (s'.storage «slot»).val) =
                 irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -394,6 +426,8 @@ theorem ownedCounter_getOwner_semantic_bridge
         irResult.returnValue = some val.val ∧
         ∀ «slot», (if «slot» = 0 then (s'.storageAddr 0).val else (s'.storage «slot»).val) =
                 irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -421,6 +455,8 @@ theorem ownedCounter_increment_semantic_bridge
         irResult.success = true ∧
         ∀ «slot», (if «slot» = 0 then (s'.storageAddr 0).val else (s'.storage «slot»).val) =
                 irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -448,6 +484,8 @@ theorem ownedCounter_decrement_semantic_bridge
         irResult.success = true ∧
         ∀ «slot», (if «slot» = 0 then (s'.storageAddr 0).val else (s'.storage «slot»).val) =
                 irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -476,6 +514,8 @@ theorem ownedCounter_transferOwnership_semantic_bridge
         irResult.success = true ∧
         ∀ «slot», (if «slot» = 0 then (s'.storageAddr 0).val else (s'.storage «slot»).val) =
                 irResult.finalStorage «slot»
+        ∧
+        encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by sorry
 
@@ -503,6 +543,7 @@ theorem simpleStorage_store_edsl_to_yul
         let irResult := interpretIR simpleStorageIRContract tx irState
         irResult.success = true ∧
         (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+        encodeEvents s'.events = irResult.events ∧
         Compiler.Proofs.YulGeneration.resultsMatch
           (interpretIR simpleStorageIRContract tx irState)
           (interpretYulFromIR simpleStorageIRContract tx irState)
@@ -532,6 +573,7 @@ theorem simpleStorage_retrieve_edsl_to_yul
         irResult.success = true ∧
         irResult.returnValue = some val.val ∧
         (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+        encodeEvents s'.events = irResult.events ∧
         Compiler.Proofs.YulGeneration.resultsMatch
           (interpretIR simpleStorageIRContract tx irState)
           (interpretYulFromIR simpleStorageIRContract tx irState)
@@ -560,6 +602,7 @@ theorem counter_increment_edsl_to_yul
         let irResult := interpretIR counterIRContract tx irState
         irResult.success = true ∧
         (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+        encodeEvents s'.events = irResult.events ∧
         Compiler.Proofs.YulGeneration.resultsMatch
           (interpretIR counterIRContract tx irState)
           (interpretYulFromIR counterIRContract tx irState)
