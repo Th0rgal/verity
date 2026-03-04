@@ -634,6 +634,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.execYulStmtsFuel_nil
 #print axioms Compiler.Proofs.YulGeneration.execYulStmtsFuel_cons
 #print axioms Compiler.Proofs.YulGeneration.execYulStmtFuel_for
+-- #print axioms Compiler.Proofs.YulGeneration.stmt_align_contra  -- private
 #print axioms Compiler.Proofs.YulGeneration.execIRStmtsFuel_nil
 #print axioms Compiler.Proofs.YulGeneration.execIRStmtsFuel_cons
 #print axioms Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
@@ -644,4 +645,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 549 theorems/lemmas (529 public, 20 private)
+-- Total: 550 theorems/lemmas (529 public, 21 private)
