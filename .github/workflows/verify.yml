@@ -150,6 +150,9 @@ jobs:
       - name: Check SpecCorrectness migration boundary
         run: python3 scripts/check_spec_proof_migration_boundary.py
 
+      - name: Check migrated legacy-example import boundary
+        run: python3 scripts/check_legacy_example_imports.py
+
       - name: Check Layer-2 sender/storage universality
         run: python3 scripts/check_layer2_universality.py
 

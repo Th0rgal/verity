@@ -1,0 +1,7 @@
+# Explicit temporary exemptions for scripts/check_legacy_example_imports.py
+# Format:
+#   <repo-relative-lean-file>: <MigratedContract>[, <MigratedContract>...]
+#
+# Keep entries minimal and remove them as migration cleanup lands.
+
+Verity/All.lean: SimpleStorage, Counter, SafeCounter, Owned, OwnedCounter, Ledger, SimpleToken, ERC20, ERC721
