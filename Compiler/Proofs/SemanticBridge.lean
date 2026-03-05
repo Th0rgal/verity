@@ -639,6 +639,38 @@ theorem counter_increment_edsl_to_yul
           (interpretIR counterIRContract tx irState)
           (interpretYulFromIR counterIRContract tx irState)
     | .revert _ _ => True
-    := by sorry
+    := by
+  let tx := mkIRTransaction sender 0xd09de08a []
+  let irState := mkIRState state sender 0xd09de08a [] encodeStorage
+  have hBridge := counter_increment_semantic_bridge state sender
+  have hYul : resultsMatch (interpretIR counterIRContract tx irState)
+      (interpretYulFromIR counterIRContract tx irState) := by
+    refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
+      counterIRContract tx irState ?_ ?_ rfl rfl ?_
+    · simp [tx, mkIRTransaction, selectorModulus]
+    · intro s hs; simp [counterIRContract] at hs
+    · intro fn hfn
+      simp [counterIRContract] at hfn
+      rcases hfn with hfn | hfn | hfn
+      all_goals
+        subst hfn
+        simpa [Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics,
+          tx, irState, mkIRTransaction, mkIRState, encodeStorage,
+          interpretYulBodyFromState, interpretYulBody, yulStateOfIR,
+          yulResultOfExecWithRollback, interpretYulRuntime, execYulStmts]
+  cases hrun : Contract.run (Verity.Examples.MacroContracts.Counter.increment)
+      { state with sender := sender } with
+  | success _ s' =>
+      have hA : (let tx := mkIRTransaction sender 0xd09de08a []
+          let irState := mkIRState state sender 0xd09de08a [] encodeStorage
+          let irResult := interpretIR counterIRContract tx irState
+          irResult.success = true ∧
+          (∀ slot, (s'.storage slot).val = irResult.finalStorage slot) ∧
+          encodeEvents s'.events = irResult.events) := by
+        simpa [hrun] using hBridge
+      rcases hA with ⟨hs, hst, he⟩
+      simpa [tx, irState, hrun] using And.intro hs (And.intro hst (And.intro he hYul))
+  | revert _ _ =>
+      simp [hrun]
 
 end Compiler.Proofs.SemanticBridge
