@@ -1,0 +1,53 @@
+name: Property Coverage Work
+about: Improve contract property verification coverage
+title: "[Property Coverage] "
+labels: [proof, lean, help-wanted]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      placeholder: Specify the exact missing property coverage.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Properties affected, limitation, and impact.
+      placeholder: |
+        Properties affected:
+        Limitation:
+        Impact:
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Infrastructure / Proof Work
+      placeholder: Describe types/lemmas/modeling additions and where they live.
+    validations:
+      required: true
+  - type: textarea
+    id: blocked_properties
+    attributes:
+      label: Blocked Properties
+      description: List concrete properties currently blocked.
+      placeholder: |
+        - Property name / theorem
+        - Property name / theorem
+    validations:
+      required: true
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Infrastructure changes are implemented in Verity/Proofs/Stdlib (or justified alternative)
+          required: true
+        - label: At least one previously blocked property is proven
+          required: true
+        - label: docs/ROADMAP.md is updated
+          required: true
+        - label: CI passes
+          required: true

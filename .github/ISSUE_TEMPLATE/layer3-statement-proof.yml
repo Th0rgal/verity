@@ -1,0 +1,65 @@
+name: Layer 3 Statement Equivalence Proof
+about: Track a concrete IR <-> Yul statement-equivalence proof task
+title: "[Layer 3] Prove "
+labels: [layer-3, proof, lean, help-wanted]
+body:
+  - type: input
+    id: statement_name
+    attributes:
+      label: Statement Type
+      description: Name the statement syntax being proven.
+      placeholder: Example: Stmt.assign
+    validations:
+      required: true
+  - type: input
+    id: theorem_name
+    attributes:
+      label: Target Theorem Name
+      placeholder: Example: stmtAssign_equiv
+    validations:
+      required: true
+  - type: input
+    id: file_path
+    attributes:
+      label: Target File
+      value: Compiler/Proofs/YulGeneration/StatementEquivalence.lean
+    validations:
+      required: true
+  - type: textarea
+    id: semantics
+    attributes:
+      label: IR vs Yul Semantics
+      description: Describe the exact semantic correspondence to prove.
+      placeholder: |
+        IR semantics:
+        Yul semantics:
+    validations:
+      required: true
+  - type: textarea
+    id: strategy
+    attributes:
+      label: Proof Strategy
+      placeholder: Outline proof shape, helper lemmas, and invariants.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Required prior lemmas/files/PRs.
+      placeholder: List dependencies or write "None".
+    validations:
+      required: true
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Replaces a specific `sorry` (or missing theorem) with a complete proof
+          required: true
+        - label: Adds/updates smoke tests demonstrating the equivalence
+          required: true
+        - label: Updates roadmap/docs if approach differs from plan
+          required: true
+        - label: CI passes
+          required: true

@@ -1,0 +1,48 @@
+name: Trust Reduction Work
+about: Reduce Yul <-> EVM trust assumptions
+title: "[Trust Reduction] "
+labels: [lean, help-wanted]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      placeholder: Describe the trust assumption to eliminate or reduce.
+    validations:
+      required: true
+  - type: textarea
+    id: current_state
+    attributes:
+      label: Current State
+      description: Current assumption, impact, and risk.
+      placeholder: |
+        Assumption:
+        Impact:
+        Risk: LOW | MEDIUM | HIGH
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed Approach
+      placeholder: Proof plan, validation strategy, and fallback path.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Key References
+      placeholder: Roadmap section and concrete files/modules.
+    validations:
+      required: true
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Trust boundary is reduced with concrete code/proof changes
+          required: true
+        - label: docs/ROADMAP.md is updated
+          required: true
+        - label: CI passes
+          required: true
