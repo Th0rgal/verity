@@ -1,0 +1,35 @@
+import Verity.Proofs.OwnedCounter.Basic
+
+namespace Contracts.OwnedCounter.Proofs.Basic
+
+abbrev constructor_meets_spec := Verity.Proofs.OwnedCounter.constructor_meets_spec
+abbrev constructor_sets_owner := Verity.Proofs.OwnedCounter.constructor_sets_owner
+abbrev constructor_preserves_count := Verity.Proofs.OwnedCounter.constructor_preserves_count
+abbrev getCount_meets_spec := Verity.Proofs.OwnedCounter.getCount_meets_spec
+abbrev getCount_returns_count := Verity.Proofs.OwnedCounter.getCount_returns_count
+abbrev getCount_preserves_state := Verity.Proofs.OwnedCounter.getCount_preserves_state
+abbrev getOwner_meets_spec := Verity.Proofs.OwnedCounter.getOwner_meets_spec
+abbrev getOwner_returns_owner := Verity.Proofs.OwnedCounter.getOwner_returns_owner
+abbrev getOwner_preserves_state := Verity.Proofs.OwnedCounter.getOwner_preserves_state
+abbrev isOwner_correct := Verity.Proofs.OwnedCounter.isOwner_correct
+abbrev increment_unfold := Verity.Proofs.OwnedCounter.increment_unfold
+abbrev increment_meets_spec_when_owner := Verity.Proofs.OwnedCounter.increment_meets_spec_when_owner
+abbrev increment_adds_one_when_owner := Verity.Proofs.OwnedCounter.increment_adds_one_when_owner
+abbrev increment_reverts_when_not_owner := Verity.Proofs.OwnedCounter.increment_reverts_when_not_owner
+abbrev decrement_unfold := Verity.Proofs.OwnedCounter.decrement_unfold
+abbrev decrement_meets_spec_when_owner := Verity.Proofs.OwnedCounter.decrement_meets_spec_when_owner
+abbrev decrement_subtracts_one_when_owner := Verity.Proofs.OwnedCounter.decrement_subtracts_one_when_owner
+abbrev decrement_reverts_when_not_owner := Verity.Proofs.OwnedCounter.decrement_reverts_when_not_owner
+abbrev transferOwnership_unfold := Verity.Proofs.OwnedCounter.transferOwnership_unfold
+abbrev transferOwnership_meets_spec_when_owner := Verity.Proofs.OwnedCounter.transferOwnership_meets_spec_when_owner
+abbrev transferOwnership_changes_owner := Verity.Proofs.OwnedCounter.transferOwnership_changes_owner
+abbrev transferOwnership_reverts_when_not_owner := Verity.Proofs.OwnedCounter.transferOwnership_reverts_when_not_owner
+abbrev increment_preserves_owner := Verity.Proofs.OwnedCounter.increment_preserves_owner
+abbrev decrement_preserves_owner := Verity.Proofs.OwnedCounter.decrement_preserves_owner
+abbrev transferOwnership_preserves_count := Verity.Proofs.OwnedCounter.transferOwnership_preserves_count
+abbrev constructor_preserves_wellformedness := Verity.Proofs.OwnedCounter.constructor_preserves_wellformedness
+abbrev increment_preserves_wellformedness := Verity.Proofs.OwnedCounter.increment_preserves_wellformedness
+abbrev decrement_preserves_wellformedness := Verity.Proofs.OwnedCounter.decrement_preserves_wellformedness
+abbrev constructor_increment_getCount := Verity.Proofs.OwnedCounter.constructor_increment_getCount
+
+end Contracts.OwnedCounter.Proofs.Basic

@@ -1,0 +1,11 @@
+import Verity.Proofs.OwnedCounter.Correctness
+
+namespace Contracts.OwnedCounter.Proofs.Correctness
+
+abbrev transfer_then_increment_reverts := Verity.Proofs.OwnedCounter.Correctness.transfer_then_increment_reverts
+abbrev transfer_then_decrement_reverts := Verity.Proofs.OwnedCounter.Correctness.transfer_then_decrement_reverts
+abbrev transfer_then_transfer_reverts := Verity.Proofs.OwnedCounter.Correctness.transfer_then_transfer_reverts
+abbrev transferOwnership_preserves_wellformedness := Verity.Proofs.OwnedCounter.Correctness.transferOwnership_preserves_wellformedness
+abbrev increment_survives_transfer := Verity.Proofs.OwnedCounter.Correctness.increment_survives_transfer
+
+end Contracts.OwnedCounter.Proofs.Correctness

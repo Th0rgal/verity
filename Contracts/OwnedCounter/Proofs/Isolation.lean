@@ -1,0 +1,20 @@
+import Verity.Proofs.OwnedCounter.Isolation
+
+namespace Contracts.OwnedCounter.Proofs.Isolation
+
+abbrev increment_count_preserves_owner := Verity.Proofs.OwnedCounter.Isolation.increment_count_preserves_owner
+abbrev decrement_count_preserves_owner := Verity.Proofs.OwnedCounter.Isolation.decrement_count_preserves_owner
+abbrev constructor_owner_preserves_count := Verity.Proofs.OwnedCounter.Isolation.constructor_owner_preserves_count
+abbrev transferOwnership_owner_preserves_count := Verity.Proofs.OwnedCounter.Isolation.transferOwnership_owner_preserves_count
+abbrev constructor_context_preserved := Verity.Proofs.OwnedCounter.Isolation.constructor_context_preserved
+abbrev increment_context_preserved := Verity.Proofs.OwnedCounter.Isolation.increment_context_preserved
+abbrev decrement_context_preserved := Verity.Proofs.OwnedCounter.Isolation.decrement_context_preserved
+abbrev transferOwnership_context_preserved := Verity.Proofs.OwnedCounter.Isolation.transferOwnership_context_preserved
+abbrev getCount_context_preserved := Verity.Proofs.OwnedCounter.Isolation.getCount_context_preserved
+abbrev getOwner_context_preserved := Verity.Proofs.OwnedCounter.Isolation.getOwner_context_preserved
+abbrev constructor_preserves_map_storage := Verity.Proofs.OwnedCounter.Isolation.constructor_preserves_map_storage
+abbrev increment_preserves_map_storage := Verity.Proofs.OwnedCounter.Isolation.increment_preserves_map_storage
+abbrev decrement_preserves_map_storage := Verity.Proofs.OwnedCounter.Isolation.decrement_preserves_map_storage
+abbrev transferOwnership_preserves_map_storage := Verity.Proofs.OwnedCounter.Isolation.transferOwnership_preserves_map_storage
+
+end Contracts.OwnedCounter.Proofs.Isolation
