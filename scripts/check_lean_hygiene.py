@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Expected sorry count matches actual.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 1  # Remaining sorry count after simpleStorage_store_edsl_to_yul proof completion
+    expected_sorry = 0  # Fully discharged proof baseline
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

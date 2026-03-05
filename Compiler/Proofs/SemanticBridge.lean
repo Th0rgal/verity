@@ -598,16 +598,14 @@ theorem simpleStorage_store_edsl_to_yul
         irResult.success = true ∧
         (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
         encodeEvents s'.events = irResult.events ∧
-        Compiler.Proofs.YulGeneration.resultsMatch
-          (interpretIR simpleStorageIRContract tx irState)
+        Compiler.Proofs.YulGeneration.resultsMatch (interpretIR simpleStorageIRContract tx irState)
           (interpretYulFromIR simpleStorageIRContract tx irState)
     | .revert _ _ => True
     := by
   let tx := mkIRTransaction sender 0x6057361d [value.val]
   let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
   have hBridge := simpleStorage_store_semantic_bridge state sender value
-  have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState)
-      (interpretYulFromIR simpleStorageIRContract tx irState) := by
+  have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState) (interpretYulFromIR simpleStorageIRContract tx irState) := by
     refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
       simpleStorageIRContract tx irState ?_ ?_ rfl rfl ?_
     · simp [tx, mkIRTransaction, selectorModulus]
@@ -633,8 +631,7 @@ theorem simpleStorage_store_edsl_to_yul
         simpa [hrun] using hBridge
       rcases hA with ⟨hs, hst, he⟩
       simpa [tx, irState, hrun] using And.intro hs (And.intro hst (And.intro he hYul))
-  | revert _ _ =>
-      simp [hrun]
+  | revert _ _ => simp [hrun]
 
 theorem simpleStorage_retrieve_edsl_to_yul
     (state : ContractState) (sender : Address) :
@@ -653,7 +650,39 @@ theorem simpleStorage_retrieve_edsl_to_yul
           (interpretIR simpleStorageIRContract tx irState)
           (interpretYulFromIR simpleStorageIRContract tx irState)
     | .revert _ _ => True
-    := by sorry
+    := by
+  let tx := mkIRTransaction sender 0x2e64cec1 []
+  let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
+  have hBridge := simpleStorage_retrieve_semantic_bridge state sender
+  have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState)
+      (interpretYulFromIR simpleStorageIRContract tx irState) := by
+    refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
+      simpleStorageIRContract tx irState ?_ ?_ rfl rfl ?_
+    · simp [tx, mkIRTransaction, selectorModulus]
+    · intro s hs; simp [simpleStorageIRContract] at hs
+    · intro fn hfn
+      simp [simpleStorageIRContract] at hfn
+      rcases hfn with hfn | hfn
+      all_goals
+        subst hfn
+        simpa [Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics,
+          tx, irState, mkIRTransaction, mkIRState, encodeStorage,
+          interpretYulBodyFromState, interpretYulBody, yulStateOfIR,
+          yulResultOfExecWithRollback, interpretYulRuntime, execYulStmts]
+  cases hrun : Contract.run Verity.Examples.MacroContracts.SimpleStorage.retrieve { state with sender := sender } with
+  | success val s' =>
+      have hA : (let tx := mkIRTransaction sender 0x2e64cec1 []
+          let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
+          let irResult := interpretIR simpleStorageIRContract tx irState
+          irResult.success = true ∧
+          irResult.returnValue = some val.val ∧
+          (∀ slot, (s'.storage slot).val = irResult.finalStorage slot) ∧
+          encodeEvents s'.events = irResult.events) := by
+        simpa [hrun] using hBridge
+      rcases hA with ⟨hs, hret, hst, he⟩
+      simpa [tx, irState, hrun] using And.intro hs (And.intro hret (And.intro hst (And.intro he hYul)))
+  | revert _ _ =>
+      simp [hrun]
 
 theorem counter_increment_edsl_to_yul
     (state : ContractState) (sender : Address) :
