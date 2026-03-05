@@ -63,13 +63,6 @@ def exampleUsage : Contract Uint256 := do
   storeHashTwo 100 200
   getLastHash
 
--- Evaluate the example
-#eval (exampleUsage.run { defaultState with
-  sender := 0xA11CE,
-  thisAddress := 0xC2470
-}).getValue?
--- Expected output: some 300 (with placeholder hash: 100 + 200)
-
 example :
     (hashTwo 10 7).run defaultState = ContractResult.success (17 : Uint256) defaultState := by
   simp [Contract.run, hashTwo, Verity.Env.ofWorld, Verity.Env.defaultCallOracle]

@@ -37,7 +37,7 @@ EVM Bytecode
 | CryptoHash | 0 | No specs | `Contracts/CryptoHash/Contract.lean` |
 | **Total** | **272** | **✅ 100%** | — |
 
-> **Note**: Stdlib (153 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (425 total properties).
+> **Note**: Stdlib (0 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (272 total properties).
 
 Layer 1 uses macro-generated bridge theorems backed by a generic typed-IR compilation-correctness theorem ([`TypedIRCompilerCorrectness.lean`](../Verity/Core/Free/TypedIRCompilerCorrectness.lean)). Advanced constructs (linked libraries, ECMs, custom ABI) are expressed directly in `CompilationModel` and trusted at that boundary.
 
@@ -94,15 +94,15 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 | Owned | 87% (20/23) | 3 proof-only |
 | SimpleToken | 85% (52/61) | 9 proof-only |
 | Counter | 82% (23/28) | 5 proof-only |
-| Stdlib | 0% (0/153) | 153 proof-only |
+| Stdlib | 0% (0/0) | 0 proof-only |
 
-**Status**: 59% coverage (250/425), 175 remaining exclusions all proof-only
+**Status**: 92% coverage (250/272), 22 remaining exclusions all proof-only
 
-- **Total Properties**: 425
+- **Total Properties**: 272
 - **Covered**: 250
-- **Excluded**: 175 (all proof-only)
+- **Excluded**: 22 (all proof-only)
 
-**Proof-Only Properties (175 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
+**Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
 0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 

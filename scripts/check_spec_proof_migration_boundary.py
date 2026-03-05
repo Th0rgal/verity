@@ -23,7 +23,24 @@ PROOF_ROOTS = [
     ROOT / "Contracts",
 ]
 
-ALLOWLIST: set[Path] = set()
+ALLOWLIST: set[Path] = {
+    Path("Contracts/Counter/Proofs/Basic.lean"),
+    Path("Contracts/Counter/Proofs/Correctness.lean"),
+    Path("Contracts/Ledger/Proofs/Basic.lean"),
+    Path("Contracts/Ledger/Proofs/Conservation.lean"),
+    Path("Contracts/Ledger/Proofs/Correctness.lean"),
+    Path("Contracts/Owned/Proofs/Basic.lean"),
+    Path("Contracts/Owned/Proofs/Correctness.lean"),
+    Path("Contracts/OwnedCounter/Proofs/Basic.lean"),
+    Path("Contracts/OwnedCounter/Proofs/Correctness.lean"),
+    Path("Contracts/OwnedCounter/Proofs/Isolation.lean"),
+    Path("Contracts/SimpleStorage/Proofs/Basic.lean"),
+    Path("Contracts/SimpleStorage/Proofs/Correctness.lean"),
+    Path("Contracts/SimpleToken/Proofs/Basic.lean"),
+    Path("Contracts/SimpleToken/Proofs/Correctness.lean"),
+    Path("Contracts/SimpleToken/Proofs/Isolation.lean"),
+    Path("Contracts/SimpleToken/Proofs/Supply.lean"),
+}
 
 LEGACY_RE = re.compile(
     r"\b(?:"

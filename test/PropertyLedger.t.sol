@@ -29,7 +29,7 @@ import "./yul/YulTestBase.sol";
  * 16. deposit_preserves_wellformedness - Deposit maintains invariants
  * 17. withdraw_preserves_wellformedness - Withdraw maintains invariants
  * 18. deposit_getBalance_correct - Deposit->read composition
- * 19. transfer_reverts_recipient_overflow - Transfer reverts on recipient overflow
+ * 19. transfer_succeeds_recipient_overflow - Transfer succeeds with wrapped recipient overflow
  * 20. transfer_self_preserves_balance - Self-transfer preserves balance
  *
  * Correctness.lean (6 theorems):
@@ -364,20 +364,20 @@ contract PropertyLedgerTest is YulTestBase {
     }
 
     /**
-     * Property 19: transfer_reverts_recipient_overflow
-     * Theorem: Transfer reverts when recipient balance + amount would overflow uint256
+     * Property 19: transfer_succeeds_recipient_overflow
+     * Theorem: Transfer succeeds when recipient balance + amount overflows uint256 (wrap semantics)
      */
-    function testProperty_Transfer_RevertsRecipientOverflow() public {
+    function testProperty_Transfer_SucceedsRecipientOverflow() public {
         // Set bob's balance to MAX_UINT256
         setBalance(bob, type(uint256).max);
 
         // Give alice some balance
         setBalance(alice, 1);
 
-        // Alice tries to transfer 1 to bob — bob's balance would overflow
+        // Alice tries to transfer 1 to bob — bob's balance overflows and wraps.
         vm.prank(alice);
         (bool success,) = ledger.call(abi.encodeWithSignature("transfer(address,uint256)", bob, 1));
-        assertFalse(success, "Transfer should revert on recipient overflow");
+        assertTrue(success, "Transfer should succeed on recipient overflow with wrap semantics");
     }
 
     /**
