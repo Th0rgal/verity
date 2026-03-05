@@ -1,4 +1,4 @@
-# Yul Identity Checker (Groundwork)
+# Yul Identity Checker
 
 Issue: [#967](https://github.com/Th0rgal/verity/issues/967)
 
@@ -6,7 +6,7 @@ This document defines the target workflow for checking AST-level identity betwee
 
 ## Status
 
-Groundwork only. Interface and outputs below are proposed for implementation.
+`scripts/generate_yul_identity_diff_report.py` is now available for deterministic, machine-readable identity diff reports suitable for CI artifacts.
 
 ## Goals
 
@@ -15,24 +15,24 @@ Groundwork only. Interface and outputs below are proposed for implementation.
 3. Produce machine-readable reports for CI and rule authoring.
 4. Distinguish `non-identity` from `unsupported`.
 
-## Proposed CLI Shape
+## CLI Shape
 
 ```bash
-lake exe verity-compiler check-identity \
-  --parity-pack <pack-id> \
-  --solc-yul <path> \
-  --verity-yul <path> \
-  --report <path.json>
+python3 scripts/generate_yul_identity_diff_report.py \
+  --solc-dir <path> \
+  --verity-dir <path> \
+  --output <path.json>
 ```
 
-## Proposed Report Schema
+## Report Schema
 
-1. `packId`: parity pack used.
-2. `targetTuple`: pinned solc/optimizer/evm metadata.
-3. `status`: `identical | non_identical | unsupported`.
-4. `mismatches[]`: `{ nodePath, kind, lhs, rhs, sourceRef, irRef }`.
-5. `unsupported[]`: known unsupported construct IDs.
-6. `summary`: counts by mismatch kind.
+1. `status`: `identical | non_identical`.
+2. `summary`: file + mismatch counts (and by-kind totals).
+3. `mismatches[]`: stable entries with:
+   - `file`
+   - `path` (function/subtree-localized path)
+   - `kind`
+   - `verity` and `solc` values
 
 ## CI Integration
 
