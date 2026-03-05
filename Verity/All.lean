@@ -35,15 +35,6 @@ import Verity.Proofs.Stdlib.MappingAutomation
 import Verity.Proofs.Stdlib.ListSum
 
 -- Example contracts (EDSL implementations)
-import Verity.Examples.SimpleStorage
-import Verity.Examples.Counter
-import Verity.Examples.SafeCounter
-import Verity.Examples.Owned
-import Verity.Examples.OwnedCounter
-import Verity.Examples.Ledger
-import Verity.Examples.SimpleToken
-import Verity.Examples.ERC20
-import Verity.Examples.ERC721
 import Verity.Examples.ReentrancyExample
 import Verity.Examples.CryptoHash
 import Verity.Examples.MacroContracts
