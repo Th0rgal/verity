@@ -1955,6 +1955,25 @@ example (init : TExecState) :
     witness_requireClausesThenRawLogLiterals_supported
 
 open Compiler.CompilationModel in
+/-- Four-topic raw-log boundary pattern is admitted by the supported grammar. -/
+example : SupportedStmtList simpleTokenFields
+    [Stmt.rawLog [Expr.literal 1, Expr.literal 2, Expr.literal 3, Expr.literal 4]
+      (Expr.literal 0) (Expr.literal 64)] := by
+  refine ⟨[.requireClausesThenRawLogLiterals [] [1, 2, 3, 4] 0 64 (by decide)], rfl⟩
+
+open Compiler.CompilationModel in
+/-- Four-topic raw-log boundary correctness follows from the supported-list theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.rawLog [Expr.literal 1, Expr.literal 2, Expr.literal 3, Expr.literal 4]
+          (Expr.literal 0) (Expr.literal 64)] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments := by
+  refine compile_supported_stmt_list_semantics simpleTokenFields init _ ?_
+  refine ⟨[.requireClausesThenRawLogLiterals [] [1, 2, 3, 4] 0 64 (by decide)], rfl⟩
+
+open Compiler.CompilationModel in
 /-- Mapping return semantics preservation: compiled matches source for `return (mapping field caller)`. -/
 example (fields : List Field)
     (fieldName : String) (slotIdx : Nat)
