@@ -885,6 +885,37 @@ private def mkSpecCommand
     functions := [ $[$functionModelIds],* ]
   })
 
+private def mkFindIdxFieldSimpCommands
+    (contractIdent : Ident)
+    (fields : Array StorageFieldDecl) : CommandElabM (Array Cmd) := do
+  let contractName := toString contractIdent.getId
+  let fieldTerms ← fields.mapM mkModelFieldTerm
+  let fieldListTerm : Term ← `(([ $[$fieldTerms],* ] : List Compiler.CompilationModel.Field))
+  let mut cmds : Array Cmd := #[]
+  let mut idx := 0
+  for field in fields do
+    let baseName := s!"findIdx_{field.name}_{contractName}"
+    let theoremName := mkIdent (Name.mkSimple baseName)
+    let theoremNameDecide := mkIdent (Name.mkSimple (baseName ++ "_decide"))
+    let idxTerm := natTerm idx
+    let fieldNameTerm := strTerm field.name
+
+    let eqCmd : Cmd ← `(command|
+      @[simp] theorem $theoremName :
+          List.findIdx? (fun x : Compiler.CompilationModel.Field => x.name == $fieldNameTerm)
+            $fieldListTerm = some $idxTerm := by
+        decide)
+    cmds := cmds.push eqCmd
+
+    let decideCmd : Cmd ← `(command|
+      @[simp] theorem $theoremNameDecide :
+          List.findIdx? (fun x : Compiler.CompilationModel.Field => decide (x.name = $fieldNameTerm))
+            $fieldListTerm = some $idxTerm := by
+        decide)
+    cmds := cmds.push decideCmd
+    idx := idx + 1
+  pure cmds
+
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM (Ident × Array StorageFieldDecl × Option ConstructorDecl × Array FunctionDecl) := do
@@ -912,6 +943,11 @@ def mkSpecCommandPublic
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl) : CommandElabM Cmd :=
   mkSpecCommand contractName fields ctor functions
+
+def mkFindIdxFieldSimpCommandsPublic
+    (contractIdent : Ident)
+    (fields : Array StorageFieldDecl) : CommandElabM (Array Cmd) :=
+  mkFindIdxFieldSimpCommands contractIdent fields
 
 /-- Public wrapper for `contractValueTypeTerm`, used by the semantic bridge
     theorem generator in `Bridge.lean` (Issue #998). -/

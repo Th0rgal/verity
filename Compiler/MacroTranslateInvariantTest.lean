@@ -72,6 +72,12 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.MacroContracts.Uint8Smoke.spec
   ]
 
+-- Regression: `verity_contract` elaboration emits field-level findIdx simp lemmas.
+#check Contracts.MacroContracts.OwnedCounter.findIdx_owner_OwnedCounter
+#check Contracts.MacroContracts.OwnedCounter.findIdx_owner_OwnedCounter_decide
+#check Contracts.MacroContracts.SimpleToken.findIdx_balancesSlot_SimpleToken
+#check Contracts.MacroContracts.SimpleToken.findIdx_balancesSlot_SimpleToken_decide
+
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec
   let fnNames := extFns.map (·.name)
