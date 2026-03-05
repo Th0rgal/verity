@@ -190,15 +190,31 @@ def main() -> int:
 
     linker_text = LINKER.read_text(encoding="utf-8")
     spec_text = CONTRACT_SPEC.read_text(encoding="utf-8")
+    selector_interop_helpers = ROOT / "Compiler" / "CompilationModel" / "SelectorInteropHelpers.lean"
+    helper_text = (
+        selector_interop_helpers.read_text(encoding="utf-8")
+        if selector_interop_helpers.exists()
+        else ""
+    )
 
     yul_builtins = extract_string_list(linker_text, "yulBuiltins")
-    interop_builtins = extract_string_list(spec_text, "interopBuiltinCallNames")
-    low_level_calls = extract_low_level_calls(spec_text)
+    interop_builtins = extract_string_list(helper_text, "interopBuiltinCallNames")
+    low_level_calls = extract_low_level_calls(helper_text)
+
+    # Backward compatibility for older layouts where these defs were in
+    # CompilationModel.lean directly.
+    if not interop_builtins:
+        interop_builtins = extract_string_list(spec_text, "interopBuiltinCallNames")
+    if not low_level_calls:
+        low_level_calls = extract_low_level_calls(spec_text)
 
     if not yul_builtins:
         errors.append("Failed to extract yulBuiltins from Linker.lean")
     if not interop_builtins:
-        errors.append("Failed to extract interopBuiltinCallNames from CompilationModel.lean")
+        errors.append(
+            "Failed to extract interopBuiltinCallNames from "
+            "SelectorInteropHelpers.lean or CompilationModel.lean"
+        )
 
     if errors:
         for err in errors:
