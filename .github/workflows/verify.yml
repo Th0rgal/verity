@@ -435,6 +435,41 @@ jobs:
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
 
+      - name: Generate parity-pack Yul (pinned solc tuple)
+        run: |
+          ./.lake/build/bin/verity-compiler \
+            --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai \
+            --output compiler/yul-parity-pack \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+      - name: Generate parity-pack reference Yul (explicit profile + patch config)
+        run: |
+          ./.lake/build/bin/verity-compiler \
+            --backend-profile solidity-parity \
+            --enable-patches \
+            --patch-max-iterations 6 \
+            --mapping-slot-scratch-base 512 \
+            --output compiler/yul-parity-reference \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+      - name: Generate parity-pack identity diff report
+        run: |
+          python3 scripts/generate_yul_identity_diff_report.py \
+            --verity-dir compiler/yul-parity-pack \
+            --solc-dir compiler/yul-parity-reference \
+            --output compiler/parity-pack-identity-report.json
+
+      - name: Gate parity-pack metrics
+        run: |
+          python3 scripts/check_parity_pack_metrics.py \
+            --report compiler/parity-pack-identity-report.json \
+            --max-only-in-verity 0 \
+            --max-only-in-solidity 0 \
+            --max-hash-mismatch 0 \
+            --format markdown >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check static gas model coverage on generated Yul (baseline + patched)
         run: |
           python3 scripts/check_gas_model_coverage.py \
@@ -545,6 +580,12 @@ jobs:
         with:
           name: patch-coverage-report
           path: compiler/patch-report.tsv
+
+      - name: Upload parity-pack identity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-pack-identity-report
+          path: compiler/parity-pack-identity-report.json
 
   # Optional Lean typechecking profiler (workflow_dispatch only).
   lean-profile:

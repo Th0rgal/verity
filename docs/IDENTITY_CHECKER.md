@@ -7,6 +7,7 @@ This document defines the target workflow for checking AST-level identity betwee
 ## Status
 
 `scripts/generate_yul_identity_diff_report.py` is now available for deterministic, machine-readable identity diff reports suitable for CI artifacts.
+`scripts/check_parity_pack_metrics.py` is now available to gate report-derived parity metrics (`onlyInVerity`, `onlyInSolidity`, `hashMismatch`) in CI.
 
 ## Goals
 
@@ -22,6 +23,12 @@ python3 scripts/generate_yul_identity_diff_report.py \
   --solc-dir <path> \
   --verity-dir <path> \
   --output <path.json>
+
+python3 scripts/check_parity_pack_metrics.py \
+  --report <path.json> \
+  --max-only-in-verity 0 \
+  --max-only-in-solidity 0 \
+  --max-hash-mismatch 0
 ```
 
 ## Report Schema

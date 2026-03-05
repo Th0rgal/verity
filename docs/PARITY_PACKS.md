@@ -42,9 +42,10 @@ Partially implemented:
    Parity packs wire `requiredProofRefs` to `solcCompatProofAllowlist`.
 14. Shipped parity packs now default `patchMaxIterations` to `6` so the full object-rule sequence can execute (`canonicalize` → `inline-wrapper-calls` → `inline-mapping-slot-calls` → `inline-keccak-market-params` → `rewrite-elapsed-checked-sub` → `rewrite-accrue-interest-irm-guard` → `rewrite-accrue-interest-checked-arithmetic` → `rewrite-accrue-interest-prologue-temps` → `rewrite-nonce-increment` → `prune-unreachable-deploy-helpers` → `drop-unused-mapping-slot-helper` → `drop-unused-keccak-helper` → `dedupe`) without manual CLI overrides.
 15. Yul pretty-printing now canonicalizes switch zero-tags to `case 0` (instead of `case 0x0`) so function-level hash comparison aligns with Solidity tokenization in parity reports.
+16. Added pinned-solc pack `solc-0.8.33-o200-viair-false-evm-shanghai` (matching CI solc pin `0.8.33+commit.64118f21`) and CI parity-pack metric gates (`onlyInVerity`, `onlyInSolidity`, `hashMismatch`) sourced from machine-readable identity reports.
 
 Not implemented yet:
-1. identity checker and unsupported manifest workflow.
+1. unsupported manifest workflow.
 
 ## Purpose
 
@@ -64,7 +65,8 @@ Example: `solc-0.8.27-o200-viair-false-evm-shanghai`
 ## Implemented Pack(s)
 
 1. `solc-0.8.28-o200-viair-false-evm-shanghai`
-2. `solc-0.8.28-o999999-viair-true-evm-paris` (Morpho-focused tuple)
+2. `solc-0.8.33-o200-viair-false-evm-shanghai` (pinned-CI tuple)
+3. `solc-0.8.28-o999999-viair-true-evm-paris` (Morpho-focused tuple)
 
 ## Proposed Pack Contents
 

@@ -73,6 +73,8 @@
     "check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY"
   ],
   "expected_build_compiler_commands": [
+    "generate_yul_identity_diff_report.py --verity-dir compiler/yul-parity-pack --solc-dir compiler/yul-parity-reference --output compiler/parity-pack-identity-report.json",
+    "check_parity_pack_metrics.py --report compiler/parity-pack-identity-report.json --max-only-in-verity 0 --max-only-in-solidity 0 --max-hash-mismatch 0 --format markdown >> \"$GITHUB_STEP_SUMMARY\"",
     "check_gas_model_coverage.py --dir compiler/yul --dir compiler/yul-patched",
     "keccak256.py --self-test",
     "check_selectors.py",

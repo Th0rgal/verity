@@ -70,6 +70,24 @@ def solc_0_8_28_o200_viair_false_evm_shanghai : ParityPack :=
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 
+def solc_0_8_33_o200_viair_false_evm_shanghai : ParityPack :=
+  { id := "solc-0.8.33-o200-viair-false-evm-shanghai"
+    compat := {
+      solcVersion := "0.8.33"
+      solcCommit := "64118f21"
+      optimizerRuns := 200
+      viaIR := false
+      evmVersion := "shanghai"
+      metadataMode := "default"
+    }
+    backendProfile := .solidityParity
+    forcePatches := true
+    defaultPatchMaxIterations := 6
+    rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
+    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
+    requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
+  }
+
 def solc_0_8_28_o999999_viair_true_evm_paris : ParityPack :=
   { id := "solc-0.8.28-o999999-viair-true-evm-paris"
     compat := {
@@ -89,7 +107,8 @@ def solc_0_8_28_o999999_viair_true_evm_paris : ParityPack :=
   }
 
 def allParityPacks : List ParityPack :=
-  [solc_0_8_28_o200_viair_false_evm_shanghai,
+  [solc_0_8_33_o200_viair_false_evm_shanghai,
+   solc_0_8_28_o200_viair_false_evm_shanghai,
    solc_0_8_28_o999999_viair_true_evm_paris]
 
 def supportedParityPackIds : List String :=
