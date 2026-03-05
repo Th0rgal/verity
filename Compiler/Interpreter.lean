@@ -12,10 +12,10 @@
 -/
 
 import Compiler.Constants
-import Verity.Examples.MacroContracts.Tokens
-import Verity.Examples.MacroContracts.Core
-import Verity.Examples.MacroContracts.ERC721Addressed
-import Verity.Examples.MacroContracts.Compat.CryptoHash
+import Contracts.MacroContracts.Tokens
+import Contracts.MacroContracts.Core
+import Contracts.MacroContracts.ERC721Addressed
+import Contracts.MacroContracts.Compat.CryptoHash
 import Compiler.DiffTestTypes
 import Compiler.Hex
 

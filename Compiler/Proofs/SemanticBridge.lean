@@ -31,7 +31,7 @@ import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.EndToEnd
 import Compiler.Specs
 import Verity.Core
-import Verity.Examples.MacroContracts.Core
+import Contracts.MacroContracts.Core
 
 namespace Compiler.Proofs.SemanticBridge
 

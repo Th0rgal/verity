@@ -3,7 +3,7 @@
 -/
 
 import Verity.Specs.ERC721.Spec
-import Verity.Examples.MacroContracts.ERC721Addressed
+import Contracts.MacroContracts.ERC721Addressed
 
 namespace Verity.Proofs.ERC721
 

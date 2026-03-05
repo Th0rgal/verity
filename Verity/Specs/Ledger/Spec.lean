@@ -5,7 +5,7 @@
 import Verity.Specs.Common
 import Verity.Specs.Common.Sum
 import Verity.EVM.Uint256
-import Verity.Examples.MacroContracts.Core
+import Contracts.MacroContracts.Core
 
 namespace Verity.Specs.Ledger
 

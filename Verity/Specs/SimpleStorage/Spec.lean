@@ -3,7 +3,7 @@
 -/
 
 import Verity.Specs.Common
-import Verity.Examples.MacroContracts.Core
+import Contracts.MacroContracts.Core
 
 namespace Verity.Specs.SimpleStorage
 

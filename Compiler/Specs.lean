@@ -6,7 +6,7 @@
 -/
 
 import Compiler.CompilationModel
-import Verity.Examples.MacroContracts
+import Contracts.MacroContracts
 
 namespace Compiler.Specs
 

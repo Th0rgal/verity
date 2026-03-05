@@ -3,7 +3,7 @@
 -/
 
 import Verity.Specs.ERC20.Spec
-import Verity.Examples.MacroContracts.Tokens
+import Contracts.MacroContracts.Tokens
 import Verity.Proofs.Stdlib.Math
 import Verity.Proofs.Stdlib.Automation
 

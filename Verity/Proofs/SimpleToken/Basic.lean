@@ -9,7 +9,7 @@
   - Invariant preservation
 -/
 
-import Verity.Examples.MacroContracts.Tokens
+import Contracts.MacroContracts.Tokens
 import Verity.Proofs.Stdlib.Math
 import Verity.Proofs.Stdlib.Automation
 import Verity.Specs.SimpleToken.Spec
