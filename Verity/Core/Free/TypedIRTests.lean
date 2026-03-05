@@ -2027,6 +2027,20 @@ example : SupportedStmtList adminPatternFields
   witness_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_feeRecipient_supported
 
 open Compiler.CompilationModel in
+/-- Owner-auth `setFeeRecipient` pattern belongs to the supported fragment grammar. -/
+example : SupportedStmtList adminPatternFields
+    [ Stmt.letVar "sender" Expr.caller
+    , Stmt.letVar "ownerVar" (Expr.storage "owner")
+    , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
+    , Stmt.letVar "currentFeeRecipient" (Expr.storage "feeRecipient")
+    , Stmt.require
+        (Expr.logicalNot (Expr.eq (Expr.param "newFeeRecipient") (Expr.localVar "currentFeeRecipient")))
+        "already fee recipient"
+    , Stmt.setStorage "feeRecipient" (Expr.param "newFeeRecipient")
+    , Stmt.stop ] :=
+  witness_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop_feeRecipient_supported
+
+open Compiler.CompilationModel in
 /-- `setOwner` supported-list compilation correctness instantiation. -/
 example (init : TExecState) :
     ∃ fragments : List (SupportedStmtFragment adminPatternFields),
@@ -2061,6 +2075,25 @@ example (init : TExecState) :
         execSourceSupportedStmtFragments adminPatternFields init fragments :=
   compile_supported_stmt_list_semantics adminPatternFields init _
     witness_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_feeRecipient_supported
+
+open Compiler.CompilationModel in
+/-- Owner-auth `setFeeRecipient` supported-list compilation correctness instantiation. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment adminPatternFields),
+      supportedStmtFragmentsToStmts fragments =
+        [ Stmt.letVar "sender" Expr.caller
+        , Stmt.letVar "ownerVar" (Expr.storage "owner")
+        , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
+        , Stmt.letVar "currentFeeRecipient" (Expr.storage "feeRecipient")
+        , Stmt.require
+            (Expr.logicalNot (Expr.eq (Expr.param "newFeeRecipient") (Expr.localVar "currentFeeRecipient")))
+            "already fee recipient"
+        , Stmt.setStorage "feeRecipient" (Expr.param "newFeeRecipient")
+        , Stmt.stop ] ∧
+      execCompiledSupportedStmtFragments adminPatternFields init fragments =
+        execSourceSupportedStmtFragments adminPatternFields init fragments :=
+  compile_supported_stmt_list_semantics adminPatternFields init _
+    witness_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop_feeRecipient_supported
 
 open Compiler.CompilationModel in
 /-- ERC20.owner correctness instantiation. -/

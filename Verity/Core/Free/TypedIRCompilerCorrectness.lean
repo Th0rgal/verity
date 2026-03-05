@@ -1399,6 +1399,42 @@ def execCompiledLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Source semantics for the Morpho setFeeRecipient owner-auth pattern.
+Params: paramName (address, id 0).
+Locals: senderVar (address, id 1), ownerVar (address, id 2), targetVar (address, id 3). -/
+def execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+    (init : TExecState) (ownerSlot targetSlot : Nat) (msg1 msg2 : String) : TExecResult :=
+  let sender := init.env.sender
+  let owner := init.world.storageAddr ownerSlot
+  let param := init.vars.address 0
+  if decide (sender = owner) then
+    let targetVal := init.world.storageAddr targetSlot
+    if decide (¬ (param = targetVal)) then
+      .ok { init with
+        vars := TVars.set (TVars.set (TVars.set init.vars
+          { id := 1, ty := Ty.address } sender)
+          { id := 2, ty := Ty.address } owner)
+          { id := 3, ty := Ty.address } targetVal,
+        world := { init.world with
+          storageAddr := fun i => if i == targetSlot then param else init.world.storageAddr i } }
+    else .revert msg2
+  else .revert msg1
+
+/-- Compiled semantics for the Morpho setFeeRecipient owner-auth pattern.
+Pre-populated CompileState: paramName (address, id 0). -/
+def execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+    (fields : List Field) (ownerField targetField senderVar ownerVar targetVar paramName : String)
+    (msg1 msg2 : String) (init : TExecState) : TExecResult :=
+  match (compileStmts fields
+      (morphoSetFeeRecipientOwnerAuthStmts
+        ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2)).run
+      (CompileState.mk 1
+        [(paramName, { id := 0, ty := Ty.address })]
+        #[{ id := 0, ty := Ty.address }]
+        #[] #[]) with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Source semantics for the Morpho enableIrm pattern.
 Params: keyParam (address, id 0).
 Locals: senderVar (address, id 1), ownerVar (address, id 2), currentVar (uint256, id 3). -/
@@ -1575,6 +1611,38 @@ theorem compile_letCaller_letStorageAddr_reqEq_reqNeq_setStorageAddr_param_stop_
     · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
     · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
   · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, TVars.set, TVars.get]
+
+/-- Semantic-preservation for the Morpho setFeeRecipient owner-auth pattern. -/
+theorem compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageAddr_param_stop_semantics
+    (fields : List Field) (ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String)
+    (ownerSlot targetSlot : Nat) (init : TExecState)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hTarget : findFieldWithResolvedSlot fields targetField =
+      some ({ name := targetField, ty := FieldType.address }, targetSlot))
+    (hne_sv_p : senderVar ≠ paramName)
+    (hne_ov_p : ownerVar ≠ paramName)
+    (hne_ov_sv : ownerVar ≠ senderVar)
+    (hne_tv_p : targetVar ≠ paramName)
+    (hne_tv_sv : targetVar ≠ senderVar)
+    (hne_tv_ov : targetVar ≠ ownerVar) :
+    execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+        fields ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 init =
+      execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+        init ownerSlot targetSlot msg1 msg2 := by
+  simp [execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop,
+    execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop,
+    compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop_run,
+    hOwner, hTarget, hne_sv_p, hne_ov_p, hne_ov_sv, hne_tv_p, hne_tv_sv, hne_tv_ov,
+    evalTStmts, defaultEvalFuel]
+  by_cases hEq1 : init.env.sender = init.world.storageAddr ownerSlot
+  · by_cases hEq2 : init.vars.address 0 = init.world.storageAddr targetSlot
+    · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
+        hEq1, hEq2, TVars.set, TVars.get]
+    · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
+        hEq1, hEq2, TVars.set, TVars.get]
+  · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
+      hEq1, TVars.set, TVars.get]
 
 /-- Semantic-preservation for the Morpho enableIrm pattern. -/
 theorem compile_letCaller_letStorageAddr_reqEq_letMapping_reqEqLit_setMapping_stop_semantics
@@ -4140,6 +4208,19 @@ inductive RequireFamilyClausesTail (fields : List Field) where
       (hne_sv_p : senderVar ≠ paramName)
       (hne_ov_p : ownerVar ≠ paramName)
       (hne_ov_sv : ownerVar ≠ senderVar)
+  | letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      (ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String)
+      (ownerSlot targetSlot : Nat)
+      (hOwner : findFieldWithResolvedSlot fields ownerField =
+        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+      (hTarget : findFieldWithResolvedSlot fields targetField =
+        some ({ name := targetField, ty := FieldType.address }, targetSlot))
+      (hne_sv_p : senderVar ≠ paramName)
+      (hne_ov_p : ownerVar ≠ paramName)
+      (hne_ov_sv : ownerVar ≠ senderVar)
+      (hne_tv_p : targetVar ≠ paramName)
+      (hne_tv_sv : targetVar ≠ senderVar)
+      (hne_tv_ov : targetVar ≠ ownerVar)
   | letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
       (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
       (ownerSlot mappingSlot : Nat) (writeVal : Nat) (msg1 msg2 : String)
@@ -4279,6 +4360,12 @@ def execSourceRequireFamilyClausesThenTail
   | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop _ _ _ _ msg1 msg2 ownerSlot _ _ _ _ =>
       match execSourceRequireLiteralGuardFamilyClauses init clauses with
       | .ok st => execSourceLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop st ownerSlot msg1 msg2
+      | .revert reason => .revert reason
+  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      _ _ _ _ _ _ msg1 msg2 ownerSlot targetSlot _ _ _ _ _ _ _ _ =>
+      match execSourceRequireLiteralGuardFamilyClauses init clauses with
+      | .ok st => execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+          st ownerSlot targetSlot msg1 msg2
       | .revert reason => .revert reason
   | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop _ _ _ _ _ _
       ownerSlot mappingSlot writeVal msg1 msg2 _ _ _ _ _ _ =>
@@ -4426,6 +4513,12 @@ def execCompiledRequireFamilyClausesThenTail
       match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
       | .ok st => execCompiledLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
           fields ownerField senderVar ownerVar paramName msg1 msg2 st
+      | .revert reason => .revert reason
+  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 _ _ _ _ _ _ _ _ _ _ =>
+      match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+      | .ok st => execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+          fields ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 st
       | .revert reason => .revert reason
   | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
       ownerField mappingField senderVar ownerVar currentVar keyParam _ _ writeVal msg1 msg2
@@ -4595,6 +4688,14 @@ theorem compile_require_family_clauses_then_tail_semantics
         compile_require_literal_guard_family_clauses_semantics,
         compile_letCaller_letStorageAddr_reqEq_reqNeq_setStorageAddr_param_stop_semantics
           fields ownerField senderVar ownerVar paramName msg1 msg2 ownerSlot _ hOwner hne_sv_p hne_ov_p hne_ov_sv]
+  | letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 ownerSlot targetSlot
+      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
+      simp [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail,
+        compile_require_literal_guard_family_clauses_semantics,
+        compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageAddr_param_stop_semantics
+          fields ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2
+          ownerSlot targetSlot _ hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov]
   | letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
       ownerField mappingField senderVar ownerVar currentVar keyParam ownerSlot mappingSlot writeVal msg1 msg2
       hOwner hMapping hne_sv_kp hne_ov_kp hne_ov_sv hne_cv_kp =>
@@ -4925,6 +5026,19 @@ inductive SupportedStmtFragment (fields : List Field) where
       (hne_sv_p : senderVar ≠ paramName)
       (hne_ov_p : ownerVar ≠ paramName)
       (hne_ov_sv : ownerVar ≠ senderVar)
+  | letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      (ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String)
+      (ownerSlot targetSlot : Nat)
+      (hOwner : findFieldWithResolvedSlot fields ownerField =
+        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+      (hTarget : findFieldWithResolvedSlot fields targetField =
+        some ({ name := targetField, ty := FieldType.address }, targetSlot))
+      (hne_sv_p : senderVar ≠ paramName)
+      (hne_ov_p : ownerVar ≠ paramName)
+      (hne_ov_sv : ownerVar ≠ senderVar)
+      (hne_tv_p : targetVar ≠ paramName)
+      (hne_tv_sv : targetVar ≠ senderVar)
+      (hne_tv_ov : targetVar ≠ ownerVar)
   | letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
       (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
       (ownerSlot mappingSlot : Nat) (writeVal : Nat) (msg1 msg2 : String)
@@ -5100,6 +5214,13 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
       { clauses := []
         tail := .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
           ownerField senderVar ownerVar paramName msg1 msg2 ownerSlot hOwner hne_sv_p hne_ov_p hne_ov_sv }
+  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 ownerSlot targetSlot
+      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
+      { clauses := []
+        tail := .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+          ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 ownerSlot targetSlot
+          hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov }
   | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
       ownerField mappingField senderVar ownerVar currentVar keyParam ownerSlot mappingSlot writeVal msg1 msg2
       hOwner hMapping hne_sv_kp hne_ov_kp hne_ov_sv hne_cv_kp =>
@@ -5321,6 +5442,15 @@ def RequireFamilyClausesTail.toStmts
       , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
       , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
       , Stmt.setStorage ownerField (Expr.param paramName)
+      , Stmt.stop ]
+  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+      ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 _ _ _ _ _ _ _ _ _ _ =>
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar ownerVar (Expr.storage ownerField)
+      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+      , Stmt.letVar targetVar (Expr.storage targetField)
+      , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
+      , Stmt.setStorage targetField (Expr.param paramName)
       , Stmt.stop ]
   | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
       ownerField mappingField senderVar ownerVar currentVar keyParam _ _ writeVal msg1 msg2
@@ -6249,6 +6379,24 @@ theorem witness_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_feeRec
     "feeRecipient" "sender" "currentFeeRecipient" "newFeeRecipient"
     "not fee recipient" "already fee recipient" 1
     adminPatternFeeRecipientFieldResolution (by decide) (by decide) (by decide)], rfl⟩
+
+/-- Concrete witness for owner-auth fee-recipient update pattern. -/
+theorem witness_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop_feeRecipient_supported :
+    SupportedStmtList adminPatternFields
+      [ Stmt.letVar "sender" Expr.caller
+      , Stmt.letVar "ownerVar" (Expr.storage "owner")
+      , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
+      , Stmt.letVar "currentFeeRecipient" (Expr.storage "feeRecipient")
+      , Stmt.require
+          (Expr.logicalNot (Expr.eq (Expr.param "newFeeRecipient") (Expr.localVar "currentFeeRecipient")))
+          "already fee recipient"
+      , Stmt.setStorage "feeRecipient" (Expr.param "newFeeRecipient")
+      , Stmt.stop ] := by
+  exact ⟨[.letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
+    "owner" "feeRecipient" "sender" "ownerVar" "currentFeeRecipient" "newFeeRecipient"
+    "not owner" "already fee recipient" 0 1
+    adminPatternOwnerFieldResolution adminPatternFeeRecipientFieldResolution
+    (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)], rfl⟩
 
 /-- Field layout for `enableIrm` witness coverage. -/
 def morphoEnableIrmFields : List Field :=
