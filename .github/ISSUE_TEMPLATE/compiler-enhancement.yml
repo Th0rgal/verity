@@ -1,0 +1,73 @@
+name: Compiler Enhancement
+description: Propose a concrete compiler feature or improvement
+title: "[Compiler Enhancement] "
+labels: [enhancement, lean]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Describe the feature or improvement in one clear sentence.
+      placeholder: Example: Add support for tuple return values in the EDSL compiler path.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Explain the current limitation and a real use case.
+      placeholder: |
+        Limitation:
+        Use case:
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: High-level design and expected behavior.
+      placeholder: Explain parser/IR/codegen changes and expected semantics.
+    validations:
+      required: true
+  - type: textarea
+    id: example_edsl
+    attributes:
+      label: EDSL Input Example
+      render: lean
+      placeholder: Provide a minimal reproducible EDSL example.
+    validations:
+      required: true
+  - type: textarea
+    id: example_yul
+    attributes:
+      label: Expected Yul Output (or property)
+      render: yul
+      placeholder: Provide expected Yul snippet or explicit property assertions.
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Plan
+      description: List the concrete files/components to change.
+      placeholder: |
+        1. Component - file - change
+        2. Component - file - change
+        3. Tests/proofs/docs updates
+    validations:
+      required: true
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Feature builds successfully
+          required: true
+        - label: Existing proofs remain valid
+          required: true
+        - label: Tests are added or updated
+          required: true
+        - label: Documentation is updated
+          required: true
+        - label: CI passes
+          required: true
