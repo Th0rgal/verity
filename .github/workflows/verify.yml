@@ -197,7 +197,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     needs: changes
     if: needs.changes.outputs.code == 'true'
     steps:
@@ -366,7 +366,7 @@ jobs:
   # (Verity/**) never invalidate this cache.
   build-compiler:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 240
     needs: changes
     if: needs.changes.outputs.compiler == 'true'
     steps:
@@ -398,7 +398,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .lake
-          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean', 'Verity/**/*.lean') }}
+          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean') }}
           restore-keys: |
             lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
 
@@ -543,7 +543,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .lake
-          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('Compiler/**/*.lean') }}
 
       - name: Upload generated Yul
         uses: actions/upload-artifact@v4
