@@ -149,6 +149,22 @@ def compileEmitSucceeds : Bool :=
   | .ok _ => true
   | .error _ => false
 
+def compileEmitTypedShapeOk : Bool :=
+  match (compileStmts []
+      [Compiler.CompilationModel.Stmt.emit "Transfer"
+        [Compiler.CompilationModel.Expr.literal 1, Compiler.CompilationModel.Expr.literal 2]]).run {} with
+  | .ok st =>
+      match st.2.body.toList with
+      | [TStmt.emit "Transfer" topics] =>
+          match topics with
+          | [t1, t2] =>
+              match lowerTExpr t1, lowerTExpr t2 with
+              | .lit 1, .lit 2 => true
+              | _, _ => false
+          | _ => false
+      | _ => false
+  | .error _ => false
+
 def compileEmitLoweringShapeOk : Bool :=
   match (compileStmts []
       [Compiler.CompilationModel.Stmt.emit "Transfer"
@@ -206,7 +222,10 @@ example : compileRawLogTooManyTopicsFails = true := by native_decide
 /-- Typed-IR compiler accepts source-level `Stmt.emit`. -/
 example : compileEmitSucceeds = true := by native_decide
 
-/-- Typed-IR compiler lowers `Stmt.emit` to `rawLog`/`logN` with empty data payload. -/
+/-- Typed-IR compiler lowers `Stmt.emit` into first-class typed `TStmt.emit`. -/
+example : compileEmitTypedShapeOk = true := by native_decide
+
+/-- Typed-IR compiler lowers `TStmt.emit` to `logN` with empty data payload. -/
 example : compileEmitLoweringShapeOk = true := by native_decide
 
 /-- Typed-IR compiler preserves event identity via a distinct topic0. -/
@@ -259,6 +278,14 @@ example :
   simp [evalTStmt, evalTStmtFuel, defaultEvalFuel]
   rfl
 
+/-- Typed emits are recorded as append-only event entries. -/
+example :
+    match evalTStmt baseState (TStmt.emit "Transfer" [TExpr.uintLit 1, TExpr.uintLit 2]) with
+    | .ok s' => s'.world.events.length = baseState.world.events.length + 1
+    | .revert _ => False := by
+  simp [evalTStmt, evalTStmtFuel, defaultEvalFuel]
+  rfl
+
 /-- Branching and block execution compose through `evalTBlock`. -/
 example :
     match evalTStmt baseState
@@ -302,6 +329,12 @@ example :
 example :
     lowerTStmts [TStmt.rawLog [] (TExpr.uintLit 0) (TExpr.uintLit 32)] =
       [.expr (.call "log0" [.lit 0, .lit 32])] := by
+  rfl
+
+/-- Lowering emits `log3` for typed `emit` with two indexed args. -/
+example :
+    lowerTStmts [TStmt.emit "Transfer" [TExpr.uintLit 1, TExpr.uintLit 2]] =
+      [.expr (.call "log3" [.lit 0, .lit 0, .lit (typedEventNameTopicWord "Transfer"), .lit 1, .lit 2])] := by
   rfl
 
 def counterTmp : TVar := { id := 10, ty := .uint256 }

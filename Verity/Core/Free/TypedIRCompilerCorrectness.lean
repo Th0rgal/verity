@@ -64,8 +64,8 @@ def execCompiledRawLogLiterals
   execSourceRawLogLiterals init topics dataOffset dataSize
 
 /-- Deterministic placeholder topic0 for typed-path `emit`.
-Matches `TypedIRCompiler.eventNameTopicWord`. -/
-private def eventNameTopicWord (eventName : String) : Verity.Core.Uint256 :=
+Matches `TypedIR.typedEventNameTopicWord`. -/
+private def eventNameTopicWordLocal (eventName : String) : Verity.Core.Uint256 :=
   UInt64.toNat (hash eventName)
 
 /-- Direct source semantics for literal typed-path events:
@@ -75,7 +75,7 @@ def execSourceEmitLiterals
     TExecResult :=
   evalTStmts init
     [TStmt.rawLog
-      ((TExpr.uintLit (eventNameTopicWord eventName)) ::
+      ((TExpr.uintLit (eventNameTopicWordLocal eventName)) ::
         args.map (fun n : Nat => TExpr.uintLit (n : Verity.Core.Uint256)))
       (TExpr.uintLit 0)
       (TExpr.uintLit 0)]
@@ -5197,7 +5197,7 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
         tail := .rawLogLiterals topics dataOffset dataSize htopics }
   | .requireClausesThenEmitLiterals clauses eventName args hargs =>
       { clauses := clauses
-        tail := .rawLogLiterals ((eventNameTopicWord eventName) :: args) 0 0
+        tail := .rawLogLiterals ((eventNameTopicWordLocal eventName) :: args) 0 0
           (by simpa using Nat.succ_le_succ hargs) }
   | .requireClausesThenSetStorageLiteral clauses fieldName slot writeVal hfind =>
       { clauses := clauses

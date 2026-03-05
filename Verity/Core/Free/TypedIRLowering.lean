@@ -90,6 +90,10 @@ where
         , .expr (.call "return" [.lit 0, .lit 32])
         ]
     | .expr value => [.expr (lowerTExpr value)]
+    | .emit eventName topics =>
+        [ .expr (.call s!"log{topics.length + 1}"
+            ([.lit 0, .lit 0, .lit (typedEventNameTopicWord eventName)] ++ topics.map lowerTExpr))
+        ]
     | .rawLog topics dataOffset dataSize =>
         [ .expr (.call s!"log{topics.length}" ([lowerTExpr dataOffset, lowerTExpr dataSize] ++ topics.map lowerTExpr))
         ]

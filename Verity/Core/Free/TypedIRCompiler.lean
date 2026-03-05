@@ -45,11 +45,6 @@ private def pushLocal (v : TVar) : CompileM Unit :=
 private def emit (stmt : TStmt) : CompileM Unit :=
   modify fun st => { st with body := st.body.push stmt }
 
-private def eventNameTopicWord (eventName : String) : Verity.Core.Uint256 :=
-  -- Deterministic placeholder topic0 for typed-path `emit`.
-  -- Full Solidity event ABI hashing/encoding is handled in the Yul pipeline.
-  UInt64.toNat (hash eventName)
-
 private def paramTypeToTy : ParamType → Except String Ty
   | .uint256 => Except.ok Ty.uint256
   | .uint8 => Except.ok Ty.uint256
@@ -292,16 +287,13 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
       | _ =>
           throw "Typed IR compile error: multiple return values are not supported in phase 2.4"
   | .emit eventName args => do
-      -- Typed IR currently models event emission via raw EVM log opcodes.
-      -- We include a deterministic topic0 derived from the event name and
-      -- treat args as indexed topics (data payload omitted in this path).
+      -- Event payload words are modeled as indexed topics in typed mode.
       if args.length > 3 then
         throw s!"Typed IR compile error: emit supports at most 3 arguments in typed mode, got {args.length}"
       let argTopicExprs ← args.mapM (fun arg => do
         let argExpr ← compileExpr fields arg
         liftExcept <| asUInt256 argExpr)
-      let topic0 : TExpr .uint256 := TExpr.uintLit (eventNameTopicWord eventName)
-      emit (.rawLog (topic0 :: argTopicExprs) (TExpr.uintLit 0) (TExpr.uintLit 0))
+      emit (.emit eventName argTopicExprs)
   | .rawLog topics dataOffset dataSize => do
       if topics.length > 4 then
         throw s!"Typed IR compile error: rawLog supports at most 4 topics, got {topics.length}"
