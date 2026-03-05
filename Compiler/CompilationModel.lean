@@ -26,7 +26,6 @@ import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.LayoutValidation
 import Compiler.CompilationModel.UsageAnalysis
 import Compiler.CompilationModel.ValidationHelpers
-import Compiler.CompilationModel.ContractValidation
 
 namespace Compiler.CompilationModel
 
