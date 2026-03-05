@@ -213,6 +213,16 @@ private theorem eval_hasSelector_after_set (state : YulState) :
       execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) =
         execYulFuel fuel state (.stmts body))
 
+/-- Zero fuel on a non-empty statement list always reverts. -/
+@[simp] private theorem execYulStmtsFuel_zero_of_ne_nil
+    (state : YulState) (stmts : List YulStmt) (hNe : stmts ≠ []) :
+    execYulStmtsFuel 0 state stmts = .revert state := by
+  cases stmts with
+  | nil =>
+      contradiction
+  | cons _ _ =>
+      simp [execYulStmtsFuel, execYulFuel]
+
 /-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
     the switch dispatch. This is stated as an axiom pending a full mechanical proof.
 
