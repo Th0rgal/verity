@@ -17,6 +17,10 @@ CONTRACT_RE = re.compile(r"\bverity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\
 SUITE_ENTRY_RE = re.compile(
     r"\bContracts\.MacroContracts(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.([A-Za-z_][A-Za-z0-9_]*)\.spec\b"
 )
+MACRO_SPECS_DEF_RE = re.compile(
+    r"\bprivate\s+def\s+macroSpecs(?:\s*:\s*List\s+CompilationModel)?\s*:=\s*\[",
+    re.MULTILINE,
+)
 
 
 def _collect_contracts(sources: list[Path]) -> set[str]:
@@ -27,27 +31,74 @@ def _collect_contracts(sources: list[Path]) -> set[str]:
     return names
 
 
-def _collect_suite_entries(path: Path) -> set[str]:
+def _extract_macro_specs_block(text: str) -> str | None:
+    match = MACRO_SPECS_DEF_RE.search(text)
+    if match is None:
+        return None
+
+    # Start at the opening `[` and extract until the matching `]`.
+    start = match.end() - 1
+    depth = 0
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if ch == "[":
+            depth += 1
+        elif ch == "]":
+            depth -= 1
+            if depth == 0:
+                return text[start : idx + 1]
+    return None
+
+
+def _collect_suite_entries(path: Path) -> list[str] | None:
     text = path.read_text(encoding="utf-8")
-    return set(SUITE_ENTRY_RE.findall(text))
+    block = _extract_macro_specs_block(text)
+    if block is None:
+        return None
+    return SUITE_ENTRY_RE.findall(block)
 
 
 def _check_coverage(contract_sources: list[Path], invariant_suite: Path) -> int:
     declared = _collect_contracts(contract_sources)
-    covered = _collect_suite_entries(invariant_suite)
+    covered_entries = _collect_suite_entries(invariant_suite)
+
+    if covered_entries is None:
+        print(
+            "macro invariant suite coverage check failed:",
+            file=sys.stderr,
+        )
+        print(
+            "  could not locate `private def macroSpecs : List CompilationModel := [...]`",
+            file=sys.stderr,
+        )
+        return 1
+
+    covered = set(covered_entries)
 
     if not declared:
         print("no verity_contract declarations found", file=sys.stderr)
         return 1
 
+    seen: set[str] = set()
+    duplicate_entries: list[str] = []
+    for name in covered_entries:
+        if name in seen and name not in duplicate_entries:
+            duplicate_entries.append(name)
+        seen.add(name)
+
     missing = sorted(declared - covered)
     extra = sorted(covered - declared)
 
-    if not missing and not extra:
+    if not missing and not extra and not duplicate_entries:
         print("macro invariant suite coverage OK")
         return 0
 
     print("macro invariant suite coverage check failed:", file=sys.stderr)
+    for name in duplicate_entries:
+        print(
+            f"  duplicate macroSpecs entry in Compiler/MacroTranslateInvariantTest.lean: {name}",
+            file=sys.stderr,
+        )
     for name in missing:
         print(f"  missing in Compiler/MacroTranslateInvariantTest.lean: {name}", file=sys.stderr)
     for name in extra:
