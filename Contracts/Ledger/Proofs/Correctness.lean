@@ -15,7 +15,6 @@ open Verity
 open Contracts.MacroContracts.Ledger
 open Contracts.Ledger.Spec
 open Contracts.Ledger.Proofs
-open Verity.Stdlib.Math (MAX_UINT256)
 open Contracts.Ledger.Invariants
 
 /-! ## Invariant Preservation -/
@@ -24,11 +23,10 @@ open Contracts.Ledger.Invariants
 theorem transfer_preserves_wellformedness (s : ContractState) (to : Address) (amount : Uint256)
   (h : WellFormedState s)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_ne : s.sender ≠ to) :
   let s' := ((transfer to amount).run s).snd
   WellFormedState s' := by
-  have h_spec := transfer_meets_spec s to amount h_balance (fun _ => h_no_overflow)
+  have h_spec := transfer_meets_spec s to amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   obtain ⟨_, _, _, _, _, h_sender, h_this, _, _⟩ := h_spec
   constructor
@@ -37,11 +35,10 @@ theorem transfer_preserves_wellformedness (s : ContractState) (to : Address) (am
 
 /-- Transfer preserves non-mapping storage. -/
 theorem transfer_preserves_non_mapping (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to) :
   let s' := ((transfer to amount).run s).snd
   non_mapping_storage_unchanged s s' := by
-  have h_spec := transfer_meets_spec s to amount h_balance (fun _ => h_no_overflow)
+  have h_spec := transfer_meets_spec s to amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   obtain ⟨_, _, _, h_storage, h_addr, _h_ctx⟩ := h_spec
   simp [non_mapping_storage_unchanged]
@@ -59,21 +56,19 @@ theorem withdraw_getBalance_correct (s : ContractState) (amount : Uint256)
 
 /-- After transfer, sender's balance is decreased. -/
 theorem transfer_getBalance_sender_correct (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to) :
   let s' := ((transfer to amount).run s).snd
   ((getBalance s.sender).run s').fst = EVM.Uint256.sub (s.storageMap 0 s.sender) amount := by
   simp only [getBalance_returns_balance]
-  exact transfer_decreases_sender s to amount h_balance h_ne h_no_overflow
+  exact transfer_decreases_sender s to amount h_balance h_ne
 
 /-- After transfer, recipient's balance is increased. -/
 theorem transfer_getBalance_recipient_correct (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_balance : s.storageMap 0 s.sender >= amount) (h_ne : s.sender ≠ to) :
   let s' := ((transfer to amount).run s).snd
   ((getBalance to).run s').fst = EVM.Uint256.add (s.storageMap 0 to) amount := by
   simp only [getBalance_returns_balance]
-  exact transfer_increases_recipient s to amount h_balance h_ne h_no_overflow
+  exact transfer_increases_recipient s to amount h_balance h_ne
 
 /-! ## Deposit-Withdraw Cancellation
 

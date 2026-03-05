@@ -22,7 +22,6 @@ open Contracts.Ledger.Spec
 open Contracts.Ledger.Proofs
 open Verity.Proofs.Stdlib.ListSum (countOcc countOccU countOcc_cons_eq countOcc_cons_ne
   countOccU_cons_eq countOccU_cons_ne map_sum_point_update map_sum_point_decrease map_sum_transfer_eq)
-open Verity.Stdlib.Math (MAX_UINT256)
 open Verity.Proofs.Stdlib.Automation (evm_add_eq_hadd)
 
 /-! ## Deposit: Exact Sum Equation -/
@@ -96,14 +95,13 @@ theorem withdraw_sum_singleton_sender (s : ContractState) (amount : Uint256)
     gains `amount`. The equation holds exactly (not just as an inequality). -/
 theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_ne : s.sender ≠ to) :
   ∀ addrs : List Address,
     (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum
       + countOccU s.sender addrs * amount
     = (addrs.map (fun addr => s.storageMap 0 addr)).sum
       + countOccU to addrs * amount := by
-  have h_spec := transfer_meets_spec s to amount h_balance (fun _ => h_no_overflow)
+  have h_spec := transfer_meets_spec s to amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h_spec
   obtain ⟨h_sender_bal, h_recip_bal, h_other_bal, _, _, _⟩ := h_spec
   have h_recip_bal' :
@@ -121,13 +119,12 @@ theorem transfer_sum_equation (s : ContractState) (to : Address) (amount : Uint2
 theorem transfer_sum_preserved_unique (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
   (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256)
   (addrs : List Address)
   (h_sender_once : countOcc s.sender addrs = 1)
   (h_to_once : countOcc to addrs = 1) :
   (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum
   = (addrs.map (fun addr => s.storageMap 0 addr)).sum := by
-  have h := transfer_sum_equation s to amount h_balance h_ne h_no_overflow addrs
+  have h := transfer_sum_equation s to amount h_balance h_ne addrs
   simp [countOccU, h_sender_once, h_to_once] at h
   have h' : (addrs.map (fun addr => ((transfer to amount).run s).snd.storageMap 0 addr)).sum + amount =
       (addrs.map (fun addr => s.storageMap 0 addr)).sum + amount := by

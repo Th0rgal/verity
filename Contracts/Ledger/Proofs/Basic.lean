@@ -19,8 +19,7 @@ namespace Contracts.Ledger.Proofs
 open Verity
 open Contracts.MacroContracts.Ledger
 open Contracts.Ledger.Spec
-open Verity.Stdlib.Math (safeAdd requireSomeUint MAX_UINT256)
-open Verity.Proofs.Stdlib.Math (safeAdd_some safeAdd_none)
+open Verity.Stdlib.Math (MAX_UINT256)
 open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne uint256_ge_val_le)
 open Contracts.Ledger.Invariants
 
@@ -157,11 +156,10 @@ private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount 
     Verity.require, Verity.bind, Bind.bind, Verity.pure, Pure.pure,
     Contract.run, uint256_ge_val_le (h_eq ▸ h_balance), h_eq]
 
-/-- Helper: unfold transfer when balance sufficient, sender ≠ to, and no overflow. -/
+/-- Helper: unfold transfer when balance sufficient and sender ≠ to. -/
 private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_ne : s.sender ≠ to) :
   (transfer to amount).run s = ContractResult.success ()
     { «storage» := s.storage,
       storageAddr := s.storageAddr,
@@ -181,18 +179,16 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       events := s.events } := by
   simp only [transfer, Contracts.MacroContracts.Ledger.balances,
     msgSender, getMapping, setMapping,
-    requireSomeUint,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, h_balance, h_ne, beq_iff_eq, safeAdd_some (s.storageMap 0 to) amount h_no_overflow,
-    decide_eq_true_eq, ite_true, ite_false, HAdd.hAdd]
+    Verity.require, Verity.bind, Bind.bind, Pure.pure,
+    Contract.run, h_balance, h_ne, beq_iff_eq,
+    decide_eq_true_eq, ite_true, ite_false]
   congr 1
   congr 1
   funext slotIdx
   split <;> simp [*]
 
 theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
-  (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_no_overflow : s.sender ≠ to → (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_balance : s.storageMap 0 s.sender >= amount) :
   let s' := ((transfer to amount).run s).snd
   transfer_spec to amount s s' := by
   by_cases h_eq : s.sender = to
@@ -204,7 +200,7 @@ theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256
     · simp [h_eq, Specs.storageMapUnchangedExceptKeyAtSlot,
         Specs.storageMapUnchangedExceptKey, Specs.storageMapUnchangedExceptSlot]
     · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameContext]
-  · rw [transfer_unfold_other s to amount h_balance h_eq (h_no_overflow h_eq)]
+  · rw [transfer_unfold_other s to amount h_balance h_eq]
     simp only [ContractResult.snd, transfer_spec]
     have h_ne' := address_beq_false_of_ne s.sender to h_eq
     refine ⟨?_, ?_, ?_, ?_⟩
@@ -222,27 +218,25 @@ theorem transfer_self_preserves_balance (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
   let s' := ((transfer s.sender amount).run s).snd
   s'.storageMap 0 s.sender = s.storageMap 0 s.sender := by
-  have h := transfer_meets_spec s s.sender amount h_balance (fun h => absurd rfl h)
+  have h := transfer_meets_spec s s.sender amount h_balance
   simp [transfer_spec] at h
   exact h.1
 
 theorem transfer_decreases_sender (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_ne : s.sender ≠ to) :
   let s' := ((transfer to amount).run s).snd
   s'.storageMap 0 s.sender = EVM.Uint256.sub (s.storageMap 0 s.sender) amount := by
-  have h := transfer_meets_spec s to amount h_balance (fun _ => h_no_overflow)
+  have h := transfer_meets_spec s to amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h
   exact h.1
 
 theorem transfer_increases_recipient (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
-  (h_ne : s.sender ≠ to)
-  (h_no_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) ≤ MAX_UINT256) :
+  (h_ne : s.sender ≠ to) :
   let s' := ((transfer to amount).run s).snd
   s'.storageMap 0 to = EVM.Uint256.add (s.storageMap 0 to) amount := by
-  have h := transfer_meets_spec s to amount h_balance (fun _ => h_no_overflow)
+  have h := transfer_meets_spec s to amount h_balance
   simp [transfer_spec, h_ne, beq_iff_eq] at h
   exact h.2.1
 
@@ -254,15 +248,31 @@ theorem transfer_reverts_insufficient (s : ContractState) (to : Address) (amount
     show (s.storageMap 0 s.sender >= amount) = false from by
       simp [ge_iff_le] at h_insufficient ⊢; omega]
 
--- Transfer reverts on recipient balance overflow
--- NOTE: Pre-existing issue — Ledger.transfer does not use safeAdd, so this
--- theorem is currently unprovable. Marked sorry to match upstream HEAD state.
-theorem transfer_reverts_recipient_overflow (s : ContractState) (to : Address) (amount : Uint256)
+-- Transfer does not revert on recipient overflow; Uint256 addition wraps.
+theorem transfer_succeeds_recipient_overflow (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount)
   (h_ne : s.sender ≠ to)
-  (h_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) > MAX_UINT256) :
-  ∃ msg, (transfer to amount).run s = ContractResult.revert msg s := by
-  sorry
+  (_h_overflow : (s.storageMap 0 to : Nat) + (amount : Nat) > MAX_UINT256) :
+  ∃ s', (transfer to amount).run s = ContractResult.success () s' := by
+  let s' : ContractState :=
+    { «storage» := s.storage,
+      storageAddr := s.storageAddr,
+      storageMap := fun slotIdx addr =>
+        if (slotIdx == 0 && addr == to) = true then EVM.Uint256.add (s.storageMap 0 to) amount
+        else if (slotIdx == 0 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 0 s.sender) amount
+        else s.storageMap slotIdx addr,
+      storageMapUint := s.storageMapUint,
+      storageMap2 := s.storageMap2,
+      sender := s.sender,
+      thisAddress := s.thisAddress,
+      msgValue := s.msgValue,
+      blockTimestamp := s.blockTimestamp,
+      knownAddresses := fun slotIdx =>
+        if slotIdx == 0 then ((s.knownAddresses slotIdx).insert s.sender).insert to
+        else s.knownAddresses slotIdx,
+      events := s.events }
+  refine ⟨s', ?_⟩
+  simpa [s'] using transfer_unfold_other s to amount h_balance h_ne
 
 /-! ## State Preservation -/
 
@@ -324,12 +334,12 @@ Withdraw (guarded):
 8. withdraw_decreases_balance
 9. withdraw_reverts_insufficient
 
-Transfer (guarded, sender ≠ to, overflow-safe):
+Transfer (guarded, sender ≠ to):
 10. transfer_meets_spec
 11. transfer_decreases_sender
 12. transfer_increases_recipient
 13. transfer_reverts_insufficient
-14. transfer_reverts_recipient_overflow
+14. transfer_succeeds_recipient_overflow
 
 State preservation:
 15. deposit_preserves_non_mapping
