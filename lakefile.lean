@@ -55,3 +55,6 @@ lean_exe «random-gen» where
 
 lean_exe «gas-report» where
   root := `Compiler.Gas.Report
+
+lean_exe «macro-roundtrip-fuzz» where
+  root := `Compiler.MacroTranslateRoundTripFuzz

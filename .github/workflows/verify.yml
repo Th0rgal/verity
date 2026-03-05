@@ -267,6 +267,11 @@ jobs:
           LEAN_NUM_THREADS: 4
         run: lake build Compiler.CompilationModelFeatureTest
 
+      - name: Run macro round-trip fuzz harness
+        env:
+          LEAN_NUM_THREADS: 4
+        run: lake exe macro-roundtrip-fuzz
+
       - name: Check for sorry
         run: |
           # Count sorry across all Lean files (matching both 'sorry' and '· sorry').
