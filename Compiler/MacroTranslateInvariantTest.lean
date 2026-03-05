@@ -71,6 +71,9 @@ private def mappingBaseSlots (spec : CompilationModel) : List Nat :=
   indexed.filterMap (fun (idx, field) =>
     if isMappingLike field.ty then some (field.slot.getD idx) else none)
 
+private def functionUsesMappingSlot (fn : IRFunction) : Bool :=
+  contains (reprStr fn.body) "mappingSlot"
+
 private def seedFromName (name : String) : Nat :=
   name.toList.foldl (fun acc ch => acc * 131 + ch.toNat) 0
 
@@ -351,10 +354,24 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
         (irFnNames == fnNames)
       expectTrue s!"{spec.name}: IR selectors preserve canonical selector order"
         (irSelectors == selectors)
+      let indexedFns := List.zip (List.range extFns.length) extFns
+      let mappingSafeFns :=
+        indexedFns.filterMap (fun (idx, fnSpec) =>
+          match irFns.get? idx, selectors.get? idx with
+          | some irFn, some sel =>
+              if functionUsesMappingSlot irFn then none else some (fnSpec, sel)
+          | _, _ => none)
+      let mappingSafeExtFns := mappingSafeFns.map Prod.fst
+      let mappingSafeSelectors := mappingSafeFns.map Prod.snd
       if (mappingBaseSlots spec).isEmpty then
+        expectTrue s!"{spec.name}: all external functions are mapping-slot free"
+          (mappingSafeExtFns.length == extFns.length)
         runRandomDiffChecks spec ir extFns selectors 8
+      else if mappingSafeExtFns.isEmpty then
+        IO.println s!"ℹ {spec.name}: skipping randomized IR↔Yul checks (all external functions touch mappingSlot/keccak path in #eval)"
       else
-        IO.println s!"ℹ {spec.name}: skipping randomized IR↔Yul checks (mapping keccak path requires runtime FFI in #eval)"
+        IO.println s!"ℹ {spec.name}: randomized IR↔Yul checks use mapping-safe subset {mappingSafeExtFns.length}/{extFns.length}"
+        runRandomDiffChecks spec ir mappingSafeExtFns mappingSafeSelectors 8
   | .error err =>
       throw (IO.userError s!"✗ {spec.name}: compileChecked failed: {err}")
 
