@@ -371,20 +371,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Contracts.SimpleToken.Proofs.Supply.transfer_sum_preserved_unique
 
 -- Verity/Proofs/Stdlib/Automation.lean
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_owner_ownedCounter
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_owner_ownedCounter_decide
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_count_ownedCounter
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_count_ownedCounter_decide
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_count_safeCounter
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_count_safeCounter_decide
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_balances_simpleToken
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_balances_simpleToken_decide
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_owner_simpleToken
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_owner_simpleToken_decide
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_totalSupply_simpleToken
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_totalSupply_simpleToken_decide
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_balances_ledger
-#print axioms Verity.Proofs.Stdlib.Automation.findIdx_balances_ledger_decide
 #print axioms Verity.Proofs.Stdlib.Automation.findIdx_param_newOwner
 #print axioms Verity.Proofs.Stdlib.Automation.findIdx_param_newOwner_decide
 #print axioms Verity.Proofs.Stdlib.Automation.findIdx_param_initialOwner
@@ -670,4 +656,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 569 theorems/lemmas (545 public, 24 private)
+-- Total: 555 theorems/lemmas (531 public, 24 private)
