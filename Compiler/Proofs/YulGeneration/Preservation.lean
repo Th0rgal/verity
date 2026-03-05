@@ -191,6 +191,11 @@ private theorem eval_iszero_hasSelector_after_set (state : YulState) :
   simp [evalYulExpr, evalYulCall, evalYulExprs,
     evalBuiltinCallWithBackend, evalBuiltinCall, hGetHasSelector]
 
+/-- After setting `__has_selector := 1`, reading `__has_selector` yields 1. -/
+private theorem eval_hasSelector_after_set (state : YulState) :
+    evalYulExpr (state.setVar "__has_selector" 1) (YulExpr.ident "__has_selector") = some 1 := by
+  simp [evalYulExpr, YulState.setVar, YulState.getVar]
+
 /-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
     the switch dispatch. This is stated as an axiom pending a full mechanical proof.
 
