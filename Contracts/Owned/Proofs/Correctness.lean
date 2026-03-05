@@ -1,0 +1,10 @@
+import Verity.Proofs.Owned.Correctness
+
+namespace Contracts.Owned.Proofs.Correctness
+
+abbrev transferOwnership_reverts_when_not_owner := Verity.Proofs.Owned.Correctness.transferOwnership_reverts_when_not_owner
+abbrev transferOwnership_preserves_wellformedness := Verity.Proofs.Owned.Correctness.transferOwnership_preserves_wellformedness
+abbrev constructor_transferOwnership_getOwner := Verity.Proofs.Owned.Correctness.constructor_transferOwnership_getOwner
+abbrev transferred_owner_cannot_act := Verity.Proofs.Owned.Correctness.transferred_owner_cannot_act
+
+end Contracts.Owned.Proofs.Correctness
