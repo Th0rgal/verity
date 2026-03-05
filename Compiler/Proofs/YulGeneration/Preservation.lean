@@ -233,12 +233,15 @@ private theorem eval_hasSelector_after_set (state : YulState) :
     - `if_ "__has_selector"` enters body (1 fuel, `1 ≠ 0`)
     - Singleton `[switch ...]` unwrap (1 fuel)
     Total: 5 fuel consumed from the outer stmts wrapper + inner steps. -/
-private axiom execBuildSwitch_none_none_aux (fuel : Nat) (state : YulState)
+private theorem execBuildSwitch_none_none_aux (fuel : Nat) (state : YulState)
     (fns : List IRFunction) :
     execYulStmtsFuel (fuel + 6) state [Compiler.buildSwitch fns none none] =
       execYulStmtFuel (fuel + 1) (state.setVar "__has_selector" 1)
         (YulStmt.switch selectorExpr (switchCases fns)
-          (some (switchDefaultCase none none)))
+          (some (switchDefaultCase none none))) := by
+  simp [Compiler.buildSwitch, switchDefaultCase, switchCases, switchCaseBody, dispatchBody,
+    execYulStmtsFuel, execYulStmtFuel, execYulFuel, eval_buildSwitch_hasSelectorExpr_eq_one,
+    eval_iszero_hasSelector_after_set, eval_hasSelector_after_set]
 
 /-- Executing a singleton statement list consumes one list-step of fuel. -/
 @[simp] private theorem execYulStmtsFuel_singleton_succ

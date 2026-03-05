@@ -10,19 +10,19 @@ EDSL (Lean)
 CompilationModel
   ↓ [Layer 2: FULLY VERIFIED — CompilationModel → IR]
 IR
-  ↓ [Layer 3: FULLY VERIFIED, 3 axioms — IR → Yul]
+  ↓ [Layer 3: FULLY VERIFIED, 2 axioms — IR → Yul]
 Yul
   ↓ [trusted — solc]
 EVM Bytecode
 ```
 
-All three layers are proven in Lean, with 3 documented axioms (one selector axiom and two private preservation bridge axioms; see [AXIOMS.md](AXIOMS.md)).
+All three layers are proven in Lean, with 2 documented axioms (one selector axiom and one private preservation bridge axiom; see [AXIOMS.md](AXIOMS.md)).
 
 ## What's Verified
 
 - **Layer 1**: EDSL behavior matches its CompilationModel. For supported contracts, a generic typed-IR compilation-correctness theorem eliminates per-contract manual proofs.
 - **Layer 2**: CompilationModel → IR preserves behavior.
-- **Layer 3**: IR → Yul preserves behavior, currently relying on 3 documented axioms.
+- **Layer 3**: IR → Yul preserves behavior, currently relying on 2 documented axioms.
 - **Cross-layer**: `Compiler/Proofs/SemanticBridge.lean` has zero `sorry`; `Compiler/Proofs/EndToEnd.lean` composes Layers 2+3.
 
 272 theorems across 10 categories. 250 theorems have corresponding Foundry property tests. 92% runtime test coverage.
@@ -36,7 +36,7 @@ All three layers are proven in Lean, with 3 documented axioms (one selector axio
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 3 documented axioms in [AXIOMS.md](AXIOMS.md), including `keccak256_first_4_bytes`.
+- **Status**: 2 documented axioms in [AXIOMS.md](AXIOMS.md), including `keccak256_first_4_bytes`.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation

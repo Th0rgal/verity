@@ -97,7 +97,7 @@ EDSL contract (Lean)
 CompilationModel (declarative IR spec)
   ↓  Layer 2: CompilationModel → IR        [PROVEN]
 Intermediate Representation
-  ↓  Layer 3: IR → Yul                     [PROVEN, 3 axioms]
+  ↓  Layer 3: IR → Yul                     [PROVEN, 2 axioms]
 Yul
   ↓  solc (trusted external compiler)
 EVM Bytecode
@@ -109,7 +109,7 @@ EVM Bytecode
 | 2 | CompilationModel → IR preserves behavior | [IRInterpreter.lean](Compiler/Proofs/IRGeneration/IRInterpreter.lean) |
 | 3 | IR → Yul codegen preserves behavior | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
-Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 3 axioms (one selector axiom plus two private preservation bridge axioms). See [AXIOMS.md](AXIOMS.md).
+Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 2 axioms (one selector axiom plus one private preservation bridge axiom). See [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 
@@ -137,7 +137,7 @@ FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
 | ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-272 theorems across 10 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (92% coverage, 22 proof-only exclusions). 3 documented axioms. 0 `sorry` placeholders.
+272 theorems across 10 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (92% coverage, 22 proof-only exclusions). 2 documented axioms. 0 `sorry` placeholders.
 
 ---
 
@@ -192,7 +192,7 @@ Every claim is enforced by CI on every commit:
 |-------|-------|----------------|
 | Tracked theorems | 425 across 11 categories | `make verify` |
 | Incomplete proofs (`sorry`) | 0 | `python3 scripts/check_lean_hygiene.py` |
-| Project-specific axioms | 3 ([documented](AXIOMS.md)) | `make axiom-report` |
+| Project-specific axioms | 2 ([documented](AXIOMS.md)) | `make axiom-report` |
 | Foundry runtime tests | 475 across 38 suites | `make test-foundry` |
 | Property test coverage | 250/425 (59%) | `python3 scripts/check_property_coverage.py` |
 

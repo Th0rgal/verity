@@ -36,31 +36,9 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `execBuildSwitch_none_none_aux` (private)
+### 2. `resultsMatch_switchCaseBody_of_resultsMatch_body` (private)
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:236`
-
-**Statement**:
-```lean
-private axiom execBuildSwitch_none_none_aux (fuel : Nat) (state : YulState)
-    (fns : List IRFunction) :
-    execYulStmtsFuel (fuel + 6) state [Compiler.buildSwitch fns none none] =
-      execYulStmtFuel (fuel + 1) (state.setVar "__has_selector" 1)
-        (YulStmt.switch selectorExpr (switchCases fns)
-          (some (switchDefaultCase none none)))
-```
-
-**Purpose**:
-Bridges a remaining mechanical fueled-step normalization gap in Yul-preservation dispatch proofs.
-
-**Elimination path**:
-Replace with a theorem using the accumulated local normalization lemmas in `Preservation.lean`.
-
-**Risk**: Medium (proof-kernel assumption in preservation proof module).
-
-### 3. `resultsMatch_switchCaseBody_of_resultsMatch_body` (private)
-
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:297`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:300`
 
 **Statement**:
 ```lean
@@ -145,7 +123,7 @@ scoped to contracts that use the module.
 
 The repository removed prior axioms related to IR and Yul expression and statement equivalence and address injectivity by making interpreters total and by using a bounded-nat `Address` representation.
 
-These removals reduced prior axiom debt, but preservation still carries two private bridge axioms.
+These removals reduced prior axiom debt, and preservation now carries one private bridge axiom.
 
 ## Non-Axiom: Arithmetic Semantics
 
@@ -153,7 +131,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 3
+- Active axioms: 2
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axiom_locations.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not
