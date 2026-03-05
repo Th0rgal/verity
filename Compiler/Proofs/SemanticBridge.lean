@@ -389,7 +389,26 @@ theorem safeCounter_decrement_semantic_bridge
     | .revert _ _ =>
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = false
-    := by sorry
+    := by
+  by_cases hUnderflow : state.storage 0 = 0
+  · simp [Contract.run, Verity.Examples.MacroContracts.SafeCounter.decrement,
+      Verity.Examples.MacroContracts.SafeCounter.count, getStorage, setStorage,
+      requireSomeUint, safeSub, hUnderflow,
+      mkIRTransaction, mkIRState, interpretIR, safeCounterIRContract,
+      execIRFunction, execIRStmts, execIRStmt,
+      evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+      encodeStorage, encodeEvents,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+      Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  · simp [Contract.run, Verity.Examples.MacroContracts.SafeCounter.decrement,
+      Verity.Examples.MacroContracts.SafeCounter.count, getStorage, setStorage,
+      requireSomeUint, safeSub, hUnderflow,
+      mkIRTransaction, mkIRState, interpretIR, safeCounterIRContract,
+      execIRFunction, execIRStmts, execIRStmt,
+      evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+      encodeStorage, encodeEvents,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+      Compiler.Proofs.YulGeneration.evalBuiltinCall]
 
 theorem safeCounter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
