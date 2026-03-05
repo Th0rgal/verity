@@ -138,6 +138,9 @@ jobs:
       - name: Check property manifest sync
         run: python3 scripts/check_property_manifest_sync.py
 
+      - name: Check issue template contamination
+        run: python3 scripts/check_issue_templates.py
+
       - name: Check macro property-test artifact generation
         run: python3 scripts/check_macro_property_test_generation.py --check
 

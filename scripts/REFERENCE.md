@@ -10,6 +10,7 @@ This document is the long-form reference for script responsibilities.
 ## Issue #1060 automation
 
 - `check_issue_1060_integrity.py`: ledger schema + anti-inflation + repository-fact checks (run in CI).
+- `check_issue_templates.py`: fail on accidental CI-log contamination in GitHub issue templates.
 
 ## Artifacts and documentation consistency
 
