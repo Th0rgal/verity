@@ -170,6 +170,18 @@ example :
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
 
+/-- Lowering emits a Yul `div` call for typed division. -/
+example :
+    lowerTExpr (TExpr.div (TExpr.uintLit 10) (TExpr.uintLit 3)) =
+      .call "div" [.lit 10, .lit 3] := by
+  rfl
+
+/-- Lowering emits a Yul `mod` call for typed modulo. -/
+example :
+    lowerTExpr (TExpr.mod (TExpr.uintLit 10) (TExpr.uintLit 3)) =
+      .call "mod" [.lit 10, .lit 3] := by
+  rfl
+
 def counterTmp : TVar := { id := 10, ty := .uint256 }
 
 /-- Typed IR block equivalent to Counter.increment (`count := count + 1`). -/
