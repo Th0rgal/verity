@@ -2032,6 +2032,29 @@ example (init : TExecState) :
   refine ⟨[.requireClausesThenRawLogLiterals [] [1, 2, 3, 4] 0 64 (by decide)], rfl⟩
 
 open Compiler.CompilationModel in
+/-- Literal emit pattern belongs to the supported fragment grammar. -/
+example : SupportedStmtList simpleTokenFields
+    [Stmt.emit "Transfer" [Expr.literal 1, Expr.literal 2, Expr.literal 3]] :=
+  witness_requireClausesThenEmitLiterals_supported
+
+open Compiler.CompilationModel in
+/-- Literal emit correctness follows from the supported-list theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.emit "Transfer" [Expr.literal 1, Expr.literal 2, Expr.literal 3]] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments :=
+  compile_supported_stmt_list_semantics simpleTokenFields init _
+    witness_requireClausesThenEmitLiterals_supported
+
+open Compiler.CompilationModel in
+/-- Three-arg emit boundary pattern is admitted by the supported grammar. -/
+example : SupportedStmtList simpleTokenFields
+    [Stmt.emit "Approval" [Expr.literal 11, Expr.literal 22, Expr.literal 33]] := by
+  refine ⟨[.requireClausesThenEmitLiterals [] "Approval" [11, 22, 33] (by decide)], rfl⟩
+
+open Compiler.CompilationModel in
 /-- Mapping return semantics preservation: compiled matches source for `return (mapping field caller)`. -/
 example (fields : List Field)
     (fieldName : String) (slotIdx : Nat)
