@@ -514,7 +514,18 @@ theorem ownedCounter_increment_semantic_bridge
         ∧
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
-    := by sorry
+    := by
+  subst hOwner
+  simp [Contract.run, Verity.Examples.MacroContracts.OwnedCounter.increment,
+    Verity.Examples.MacroContracts.OwnedCounter.owner,
+    Verity.Examples.MacroContracts.OwnedCounter.count,
+    getStorageAddr, getStorage, setStorage,
+    mkIRTransaction, mkIRState, interpretIR, ownedCounterIRContract,
+    execIRFunction, execIRStmts, execIRStmt,
+    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+    encodeOwnedCounterStorage, encodeEvents,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+    Compiler.Proofs.YulGeneration.evalBuiltinCall]
 
 theorem ownedCounter_decrement_semantic_bridge
     (state : ContractState) (sender : Address)

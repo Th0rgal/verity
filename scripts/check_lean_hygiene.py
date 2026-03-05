@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Expected sorry count matches actual.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 6  # Remaining sorry count after ownedCounter_getOwner bridge proof completion
+    expected_sorry = 5  # Remaining sorry count after ownedCounter_increment bridge proof completion
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
