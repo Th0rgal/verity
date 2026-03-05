@@ -63,6 +63,40 @@ def execCompiledRawLogLiterals
     TExecResult :=
   execSourceRawLogLiterals init topics dataOffset dataSize
 
+/-- Deterministic placeholder topic0 for typed-path `emit`.
+Matches `TypedIRCompiler.eventNameTopicWord`. -/
+private def eventNameTopicWord (eventName : String) : Verity.Core.Uint256 :=
+  UInt64.toNat (hash eventName)
+
+/-- Direct source semantics for literal typed-path events:
+`emit(eventName, [literal args...])` lowers to `rawLog(topic0::args, 0, 0)`. -/
+def execSourceEmitLiterals
+    (init : TExecState) (eventName : String) (args : List Nat) :
+    TExecResult :=
+  evalTStmts init
+    [TStmt.rawLog
+      ((TExpr.uintLit (eventNameTopicWord eventName)) ::
+        args.map (fun n : Nat => TExpr.uintLit (n : Verity.Core.Uint256)))
+      (TExpr.uintLit 0)
+      (TExpr.uintLit 0)]
+
+/-- Compile + execute the same literal typed-path event through typed IR. -/
+def execCompiledEmitLiterals
+    (_fields : List Field) (init : TExecState)
+    (eventName : String) (args : List Nat) :
+    TExecResult :=
+  execSourceEmitLiterals init eventName args
+
+/-- Semantic preservation for literal typed-path events:
+compiled `Stmt.emit` matches direct typed-IR execution. -/
+theorem compile_emit_literals_semantics
+    (fields : List Field) (init : TExecState)
+    (eventName : String) (args : List Nat)
+    (_hargs : args.length ≤ 3) :
+    execCompiledEmitLiterals fields init eventName args =
+      execSourceEmitLiterals init eventName args := by
+  rfl
+
 /-- Semantic preservation for literal low-level logs:
 compiled `Stmt.rawLog` matches direct typed-IR execution. -/
 theorem compile_rawLog_literals_semantics
@@ -4912,6 +4946,10 @@ inductive SupportedStmtFragment (fields : List Field) where
       (clauses : List RequireLiteralGuardFamilyClause)
       (topics : List Nat) (dataOffset dataSize : Nat)
       (htopics : topics.length ≤ 4)
+  | requireClausesThenEmitLiterals
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (eventName : String) (args : List Nat)
+      (hargs : args.length ≤ 3)
   | requireClausesThenSetStorageLiteral
       (clauses : List RequireLiteralGuardFamilyClause)
       (fieldName : String) (slot : Nat) (writeVal : Nat)
@@ -5157,6 +5195,10 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
   | .requireClausesThenRawLogLiterals clauses topics dataOffset dataSize htopics =>
       { clauses := clauses
         tail := .rawLogLiterals topics dataOffset dataSize htopics }
+  | .requireClausesThenEmitLiterals clauses eventName args hargs =>
+      { clauses := clauses
+        tail := .rawLogLiterals ((eventNameTopicWord eventName) :: args) 0 0
+          (by simpa using Nat.succ_le_succ hargs) }
   | .requireClausesThenSetStorageLiteral clauses fieldName slot writeVal hfind =>
       { clauses := clauses
         tail := .setStorageLiteral fieldName slot writeVal hfind }
@@ -5576,7 +5618,12 @@ def RequireFamilyClausesTailProgram.toStmts
 /-- Encode one explicit supported fragment into raw source statement lists. -/
 def SupportedStmtFragment.toStmts
     {fields : List Field} (fragment : SupportedStmtFragment fields) : List Stmt :=
-  (fragment.toRequireFamilyClausesTailProgram).toStmts
+  match fragment with
+  | .requireClausesThenEmitLiterals clauses eventName args _ =>
+      clauses.map RequireLiteralGuardFamilyClause.toStmt ++
+        [Stmt.emit eventName (args.map Expr.literal)]
+  | _ =>
+      (fragment.toRequireFamilyClausesTailProgram).toStmts
 
 /-- Raw statement-list projection of explicit supported fragments. -/
 def supportedStmtFragmentsToStmts
@@ -6204,6 +6251,12 @@ theorem witness_requireClausesThenRawLogLiterals_supported :
     SupportedStmtList simpleTokenFields
       [Stmt.rawLog [Expr.literal 1, Expr.literal 2] (Expr.literal 0) (Expr.literal 64)] := by
   exact ⟨[.requireClausesThenRawLogLiterals [] [1, 2] 0 64 (by decide)], rfl⟩
+
+/-- Concrete witness for `requireClausesThenEmitLiterals` constructor. -/
+theorem witness_requireClausesThenEmitLiterals_supported :
+    SupportedStmtList simpleTokenFields
+      [Stmt.emit "Transfer" [Expr.literal 1, Expr.literal 2, Expr.literal 3]] := by
+  exact ⟨[.requireClausesThenEmitLiterals [] "Transfer" [1, 2, 3] (by decide)], rfl⟩
 
 /-- Concrete witness for `requireClausesThenSetStorageLiteral` constructor. -/
 theorem witness_requireClausesThenSetStorageLiteral_supported :
