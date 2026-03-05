@@ -90,6 +90,9 @@ where
         , .expr (.call "return" [.lit 0, .lit 32])
         ]
     | .expr value => [.expr (lowerTExpr value)]
+    | .rawLog topics dataOffset dataSize =>
+        [ .expr (.call s!"log{topics.length}" ([lowerTExpr dataOffset, lowerTExpr dataSize] ++ topics.map lowerTExpr))
+        ]
     | .revert _reason => [.expr (.call "revert" [.lit 0, .lit 0])]
 
 /-- Lower a typed IR block into Yul statements for the existing IR/Yul backend. -/

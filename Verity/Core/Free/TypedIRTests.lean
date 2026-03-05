@@ -107,11 +107,23 @@ def compileModExprSucceeds : Bool :=
   | .ok _ => true
   | .error _ => false
 
+def compileRawLogSucceeds : Bool :=
+  match (compileStmts []
+      [Compiler.CompilationModel.Stmt.rawLog
+        [Compiler.CompilationModel.Expr.literal 1, Compiler.CompilationModel.Expr.literal 2]
+        (Compiler.CompilationModel.Expr.literal 0)
+        (Compiler.CompilationModel.Expr.literal 64)]).run {} with
+  | .ok _ => true
+  | .error _ => false
+
 /-- Typed-IR compiler accepts source-level `Expr.div`. -/
 example : compileDivExprSucceeds = true := by native_decide
 
 /-- Typed-IR compiler accepts source-level `Expr.mod`. -/
 example : compileModExprSucceeds = true := by native_decide
+
+/-- Typed-IR compiler accepts source-level `Stmt.rawLog`. -/
+example : compileRawLogSucceeds = true := by native_decide
 
 /-- Context expressions read from world/environment. -/
 example :
@@ -149,6 +161,14 @@ example :
     | .revert _ => True := by
   simp [evalTStmt, evalTStmtFuel, defaultEvalFuel]
 
+/-- Raw logs are recorded as append-only event entries. -/
+example :
+    match evalTStmt baseState (TStmt.rawLog [TExpr.uintLit 1, TExpr.uintLit 2] (TExpr.uintLit 0) (TExpr.uintLit 64)) with
+    | .ok s' => s'.world.events.length = baseState.world.events.length + 1
+    | .revert _ => False := by
+  simp [evalTStmt, evalTStmtFuel, defaultEvalFuel]
+  rfl
+
 /-- Branching and block execution compose through `evalTBlock`. -/
 example :
     match evalTStmt baseState
@@ -180,6 +200,12 @@ example :
 example :
     lowerTExpr (TExpr.mod (TExpr.uintLit 10) (TExpr.uintLit 3)) =
       .call "mod" [.lit 10, .lit 3] := by
+  rfl
+
+/-- Lowering emits `log2` for typed raw logs with two topics. -/
+example :
+    lowerTStmts [TStmt.rawLog [TExpr.uintLit 1, TExpr.uintLit 2] (TExpr.uintLit 0) (TExpr.uintLit 64)] =
+      [.expr (.call "log2" [.lit 0, .lit 64, .lit 1, .lit 2])] := by
   rfl
 
 def counterTmp : TVar := { id := 10, ty := .uint256 }

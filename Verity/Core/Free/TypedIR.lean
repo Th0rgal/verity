@@ -62,6 +62,7 @@ inductive TStmt where
   | returnUint (value : TExpr .uint256)
   | returnAddr (value : TExpr .address)
   | expr (value : TExpr .unit)
+  | rawLog (topics : List (TExpr .uint256)) (dataOffset dataSize : TExpr .uint256)
   | revert (reason : String)
   deriving Repr
 
@@ -233,6 +234,13 @@ def evalTStmtFuel : Nat → TExecState → TStmt → TExecResult
   | Nat.succ _, s, .expr value =>
       let _ := evalTExpr s value
       .ok s
+  | Nat.succ _, s, .rawLog topics dataOffset dataSize =>
+      let topicVals := topics.map (evalTExpr s ·)
+      let offsetVal := evalTExpr s dataOffset
+      let sizeVal := evalTExpr s dataSize
+      .ok { s with world := { s.world with
+        events := s.world.events ++
+          [{ name := s!"log{topics.length}", args := [offsetVal, sizeVal], indexedArgs := topicVals }] } }
   | Nat.succ _, _, .revert reason => .revert reason
 
 /-- Fuel-bounded evaluator for a sequence of typed IR statements. -/

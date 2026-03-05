@@ -286,6 +286,15 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
           | ⟨ty, _⟩ => throw s!"Typed IR compile error: unsupported return type {repr ty}"
       | _ =>
           throw "Typed IR compile error: multiple return values are not supported in phase 2.4"
+  | .rawLog topics dataOffset dataSize => do
+      if topics.length > 4 then
+        throw s!"Typed IR compile error: rawLog supports at most 4 topics, got {topics.length}"
+      let topicExprs ← topics.mapM (fun t => do
+        let tExpr ← compileExpr fields t
+        liftExcept <| asUInt256 tExpr)
+      let offsetExpr ← liftExcept <| asUInt256 (← compileExpr fields dataOffset)
+      let sizeExpr ← liftExcept <| asUInt256 (← compileExpr fields dataSize)
+      emit (.rawLog topicExprs offsetExpr sizeExpr)
   | stmt =>
       throw s!"Typed IR compile error: unsupported statement form in phase 2.1: {repr stmt}"
 
