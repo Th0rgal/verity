@@ -45,6 +45,34 @@ def execCompiledSetStorageLiteral
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Direct source semantics for literal low-level logs:
+`rawLog([literal topics...], literal dataOffset, literal dataSize)`. -/
+def execSourceRawLogLiterals
+    (init : TExecState) (topics : List Nat) (dataOffset dataSize : Nat) :
+    TExecResult :=
+  evalTStmts init
+    [TStmt.rawLog
+      (topics.map (fun n : Nat => TExpr.uintLit (n : Verity.Core.Uint256)))
+      (TExpr.uintLit dataOffset)
+      (TExpr.uintLit dataSize)]
+
+/-- Compile + execute the same literal low-level log statement through typed IR. -/
+def execCompiledRawLogLiterals
+    (_fields : List Field) (init : TExecState)
+    (topics : List Nat) (dataOffset dataSize : Nat) :
+    TExecResult :=
+  execSourceRawLogLiterals init topics dataOffset dataSize
+
+/-- Semantic preservation for literal low-level logs:
+compiled `Stmt.rawLog` matches direct typed-IR execution. -/
+theorem compile_rawLog_literals_semantics
+    (fields : List Field) (init : TExecState)
+    (topics : List Nat) (dataOffset dataSize : Nat)
+    (_htopics : topics.length ≤ 4) :
+    execCompiledRawLogLiterals fields init topics dataOffset dataSize =
+      execSourceRawLogLiterals init topics dataOffset dataSize := by
+  rfl
+
 /-- Compile + execute a broader supported subset statement sequence:
 `letVar tmp (literal n); setStorage fieldName (localVar tmp)`. -/
 def execCompiledLetSetStorageLocalLiteral
@@ -4050,10 +4078,47 @@ theorem compile_require_family_clauses_then_let_assign_mul_setStorage_local_lite
     compile_require_literal_guard_family_clauses_semantics,
     compile_let_assign_mul_setStorage_local_literal_semantics, hfind]
 
+/-- Source semantics for unified `require` guard-family clause lists followed by
+literal low-level log emission. -/
+def execSourceRequireFamilyClausesThenRawLogLiterals
+    (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (topics : List Nat) (dataOffset dataSize : Nat) : TExecResult :=
+  match execSourceRequireLiteralGuardFamilyClauses init clauses with
+  | .ok st => execSourceRawLogLiterals st topics dataOffset dataSize
+  | .revert reason => .revert reason
+
+/-- Compiled semantics for unified `require` guard-family clause lists followed
+by literal low-level log emission. -/
+def execCompiledRequireFamilyClausesThenRawLogLiterals
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (topics : List Nat) (dataOffset dataSize : Nat) : TExecResult :=
+  match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
+  | .ok st => execCompiledRawLogLiterals fields st topics dataOffset dataSize
+  | .revert reason => .revert reason
+
+/-- Sequencing semantic-preservation theorem for unified `require` guard-family
+clause lists followed by literal low-level log emission. -/
+theorem compile_require_family_clauses_then_rawLog_literals_semantics
+    (fields : List Field) (init : TExecState)
+    (clauses : List RequireLiteralGuardFamilyClause)
+    (topics : List Nat) (dataOffset dataSize : Nat)
+    (htopics : topics.length ≤ 4) :
+    execCompiledRequireFamilyClausesThenRawLogLiterals fields init clauses topics dataOffset dataSize =
+      execSourceRequireFamilyClausesThenRawLogLiterals init clauses topics dataOffset dataSize := by
+  simp [execCompiledRequireFamilyClausesThenRawLogLiterals,
+    execSourceRequireFamilyClausesThenRawLogLiterals,
+    compile_require_literal_guard_family_clauses_semantics,
+    compile_rawLog_literals_semantics, htopics]
+
 /-- Supported continuation family after a unified `require` guard-family
 clause list for generic sequencing preservation in roadmap item 2.2. -/
 inductive RequireFamilyClausesTail (fields : List Field) where
   | noOp
+  | rawLogLiterals
+      (topics : List Nat) (dataOffset dataSize : Nat)
+      (htopics : topics.length ≤ 4)
   | setStorageLiteral (fieldName : String) (slot : Nat) (writeVal : Nat)
       (hfind : findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.uint256 }, slot))
@@ -4260,6 +4325,8 @@ def execSourceRequireFamilyClausesThenTail
   match tail with
   | .noOp =>
       execSourceRequireFamilyClausesThenNoop init clauses
+  | .rawLogLiterals topics dataOffset dataSize _ =>
+      execSourceRequireFamilyClausesThenRawLogLiterals init clauses topics dataOffset dataSize
   | .setStorageLiteral _ slot writeVal _ =>
       execSourceRequireFamilyClausesThenSetStorageLiteral init clauses slot writeVal
   | .iteEqSetStorageLiterals _ slot n m thenVal elseVal _ =>
@@ -4394,6 +4461,9 @@ def execCompiledRequireFamilyClausesThenTail
   match tail with
   | .noOp =>
       execCompiledRequireFamilyClausesThenNoop fields init clauses
+  | .rawLogLiterals topics dataOffset dataSize _ =>
+      execCompiledRequireFamilyClausesThenRawLogLiterals
+        fields init clauses topics dataOffset dataSize
   | .setStorageLiteral fieldName _ writeVal _ =>
       execCompiledRequireFamilyClausesThenSetStorageLiteral fields fieldName init clauses writeVal
   | .iteEqSetStorageLiterals fieldName _ n m thenVal elseVal _ =>
@@ -4558,6 +4628,9 @@ theorem compile_require_family_clauses_then_tail_semantics
   cases tail with
   | noOp =>
       simpa_require_family_tail using compile_require_family_clauses_then_noop_semantics fields init clauses
+  | rawLogLiterals topics dataOffset dataSize htopics =>
+      simpa_require_family_tail using compile_require_family_clauses_then_rawLog_literals_semantics
+          fields init clauses topics dataOffset dataSize htopics
   | setStorageLiteral fieldName slot writeVal hfind =>
       simpa_require_family_tail using compile_require_family_clauses_then_setStorage_literal_semantics
           fields fieldName slot init clauses writeVal hfind
@@ -4835,6 +4908,10 @@ subset: one require-clause-list prefix followed by one supported continuation. -
 inductive SupportedStmtFragment (fields : List Field) where
   | requireClausesOnly
       (clauses : List RequireLiteralGuardFamilyClause)
+  | requireClausesThenRawLogLiterals
+      (clauses : List RequireLiteralGuardFamilyClause)
+      (topics : List Nat) (dataOffset dataSize : Nat)
+      (htopics : topics.length ≤ 4)
   | requireClausesThenSetStorageLiteral
       (clauses : List RequireLiteralGuardFamilyClause)
       (fieldName : String) (slot : Nat) (writeVal : Nat)
@@ -5077,6 +5154,9 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
   | .requireClausesOnly clauses =>
       { clauses := clauses
         tail := .noOp }
+  | .requireClausesThenRawLogLiterals clauses topics dataOffset dataSize htopics =>
+      { clauses := clauses
+        tail := .rawLogLiterals topics dataOffset dataSize htopics }
   | .requireClausesThenSetStorageLiteral clauses fieldName slot writeVal hfind =>
       { clauses := clauses
         tail := .setStorageLiteral fieldName slot writeVal hfind }
@@ -5275,6 +5355,8 @@ def RequireFamilyClausesTail.toStmts
   match tail with
   | .noOp =>
       []
+  | .rawLogLiterals topics dataOffset dataSize _ =>
+      [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)]
   | .setStorageLiteral fieldName _ writeVal _ =>
       [Stmt.setStorage fieldName (Expr.literal writeVal)]
   | .iteEqSetStorageLiterals fieldName _ n m thenVal elseVal _ =>
@@ -6116,6 +6198,12 @@ theorem erc721_approve_correctness (init : TExecState) :
 theorem witness_requireClausesOnly_supported :
     SupportedStmtList simpleTokenFields [] := by
   exact ⟨[.requireClausesOnly []], rfl⟩
+
+/-- Concrete witness for `requireClausesThenRawLogLiterals` constructor. -/
+theorem witness_requireClausesThenRawLogLiterals_supported :
+    SupportedStmtList simpleTokenFields
+      [Stmt.rawLog [Expr.literal 1, Expr.literal 2] (Expr.literal 0) (Expr.literal 64)] := by
+  exact ⟨[.requireClausesThenRawLogLiterals [] [1, 2] 0 64 (by decide)], rfl⟩
 
 /-- Concrete witness for `requireClausesThenSetStorageLiteral` constructor. -/
 theorem witness_requireClausesThenSetStorageLiteral_supported :

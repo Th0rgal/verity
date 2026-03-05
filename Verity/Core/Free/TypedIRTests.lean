@@ -1938,6 +1938,23 @@ example (init : TExecState) :
     witness_requireClausesThenLetBlockTimestampSetStorageLocalStop_supported
 
 open Compiler.CompilationModel in
+/-- Literal raw-log pattern belongs to the supported fragment grammar. -/
+example : SupportedStmtList simpleTokenFields
+    [Stmt.rawLog [Expr.literal 1, Expr.literal 2] (Expr.literal 0) (Expr.literal 64)] :=
+  witness_requireClausesThenRawLogLiterals_supported
+
+open Compiler.CompilationModel in
+/-- Literal raw-log correctness follows from the supported-list theorem. -/
+example (init : TExecState) :
+    ∃ fragments : List (SupportedStmtFragment simpleTokenFields),
+      supportedStmtFragmentsToStmts fragments =
+        [Stmt.rawLog [Expr.literal 1, Expr.literal 2] (Expr.literal 0) (Expr.literal 64)] ∧
+      execCompiledSupportedStmtFragments simpleTokenFields init fragments =
+        execSourceSupportedStmtFragments simpleTokenFields init fragments :=
+  compile_supported_stmt_list_semantics simpleTokenFields init _
+    witness_requireClausesThenRawLogLiterals_supported
+
+open Compiler.CompilationModel in
 /-- Mapping return semantics preservation: compiled matches source for `return (mapping field caller)`. -/
 example (fields : List Field)
     (fieldName : String) (slotIdx : Nat)
