@@ -1,0 +1,203 @@
+# Solidity-to-Verity Translation Guide
+
+This guide is the practical path for converting a Solidity contract into Verity EDSL + proofs.
+
+It focuses on:
+
+1. Direct syntax and semantic mappings.
+2. Patterns that require restructuring.
+3. A worked translation walkthrough.
+4. Common pitfalls that cause incorrect translations.
+
+## 1. Direct Mappings
+
+Use this table as your first-pass conversion checklist.
+
+| Solidity | Verity EDSL |
+|---|---|
+| `uint256 public x;` | `def xSlot : StorageSlot Uint256 := ⟨0⟩` |
+| `mapping(address => uint256) balances;` | `def balances : StorageSlot (Address → Uint256) := ⟨1⟩` |
+| `msg.sender` | `msgSender` |
+| `require(cond, "msg")` | `require cond "msg"` |
+| `x = y + z` (checked) | `let sum <- requireSomeUint (safeAdd y z) "overflow"` then `setStorage xSlot sum` |
+| `x = y - z` (checked) | `let d <- requireSomeUint (safeSub y z) "underflow"` then `setStorage xSlot d` |
+| `balances[a]` | `let m <- getStorage balances; pure (m a)` |
+| `balances[a] = v` | `let m <- getStorage balances; setStorage balances (fun k => if k == a then v else m k)` |
+| `emit Transfer(from, to, amount)` | `emit [from.toNat, to.toNat, amount.toNat]` (or contract-specific event encoding) |
+| `return v;` | `pure v` |
+
+## 2. Patterns That Need Restructuring
+
+Some Solidity features are not 1:1 in the current EDSL/compiler pipeline.
+
+### Inheritance -> Composition
+
+- Solidity: `contract Child is Ownable, ERC20 { ... }`
+- Verity: flatten state slots and compose helper functions explicitly.
+- Put shared checks in reusable EDSL helpers (for example `onlyOwner`).
+
+### Modifiers -> Guard Helpers
+
+Solidity:
+
+```solidity
+modifier onlyOwner() {
+    require(msg.sender == owner, "not owner");
+    _;
+}
+```
+
+Verity pattern:
+
+```lean
+private def onlyOwner : Contract Unit := do
+  let owner <- getStorage ownerSlot
+  let sender <- msgSender
+  require (sender == owner) "not owner"
+```
+
+Then call `onlyOwner` at function start.
+
+### try/catch
+
+Not first-class yet (see issue `#1161`).
+Use low-level call result checks plus explicit error flow.
+
+### Reentrancy guard primitive
+
+Not first-class yet (see issue `#1160`).
+Model guard manually with a dedicated storage slot (`entered : Bool` encoded as `Uint256`).
+
+### String-heavy logic
+
+String support is not complete (see issue `#1159`).
+Prefer numeric/address/bytes-based logic for now.
+
+## 3. Worked Walkthrough: Minimal ERC20 Transfer Path
+
+This is a focused translation of common ERC20 state + transfer logic.
+
+### Solidity source fragment
+
+```solidity
+mapping(address => uint256) balances;
+uint256 totalSupply;
+
+function transfer(address to, uint256 amount) external returns (bool) {
+    require(balances[msg.sender] >= amount, "insufficient");
+    balances[msg.sender] -= amount;
+    balances[to] += amount;
+    emit Transfer(msg.sender, to, amount);
+    return true;
+}
+```
+
+### Step A: Define slots
+
+```lean
+def balances : StorageSlot (Address → Uint256) := ⟨0⟩
+def totalSupply : StorageSlot Uint256 := ⟨1⟩
+```
+
+### Step B: Translate the function body
+
+```lean
+def transfer (to : Address) (amount : Uint256) : Contract Bool := do
+  let sender <- msgSender
+  let current <- getStorage balances
+
+  let senderBal := current sender
+  require (senderBal >= amount) "insufficient"
+
+  let newSender <- requireSomeUint (safeSub senderBal amount) "underflow"
+  let toBal := current to
+  let newTo <- requireSomeUint (safeAdd toBal amount) "overflow"
+
+  setStorage balances (fun a =>
+    if a == sender then newSender
+    else if a == to then newTo
+    else current a)
+
+  emit [sender.toNat, to.toNat, amount.toNat]
+  pure true
+```
+
+### Step C: Write the spec shape
+
+For this transfer path, typical specs include:
+
+1. Sender decreases by `amount` when preconditions hold.
+2. Recipient increases by `amount` when preconditions hold.
+3. Total supply is unchanged.
+4. If guard fails, result is `revert` and state is preserved.
+
+Example spec skeleton:
+
+```lean
+def transferSpec (to : Address) (amount : Uint256) : ContractSpec :=
+  { pre := fun s => (s.storageMap balances s.sender) >= amount
+    post := fun s r s' =>
+      r = true /\
+      s'.storageMap balances s.sender = (s.storageMap balances s.sender) - amount /\
+      s'.storageMap balances to = (s.storageMap balances to) + amount }
+```
+
+### Step D: Prove with existing automation
+
+Typical proof shape:
+
+1. `unfold transfer`
+2. `simp` through `require`, `bind`, `getStorage`, `setStorage`
+3. discharge arithmetic/branch conditions
+4. finish with storage equality goals
+
+Use examples in:
+
+- `Verity/Proofs/SimpleToken/Basic.lean`
+- `Verity/Proofs/ERC20/Basic.lean`
+
+## 4. Common Pitfalls
+
+### 1) Short-circuit assumptions
+
+Do not assume Solidity-style expression short-circuiting unless explicitly encoded in control flow.
+Model branching with explicit `if`/`ite` in EDSL statements.
+
+### 2) Storage slot drift
+
+Slot indices are manual and must remain stable across:
+
+1. contract code
+2. specs
+3. proofs
+4. generated tests/scaffolds
+
+Changing slot numbers after writing proofs is a common source of silent mismatches.
+
+### 3) Checked vs wrapping arithmetic
+
+Solidity `^0.8` arithmetic is checked by default.
+If you want Solidity-equivalent behavior, use `safeAdd` / `safeSub` + `requireSomeUint`.
+
+### 4) Revert ordering
+
+Keep checks before effects. Put `require` guards before `setStorage`/`setMapping` mutations.
+
+### 5) ABI/selector mismatch
+
+When mapping Solidity functions to `CompilationModel`, verify selector/parameter ordering exactly.
+A selector mismatch can make proofs pass while runtime dispatch is wrong.
+
+## 5. Translation Workflow Checklist
+
+1. Port storage layout first.
+2. Port one function at a time.
+3. Add specs immediately for each function.
+4. Prove basic safety/correctness properties before adding next function.
+5. Run differential/property tests after each milestone.
+
+If you are starting from zero, pair this with:
+
+- [Adding Your First Contract](/guides/first-contract)
+- [Compiler](/compiler)
+- [Formal Verification](/verification)
