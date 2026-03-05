@@ -141,6 +141,9 @@ jobs:
       - name: Check macro property-test artifact generation
         run: python3 scripts/check_macro_property_test_generation.py --check
 
+      - name: Check macro invariant suite coverage
+        run: python3 scripts/check_macro_translate_invariant_coverage.py
+
       - name: Check storage layout consistency
         run: python3 scripts/check_storage_layout.py
 
