@@ -35,5 +35,12 @@ class CheckIssueSubmissionTests(unittest.TestCase):
         )
         self.assertEqual(findings, [])
 
+    def test_accepts_single_timestamp_reference(self) -> None:
+        findings = check.detect_invalid_issue(
+            "Compiler: regression on 0.8.33",
+            "Observed since 2026-03-04T16:26:36 in nightly build; no CI logs attached.",
+        )
+        self.assertEqual(findings, [])
+
 if __name__ == "__main__":
     unittest.main()

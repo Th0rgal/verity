@@ -44,6 +44,7 @@ CI_LOG_MARKERS = (
 )
 
 TIMESTAMP_RE = re.compile(r"\b20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+MIN_TIMESTAMP_LINES_FOR_LOG_DUMP = 8
 
 
 def _normalize(text: str) -> str:
@@ -68,7 +69,8 @@ def detect_invalid_issue(title: str, body: str) -> list[str]:
         )
 
     marker_hits = [marker for marker in CI_LOG_MARKERS if marker in body_norm]
-    if marker_hits or TIMESTAMP_RE.search(body_norm):
+    timestamp_hits = len(TIMESTAMP_RE.findall(body_norm))
+    if marker_hits or timestamp_hits >= MIN_TIMESTAMP_LINES_FOR_LOG_DUMP:
         findings.append("body appears to contain pasted CI/GitHub Actions logs")
 
     return findings
