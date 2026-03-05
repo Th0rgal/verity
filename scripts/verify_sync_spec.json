@@ -1,5 +1,6 @@
 {
   "check_only_paths": [
+    ".github/ISSUE_TEMPLATE/**",
     "docs/**",
     "docs-site/**",
     "AXIOMS.md",
@@ -42,6 +43,7 @@
     "check_doc_counts.py",
     "check_interop_matrix_sync.py",
     "check_verify_sync.py",
+    "check_issue_template_forms.py",
     "check_solc_pin.py",
     "check_property_manifest_sync.py",
     "check_macro_property_test_generation.py --check",

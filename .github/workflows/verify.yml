@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/actions/**'
+      - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/verify.yml'
       - 'Verity/**'
       - 'Verity.lean'
@@ -25,6 +26,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/**'
+      - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/verify.yml'
       - 'Verity/**'
       - 'Verity.lean'
@@ -131,6 +133,9 @@ jobs:
 
       - name: Check verify workflow sync invariants
         run: python3 scripts/check_verify_sync.py
+
+      - name: Check GitHub issue template forms
+        run: python3 scripts/check_issue_template_forms.py
 
       - name: Check solc pin consistency
         run: python3 scripts/check_solc_pin.py

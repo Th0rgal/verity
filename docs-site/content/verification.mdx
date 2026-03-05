@@ -7,11 +7,11 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
 
-**Status**: 425 theorems across 11 categories, 406 fully proven. 19 `sorry` placeholders (18 in SemanticBridge cross-layer bridge proofs, 1 in Yul Preservation — theorem statements preserved, proofs blocked by heartbeat limits). Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**Status**: 272 theorems across 10 categories, 406 fully proven. 19 `sorry` placeholders (18 in SemanticBridge cross-layer bridge proofs, 1 in Yul Preservation — theorem statements preserved, proofs blocked by heartbeat limits). Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
 
 ## Snapshot (2026-02-17)
 
-- EDSL theorems: 425 across 11 categories (9 contracts + ReentrancyExample + Stdlib).
+- EDSL theorems: 272 across 10 categories (9 contracts + ReentrancyExample + Stdlib).
 - SimpleStorage: 20 total (Basic 13, Correctness 7).
 - Counter: 28 total (Basic 19, Correctness 10; 1 shared between Basic and Correctness).
 - Owned: 23 total (Basic 19, Correctness 4).
@@ -22,7 +22,7 @@ The compiler is verified with IR preservation proofs and Yul equivalence proofs 
 - ERC20: 19 total (Basic 3, Correctness 2).
 - ERC721: 11 total (Basic 6, Correctness 5).
 - ReentrancyExample: 4 total (inline proofs: vulnerability existence, supply invariant).
-- Stdlib: 153 theorems (Math 25, Automation 56, MappingAutomation 37, ListSum 7, AddressAutomation 24; 2 shared between Automation and MappingAutomation).
+- Stdlib: 0 theorems (Math 25, Automation 56, MappingAutomation 37, ListSum 7, AddressAutomation 24; 2 shared between Automation and MappingAutomation).
 
 ## Compiler Proofs (IR + Yul)
 
@@ -349,7 +349,7 @@ Transfer proofs now handle self-transfer by modeling it as a no-op (preloading b
 | 12 | `transfer_decreases_sender` | Transfer decreases sender balance |
 | 13 | `transfer_increases_recipient` | Transfer increases recipient balance |
 | 14 | `transfer_reverts_insufficient` | Transfer reverts on insufficient balance |
-| 15 | `transfer_reverts_recipient_overflow` | Transfer reverts on recipient overflow |
+| 15 | `transfer_succeeds_recipient_overflow` | Transfer succeeds on recipient overflow (wrap semantics) |
 | 16 | `deposit_preserves_non_mapping` | Deposit preserves non-mapping storage |
 | 17 | `withdraw_preserves_non_mapping` | Withdraw preserves non-mapping storage |
 | 18 | `deposit_preserves_wellformedness` | Deposit preserves well-formedness |

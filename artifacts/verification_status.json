@@ -15,10 +15,10 @@
     "suites": 38
   },
   "theorems": {
-    "categories": 11,
-    "coverage_percent": 59,
+    "categories": 10,
+    "coverage_percent": 92,
     "covered": 250,
-    "excluded": 175,
+    "excluded": 22,
     "non_stdlib_total": 272,
     "per_contract": {
       "Counter": 28,
@@ -30,12 +30,11 @@
       "ReentrancyExample": 4,
       "SafeCounter": 25,
       "SimpleStorage": 20,
-      "SimpleToken": 61,
-      "Stdlib": 153
+      "SimpleToken": 61
     },
-    "proven": 425,
-    "stdlib": 153,
-    "total": 425
+    "proven": 272,
+    "stdlib": 0,
+    "total": 272
   },
   "toolchain": {
     "lean": "leanprover/lean4:v4.22.0",

@@ -128,7 +128,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Contracts.Ledger.Proofs.transfer_decreases_sender
 #print axioms Contracts.Ledger.Proofs.transfer_increases_recipient
 #print axioms Contracts.Ledger.Proofs.transfer_reverts_insufficient
-#print axioms Contracts.Ledger.Proofs.transfer_reverts_recipient_overflow
+#print axioms Contracts.Ledger.Proofs.transfer_succeeds_recipient_overflow
 #print axioms Contracts.Ledger.Proofs.deposit_preserves_non_mapping
 #print axioms Contracts.Ledger.Proofs.withdraw_preserves_non_mapping
 #print axioms Contracts.Ledger.Proofs.deposit_preserves_wellformedness

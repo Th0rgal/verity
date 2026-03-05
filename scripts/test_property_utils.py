@@ -57,7 +57,9 @@ class PropertyUtilsContractNameTests(unittest.TestCase):
 
             contract_dir = proofs_dir / "_Vault"
             contract_dir.mkdir()
-            (contract_dir / "Spec.lean").write_text(
+            proofs_subdir = contract_dir / "Proofs"
+            proofs_subdir.mkdir()
+            (proofs_subdir / "Basic.lean").write_text(
                 "theorem theorem_ok : True := by\n"
                 "  trivial\n",
                 encoding="utf-8",
