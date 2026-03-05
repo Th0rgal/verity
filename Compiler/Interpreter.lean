@@ -14,7 +14,7 @@
 import Compiler.Constants
 import Verity.Examples.MacroContracts.Tokens
 import Verity.Examples.MacroContracts.Core
-import Verity.Examples.MacroContracts.Compat.ERC721
+import Verity.Examples.MacroContracts.ERC721Addressed
 import Verity.Examples.MacroContracts.Compat.CryptoHash
 import Compiler.DiffTestTypes
 import Compiler.Hex
@@ -408,17 +408,17 @@ end ERC20
 
 namespace ERC721
 
-abbrev mint := Verity.Examples.MacroContracts.Compat.ERC721.mint
-abbrev balanceOf := Verity.Examples.MacroContracts.Compat.ERC721.balanceOf
-abbrev ownerOf := Verity.Examples.MacroContracts.Compat.ERC721.ownerOf
-abbrev approve := Verity.Examples.MacroContracts.Compat.ERC721.approve
-abbrev getApproved := Verity.Examples.MacroContracts.Compat.ERC721.getApproved
-abbrev setApprovalForAll := Verity.Examples.MacroContracts.Compat.ERC721.setApprovalForAll
-abbrev isApprovedForAll := Verity.Examples.MacroContracts.Compat.ERC721.isApprovedForAll
-abbrev transferFrom := Verity.Examples.MacroContracts.Compat.ERC721.transferFrom
-abbrev owner : StorageSlot Address := Verity.Examples.MacroContracts.Compat.ERC721.owner
-abbrev totalSupply : StorageSlot Uint256 := Verity.Examples.MacroContracts.Compat.ERC721.totalSupply
-abbrev nextTokenId : StorageSlot Uint256 := Verity.Examples.MacroContracts.Compat.ERC721.nextTokenId
+abbrev mint := Verity.Examples.MacroContracts.ERC721Addressed.mint
+abbrev balanceOf := Verity.Examples.MacroContracts.ERC721Addressed.balanceOf
+abbrev ownerOf := Verity.Examples.MacroContracts.ERC721Addressed.ownerOf
+abbrev approve := Verity.Examples.MacroContracts.ERC721Addressed.approve
+abbrev getApproved := Verity.Examples.MacroContracts.ERC721Addressed.getApproved
+abbrev setApprovalForAll := Verity.Examples.MacroContracts.ERC721Addressed.setApprovalForAll
+abbrev isApprovedForAll := Verity.Examples.MacroContracts.ERC721Addressed.isApprovedForAll
+abbrev transferFrom := Verity.Examples.MacroContracts.ERC721Addressed.transferFrom
+abbrev owner : StorageSlot Address := Verity.Examples.MacroContracts.ERC721Addressed.owner
+abbrev totalSupply : StorageSlot Uint256 := Verity.Examples.MacroContracts.ERC721Addressed.totalSupply
+abbrev nextTokenId : StorageSlot Uint256 := Verity.Examples.MacroContracts.ERC721Addressed.nextTokenId
 
 end ERC721
 
