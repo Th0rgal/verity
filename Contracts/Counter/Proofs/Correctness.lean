@@ -1,0 +1,15 @@
+import Verity.Proofs.Counter.Correctness
+
+namespace Contracts.Counter.Proofs.Correctness
+
+abbrev increment_state_preserved_except_count := Verity.Proofs.Counter.Correctness.increment_state_preserved_except_count
+abbrev decrement_state_preserved_except_count := Verity.Proofs.Counter.Correctness.decrement_state_preserved_except_count
+abbrev getCount_state_preserved := Verity.Proofs.Counter.Correctness.getCount_state_preserved
+abbrev increment_getCount_meets_spec := Verity.Proofs.Counter.Correctness.increment_getCount_meets_spec
+abbrev decrement_getCount_meets_spec := Verity.Proofs.Counter.Correctness.decrement_getCount_meets_spec
+abbrev two_increments_meets_spec := Verity.Proofs.Counter.Correctness.two_increments_meets_spec
+abbrev increment_decrement_meets_cancel := Verity.Proofs.Counter.Correctness.increment_decrement_meets_cancel
+abbrev getCount_preserves_wellformedness := Verity.Proofs.Counter.Correctness.getCount_preserves_wellformedness
+abbrev decrement_at_zero_wraps_max := Verity.Proofs.Counter.Correctness.decrement_at_zero_wraps_max
+
+end Contracts.Counter.Proofs.Correctness

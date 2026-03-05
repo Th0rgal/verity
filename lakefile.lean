@@ -23,6 +23,7 @@ lean_lib «Examples» where
   globs := #[
     .one `Contracts,
     .andSubmodules `Contracts.MacroContracts,
+    .andSubmodules `Contracts.Counter,
     .one `Verity.All,
     .submodules `Verity.Examples,
     .submodules `Verity.Specs.Counter,
