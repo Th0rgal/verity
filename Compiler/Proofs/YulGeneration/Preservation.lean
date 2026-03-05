@@ -196,6 +196,23 @@ private theorem eval_hasSelector_after_set (state : YulState) :
     evalYulExpr (state.setVar "__has_selector" 1) (YulExpr.ident "__has_selector") = some 1 := by
   simp [evalYulExpr, YulState.setVar, YulState.getVar]
 
+/-- Fueled `if_` step: a zero condition skips the body and continues unchanged. -/
+@[simp] private theorem execYulStmtFuel_if_zero_continue
+    (fuel : Nat) (state : YulState) (cond : YulExpr) (body : List YulStmt)
+    (hEval : evalYulExpr state cond = some 0) :
+    execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = .continue state := by
+  simp [execYulStmtFuel, execYulFuel, hEval]
+
+/-- Fueled `if_` step: a nonzero condition executes the body with decremented fuel. -/
+@[simp] private theorem execYulStmtFuel_if_nonzero_exec
+    (fuel : Nat) (state : YulState) (cond : YulExpr) (body : List YulStmt) (v : Nat)
+    (hEval : evalYulExpr state cond = some v) (hNonzero : v ≠ 0) :
+    execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = execYulStmtsFuel fuel state body := by
+  simpa [execYulStmtsFuel] using
+    (by simp [execYulStmtFuel, execYulFuel, hEval, hNonzero] :
+      execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) =
+        execYulFuel fuel state (.stmts body))
+
 /-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
     the switch dispatch. This is stated as an axiom pending a full mechanical proof.
 
