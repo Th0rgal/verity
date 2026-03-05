@@ -23,12 +23,16 @@ MACRO_SPECS_DEF_RE = re.compile(
 )
 
 
-def _collect_contracts(sources: list[Path]) -> set[str]:
+def _collect_contracts(sources: list[Path]) -> tuple[set[str], dict[str, list[Path]]]:
     names: set[str] = set()
+    locations: dict[str, list[Path]] = {}
     for path in sources:
         text = path.read_text(encoding="utf-8")
-        names.update(CONTRACT_RE.findall(text))
-    return names
+        for name in CONTRACT_RE.findall(text):
+            names.add(name)
+            locations.setdefault(name, []).append(path)
+    duplicates = {name: paths for name, paths in locations.items() if len(paths) > 1}
+    return names, duplicates
 
 
 def _extract_macro_specs_block(text: str) -> str | None:
@@ -58,7 +62,7 @@ def _collect_suite_entries(path: Path) -> list[str] | None:
 
 
 def _check_coverage(contract_sources: list[Path], fuzz_suite: Path) -> int:
-    declared = _collect_contracts(contract_sources)
+    declared, duplicate_declarations = _collect_contracts(contract_sources)
     covered_entries = _collect_suite_entries(fuzz_suite)
 
     if covered_entries is None:
@@ -85,11 +89,17 @@ def _check_coverage(contract_sources: list[Path], fuzz_suite: Path) -> int:
     missing = sorted(declared - covered)
     extra = sorted(covered - declared)
 
-    if not missing and not extra and not duplicate_entries:
+    if not missing and not extra and not duplicate_entries and not duplicate_declarations:
         print("macro round-trip fuzz coverage OK")
         return 0
 
     print("macro round-trip fuzz coverage check failed:", file=sys.stderr)
+    for name in sorted(duplicate_declarations):
+        paths = ", ".join(sorted(str(path) for path in duplicate_declarations[name]))
+        print(
+            f"  duplicate verity_contract declaration name: {name} ({paths})",
+            file=sys.stderr,
+        )
     for name in duplicate_entries:
         print(
             f"  duplicate macroSpecs entry in Compiler/MacroTranslateRoundTripFuzz.lean: {name}",

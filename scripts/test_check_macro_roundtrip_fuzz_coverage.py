@@ -198,6 +198,40 @@ class MacroRoundTripFuzzCoverageTests(unittest.TestCase):
             rc = check._check_coverage([contracts_dir / "Core.lean"], suite)
             self.assertEqual(rc, 1)
 
+    def test_fails_on_duplicate_contract_declaration_name(self) -> None:
+        with tempfile.TemporaryDirectory(dir=check.ROOT) as tmpdir:
+            root = Path(tmpdir)
+            contracts_dir = root / "Contracts"
+            contracts_dir.mkdir(parents=True, exist_ok=True)
+            (contracts_dir / "A.lean").write_text(
+                """
+                verity_contract Counter where
+                  storage
+                """,
+                encoding="utf-8",
+            )
+            (contracts_dir / "B.lean").write_text(
+                """
+                verity_contract Counter where
+                  storage
+                """,
+                encoding="utf-8",
+            )
+            suite = root / "MacroTranslateRoundTripFuzz.lean"
+            suite.write_text(
+                """
+                private def macroSpecs :=
+                  [ Contracts.MacroContracts.Counter.spec ]
+                """,
+                encoding="utf-8",
+            )
+
+            rc = check._check_coverage(
+                [contracts_dir / "A.lean", contracts_dir / "B.lean"],
+                suite,
+            )
+            self.assertEqual(rc, 1)
+
     def test_ignores_spec_references_outside_macro_specs(self) -> None:
         with tempfile.TemporaryDirectory(dir=check.ROOT) as tmpdir:
             root = Path(tmpdir)
