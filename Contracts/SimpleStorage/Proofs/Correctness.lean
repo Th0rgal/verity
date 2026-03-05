@@ -1,0 +1,13 @@
+import Verity.Proofs.SimpleStorage.Correctness
+
+namespace Contracts.SimpleStorage.Proofs.Correctness
+
+abbrev store_retrieve_roundtrip_holds := Verity.Proofs.SimpleStorage.Correctness.store_retrieve_roundtrip_holds
+abbrev store_preserves_storage_isolated := Verity.Proofs.SimpleStorage.Correctness.store_preserves_storage_isolated
+abbrev store_preserves_addr_storage := Verity.Proofs.SimpleStorage.Correctness.store_preserves_addr_storage
+abbrev store_preserves_map_storage := Verity.Proofs.SimpleStorage.Correctness.store_preserves_map_storage
+abbrev store_preserves_context := Verity.Proofs.SimpleStorage.Correctness.store_preserves_context
+abbrev retrieve_preserves_context := Verity.Proofs.SimpleStorage.Correctness.retrieve_preserves_context
+abbrev retrieve_preserves_wellformedness := Verity.Proofs.SimpleStorage.Correctness.retrieve_preserves_wellformedness
+
+end Contracts.SimpleStorage.Proofs.Correctness
