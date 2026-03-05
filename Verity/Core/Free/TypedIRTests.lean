@@ -116,6 +116,32 @@ def compileRawLogSucceeds : Bool :=
   | .ok _ => true
   | .error _ => false
 
+def compileRawLogLoweringShapeOk : Bool :=
+  match (compileStmts []
+      [Compiler.CompilationModel.Stmt.rawLog
+        [Compiler.CompilationModel.Expr.literal 1, Compiler.CompilationModel.Expr.literal 2]
+        (Compiler.CompilationModel.Expr.literal 0)
+        (Compiler.CompilationModel.Expr.literal 64)]).run {} with
+  | .ok st =>
+      match lowerTStmts st.2.body.toList with
+      | [.expr (.call "log2" [.lit 0, .lit 64, .lit 1, .lit 2])] => true
+      | _ => false
+  | .error _ => false
+
+def compileRawLogTooManyTopicsFails : Bool :=
+  match (compileStmts []
+      [Compiler.CompilationModel.Stmt.rawLog
+        [ Compiler.CompilationModel.Expr.literal 1
+        , Compiler.CompilationModel.Expr.literal 2
+        , Compiler.CompilationModel.Expr.literal 3
+        , Compiler.CompilationModel.Expr.literal 4
+        , Compiler.CompilationModel.Expr.literal 5
+        ]
+        (Compiler.CompilationModel.Expr.literal 0)
+        (Compiler.CompilationModel.Expr.literal 64)]).run {} with
+  | .ok _ => false
+  | .error msg => msg = "Typed IR compile error: rawLog supports at most 4 topics, got 5"
+
 /-- Typed-IR compiler accepts source-level `Expr.div`. -/
 example : compileDivExprSucceeds = true := by native_decide
 
@@ -124,6 +150,12 @@ example : compileModExprSucceeds = true := by native_decide
 
 /-- Typed-IR compiler accepts source-level `Stmt.rawLog`. -/
 example : compileRawLogSucceeds = true := by native_decide
+
+/-- Typed-IR compiler emits the expected typed `rawLog` statement shape. -/
+example : compileRawLogLoweringShapeOk = true := by native_decide
+
+/-- Typed-IR compiler rejects `rawLog` with more than 4 topics. -/
+example : compileRawLogTooManyTopicsFails = true := by native_decide
 
 /-- Context expressions read from world/environment. -/
 example :
@@ -206,6 +238,12 @@ example :
 example :
     lowerTStmts [TStmt.rawLog [TExpr.uintLit 1, TExpr.uintLit 2] (TExpr.uintLit 0) (TExpr.uintLit 64)] =
       [.expr (.call "log2" [.lit 0, .lit 64, .lit 1, .lit 2])] := by
+  rfl
+
+/-- Lowering emits `log0` when the topic list is empty. -/
+example :
+    lowerTStmts [TStmt.rawLog [] (TExpr.uintLit 0) (TExpr.uintLit 32)] =
+      [.expr (.call "log0" [.lit 0, .lit 32])] := by
   rfl
 
 def counterTmp : TVar := { id := 10, ty := .uint256 }
