@@ -24,6 +24,7 @@ lean_lib «Examples» where
     .one `Contracts,
     .andSubmodules `Contracts.MacroContracts,
     .andSubmodules `Contracts.Counter,
+    .andSubmodules `Contracts.SimpleStorage,
     .one `Verity.All,
     .submodules `Verity.Examples,
     .submodules `Verity.Specs.Counter,
