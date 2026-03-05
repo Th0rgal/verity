@@ -46,6 +46,7 @@
     "check_issue_template_forms.py",
     "check_solc_pin.py",
     "check_property_manifest_sync.py",
+    "check_issue_templates.py",
     "check_macro_property_test_generation.py --check",
     "check_macro_translate_invariant_coverage.py",
     "check_storage_layout.py",

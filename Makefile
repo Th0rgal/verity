@@ -114,6 +114,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_issue_template_forms.py
 	python3 scripts/check_solc_pin.py
 	python3 scripts/check_property_manifest_sync.py
+	python3 scripts/check_issue_templates.py
 	python3 scripts/check_macro_property_test_generation.py --check
 	python3 scripts/check_macro_translate_invariant_coverage.py
 	python3 scripts/check_storage_layout.py
