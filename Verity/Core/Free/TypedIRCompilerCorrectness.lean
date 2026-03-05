@@ -1426,14 +1426,8 @@ def execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrPa
     (fields : List Field) (ownerField targetField senderVar ownerVar targetVar paramName : String)
     (msg1 msg2 : String) (init : TExecState) : TExecResult :=
   match (compileStmts fields
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar targetVar (Expr.storage targetField)
-      , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
-      , Stmt.setStorage targetField (Expr.param paramName)
-      , Stmt.stop
-      ]).run
+      (morphoSetFeeRecipientOwnerAuthStmts
+        ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2)).run
       (CompileState.mk 1
         [(paramName, { id := 0, ty := Ty.address })]
         #[{ id := 0, ty := Ty.address }]
@@ -1643,9 +1637,12 @@ theorem compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageA
     evalTStmts, defaultEvalFuel]
   by_cases hEq1 : init.env.sender = init.world.storageAddr ownerSlot
   · by_cases hEq2 : init.vars.address 0 = init.world.storageAddr targetSlot
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, TVars.set, TVars.get]
+    · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
+        hEq1, hEq2, TVars.set, TVars.get]
+    · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
+        hEq1, hEq2, TVars.set, TVars.get]
+  · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
+      hEq1, TVars.set, TVars.get]
 
 /-- Semantic-preservation for the Morpho enableIrm pattern. -/
 theorem compile_letCaller_letStorageAddr_reqEq_letMapping_reqEqLit_setMapping_stop_semantics

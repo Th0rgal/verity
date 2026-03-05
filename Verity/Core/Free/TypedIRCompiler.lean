@@ -1605,6 +1605,44 @@ theorem compileStmts_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_r
  letVar targetVar (storage targetField) ;
  require (logicalNot (eq (param paramName) (localVar targetVar))) msg2 ;
  setStorage targetField (param paramName) ; stop`. -/
+def morphoSetFeeRecipientOwnerAuthStmts
+    (ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String) : List Stmt :=
+  [ Stmt.letVar senderVar Expr.caller
+  , Stmt.letVar ownerVar (Expr.storage ownerField)
+  , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+  , Stmt.letVar targetVar (Expr.storage targetField)
+  , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
+  , Stmt.setStorage targetField (Expr.param paramName)
+  , Stmt.stop
+  ]
+
+def morphoSetFeeRecipientOwnerAuthExpectedState
+    (ownerSlot targetSlot : Nat)
+    (senderVar ownerVar targetVar paramName msg1 msg2 : String) : CompileState :=
+  { nextId := 4
+    vars := [(targetVar, { id := 3, ty := Ty.address }),
+             (ownerVar, { id := 2, ty := Ty.address }),
+             (senderVar, { id := 1, ty := Ty.address }),
+             (paramName, { id := 0, ty := Ty.address })]
+    params := #[{ id := 0, ty := Ty.address }]
+    locals := #[{ id := 1, ty := Ty.address }, { id := 2, ty := Ty.address },
+                { id := 3, ty := Ty.address }]
+    body := #[
+      TStmt.let_ { id := 1, ty := Ty.address } TExpr.sender,
+      TStmt.let_ { id := 2, ty := Ty.address } (TExpr.getStorageAddr ownerSlot),
+      TStmt.if_ (TExpr.eq
+          (TExpr.var { id := 1, ty := Ty.address })
+          (TExpr.var { id := 2, ty := Ty.address }))
+        [] [TStmt.revert msg1],
+      TStmt.let_ { id := 3, ty := Ty.address } (TExpr.getStorageAddr targetSlot),
+      TStmt.if_ (TExpr.not (TExpr.eq
+          (TExpr.var { id := 0, ty := Ty.address })
+          (TExpr.var { id := 3, ty := Ty.address })))
+        [] [TStmt.revert msg2],
+      TStmt.setStorageAddr targetSlot (TExpr.var { id := 0, ty := Ty.address }),
+      TStmt.stop
+    ] }
+
 theorem compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop_run
     (fields : List Field) (ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String)
     (ownerSlot targetSlot : Nat)
@@ -1619,42 +1657,15 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageA
     (hne_tv_sv : targetVar ≠ senderVar)
     (hne_tv_ov : targetVar ≠ ownerVar) :
     (compileStmts fields
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar targetVar (Expr.storage targetField)
-      , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
-      , Stmt.setStorage targetField (Expr.param paramName)
-      , Stmt.stop
-      ]).run
+      (morphoSetFeeRecipientOwnerAuthStmts
+        ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2)).run
       (CompileState.mk 1
         [(paramName, { id := 0, ty := Ty.address })]
         #[{ id := 0, ty := Ty.address }]
         #[] #[]) =
       Except.ok ((),
-        { nextId := 4
-          vars := [(targetVar, { id := 3, ty := Ty.address }),
-                   (ownerVar, { id := 2, ty := Ty.address }),
-                   (senderVar, { id := 1, ty := Ty.address }),
-                   (paramName, { id := 0, ty := Ty.address })]
-          params := #[{ id := 0, ty := Ty.address }]
-          locals := #[{ id := 1, ty := Ty.address }, { id := 2, ty := Ty.address },
-                      { id := 3, ty := Ty.address }]
-          body := #[
-            TStmt.let_ { id := 1, ty := Ty.address } TExpr.sender,
-            TStmt.let_ { id := 2, ty := Ty.address } (TExpr.getStorageAddr ownerSlot),
-            TStmt.if_ (TExpr.eq
-                (TExpr.var { id := 1, ty := Ty.address })
-                (TExpr.var { id := 2, ty := Ty.address }))
-              [] [TStmt.revert msg1],
-            TStmt.let_ { id := 3, ty := Ty.address } (TExpr.getStorageAddr targetSlot),
-            TStmt.if_ (TExpr.not (TExpr.eq
-                (TExpr.var { id := 0, ty := Ty.address })
-                (TExpr.var { id := 3, ty := Ty.address })))
-              [] [TStmt.revert msg2],
-            TStmt.setStorageAddr targetSlot (TExpr.var { id := 0, ty := Ty.address }),
-            TStmt.stop
-          ] }) := by
+        morphoSetFeeRecipientOwnerAuthExpectedState
+          ownerSlot targetSlot senderVar ownerVar targetVar paramName msg1 msg2) := by
   have h1 : (senderVar == paramName) = false := beq_false_of_ne hne_sv_p
   have h2 : (ownerVar == paramName) = false := beq_false_of_ne hne_ov_p
   have h3 : (ownerVar == senderVar) = false := beq_false_of_ne hne_ov_sv
@@ -1667,7 +1678,8 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageA
   have hsrTarget : compileStorageRead fields targetField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr targetSlot⟩ := by
     simp only [compileStorageRead, hTarget, fieldTypeToTy]; rfl
-  simp [compileStmts, compileStmt, compileExpr, hsrOwner, hsrTarget, hTarget, fieldTypeToTy,
+  simp [morphoSetFeeRecipientOwnerAuthStmts, morphoSetFeeRecipientOwnerAuthExpectedState,
+    compileStmts, compileStmt, compileExpr, hsrOwner, hsrTarget, hTarget, fieldTypeToTy,
     emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asBool,
     liftExcept, emit, List.find?, h1, h2, h3, h4, monadLift]; rfl
 
