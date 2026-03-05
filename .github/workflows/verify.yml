@@ -51,7 +51,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
+  cancel-in-progress: true
 
 env:
   SOLC_VERSION: "0.8.33"
