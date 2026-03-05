@@ -1216,6 +1216,33 @@ theorem compileStmts_let_storage_setStorage_sub_local_stop_run
     bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
+/-- Three-statement compilation shape for timestamp-write pattern:
+`letVar tmp blockTimestamp; setStorage field (localVar tmp); stop`
+lowers to one SSA `let_` (from `timestamp()`), one `setStorage`, and one `stop`. -/
+theorem compileStmts_let_blockTimestamp_setStorage_local_stop_run
+    (fields : List Field) (fieldName tmp : String) (slot : Nat)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    (compileStmts fields
+      [ Stmt.letVar tmp Expr.blockTimestamp
+      , Stmt.setStorage fieldName (Expr.localVar tmp)
+      , Stmt.stop
+      ]).run {} =
+      Except.ok ((),
+        { nextId := 1
+          vars := [(tmp, { id := 0, ty := Ty.uint256 })]
+          params := #[]
+          locals := #[{ id := 0, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 0, ty := Ty.uint256 } TExpr.blockTimestamp,
+            TStmt.setStorage slot
+              (TExpr.var { id := 0, ty := Ty.uint256 }),
+            TStmt.stop
+          ] }) := by
+  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+    bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
+  rfl
+
 /-- Two-statement compilation shape for Counter.getCount pattern:
 `letVar tmp (storage field); return (localVar tmp)`
 lowers to one SSA `let_` (from getStorage) and one typed `returnUint`. -/
