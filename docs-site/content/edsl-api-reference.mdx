@@ -1,0 +1,358 @@
+---
+title: EDSL API Reference
+description: Canonical reference for Verity contract-building primitives
+---
+
+# EDSL API Reference
+
+This page is the canonical API reference for primitives used to write Verity contracts.
+
+## Imports
+
+```lean
+import Verity
+open Verity
+open Verity.EVM.Uint256
+open Verity.Stdlib.Math
+```
+
+## Storage Operations
+
+### `getStorage` / `setStorage`
+
+**Signature**
+
+```lean
+def getStorage (s : StorageSlot Uint256) : Contract Uint256
+def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit
+```
+
+**Description**
+
+Read/write a `Uint256` storage slot.
+
+**Example**
+
+```lean
+let x <- getStorage counterSlot
+setStorage counterSlot (x + 1)
+```
+
+**Proof lemmas**
+
+- `getStorage_run`, `setStorage_run` (`Verity/Core.lean`)
+- `getStorage_runState`, `getStorage_runValue`, `setStorage_getStorage` (`Verity/Proofs/Stdlib/Automation.lean`)
+
+### `getStorageAddr` / `setStorageAddr`
+
+**Signature**
+
+```lean
+def getStorageAddr (s : StorageSlot Address) : Contract Address
+def setStorageAddr (s : StorageSlot Address) (value : Address) : Contract Unit
+```
+
+**Description**
+
+Read/write an `Address` storage slot.
+
+**Example**
+
+```lean
+let owner <- getStorageAddr ownerSlot
+setStorageAddr ownerSlot newOwner
+```
+
+**Proof lemmas**
+
+- `getStorageAddr_run`, `setStorageAddr_run` (`Verity/Core.lean`)
+- Address-storage automation lemmas in `Verity/Proofs/Stdlib/Automation.lean`
+
+### `getMapping` / `setMapping`
+
+**Signature**
+
+```lean
+def getMapping (s : StorageSlot (Address -> Uint256)) (key : Address) : Contract Uint256
+def setMapping (s : StorageSlot (Address -> Uint256)) (key : Address) (value : Uint256) : Contract Unit
+```
+
+**Description**
+
+Read/write address-keyed mappings.
+
+**Example**
+
+```lean
+let bal <- getMapping balances msgSenderAddr
+setMapping balances msgSenderAddr (bal - amount)
+```
+
+**Proof lemmas**
+
+- `getMapping_run`, `setMapping_run` (`Verity/Core.lean`)
+- `getMapping_runState`, `getMapping_runValue`, `setMapping_runState` (`Verity/Proofs/Stdlib/MappingAutomation.lean`)
+
+### `getMappingUint` / `setMappingUint`
+
+**Signature**
+
+```lean
+def getMappingUint (s : StorageSlot (Uint256 -> Uint256)) (key : Uint256) : Contract Uint256
+def setMappingUint (s : StorageSlot (Uint256 -> Uint256)) (key : Uint256) (value : Uint256) : Contract Unit
+```
+
+**Description**
+
+Read/write uint256-keyed mappings.
+
+**Example**
+
+```lean
+let price <- getMappingUint oraclePrices tokenId
+setMappingUint oraclePrices tokenId newPrice
+```
+
+**Proof lemmas**
+
+- `getMappingUint_run`, `setMappingUint_run` (`Verity/Core.lean`)
+- `getMappingUint_runState`, `getMappingUint_runValue`, `setMappingUint_runState` (`Verity/Proofs/Stdlib/MappingAutomation.lean`)
+
+### `getMapping2` / `setMapping2`
+
+**Signature**
+
+```lean
+def getMapping2 (s : StorageSlot (Address -> Address -> Uint256)) (key1 key2 : Address) : Contract Uint256
+def setMapping2 (s : StorageSlot (Address -> Address -> Uint256)) (key1 key2 : Address) (value : Uint256) : Contract Unit
+```
+
+**Description**
+
+Read/write double mappings (for example, allowances).
+
+**Example**
+
+```lean
+let allow <- getMapping2 allowances owner spender
+setMapping2 allowances owner spender (allow - amount)
+```
+
+**Proof lemmas**
+
+- `getMapping2_run`, `setMapping2_run` (`Verity/Core.lean`)
+- `getMapping2_runState`, `getMapping2_runValue`, `setMapping2_runState` (`Verity/Proofs/Stdlib/MappingAutomation.lean`)
+
+## Control Flow
+
+### `require`
+
+**Signature**
+
+```lean
+def require (condition : Bool) (message : String) : Contract Unit
+```
+
+**Description**
+
+Guard that reverts when `condition = false`.
+
+**Example**
+
+```lean
+require (amount > 0) "amount must be nonzero"
+```
+
+**Proof lemmas**
+
+- `require_true`, `require_false` (`Verity/Core.lean`)
+- `require_true_isSuccess`, `require_false_isSuccess` (`Verity/Proofs/Stdlib/Automation.lean`)
+
+### Revert behavior
+
+There is no separate `revert` primitive in the core API. Use:
+
+```lean
+require false "error message"
+```
+
+### `bind` / do-notation
+
+**Signature**
+
+```lean
+def bind {α β : Type} (ma : Contract α) (f : α -> Contract β) : Contract β
+```
+
+**Description**
+
+Monadic sequencing with short-circuit on revert.
+
+**Example**
+
+```lean
+let x <- getStorage counterSlot
+setStorage counterSlot (x + 1)
+```
+
+**Proof lemmas**
+
+- `Contract.bind_pure_left`, `Contract.bind_pure_right`, `Contract.bind_assoc` (`Verity/Core.lean`)
+- `bind_pure_left`, `bind_pure_right`, `bind_assoc` (`Verity/Proofs/Stdlib/Automation.lean`)
+
+### `forEach`
+
+Bounded iteration is available as a language form in the macro/compilation model (`Stmt.forEach`).
+
+```lean
+forEach "i" count (do
+  -- body
+)
+```
+
+Reference points:
+
+- `Stmt.forEach` in `Compiler/CompilationModel.lean`
+- Macro translation in `Verity/Macro/Translate.lean`
+
+## Events
+
+### `emitEvent`
+
+**Signature**
+
+```lean
+def emitEvent (name : String) (args : List Uint256) (indexedArgs : List Uint256 := []) : Contract Unit
+```
+
+**Description**
+
+Append an event entry to the execution state's event log.
+
+**Example**
+
+```lean
+emitEvent "Transfer" [amount] [fromAddr, toAddr]
+```
+
+**Proof lemmas**
+
+- `emitEvent_run` (`Verity/Core.lean`)
+- `emitEvent_runState`, `emitEvent_runValue` (`Verity/Proofs/Stdlib/Automation.lean`)
+
+## Arithmetic
+
+### Wrapping arithmetic (`Uint256`)
+
+**Signatures**
+
+```lean
+Verity.EVM.Uint256.add : Uint256 -> Uint256 -> Uint256
+Verity.EVM.Uint256.sub : Uint256 -> Uint256 -> Uint256
+Verity.EVM.Uint256.mul : Uint256 -> Uint256 -> Uint256
+Verity.EVM.Uint256.div : Uint256 -> Uint256 -> Uint256
+Verity.EVM.Uint256.mod : Uint256 -> Uint256 -> Uint256
+```
+
+These model EVM modular arithmetic.
+
+**Example**
+
+```lean
+let z : Uint256 := add x y
+```
+
+**Proof lemmas**
+
+- `add_eq_of_lt`, `sub_eq_of_le`, `sub_add_cancel` (`Verity/EVM/Uint256.lean`)
+
+### Checked arithmetic (`Stdlib.Math`)
+
+**Signatures**
+
+```lean
+def safeAdd (a b : Uint256) : Option Uint256
+def safeSub (a b : Uint256) : Option Uint256
+def safeMul (a b : Uint256) : Option Uint256
+def safeDiv (a b : Uint256) : Option Uint256
+
+def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
+```
+
+**Example**
+
+```lean
+let sum <- requireSomeUint (safeAdd a b) "overflow"
+```
+
+**Proof lemmas**
+
+- `safeAdd_some`, `safeAdd_none`, `safeSub_some`, `safeSub_none`, `safeMul_some`, `safeMul_none`, `safeDiv_some`, `safeDiv_none` (`Verity/Proofs/Stdlib/Math.lean`)
+- `requireSomeUint_some`, `requireSomeUint_none` (`Verity/Stdlib/Math.lean`)
+
+### `mulDivDown` / `mulDivUp`
+
+Helpers exist in macro-contract support code:
+
+```lean
+def mulDivDown (a b c : Uint256) : Uint256
+
+def mulDivUp (a b c : Uint256) : Uint256
+```
+
+Location: `Verity/Examples/MacroContracts/Common.lean`
+
+## External Calls (ECM)
+
+### ERC-20 safe wrappers
+
+`ecmTransfer`/`ecmTransferFrom` naming is superseded by standard modules:
+
+```lean
+def Compiler.Modules.ERC20.safeTransfer (token to amount : Expr) : Stmt
+def Compiler.Modules.ERC20.safeTransferFrom (token fromAddr to amount : Expr) : Stmt
+```
+
+These are emitted as `Stmt.ecm ...` with explicit module metadata and trust assumptions.
+
+### Generic external call with return value
+
+```lean
+def Compiler.Modules.Calls.withReturn
+  (resultVar : String) (target : Expr) (selector : Nat)
+  (args : List Expr) (isStatic : Bool := false) : Stmt
+```
+
+### Low-level `call` / `staticcall` / `delegatecall`
+
+First-class low-level forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`).
+
+Reference: `Compiler/CompilationModel.lean`.
+
+## Context Accessors
+
+**Signatures**
+
+```lean
+def msgSender : Contract Address
+def contractAddress : Contract Address
+def msgValue : Contract Uint256
+def blockTimestamp : Contract Uint256
+```
+
+**Example**
+
+```lean
+let from <- msgSender
+let value <- msgValue
+```
+
+**Proof lemmas**
+
+- `msgSender_run`, `contractAddress_run`, `msgValue_run`, `blockTimestamp_run` (`Verity/Core.lean`)
+- `msgSender_runState`, `msgSender_runValue` (`Verity/Proofs/Stdlib/Automation.lean`)
+
+## Notes
+
+- For proofs, prefer full-result `.run` lemmas in `Verity/Core.lean`, then use automation lemmas from `Verity/Proofs/Stdlib/Automation.lean` and `Verity/Proofs/Stdlib/MappingAutomation.lean`.
+- ECM calls intentionally carry module-level `axioms` metadata (see `Compiler/Modules/*.lean`) rather than pure `simp`-style contract lemmas.
