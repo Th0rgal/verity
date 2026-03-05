@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Validate that all contracts have the expected file structure.
 
-For each contract found in Contracts/, verify that the
-corresponding Spec, Invariants, and Proof files exist. This catches
-incomplete contract additions early.
+For each contract found in Contracts/, verify that the corresponding
+Spec, Invariants, and proof modules exist. This catches incomplete
+contract additions early.
 
-Contracts with inline proofs (e.g., ReentrancyExample) are excluded.
+Contracts with non-standard structure (e.g., ReentrancyExample) are excluded.
 """
 
 from __future__ import annotations
@@ -39,9 +39,9 @@ EXPECTED_STRUCTURE = [
     "Contracts/{name}/Contract.lean",
     "Contracts/{name}/Spec.lean",
     "Contracts/{name}/Invariants.lean",
-    "Contracts/{name}/Proofs.lean",
     "Contracts/{name}/Proofs/Basic.lean",
     "Contracts/{name}/Proofs/Correctness.lean",
+    "Contracts/{name}/SpecProofs.lean",
 ]
 
 
@@ -69,39 +69,35 @@ def check_contract(name: str) -> list[str]:
 
 
 def check_all_lean_imports(contracts: list[str]) -> list[str]:
-    """Check that All.lean imports all required modules for each contract.
+    """Check that Contracts.lean imports each contract umbrella module.
 
-    For each contract, verifies imports corresponding to EXPECTED_STRUCTURE
-    (Contract, Spec, Invariants, Proofs, Proofs/Basic, Proofs/Correctness).
+    For each contract, expects:
+      import Contracts.<ContractName>
     """
-    all_lean = ROOT / "Verity" / "All.lean"
+    all_lean = ROOT / "Contracts.lean"
     if not all_lean.exists():
-        return [f"Verity/All.lean not found"]
+        return [f"Contracts.lean not found"]
 
     line_set = {line.strip() for line in all_lean.read_text().splitlines()}
     missing = []
     for name in contracts:
-        # Check imports for each file in EXPECTED_STRUCTURE
-        for template in EXPECTED_STRUCTURE:
-            path = template.format(name=name)
-            import_path = path.replace("/", ".").removesuffix(".lean")
-            expected_import = f"import {import_path}"
-            if expected_import not in line_set:
-                missing.append(f"Verity/All.lean missing: {expected_import}")
+        expected_import = f"import Contracts.{name}"
+        if expected_import not in line_set:
+            missing.append(f"Contracts.lean missing: {expected_import}")
     return missing
 
 
 def check_all_lean_imports_exist() -> list[str]:
-    """Check that every import in All.lean points to a file that exists.
+    """Check that every import in Contracts.lean points to a file that exists.
 
-    Parses all ``import Verity.*`` lines and verifies the corresponding
+    Parses all ``import Contracts.*`` lines and verifies the corresponding
     ``.lean`` file is present on disk.  This catches orphaned imports
     (e.g. someone deletes a proof file but forgets to remove the import)
     and typos in module paths.
     """
-    all_lean = ROOT / "Verity" / "All.lean"
+    all_lean = ROOT / "Contracts.lean"
     if not all_lean.exists():
-        return ["Verity/All.lean not found"]
+        return ["Contracts.lean not found"]
 
     issues: list[str] = []
     for line in all_lean.read_text().splitlines():
@@ -109,12 +105,12 @@ def check_all_lean_imports_exist() -> list[str]:
         # Skip comments and blank lines
         if not stripped.startswith("import Verity.") and not stripped.startswith("import Contracts."):
             continue
-        # "import Verity.Core" → "Verity/Core.lean", "import Contracts.Counter.Contract" → "Contracts/Counter/Contract.lean"
+        # "import Contracts.Counter" → "Contracts/Counter.lean"
         module = stripped.removeprefix("import ").split()[0]
         file_path = ROOT / (module.replace(".", "/") + ".lean")
         if not file_path.exists():
             rel = str(file_path.relative_to(ROOT))
-            issues.append(f"All.lean imports {module} but {rel} does not exist")
+            issues.append(f"Contracts.lean imports {module} but {rel} does not exist")
     return issues
 
 
@@ -175,7 +171,7 @@ def main() -> None:
     import_issues = check_all_lean_imports(contracts)
     if import_issues:
         print()
-        print("  All.lean import issues:")
+        print("  Contracts.lean import issues:")
         for issue in import_issues:
             print(f"    {issue}")
         all_issues.extend(import_issues)
@@ -184,7 +180,7 @@ def main() -> None:
     existence_issues = check_all_lean_imports_exist()
     if existence_issues:
         print()
-        print("  All.lean orphaned imports:")
+        print("  Contracts.lean orphaned imports:")
         for issue in existence_issues:
             print(f"    {issue}")
         all_issues.extend(existence_issues)
