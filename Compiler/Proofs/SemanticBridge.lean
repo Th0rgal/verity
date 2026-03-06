@@ -32,6 +32,7 @@ import Compiler.Proofs.EndToEnd
 import Compiler.Specs
 import Verity.Core
 import Contracts.MacroContracts.Core
+import Lean
 
 namespace Compiler.Proofs.SemanticBridge
 
@@ -40,6 +41,35 @@ open Compiler.Proofs.IRGeneration
 open Compiler.Proofs.YulGeneration
 open Verity
 open Verity.Core.Uint256
+open Lean Parser Tactic
+
+/-! ## Bridge Tactic Helpers -/
+
+/-- Canonical `simp` bundle for SemanticBridge IR execution unfolding. -/
+syntax (name := semantic_bridge_simp) "semantic_bridge_simp" : tactic
+
+/-- `semantic_bridge_simp` with extra local unfold/simp terms. -/
+syntax (name := semantic_bridge_simp_with)
+  "semantic_bridge_simp [" term,* "]" : tactic
+
+macro_rules
+  | `(tactic| semantic_bridge_simp) =>
+      `(tactic| simp [
+        mkIRTransaction, mkIRState, interpretIR,
+        execIRFunction, execIRStmts, execIRStmt,
+        evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+        Compiler.Proofs.YulGeneration.evalBuiltinCall, encodeEvents
+      ])
+  | `(tactic| semantic_bridge_simp [$[$extra:term],*]) =>
+      `(tactic| simp [
+        mkIRTransaction, mkIRState, interpretIR,
+        execIRFunction, execIRStmts, execIRStmt,
+        evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
+        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
+        Compiler.Proofs.YulGeneration.evalBuiltinCall, encodeEvents,
+        $[$extra],*
+      ])
 
 /-! ## State Encoding
 
@@ -193,12 +223,8 @@ theorem simpleStorage_retrieve_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Contracts.MacroContracts.SimpleStorage.retrieve,
-    Contracts.MacroContracts.SimpleStorage.storedData,
-    mkIRTransaction, mkIRState, interpretIR, simpleStorageIRContract,
-    execIRFunction, execIRStmts, execIRStmt,
-    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
-    encodeStorage, encodeEvents]
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.SimpleStorage.retrieve,
+    Contracts.MacroContracts.SimpleStorage.storedData, simpleStorageIRContract, encodeStorage]
 
 /-! ## Target Theorems: Counter -/
 
@@ -216,15 +242,9 @@ theorem counter_increment_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Contracts.MacroContracts.Counter.increment,
-    Contracts.MacroContracts.Counter.count,
-    getStorage, setStorage, add,
-    mkIRTransaction, mkIRState, interpretIR, counterIRContract,
-    execIRFunction, execIRStmts, execIRStmt,
-    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
-    encodeStorage, encodeEvents,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
-    Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.Counter.increment,
+    Contracts.MacroContracts.Counter.count, getStorage, setStorage, add,
+    counterIRContract, encodeStorage]
 
 theorem counter_decrement_semantic_bridge
     (state : ContractState) (sender : Address) :
@@ -241,15 +261,9 @@ theorem counter_decrement_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Contracts.MacroContracts.Counter.decrement,
-    Contracts.MacroContracts.Counter.count,
-    getStorage, setStorage, sub,
-    mkIRTransaction, mkIRState, interpretIR, counterIRContract,
-    execIRFunction, execIRStmts, execIRStmt,
-    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
-    encodeStorage, encodeEvents,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
-    Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.Counter.decrement,
+    Contracts.MacroContracts.Counter.count, getStorage, setStorage, sub,
+    counterIRContract, encodeStorage]
 
 theorem counter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
@@ -267,15 +281,8 @@ theorem counter_getCount_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Contracts.MacroContracts.Counter.getCount,
-    Contracts.MacroContracts.Counter.count,
-    getStorage,
-    mkIRTransaction, mkIRState, interpretIR, counterIRContract,
-    execIRFunction, execIRStmts, execIRStmt,
-    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
-    encodeStorage, encodeEvents,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
-    Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.Counter.getCount,
+    Contracts.MacroContracts.Counter.count, getStorage, counterIRContract, encodeStorage]
 
 /-! ## Target Theorems: Owned -/
 
@@ -298,14 +305,8 @@ theorem owned_getOwner_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Contracts.MacroContracts.Owned.getOwner,
-    getStorageAddr,
-    mkIRTransaction, mkIRState, interpretIR, ownedIRContract,
-    execIRFunction, execIRStmts, execIRStmt,
-    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
-    encodeStorageAddr, encodeEvents,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
-    Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.Owned.getOwner,
+    getStorageAddr, ownedIRContract, encodeStorageAddr]
 
 theorem owned_transferOwnership_semantic_bridge
     (state : ContractState) (sender : Address) (newOwner : Address)
@@ -324,15 +325,9 @@ theorem owned_transferOwnership_semantic_bridge
     | .revert _ _ => True
     := by
   subst hOwner
-  simp [Contract.run, Contracts.MacroContracts.Owned.transferOwnership,
-    Contracts.MacroContracts.Owned.owner,
-    getStorageAddr, setStorageAddr,
-    mkIRTransaction, mkIRState, interpretIR, ownedIRContract,
-    execIRFunction, execIRStmts, execIRStmt,
-    evalIRExpr, evalIRCall, evalIRExprs, IRState.getVar, IRState.setVar,
-    encodeStorageAddr, encodeEvents,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
-    Compiler.Proofs.YulGeneration.evalBuiltinCall]
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.Owned.transferOwnership,
+    Contracts.MacroContracts.Owned.owner, getStorageAddr, setStorageAddr,
+    ownedIRContract, encodeStorageAddr]
 
 /-! ## Target Theorems: SafeCounter -/
 
