@@ -52,6 +52,12 @@ syntax (name := semantic_bridge_simp) "semantic_bridge_simp" : tactic
 syntax (name := semantic_bridge_simp_with)
   "semantic_bridge_simp [" term,* "]" : tactic
 
+/-- `semantic_bridge_split h : cond with [...]` generates the common
+    two-branch `by_cases` skeleton and runs `semantic_bridge_simp` in both
+    branches with the same simp bundle plus the branch hypothesis. -/
+syntax (name := semantic_bridge_split)
+  "semantic_bridge_split " ident " : " term " with [" term,* "]" : tactic
+
 macro_rules
   | `(tactic| semantic_bridge_simp) =>
       `(tactic| simp [
@@ -70,6 +76,11 @@ macro_rules
         Compiler.Proofs.YulGeneration.evalBuiltinCall, encodeEvents,
         $[$extra],*
       ])
+  | `(tactic| semantic_bridge_split $h:ident : $cond:term with [$[$extra:term],*]) =>
+      `(tactic|
+        by_cases $h : $cond
+        · semantic_bridge_simp [$[$extra],*, $h]
+        · semantic_bridge_simp [$[$extra],*, $h])
 
 /-! ## State Encoding
 
@@ -348,15 +359,10 @@ theorem safeCounter_increment_semantic_bridge
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = false
     := by
-  by_cases hOverflow : state.storage 0 = (Uint256.max)
-  · semantic_bridge_simp [Contract.run, Contracts.MacroContracts.SafeCounter.increment,
-      Contracts.MacroContracts.SafeCounter.count, getStorage, setStorage,
-      requireSomeUint, safeAdd, Uint256.max, hOverflow,
-      safeCounterIRContract, encodeStorage]
-  · semantic_bridge_simp [Contract.run, Contracts.MacroContracts.SafeCounter.increment,
-      Contracts.MacroContracts.SafeCounter.count, getStorage, setStorage,
-      requireSomeUint, safeAdd, Uint256.max, hOverflow,
-      safeCounterIRContract, encodeStorage]
+  semantic_bridge_split hOverflow : state.storage 0 = (Uint256.max) with
+    [Contract.run, Contracts.MacroContracts.SafeCounter.increment,
+    Contracts.MacroContracts.SafeCounter.count, getStorage, setStorage,
+    requireSomeUint, safeAdd, Uint256.max, safeCounterIRContract, encodeStorage]
 
 theorem safeCounter_decrement_semantic_bridge
     (state : ContractState) (sender : Address) :
@@ -375,15 +381,10 @@ theorem safeCounter_decrement_semantic_bridge
         let irResult := interpretIR safeCounterIRContract tx irState
         irResult.success = false
     := by
-  by_cases hUnderflow : state.storage 0 = 0
-  · semantic_bridge_simp [Contract.run, Contracts.MacroContracts.SafeCounter.decrement,
-      Contracts.MacroContracts.SafeCounter.count, getStorage, setStorage,
-      requireSomeUint, safeSub, hUnderflow,
-      safeCounterIRContract, encodeStorage]
-  · semantic_bridge_simp [Contract.run, Contracts.MacroContracts.SafeCounter.decrement,
-      Contracts.MacroContracts.SafeCounter.count, getStorage, setStorage,
-      requireSomeUint, safeSub, hUnderflow,
-      safeCounterIRContract, encodeStorage]
+  semantic_bridge_split hUnderflow : state.storage 0 = 0 with
+    [Contract.run, Contracts.MacroContracts.SafeCounter.decrement,
+    Contracts.MacroContracts.SafeCounter.count, getStorage, setStorage,
+    requireSomeUint, safeSub, safeCounterIRContract, encodeStorage]
 
 theorem safeCounter_getCount_semantic_bridge
     (state : ContractState) (sender : Address) :
