@@ -9,6 +9,7 @@ import Compiler.CompilationModel.AbiHelpers
 import Compiler.CompilationModel.AbiEncoding
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.EcmAxiomCollection
+import Compiler.CompilationModel.EventEmission
 import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.LayoutValidation
 import Compiler.CompilationModel.MappingWrites
