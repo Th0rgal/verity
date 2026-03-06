@@ -549,6 +549,23 @@ theorem ownedCounter_transferOwnership_semantic_bridge
 
 /-! ## Composed End-to-End: EDSL → IR → Yul -/
 
+private theorem compose_semantic_bridge_with_yul
+    {α : Type}
+    (edslResult : ContractResult α)
+    (P : α → ContractState → Prop)
+    (hBridge : match edslResult with
+      | .success val s' => P val s'
+      | .revert _ _ => True)
+    (hYul : Prop) :
+    match edslResult with
+    | .success val s' => P val s' ∧ hYul
+    | .revert _ _ => True := by
+  cases edslResult with
+  | success val s' =>
+      exact And.intro hBridge hYul
+  | revert _ _ =>
+      trivial
+
 theorem simpleStorage_store_edsl_to_yul
     (state : ContractState) (sender : Address) (value : Uint256) :
     let edslResult := Contract.run (Contracts.MacroContracts.SimpleStorage.store value)
@@ -567,22 +584,28 @@ theorem simpleStorage_store_edsl_to_yul
     := by
   let tx := mkIRTransaction sender 0x6057361d [value.val]
   let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
+  let edslResult := Contract.run (Contracts.MacroContracts.SimpleStorage.store value)
+    { state with sender := sender }
   have hBridge := simpleStorage_store_semantic_bridge state sender value
   have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState) (interpretYulFromIR simpleStorageIRContract tx irState) := by
     semantic_bridge_layer3_cases simpleStorageIRContract tx irState [hfn, hfn] with [encodeStorage]
-  cases hrun : Contract.run (Contracts.MacroContracts.SimpleStorage.store value)
-      { state with sender := sender } with
-  | success _ s' =>
-      have hA : (let tx := mkIRTransaction sender 0x6057361d [value.val]
-          let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
+  have hBridge' : match edslResult with
+      | .success _ s' =>
           let irResult := interpretIR simpleStorageIRContract tx irState
           irResult.success = true ∧
-          (∀ slot, (s'.storage slot).val = irResult.finalStorage slot) ∧
-          encodeEvents s'.events = irResult.events) := by
-        simpa [hrun] using hBridge
-      rcases hA with ⟨hs, hst, he⟩
-      simpa [tx, irState, hrun] using And.intro hs (And.intro hst (And.intro he hYul))
-  | revert _ _ => simp [hrun]
+          (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+          encodeEvents s'.events = irResult.events
+      | .revert _ _ => True := by
+    simpa [edslResult, tx, irState] using hBridge
+  simpa [edslResult, tx, irState] using
+    (compose_semantic_bridge_with_yul
+      (edslResult := edslResult)
+      (P := fun _ s' =>
+        let irResult := interpretIR simpleStorageIRContract tx irState
+        irResult.success = true ∧
+        (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+        encodeEvents s'.events = irResult.events)
+      hBridge' hYul)
 
 theorem simpleStorage_retrieve_edsl_to_yul
     (state : ContractState) (sender : Address) :
@@ -604,24 +627,31 @@ theorem simpleStorage_retrieve_edsl_to_yul
     := by
   let tx := mkIRTransaction sender 0x2e64cec1 []
   let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
+  let edslResult := Contract.run Contracts.MacroContracts.SimpleStorage.retrieve
+    { state with sender := sender }
   have hBridge := simpleStorage_retrieve_semantic_bridge state sender
   have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState)
       (interpretYulFromIR simpleStorageIRContract tx irState) := by
     semantic_bridge_layer3_cases simpleStorageIRContract tx irState [hfn, hfn] with [encodeStorage]
-  cases hrun : Contract.run Contracts.MacroContracts.SimpleStorage.retrieve { state with sender := sender } with
-  | success val s' =>
-      have hA : (let tx := mkIRTransaction sender 0x2e64cec1 []
-          let irState := mkIRState state sender 0x2e64cec1 [] encodeStorage
+  have hBridge' : match edslResult with
+      | .success val s' =>
           let irResult := interpretIR simpleStorageIRContract tx irState
           irResult.success = true ∧
           irResult.returnValue = some val.val ∧
-          (∀ slot, (s'.storage slot).val = irResult.finalStorage slot) ∧
-          encodeEvents s'.events = irResult.events) := by
-        simpa [hrun] using hBridge
-      rcases hA with ⟨hs, hret, hst, he⟩
-      simpa [tx, irState, hrun] using And.intro hs (And.intro hret (And.intro hst (And.intro he hYul)))
-  | revert _ _ =>
-      simp [hrun]
+          (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+          encodeEvents s'.events = irResult.events
+      | .revert _ _ => True := by
+    simpa [edslResult, tx, irState] using hBridge
+  simpa [edslResult, tx, irState] using
+    (compose_semantic_bridge_with_yul
+      (edslResult := edslResult)
+      (P := fun val s' =>
+        let irResult := interpretIR simpleStorageIRContract tx irState
+        irResult.success = true ∧
+        irResult.returnValue = some val.val ∧
+        (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+        encodeEvents s'.events = irResult.events)
+      hBridge' hYul)
 
 theorem counter_increment_edsl_to_yul
     (state : ContractState) (sender : Address) :
@@ -642,23 +672,28 @@ theorem counter_increment_edsl_to_yul
     := by
   let tx := mkIRTransaction sender 0xd09de08a []
   let irState := mkIRState state sender 0xd09de08a [] encodeStorage
+  let edslResult := Contract.run (Contracts.MacroContracts.Counter.increment)
+    { state with sender := sender }
   have hBridge := counter_increment_semantic_bridge state sender
   have hYul : resultsMatch (interpretIR counterIRContract tx irState)
       (interpretYulFromIR counterIRContract tx irState) := by
     semantic_bridge_layer3_cases counterIRContract tx irState [hfn, hfn, hfn] with [encodeStorage]
-  cases hrun : Contract.run (Contracts.MacroContracts.Counter.increment)
-      { state with sender := sender } with
-  | success _ s' =>
-      have hA : (let tx := mkIRTransaction sender 0xd09de08a []
-          let irState := mkIRState state sender 0xd09de08a [] encodeStorage
+  have hBridge' : match edslResult with
+      | .success _ s' =>
           let irResult := interpretIR counterIRContract tx irState
           irResult.success = true ∧
-          (∀ slot, (s'.storage slot).val = irResult.finalStorage slot) ∧
-          encodeEvents s'.events = irResult.events) := by
-        simpa [hrun] using hBridge
-      rcases hA with ⟨hs, hst, he⟩
-      simpa [tx, irState, hrun] using And.intro hs (And.intro hst (And.intro he hYul))
-  | revert _ _ =>
-      simp [hrun]
+          (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+          encodeEvents s'.events = irResult.events
+      | .revert _ _ => True := by
+    simpa [edslResult, tx, irState] using hBridge
+  simpa [edslResult, tx, irState] using
+    (compose_semantic_bridge_with_yul
+      (edslResult := edslResult)
+      (P := fun _ s' =>
+        let irResult := interpretIR counterIRContract tx irState
+        irResult.success = true ∧
+        (∀ «slot», (s'.storage «slot»).val = irResult.finalStorage «slot») ∧
+        encodeEvents s'.events = irResult.events)
+      hBridge' hYul)
 
 end Compiler.Proofs.SemanticBridge
