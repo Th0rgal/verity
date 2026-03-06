@@ -115,6 +115,40 @@ syntax (name := genSpecMapStorageCmdFor2Extra)
     "(" ident " : " term ")" " (" ident " : " term ")"
     " (" term ", " term ", " term ", " term ", " term ", " term ", " term ")" : command
 
+syntax (name := genSpecMap2Cmd)
+  "#gen_spec_map2 " ident
+    " (" term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdExtra)
+  "#gen_spec_map2 " ident
+    " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdFor)
+  "#gen_spec_map2 " ident " for " "(" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdForExtra)
+  "#gen_spec_map2 " ident " for " "(" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdFor2)
+  "#gen_spec_map2 " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdFor2Extra)
+  "#gen_spec_map2 " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdFor3)
+  "#gen_spec_map2 " ident " for3 "
+    "(" ident " : " term ")" " (" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMap2CmdFor3Extra)
+  "#gen_spec_map2 " ident " for3 "
+    "(" ident " : " term ")" " (" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
+
 macro_rules
   | `(#gen_spec $name:ident ($slot:term, $value:term, $frame:term)) =>
       `(def $name (s s' : Verity.ContractState) : Prop :=
@@ -281,6 +315,52 @@ macro_rules
           Verity.Specs.storageMapAndStorageUpdateSpec
             $mapSlot $key $mapValue
             $storageSlot $storageValue
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_map2 $name:ident
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term)) =>
+      `(def $name (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value $frame s s')
+  | `(#gen_spec_map2 $name:ident
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term, $extra:term)) =>
+      `(def $name (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_map2 $name:ident for ($arg:ident : $argTy:term)
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term)) =>
+      `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value $frame s s')
+  | `(#gen_spec_map2 $name:ident for ($arg:ident : $argTy:term)
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_map2 $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value $frame s s')
+  | `(#gen_spec_map2 $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_map2 $name:ident for3
+      ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term) ($arg3:ident : $argTy3:term)
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) ($arg3 : $argTy3) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value $frame s s')
+  | `(#gen_spec_map2 $name:ident for3
+      ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term) ($arg3:ident : $argTy3:term)
+      ($slot:term, $key1:term, $key2:term, $value:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) ($arg3 : $argTy3) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMap2UpdateSpec
+            $slot $key1 $key2 $value
             (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
 
 end Verity.Macro

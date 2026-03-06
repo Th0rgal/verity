@@ -3,6 +3,7 @@
 -/
 
 import Verity.Specs.Common
+import Verity.Macro
 import Verity.EVM.Uint256
 
 namespace Contracts.ERC721.Spec
@@ -53,13 +54,9 @@ def getApproved_spec (tokenId : Uint256) (result : ContractResult Address) (s : 
 def isApprovedForAll_spec (ownerAddr operator : Address) (result : Bool) (s : ContractState) : Prop :=
   result = (s.storageMap2 6 ownerAddr operator != 0)
 
-/-- setApprovalForAll: updates only sender->operator flag in slot 6 -/
-def setApprovalForAll_spec
-    (sender operator : Address) (approved : Bool) (s s' : ContractState) : Prop :=
-  storageMap2UpdateSpec
-    6 sender operator
-    (fun _ => boolToWord approved)
-    sameStorageAddrMapUintContext
-    s s'
+-- setApprovalForAll: updates only sender->operator flag in slot 6
+#gen_spec_map2 setApprovalForAll_spec for3
+  (sender : Address) (operator : Address) (approved : Bool)
+  (6, sender, operator, (fun _ => boolToWord approved), sameStorageAddrMapUintContext)
 
 end Contracts.ERC721.Spec

@@ -29,12 +29,9 @@ def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState
     (sameStorageSlotAddrSlotMap2Context 1 0)
     s s'
 
-/-- approve: updates the owner-spender allowance mapping entry -/
-def approve_spec (ownerAddr spender : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  storageMap2UpdateSpec
-    3 ownerAddr spender (fun _ => amount)
-    sameStorageAddrMapContext
-    s s'
+-- approve: updates the owner-spender allowance mapping entry
+#gen_spec_map2 approve_spec for3 (ownerAddr : Address) (spender : Address) (amount : Uint256)
+  (3, ownerAddr, spender, (fun _ => amount), sameStorageAddrMapContext)
 
 /-- transferFrom: debits `fromAddr`, credits `to`, and updates allowance for spender -/
 def transferFrom_spec (spender fromAddr to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
