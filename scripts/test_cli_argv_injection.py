@@ -15,7 +15,7 @@ import check_gas_calibration
 import check_gas_model_coverage
 import check_lean_warning_regression
 import check_patch_gas_delta
-import check_yul_compiles
+import check_yul
 
 
 @contextmanager
@@ -47,9 +47,9 @@ class CliArgvInjectionTests(unittest.TestCase):
             parsed = check_gas_calibration.parse_args([])
         self.assertEqual(parsed.match_path, check_gas_calibration.DEFAULT_FOUNDRY_PATH_GLOB)
 
-    def test_check_yul_compiles_parse_args_ignores_ambient_sys_argv(self) -> None:
+    def test_check_yul_parse_args_ignores_ambient_sys_argv(self) -> None:
         with _ambient_argv("--unexpected-harness-flag"):
-            parsed = check_yul_compiles.parse_args(["--dir", "artifacts/yul"])
+            parsed = check_yul.parse_args(["--dir", "artifacts/yul"])
         self.assertEqual(parsed.dirs, ["artifacts/yul"])
 
     def test_check_lean_warning_main_accepts_injected_argv(self) -> None:

@@ -37,7 +37,7 @@ Primary guards:
 
 - `check_selectors.py`
 - `check_selector_fixtures.py`
-- `check_yul_compiles.py`
+- `check_yul.py`
 - `check_gas_report.py`
 - `check_patch_gas_delta.py`
 - `check_gas_model_coverage.py`

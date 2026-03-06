@@ -313,9 +313,9 @@ jobs:
       - name: Setup solc
         uses: ./.github/actions/setup-solc
 
-      - name: Compile generated Yul with solc
+      - name: Check generated Yul invariants
         run: |
-          python3 scripts/check_yul_compiles.py \
+          python3 scripts/check_yul.py \
             --dir compiler/yul \
             --dir compiler/yul-patched \
             --require-same-files compiler/yul compiler/yul-patched

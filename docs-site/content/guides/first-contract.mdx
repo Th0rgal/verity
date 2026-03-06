@@ -404,7 +404,7 @@ ls artifacts/yul/TipJar.yul
 ### 5.5 Verify Compilation
 
 ```bash
-python3 scripts/check_yul_compiles.py
+python3 scripts/check_yul.py
 ```
 
 ---
@@ -600,7 +600,7 @@ grep -r "sorry" Verity/Specs/TipJar/ Verity/Proofs/TipJar/
 # 3. Yul generates and compiles
 lake build verity-compiler
 lake exe verity-compiler
-python3 scripts/check_yul_compiles.py
+python3 scripts/check_yul.py
 
 # 4. Tests pass
 FOUNDRY_PROFILE=difftest forge test --match-contract TipJar

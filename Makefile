@@ -124,7 +124,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_lean_hygiene.py
 	python3 scripts/check_gas_model_coverage.py
 	python3 scripts/check_mapping_slot_boundary.py
-	python3 scripts/check_yul_builtin_boundary.py
+	python3 scripts/check_yul.py --builtin-boundary-only
 	python3 scripts/check_rewrite_proof_metadata.py
 	python3 scripts/check_builtin_list_sync.py
 	python3 scripts/check_evmyullean_capability_boundary.py
