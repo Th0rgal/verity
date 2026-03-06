@@ -244,12 +244,25 @@ jobs:
               - 'Compiler.lean'
 
       - name: Run AXLE verify_proof pre-check
+        id: axle-run
+        continue-on-error: true
         if: steps.axle-key.outputs.present == 'true' && steps.lean-filter.outputs.lean == 'true'
         env:
           AXLE_API_KEY: ${{ secrets.AXLE_API_KEY }}
         run: |
           python3 scripts/axle_verify_proof_ci.py \
             --files-csv "${{ steps.lean-filter.outputs.lean_files }}"
+
+      - name: AXLE pre-check failed (non-blocking)
+        if: steps.axle-run.outcome == 'failure'
+        run: |
+          echo "::warning::AXLE verify_proof pre-check failed; continuing with trusted local Lean gates."
+          {
+            echo "### AXLE pre-check"
+            echo ""
+            echo "AXLE verify_proof pre-check failed in this run."
+            echo "Trusted local Lean and Foundry jobs remain the required merge gate."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: No Lean file changes
         if: steps.axle-key.outputs.present == 'true' && steps.lean-filter.outputs.lean != 'true'
