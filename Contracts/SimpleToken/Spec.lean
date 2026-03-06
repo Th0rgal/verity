@@ -3,6 +3,7 @@
 -/
 
 import Verity.Specs.Common
+import Verity.Macro
 import Verity.EVM.Uint256
 
 namespace Contracts.SimpleToken.Spec
@@ -13,14 +14,9 @@ open Verity.Specs
 
 /-! ## Operation Specifications -/
 
-/-- Constructor: sets owner and initializes total supply to 0 -/
-def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
-  storageAddrStorageUpdateSpec
-    0 2
-    (fun _ => initialOwner)
-    (fun _ => 0)
-    sameMapContext
-    s s'
+-- Constructor: sets owner and initializes total supply to 0
+#gen_spec_addr_storage constructor_spec for (initialOwner : Address)
+  (0, 2, (fun _ => initialOwner), (fun _ => 0), sameMapContext)
 
 /-- Mint: increases balance and total supply by amount (owner only) -/
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
