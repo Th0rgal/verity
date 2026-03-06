@@ -18,7 +18,7 @@ namespace Contracts.OwnedCounter.Proofs
 open Verity
 open Contracts.MacroContracts.OwnedCounter
 open Contracts.OwnedCounter.Spec
-open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne)
+open Verity.Proofs.Stdlib.Automation
 open Contracts.OwnedCounter.Invariants
 
 /-! ## Owner Guard -/
@@ -100,9 +100,8 @@ theorem getOwner_preserves_state (s : ContractState) :
 
 theorem isOwner_correct (s : ContractState) :
   ((isOwner).run s).fst = (s.sender == s.storageAddr 0) := by
-  simp only [isOwner, msgSender, getStorageAddr, owner,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure,
-    Contract.run, ContractResult.fst]
+  verity_unfold isOwner
+  simp [owner]
 
 /-! ## Increment Correctness (Owner-Guarded) -/
 
@@ -121,10 +120,8 @@ theorem increment_unfold (s : ContractState)
       blockTimestamp := s.blockTimestamp,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
-  simp [increment, onlyOwner, isOwner, owner, count,
-    msgSender, getStorageAddr, getStorage, setStorage,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, h_owner]
+  verity_unfold increment
+  simp [owner, count, h_owner]
 
 theorem increment_meets_spec_when_owner (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
@@ -165,10 +162,8 @@ theorem decrement_unfold (s : ContractState)
       blockTimestamp := s.blockTimestamp,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
-  simp [decrement, onlyOwner, isOwner, owner, count,
-    msgSender, getStorageAddr, getStorage, setStorage,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, h_owner]
+  verity_unfold decrement
+  simp [owner, count, h_owner]
 
 theorem decrement_meets_spec_when_owner (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
@@ -208,10 +203,8 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
       blockTimestamp := s.blockTimestamp,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
-  simp [transferOwnership, onlyOwner, isOwner, owner,
-    msgSender, getStorageAddr, setStorageAddr,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, h_owner]
+  verity_unfold transferOwnership
+  simp [owner, h_owner]
 
 theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :

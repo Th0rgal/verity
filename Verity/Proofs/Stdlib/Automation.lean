@@ -32,6 +32,47 @@ namespace Verity.Proofs.Stdlib.Automation
 
 open Verity
 open Compiler.CompilationModel
+open Lean Parser.Tactic
+
+/-!
+## Standard Unfold Simp Set
+-/
+
+/-- Canonical simp-lemma names used by `verity_unfold`. -/
+def verity_simp_set : List Lean.Name := [
+  ``msgSender,
+  ``getStorageAddr,
+  ``getStorage,
+  ``setStorage,
+  ``setStorageAddr,
+  ``getMapping,
+  ``setMapping,
+  ``setMapping2,
+  ``getMappingUint,
+  ``setMappingUint,
+  ``getMapping2,
+  ``Verity.require,
+  ``Verity.pure,
+  ``Verity.bind,
+  ``Bind.bind,
+  ``Pure.pure,
+  ``Contract.run,
+  ``ContractResult.snd,
+  ``ContractResult.fst
+]
+
+/-- Unfold a contract function with the standard Verity simp set. -/
+syntax (name := verity_unfold)
+  "verity_unfold " simpLemma : tactic
+
+macro_rules
+  | `(tactic| verity_unfold $fn:simpLemma) =>
+      `(tactic| simp only [
+        $fn, msgSender, getStorageAddr, getStorage, setStorage, setStorageAddr,
+        getMapping, setMapping, setMapping2, getMappingUint, setMappingUint, getMapping2,
+        Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
+        Contract.run, ContractResult.snd, ContractResult.fst
+      ])
 
 /-!
 ## Index Normalization Helpers
