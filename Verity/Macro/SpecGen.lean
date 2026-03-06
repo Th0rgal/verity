@@ -60,6 +60,15 @@ syntax (name := genSpecAddrStorage2CmdForExtra)
   "#gen_spec_addr_storage2 " ident " for " "(" ident " : " term ")"
     " (" term ", " term ", " term ", " term ", " term ", " term ", " term ", " term ")" : command
 
+syntax (name := genSpecMapCmdFor)
+  "#gen_spec_map " ident " for " "(" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecMapStorageCmdFor2)
+  "#gen_spec_map_storage " ident " for "
+    "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
+
 macro_rules
   | `(#gen_spec $name:ident ($slot:term, $value:term, $frame:term)) =>
       `(def $name (s s' : Verity.ContractState) : Prop :=
@@ -141,5 +150,18 @@ macro_rules
             $addrSlot $storageSlot1 $storageSlot2
             $addrValue $storageValue1 $storageValue2
             (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_map $name:ident for ($arg:ident : $argTy:term)
+      ($mapSlot:term, $key:term, $value:term, $frame:term)) =>
+      `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMapUpdateSpec
+            $mapSlot $key $value $frame s s')
+  | `(#gen_spec_map_storage $name:ident for
+      ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($mapSlot:term, $key:term, $mapValue:term, $storageSlot:term, $storageValue:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageMapAndStorageUpdateSpec
+            $mapSlot $key $mapValue
+            $storageSlot $storageValue
+            $frame s s')
 
 end Verity.Macro
