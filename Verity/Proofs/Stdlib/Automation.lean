@@ -601,6 +601,24 @@ theorem wf_of_state_eq (P : ContractState → Prop)
     (s s' : ContractState) (h_eq : s' = s) (h : P s) : P s' := by
   rw [h_eq]; exact h
 
+/-- Generic frame-preservation helper for nonzero context/owner fields.
+    This captures the common write-case pattern used to rebuild
+    `WellFormedState`-style invariants after proving frame equalities. -/
+theorem wf_preservation_of_frame
+    (s s' : ContractState)
+    (h_sender_nz : s.sender ≠ 0)
+    (h_this_nz : s.thisAddress ≠ 0)
+    (h_owner_nz : s.storageAddr 0 ≠ 0)
+    (h_sender : s'.sender = s.sender)
+    (h_this : s'.thisAddress = s.thisAddress)
+    (h_owner : s'.storageAddr 0 = s.storageAddr 0) :
+    s'.sender ≠ 0 ∧ s'.thisAddress ≠ 0 ∧ s'.storageAddr 0 ≠ 0 := by
+  constructor
+  · exact h_sender ▸ h_sender_nz
+  constructor
+  · exact h_this ▸ h_this_nz
+  · exact h_owner ▸ h_owner_nz
+
 /-!
 ## Generic setStorage Preservation
 
