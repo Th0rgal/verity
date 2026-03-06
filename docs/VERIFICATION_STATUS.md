@@ -33,7 +33,7 @@ EVM Bytecode
 | SimpleToken | 61 | Complete | `Contracts/SimpleToken/Proofs/` |
 | ERC20 | 19 | Baseline | `Contracts/ERC20/Proofs/` |
 | ERC721 | 11 | Baseline | `Contracts/ERC721/Proofs/` |
-| ReentrancyExample | 4 | Complete | `Contracts/ReentrancyExample/Contract.lean` |
+| ReentrancyExample | 5 | Complete | `Contracts/ReentrancyExample/Contract.lean` |
 | CryptoHash | 0 | No specs | `Contracts/CryptoHash/Contract.lean` |
 | **Total** | **273** | **✅ 100%** | — |
 
@@ -88,7 +88,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 | ERC20 | 100% (19/19) | 0 |
 | ERC721 | 100% (11/11) | 0 |
 | SafeCounter | 100% (25/25) | 0 |
-| ReentrancyExample | 100% (4/4) | 0 |
+| ReentrancyExample | 100% (5/5) | 0 |
 | Ledger | 100% (33/33) | 0 |
 | SimpleStorage | 95% (19/20) | 1 proof-only |
 | OwnedCounter | 92% (44/48) | 4 proof-only |
@@ -100,7 +100,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 **Status**: 92% coverage (251/273), 22 remaining exclusions all proof-only
 
 - **Total Properties**: 273
-- **Covered**: 250
+- **Covered**: 251
 - **Excluded**: 22 (all proof-only)
 
 **Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
@@ -109,7 +109,7 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 
 ## Differential Testing
 
-**Status**: Scaled to 100,000+ tests (10,000 per contract x 9 contracts) with 8-shard CI parallelization. Randomized inputs covering edge cases, comparing EDSL interpreter output against Solidity-compiled EVM execution.
+**Status**: CI runs large sharded randomized differential suites against the current contract set, comparing EDSL interpreter output against Solidity-compiled EVM execution.
 
 ## Solidity Interop Support Matrix (Issue #586)
 

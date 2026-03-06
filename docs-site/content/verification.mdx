@@ -7,9 +7,11 @@ description: EDSL proofs plus compiler correctness proofs (IR + Yul)
 
 The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
 
-**Status**: 273 theorems across 10 categories, 406 fully proven. 19 `sorry` placeholders (18 in SemanticBridge cross-layer bridge proofs, 1 in Yul Preservation — theorem statements preserved, proofs blocked by heartbeat limits). Ledger sum proofs completed in Conservation.lean ([#65](https://github.com/Th0rgal/verity/issues/65)). 1 axiom documented in [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+**Status**: See [docs/VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current theorem totals, test counts, exclusions, and proof-status snapshot. [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
 
 ## Snapshot (2026-02-17)
+
+This section is a dated historical snapshot. Use [docs/VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the live totals and coverage tables.
 
 - EDSL theorems: 273 across 10 categories (9 contracts + ReentrancyExample + Stdlib).
 - SimpleStorage: 20 total (Basic 13, Correctness 7).

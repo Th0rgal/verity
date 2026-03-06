@@ -7,8 +7,8 @@ import argparse
 import json
 from pathlib import Path
 
-from check_doc_counts import collect_metrics
 from property_utils import ROOT
+from verification_metrics import collect_metrics, load_metrics_from_artifact
 
 
 def _normalize(data: dict) -> str:
@@ -40,6 +40,7 @@ def main() -> None:
     if args.check:
         if not output.exists():
             raise SystemExit(f"Missing verification artifact: {output}")
+        load_metrics_from_artifact(output)
         existing = output.read_text(encoding="utf-8")
         if existing != rendered:
             raise SystemExit(

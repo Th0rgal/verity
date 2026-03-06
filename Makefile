@@ -108,7 +108,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_case_insensitive_path_conflicts.py
 	python3 scripts/check_axiom_locations.py
 	python3 scripts/generate_verification_status.py --check
-	python3 scripts/check_doc_counts.py
+	python3 scripts/check_verification_status_doc.py
 	python3 scripts/check_interop_matrix_sync.py
 	python3 scripts/check_verify_sync.py
 	python3 scripts/check_issue_template_forms.py
@@ -138,7 +138,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 -m unittest discover -s scripts -p 'test_*.py' -v
 	@echo "All checks passed."
 
-refresh-status: ## Regenerate verification artifact and auto-fix doc counts
+refresh-status: ## Regenerate verification artifact
 	scripts/refresh_verification_artifacts.sh
 
 # ---------------------------------------------------------------------------

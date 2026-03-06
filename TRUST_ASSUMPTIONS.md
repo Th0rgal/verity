@@ -25,7 +25,7 @@ All three layers are proven in Lean, with 1 documented axiom (the selector axiom
 - **Layer 3**: IR → Yul preserves behavior, with 1 documented axiom (keccak256 selector).
 - **Cross-layer**: `Compiler/Proofs/SemanticBridge.lean` has zero `sorry`; `Compiler/Proofs/EndToEnd.lean` composes Layers 2+3.
 
-273 theorems across 10 categories. 251 theorems have corresponding Foundry property tests. 92% runtime test coverage.
+Current theorem totals, property-test coverage, and proof status live in [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md).
 
 ## Trusted Components
 

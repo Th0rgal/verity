@@ -120,9 +120,8 @@ class WorkflowJobsTests(unittest.TestCase):
                 "    steps:",
                 "      - name: run checks",
                 "        run: >",
-                "          python3 scripts/check_doc_counts.py",
-                "          --readme README.md",
-                "          --axioms AXIOMS.md",
+                "          python3 scripts/generate_verification_status.py",
+                "          --output artifacts/verification_status.json",
                 "",
             ]
         )
@@ -137,13 +136,13 @@ class WorkflowJobsTests(unittest.TestCase):
             self.assertEqual(
                 commands,
                 [
-                    "python3 scripts/check_doc_counts.py --readme README.md --axioms AXIOMS.md",
+                    "python3 scripts/generate_verification_status.py --output artifacts/verification_status.json",
                 ],
             )
 
     def test_extract_python_script_commands_keeps_args_for_folded_scalar(self) -> None:
         run_commands = [
-            "python3 scripts/check_doc_counts.py --readme README.md --axioms AXIOMS.md"
+            "python3 scripts/generate_verification_status.py --output artifacts/verification_status.json"
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
             source = Path(tmpdir) / "verify.yml"
@@ -151,7 +150,7 @@ class WorkflowJobsTests(unittest.TestCase):
             scripts = extract_python_script_commands(run_commands, source=source)
             self.assertEqual(
                 scripts,
-                ["check_doc_counts.py --readme README.md --axioms AXIOMS.md"],
+                ["generate_verification_status.py --output artifacts/verification_status.json"],
             )
 
     def test_match_shell_command_accepts_path_env_wrapper(self) -> None:

@@ -8,7 +8,7 @@ Use this file for day-to-day operation. Detailed script inventory lives in [REFE
 # Local CI-equivalent subset
 make check
 
-# Keep artifact/docs counters fresh
+# Refresh the verification-status artifact
 make refresh-status
 
 # Run Python unit tests

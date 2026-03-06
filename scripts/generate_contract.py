@@ -1155,7 +1155,7 @@ Examples:
     print("   python3 scripts/check_property_manifest_sync.py")
     print("   python3 scripts/check_contract_structure.py")
     print("   python3 scripts/check_selectors.py")
-    print("   python3 scripts/check_doc_counts.py")
+    print("   python3 scripts/generate_verification_status.py --check")
 
 
 if __name__ == "__main__":

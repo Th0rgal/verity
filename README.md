@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
-  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-273-brightgreen.svg" alt="273 Theorems"></a>
+  <a href="https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md"><img src="https://img.shields.io/badge/verification-status-live-brightgreen.svg" alt="Verification status"></a>
   <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
@@ -99,10 +99,10 @@ Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 1 axiom (th
 
 ### 5. Test the compiled output (belt and suspenders)
 
-**Foundry tests** (478 tests) validate EDSL = Yul = EVM execution. 478 Foundry tests across 38 test suites run the compiled Yul on a real EVM. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
+**Foundry tests** validate EDSL = Yul = EVM execution. See [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) for the current test count and coverage snapshot. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
 
 ```bash
-FOUNDRY_PROFILE=difftest forge test    # 478 tests across 38 suites
+FOUNDRY_PROFILE=difftest forge test
 ```
 
 ---
@@ -123,7 +123,7 @@ FOUNDRY_PROFILE=difftest forge test    # 478 tests across 38 suites
 | ReentrancyExample | 5 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-273 theorems across 10 categories. 478 Foundry tests across 38 test suites. 251 covered by property tests (92% coverage, 22 proof-only exclusions). 1 documented axiom. 0 `sorry` placeholders.
+Current theorem totals, test counts, coverage, and proof status live in [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md).
 
 ---
 
@@ -148,7 +148,7 @@ Verity's DSL prevents raw external calls for safety. Instead, you can:
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 source ~/.elan/env
 
-# Clone and build — Verifies all 273 theorems
+# Clone and build — verifies the current proof set
 git clone https://github.com/Th0rgal/verity.git && cd verity
 lake build
 
@@ -157,7 +157,7 @@ lake exe verity-compiler --manifest packages/verity-examples/contracts.manifest
 lake exe verity-compiler --module Contracts.MacroContracts.Counter  # specific contract
 
 # Run Foundry tests
-FOUNDRY_PROFILE=difftest forge test    # 478 tests across 38 suites
+FOUNDRY_PROFILE=difftest forge test
 ```
 
 **Scaffold a new contract**:
@@ -172,14 +172,7 @@ This creates: implementation, spec, invariants, proofs, and Foundry test files.
 
 ## Verification guarantees
 
-Every claim is enforced by CI on every commit. Run `make check` locally to validate, or see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) for current per-contract status and coverage tables.
-
-| Claim | Verify locally |
-|-------|----------------|
-| All proofs type-check, zero `sorry` | `make verify` |
-| Zero undocumented axioms | `make axiom-report` |
-| Foundry runtime tests pass | `make test-foundry` |
-| All CI checks pass | `make check` |
+Every claim is enforced by CI on every commit. See [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) for the current counts, coverage tables, and proof-status snapshot, then use `make verify`, `make axiom-report`, `make test-foundry`, and `make check` for local confirmation.
 
 ---
 

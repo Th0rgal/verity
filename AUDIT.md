@@ -28,7 +28,7 @@ Access control and checks:
 2. Build/verification gate is deny-by-default: CI fails on invariant drift (selectors, storage layout, docs/proof counts, property coverage, warning regressions).
 3. `scripts/workflow_jobs.py` centralizes top-level `jobs:` parsing (quoted and unquoted keys) for workflow-sync checkers, so cross-job boundary extraction is explicit and shared.
 4. `scripts/check_lean_warning_regression.py` validates baseline schema/invariants and fails on mismatch. Uses `type(value) is not int` to reject booleans, raises `ValueError` on malformed UTF-8 log input, and validates `by_file`/`by_message` counter fields strictly.
-5. `scripts/check_doc_counts.py` uses `_expect_int` with `type(value) is not int` to reject booleans in integer metric fields.
+5. `scripts/verification_metrics.py` uses `_expect_int` with `type(value) is not int` to reject booleans in integer metric fields.
 6. `scripts/check_verify_sync.py` is the unified table-driven validator for all workflow invariants (job order, commands, path filters, foundry settings, artifact producers), driven by `scripts/verify_sync_spec.json`.
 7. `scripts/check_interop_matrix_sync.py` detects duplicate normalized feature rows with explicit error reporting.
 8. `scripts/check_builtin_list_sync.py` strips Lean comments before `def` extraction, preventing comment-decoy bypass.
