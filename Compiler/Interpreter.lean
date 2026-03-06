@@ -15,7 +15,7 @@ import Compiler.Constants
 import Contracts.MacroContracts.Tokens
 import Contracts.MacroContracts.Core
 import Contracts.MacroContracts.ERC721Addressed
-import Contracts.MacroContracts.Compat.CryptoHash
+import Contracts.CryptoHash
 import Compiler.DiffTestTypes
 import Compiler.Hex
 
@@ -328,110 +328,6 @@ private def dispatch (tx : Transaction) (cases : List (String × (Unit → Execu
   | none => unknownFunctionResult
 
 /-!
-Compatibility shims for per-contract migration.
-
-These keep interpreter call-sites stable while contract implementations move
-from the old `Verity.Examples.*` namespace to `Contracts.MacroContracts.*`.
--/
-namespace Compat
-namespace SimpleStorage
-
-abbrev store := Contracts.MacroContracts.SimpleStorage.store
-abbrev retrieve := Contracts.MacroContracts.SimpleStorage.retrieve
-
-end SimpleStorage
-
-namespace Counter
-
-abbrev increment := Contracts.MacroContracts.Counter.increment
-abbrev decrement := Contracts.MacroContracts.Counter.decrement
-abbrev getCount := Contracts.MacroContracts.Counter.getCount
-
-end Counter
-
-namespace SafeCounter
-
-abbrev increment := Contracts.MacroContracts.SafeCounter.increment
-abbrev decrement := Contracts.MacroContracts.SafeCounter.decrement
-abbrev getCount := Contracts.MacroContracts.SafeCounter.getCount
-
-end SafeCounter
-
-namespace Owned
-
-abbrev transferOwnership := Contracts.MacroContracts.Owned.transferOwnership
-abbrev getOwner := Contracts.MacroContracts.Owned.getOwner
-
-end Owned
-
-namespace OwnedCounter
-
-abbrev increment := Contracts.MacroContracts.OwnedCounter.increment
-abbrev decrement := Contracts.MacroContracts.OwnedCounter.decrement
-abbrev getCount := Contracts.MacroContracts.OwnedCounter.getCount
-abbrev getOwner := Contracts.MacroContracts.OwnedCounter.getOwner
-abbrev transferOwnership := Contracts.MacroContracts.OwnedCounter.transferOwnership
-
-end OwnedCounter
-
-namespace Ledger
-
-abbrev deposit := Contracts.MacroContracts.Ledger.deposit
-abbrev withdraw := Contracts.MacroContracts.Ledger.withdraw
-abbrev transfer := Contracts.MacroContracts.Ledger.transfer
-abbrev getBalance := Contracts.MacroContracts.Ledger.getBalance
-
-end Ledger
-
-namespace SimpleToken
-
-abbrev mint := Contracts.MacroContracts.SimpleToken.mint
-abbrev transfer := Contracts.MacroContracts.SimpleToken.transfer
-abbrev balanceOf := Contracts.MacroContracts.SimpleToken.balanceOf
-abbrev getTotalSupply := Contracts.MacroContracts.SimpleToken.getTotalSupply
-abbrev getOwner := Contracts.MacroContracts.SimpleToken.getOwner
-
-end SimpleToken
-
-namespace ERC20
-
-abbrev mint := Contracts.MacroContracts.ERC20.mint
-abbrev transfer := Contracts.MacroContracts.ERC20.transfer
-abbrev approve := Contracts.MacroContracts.ERC20.approve
-abbrev transferFrom := Contracts.MacroContracts.ERC20.transferFrom
-abbrev balanceOf := Contracts.MacroContracts.ERC20.balanceOf
-abbrev allowanceOf := Contracts.MacroContracts.ERC20.allowanceOf
-abbrev getTotalSupply := Contracts.MacroContracts.ERC20.getTotalSupply
-abbrev getOwner := Contracts.MacroContracts.ERC20.getOwner
-
-end ERC20
-
-namespace ERC721
-
-abbrev mint := Contracts.MacroContracts.ERC721Addressed.mint
-abbrev balanceOf := Contracts.MacroContracts.ERC721Addressed.balanceOf
-abbrev ownerOf := Contracts.MacroContracts.ERC721Addressed.ownerOf
-abbrev approve := Contracts.MacroContracts.ERC721Addressed.approve
-abbrev getApproved := Contracts.MacroContracts.ERC721Addressed.getApproved
-abbrev setApprovalForAll := Contracts.MacroContracts.ERC721Addressed.setApprovalForAll
-abbrev isApprovedForAll := Contracts.MacroContracts.ERC721Addressed.isApprovedForAll
-abbrev transferFrom := Contracts.MacroContracts.ERC721Addressed.transferFrom
-abbrev owner : StorageSlot Address := Contracts.MacroContracts.ERC721Addressed.owner
-abbrev totalSupply : StorageSlot Uint256 := Contracts.MacroContracts.ERC721Addressed.totalSupply
-abbrev nextTokenId : StorageSlot Uint256 := Contracts.MacroContracts.ERC721Addressed.nextTokenId
-
-end ERC721
-
-namespace CryptoHash
-
-abbrev storeHashTwo := Contracts.MacroContracts.Compat.CryptoHash.storeHashTwo
-abbrev storeHashThree := Contracts.MacroContracts.Compat.CryptoHash.storeHashThree
-abbrev getLastHash := Contracts.MacroContracts.Compat.CryptoHash.getLastHash
-
-end CryptoHash
-end Compat
-
-/-!
 ## Example: SimpleStorage Interpreter
 
 Demonstrate how to wrap EDSL contract for differential testing.
@@ -441,9 +337,9 @@ Demonstrate how to wrap EDSL contract for differential testing.
 def interpretSimpleStorage (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case1 "store" tx (fun value =>
-      runUnit (Compat.SimpleStorage.store value) state [0] [] []  -- Check slot 0
+      runUnit (SimpleStorage.store value) state [0] [] []  -- Check slot 0
     ),
-    case0 "retrieve" tx (fun _ => runUint Compat.SimpleStorage.retrieve state [0] [] [])
+    case0 "retrieve" tx (fun _ => runUint SimpleStorage.retrieve state [0] [] [])
   ]
 
 /-!
@@ -452,9 +348,9 @@ def interpretSimpleStorage (tx : Transaction) (state : ContractState) : Executio
 
 def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (fun _ => runUnit Compat.Counter.increment state [0] [] []),
-    case0 "decrement" tx (fun _ => runUnit Compat.Counter.decrement state [0] [] []),
-    case0 "getCount" tx (fun _ => runUint Compat.Counter.getCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit Counter.increment state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit Counter.decrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint Counter.getCount state [0] [] [])
   ]
 
 /-!
@@ -463,9 +359,9 @@ def interpretCounter (tx : Transaction) (state : ContractState) : ExecutionResul
 
 def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
-    case0 "increment" tx (fun _ => runUnit Compat.SafeCounter.increment state [0] [] []),
-    case0 "decrement" tx (fun _ => runUnit Compat.SafeCounter.decrement state [0] [] []),
-    case0 "getCount" tx (fun _ => runUint Compat.SafeCounter.getCount state [0] [] [])
+    case0 "increment" tx (fun _ => runUnit SafeCounter.increment state [0] [] []),
+    case0 "decrement" tx (fun _ => runUnit SafeCounter.decrement state [0] [] []),
+    case0 "getCount" tx (fun _ => runUint SafeCounter.getCount state [0] [] [])
   ]
 
 /-!
@@ -475,9 +371,9 @@ def interpretSafeCounter (tx : Transaction) (state : ContractState) : ExecutionR
 def interpretOwned (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
-      runUnit (Compat.Owned.transferOwnership newOwnerAddr) state [] [0] []
+      runUnit (Owned.transferOwnership newOwnerAddr) state [] [0] []
     ),
-    case0 "getOwner" tx (fun _ => runAddress Compat.Owned.getOwner state [] [0] [])
+    case0 "getOwner" tx (fun _ => runAddress Owned.getOwner state [] [0] [])
   ]
 
 /-!
@@ -489,23 +385,23 @@ def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult
     case1 "deposit" tx (fun amount =>
       -- Track mapping changes for sender's balance
       let senderKey := (0, tx.sender)
-      runUnit (Compat.Ledger.deposit amount) state [] [] [senderKey]
+      runUnit (Ledger.deposit amount) state [] [] [senderKey]
     ),
     case1 "withdraw" tx (fun amount =>
       -- Track mapping changes for sender's balance
       let senderKey := (0, tx.sender)
-      runUnit (Compat.Ledger.withdraw amount) state [] [] [senderKey]
+      runUnit (Ledger.withdraw amount) state [] [] [senderKey]
     ),
     case2AddressNat "transfer" tx (fun toAddr amount =>
       -- Track mapping changes for both sender and recipient
       let senderKey := (0, tx.sender)
       let recipientKey := (0, toAddr)
-      runUnit (Compat.Ledger.transfer toAddr amount) state [] [] [senderKey, recipientKey]
+      runUnit (Ledger.transfer toAddr amount) state [] [] [senderKey, recipientKey]
     ),
     case1Address "getBalance" tx (fun addr =>
       -- Track mapping for the queried address
       let addrKey := (0, addr)
-      runUint (Compat.Ledger.getBalance addr) state [] [] [addrKey]
+      runUint (Ledger.getBalance addr) state [] [] [addrKey]
     )
   ]
 
@@ -517,17 +413,17 @@ def interpretOwnedCounter (tx : Transaction) (state : ContractState) : Execution
   dispatch tx [
     case0 "increment" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
-      runUnit Compat.OwnedCounter.increment state [1] [0] []
+      runUnit OwnedCounter.increment state [1] [0] []
     ),
     case0 "decrement" tx (fun _ =>
       -- Track both storage slots: 0 (owner address) and 1 (count)
-      runUnit Compat.OwnedCounter.decrement state [1] [0] []
+      runUnit OwnedCounter.decrement state [1] [0] []
     ),
-    case0 "getCount" tx (fun _ => runUint Compat.OwnedCounter.getCount state [1] [] []),
-    case0 "getOwner" tx (fun _ => runAddress Compat.OwnedCounter.getOwner state [] [0] []),
+    case0 "getCount" tx (fun _ => runUint OwnedCounter.getCount state [1] [] []),
+    case0 "getOwner" tx (fun _ => runAddress OwnedCounter.getOwner state [] [0] []),
     case1Address "transferOwnership" tx (fun newOwnerAddr =>
       -- Track owner address storage slot 0
-      runUnit (Compat.OwnedCounter.transferOwnership newOwnerAddr) state [] [0] []
+      runUnit (OwnedCounter.transferOwnership newOwnerAddr) state [] [0] []
     )
   ]
 
@@ -540,21 +436,21 @@ def interpretSimpleToken (tx : Transaction) (state : ContractState) : ExecutionR
     case2AddressNat "mint" tx (fun toAddr amount =>
       -- Track: storage slot 2 (totalSupply), owner slot 0, mapping for recipient
       let recipientKey := (1, toAddr)
-      runUnit (Compat.SimpleToken.mint toAddr amount) state [2] [0] [recipientKey]
+      runUnit (SimpleToken.mint toAddr amount) state [2] [0] [recipientKey]
     ),
     case2AddressNat "transfer" tx (fun toAddr amount =>
       -- Track mapping changes for both sender and recipient
       let senderKey := (1, tx.sender)
       let recipientKey := (1, toAddr)
-      runUnit (Compat.SimpleToken.transfer toAddr amount) state [] [] [senderKey, recipientKey]
+      runUnit (SimpleToken.transfer toAddr amount) state [] [] [senderKey, recipientKey]
     ),
     case1Address "balanceOf" tx (fun addr =>
       -- Track mapping for the queried address
       let addrKey := (1, addr)
-      runUint (Compat.SimpleToken.balanceOf addr) state [] [] [addrKey]
+      runUint (SimpleToken.balanceOf addr) state [] [] [addrKey]
     ),
-    case0 "totalSupply" tx (fun _ => runUint Compat.SimpleToken.getTotalSupply state [2] [] []),
-    case0 "owner" tx (fun _ => runAddress Compat.SimpleToken.getOwner state [] [0] [])
+    case0 "totalSupply" tx (fun _ => runUint SimpleToken.getTotalSupply state [2] [] []),
+    case0 "owner" tx (fun _ => runAddress SimpleToken.getOwner state [] [0] [])
   ]
 
 /-!
@@ -566,33 +462,33 @@ def interpretERC20 (tx : Transaction) (state : ContractState) : ExecutionResult 
     case2AddressNat "mint" tx (fun toAddr amount =>
       -- Track owner slot 0, totalSupply slot 1, and recipient balance in slot-2 mapping.
       let recipientKey := (2, toAddr)
-      runUnit (Compat.ERC20.mint toAddr amount) state [1] [0] [recipientKey]
+      runUnit (ERC20.mint toAddr amount) state [1] [0] [recipientKey]
     ),
     case2AddressNat "transfer" tx (fun toAddr amount =>
       -- Track sender/recipient balances in slot-2 mapping.
       let senderKey := (2, tx.sender)
       let recipientKey := (2, toAddr)
-      runUnit (Compat.ERC20.transfer toAddr amount) state [] [] [senderKey, recipientKey]
+      runUnit (ERC20.transfer toAddr amount) state [] [] [senderKey, recipientKey]
     ),
     case2AddressNat "approve" tx (fun spender amount =>
       let allowanceKey := (3, tx.sender, spender)
-      runUnit (Compat.ERC20.approve spender amount) state [] [] [] [] [allowanceKey]
+      runUnit (ERC20.approve spender amount) state [] [] [] [] [allowanceKey]
     ),
     case3AddressAddressNat "transferFrom" tx (fun fromAddr toAddr amount =>
       let fromKey := (2, fromAddr)
       let toKey := (2, toAddr)
       let allowanceKey := (3, fromAddr, tx.sender)
-      runUnit (Compat.ERC20.transferFrom fromAddr toAddr amount) state [] [] [fromKey, toKey] [] [allowanceKey]
+      runUnit (ERC20.transferFrom fromAddr toAddr amount) state [] [] [fromKey, toKey] [] [allowanceKey]
     ),
     case1Address "balanceOf" tx (fun addr =>
       let addrKey := (2, addr)
-      runUint (Compat.ERC20.balanceOf addr) state [] [] [addrKey]
+      runUint (ERC20.balanceOf addr) state [] [] [addrKey]
     ),
     case2AddressAddress "allowanceOf" tx (fun ownerAddr spender =>
-      runUint (Compat.ERC20.allowanceOf ownerAddr spender) state [] [] []
+      runUint (ERC20.allowanceOf ownerAddr spender) state [] [] []
     ),
-    case0 "totalSupply" tx (fun _ => runUint Compat.ERC20.getTotalSupply state [1] [] []),
-    case0 "owner" tx (fun _ => runAddress Compat.ERC20.getOwner state [] [0] [])
+    case0 "totalSupply" tx (fun _ => runUint ERC20.getTotalSupply state [1] [] []),
+    case0 "owner" tx (fun _ => runAddress ERC20.getOwner state [] [0] [])
   ]
 
 /-!
@@ -607,37 +503,37 @@ def interpretERC721 (tx : Transaction) (state : ContractState) : ExecutionResult
       let mintedTokenId : Uint256 := state.storage 2
       let recipientKey := (3, toAddr)
       let ownerWordKey := (4, mintedTokenId)
-      runUint (Compat.ERC721.mint toAddr) state [1, 2] [0] [recipientKey] [ownerWordKey]
+      runUint (ERC721Addressed.mint toAddr) state [1, 2] [0] [recipientKey] [ownerWordKey]
     ),
     case1Address "balanceOf" tx (fun addr =>
       let addrKey := (3, addr)
-      runUint (Compat.ERC721.balanceOf addr) state [] [] [addrKey]
+      runUint (ERC721Addressed.balanceOf addr) state [] [] [addrKey]
     ),
     case1 "ownerOf" tx (fun tokenId =>
       let tokenIdU : Uint256 := tokenId
       let ownerKey := (4, tokenIdU)
-      runAddress (Compat.ERC721.ownerOf tokenIdU) state [] [] [] [ownerKey]
+      runAddress (ERC721Addressed.ownerOf tokenIdU) state [] [] [] [ownerKey]
     ),
     case2AddressNat "approve" tx (fun approved tokenId =>
       let tokenIdU : Uint256 := tokenId
       let ownerKey := (4, tokenIdU)
       let approvalKey := (5, tokenIdU)
-      runUnit (Compat.ERC721.approve approved tokenIdU) state [] [] [] [ownerKey, approvalKey]
+      runUnit (ERC721Addressed.approve approved tokenIdU) state [] [] [] [ownerKey, approvalKey]
     ),
     case1 "getApproved" tx (fun tokenId =>
       let tokenIdU : Uint256 := tokenId
       let ownerKey := (4, tokenIdU)
       let approvalKey := (5, tokenIdU)
-      runAddress (Compat.ERC721.getApproved tokenIdU) state [] [] [] [ownerKey, approvalKey]
+      runAddress (ERC721Addressed.getApproved tokenIdU) state [] [] [] [ownerKey, approvalKey]
     ),
     case2AddressNat "setApprovalForAll" tx (fun operator approvedWord =>
       let ownerAddr := tx.sender
       let approvalKey := (6, ownerAddr, operator)
-      runUnit (Compat.ERC721.setApprovalForAll operator (approvedWord != 0)) state [] [] [] [] [approvalKey]
+      runUnit (ERC721Addressed.setApprovalForAll operator (approvedWord != 0)) state [] [] [] [] [approvalKey]
     ),
     case2AddressAddress "isApprovedForAll" tx (fun ownerAddr operator =>
       let approvalKey := (6, ownerAddr, operator)
-      runBool (Compat.ERC721.isApprovedForAll ownerAddr operator) state [] [] [] [] [approvalKey]
+      runBool (ERC721Addressed.isApprovedForAll ownerAddr operator) state [] [] [] [] [approvalKey]
     ),
     case3AddressAddressNat "transferFrom" tx (fun fromAddr toAddr tokenId =>
       let tokenIdU : Uint256 := tokenId
@@ -645,23 +541,23 @@ def interpretERC721 (tx : Transaction) (state : ContractState) : ExecutionResult
       let toKey := (3, toAddr)
       let ownerKey := (4, tokenIdU)
       let approvalKey := (5, tokenIdU)
-      runUnit (Compat.ERC721.transferFrom fromAddr toAddr tokenIdU) state [] [] [fromKey, toKey] [ownerKey, approvalKey]
+      runUnit (ERC721Addressed.transferFrom fromAddr toAddr tokenIdU) state [] [] [fromKey, toKey] [ownerKey, approvalKey]
     ),
-    case0 "owner" tx (fun _ => runAddress (getStorageAddr Compat.ERC721.owner) state [] [0] []),
-    case0 "totalSupply" tx (fun _ => runUint (getStorage Compat.ERC721.totalSupply) state [1] [] []),
-    case0 "nextTokenId" tx (fun _ => runUint (getStorage Compat.ERC721.nextTokenId) state [2] [] [])
+    case0 "owner" tx (fun _ => runAddress (getStorageAddr ERC721Addressed.owner) state [] [0] []),
+    case0 "totalSupply" tx (fun _ => runUint (getStorage ERC721Addressed.totalSupply) state [1] [] []),
+    case0 "nextTokenId" tx (fun _ => runUint (getStorage ERC721Addressed.nextTokenId) state [2] [] [])
   ]
 
 def interpretCryptoHash (tx : Transaction) (state : ContractState) : ExecutionResult :=
   dispatch tx [
     case2 "storeHashTwo" tx (fun a b =>
-      runUnit (Compat.CryptoHash.storeHashTwo a b) state [0] [] []
+      runUnit (Contracts.CryptoHash.storeHashTwo a b) state [0] [] []
     ),
     case3 "storeHashThree" tx (fun a b c =>
-      runUnit (Compat.CryptoHash.storeHashThree a b c) state [0] [] []
+      runUnit (Contracts.CryptoHash.storeHashThree a b c) state [0] [] []
     ),
     case0 "getLastHash" tx (fun _ =>
-      runUint Compat.CryptoHash.getLastHash state [0] [] []
+      runUint Contracts.CryptoHash.getLastHash state [0] [] []
     )
   ]
 
