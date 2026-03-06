@@ -33,7 +33,7 @@ Access control and checks:
 7. `scripts/check_interop_matrix_sync.py` detects duplicate normalized feature rows with explicit error reporting.
 8. `scripts/check_builtin_list_sync.py` strips Lean comments before `def` extraction, preventing comment-decoy bypass.
 9. `scripts/check_solc_pin.py` collects all `SOLC_*` matches via `finditer` and fails on conflicting values across occurrences.
-10. `scripts/check_yul_builtin_boundary.py` uses `scrub_lean_code` to strip comments and string literals before boundary checks.
+10. `scripts/check_yul.py` uses `scrub_lean_code` to strip comments and string literals before builtin-boundary checks.
 11. `scripts/check_mapping_slot_boundary.py` uses `scrub_lean_code` to strip comments and string literals before boundary checks.
 12. `scripts/check_evmyullean_capability_boundary.py` detects non-literal builtin dispatch patterns and reports them as fail-closed diagnostics.
 13. `Compiler/CompilationModel.lean` recursive validation walkers for unsafe logical call-like detection, array-element usage detection, return/revert reachability, and bind-name collection are totalized (`def` + explicit `termination_by`), reducing reliance on `partial def` in the active compilation path.
@@ -82,5 +82,5 @@ External input entry points:
 Primary review focus:
 1. Selector/ABI drift (`Compiler/Selector.lean`, `Compiler/Selectors.lean`, `scripts/check_selectors.py`).
 2. Storage slot/type drift across layers (`scripts/check_storage_layout.py`).
-3. Cross-path output drift and Yul compileability (`scripts/check_yul_compiles.py`).
+3. Cross-path output drift and Yul compileability (`scripts/check_yul.py`).
 4. Contract access-control/property behavior (`test/Property*.t.sol`, `test/Differential*.t.sol`).

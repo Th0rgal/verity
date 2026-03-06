@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Verify that generated Yul files compile with solc.
+"""Run Yul-related CI checks.
 
-This check ensures trust in the Yul->EVM compilation step by verifying
-that all generated Yul can be compiled to bytecode by solc.
+This merges the generated-Yul compilation/parity checks with the Lean builtin
+boundary guard so Yul validation lives behind one entrypoint with targeted
+flags for CI contexts that do not have solc installed.
 """
 
 from __future__ import annotations
@@ -12,18 +13,35 @@ import re
 import subprocess
 from pathlib import Path
 
-from property_utils import ROOT, YUL_DIR, report_errors
+from property_utils import ROOT, YUL_DIR, report_errors, scrub_lean_code
+
+PROOFS_DIR = ROOT / "Compiler" / "Proofs"
+BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "Builtins.lean"
+RUNTIME_INTERPRETERS = [
+    PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean",
+    PROOFS_DIR / "YulGeneration" / "Semantics.lean",
+]
+
+IMPORT_BUILTINS_RE = re.compile(
+    r"^\s*import\s+Compiler\.Proofs\.YulGeneration\.Builtins\s*$", re.MULTILINE
+)
+BUILTIN_CALL_RE = re.compile(
+    r"\bCompiler\.Proofs\.YulGeneration\.(?:evalBuiltinCall|evalBuiltinCallWithBackend)\b"
+)
+INLINE_DISPATCH_RE = re.compile(
+    r'func\s*=\s*"(?:mappingSlot|sload|add|sub|mul|div|mod|lt|gt|eq|iszero|and|or|xor|not|shl|shr|caller|calldataload)"'
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compile generated Yul with solc and optionally compare bytecode parity."
+        description="Run Yul builtin-boundary and generated-Yul compilation checks."
     )
     parser.add_argument(
         "--dir",
         dest="dirs",
         action="append",
-        help="Yul directory to check (repeatable). Default: artifacts/yul",
+        help="Yul directory to check (repeatable). Default: compiler/yul",
     )
     parser.add_argument(
         "--compare-dirs",
@@ -50,6 +68,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Format: one entry per line as "
             "'mismatch:<file>', 'missing_in_a:<file>', or 'missing_in_b:<file>'."
         ),
+    )
+    parser.add_argument(
+        "--builtin-boundary-only",
+        action="store_true",
+        help="Run only the Lean builtin-boundary guard and skip solc compilation checks.",
+    )
+    parser.add_argument(
+        "--skip-builtin-boundary",
+        action="store_true",
+        help="Skip the Lean builtin-boundary guard and run only generated-Yul checks.",
     )
     return parser.parse_args(argv)
 
@@ -155,8 +183,35 @@ def load_allowed_compare_diffs(path: str | None) -> set[tuple[str, str]]:
     return allowed
 
 
-def main(argv: list[str] | None = None) -> None:
-    args = parse_args(argv)
+def collect_builtin_boundary_failures() -> list[str]:
+    failures: list[str] = []
+
+    if not BUILTINS_FILE.exists():
+        failures.append(f"{BUILTINS_FILE.relative_to(ROOT)}: missing builtin boundary module")
+
+    for lean_file in RUNTIME_INTERPRETERS:
+        text = scrub_lean_code(lean_file.read_text(encoding="utf-8"))
+        rel = lean_file.relative_to(ROOT)
+
+        if not IMPORT_BUILTINS_RE.search(text):
+            failures.append(f"{rel}: missing import Compiler.Proofs.YulGeneration.Builtins")
+
+        if not BUILTIN_CALL_RE.search(text):
+            failures.append(
+                f"{rel}: missing call to Compiler.Proofs.YulGeneration."
+                "evalBuiltinCall or evalBuiltinCallWithBackend"
+            )
+
+        if INLINE_DISPATCH_RE.search(text):
+            failures.append(
+                f"{rel}: inline builtin dispatch detected; move builtin semantics to "
+                "Compiler/Proofs/YulGeneration/Builtins.lean"
+            )
+
+    return failures
+
+
+def run_compilation_checks(args: argparse.Namespace) -> tuple[list[str], int, int]:
     yul_dirs = [resolve_dir(d) for d in (args.dirs or [str(YUL_DIR)])]
     files, failures = collect_yul_files(yul_dirs)
     if not files and not failures:
@@ -175,7 +230,9 @@ def main(argv: list[str] | None = None) -> None:
             continue
         bytecode_by_file[path] = bytecode
 
+    compare_count = 0
     if args.compare_dirs is not None:
+        compare_count += 1
         allowed_diffs = load_allowed_compare_diffs(args.allow_compare_diff_file)
         seen_diffs: set[tuple[str, str]] = set()
         dir_a = resolve_dir(args.compare_dirs[0])
@@ -232,39 +289,66 @@ def main(argv: list[str] | None = None) -> None:
                     f"{stale_rendered}"
                 )
 
-    if args.same_file_pairs is not None:
-        for raw_a, raw_b in args.same_file_pairs:
-            dir_a = resolve_dir(raw_a)
-            dir_b = resolve_dir(raw_b)
-            files_a = sorted(dir_a.glob("*.yul")) if dir_a.exists() else []
-            files_b = sorted(dir_b.glob("*.yul")) if dir_b.exists() else []
-            if not dir_a.exists():
-                failures.append(f"Same-file check directory does not exist: {dir_a}")
-                continue
-            if not dir_b.exists():
-                failures.append(f"Same-file check directory does not exist: {dir_b}")
-                continue
-            if not files_a:
-                failures.append(f"No Yul files found in same-file check directory: {dir_a}")
-                continue
-            if not files_b:
-                failures.append(f"No Yul files found in same-file check directory: {dir_b}")
-                continue
-            compare_filename_sets(
-                dir_a,
-                files_a,
-                dir_b,
-                files_b,
-                failures,
-                missing_a_label=f"{dir_a} missing file present in {dir_b}",
-                missing_b_label=f"{dir_b} missing file present in {dir_a}",
-            )
+    same_file_pairs = args.same_file_pairs or []
+    compare_count += len(same_file_pairs)
+    for raw_a, raw_b in same_file_pairs:
+        dir_a = resolve_dir(raw_a)
+        dir_b = resolve_dir(raw_b)
+        files_a = sorted(dir_a.glob("*.yul")) if dir_a.exists() else []
+        files_b = sorted(dir_b.glob("*.yul")) if dir_b.exists() else []
+        if not dir_a.exists():
+            failures.append(f"Same-file check directory does not exist: {dir_a}")
+            continue
+        if not dir_b.exists():
+            failures.append(f"Same-file check directory does not exist: {dir_b}")
+            continue
+        if not files_a:
+            failures.append(f"No Yul files found in same-file check directory: {dir_a}")
+            continue
+        if not files_b:
+            failures.append(f"No Yul files found in same-file check directory: {dir_b}")
+            continue
+        compare_filename_sets(
+            dir_a,
+            files_a,
+            dir_b,
+            files_b,
+            failures,
+            missing_a_label=f"{dir_a} missing file present in {dir_b}",
+            missing_b_label=f"{dir_b} missing file present in {dir_a}",
+        )
 
-    report_errors(failures, "Yul->EVM compilation failed")
+    return failures, len(files), compare_count
 
-    print(f"Yul->EVM compilation check passed ({len(files)} files across {len(yul_dirs)} dirs).")
-    if args.compare_dirs is not None:
-        print(f"Bytecode parity check passed: {args.compare_dirs[0]} == {args.compare_dirs[1]}")
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    if args.builtin_boundary_only and args.skip_builtin_boundary:
+        raise SystemExit("--builtin-boundary-only cannot be combined with --skip-builtin-boundary")
+
+    failures: list[str] = []
+    if not args.skip_builtin_boundary:
+        failures.extend(collect_builtin_boundary_failures())
+
+    checked_files = 0
+    compare_count = 0
+    if not args.builtin_boundary_only:
+        compile_failures, checked_files, compare_count = run_compilation_checks(args)
+        failures.extend(compile_failures)
+
+    report_errors(failures, "Yul checks failed")
+
+    if not args.skip_builtin_boundary:
+        print("✓ Yul builtin boundary is enforced")
+    if not args.builtin_boundary_only:
+        print(
+            f"Yul->EVM compilation check passed ({checked_files} files across "
+            f"{len(args.dirs or [str(YUL_DIR)])} dirs)."
+        )
+        if args.compare_dirs is not None:
+            print(f"Bytecode parity check passed: {args.compare_dirs[0]} == {args.compare_dirs[1]}")
+        if compare_count and args.compare_dirs is None:
+            print(f"Filename parity check passed for {compare_count} directory pair(s).")
 
 
 if __name__ == "__main__":
