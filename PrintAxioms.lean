@@ -33,6 +33,7 @@ import Compiler.Proofs.EndToEnd
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.SemanticBridge
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
 
@@ -619,6 +620,16 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.SemanticBridge.simpleStorage_retrieve_edsl_to_yul
 #print axioms Compiler.Proofs.SemanticBridge.counter_increment_edsl_to_yul
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_eq_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_eq_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_iszero_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_iszero_normalized  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_eq_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_iszero_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_eq_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_iszero_bridge
+
 -- Compiler/Proofs/YulGeneration/Builtins.lean
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil
@@ -646,4 +657,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 545 theorems/lemmas (520 public, 25 private)
+-- Total: 553 theorems/lemmas (524 public, 29 private)

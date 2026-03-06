@@ -15,6 +15,7 @@
 
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
 
@@ -117,6 +118,18 @@ example : verityEval "iszero" [1] = bridgeEval "iszero" [1] := by native_decide
 /-- iszero: 2^256 ≡ 0 (word-size wraparound). -/
 example : verityEval "iszero" [Compiler.Constants.evmModulus] =
           bridgeEval "iszero" [Compiler.Constants.evmModulus] := by native_decide
+
+/-- Universal bridge theorem for `eq` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "eq" [a, b] =
+      evalPureBuiltinViaEvmYulLean "eq" [a, b] := by
+  exact evalBuiltinCall_eq_bridge storage sender selector calldata a b
+
+/-- Universal bridge theorem for `iszero` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
+    evalBuiltinCall storage sender selector calldata "iszero" [a] =
+      evalPureBuiltinViaEvmYulLean "iszero" [a] := by
+  exact evalBuiltinCall_iszero_bridge storage sender selector calldata a
 
 /-- lt: 2^256 wraps to 0, so 0 < 1. -/
 example : verityEval "lt" [Compiler.Constants.evmModulus, 1] =
