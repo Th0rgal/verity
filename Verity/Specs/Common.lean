@@ -115,6 +115,46 @@ def sameStorageMap2Context (s s' : ContractState) : Prop :=
 @[simp] theorem sameStorageMap2Context_rfl (s : ContractState) : sameStorageMap2Context s s :=
   ⟨rfl, rfl, sameContext_rfl s⟩
 
+/-- Mapping storage and context are unchanged. -/
+def sameMapContext (s s' : ContractState) : Prop :=
+  sameStorageMap s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameMapContext_rfl (s : ContractState) : sameMapContext s s :=
+  ⟨rfl, sameContext_rfl s⟩
+
+/-- One address slot and context are unchanged. -/
+def sameStorageAddrSlotContext (addrSlot : Nat) (s s' : ContractState) : Prop :=
+  sameStorageAddrSlot addrSlot s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageAddrSlotContext_rfl (addrSlot : Nat) (s : ContractState) :
+    sameStorageAddrSlotContext addrSlot s s :=
+  ⟨rfl, sameContext_rfl s⟩
+
+/-- One address slot, double-mapping storage, and context are unchanged. -/
+def sameStorageAddrSlotMap2Context (addrSlot : Nat) (s s' : ContractState) : Prop :=
+  sameStorageAddrSlot addrSlot s s' ∧
+  sameStorageMap2 s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageAddrSlotMap2Context_rfl (addrSlot : Nat) (s : ContractState) :
+    sameStorageAddrSlotMap2Context addrSlot s s :=
+  ⟨rfl, rfl, sameContext_rfl s⟩
+
+/-- One Uint256 slot, one address slot, double-mapping storage, and context are unchanged. -/
+def sameStorageSlotAddrSlotMap2Context
+    (storageSlot addrSlot : Nat) (s s' : ContractState) : Prop :=
+  sameStorageSlot storageSlot s s' ∧
+  sameStorageAddrSlot addrSlot s s' ∧
+  sameStorageMap2 s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageSlotAddrSlotMap2Context_rfl
+    (storageSlot addrSlot : Nat) (s : ContractState) :
+    sameStorageSlotAddrSlotMap2Context storageSlot addrSlot s s :=
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
+
 /-- Uint256 storage, address storage, mapping storage, and context are unchanged. -/
 def sameStorageAddrMapContext (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
