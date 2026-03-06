@@ -36,19 +36,13 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
 /-- transfer: sender balance decreases and recipient balance increases by amount -/
 def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s.storageMap 2 sender ≥ amount ∧
-  (if sender == to
-    then s'.storageMap 2 sender = s.storageMap 2 sender
-    else s'.storageMap 2 sender = sub (s.storageMap 2 sender) amount) ∧
-  (if sender == to
-    then s'.storageMap 2 to = s.storageMap 2 to
-    else s'.storageMap 2 to = add (s.storageMap 2 to) amount) ∧
-  (if sender == to
-    then storageMapUnchangedExceptKeyAtSlot 2 sender s s'
-    else storageMapUnchangedExceptKeysAtSlot 2 sender to s s') ∧
-  s'.storage 1 = s.storage 1 ∧
-  s'.storageAddr 0 = s.storageAddr 0 ∧
-  sameStorageMap2 s s' ∧
-  sameContext s s'
+  storageMapTransferSpec 2 sender to amount
+    (fun st st' =>
+      st'.storage 1 = st.storage 1 ∧
+      st'.storageAddr 0 = st.storageAddr 0 ∧
+      sameStorageMap2 st st' ∧
+      sameContext st st')
+    s s'
 
 /-- approve: updates the owner-spender allowance mapping entry -/
 def approve_spec (ownerAddr spender : Address) (amount : Uint256) (s s' : ContractState) : Prop :=

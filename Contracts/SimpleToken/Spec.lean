@@ -35,17 +35,11 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
 /-- Transfer: moves amount from sender to recipient, preserves total supply -/
 def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s.storageMap 1 sender ≥ amount ∧
-  (if sender == to
-    then s'.storageMap 1 sender = s.storageMap 1 sender
-    else s'.storageMap 1 sender = sub (s.storageMap 1 sender) amount) ∧
-  (if sender == to
-    then s'.storageMap 1 to = s.storageMap 1 to
-    else s'.storageMap 1 to = add (s.storageMap 1 to) amount) ∧
-  (if sender == to
-    then storageMapUnchangedExceptKeyAtSlot 1 sender s s'
-    else storageMapUnchangedExceptKeysAtSlot 1 sender to s s') ∧
-  s'.storageAddr 0 = s.storageAddr 0 ∧
-  sameStorageAddrContext s s'
+  storageMapTransferSpec 1 sender to amount
+    (fun st st' =>
+      st'.storageAddr 0 = st.storageAddr 0 ∧
+      sameStorageAddrContext st st')
+    s s'
 
 /-- balanceOf: returns the balance of the given address -/
 def balanceOf_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
