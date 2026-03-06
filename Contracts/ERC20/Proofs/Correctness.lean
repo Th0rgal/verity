@@ -39,7 +39,8 @@ theorem getOwner_preserves_state (s : ContractState) :
 theorem approve_is_balance_neutral_holds (s : ContractState) (spender : Address) (amount : Uint256) :
     approve_is_balance_neutral s ((Contracts.MacroContracts.ERC20.approve spender amount).runState s) := by
   have h := approve_meets_spec s spender amount
-  rcases h with ⟨_, _, _, h_storage, _, h_storageMap, _⟩
+  rcases h with ⟨_, _, h_frame⟩
+  rcases h_frame with ⟨h_storage, _, h_storageMap, _⟩
   exact ⟨h_storage, h_storageMap⟩
 
 /-- `transfer` preserves total supply under successful-path preconditions. -/
