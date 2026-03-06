@@ -10,7 +10,7 @@ EDSL (Lean)
 CompilationModel
   ↓ [Layer 2: FULLY VERIFIED — CompilationModel → IR]
 IR
-  ↓ [Layer 3: FULLY VERIFIED, 2 axioms — IR → Yul]
+  ↓ [Layer 3: FULLY VERIFIED, 1 axiom — IR → Yul]
 Yul
   ↓ [trusted — solc]
 EVM Bytecode

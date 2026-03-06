@@ -36,40 +36,6 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `resultsMatch_switchCaseBody_of_resultsMatch_body` (private)
-
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:300`
-
-**Statement**:
-```lean
-private axiom resultsMatch_switchCaseBody_of_resultsMatch_body
-    (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat) :
-    resultsMatch
-      (execIRFunction fn tx.args irState)
-      (interpretYulRuntime fn.body
-        { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
-        irState.storage irState.events) →
-    resultsMatch
-      (execIRFunction fn tx.args irState)
-      (yulResultOfExecWithRollback
-        (YulState.initial
-          { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
-          irState.storage irState.events)
-        (execYulStmtsFuel fuel
-          ((YulState.initial
-            { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
-            irState.storage irState.events).setVar "__has_selector" 1)
-          (switchCaseBody fn)))
-```
-
-**Purpose**:
-Bridges the remaining `switchCaseBody` dispatch-context alignment step in preservation.
-
-**Elimination path**:
-Replace with a theorem that discharges the context/fuel bridge directly in `Preservation.lean`.
-
-**Risk**: Medium (proof-kernel assumption in preservation proof module).
-
 ## Trusted Cryptographic Primitive (Non-Axiom)
 
 ### `ffi.KEC` (keccak256 via EVMYul FFI)
@@ -123,7 +89,8 @@ scoped to contracts that use the module.
 
 The repository removed prior axioms related to IR and Yul expression and statement equivalence and address injectivity by making interpreters total and by using a bounded-nat `Address` representation.
 
-These removals reduced prior axiom debt, and preservation now carries one private bridge axiom.
+These removals reduced prior axiom debt. The remaining Layer 3 switch-case bridge is now
+an explicit theorem parameter (`SwitchCaseBodyBridge`) rather than a Lean kernel axiom.
 
 ## Non-Axiom: Arithmetic Semantics
 
@@ -131,7 +98,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 2
+- Active axioms: 1
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axiom_locations.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not
@@ -156,4 +123,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-03-05
+**Last Updated**: 2026-03-06

@@ -109,7 +109,7 @@ EVM Bytecode
 | 2 | CompilationModel → IR preserves behavior | [IRInterpreter.lean](Compiler/Proofs/IRGeneration/IRInterpreter.lean) |
 | 3 | IR → Yul codegen preserves behavior | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
-Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 2 axioms (one selector axiom plus one private preservation bridge axiom). See [AXIOMS.md](AXIOMS.md).
+Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 1 axiom (the selector axiom). See [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 

@@ -153,18 +153,22 @@ theorem layer3_contract_preserves_semantics
         { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
     (hWF : ContractWF contract)
     (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none) :
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hSwitchCaseBody : ∀ fn, fn ∈ contract.functions → ∀ fuel,
+      SwitchCaseBodyBridge fn tx
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector } fuel) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
   apply yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive
-  intro fn hmem
-  exact yulBody_from_state_eq_yulBody fn tx
+  · intro fn hmem
+    exact yulBody_from_state_eq_yulBody fn tx
     { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
     rfl rfl rfl (by simp [hreturn])
     (by simp [hmemory])
     (by simp [hvars])
     (hparamErase fn hmem)
+  · exact hSwitchCaseBody
 
 /-- Unconditioned version: delegates directly to `yulCodegen_preserves_semantics`. -/
 theorem layer3_contract_preserves_semantics_general
@@ -178,11 +182,14 @@ theorem layer3_contract_preserves_semantics_general
         (execIRFunction fn tx.args
           { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
         (interpretYulBody fn tx
-          { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
+          { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }))
+    (hSwitchCaseBody : ∀ fn, fn ∈ contract.functions → ∀ fuel,
+      SwitchCaseBodyBridge fn tx
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector } fuel) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
-  yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive hbody
+  yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive hbody hSwitchCaseBody
 
 /-! ## Layers 2+3 Composition -/
 
@@ -201,11 +208,14 @@ theorem layers2_3_ir_matches_yul
         { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
     (hWF : ContractWF irContract)
     (hNoFallback : irContract.fallbackEntrypoint = none)
-    (hNoReceive : irContract.receiveEntrypoint = none) :
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hSwitchCaseBody : ∀ fn, fn ∈ irContract.functions → ∀ fuel,
+      SwitchCaseBodyBridge fn tx
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector } fuel) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
       (interpretYulFromIR irContract tx initialState) :=
-  layer3_contract_preserves_semantics irContract tx initialState hselector hvars hmemory hreturn hparamErase hWF hNoFallback hNoReceive
+  layer3_contract_preserves_semantics irContract tx initialState hselector hvars hmemory hreturn hparamErase hWF hNoFallback hNoReceive hSwitchCaseBody
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
@@ -218,12 +228,15 @@ theorem simpleStorage_endToEnd
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       paramLoadErasure fn tx
-        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }) :
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+    (hSwitchCaseBody : ∀ fn, fn ∈ simpleStorageIRContract.functions → ∀ fuel,
+      SwitchCaseBodyBridge fn tx
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector } fuel) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=
   layer3_contract_preserves_semantics simpleStorageIRContract tx initialState hselector hvars hmemory hreturn hparamErase
-    (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
+    (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl hSwitchCaseBody
 
 /-! ## Universal Pure Arithmetic Bridge
 

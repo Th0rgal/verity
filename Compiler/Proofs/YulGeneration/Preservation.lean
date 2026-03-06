@@ -291,13 +291,13 @@ private theorem evalSelectorExpr_setVar_has_selector (state : YulState) (v : Nat
   simpa using (evalYulExpr_selectorExpr_eq (state.setVar "__has_selector" v) (by
     simpa [YulState.setVar] using hselector))
 
-/-! ### switchCaseBody bridge axiom
+/-! ### switchCaseBody bridge hypothesis
 
 The remaining contract-level gap is connecting `hbody` (which reasons about
 `interpretYulRuntime fn.body ...`) to the runtime dispatch execution context
 (`switchCaseBody fn`, augmented state with `__has_selector`, and variable fuel).
 -/
-private axiom resultsMatch_switchCaseBody_of_resultsMatch_body
+private def SwitchCaseBodyBridge
     (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat) :
     resultsMatch
       (execIRFunction fn tx.args irState)
@@ -335,7 +335,10 @@ theorem yulCodegen_preserves_semantics
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
         (execIRFunction fn tx.args { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
-        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
+        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }))
+    (hSwitchCaseBody : ∀ fn, fn ∈ contract.functions → ∀ fuel,
+      SwitchCaseBodyBridge fn tx
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector } fuel) :
     resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
@@ -435,12 +438,13 @@ theorem yulCodegen_preserves_semantics
       -- Apply switch match lemma
       rw [show m + 4 + 1 = Nat.succ (m + 4) from by omega]
       rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
-      exact resultsMatch_switchCaseBody_of_resultsMatch_body fn tx irState (m + 4) hmatch
+      exact hSwitchCaseBody fn hmem (m + 4) hmatch
 
-/-! ## Complete Preservation Theorem (No Undischarged Hypotheses)
+/-! ## Complete Preservation Theorem (Switch-Case Bridge Parameterized)
 
 This version of the preservation theorem discharges the `hbody` hypothesis
-using the proven `all_stmts_equiv` and the `execIRFunctionFuel_adequate` lemma.
+using the proven `all_stmts_equiv` and the `execIRFunctionFuel_adequate` lemma,
+while leaving `SwitchCaseBodyBridge` as an explicit theorem parameter.
 
 The remaining gap between `interpretYulBodyFromState` (fuel-based proof chain) and
 `interpretYulBody` (used by the parameterized theorem above) requires bridging two
@@ -458,7 +462,7 @@ single function, and `yulCodegen_preserves_semantics` lifts it to full contracts
 
 /-- Any single IR function body produces equivalent results under fuel-based Yul execution.
 
-This is the instantiation of the proof chain with `all_stmts_equiv` and the adequacy axiom,
+This is the instantiation of the proof chain with `all_stmts_equiv` and the adequacy lemma,
 producing a self-contained result for any function/args/state triple.
 -/
 theorem ir_function_body_equiv
