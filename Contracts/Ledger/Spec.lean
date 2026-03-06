@@ -4,6 +4,7 @@
 
 import Verity.Specs.Common
 import Verity.Specs.Common.Sum
+import Verity.Macro
 import Verity.EVM.Uint256
 import Contracts.MacroContracts.Core
 
@@ -17,21 +18,13 @@ open Verity.Specs.Common (sumBalances balancesFinite)
 
 /-! ## Operation Specifications -/
 
-/-- deposit: increases sender's balance by amount -/
-def deposit_spec (amount : Uint256) (s s' : ContractState) : Prop :=
-  storageMapUpdateSpec
-    0 s.sender
-    (fun st => add (st.storageMap 0 st.sender) amount)
-    sameStorageAddrContext
-    s s'
+-- deposit: increases sender's balance by amount
+#gen_spec_map deposit_spec for (amount : Uint256)
+  (0, s.sender, (fun st => add (st.storageMap 0 st.sender) amount), sameStorageAddrContext)
 
-/-- withdraw (when sufficient balance): decreases sender's balance by amount -/
-def withdraw_spec (amount : Uint256) (s s' : ContractState) : Prop :=
-  storageMapUpdateSpec
-    0 s.sender
-    (fun st => sub (st.storageMap 0 st.sender) amount)
-    sameStorageAddrContext
-    s s'
+-- withdraw (when sufficient balance): decreases sender's balance by amount
+#gen_spec_map withdraw_spec for (amount : Uint256)
+  (0, s.sender, (fun st => sub (st.storageMap 0 st.sender) amount), sameStorageAddrContext)
 
 /-- transfer: moves amount from sender to recipient -/
 def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=

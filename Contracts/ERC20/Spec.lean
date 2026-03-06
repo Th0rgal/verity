@@ -18,13 +18,9 @@ open Verity.Specs
 #gen_spec_addr_storage constructor_spec for (initialOwner : Address)
   (0, 1, (fun _ => initialOwner), (fun _ => 0), sameStorageMap2Context)
 
-/-- mint: increases recipient balance and total supply by amount -/
-def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  storageMapAndStorageUpdateSpec
-    2 to (fun st => add (st.storageMap 2 to) amount)
-    1 (fun st => add (st.storage 1) amount)
-    (sameStorageAddrSlotMap2Context 0)
-    s s'
+-- mint: increases recipient balance and total supply by amount
+#gen_spec_map_storage mint_spec for (to : Address) (amount : Uint256)
+  (2, to, (fun st => add (st.storageMap 2 to) amount), 1, (fun st => add (st.storage 1) amount), sameStorageAddrSlotMap2Context 0)
 
 /-- transfer: sender balance decreases and recipient balance increases by amount -/
 def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
