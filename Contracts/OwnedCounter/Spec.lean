@@ -16,9 +16,8 @@ open Verity.EVM.Uint256
 
 /-! ## Operation Specifications -/
 
-/-- Constructor: sets owner -/
-def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
-  storageAddrUpdateSpec 0 (fun _ => initialOwner) sameStorageMapContext s s'
+-- Constructor: sets owner.
+#gen_spec_addr constructor_spec for (initialOwner : Address) (0, (fun _ => initialOwner), sameStorageMapContext)
 
 /-- getCount: returns current count -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=
@@ -34,8 +33,7 @@ def getOwner_spec (result : Address) (s : ContractState) : Prop :=
 -- decrement: decreases count by 1 (owner only)
 #gen_spec decrement_spec (1, (fun st => sub (st.storage 1) 1), sameAddrMapContext)
 
-/-- transferOwnership: changes owner (owner only) -/
-def transferOwnership_spec (newOwner : Address) (s s' : ContractState) : Prop :=
-  storageAddrUpdateSpec 0 (fun _ => newOwner) sameStorageMapContext s s'
+-- transferOwnership: changes owner (owner only).
+#gen_spec_addr transferOwnership_spec for (newOwner : Address) (0, (fun _ => newOwner), sameStorageMapContext)
 
 end Contracts.OwnedCounter.Spec

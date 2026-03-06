@@ -3,6 +3,7 @@
 -/
 
 import Verity.Specs.Common
+import Verity.Macro
 import Contracts.MacroContracts.Core
 
 namespace Contracts.SimpleStorage.Spec
@@ -10,9 +11,8 @@ namespace Contracts.SimpleStorage.Spec
 open Verity
 open Verity.Specs
 
-/-- Store: updates the storage at slot 0 -/
-def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
-  storageUpdateSpec 0 (fun _ => value) sameAddrMapContext s s'
+-- Store: updates the storage at slot 0.
+#gen_spec store_spec for (value : Uint256) (0, (fun _ => value), sameAddrMapContext)
 
 /-- Retrieve: returns the value at slot 0 -/
 def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=
