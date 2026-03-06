@@ -19,15 +19,19 @@ open Verity.Specs.Common (sumBalances balancesFinite)
 
 /-- deposit: increases sender's balance by amount -/
 def deposit_spec (amount : Uint256) (s s' : ContractState) : Prop :=
-  s'.storageMap 0 s.sender = add (s.storageMap 0 s.sender) amount ∧
-  storageMapUnchangedExceptKeyAtSlot 0 s.sender s s' ∧
-  sameStorageAddrContext s s'
+  storageMapUpdateSpec
+    0 s.sender
+    (fun st => add (st.storageMap 0 st.sender) amount)
+    sameStorageAddrContext
+    s s'
 
 /-- withdraw (when sufficient balance): decreases sender's balance by amount -/
 def withdraw_spec (amount : Uint256) (s s' : ContractState) : Prop :=
-  s'.storageMap 0 s.sender = sub (s.storageMap 0 s.sender) amount ∧
-  storageMapUnchangedExceptKeyAtSlot 0 s.sender s s' ∧
-  sameStorageAddrContext s s'
+  storageMapUpdateSpec
+    0 s.sender
+    (fun st => sub (st.storageMap 0 st.sender) amount)
+    sameStorageAddrContext
+    s s'
 
 /-- transfer: moves amount from sender to recipient -/
 def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
