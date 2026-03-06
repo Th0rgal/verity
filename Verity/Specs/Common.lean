@@ -6,10 +6,12 @@
 -/
 
 import Verity.Core
+import Verity.EVM.Uint256
 
 namespace Verity.Specs
 
 open Verity
+open Verity.EVM.Uint256
 
 /-- Contract context (sender, address, msg value, timestamp) is unchanged. -/
 def sameContext (s s' : ContractState) : Prop :=
@@ -188,6 +190,26 @@ def storageMapAndStorageUpdateSpec
   s'.storage storageSlot = storageValue s ∧
   storageMapUnchangedExceptKeyAtSlot mapSlot key s s' ∧
   storageUnchangedExcept storageSlot s s' ∧
+  frame s s'
+
+/-- Canonical two-state spec shape for transfer-style updates on one mapping slot.
+When `from == to`, balances are unchanged; otherwise `from` is debited and `to` is credited. -/
+@[simp]
+def storageMapTransferSpec
+    (slot : Nat)
+    (fromAddr to : Address)
+    (amount : Uint256)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  (if fromAddr == to
+    then s'.storageMap slot fromAddr = s.storageMap slot fromAddr
+    else s'.storageMap slot fromAddr = sub (s.storageMap slot fromAddr) amount) ∧
+  (if fromAddr == to
+    then s'.storageMap slot to = s.storageMap slot to
+    else s'.storageMap slot to = add (s.storageMap slot to) amount) ∧
+  (if fromAddr == to
+    then storageMapUnchangedExceptKeyAtSlot slot fromAddr s s'
+    else storageMapUnchangedExceptKeysAtSlot slot fromAddr to s s') ∧
   frame s s'
 
 /-- All storage (uint256, addr, map, mapUint, map2) is unchanged. -/

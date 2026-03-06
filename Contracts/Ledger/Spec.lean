@@ -31,16 +31,7 @@ def withdraw_spec (amount : Uint256) (s s' : ContractState) : Prop :=
 
 /-- transfer: moves amount from sender to recipient -/
 def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  (if s.sender == to
-    then s'.storageMap 0 s.sender = s.storageMap 0 s.sender
-    else s'.storageMap 0 s.sender = sub (s.storageMap 0 s.sender) amount) ∧
-  (if s.sender == to
-    then s'.storageMap 0 to = s.storageMap 0 to
-    else s'.storageMap 0 to = add (s.storageMap 0 to) amount) ∧
-  (if s.sender == to
-    then storageMapUnchangedExceptKeyAtSlot 0 s.sender s s'
-    else storageMapUnchangedExceptKeysAtSlot 0 s.sender to s s') ∧
-  sameStorageAddrContext s s'
+  storageMapTransferSpec 0 s.sender to amount sameStorageAddrContext s s'
 
 /-- getBalance: returns balance at given address, no state change -/
 def getBalance_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
