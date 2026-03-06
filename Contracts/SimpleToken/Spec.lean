@@ -28,7 +28,7 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
     1 to (fun st => add (st.storageMap 1 to) amount)
     2 (fun st => add (st.storage 2) amount)
     (fun st st' =>
-      st'.storageAddr 0 = st.storageAddr 0 ∧
+      sameStorageAddrSlot 0 st st' ∧
       sameContext st st')
     s s'
 
@@ -37,7 +37,7 @@ def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState
   s.storageMap 1 sender ≥ amount ∧
   storageMapTransferSpec 1 sender to amount
     (fun st st' =>
-      st'.storageAddr 0 = st.storageAddr 0 ∧
+      sameStorageAddrSlot 0 st st' ∧
       sameStorageAddrContext st st')
     s s'
 

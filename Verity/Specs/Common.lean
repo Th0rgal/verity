@@ -29,11 +29,25 @@ def sameStorage (s s' : ContractState) : Prop :=
 
 @[simp] theorem sameStorage_rfl (s : ContractState) : sameStorage s s := rfl
 
+/-- One Uint256 storage slot is unchanged. -/
+def sameStorageSlot (slot : Nat) (s s' : ContractState) : Prop :=
+  s'.storage slot = s.storage slot
+
+@[simp] theorem sameStorageSlot_rfl (slot : Nat) (s : ContractState) :
+    sameStorageSlot slot s s := rfl
+
 /-- Address storage is unchanged. -/
 def sameStorageAddr (s s' : ContractState) : Prop :=
   s'.storageAddr = s.storageAddr
 
 @[simp] theorem sameStorageAddr_rfl (s : ContractState) : sameStorageAddr s s := rfl
+
+/-- One address storage slot is unchanged. -/
+def sameStorageAddrSlot (slot : Nat) (s s' : ContractState) : Prop :=
+  s'.storageAddr slot = s.storageAddr slot
+
+@[simp] theorem sameStorageAddrSlot_rfl (slot : Nat) (s : ContractState) :
+    sameStorageAddrSlot slot s s := rfl
 
 /-- Mapping storage is unchanged. -/
 def sameStorageMap (s s' : ContractState) : Prop :=
