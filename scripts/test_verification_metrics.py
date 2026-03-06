@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -98,6 +99,27 @@ class VerificationMetricsTests(unittest.TestCase):
             artifact.write_text(json.dumps(payload) + "\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "root: unknown keys: extra"):
                 verification_metrics.load_metrics_from_artifact(artifact)
+
+    def test_generate_verification_status_check_rejects_invalid_artifact_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifact = Path(tmpdir) / "verification_status.json"
+            payload = verification_metrics.collect_metrics()
+            payload["proofs"]["axioms"] = True
+            artifact.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_DIR / "generate_verification_status.py"),
+                    "--check",
+                    "--output",
+                    str(artifact),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("proofs.axioms must be an integer, got bool", result.stderr)
 
 
 if __name__ == "__main__":
