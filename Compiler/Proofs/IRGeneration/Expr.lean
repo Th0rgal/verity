@@ -3,12 +3,10 @@
 -/
 
 import Compiler.Constants
-import Compiler.Specs
 
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
-open Compiler.Specs
 open Compiler.Yul
 open Compiler.Constants
 

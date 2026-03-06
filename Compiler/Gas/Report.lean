@@ -1,8 +1,8 @@
-import Compiler.Specs
 import Compiler.Selector
 import Compiler.CompilationModel
 import Compiler.Codegen
 import Compiler.Gas.StaticAnalysis
+import Compiler.ModuleInput
 
 namespace Compiler.Gas
 
@@ -11,6 +11,8 @@ open Compiler.CompilationModel
 open Compiler.Selector
 
 private structure CliConfig where
+  manifestPath : Option String := none
+  modules : List String := []
   loopIterations : Nat := 8
   unknownCallCost : Nat := 50000
   unknownForwardedGas : Nat := 50000
@@ -29,6 +31,8 @@ private def printHelp : IO Unit := do
   IO.println "Usage: lake exe gas-report [options]"
   IO.println ""
   IO.println "Options:"
+  IO.println "  --manifest <path>      Manifest file with one Lean module per line"
+  IO.println "  --module <name>        Import a Lean module and analyze its canonical `<Module>.spec`"
   IO.println "  --loop-iterations <n>   Loop upper bound used by static analysis (default: 8)"
   IO.println "  --unknown-call-cost <n> Fallback cost for unknown builtins/calls (default: 50000)"
   IO.println "  --unknown-forwarded-gas <n> Fallback forwarded gas for CALL-like builtins (default: 50000)"
@@ -40,10 +44,21 @@ private def printHelp : IO Unit := do
 private def parseArgs (args : List String) : IO CliConfig := do
   let rec go (rest : List String) (cfg : CliConfig) : IO CliConfig := do
     match rest with
-    | [] => pure cfg
+    | [] => pure { cfg with modules := cfg.modules.reverse }
     | "--help" :: _ =>
         printHelp
         throw <| IO.userError "help"
+    | "--manifest" :: path :: tail =>
+        if cfg.manifestPath.isSome then
+          throw <| IO.userError "Cannot specify --manifest more than once"
+        else
+          go tail { cfg with manifestPath := some path }
+    | ["--manifest"] =>
+        throw <| IO.userError "Missing value for --manifest"
+    | "--module" :: value :: tail =>
+        go tail { cfg with modules := value :: cfg.modules }
+    | ["--module"] =>
+        throw <| IO.userError "Missing value for --module"
     | "--loop-iterations" :: value :: tail =>
         go tail { cfg with loopIterations := (← parseNatFlag "--loop-iterations" value) }
     | "--unknown-call-cost" :: value :: tail =>
@@ -81,9 +96,19 @@ private def compileAndBound
 private def printRow (name : String) (deploy runtime : Nat) : IO Unit :=
   IO.println s!"{name}\t{deploy}\t{runtime}\t{deploy + runtime}"
 
-def main (args : List String) : IO Unit := do
+unsafe def main (args : List String) : IO Unit := do
   try
     let cli ← parseArgs args
+    let rawModules ←
+      match ← Compiler.ModuleInput.resolveRawModules cli.manifestPath cli.modules with
+      | .ok modules => pure modules
+      | .error err => throw <| IO.userError err
+    if rawModules.isEmpty then
+      throw <| IO.userError "No compiler input provided. Use --manifest and/or --module."
+    let specs ←
+      match ← Compiler.ModuleInput.loadSpecsFromRawModules rawModules with
+      | .ok specs => pure specs
+      | .error err => throw <| IO.userError err
     let gasCfg : GasConfig := {
       loopIterations := cli.loopIterations
       unknownCallCost := cli.unknownCallCost
@@ -102,7 +127,7 @@ def main (args : List String) : IO Unit := do
     let mut totalDeploy := 0
     let mut totalRuntime := 0
 
-    for spec in Compiler.Specs.allSpecs do
+    for spec in specs do
       let (name, deployBound, runtimeBound) ← compileAndBound gasCfg cli.fuel emitOptions spec
       totalDeploy := totalDeploy + deployBound
       totalRuntime := totalRuntime + runtimeBound
@@ -117,5 +142,5 @@ def main (args : List String) : IO Unit := do
 
 end Compiler.Gas
 
-def main (args : List String) : IO Unit :=
+unsafe def main (args : List String) : IO Unit :=
   Compiler.Gas.main args

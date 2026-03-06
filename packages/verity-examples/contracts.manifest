@@ -1,0 +1,10 @@
+# Canonical example contracts compiled through the generic compiler CLI.
+Contracts.MacroContracts.SimpleStorage
+Contracts.MacroContracts.Counter
+Contracts.MacroContracts.Owned
+Contracts.MacroContracts.Ledger
+Contracts.MacroContracts.OwnedCounter
+Contracts.MacroContracts.SimpleToken
+Contracts.MacroContracts.SafeCounter
+Contracts.MacroContracts.ERC20
+Contracts.MacroContracts.ERC721

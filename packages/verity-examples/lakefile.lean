@@ -24,9 +24,3 @@ lean_lib «Contracts» where
     .andSubmodules `Contracts.CryptoHash,
     .andSubmodules `Contracts.ReentrancyExample
   ]
-
-lean_exe «difftest-interpreter» where
-  root := `Compiler.Interpreter
-
-lean_exe «macro-roundtrip-fuzz» where
-  root := `Compiler.MacroTranslateRoundTripFuzz

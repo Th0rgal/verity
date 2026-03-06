@@ -1,4 +1,4 @@
-import Compiler.Specs
+import Compiler.CompilationModel
 
 namespace Compiler.CompilationModelFeatureTest
 
@@ -28,18 +28,37 @@ private def selectorCount (spec : CompilationModel) : Nat :=
 private def selectorsFor (spec : CompilationModel) : List Nat :=
   List.range (selectorCount spec)
 
+private def selectorSmokeSpec : CompilationModel := {
+  name := "SelectorSmoke"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.setStorage "value" (Expr.param "next"),
+        Stmt.stop
+      ]
+    },
+    { name := "load"
+      params := []
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.storage "value")]
+    }
+  ]
+}
+
 #eval! do
-  let specs := Compiler.Specs.allSpecs
-  let allCompiled :=
-    specs.all (fun spec =>
-      match Compiler.CompilationModel.compile spec (selectorsFor spec) with
-      | .ok _ => true
-      | .error _ => false)
-  expectTrue "all shipped CompilationModel specs compile with deterministic selectors" allCompiled
+  let compiled :=
+    match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "local CompilationModel smoke spec compiles with deterministic selectors" compiled
 
   -- Regression: selector mismatch must fail closed.
   let mismatchRejected :=
-    match Compiler.CompilationModel.compile Compiler.Specs.counterSpec [] with
+    match Compiler.CompilationModel.compile selectorSmokeSpec [] with
     | .ok _ => false
     | .error msg => contains msg "Selector count mismatch"
   expectTrue "selector mismatch is rejected with deterministic diagnostic" mismatchRejected

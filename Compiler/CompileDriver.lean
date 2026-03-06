@@ -1,10 +1,10 @@
 import Std
-import Compiler.Specs
 import Compiler.Selector
 import Compiler.Codegen
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ABI
+import Compiler.ModuleInput
 import Compiler.Lowering.FromEDSL
 
 open Compiler
@@ -33,17 +33,6 @@ private def renderPatchReportTsv (rows : List (String × Yul.PatchPassReport)) :
 
 private def writePatchReport (path : String) (rows : List (String × Yul.PatchPassReport)) : IO Unit := do
   IO.FS.writeFile path (renderPatchReportTsv rows)
-
-private def resolveSpecsForModelInput (libraryPaths : List String) : List CompilationModel :=
-  if libraryPaths.isEmpty then Specs.allSpecs else Specs.allSpecs ++ [Specs.cryptoHashSpec]
-
-private def resolveSpecsForEDSLInput
-    (libraryPaths : List String)
-    (rawContracts : List String) : Except String (List CompilationModel) := do
-  if !libraryPaths.isEmpty then
-    .error Compiler.Lowering.edslInputLinkedLibrariesUnsupportedMessage
-  else
-    Compiler.Lowering.lowerRequestedEDSLContracts rawContracts
 
 private def writeContract
     (outDir : String)
@@ -81,7 +70,7 @@ private def writeContract
   IO.FS.writeFile path text
   pure patchReport
 
-private def compileSpecsWithOptions
+def compileSpecsWithOptions
     (specs : List CompilationModel)
     (outDir : String)
     (verbose : Bool)
@@ -147,28 +136,16 @@ private def compileSpecsWithOptions
     IO.println "Compilation complete!"
     IO.println s!"Generated {specs.length} contracts in {outDir}"
 
-def compileAllWithOptions
+unsafe def compileModulesWithOptions
     (outDir : String)
+    (modules : List String)
     (verbose : Bool := false)
     (libraryPaths : List String := [])
-    (options : YulEmitOptions := {})
-    (patchReportPath : Option String := none)
-    (abiOutDir : Option String := none) : IO Unit := do
-  compileSpecsWithOptions (resolveSpecsForModelInput libraryPaths) outDir verbose libraryPaths options patchReportPath abiOutDir
-
-def compileAllFromEDSLWithOptions
-    (outDir : String)
-    (verbose : Bool := false)
-    (libraryPaths : List String := [])
-    (edslContracts : List String := [])
     (options : YulEmitOptions := {})
     (patchReportPath : Option String := none)
     (abiOutDir : Option String := none) : IO Unit := do
   let specs ←
-    match resolveSpecsForEDSLInput libraryPaths edslContracts with
+    match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions specs outDir verbose libraryPaths options patchReportPath abiOutDir
-
-def compileAll (outDir : String) (verbose : Bool := false) (libraryPaths : List String := []) : IO Unit := do
-  compileAllWithOptions outDir verbose libraryPaths {} none none

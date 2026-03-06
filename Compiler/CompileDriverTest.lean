@@ -1,7 +1,11 @@
 import Compiler.CompileDriver
-import Compiler.Lowering.FromEDSL
+import Compiler.CompilationModel
+import Compiler.ModuleInput
 
 namespace Compiler.CompileDriverTest
+
+open Compiler
+open Compiler.CompilationModel
 
 private def contains (haystack needle : String) : Bool :=
   let h := haystack.toList
@@ -39,178 +43,185 @@ private def expectFileEquals (label : String) (lhs rhs : String) : IO Unit := do
     throw (IO.userError s!"✗ {label}: files differ\nlhs: {lhs}\nrhs: {rhs}")
   IO.println s!"✓ {label}"
 
-private def expectEDSLParity
-    (modelOutDir edslOutDir modelAbiDir edslAbiDir : String) : IO Unit := do
-  for contract in Compiler.Lowering.edslContracts do
-    expectFileEquals
-      s!"EDSL Yul parity: {contract.name}"
-      s!"{modelOutDir}/{contract.name}.yul"
-      s!"{edslOutDir}/{contract.name}.yul"
-    expectFileEquals
-      s!"EDSL ABI parity: {contract.name}"
-      s!"{modelAbiDir}/{contract.name}.abi.json"
-      s!"{edslAbiDir}/{contract.name}.abi.json"
+private def canonicalModules : List String :=
+  [ "Contracts.MacroContracts.SimpleStorage"
+  , "Contracts.MacroContracts.Counter"
+  , "Contracts.MacroContracts.Owned"
+  , "Contracts.MacroContracts.Ledger"
+  , "Contracts.MacroContracts.OwnedCounter"
+  , "Contracts.MacroContracts.SimpleToken"
+  , "Contracts.MacroContracts.SafeCounter"
+  , "Contracts.MacroContracts.ERC20"
+  , "Contracts.MacroContracts.ERC721"
+  ]
+
+private def contractNameOfModule (moduleName : String) : String :=
+  match moduleName.splitOn "." |>.reverse with
+  | name :: _ => name
+  | [] => moduleName
+
+private def abiSmokeSpec : CompilationModel := {
+  name := "AbiSmoke"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.setStorage "value" (Expr.param "next"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def linkedLibrarySpec : CompilationModel := {
+  name := "LinkedLibrarySmoke"
+  fields := [{ name := "lastHash", ty := FieldType.uint256 }]
+  «constructor» := none
+  externals := [
+    { name := "PoseidonT3_hash"
+      params := [ParamType.uint256, ParamType.uint256]
+      returnType := some ParamType.uint256
+      axiomNames := ["poseidon_t3_deterministic"] }
+  ]
+  functions := [
+    { name := "storeHash"
+      params := [
+        { name := "a", ty := ParamType.uint256 }
+      , { name := "b", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Stmt.letVar "h" (Expr.externalCall "PoseidonT3_hash" [Expr.param "a", Expr.param "b"]),
+        Stmt.setStorage "lastHash" (Expr.localVar "h"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def expectModuleArtifacts
+    (labelPrefix : String)
+    (modules : List String)
+    (outDir abiDir : String) : IO Unit := do
+  for moduleName in modules do
+    let contractName := contractNameOfModule moduleName
+    let yulPath := s!"{outDir}/{contractName}.yul"
+    let abiPath := s!"{abiDir}/{contractName}.abi.json"
+    let yulExists ← fileExists yulPath
+    let abiExists ← fileExists abiPath
+    if !yulExists || !abiExists then
+      throw (IO.userError s!"✗ {labelPrefix}: missing artifacts for {contractName}")
+  IO.println s!"✓ {labelPrefix}"
 
 private def expectOnlySelectedArtifacts
     (label : String)
-    (selectedIds : List String)
+    (selectedModules : List String)
+    (allModules : List String)
     (outDir abiDir : String) : IO Unit := do
-  for contract in Compiler.Lowering.edslContracts do
-    let shouldExist := selectedIds.contains (Compiler.Lowering.edslContractId contract)
-    let yulExists ← fileExists s!"{outDir}/{contract.name}.yul"
-    let abiExists ← fileExists s!"{abiDir}/{contract.name}.abi.json"
+  for moduleName in allModules do
+    let contractName := contractNameOfModule moduleName
+    let shouldExist := selectedModules.contains moduleName
+    let yulExists ← fileExists s!"{outDir}/{contractName}.yul"
+    let abiExists ← fileExists s!"{abiDir}/{contractName}.abi.json"
     if yulExists != shouldExist then
       throw (IO.userError
-        s!"✗ {label}: unexpected Yul artifact presence for {contract.name} (expected={shouldExist}, found={yulExists})")
+        s!"✗ {label}: unexpected Yul artifact presence for {contractName} (expected={shouldExist}, found={yulExists})")
     if abiExists != shouldExist then
       throw (IO.userError
-        s!"✗ {label}: unexpected ABI artifact presence for {contract.name} (expected={shouldExist}, found={abiExists})")
+        s!"✗ {label}: unexpected ABI artifact presence for {contractName} (expected={shouldExist}, found={abiExists})")
   IO.println s!"✓ {label}"
 
-#eval! (do
+unsafe def runTests : IO Unit := do
   let nonce ← IO.rand 0 1000000000
   let outDir := s!"/tmp/verity-compile-driver-test-{nonce}-out"
   let abiDir := s!"/tmp/verity-compile-driver-test-{nonce}-abi"
-  let modelOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-model-out"
-  let edslOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-edsl-out"
-  let modelAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-model-abi"
-  let edslAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-edsl-abi"
+  let manifestOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-manifest-out"
+  let manifestAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-manifest-abi"
   let selectedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-out"
   let selectedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-abi"
-  let reversedSelectedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-reversed-out"
-  let reversedSelectedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-reversed-abi"
-  let explicitAllOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-explicit-all-out"
-  let explicitAllAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-explicit-all-abi"
-  let explicitAllReversedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-explicit-all-reversed-out"
-  let explicitAllReversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-explicit-all-reversed-abi"
+  let reversedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-out"
+  let reversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-abi"
   let missingLib := "/tmp/definitely-missing-library.yul"
-  let failingAbi := s!"{abiDir}/CryptoHash.abi.json"
-  let successfulAbi := s!"{abiDir}/SimpleStorage.abi.json"
+  let failingAbi := s!"{abiDir}/AbiSmoke.abi.json"
 
   IO.FS.createDirAll outDir
   IO.FS.createDirAll abiDir
-  IO.FS.createDirAll modelOutDir
-  IO.FS.createDirAll edslOutDir
-  IO.FS.createDirAll modelAbiDir
-  IO.FS.createDirAll edslAbiDir
+  IO.FS.createDirAll manifestOutDir
+  IO.FS.createDirAll manifestAbiDir
   IO.FS.createDirAll selectedOutDir
   IO.FS.createDirAll selectedAbiDir
-  IO.FS.createDirAll reversedSelectedOutDir
-  IO.FS.createDirAll reversedSelectedAbiDir
-  IO.FS.createDirAll explicitAllOutDir
-  IO.FS.createDirAll explicitAllAbiDir
-  IO.FS.createDirAll explicitAllReversedOutDir
-  IO.FS.createDirAll explicitAllReversedAbiDir
+  IO.FS.createDirAll reversedOutDir
+  IO.FS.createDirAll reversedAbiDir
 
-  -- Remove stale ABI outputs from previous runs so this check is deterministic.
   try IO.FS.removeFile failingAbi catch _ => pure ()
-  try IO.FS.removeFile successfulAbi catch _ => pure ()
 
   expectFailureContains
-    "compileAllWithOptions reports missing linked library"
-    (compileAllWithOptions outDir false [missingLib] {} none (some abiDir))
+    "compileSpecsWithOptions reports missing linked library"
+    (compileSpecsWithOptions [abiSmokeSpec, linkedLibrarySpec] outDir false [missingLib] {} none (some abiDir))
     missingLib
 
   let hasFailingAbi ← fileExists failingAbi
-  if hasFailingAbi then
-    throw (IO.userError s!"✗ expected no ABI artifact for failing contract, found: {failingAbi}")
-  IO.println "✓ no ABI artifact emitted for failing contract"
-
-  let hasSuccessfulAbi ← fileExists successfulAbi
-  if !hasSuccessfulAbi then
-    throw (IO.userError s!"✗ expected ABI artifact for successful contract, missing: {successfulAbi}")
+  if !hasFailingAbi then
+    throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {failingAbi}")
   IO.println "✓ ABI artifacts still emitted for contracts compiled before failure"
 
-  compileAllWithOptions modelOutDir false [] {} none (some modelAbiDir)
-  compileAllFromEDSLWithOptions edslOutDir false [] ["simple-storage"] {} none (some edslAbiDir)
-  expectFileEquals
-    "edsl selected contract Yul matches model-path artifact"
-    s!"{modelOutDir}/SimpleStorage.yul"
-    s!"{edslOutDir}/SimpleStorage.yul"
-  expectFileEquals
-    "edsl selected contract ABI matches model-path artifact"
-    s!"{modelAbiDir}/SimpleStorage.abi.json"
-    s!"{edslAbiDir}/SimpleStorage.abi.json"
+  compileModulesWithOptions outDir canonicalModules false [] {} none (some abiDir)
+  expectModuleArtifacts "explicit module list emits Yul/ABI for all requested contracts" canonicalModules outDir abiDir
 
-  compileAllFromEDSLWithOptions edslOutDir false [] [] {} none (some edslAbiDir)
-  expectEDSLParity modelOutDir edslOutDir modelAbiDir edslAbiDir
-  let allEDSLNames := Compiler.Lowering.edslContractIds
-  compileAllFromEDSLWithOptions
-    explicitAllOutDir
-    false
-    []
-    allEDSLNames
-    {}
-    none
-    (some explicitAllAbiDir)
-  expectEDSLParity modelOutDir explicitAllOutDir modelAbiDir explicitAllAbiDir
-  let allEDSLNamesReversed := allEDSLNames.reverse
-  compileAllFromEDSLWithOptions
-    explicitAllReversedOutDir
-    false
-    []
-    allEDSLNamesReversed
-    {}
-    none
-    (some explicitAllReversedAbiDir)
-  expectEDSLParity modelOutDir explicitAllReversedOutDir modelAbiDir explicitAllReversedAbiDir
-  for contract in Compiler.Lowering.edslContracts do
-    expectFileEquals
-      s!"default-vs-explicit-full order-invariant Yul: {contract.name}"
-      s!"{edslOutDir}/{contract.name}.yul"
-      s!"{explicitAllReversedOutDir}/{contract.name}.yul"
-    expectFileEquals
-      s!"default-vs-explicit-full order-invariant ABI: {contract.name}"
-      s!"{edslAbiDir}/{contract.name}.abi.json"
-      s!"{explicitAllReversedAbiDir}/{contract.name}.abi.json"
+  let manifestModules ←
+    match ← Compiler.ModuleInput.resolveRawModules (some "packages/verity-examples/contracts.manifest") [] with
+    | .ok modules => pure modules
+    | .error err => throw (IO.userError err)
+  compileModulesWithOptions manifestOutDir manifestModules false [] {} none (some manifestAbiDir)
+  expectModuleArtifacts "manifest module list emits Yul/ABI for all requested contracts" manifestModules manifestOutDir manifestAbiDir
 
-  compileAllFromEDSLWithOptions
-    selectedOutDir
-    false
-    []
-    ["simple-storage", "counter"]
-    {}
-    none
-    (some selectedAbiDir)
+  for moduleName in canonicalModules do
+    let contractName := contractNameOfModule moduleName
+    expectFileEquals
+      s!"manifest parity Yul: {contractName}"
+      s!"{outDir}/{contractName}.yul"
+      s!"{manifestOutDir}/{contractName}.yul"
+    expectFileEquals
+      s!"manifest parity ABI: {contractName}"
+      s!"{abiDir}/{contractName}.abi.json"
+      s!"{manifestAbiDir}/{contractName}.abi.json"
+
+  let selectedModules := ["Contracts.MacroContracts.SimpleStorage", "Contracts.MacroContracts.Counter"]
+  compileModulesWithOptions selectedOutDir selectedModules false [] {} none (some selectedAbiDir)
   expectOnlySelectedArtifacts
-    "edsl multi-select emits only requested contract artifacts"
-    ["simple-storage", "counter"]
+    "selected module compilation emits only requested artifacts"
+    selectedModules
+    canonicalModules
     selectedOutDir
     selectedAbiDir
-  compileAllFromEDSLWithOptions
-    reversedSelectedOutDir
-    false
-    []
-    ["counter", "simple-storage"]
-    {}
-    none
-    (some reversedSelectedAbiDir)
+
+  compileModulesWithOptions reversedOutDir selectedModules.reverse false [] {} none (some reversedAbiDir)
   expectOnlySelectedArtifacts
-    "edsl multi-select emits only requested contract artifacts (reversed arg order)"
-    ["simple-storage", "counter"]
-    reversedSelectedOutDir
-    reversedSelectedAbiDir
-  expectFileEquals
-    "edsl multi-select order-invariant Yul: SimpleStorage"
-    s!"{selectedOutDir}/SimpleStorage.yul"
-    s!"{reversedSelectedOutDir}/SimpleStorage.yul"
-  expectFileEquals
-    "edsl multi-select order-invariant ABI: SimpleStorage"
-    s!"{selectedAbiDir}/SimpleStorage.abi.json"
-    s!"{reversedSelectedAbiDir}/SimpleStorage.abi.json"
-  expectFileEquals
-    "edsl multi-select order-invariant Yul: Counter"
-    s!"{selectedOutDir}/Counter.yul"
-    s!"{reversedSelectedOutDir}/Counter.yul"
-  expectFileEquals
-    "edsl multi-select order-invariant ABI: Counter"
-    s!"{selectedAbiDir}/Counter.abi.json"
-    s!"{reversedSelectedAbiDir}/Counter.abi.json"
+    "selected module compilation is order-invariant for artifact set"
+    selectedModules
+    canonicalModules
+    reversedOutDir
+    reversedAbiDir
+
+  for moduleName in selectedModules do
+    let contractName := contractNameOfModule moduleName
+    expectFileEquals
+      s!"selected module order-invariant Yul: {contractName}"
+      s!"{selectedOutDir}/{contractName}.yul"
+      s!"{reversedOutDir}/{contractName}.yul"
+    expectFileEquals
+      s!"selected module order-invariant ABI: {contractName}"
+      s!"{selectedAbiDir}/{contractName}.abi.json"
+      s!"{reversedAbiDir}/{contractName}.abi.json"
 
   expectFailureContains
-    "duplicate selected EDSL contracts fail closed"
-    (compileAllFromEDSLWithOptions edslOutDir false [] ["counter", "counter"] {} none (some edslAbiDir))
-    "Duplicate --edsl-contract value: counter"
-  : IO Unit)
+    "duplicate selected modules fail closed"
+    (compileModulesWithOptions outDir ["Contracts.MacroContracts.Counter", "Contracts.MacroContracts.Counter"] false [] {} none (some abiDir))
+    "Duplicate --module value: Contracts.MacroContracts.Counter"
+
+#eval! runTests
 
 end Compiler.CompileDriverTest

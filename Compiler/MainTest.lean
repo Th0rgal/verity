@@ -1,6 +1,5 @@
 import Compiler.Main
 import Compiler.Linker
-import Compiler.Lowering.FromEDSL
 
 namespace Compiler.MainTest
 
@@ -16,7 +15,7 @@ private def contains (haystack needle : String) : Bool :=
         else go cs
     go h
 
-private def expectErrorContains (label : String) (args : List String) (needle : String) : IO Unit := do
+private unsafe def expectErrorContains (label : String) (args : List String) (needle : String) : IO Unit := do
   try
     main args
     throw (IO.userError s!"✗ {label}: expected failure, command succeeded")
@@ -24,20 +23,6 @@ private def expectErrorContains (label : String) (args : List String) (needle : 
     let msg := e.toString
     if !contains msg needle then
       throw (IO.userError s!"✗ {label}: expected '{needle}', got:\n{msg}")
-    IO.println s!"✓ {label}"
-
-private def expectErrorSatisfies
-    (label : String)
-    (args : List String)
-    (predicate : String → Bool)
-    (expectation : String) : IO Unit := do
-  try
-    main args
-    throw (IO.userError s!"✗ {label}: expected failure, command succeeded")
-  catch e =>
-    let msg := e.toString
-    if !predicate msg then
-      throw (IO.userError s!"✗ {label}: expected {expectation}, got:\n{msg}")
     IO.println s!"✓ {label}"
 
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
@@ -52,54 +37,80 @@ private def fileExists (path : String) : IO Bool := do
   catch _ =>
     pure false
 
-private def contractArtifactPath (outDir : String) (contract : Compiler.Lowering.EDSLContract) : String :=
-  s!"{outDir}/{contract.name}.yul"
+private def canonicalModules : List String :=
+  [ "Contracts.MacroContracts.SimpleStorage"
+  , "Contracts.MacroContracts.Counter"
+  , "Contracts.MacroContracts.Owned"
+  , "Contracts.MacroContracts.Ledger"
+  , "Contracts.MacroContracts.OwnedCounter"
+  , "Contracts.MacroContracts.SimpleToken"
+  , "Contracts.MacroContracts.SafeCounter"
+  , "Contracts.MacroContracts.ERC20"
+  , "Contracts.MacroContracts.ERC721"
+  ]
 
-#eval! do
+private def moduleArgs (modules : List String) : List String :=
+  modules.foldr (fun moduleName acc => "--module" :: moduleName :: acc) []
+
+private def contractNameOfModule (moduleName : String) : String :=
+  match moduleName.splitOn "." |>.reverse with
+  | name :: _ => name
+  | [] => moduleName
+
+private def contractArtifactPath (outDir : String) (moduleName : String) : String :=
+  s!"{outDir}/{contractNameOfModule moduleName}.yul"
+
+unsafe def runTests : IO Unit := do
   expectErrorContains "missing --link value" ["--link"] "Missing value for --link"
   expectErrorContains "missing --output value" ["--output"] "Missing value for --output"
   expectErrorContains "missing -o value" ["-o"] "Missing value for --output"
   expectErrorContains "missing --abi-output value" ["--abi-output"] "Missing value for --abi-output"
   expectErrorContains "removed --input flag is rejected" ["--input", "edsl"] "Unknown argument: --input"
-  expectErrorContains "missing --edsl-contract value" ["--edsl-contract"] "Missing value for --edsl-contract"
+  expectErrorContains "missing --manifest value" ["--manifest"] "Missing value for --manifest"
+  expectErrorContains "missing --module value" ["--module"] "Missing value for --module"
   expectErrorContains
-    "unknown --edsl-contract value"
-    ["--edsl-contract", "does-not-exist"]
-    "Unsupported --edsl-contract: does-not-exist"
-  expectErrorSatisfies
-    "unknown --edsl-contract lists supported ids deterministically"
-    ["--edsl-contract", "does-not-exist"]
-    (fun msg =>
-      contains msg
-        s!"(supported: {String.intercalate ", " Compiler.Lowering.edslContractIds})")
-    "full ordered supported --edsl-contract list in diagnostic"
+    "duplicate --module value"
+    (["--module", "Contracts.MacroContracts.Counter", "--module", "Contracts.MacroContracts.Counter"] ++ ["--output", "/tmp/verity-main-test-dup"])
+    "Duplicate --module value: Contracts.MacroContracts.Counter"
   expectErrorContains
-    "duplicate --edsl-contract value"
-    ["--edsl-contract", "counter", "--edsl-contract", "counter"]
-    "Duplicate --edsl-contract value: counter"
+    "empty compiler input is rejected"
+    ["--output", "/tmp/verity-main-test-empty"]
+    "No compiler input provided. Use --manifest and/or --module."
+  expectErrorContains
+    "invalid module name is rejected"
+    ["--module", "Contracts..Counter", "--output", "/tmp/verity-main-test-invalid"]
+    "Invalid module name: Contracts..Counter"
+  expectErrorContains
+    "missing manifest file is rejected"
+    ["--manifest", "/tmp/definitely-missing-verty-manifest", "--output", "/tmp/verity-main-test-missing-manifest"]
+    "Failed to read manifest"
+
   let nonce ← IO.monoMsNow
-  let edslOutDir := s!"/tmp/verity-main-test-{nonce}-edsl-out"
-  IO.FS.createDirAll edslOutDir
-  main ["--output", edslOutDir]
+  let allOutDir := s!"/tmp/verity-main-test-{nonce}-all-out"
+  IO.FS.createDirAll allOutDir
+  main (moduleArgs canonicalModules ++ ["--output", allOutDir])
   let allArtifactsPresent ←
-    Compiler.Lowering.edslContracts.allM (fun contract => fileExists (contractArtifactPath edslOutDir contract))
-  expectTrue "edsl input mode compiles every generalized EDSL artifact" allArtifactsPresent
-  let singleContractOutDir := s!"/tmp/verity-main-test-{nonce}-edsl-single-contract-out"
-  IO.FS.createDirAll singleContractOutDir
-  main ["--edsl-contract", "counter", "--output", singleContractOutDir]
-  let selectedCounterArtifact ← fileExists s!"{singleContractOutDir}/Counter.yul"
-  expectTrue "edsl input mode compiles explicitly selected contract" selectedCounterArtifact
-  let nonSelectedContracts :=
-    Compiler.Lowering.edslContracts.filter
-      (fun contract => Compiler.Lowering.edslContractId contract != "counter")
+    canonicalModules.allM (fun moduleName => fileExists (contractArtifactPath allOutDir moduleName))
+  expectTrue "module input mode compiles every requested artifact" allArtifactsPresent
+
+  let singleOutDir := s!"/tmp/verity-main-test-{nonce}-single-out"
+  IO.FS.createDirAll singleOutDir
+  main (["--module", "Contracts.MacroContracts.Counter", "--output", singleOutDir])
+  let selectedCounterArtifact ← fileExists s!"{singleOutDir}/Counter.yul"
+  expectTrue "module input mode compiles explicitly selected contract" selectedCounterArtifact
   let nonSelectedArtifactFlags ←
-    nonSelectedContracts.mapM (fun contract => fileExists (contractArtifactPath singleContractOutDir contract))
+    (canonicalModules.filter (· != "Contracts.MacroContracts.Counter")).mapM
+      (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))
   let nonSelectedArtifactsAbsent := nonSelectedArtifactFlags.all (fun isPresent => !isPresent)
-  expectTrue "edsl selected-contract mode does not emit non-selected artifacts" nonSelectedArtifactsAbsent
-  expectErrorContains
-    "edsl input mode rejects linked-library path"
-    ["--link", "examples/external-libs/PoseidonT3.yul", "--output", edslOutDir]
-    "Linked external Yul libraries are not yet supported through the EDSL-only CLI path"
+  expectTrue "selected module mode does not emit non-selected artifacts" nonSelectedArtifactsAbsent
+
+  let manifestOutDir := s!"/tmp/verity-main-test-{nonce}-manifest-out"
+  IO.FS.createDirAll manifestOutDir
+  main ["--manifest", "packages/verity-examples/contracts.manifest", "--output", manifestOutDir]
+  let manifestArtifactsPresent ←
+    canonicalModules.allM (fun moduleName => fileExists (contractArtifactPath manifestOutDir moduleName))
+  expectTrue "manifest input mode compiles every requested artifact" manifestArtifactsPresent
+
   expectErrorContains "missing --patch-report value" ["--patch-report"] "Missing value for --patch-report"
   expectErrorContains "missing --patch-max-iterations value" ["--patch-max-iterations"] "Missing value for --patch-max-iterations"
   expectErrorContains "missing --backend-profile value" ["--backend-profile"] "Missing value for --backend-profile"
@@ -138,45 +149,6 @@ private def contractArtifactPath (outDir : String) (contract : Compiler.Lowering
     rewriteBundleId := "missing-rewrite-bundle" }
   expectTrue "parity pack proof composition rejects unknown rewrite bundle IDs"
     (!missingBundlePack.proofCompositionValid)
-  let selectedCounterContract :=
-    Compiler.Lowering.edslContracts.find?
-      (fun contract => Compiler.Lowering.edslContractId contract == "counter")
-  expectTrue "selected EDSL contract lowers successfully through boundary"
-    (match selectedCounterContract with
-    | some contract =>
-        match Compiler.Lowering.lowerModelPath contract with
-        | .ok lowered => lowered.name == contract.name
-        | .error _ => false
-    | none => false)
-  let edslIds := Compiler.Lowering.edslContractIds
-  expectTrue "edsl-contract ids are unique"
-    (edslIds.eraseDups.length == edslIds.length)
-  let parserRoundtripUnique :=
-    Compiler.Lowering.edslContracts.all (fun requested =>
-      match Compiler.Lowering.parseEDSLContract? (Compiler.Lowering.edslContractId requested) with
-      | some parsed => parsed.name == requested.name
-      | none => false)
-  expectTrue "edsl-contract parser roundtrip is unique" parserRoundtripUnique
-  expectTrue "parsed --edsl-contract lowers through generalized helper"
-    (match Compiler.Lowering.lowerRequestedEDSLContracts ["counter"] with
-    | .ok [lowered] => lowered.name == "Counter"
-    | .ok _ => false
-    | .error _ => false)
-  expectTrue "selected/default EDSL helper lowers full canonical set by default"
-    (match Compiler.Lowering.lowerRequestedEDSLContracts [] with
-    | .ok lowered =>
-        lowered.length == Compiler.Lowering.edslContracts.length &&
-        (Compiler.Lowering.edslContracts.zip lowered).all
-          (fun (contract, loweredContract) => loweredContract.name == contract.name)
-    | .error _ => false)
-  expectTrue "selected/default EDSL helper fails closed on duplicate IDs"
-    (match Compiler.Lowering.lowerRequestedEDSLContracts ["counter", "counter"] with
-    | .ok _ => false
-    | .error msg => contains msg "Duplicate --edsl-contract value: counter")
-  expectTrue "unsupported --edsl-contract helper keeps deterministic diagnostic"
-    (match Compiler.Lowering.lowerRequestedEDSLContracts ["does-not-exist"] with
-    | .ok _ => false
-    | .error msg => contains msg "Unsupported --edsl-contract: does-not-exist")
 
   let libWithCommentAndStringBraces :=
     "{\n" ++
@@ -196,5 +168,7 @@ private def contractArtifactPath (outDir : String) (contract : Compiler.Lowering
   expectTrue "linker keeps second function boundary intact" ((parsed.getD 1 {name := "", arity := 0, body := []}).name == "PoseidonT4_hash")
   let firstBody := String.intercalate "\n" ((parsed.getD 0 {name := "", arity := 0, body := []}).body)
   expectTrue "first function body does not swallow next function" (!contains firstBody "function PoseidonT4_hash")
+
+#eval! runTests
 
 end Compiler.MainTest

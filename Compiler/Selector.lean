@@ -19,10 +19,24 @@ private def parseSelectorLine (line : String) : Option Nat :=
   let trimmed := line.trim
   parseHexNat? trimmed
 
+private def keccakScriptCandidates : List System.FilePath :=
+  [ "scripts/keccak256.py"
+  , "../scripts/keccak256.py"
+  , "../../scripts/keccak256.py"
+  ]
+
+private def keccakScriptPath : IO System.FilePath := do
+  for candidate in keccakScriptCandidates do
+    if ← candidate.pathExists then
+      return candidate
+  throw <| IO.userError
+    s!"Unable to locate keccak256.py (checked: {String.intercalate ", " (keccakScriptCandidates.map (·.toString))})"
+
 def runKeccak (sigs : List String) : IO (List Nat) := do
   if sigs.isEmpty then
     return []
-  let args := #["scripts/keccak256.py"] ++ sigs.toArray
+  let scriptPath ← keccakScriptPath
+  let args := #[scriptPath.toString] ++ sigs.toArray
   let result ← IO.Process.output { cmd := "python3", args := args }
   if result.exitCode != 0 then
     throw (IO.userError s!"keccak256.py failed: {result.stderr}")

@@ -11,10 +11,25 @@ lean_lib «Verity» where
   srcDir := "../.."
   globs := #[
     .one `Verity,
-    .andSubmodules `Verity.Core,
-    .submodules `Verity.EVM,
-    .andSubmodules `Verity.Macro,
-    .submodules `Verity.Stdlib,
-    .andSubmodules `Verity.Specs.Common,
-    .submodules `Verity.Proofs.Stdlib
+    .one `Compiler.Constants,
+    .one `Compiler.Identifier,
+    .one `Compiler.Hex,
+    .one `Compiler.ECM,
+    .one `Compiler.IR,
+    .one `Compiler.Yul,
+    .andSubmodules `Compiler.Yul,
+    .one `Compiler.Modules,
+    .andSubmodules `Compiler.Modules,
+    .one `Compiler.ABI,
+    .one `Compiler.Codegen,
+    .one `Compiler.Linker,
+    .one `Compiler.ModuleInput,
+    .one `Compiler.Lowering.FromEDSL,
+    .one `Compiler.CompileDriver,
+    .one `Compiler.ParityPacks,
+    .one `Compiler.Gas.StaticAnalysis,
+    .one `Compiler.Main,
+    .one `Compiler.CompilationModel,
+    .andSubmodules `Compiler.CompilationModel,
+    .one `Compiler.Selector
   ]

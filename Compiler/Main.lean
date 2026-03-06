@@ -1,5 +1,5 @@
 import Compiler.CompileDriver
-import Compiler.Lowering.FromEDSL
+import Compiler.ModuleInput
 import Compiler.ParityPacks
 
 /-!
@@ -15,7 +15,8 @@ Supports:
 private structure CLIArgs where
   outDir : String := "artifacts/yul"
   abiOutDir : Option String := none
-  edslContracts : List String := []
+  manifestPath : Option String := none
+  modules : List String := []
   libs : List String := []
   verbose : Bool := false
   backendProfile : Compiler.BackendProfile := .semantic
@@ -60,7 +61,7 @@ private def backendProfileString (profile : Compiler.BackendProfile) : String :=
 private def parseArgs (args : List String) : IO CLIArgs := do
   let rec go (remaining : List String) (cfg : CLIArgs) : IO CLIArgs :=
     match remaining with
-    | [] => pure { cfg with libs := cfg.libs.reverse, edslContracts := cfg.edslContracts.reverse }
+    | [] => pure { cfg with libs := cfg.libs.reverse, modules := cfg.modules.reverse }
     | "--help" :: _ | "-h" :: _ => do
         IO.println "Verity Compiler"
         IO.println ""
@@ -71,7 +72,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --output <dir>     Output directory (default: artifacts/yul)"
         IO.println "  -o <dir>           Short form of --output"
         IO.println "  --abi-output <dir> Output ABI JSON artifacts (one <Contract>.abi.json per spec)"
-        IO.println s!"  --edsl-contract <id> Restrict compilation to selected contracts (supported: {String.intercalate ", " Compiler.Lowering.edslContractIds})"
+        IO.println "  --manifest <path>  Manifest file with one Lean module per line"
+        IO.println "  --module <name>    Import a Lean module and compile its canonical `<Module>.spec`"
         IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
         IO.println "  --parity-pack <id> Versioned parity-pack tuple (see docs/PARITY_PACKS.md)"
         IO.println "  --enable-patches   Enable deterministic Yul patch pass"
@@ -84,7 +86,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  -h                 Short form of --help"
         IO.println ""
         IO.println "Example:"
-        IO.println "  verity-compiler --link examples/external-libs/PoseidonT3.yul -o artifacts/yul"
+        IO.println "  verity-compiler --manifest packages/verity-examples/contracts.manifest -o artifacts/yul"
+        IO.println "  verity-compiler --module Contracts.MacroContracts.Counter -o artifacts/yul"
         IO.println "  verity-compiler --enable-patches --patch-report artifacts/patch-report.tsv"
         throw (IO.userError "help")
     | "--link" :: path :: rest =>
@@ -99,10 +102,17 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with abiOutDir := some dir }
     | ["--abi-output"] =>
         throw (IO.userError "Missing value for --abi-output")
-    | "--edsl-contract" :: raw :: rest =>
-        go rest { cfg with edslContracts := raw :: cfg.edslContracts }
-    | ["--edsl-contract"] =>
-        throw (IO.userError "Missing value for --edsl-contract")
+    | "--manifest" :: path :: rest =>
+        if cfg.manifestPath.isSome then
+          throw (IO.userError "Cannot specify --manifest more than once")
+        else
+          go rest { cfg with manifestPath := some path }
+    | ["--manifest"] =>
+        throw (IO.userError "Missing value for --manifest")
+    | "--module" :: raw :: rest =>
+        go rest { cfg with modules := raw :: cfg.modules }
+    | ["--module"] =>
+        throw (IO.userError "Missing value for --module")
     | "--backend-profile" :: raw :: rest =>
         if cfg.parityPackId.isSome then
           throw (IO.userError "Cannot combine --backend-profile with --parity-pack")
@@ -164,15 +174,24 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         throw (IO.userError s!"Unknown argument: {unknown}\nUse --help for usage information")
   go args {}
 
-def main (args : List String) : IO Unit := do
+unsafe def main (args : List String) : IO Unit := do
   try
     let cfg ← parseArgs args
+    let rawModules ←
+      match ← Compiler.ModuleInput.resolveRawModules cfg.manifestPath cfg.modules with
+      | .ok modules => pure modules
+      | .error err => throw (IO.userError err)
+    if rawModules.isEmpty then
+      throw (IO.userError "No compiler input provided. Use --manifest and/or --module.")
     let patchEnabled := patchEnabledFor cfg
     if cfg.verbose then
       IO.println s!"Output directory: {cfg.outDir}"
-      IO.println "Input mode: edsl"
-      if !cfg.edslContracts.isEmpty then
-        IO.println s!"EDSL contracts: {String.intercalate ", " cfg.edslContracts}"
+      IO.println "Input mode: manifest/modules"
+      match cfg.manifestPath with
+      | some path => IO.println s!"Manifest: {path}"
+      | none => pure ()
+      if !rawModules.isEmpty then
+        IO.println s!"Modules: {String.intercalate ", " rawModules}"
       IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
       match cfg.parityPackId with
       | some packId =>
@@ -226,7 +245,7 @@ def main (args : List String) : IO Unit := do
       }
       mappingSlotScratchBase := cfg.mappingSlotScratchBase
     }
-    compileAllFromEDSLWithOptions cfg.outDir cfg.verbose cfg.libs cfg.edslContracts options cfg.patchReportPath cfg.abiOutDir
+    compileModulesWithOptions cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.abiOutDir
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

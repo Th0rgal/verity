@@ -8,7 +8,8 @@ require «verity-edsl» from "../verity-edsl"
 
 lean_lib «Compiler» where
   srcDir := "../.."
-  globs := #[.andSubmodules `Compiler]
+  globs := #[]
 
 lean_exe «verity-compiler» where
+  srcDir := "../.."
   root := `Compiler.Main
