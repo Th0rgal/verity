@@ -69,16 +69,15 @@ theorem deposit_meets_spec (s : ContractState) (amount : Uint256) :
   let s' := ((deposit amount).run s).snd
   deposit_spec amount s s' := by
   rw [deposit_unfold]
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  unfold deposit_spec Specs.storageMapUpdateSpec
+  refine ⟨?_, ?_, ?_⟩
   · simp [ContractResult.snd, beq_iff_eq]
   · refine ⟨?_, ?_⟩
     · intro addr h_ne
       simp [ContractResult.snd, beq_iff_eq, h_ne]
     · intro slotIdx h_ne addr
       simp [ContractResult.snd, beq_iff_eq, h_ne]
-  · rfl
-  · rfl
-  · exact Specs.sameContext_rfl _
+  · exact ⟨rfl, rfl, Specs.sameContext_rfl _⟩
 
 theorem deposit_increases_balance (s : ContractState) (amount : Uint256) :
   let s' := ((deposit amount).run s).snd
@@ -120,16 +119,15 @@ theorem withdraw_meets_spec (s : ContractState) (amount : Uint256)
   let s' := ((withdraw amount).run s).snd
   withdraw_spec amount s s' := by
   rw [withdraw_unfold s amount h_balance]
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  unfold withdraw_spec Specs.storageMapUpdateSpec
+  refine ⟨?_, ?_, ?_⟩
   · simp [ContractResult.snd, beq_iff_eq]
   · refine ⟨?_, ?_⟩
     · intro addr h_ne
       simp [ContractResult.snd, beq_iff_eq, h_ne]
     · intro slotIdx h_ne addr
       simp [ContractResult.snd, beq_iff_eq, h_ne]
-  · rfl
-  · rfl
-  · exact Specs.sameContext_rfl _
+  · exact ⟨rfl, rfl, Specs.sameContext_rfl _⟩
 
 theorem withdraw_decreases_balance (s : ContractState) (amount : Uint256)
   (h_balance : s.storageMap 0 s.sender >= amount) :
