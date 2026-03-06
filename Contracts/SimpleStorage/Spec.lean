@@ -12,9 +12,7 @@ open Verity.Specs
 
 /-- Store: updates the storage at slot 0 -/
 def store_spec (value : Uint256) (s s' : ContractState) : Prop :=
-  s'.storage 0 = value ∧
-  storageUnchangedExcept 0 s s' ∧
-  sameAddrMapContext s s'
+  storageUpdateSpec 0 (fun _ => value) sameAddrMapContext s s'
 
 /-- Retrieve: returns the value at slot 0 -/
 def retrieve_spec (result : Uint256) (s : ContractState) : Prop :=

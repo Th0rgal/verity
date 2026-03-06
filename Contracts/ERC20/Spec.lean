@@ -15,13 +15,12 @@ open Verity.Specs
 
 /-- constructor: sets owner and initializes total supply to zero -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
-  s'.storageAddr 0 = initialOwner ∧
-  s'.storage 1 = 0 ∧
-  storageAddrUnchangedExcept 0 s s' ∧
-  storageUnchangedExcept 1 s s' ∧
-  sameStorageMap s s' ∧
-  sameStorageMap2 s s' ∧
-  sameContext s s'
+  storageAddrStorageUpdateSpec
+    0 1
+    (fun _ => initialOwner)
+    (fun _ => 0)
+    (fun st st' => sameStorageMap st st' ∧ sameStorageMap2 st st' ∧ sameContext st st')
+    s s'
 
 /-- mint: increases recipient balance and total supply by amount -/
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=

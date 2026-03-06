@@ -22,14 +22,13 @@ def boolToWord (b : Bool) : Uint256 :=
 /-- constructor: sets owner and initializes counters to zero -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
   s'.storageAddr 0 = initialOwner ∧
-  s'.storage 1 = 0 ∧
-  s'.storage 2 = 0 ∧
   storageAddrUnchangedExcept 0 s s' ∧
-  (∀ slot : Nat, slot ≠ 1 → slot ≠ 2 → s'.storage slot = s.storage slot) ∧
-  sameStorageMap s s' ∧
-  sameStorageMap2 s s' ∧
-  sameStorageMapUint s s' ∧
-  sameContext s s'
+  storage2UpdateSpec
+    1 2
+    (fun _ => 0)
+    (fun _ => 0)
+    (fun st st' => sameStorageMap st st' ∧ sameStorageMap2 st st' ∧ sameStorageMapUint st st' ∧ sameContext st st')
+    s s'
 
 /-- balanceOf: returns current balance of `addr` -/
 def balanceOf_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
