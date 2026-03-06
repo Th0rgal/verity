@@ -300,7 +300,7 @@ jobs:
 
       - name: Check static gas model coverage on generated Yul (baseline + patched)
         run: |
-          python3 scripts/check_gas_model_coverage.py \
+          python3 scripts/check_gas.py coverage \
             --dir compiler/yul \
             --dir compiler/yul-patched
 
@@ -308,7 +308,7 @@ jobs:
         run: python3 scripts/keccak256.py --self-test
 
       - name: Check selector hashing against specs
-        run: python3 scripts/check_selectors.py
+        run: python3 scripts/check_selectors.py --check-fixtures
 
       - name: Setup solc
         uses: ./.github/actions/setup-solc
@@ -320,11 +320,8 @@ jobs:
             --dir compiler/yul-patched \
             --require-same-files compiler/yul compiler/yul-patched
 
-      - name: Check selector fixtures against solc
-        run: python3 scripts/check_selector_fixtures.py
-
       - name: Check static gas report invariants
-        run: python3 scripts/check_gas_report.py
+        run: python3 scripts/check_gas.py report
 
       - name: Save static gas report snapshot
         run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
@@ -467,7 +464,7 @@ jobs:
         env:
           FOUNDRY_PROFILE: difftest
           DIFFTEST_YUL_DIR: "compiler/yul"
-        run: python3 scripts/check_gas_calibration.py --static-report gas-report-static.tsv
+        run: python3 scripts/check_gas.py calibration --static-report gas-report-static.tsv
 
   foundry:
     runs-on: ubuntu-latest

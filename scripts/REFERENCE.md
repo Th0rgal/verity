@@ -28,20 +28,17 @@ Primary guards:
 - `check_property_coverage.py`
 - `check_property_manifest_sync.py`
 - `check_storage_layout.py`
-- `check_manual_spec_quarantine.py`
-- `check_spec_proof_migration_boundary.py`
 - `check_lean_hygiene.py`
 - `check_proof_length.py`
+- `check_macro_health.py`
+- `check_compiler_boundaries.py`
 
 ## Foundry/gas/selector pipeline
 
 - `check_selectors.py`
-- `check_selector_fixtures.py`
 - `check_yul.py`
-- `check_gas_report.py`
+- `check_gas.py`
 - `check_patch_gas_delta.py`
-- `check_gas_model_coverage.py`
-- `check_gas_calibration.py`
 
 ## Helpers and generators
 
@@ -49,4 +46,3 @@ Primary guards:
 - `generate_print_axioms.py`
 - `generate_contract.py`
 - `generate_macro_property_tests.py`
-- `check_macro_property_test_generation.py`

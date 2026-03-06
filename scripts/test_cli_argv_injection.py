@@ -11,8 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-import check_gas_calibration
-import check_gas_model_coverage
+import check_gas
 import check_lean_warning_regression
 import check_patch_gas_delta
 import check_yul
@@ -29,9 +28,10 @@ def _ambient_argv(*args: str):
 
 
 class CliArgvInjectionTests(unittest.TestCase):
-    def test_check_gas_model_coverage_parse_args_ignores_ambient_sys_argv(self) -> None:
+    def test_check_gas_parse_args_ignores_ambient_sys_argv(self) -> None:
         with _ambient_argv("--unexpected-harness-flag"):
-            parsed = check_gas_model_coverage.parse_args(["--dir", "artifacts/yul"])
+            parsed = check_gas.parse_args(["coverage", "--dir", "artifacts/yul"])
+        self.assertEqual(parsed.command, "coverage")
         self.assertEqual(parsed.dirs, ["artifacts/yul"])
 
     def test_check_patch_gas_delta_parse_args_ignores_ambient_sys_argv(self) -> None:
@@ -44,8 +44,9 @@ class CliArgvInjectionTests(unittest.TestCase):
 
     def test_check_gas_calibration_parse_args_ignores_ambient_sys_argv(self) -> None:
         with _ambient_argv("--unexpected-harness-flag"):
-            parsed = check_gas_calibration.parse_args([])
-        self.assertEqual(parsed.match_path, check_gas_calibration.DEFAULT_FOUNDRY_PATH_GLOB)
+            parsed = check_gas.parse_args(["calibration"])
+        self.assertEqual(parsed.command, "calibration")
+        self.assertEqual(parsed.match_path, check_gas.check_gas_calibration.DEFAULT_FOUNDRY_PATH_GLOB)
 
     def test_check_yul_parse_args_ignores_ambient_sys_argv(self) -> None:
         with _ambient_argv("--unexpected-harness-flag"):

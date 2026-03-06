@@ -118,7 +118,7 @@ def _check_coverage(contract_sources: list[Path], fuzz_suite: Path) -> int:
     return 1
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--contracts-dir",
@@ -130,7 +130,7 @@ def main() -> int:
         default=str(DEFAULT_FUZZ_FILE.relative_to(ROOT)),
         help="Round-trip fuzz suite file to validate (default: Compiler/MacroTranslateRoundTripFuzz.lean).",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     contracts_dir = ROOT / args.contracts_dir
     fuzz_suite = ROOT / args.fuzz_suite

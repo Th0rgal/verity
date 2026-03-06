@@ -93,7 +93,7 @@ def _write(output_dir: Path, expected: dict[str, str]) -> int:
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source",
@@ -120,7 +120,7 @@ def main() -> int:
         action="store_true",
         help="Fail if generated macro-property artifacts are missing/stale.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.source:
         source_paths = [ROOT / p for p in args.source]

@@ -9,6 +9,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import check_selectors
 from check_selectors import SPEC_FILE, extract_compile_selectors, extract_specs
 
 
@@ -44,6 +45,22 @@ class CheckSelectorsExtractSpecsTests(unittest.TestCase):
             counter.signatures,
             ["increment()", "decrement()", "getCount()"],
         )
+
+
+class CheckSelectorsCliTests(unittest.TestCase):
+    def test_check_fixtures_flag_dispatches_fixture_check(self) -> None:
+        calls: list[str] = []
+        old_fixture_main = check_selectors.check_selector_fixtures.main
+        old_report_errors = check_selectors.report_errors
+        check_selectors.check_selector_fixtures.main = lambda: calls.append("fixtures") or 0
+        check_selectors.report_errors = lambda _errors, _message: None
+        try:
+            rc = check_selectors.main(["--check-fixtures"])
+        finally:
+            check_selectors.check_selector_fixtures.main = old_fixture_main
+            check_selectors.report_errors = old_report_errors
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls, ["fixtures"])
 
 
 if __name__ == "__main__":

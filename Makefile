@@ -109,30 +109,20 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_axioms.py
 	python3 scripts/generate_verification_status.py --check
 	python3 scripts/check_verification_status_doc.py
-	python3 scripts/check_interop_matrix_sync.py
 	python3 scripts/check_verify_sync.py
 	python3 scripts/check_solc_pin.py
 	python3 scripts/check_property_manifest_sync.py
 	python3 scripts/check_issue_templates.py
-	python3 scripts/check_macro_property_test_generation.py --check
-	python3 scripts/check_macro_translate_invariant_coverage.py
-	python3 scripts/check_macro_roundtrip_fuzz_coverage.py
+	python3 scripts/check_macro_health.py
 	python3 scripts/check_storage_layout.py
-	python3 scripts/check_manual_spec_quarantine.py
-	python3 scripts/check_spec_proof_migration_boundary.py
-	python3 scripts/check_legacy_example_imports.py
 	python3 scripts/check_lean_hygiene.py
-	python3 scripts/check_gas_model_coverage.py
-	python3 scripts/check_mapping_slot_boundary.py
+	python3 scripts/check_gas.py coverage
+	python3 scripts/check_compiler_boundaries.py
 	python3 scripts/check_yul.py --builtin-boundary-only
-	python3 scripts/check_rewrite_proof_metadata.py
-	python3 scripts/check_builtin_list_sync.py
-	python3 scripts/check_evmyullean_capability_boundary.py
 	python3 scripts/generate_evmyullean_capability_report.py --check
 	python3 scripts/generate_evmyullean_adapter_report.py --check
 	python3 scripts/generate_print_axioms.py --check
 	python3 scripts/check_proof_length.py
-	python3 scripts/check_issue_1060_integrity.py
 	python3 -m unittest discover -s scripts -p 'test_*.py' -v
 	@echo "All checks passed."
 

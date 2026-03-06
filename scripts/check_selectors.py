@@ -17,12 +17,14 @@ Checks:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator, List, Tuple
 
+import check_selector_fixtures
 from keccak256 import selector as keccak_selector
 from property_utils import ROOT, YUL_DIR, die, report_errors, strip_lean_comments
 SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
@@ -727,7 +729,15 @@ def check_compile_duplicate_name_guard() -> List[str]:
     return errors
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check-fixtures",
+        action="store_true",
+        help="Also validate selector hashing against the Solidity fixture via solc.",
+    )
+    args = parser.parse_args(argv)
+
     if not SPEC_FILE.exists():
         die(f"Missing specs file: {SPEC_FILE}")
     if not IR_EXPR_FILE.exists():
@@ -776,8 +786,13 @@ def main() -> None:
     errors.extend(check_compile_duplicate_name_guard())
 
     report_errors(errors, "Selector checks failed")
+    if args.check_fixtures:
+        fixture_rc = check_selector_fixtures.main()
+        if fixture_rc != 0:
+            return fixture_rc
     print("Selector checks passed.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

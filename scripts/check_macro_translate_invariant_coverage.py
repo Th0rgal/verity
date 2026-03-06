@@ -106,7 +106,7 @@ def _check_coverage(contract_sources: list[Path], invariant_suite: Path) -> int:
     return 1
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--contracts-dir",
@@ -118,7 +118,7 @@ def main() -> int:
         default=str(DEFAULT_INVARIANT_FILE.relative_to(ROOT)),
         help="Invariant suite file to validate (default: Compiler/MacroTranslateInvariantTest.lean).",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     contracts_dir = ROOT / args.contracts_dir
     invariant_suite = ROOT / args.invariant_suite
