@@ -252,8 +252,7 @@ theorem transferOwnership_preserves_count (s : ContractState) (newOwner : Addres
   (h_owner : s.sender = s.storageAddr 0) :
   let s' := ((transferOwnership newOwner).run s).snd
   s'.storage = s.storage := by
-  rw [transferOwnership_unfold s newOwner h_owner]
-  simp [ContractResult.snd]
+  verity_frame (transferOwnership_unfold s newOwner h_owner)
 
 /-! ## Well-Formedness Preservation -/
 
