@@ -9,6 +9,7 @@
 import Contracts.MacroContracts.Core
 import Contracts.SimpleStorage.Spec
 import Contracts.SimpleStorage.Invariants
+import Verity.Proofs.Stdlib.Automation
 
 namespace Contracts.SimpleStorage.Proofs
 
@@ -16,6 +17,7 @@ open Verity
 open Contracts.MacroContracts.SimpleStorage
 open Contracts.SimpleStorage.Spec
 open Contracts.SimpleStorage.Invariants
+open Verity.Proofs.Stdlib.Automation
 
 -- Lemma: setStorage updates the correct slot
 theorem setStorage_updates_slot (s : ContractState) (value : Uint256) :
@@ -71,7 +73,8 @@ theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
 theorem store_meets_spec (s : ContractState) (value : Uint256) :
   let s' := ((store value).run s).snd
   store_spec value s s' := by
-  simp [store, storedData, store_spec, Specs.sameAddrMapContext,
+  verity_unfold store
+  simp [storedData, store_spec, Specs.sameAddrMapContext,
     Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
   intro slotIdx h_neq
   simp [h_neq]
@@ -80,8 +83,8 @@ theorem store_meets_spec (s : ContractState) (value : Uint256) :
 theorem retrieve_meets_spec (s : ContractState) :
   let result := ((retrieve).run s).fst
   retrieve_spec result s := by
-  simp [retrieve, storedData, retrieve_spec, getStorage, Contract.run,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure]
+  verity_unfold retrieve
+  simp [storedData, retrieve_spec]
 
 -- Main theorem: store then retrieve returns the stored value
 -- This is the key correctness property!
@@ -104,15 +107,15 @@ theorem store_preserves_wellformedness (s : ContractState) (value : Uint256)
   (h : WellFormedState s) :
   let s' := ((store value).run s).snd
   WellFormedState s' := by
-  simp only [store, storedData, setStorage, Contract.run, ContractResult.snd]
+  verity_unfold store
+  simp [storedData]
   exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 -- Theorem: retrieve preserves state (read-only operation)
 theorem retrieve_preserves_state (s : ContractState) :
   let s' := ((retrieve).run s).snd
   s' = s := by
-  simp [retrieve, storedData, getStorage, Contract.run,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure]
+  verity_unfold retrieve
 
 -- Theorem: retrieve is idempotent (running twice is the same as once)
 theorem retrieve_twice_idempotent (s : ContractState) :
