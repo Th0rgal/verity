@@ -11,7 +11,6 @@ abbrev getOwner := Contracts.MacroContracts.Owned.getOwner
 abbrev isOwner := Contracts.MacroContracts.Owned.isOwner
 abbrev onlyOwner := Contracts.MacroContracts.Owned.onlyOwner
 
-def «constructor» (initialOwner : Address) : Contract Unit := do
-  setStorageAddr owner initialOwner
+abbrev «constructor» := Contracts.MacroContracts.Owned.constructor
 
 end Contracts.Owned

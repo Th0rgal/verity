@@ -976,6 +976,17 @@ def parseContractSyntax
         )
   | _ => throwErrorAt stx "invalid verity_contract declaration"
 
+private def mkConstructorCommand
+    (ctor : ConstructorDecl) : CommandElabM Cmd := do
+  let fnType ← mkContractFnType ctor.params .unit
+  let fnValue ← mkContractFnValue ctor.params ctor.body
+  let ctorIdent := mkIdent `constructor
+  `(command| def $ctorIdent : $fnType := $fnValue)
+
+def mkConstructorCommandPublic
+    (ctor : ConstructorDecl) : CommandElabM Cmd :=
+  mkConstructorCommand ctor
+
 def mkStorageDefCommandPublic (field : StorageFieldDecl) : CommandElabM Cmd :=
   mkStorageDefCommand field
 

@@ -19,8 +19,6 @@ abbrev getOwner := Contracts.MacroContracts.ERC20.getOwner
 abbrev isOwner := Contracts.MacroContracts.ERC20.isOwner
 abbrev onlyOwner := Contracts.MacroContracts.ERC20.onlyOwner
 
-def «constructor» (initialOwner : Address) : Contract Unit := do
-  setStorageAddr owner initialOwner
-  setStorage totalSupply 0
+abbrev «constructor» := Contracts.MacroContracts.ERC20.constructor
 
 end Contracts.ERC20

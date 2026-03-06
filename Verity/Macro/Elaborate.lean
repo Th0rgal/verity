@@ -20,6 +20,10 @@ def elabVerityContract : CommandElab := fun stx => do
   for field in fields do
     elabCommand (← mkStorageDefCommandPublic field)
 
+  match ctor with
+  | some ctorDecl => elabCommand (← mkConstructorCommandPublic ctorDecl)
+  | none => pure ()
+
   for fn in functions do
     let fnCmds ← mkFunctionCommandsPublic fields fn
     for cmd in fnCmds do

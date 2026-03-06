@@ -86,7 +86,7 @@ compile: ## Build compiler + interpreter
 	lake build verity-compiler difftest-interpreter
 
 generate-yul: compile ## Compile all contracts to Yul
-	./.lake/build/bin/verity-compiler
+	./.lake/build/bin/verity-compiler --manifest packages/verity-examples/contracts.manifest
 
 # ---------------------------------------------------------------------------
 # Testing
