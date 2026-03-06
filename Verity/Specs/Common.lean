@@ -166,6 +166,14 @@ def storageMapUnchangedExceptKeysAtSlot (slot : Nat) (addr1 addr2 : Address) (s 
   storageMapUnchangedExceptKeys slot addr1 addr2 s s' ∧
   storageMapUnchangedExceptSlot slot s s'
 
+/-- All double-mapping entries at `slot` are unchanged except possibly `(key1, key2)`. -/
+def storageMap2UnchangedExceptKeyPair
+    (slot : Nat) (key1 key2 : Address) (s s' : ContractState) : Prop :=
+  (∀ k1' : Address, ∀ k2' : Address,
+    k1' ≠ key1 → s'.storageMap2 slot k1' k2' = s.storageMap2 slot k1' k2') ∧
+  (∀ k2' : Address,
+    k2' ≠ key2 → s'.storageMap2 slot key1 k2' = s.storageMap2 slot key1 k2')
+
 /-- Canonical two-state spec shape for updating one `storageMap` slot/key entry. -/
 def storageMapUpdateSpec
     (slot : Nat)
@@ -190,6 +198,17 @@ def storageMapAndStorageUpdateSpec
   s'.storage storageSlot = storageValue s ∧
   storageMapUnchangedExceptKeyAtSlot mapSlot key s s' ∧
   storageUnchangedExcept storageSlot s s' ∧
+  frame s s'
+
+/-- Canonical two-state spec shape for updating one `storageMap2` slot/key pair. -/
+def storageMap2UpdateSpec
+    (slot : Nat)
+    (key1 key2 : Address)
+    (value : ContractState → Uint256)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  s'.storageMap2 slot key1 key2 = value s ∧
+  storageMap2UnchangedExceptKeyPair slot key1 key2 s s' ∧
   frame s s'
 
 /-- Canonical two-state spec shape for transfer-style updates on one mapping slot.

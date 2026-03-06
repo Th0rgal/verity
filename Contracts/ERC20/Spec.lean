@@ -46,15 +46,14 @@ def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState
 
 /-- approve: updates the owner-spender allowance mapping entry -/
 def approve_spec (ownerAddr spender : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  s'.storageMap2 3 ownerAddr spender = amount ∧
-  (∀ o' : Address, ∀ sp' : Address,
-    o' ≠ ownerAddr → s'.storageMap2 3 o' sp' = s.storageMap2 3 o' sp') ∧
-  (∀ sp' : Address,
-    sp' ≠ spender → s'.storageMap2 3 ownerAddr sp' = s.storageMap2 3 ownerAddr sp') ∧
-  sameStorage s s' ∧
-  sameStorageAddr s s' ∧
-  sameStorageMap s s' ∧
-  sameContext s s'
+  storageMap2UpdateSpec
+    3 ownerAddr spender (fun _ => amount)
+    (fun st st' =>
+      sameStorage st st' ∧
+      sameStorageAddr st st' ∧
+      sameStorageMap st st' ∧
+      sameContext st st')
+    s s'
 
 /-- transferFrom: debits `fromAddr`, credits `to`, and updates allowance for spender -/
 def transferFrom_spec (spender fromAddr to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
