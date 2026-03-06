@@ -181,33 +181,9 @@ theorem simpleStorage_store_semantic_bridge
         encodeEvents s'.events = irResult.events
     | .revert _ _ => True
     := by
-  simp [Contract.run, Contracts.MacroContracts.SimpleStorage.store, setStorage]
-  simp [mkIRTransaction, mkIRState, encodeStorage,
-    simpleStorageIRContract, interpretIR, execIRFunction,
-    IRState.setVar, IRState.getVar, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend,
-    Compiler.Proofs.YulGeneration.evalBuiltinCall, encodeEvents]
-  let stopState : IRState :=
-    { vars := [("value", calldataloadWord 0x6057361d [value.val] 4)]
-      «storage» := fun s => if s = 0 then calldataloadWord 0x6057361d [value.val] 4 else (state.storage s).val
-      memory := fun _ => 0
-      calldata := [value.val]
-      returnValue := none
-      sender := sender.val
-      selector := 0x6057361d
-      events := List.map encodeEvent state.events }
-  have hstop : execIRStmt
-      (1 + (1 + sizeOf "value" + (1 + sizeOf "calldataload" + 7)) +
-        (1 + (1 + (1 + sizeOf "sstore" + (2 + (1 + (1 + sizeOf "value") + 1)))) +
-          (1 + (1 + (1 + sizeOf "stop")))))
-      stopState (Yul.YulStmt.expr (Yul.YulExpr.call "stop" [])) =
-      IRExecResult.stop stopState := by
-    simpa [Nat.add_comm] using
-      (execIRStmt_stop_succ
-        ((1 + sizeOf "value" + (1 + sizeOf "calldataload" + 7)) +
-          (1 + (1 + (1 + sizeOf "sstore" + (2 + (1 + (1 + sizeOf "value") + 1)))) +
-            (1 + (1 + (1 + sizeOf "stop")))))
-        stopState)
+  semantic_bridge_simp [Contract.run, Contracts.MacroContracts.SimpleStorage.store,
+    Contracts.MacroContracts.SimpleStorage.storedData, setStorage,
+    simpleStorageIRContract, encodeStorage]
   intro x
   by_cases hx : x = 0
   · subst hx
