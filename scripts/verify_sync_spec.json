@@ -24,7 +24,7 @@
   "expected_jobs": [
     "changes",
     "checks",
-    "axle-verify-proof",
+    "axle_verify_proof",
     "build",
     "build-compiler",
     "lean-profile",

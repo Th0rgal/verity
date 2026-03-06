@@ -211,7 +211,7 @@ jobs:
 
   # Fast external pre-check with AXLE verify_proof API.
   # This is advisory acceleration, not a replacement for local trusted Lean checks.
-  axle-verify-proof:
+  axle_verify_proof:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
@@ -262,8 +262,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [changes, axle-verify-proof]
-    if: needs.changes.outputs.code == 'true' && (needs['axle-verify-proof'].result == 'success' || needs['axle-verify-proof'].result == 'skipped')
+    needs: [changes, axle_verify_proof]
+    if: needs.changes.outputs.code == 'true' && (needs.axle_verify_proof.result == 'success' || needs.axle_verify_proof.result == 'skipped')
     steps:
       - uses: actions/checkout@v4
 
@@ -436,8 +436,8 @@ jobs:
   build-compiler:
     runs-on: ubuntu-latest
     timeout-minutes: 240
-    needs: [changes, axle-verify-proof]
-    if: needs.changes.outputs.compiler == 'true' && (needs['axle-verify-proof'].result == 'success' || needs['axle-verify-proof'].result == 'skipped')
+    needs: [changes, axle_verify_proof]
+    if: needs.changes.outputs.compiler == 'true' && (needs.axle_verify_proof.result == 'success' || needs.axle_verify_proof.result == 'skipped')
     steps:
       - uses: actions/checkout@v4
 
@@ -857,7 +857,7 @@ jobs:
 
   failure-hints:
     runs-on: ubuntu-latest
-    needs: [checks, axle-verify-proof, build, build-compiler, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, axle_verify_proof, build, build-compiler, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read
