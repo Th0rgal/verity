@@ -19,15 +19,11 @@ open Contracts.MacroContracts.SafeCounter
 
 /-- increment: increases count by 1 (with overflow check) -/
 def increment_spec (s s' : ContractState) : Prop :=
-  s'.storage 0 = add (s.storage 0) 1 ∧
-  storageUnchangedExcept 0 s s' ∧
-  sameAddrMapContext s s'
+  storageUpdateSpec 0 (fun st => add (st.storage 0) 1) sameAddrMapContext s s'
 
 /-- decrement: decreases count by 1 (with underflow check) -/
 def decrement_spec (s s' : ContractState) : Prop :=
-  s'.storage 0 = sub (s.storage 0) 1 ∧
-  storageUnchangedExcept 0 s s' ∧
-  sameAddrMapContext s s'
+  storageUpdateSpec 0 (fun st => sub (st.storage 0) 1) sameAddrMapContext s s'
 
 /-- getCount: returns current count -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=

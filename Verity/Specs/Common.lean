@@ -98,6 +98,26 @@ def storageUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
 def storageAddrUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
   ∀ other : Nat, other ≠ slot → s'.storageAddr other = s.storageAddr other
 
+/-- Canonical two-state spec shape for updating one `storage` slot. -/
+def storageUpdateSpec
+    (slot : Nat)
+    (value : ContractState → Uint256)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  s'.storage slot = value s ∧
+  storageUnchangedExcept slot s s' ∧
+  frame s s'
+
+/-- Canonical two-state spec shape for updating one `storageAddr` slot. -/
+def storageAddrUpdateSpec
+    (slot : Nat)
+    (value : ContractState → Address)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  s'.storageAddr slot = value s ∧
+  storageAddrUnchangedExcept slot s s' ∧
+  frame s s'
+
 /-- All mapping storage slots except `slot` are unchanged. -/
 def storageMapUnchangedExceptSlot (slot : Nat) (s s' : ContractState) : Prop :=
   ∀ other : Nat, other ≠ slot → ∀ addr : Address, s'.storageMap other addr = s.storageMap other addr

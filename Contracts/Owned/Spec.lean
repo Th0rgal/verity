@@ -15,9 +15,7 @@ open Contracts.MacroContracts.Owned
 
 /-- Constructor: sets the owner to the provided address -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
-  s'.storageAddr 0 = initialOwner ∧
-  storageAddrUnchangedExcept 0 s s' ∧
-  sameStorageMapContext s s'
+  storageAddrUpdateSpec 0 (fun _ => initialOwner) sameStorageMapContext s s'
 
 /-- getOwner: returns the current owner address -/
 def getOwner_spec (result : Address) (s : ContractState) : Prop :=
@@ -25,9 +23,7 @@ def getOwner_spec (result : Address) (s : ContractState) : Prop :=
 
 /-- transferOwnership: updates owner to new address (owner only) -/
 def transferOwnership_spec (newOwner : Address) (s s' : ContractState) : Prop :=
-  s'.storageAddr 0 = newOwner ∧
-  storageAddrUnchangedExcept 0 s s' ∧
-  sameStorageMapContext s s'
+  storageAddrUpdateSpec 0 (fun _ => newOwner) sameStorageMapContext s s'
 
 /-- isOwner: returns true if sender equals current owner -/
 def isOwner_spec (result : Bool) (s : ContractState) : Prop :=

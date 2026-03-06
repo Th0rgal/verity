@@ -17,15 +17,11 @@ open Verity.EVM.Uint256
 
 /-- Increment: increases count by 1 -/
 def increment_spec (s s' : ContractState) : Prop :=
-  s'.storage 0 = add (s.storage 0) 1 ∧
-  storageUnchangedExcept 0 s s' ∧
-  sameAddrMapContext s s'
+  storageUpdateSpec 0 (fun st => add (st.storage 0) 1) sameAddrMapContext s s'
 
 /-- Decrement: decreases count by 1 -/
 def decrement_spec (s s' : ContractState) : Prop :=
-  s'.storage 0 = sub (s.storage 0) 1 ∧
-  storageUnchangedExcept 0 s s' ∧
-  sameAddrMapContext s s'
+  storageUpdateSpec 0 (fun st => sub (st.storage 0) 1) sameAddrMapContext s s'
 
 /-- getCount: returns the current count -/
 def getCount_spec (result : Uint256) (s : ContractState) : Prop :=
