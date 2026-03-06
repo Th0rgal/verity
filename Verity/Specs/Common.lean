@@ -92,6 +92,25 @@ def sameStorageAddrContext (s s' : ContractState) : Prop :=
 @[simp] theorem sameStorageAddrContext_rfl (s : ContractState) : sameStorageAddrContext s s :=
   ⟨rfl, rfl, sameContext_rfl s⟩
 
+/-- Mapping storage, double-mapping storage, and context are unchanged. -/
+def sameStorageMap2Context (s s' : ContractState) : Prop :=
+  sameStorageMap s s' ∧
+  sameStorageMap2 s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageMap2Context_rfl (s : ContractState) : sameStorageMap2Context s s :=
+  ⟨rfl, rfl, sameContext_rfl s⟩
+
+/-- Mapping storage (word + uint-keyed + double), and context are unchanged. -/
+def sameStorageMapsContext (s s' : ContractState) : Prop :=
+  sameStorageMap s s' ∧
+  sameStorageMapUint s s' ∧
+  sameStorageMap2 s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageMapsContext_rfl (s : ContractState) : sameStorageMapsContext s s :=
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
+
 /-- All storage slots except `slot` are unchanged. -/
 def storageUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
   ∀ other : Nat, other ≠ slot → s'.storage other = s.storage other

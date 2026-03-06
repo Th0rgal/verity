@@ -26,7 +26,7 @@ def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
     (fun _ => initialOwner)
     (fun _ => 0)
     (fun _ => 0)
-    (fun st st' => sameStorageMap st st' ∧ sameStorageMap2 st st' ∧ sameStorageMapUint st st' ∧ sameContext st st')
+    sameStorageMapsContext
     s s'
 
 /-- balanceOf: returns current balance of `addr` -/

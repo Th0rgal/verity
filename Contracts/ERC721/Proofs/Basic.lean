@@ -33,12 +33,8 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   · simp [Specs.sameStorageMap, Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
       Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId,
       setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
-  · simp [Specs.sameStorageMap2, Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
-      Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId,
-      setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
-  · simp [Specs.sameStorageMapUint, Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
-      Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId,
-      setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
+  · rfl
+  · rfl
   · simp [Specs.sameContext, Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
       Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId,
       setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]

@@ -19,7 +19,7 @@ def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
     0 1
     (fun _ => initialOwner)
     (fun _ => 0)
-    (fun st st' => sameStorageMap st st' ∧ sameStorageMap2 st st' ∧ sameContext st st')
+    sameStorageMap2Context
     s s'
 
 /-- mint: increases recipient balance and total supply by amount -/
