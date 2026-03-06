@@ -38,6 +38,20 @@ SIMPLE_PARAM_MAP = {
     "bytes32": "bytes32",
     "bytes": "bytes",
 }
+COMPILER_ALIAS_RE = re.compile(
+    r"def\s+(\w+)\s*:\s*CompilationModel\s*:=\s*Contracts\.MacroContracts\.(\w+)\.spec"
+)
+MACRO_FUNCTION_RE = re.compile(
+    r"^\s*function\s+(\w+)\s*\((.*?)\)\s*:\s*([A-Za-z0-9_→ ]+)\s*:=\s*do",
+    re.MULTILINE,
+)
+MACRO_TYPE_MAP = {
+    "Uint256": "uint256",
+    "Address": "address",
+    "Bool": "bool",
+    "Unit": "",
+    "Bytes32": "bytes32",
+}
 
 
 @dataclass
@@ -68,8 +82,49 @@ def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
     return -1
 
 
+def _macro_contract_path(contract_name: str) -> Path:
+    return ROOT / "Contracts" / "MacroContracts" / f"{contract_name}.lean"
+
+
+def _macro_type_to_signature(ty: str) -> str:
+    normalized = " ".join(ty.strip().split())
+    if normalized in MACRO_TYPE_MAP:
+        return MACRO_TYPE_MAP[normalized]
+    die(f"Unsupported macro-contract type in selector extraction: {ty}")
+
+
+def _split_macro_params(params: str) -> list[str]:
+    if not params.strip():
+        return []
+    param_types: list[str] = []
+    for part in params.split(","):
+        chunk = part.strip()
+        if not chunk:
+            continue
+        if ":" not in chunk:
+            die(f"Malformed macro-contract parameter list: {params}")
+        _name, ty = chunk.split(":", 1)
+        param_types.append(_macro_type_to_signature(ty))
+    return param_types
+
+
+def _extract_macro_spec(def_name: str, contract_name: str) -> SpecInfo:
+    path = _macro_contract_path(contract_name)
+    if not path.exists():
+        die(f"Missing macro contract source for alias spec {def_name}: {path}")
+
+    content = strip_lean_comments(path.read_text(encoding="utf-8"))
+    signatures: List[str] = []
+    all_names: List[str] = []
+    for fn_name, params, _ret in MACRO_FUNCTION_RE.findall(content):
+        all_names.append(fn_name)
+        signatures.append(f"{fn_name}({','.join(_split_macro_params(params))})")
+    return SpecInfo(def_name, contract_name, signatures, False, all_names)
+
+
 def extract_specs(text: str) -> List[SpecInfo]:
     specs: List[SpecInfo] = []
+    seen_def_names: set[str] = set()
     spec_re = re.compile(r"def\s+(\w+)\s*:\s*CompilationModel\s*:=\s*\{")
     for match in spec_re.finditer(text):
         def_name = match.group(1)
@@ -86,6 +141,13 @@ def extract_specs(text: str) -> List[SpecInfo]:
         has_externals = has_nonempty_externals(block)
         all_names = extract_all_function_names(block)
         specs.append(SpecInfo(def_name, contract_name, signatures, has_externals, all_names))
+        seen_def_names.add(def_name)
+
+    for def_name, contract_name in COMPILER_ALIAS_RE.findall(text):
+        if def_name in seen_def_names:
+            continue
+        specs.append(_extract_macro_spec(def_name, contract_name))
+        seen_def_names.add(def_name)
     return specs
 
 
