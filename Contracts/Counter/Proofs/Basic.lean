@@ -62,15 +62,10 @@ theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
 theorem increment_meets_spec (s : ContractState) :
   let s' := ((increment).run s).snd
   increment_spec s s' := by
-  refine ⟨?_, ?_, ?_⟩
-  · rfl
-  · intro slotIdx h_neq
-    verity_unfold increment
-    simp [count]
-    intro h_eq
-    exact (h_neq h_eq).elim
-  · verity_unfold increment
-    simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  verity_unfold increment
+  verity_spec increment_spec with count
+  intro slotIdx h_neq
+  simp [h_neq]
 
 theorem increment_adds_one (s : ContractState) :
   let s' := ((increment).run s).snd
@@ -82,15 +77,10 @@ theorem increment_adds_one (s : ContractState) :
 theorem decrement_meets_spec (s : ContractState) :
   let s' := ((decrement).run s).snd
   decrement_spec s s' := by
-  refine ⟨?_, ?_, ?_⟩
-  · rfl
-  · intro slotIdx h_neq
-    verity_unfold decrement
-    simp [count]
-    intro h_eq
-    exact (h_neq h_eq).elim
-  · verity_unfold decrement
-    simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  verity_unfold decrement
+  verity_spec decrement_spec with count
+  intro slotIdx h_neq
+  simp [h_neq]
 
 theorem decrement_subtracts_one (s : ContractState) :
   let s' := ((decrement).run s).snd
