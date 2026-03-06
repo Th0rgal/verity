@@ -18,7 +18,7 @@ open Verity
 open Verity.Stdlib.Math (MAX_UINT256 safeAdd requireSomeUint)
 open Contracts.MacroContracts.SimpleToken (mint transfer balanceOf getTotalSupply getOwner isOwner)
 open Contracts.SimpleToken.Spec
-open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne)
+open Verity.Proofs.Stdlib.Automation (address_beq_false_of_ne wf_preservation_of_frame)
 open Contracts.SimpleToken.Proofs
 open Contracts.SimpleToken.Invariants
 
@@ -67,7 +67,11 @@ theorem mint_preserves_wellformedness (s : ContractState) (to : Address) (amount
   WellFormedState s' := by
   have h_spec := mint_meets_spec_when_owner s to amount h_owner h_no_bal_overflow h_no_sup_overflow
   obtain ⟨_, _, _, h_owner_pres, _, h_ctx⟩ := h_spec
-  exact ⟨h_ctx.1 ▸ h.sender_nonzero, h_ctx.2.1 ▸ h.contract_nonzero, h_owner_pres ▸ h.owner_nonzero⟩
+  have h_wf_frame :=
+    wf_preservation_of_frame s ((mint to amount).run s).snd
+      h.sender_nonzero h.contract_nonzero h.owner_nonzero
+      h_ctx.1 h_ctx.2.1 h_owner_pres
+  exact ⟨h_wf_frame.1, h_wf_frame.2.1, h_wf_frame.2.2⟩
 
 /-- Transfer preserves well-formedness when balance is sufficient and no overflow.
     Owner, context all remain intact across transfers. -/
@@ -78,7 +82,11 @@ theorem transfer_preserves_wellformedness (s : ContractState) (to : Address) (am
   WellFormedState s' := by
   have h_spec := transfer_meets_spec_when_sufficient s to amount h_balance h_no_overflow
   obtain ⟨_, _, _, _, h_owner_pres, _h_storage, _h_addr_pres, h_ctx⟩ := h_spec
-  exact ⟨h_ctx.1 ▸ h.sender_nonzero, h_ctx.2.1 ▸ h.contract_nonzero, h_owner_pres ▸ h.owner_nonzero⟩
+  have h_wf_frame :=
+    wf_preservation_of_frame s ((transfer to amount).run s).snd
+      h.sender_nonzero h.contract_nonzero h.owner_nonzero
+      h_ctx.1 h_ctx.2.1 h_owner_pres
+  exact ⟨h_wf_frame.1, h_wf_frame.2.1, h_wf_frame.2.2⟩
 
 /-! ## Owner Stability
 
