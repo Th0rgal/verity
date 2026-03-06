@@ -81,8 +81,8 @@ theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
 theorem getOwner_meets_spec (s : ContractState) :
   let result := ((getOwner).run s).fst
   getOwner_spec result s := by
-  simp [getOwner, getOwner_spec, owner, getStorageAddr, Contract.run,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure]
+  verity_unfold getOwner
+  simp [getOwner_spec, owner]
 
 theorem getOwner_returns_owner (s : ContractState) :
   let result := ((getOwner).run s).fst
@@ -92,8 +92,7 @@ theorem getOwner_returns_owner (s : ContractState) :
 theorem getOwner_preserves_state (s : ContractState) :
   let s' := ((getOwner).run s).snd
   s' = s := by
-  simp [getOwner, owner, getStorageAddr, Contract.run,
-    Verity.bind, Bind.bind, Verity.pure, Pure.pure]
+  verity_unfold getOwner
 
 /-! ## isOwner Correctness -/
 
@@ -132,10 +131,9 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
       blockTimestamp := s.blockTimestamp,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
-  simp [transferOwnership, onlyOwner, isOwner, owner,
-    msgSender, getStorageAddr, setStorageAddr,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, h_owner]
+  verity_unfold transferOwnership with h_owner
+  simp [owner]
+  exact h_owner
 
 theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : Address)
   (h_is_owner : s.sender = s.storageAddr 0) :

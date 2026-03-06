@@ -65,6 +65,10 @@ def verity_simp_set : List Lean.Name := [
 syntax (name := verity_unfold)
   "verity_unfold " simpLemma : tactic
 
+/-- Unfold a contract function with the standard Verity simp set plus extra simp args. -/
+syntax (name := verity_unfold_with)
+  "verity_unfold " simpLemma " with " simpLemma : tactic
+
 macro_rules
   | `(tactic| verity_unfold $fn:simpLemma) =>
       `(tactic| simp only [
@@ -72,6 +76,14 @@ macro_rules
         getMapping, setMapping, setMapping2, getMappingUint, setMappingUint, getMapping2,
         Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
         Contract.run, ContractResult.snd, ContractResult.fst
+      ])
+  | `(tactic| verity_unfold $fn:simpLemma with $extra:simpLemma) =>
+      `(tactic| simp only [
+        $fn, msgSender, getStorageAddr, getStorage, setStorage, setStorageAddr,
+        getMapping, setMapping, setMapping2, getMappingUint, setMappingUint, getMapping2,
+        Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
+        Contract.run, ContractResult.snd, ContractResult.fst,
+        $extra
       ])
 
 /-!
