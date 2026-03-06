@@ -42,7 +42,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dir",
         dest="dirs",
         action="append",
-        help="Yul directory to check (repeatable). Default: compiler/yul",
+        help="Yul directory to check (repeatable). Default: artifacts/yul",
     )
     parser.add_argument(
         "--compare-dirs",
