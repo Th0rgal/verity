@@ -6,11 +6,14 @@
 -/
 import Compiler.CompilationModel.Types
 import Compiler.CompilationModel.AbiHelpers
+import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.AbiEncoding
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.EcmAxiomCollection
 import Compiler.CompilationModel.EventEmission
+import Compiler.CompilationModel.EventAbiHelpers
 import Compiler.CompilationModel.InternalNaming
+import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.LayoutValidation
 import Compiler.CompilationModel.MappingWrites
 import Compiler.CompilationModel.StorageWrites

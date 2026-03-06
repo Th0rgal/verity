@@ -2,6 +2,8 @@ import Compiler.CompilationModel.Types
 import Compiler.CompilationModel.AbiHelpers
 import Compiler.CompilationModel.AbiEncoding
 import Compiler.CompilationModel.DynamicData
+import Compiler.CompilationModel.EventAbiHelpers
+import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.ValidationHelpers
 import Compiler.CompilationModel.ExpressionCompile
 

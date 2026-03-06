@@ -4,7 +4,7 @@
   This module isolates calldata/initcode parameter loading so dispatch and
   constructor assembly do not depend on the full statement compiler body.
 -/
-import Compiler.CompilationModel.Validation
+import Compiler.CompilationModel.AbiTypeLayout
 
 namespace Compiler.CompilationModel
 
