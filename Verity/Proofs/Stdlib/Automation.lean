@@ -69,6 +69,10 @@ syntax (name := verity_unfold)
 syntax (name := verity_unfold_with)
   "verity_unfold " simpLemma " with " simpLemma : tactic
 
+/-- Frame-proof helper: rewrite by an unfold lemma, then simplify result-state fields. -/
+syntax (name := verity_frame)
+  "verity_frame " rwRule : tactic
+
 macro_rules
   | `(tactic| verity_unfold $fn:simpLemma) =>
       `(tactic| simp only [
@@ -85,6 +89,8 @@ macro_rules
         Contract.run, ContractResult.snd, ContractResult.fst,
         $extra
       ])
+  | `(tactic| verity_frame $h:rwRule) =>
+      `(tactic| (rw [$h]; simp [ContractResult.snd]))
 
 /-!
 ## Index Normalization Helpers

@@ -20,6 +20,7 @@ open Contracts.MacroContracts.OwnedCounter
 open Contracts.OwnedCounter.Spec
 open Contracts.OwnedCounter.Proofs
 open Contracts.OwnedCounter.Invariants
+open Verity.Proofs.Stdlib.Automation
 
 /-! ## Counter operations preserve owner storage (count_preserves_owner)
 
@@ -70,21 +71,21 @@ theorem increment_context_preserved (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   context_preserved s (increment.run s).snd := by
   unfold context_preserved Specs.sameContext
-  rw [increment_unfold s h_owner]; simp [ContractResult.snd]
+  verity_frame (increment_unfold s h_owner)
 
 /-- Decrement preserves context (when authorized). -/
 theorem decrement_context_preserved (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   context_preserved s (decrement.run s).snd := by
   unfold context_preserved Specs.sameContext
-  rw [decrement_unfold s h_owner]; simp [ContractResult.snd]
+  verity_frame (decrement_unfold s h_owner)
 
 /-- TransferOwnership preserves context (when authorized). -/
 theorem transferOwnership_context_preserved (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
   context_preserved s ((transferOwnership newOwner).run s).snd := by
   unfold context_preserved Specs.sameContext
-  rw [transferOwnership_unfold s newOwner h_owner]; simp [ContractResult.snd]
+  verity_frame (transferOwnership_unfold s newOwner h_owner)
 
 /-- getCount preserves context. -/
 theorem getCount_context_preserved (s : ContractState) :
@@ -113,19 +114,19 @@ theorem constructor_preserves_map_storage (s : ContractState) (initialOwner : Ad
 theorem increment_preserves_map_storage (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (increment.run s).snd.storageMap = s.storageMap := by
-  rw [increment_unfold s h_owner]; simp [ContractResult.snd]
+  verity_frame (increment_unfold s h_owner)
 
 /-- Decrement preserves mapping storage. -/
 theorem decrement_preserves_map_storage (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (decrement.run s).snd.storageMap = s.storageMap := by
-  rw [decrement_unfold s h_owner]; simp [ContractResult.snd]
+  verity_frame (decrement_unfold s h_owner)
 
 /-- TransferOwnership preserves mapping storage. -/
 theorem transferOwnership_preserves_map_storage (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
   ((transferOwnership newOwner).run s).snd.storageMap = s.storageMap := by
-  rw [transferOwnership_unfold s newOwner h_owner]; simp [ContractResult.snd]
+  verity_frame (transferOwnership_unfold s newOwner h_owner)
 
 /-! ## Summary
 
