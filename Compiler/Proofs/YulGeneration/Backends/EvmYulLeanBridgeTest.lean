@@ -131,6 +131,18 @@ example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a
       evalPureBuiltinViaEvmYulLean "iszero" [a] := by
   exact evalBuiltinCall_iszero_bridge storage sender selector calldata a
 
+/-- Universal bridge theorem for `lt` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "lt" [a, b] =
+      evalPureBuiltinViaEvmYulLean "lt" [a, b] := by
+  exact evalBuiltinCall_lt_bridge storage sender selector calldata a b
+
+/-- Universal bridge theorem for `gt` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "gt" [a, b] =
+      evalPureBuiltinViaEvmYulLean "gt" [a, b] := by
+  exact evalBuiltinCall_gt_bridge storage sender selector calldata a b
+
 /-- lt: 2^256 wraps to 0, so 0 < 1. -/
 example : verityEval "lt" [Compiler.Constants.evmModulus, 1] =
           bridgeEval "lt" [Compiler.Constants.evmModulus, 1] := by native_decide
