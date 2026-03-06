@@ -161,12 +161,10 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
   have h_safe_bal := safeAdd_some (s.storageMap 1 to) amount h_no_bal_overflow
   have h_safe_sup := safeAdd_some (s.storage 2) amount h_no_sup_overflow
   -- Unfold mint (checks-before-effects ordering: both requireSomeUint before mutations)
-  simp only [mint, Contracts.MacroContracts.SimpleToken.onlyOwner, isOwner,
-    Contracts.MacroContracts.SimpleToken.ownerSlot, Contracts.MacroContracts.SimpleToken.balancesSlot, Contracts.MacroContracts.SimpleToken.totalSupplySlot,
-    msgSender, getStorageAddr, setStorageAddr, getStorage, setStorage, getMapping, setMapping,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst,
-    h_owner, beq_self_eq_true, ite_true]
+  verity_unfold mint
+  simp only [Contracts.MacroContracts.SimpleToken.onlyOwner, isOwner,
+    Contracts.MacroContracts.SimpleToken.ownerSlot, Contracts.MacroContracts.SimpleToken.balancesSlot,
+    Contracts.MacroContracts.SimpleToken.totalSupplySlot, h_owner, beq_self_eq_true, ite_true]
   -- Unfold and rewrite safeAdd results for both checks
   unfold requireSomeUint
   rw [h_safe_bal]
@@ -264,10 +262,9 @@ private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount 
   (h_eq : s.sender = to) :
   (transfer to amount).run s = ContractResult.success () s := by
   have h_balance' := uint256_ge_val_le (h_eq ▸ h_balance)
-  simp [transfer, Contracts.MacroContracts.SimpleToken.balancesSlot,
-    msgSender, getMapping, setMapping,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run, ContractResult.snd, ContractResult.fst,
+  verity_unfold transfer
+  simp [Contracts.MacroContracts.SimpleToken.balancesSlot,
+    Verity.require, Verity.pure, Pure.pure, Verity.bind, Bind.bind, Contract.run,
     h_balance', h_eq, beq_iff_eq]
 
 -- Helper lemma: after unfolding transfer with sufficient balance, distinct recipient, and no overflow
@@ -300,7 +297,7 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst,
     h_balance, h_ne, beq_iff_eq, h_safe, ge_iff_le, decide_eq_true_eq,
-    h_balance', ite_true, ite_false, HAdd.hAdd, Add.add]
+    ite_true, ite_false, HAdd.hAdd, Add.add]
   congr 1
   -- The two ContractState records differ in storageMap and knownAddresses
   congr 1

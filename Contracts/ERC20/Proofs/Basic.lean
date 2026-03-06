@@ -106,10 +106,8 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
         events := s.events } := by
   have h_safe_bal := safeAdd_some (s.storageMap 2 to) amount h_no_bal_overflow
   have h_safe_sup := safeAdd_some (s.storage 1) amount h_no_sup_overflow
-  simp only [mint, onlyOwner, isOwner, ownerSlot, balancesSlot, totalSupplySlot,
-    msgSender, getStorageAddr, getStorage, getMapping, setMapping, setStorage,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
-    Contract.run,
+  verity_unfold mint
+  simp only [ownerSlot, balancesSlot, totalSupplySlot,
     h_owner, beq_self_eq_true, ite_true]
   unfold requireSomeUint
   rw [h_safe_bal]
@@ -166,9 +164,8 @@ private theorem transfer_unfold_self (s : ContractState) (to : Address) (amount 
     (h_eq : s.sender = to) :
     (transfer to amount).run s = ContractResult.success () s := by
   have h_balance' := uint256_ge_val_le (h_eq ▸ h_balance)
-  simp [transfer, balancesSlot, msgSender, getMapping,
-    Verity.require, Verity.pure, Pure.pure, Verity.bind, Bind.bind,
-    Contract.run, h_balance', h_eq]
+  verity_unfold transfer
+  simp [balancesSlot, Verity.pure, h_balance', h_eq]
 
 /-- Helper: unfold `transfer` on the successful non-self path with no overflow. -/
 private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount : Uint256)
