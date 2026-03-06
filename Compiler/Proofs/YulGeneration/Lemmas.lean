@@ -15,12 +15,34 @@ set_option maxHeartbeats 1000000 in
 @[simp] theorem evalYulExpr_selectorExpr_semantics :
     ∀ state : YulState, evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
   intro state
-  have hpow : 0 < (2 ^ selectorShift) := by
-    simpa using (Nat.pow_pos (a := 2) (n := selectorShift) (by decide : 0 < (2 : Nat)))
+  have hShiftModEq : selectorShift % evmModulus = selectorShift := by
+    have hShiftLtModulus : selectorShift < evmModulus := by
+      norm_num [selectorShift, evmModulus]
+    exact Nat.mod_eq_of_lt hShiftLtModulus
+  have hSelectorShiftLt256 : selectorShift < 256 := by
+    norm_num [selectorShift]
+  have hSelectorShiftNotGe256 : ¬ 256 ≤ selectorShift := Nat.not_le_of_lt hSelectorShiftLt256
+  have hSelectorWordLt :
+      (state.selector % selectorModulus) * 2 ^ selectorShift < evmModulus := by
+    have hModLt : state.selector % selectorModulus < selectorModulus := by
+      exact Nat.mod_lt _ (by decide)
+    have hPowPos : 0 < 2 ^ selectorShift := by
+      exact Nat.pow_pos (a := 2) (n := selectorShift) (by decide)
+    have hMulLt :
+        (state.selector % selectorModulus) * 2 ^ selectorShift <
+          selectorModulus * 2 ^ selectorShift := by
+      exact Nat.mul_lt_mul_of_pos_right hModLt hPowPos
+    have hModulusSplit : selectorModulus * 2 ^ selectorShift = evmModulus := by
+      norm_num [selectorModulus, selectorShift, evmModulus, Nat.pow_add, Nat.mul_comm, Nat.mul_left_comm,
+        Nat.mul_assoc]
+    simpa [hModulusSplit] using hMulLt
+  have hSelectorWordMod :
+      ((state.selector % selectorModulus) * 2 ^ selectorShift) % evmModulus =
+        (state.selector % selectorModulus) * 2 ^ selectorShift := by
+    exact Nat.mod_eq_of_lt hSelectorWordLt
   simp [selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
-    evalBuiltinCallWithBackend, defaultBuiltinBackend, evalBuiltinCall,
-    calldataloadWord, selectorWord, selectorModulus, selectorShift,
-    Nat.mul_div_right, hpow]
+    evalBuiltinCallWithBackend, evalBuiltinCall, calldataloadWord, selectorWord,
+    hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
 
 @[simp]
 theorem execYulStmtFuel_switch_match_semantics
