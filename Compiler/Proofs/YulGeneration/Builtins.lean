@@ -45,7 +45,10 @@ def evalBuiltinCall
     | _ => none
   else if func = "sub" then
     match argVals with
-    | [a, b] => some ((evmModulus + a - b) % evmModulus)
+    | [a, b] =>
+        let a := toWord a
+        let b := toWord b
+        some ((evmModulus + a - b) % evmModulus)
     | _ => none
   else if func = "mul" then
     match argVals with

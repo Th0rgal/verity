@@ -50,6 +50,10 @@ example : verityEval "sub" [10, 3] = bridgeEval "sub" [10, 3] := by native_decid
 /-- sub: underflow wraps -/
 example : verityEval "sub" [0, 1] = bridgeEval "sub" [0, 1] := by native_decide
 
+/-- sub: denominator operand wraps in uint256 domain (2^257 + 1 ≡ 1). -/
+example : verityEval "sub" [0, 2 * Compiler.Constants.evmModulus + 1] =
+          bridgeEval "sub" [0, 2 * Compiler.Constants.evmModulus + 1] := by native_decide
+
 /-- mul: 6 * 7 = 42 -/
 example : verityEval "mul" [6, 7] = bridgeEval "mul" [6, 7] := by native_decide
 
