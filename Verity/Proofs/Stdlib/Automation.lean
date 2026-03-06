@@ -73,6 +73,10 @@ syntax (name := verity_unfold_with)
 syntax (name := verity_frame)
   "verity_frame " rwRule : tactic
 
+/-- `verity_frame` with an extra local simp lemma for frame side conditions. -/
+syntax (name := verity_frame_with)
+  "verity_frame " rwRule " with " simpLemma : tactic
+
 macro_rules
   | `(tactic| verity_unfold $fn:simpLemma) =>
       `(tactic| simp only [
@@ -91,6 +95,8 @@ macro_rules
       ])
   | `(tactic| verity_frame $h:rwRule) =>
       `(tactic| (rw [$h]; simp [ContractResult.snd]))
+  | `(tactic| verity_frame $h:rwRule with $extra:simpLemma) =>
+      `(tactic| (rw [$h]; simp [ContractResult.snd, $extra]))
 
 /-!
 ## Index Normalization Helpers
