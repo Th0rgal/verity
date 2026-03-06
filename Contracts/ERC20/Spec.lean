@@ -22,24 +22,17 @@ open Verity.Specs
 #gen_spec_map_storage mint_spec for (to : Address) (amount : Uint256)
   (2, to, (fun st => add (st.storageMap 2 to) amount), 1, (fun st => add (st.storage 1) amount), sameStorageAddrSlotMap2Context 0)
 
-/-- transfer: sender balance decreases and recipient balance increases by amount -/
-def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  s.storageMap 2 sender ≥ amount ∧
-  storageMapTransferSpec 2 sender to amount
-    (sameStorageSlotAddrSlotMap2Context 1 0)
-    s s'
+#gen_spec_transfer transfer_spec for3
+  (sender : Address) (to : Address) (amount : Uint256)
+  (2, sameStorageSlotAddrSlotMap2Context 1 0)
 
 -- approve: updates the owner-spender allowance mapping entry
 #gen_spec_map2 approve_spec for3 (ownerAddr : Address) (spender : Address) (amount : Uint256)
   (3, ownerAddr, spender, (fun _ => amount), sameStorageAddrMapContext)
 
-/-- transferFrom: debits `fromAddr`, credits `to`, and updates allowance for spender -/
-def transferFrom_spec (spender fromAddr to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  s.storageMap2 3 fromAddr spender ≥ amount ∧
-  s.storageMap 2 fromAddr ≥ amount ∧
-  storageMapTransferFromSpec 2 3 fromAddr to spender amount
-    sameStorageAddrContext
-    s s'
+#gen_spec_transfer_from transferFrom_spec for4
+  (spender : Address) (fromAddr : Address) (to : Address) (amount : Uint256)
+  (2, 3, sameStorageAddrContext)
 
 /-- balanceOf: returns current balance of `addr` -/
 def balanceOf_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=

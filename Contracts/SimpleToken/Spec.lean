@@ -22,14 +22,11 @@ open Verity.Specs
 #gen_spec_map_storage mint_spec for (to : Address) (amount : Uint256)
   (1, to, (fun st => add (st.storageMap 1 to) amount), 2, (fun st => add (st.storage 2) amount), sameStorageAddrSlotContext 0)
 
-/-- Transfer: moves amount from sender to recipient, preserves total supply -/
-def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  s.storageMap 1 sender ≥ amount ∧
-  storageMapTransferSpec 1 sender to amount
-    (fun st st' =>
-      sameStorageAddrSlot 0 st st' ∧
-      sameStorageAddrContext st st')
-    s s'
+#gen_spec_transfer transfer_spec for3
+  (sender : Address) (to : Address) (amount : Uint256)
+  (1, (fun st st' =>
+    sameStorageAddrSlot 0 st st' ∧
+    sameStorageAddrContext st st'))
 
 /-- balanceOf: returns the balance of the given address -/
 def balanceOf_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=

@@ -149,6 +149,16 @@ syntax (name := genSpecMap2CmdFor3Extra)
     "(" ident " : " term ")" " (" ident " : " term ")" " (" ident " : " term ")"
     " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
 
+syntax (name := genSpecTransferCmdFor3)
+  "#gen_spec_transfer " ident " for3 "
+    "(" ident " : " term ")" " (" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ")" : command
+
+syntax (name := genSpecTransferFromCmdFor4)
+  "#gen_spec_transfer_from " ident " for4 "
+    "(" ident " : " term ")" " (" ident " : " term ")" " (" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ")" : command
+
 macro_rules
   | `(#gen_spec $name:ident ($slot:term, $value:term, $frame:term)) =>
       `(def $name (s s' : Verity.ContractState) : Prop :=
@@ -362,5 +372,20 @@ macro_rules
           Verity.Specs.storageMap2UpdateSpec
             $slot $key1 $key2 $value
             (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_transfer $name:ident for3
+      ($fromAddr:ident : $fromTy:term) ($toAddr:ident : $toTy:term) ($amount:ident : $amountTy:term)
+      ($slot:term, $frame:term)) =>
+      `(def $name ($fromAddr : $fromTy) ($toAddr : $toTy) ($amount : $amountTy) (s s' : Verity.ContractState) : Prop :=
+          s.storageMap $slot $fromAddr ≥ $amount ∧
+          Verity.Specs.storageMapTransferSpec
+            $slot $fromAddr $toAddr $amount $frame s s')
+  | `(#gen_spec_transfer_from $name:ident for4
+      ($spender:ident : $spenderTy:term) ($fromAddr:ident : $fromTy:term) ($toAddr:ident : $toTy:term) ($amount:ident : $amountTy:term)
+      ($balanceSlot:term, $allowanceSlot:term, $frame:term)) =>
+      `(def $name ($spender : $spenderTy) ($fromAddr : $fromTy) ($toAddr : $toTy) ($amount : $amountTy) (s s' : Verity.ContractState) : Prop :=
+          s.storageMap2 $allowanceSlot $fromAddr $spender ≥ $amount ∧
+          s.storageMap $balanceSlot $fromAddr ≥ $amount ∧
+          Verity.Specs.storageMapTransferFromSpec
+            $balanceSlot $allowanceSlot $fromAddr $toAddr $spender $amount $frame s s')
 
 end Verity.Macro
