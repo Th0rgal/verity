@@ -1,6 +1,7 @@
 import Compiler.CompileDriver
 import Compiler.CompilationModel
 import Compiler.ModuleInput
+import Compiler.TestModules
 
 namespace Compiler.CompileDriverTest
 
@@ -42,23 +43,6 @@ private def expectFileEquals (label : String) (lhs rhs : String) : IO Unit := do
   if lhsText != rhsText then
     throw (IO.userError s!"✗ {label}: files differ\nlhs: {lhs}\nrhs: {rhs}")
   IO.println s!"✓ {label}"
-
-private def canonicalModules : List String :=
-  [ "Contracts.MacroContracts.SimpleStorage"
-  , "Contracts.MacroContracts.Counter"
-  , "Contracts.MacroContracts.Owned"
-  , "Contracts.MacroContracts.Ledger"
-  , "Contracts.MacroContracts.OwnedCounter"
-  , "Contracts.MacroContracts.SimpleToken"
-  , "Contracts.MacroContracts.SafeCounter"
-  , "Contracts.MacroContracts.ERC20"
-  , "Contracts.MacroContracts.ERC721"
-  ]
-
-private def contractNameOfModule (moduleName : String) : String :=
-  match moduleName.splitOn "." |>.reverse with
-  | name :: _ => name
-  | [] => moduleName
 
 private def abiSmokeSpec : CompilationModel := {
   name := "AbiSmoke"
@@ -145,7 +129,7 @@ unsafe def runTests : IO Unit := do
   let reversedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-out"
   let reversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-abi"
   let missingLib := "/tmp/definitely-missing-library.yul"
-  let failingAbi := s!"{abiDir}/AbiSmoke.abi.json"
+  let earlySuccessfulAbi := s!"{abiDir}/AbiSmoke.abi.json"
 
   IO.FS.createDirAll outDir
   IO.FS.createDirAll abiDir
@@ -156,16 +140,16 @@ unsafe def runTests : IO Unit := do
   IO.FS.createDirAll reversedOutDir
   IO.FS.createDirAll reversedAbiDir
 
-  try IO.FS.removeFile failingAbi catch _ => pure ()
+  try IO.FS.removeFile earlySuccessfulAbi catch _ => pure ()
 
   expectFailureContains
     "compileSpecsWithOptions reports missing linked library"
     (compileSpecsWithOptions [abiSmokeSpec, linkedLibrarySpec] outDir false [missingLib] {} none (some abiDir))
     missingLib
 
-  let hasFailingAbi ← fileExists failingAbi
-  if !hasFailingAbi then
-    throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {failingAbi}")
+  let hasEarlySuccessfulAbi ← fileExists earlySuccessfulAbi
+  if !hasEarlySuccessfulAbi then
+    throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {earlySuccessfulAbi}")
   IO.println "✓ ABI artifacts still emitted for contracts compiled before failure"
 
   compileModulesWithOptions outDir canonicalModules false [] {} none (some abiDir)

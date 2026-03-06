@@ -1,5 +1,6 @@
 import Compiler.Main
 import Compiler.Linker
+import Compiler.TestModules
 
 namespace Compiler.MainTest
 
@@ -37,25 +38,8 @@ private def fileExists (path : String) : IO Bool := do
   catch _ =>
     pure false
 
-private def canonicalModules : List String :=
-  [ "Contracts.MacroContracts.SimpleStorage"
-  , "Contracts.MacroContracts.Counter"
-  , "Contracts.MacroContracts.Owned"
-  , "Contracts.MacroContracts.Ledger"
-  , "Contracts.MacroContracts.OwnedCounter"
-  , "Contracts.MacroContracts.SimpleToken"
-  , "Contracts.MacroContracts.SafeCounter"
-  , "Contracts.MacroContracts.ERC20"
-  , "Contracts.MacroContracts.ERC721"
-  ]
-
 private def moduleArgs (modules : List String) : List String :=
   modules.foldr (fun moduleName acc => "--module" :: moduleName :: acc) []
-
-private def contractNameOfModule (moduleName : String) : String :=
-  match moduleName.splitOn "." |>.reverse with
-  | name :: _ => name
-  | [] => moduleName
 
 private def contractArtifactPath (outDir : String) (moduleName : String) : String :=
   s!"{outDir}/{contractNameOfModule moduleName}.yul"

@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MANIFEST = REPO_ROOT / "packages" / "verity-examples" / "contracts.manifest"
 
 
 @dataclass(frozen=True)
@@ -21,7 +22,7 @@ class Row:
 
 
 def run_gas_report(extra_args: list[str]) -> str:
-    cmd = ["lake", "exe", "gas-report", *extra_args]
+    cmd = ["lake", "exe", "gas-report", "--manifest", str(DEFAULT_MANIFEST), *extra_args]
     proc = subprocess.run(
         cmd,
         cwd=REPO_ROOT,

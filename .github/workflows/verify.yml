@@ -238,6 +238,7 @@ jobs:
       - name: Generate Yul (all contracts + CryptoHash with linked libraries)
         run: |
           ./.lake/build/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
             --output compiler/yul \
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
@@ -245,6 +246,7 @@ jobs:
       - name: Generate patched Yul + patch coverage report
         run: |
           ./.lake/build/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
             --enable-patches \
             --patch-report compiler/patch-report.tsv \
             --output compiler/yul-patched \
@@ -255,6 +257,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           ./.lake/build/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
             --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai \
             --output compiler/yul-parity-pack \
             --link examples/external-libs/PoseidonT3.yul \
@@ -264,6 +267,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           ./.lake/build/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
             --backend-profile solidity-parity \
             --enable-patches \
             --patch-max-iterations 6 \
@@ -319,10 +323,10 @@ jobs:
         run: python3 scripts/check_gas_report.py
 
       - name: Save static gas report snapshot
-        run: lake exe gas-report > gas-report-static.tsv
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
 
       - name: Save patched static gas report snapshot
-        run: lake exe gas-report --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
 
       - name: Check static gas patch delta non-regression
         run: |
