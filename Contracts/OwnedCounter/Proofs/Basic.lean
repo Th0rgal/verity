@@ -128,8 +128,7 @@ theorem increment_meets_spec_when_owner (s : ContractState)
   let s' := (increment.run s).snd
   increment_spec s s' := by
   rw [increment_unfold s h_owner]
-  simp [increment_spec, ContractResult.snd, Specs.sameAddrMapContext,
-    Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  verity_spec increment_spec
   intro slotIdx h_neq
   simp [h_neq]
 
@@ -170,8 +169,7 @@ theorem decrement_meets_spec_when_owner (s : ContractState)
   let s' := (decrement.run s).snd
   decrement_spec s s' := by
   rw [decrement_unfold s h_owner]
-  simp [decrement_spec, ContractResult.snd, Specs.sameAddrMapContext,
-    Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  verity_spec decrement_spec
   intro slotIdx h_neq
   simp [h_neq]
 
@@ -211,8 +209,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   let s' := ((transferOwnership newOwner).run s).snd
   transferOwnership_spec newOwner s s' := by
   rw [transferOwnership_unfold s newOwner h_owner]
-  simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorageMapContext,
-    Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+  verity_spec transferOwnership_spec
   intro slotIdx h_neq
   simp [h_neq]
 

@@ -24,6 +24,7 @@
 -/
 
 import Verity.Core
+import Verity.Specs.Common
 import Verity.Stdlib.Math
 import Verity.EVM.Uint256
 import Compiler.CompilationModel
@@ -93,6 +94,14 @@ syntax (name := verity_spec_unfold)
 syntax (name := verity_spec_unfold_with)
   "verity_spec " simpLemma " unfold " simpLemma " with " simpLemma : tactic
 
+/-- Discharge a common `*_meets_spec` goal after unfolding/rewrite setup. -/
+syntax (name := verity_spec)
+  "verity_spec " simpLemma : tactic
+
+/-- `verity_spec` with one extra simp lemma. -/
+syntax (name := verity_spec_with)
+  "verity_spec " simpLemma " with " simpLemma : tactic
+
 macro_rules
   | `(tactic| verity_unfold $fn:simpLemma) =>
       `(tactic| simp only [
@@ -147,6 +156,18 @@ macro_rules
          simp [$spec, ContractResult.snd, $extra]
          try (intro slotIdx h_neq; simp [h_neq])
          try (intro n h_neq; simp [h_neq])))
+
+macro "verity_spec " spec:simpLemma : tactic =>
+  `(tactic|
+    (simp [$spec, ContractResult.snd, Verity.Specs.sameAddrMapContext,
+      Verity.Specs.sameStorageMapContext, Verity.Specs.sameContext, Verity.Specs.sameStorage,
+      Verity.Specs.sameStorageAddr, Verity.Specs.sameStorageMap]))
+
+macro "verity_spec " spec:simpLemma " with " extra:simpLemma : tactic =>
+  `(tactic|
+    (simp [$spec, ContractResult.snd, Verity.Specs.sameAddrMapContext,
+      Verity.Specs.sameStorageMapContext, Verity.Specs.sameContext, Verity.Specs.sameStorage,
+      Verity.Specs.sameStorageAddr, Verity.Specs.sameStorageMap, $extra]))
 
 /-!
 ## Index Normalization Helpers

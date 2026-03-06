@@ -74,8 +74,7 @@ theorem store_meets_spec (s : ContractState) (value : Uint256) :
   let s' := ((store value).run s).snd
   store_spec value s s' := by
   verity_unfold store
-  simp [storedData, store_spec, Specs.sameAddrMapContext,
-    Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
+  verity_spec store_spec with storedData
   intro slotIdx h_neq
   simp [h_neq]
 
