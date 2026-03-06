@@ -22,6 +22,7 @@ This document is the long-form reference for script responsibilities.
 ## Property and proof boundaries
 
 Primary guards:
+- `check_axioms.py`: validate AXIOMS.md registry locations and parse `PrintAxioms.lean` dependency output.
 - `check_paths.py`: detect case-insensitive checkout hazards and enforce universal Layer-2 bridge quantification.
 - `check_property_manifest.py`
 - `check_property_coverage.py`

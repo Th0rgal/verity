@@ -70,7 +70,7 @@ the corresponding enforcement script.
 2. **Zero new axioms** without a same-commit update to [AXIOMS.md](AXIOMS.md)
    including: justification, risk rating, CI validation strategy, and
    elimination path. Enforced by
-   [`check_axiom_locations.py`](scripts/check_axiom_locations.py).
+   [`check_axioms.py`](scripts/check_axioms.py).
 
 3. **Axiom dependency freshness**: If theorems are added or removed,
    `PrintAxioms.lean` must be regenerated

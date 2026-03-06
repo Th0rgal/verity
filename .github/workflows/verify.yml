@@ -188,7 +188,7 @@ jobs:
         run: |
           set -o pipefail
           lake env lean PrintAxioms.lean 2>&1 | tee axiom-report-raw.log
-          AXIOM_REPORT_FILE=axiom-report.md python3 scripts/check_axiom_report.py --log axiom-report-raw.log | tee -a "$GITHUB_STEP_SUMMARY"
+          AXIOM_REPORT_FILE=axiom-report.md python3 scripts/check_axioms.py --log axiom-report-raw.log | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Generate proof length report
         run: python3 scripts/check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY
