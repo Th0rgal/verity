@@ -59,12 +59,7 @@ def setApprovalForAll_spec
   storageMap2UpdateSpec
     6 sender operator
     (fun _ => boolToWord approved)
-    (fun st st' =>
-      sameStorage st st' ∧
-      sameStorageAddr st st' ∧
-      sameStorageMap st st' ∧
-      sameStorageMapUint st st' ∧
-      sameContext st st')
+    sameStorageAddrMapUintContext
     s s'
 
 end Contracts.ERC721.Spec
