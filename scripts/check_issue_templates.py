@@ -36,7 +36,13 @@ def _find_log_artifacts(path: Path) -> list[str]:
 
 def _template_files(templates_dir: Path) -> list[Path]:
     files = sorted(templates_dir.glob("*.yml")) + sorted(templates_dir.glob("*.yaml"))
-    return sorted({path for path in files if path.is_file() and path.name != "config.yml"})
+    return sorted(
+        {
+            path
+            for path in files
+            if path.is_file() and path.name not in {"config.yml", "config.yaml"}
+        }
+    )
 
 
 def _render_path(path: Path) -> str:

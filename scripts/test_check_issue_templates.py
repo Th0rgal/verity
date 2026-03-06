@@ -100,6 +100,31 @@ body:
         )
         self.assertEqual(check.check_issue_templates(self.templates), 1)
 
+    def test_check_issue_templates_accepts_yaml_extension(self) -> None:
+        (self.templates / "valid.yaml").write_text(
+            """
+name: Test Form
+description: desc
+title: "[Test]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: hi
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(check.check_issue_templates(self.templates), 0)
+
+    def test_check_issue_templates_ignores_config_yaml(self) -> None:
+        (self.templates / "config.yaml").write_text(
+            "blank_issues_enabled: false\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(check.check_issue_templates(self.templates), 1)
+
     def test_check_issue_templates_handles_non_repo_path_on_failure(self) -> None:
         path = self.templates / "bad.yml"
         path.write_text(
