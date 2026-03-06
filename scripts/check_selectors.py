@@ -41,6 +41,12 @@ SIMPLE_PARAM_MAP = {
 COMPILER_ALIAS_RE = re.compile(
     r"def\s+(\w+)\s*:\s*CompilationModel\s*:=\s*Contracts\.MacroContracts\.(\w+)\.spec"
 )
+COMPILER_FILTERED_ALIAS_RE = re.compile(
+    r"def\s+(\w+)\s*:\s*CompilationModel\s*:=\s*"
+    r"let\s+canonical\s*:=\s*Contracts\.MacroContracts\.(\w+)\.spec\s*"
+    r"\{\s*canonical\s+with\s+functions\s*:=\s*canonical\.functions\.filter\s+fun\s+fn\s*=>\s*(.*?)\s*\}",
+    re.DOTALL,
+)
 MACRO_FUNCTION_RE = re.compile(
     r"^\s*function\s+(\w+)\s*\((.*?)\)\s*:\s*([A-Za-z0-9_→ ]+)\s*:=\s*do",
     re.MULTILINE,
@@ -122,6 +128,30 @@ def _extract_macro_spec(def_name: str, contract_name: str) -> SpecInfo:
     return SpecInfo(def_name, contract_name, signatures, False, all_names)
 
 
+def _extract_filtered_macro_spec(
+    def_name: str, contract_name: str, filter_body: str
+) -> SpecInfo:
+    allowed_names = re.findall(r'fn\.name\s*=\s*"([^"]+)"', filter_body)
+    if not allowed_names:
+        die(f"Unsupported filtered macro spec form for {def_name}")
+
+    canonical = _extract_macro_spec(def_name, contract_name)
+    allowed = set(allowed_names)
+    filtered_signatures = [
+        sig
+        for sig in canonical.signatures
+        if sig.split("(", 1)[0] in allowed
+    ]
+    filtered_names = [name for name in canonical.all_function_names if name in allowed]
+    return SpecInfo(
+        def_name,
+        contract_name,
+        filtered_signatures,
+        canonical.has_externals,
+        filtered_names,
+    )
+
+
 def extract_specs(text: str) -> List[SpecInfo]:
     specs: List[SpecInfo] = []
     seen_def_names: set[str] = set()
@@ -147,6 +177,12 @@ def extract_specs(text: str) -> List[SpecInfo]:
         if def_name in seen_def_names:
             continue
         specs.append(_extract_macro_spec(def_name, contract_name))
+        seen_def_names.add(def_name)
+
+    for def_name, contract_name, filter_body in COMPILER_FILTERED_ALIAS_RE.findall(text):
+        if def_name in seen_def_names:
+            continue
+        specs.append(_extract_filtered_macro_spec(def_name, contract_name, filter_body))
         seen_def_names.add(def_name)
     return specs
 

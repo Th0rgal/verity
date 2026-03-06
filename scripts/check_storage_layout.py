@@ -57,6 +57,16 @@ SPEC_ADDR_SLOT_RE = re.compile(r"\bs'?\.(?:storageAddr)\s+(\d+)\b")
 SPEC_MAPPING_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap)\s+(\d+)\b")
 SPEC_MAPPING_UINT_SLOT_RE = re.compile(r"\bs'?\.(?:storageMapUint)\s+(\d+)\b")
 SPEC_MAPPING2_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap2)\s+(\d+)\b")
+SPEC_HELPER_SLOT_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
+    (re.compile(r"\bstorageUpdateSpec\s+(\d+)\b"), ("uint256",)),
+    (re.compile(r"\bstorageAddrUpdateSpec\s+(\d+)\b"), ("address",)),
+    (re.compile(r"\bstorageAddrStorageUpdateSpec\s+(\d+)\s+(\d+)\b"), ("address", "uint256")),
+    (re.compile(r"\bstorageAddrStorage2UpdateSpec\s+(\d+)\s+(\d+)\s+(\d+)\b"), ("address", "uint256", "uint256")),
+    (re.compile(r"\bstorage2UpdateSpec\s+(\d+)\s+(\d+)\b"), ("uint256", "uint256")),
+    (re.compile(r"\bstorageMapUpdateSpec\s+(\d+)\b"), ("mapping",)),
+    (re.compile(r"\bstorageMapAndStorageUpdateSpec\s+(\d+)\s+\w+\s+\w+\s+(\d+)\b"), ("mapping", "uint256")),
+    (re.compile(r"\bstorageMap2UpdateSpec\s+(\d+)\b"), ("mapping2",)),
+)
 
 
 def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
@@ -250,6 +260,10 @@ def extract_spec_slots(
         by_slot.setdefault(int(m.group(1)), set()).add("mapping_uint")
     for m in SPEC_MAPPING2_SLOT_RE.finditer(content):
         by_slot.setdefault(int(m.group(1)), set()).add("mapping2")
+    for pattern, kinds in SPEC_HELPER_SLOT_PATTERNS:
+        for m in pattern.finditer(content):
+            for group_index, kind in enumerate(kinds, start=1):
+                by_slot.setdefault(int(m.group(group_index)), set()).add(kind)
 
     entries: list[tuple[str, str, int]] = []
     errors: list[str] = []
@@ -407,6 +421,11 @@ def check_spec_edsl_consistency(
             if (slot, ty) not in edsl_slots:
                 errors.append(
                     f"Spec-EDSL: {contract}.slot{slot} ({ty}) in Spec but not in EDSL"
+                )
+        for slot, ty in sorted(edsl_slots):
+            if (slot, ty) not in spec_slots:
+                errors.append(
+                    f"Spec-EDSL: {contract}.slot{slot} ({ty}) in EDSL but not in Spec"
                 )
     return errors
 
