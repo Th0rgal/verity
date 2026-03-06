@@ -6,6 +6,7 @@
 
 import Contracts.Counter.Spec
 import Contracts.Counter.Invariants
+import Verity.Proofs.Stdlib.Automation
 
 namespace Contracts.Counter.Proofs
 
@@ -64,14 +65,12 @@ theorem increment_meets_spec (s : ContractState) :
   refine ⟨?_, ?_, ?_⟩
   · rfl
   · intro slotIdx h_neq
-    simp only [increment, count, getStorage, setStorage, Verity.bind, Contract.run, Bind.bind, ContractResult.snd]
-    split
-    · next h =>
-      have : slotIdx = 0 := beq_iff_eq.mp h
-      exact absurd this h_neq
-    · rfl
-  · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
-      increment, count, getStorage, setStorage, Verity.bind, Contract.run, Bind.bind, ContractResult.snd]
+    verity_unfold increment
+    simp [count]
+    intro h_eq
+    exact (h_neq h_eq).elim
+  · verity_unfold increment
+    simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
 
 theorem increment_adds_one (s : ContractState) :
   let s' := ((increment).run s).snd
@@ -86,14 +85,12 @@ theorem decrement_meets_spec (s : ContractState) :
   refine ⟨?_, ?_, ?_⟩
   · rfl
   · intro slotIdx h_neq
-    simp only [decrement, count, getStorage, setStorage, Verity.bind, Contract.run, Bind.bind, ContractResult.snd]
-    split
-    · next h =>
-      have : slotIdx = 0 := beq_iff_eq.mp h
-      exact absurd this h_neq
-    · rfl
-  · simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap,
-      decrement, count, getStorage, setStorage, Verity.bind, Contract.run, Bind.bind, ContractResult.snd]
+    verity_unfold decrement
+    simp [count]
+    intro h_eq
+    exact (h_neq h_eq).elim
+  · verity_unfold decrement
+    simp [Specs.sameAddrMapContext, Specs.sameContext, Specs.sameStorageAddr, Specs.sameStorageMap]
 
 theorem decrement_subtracts_one (s : ContractState) :
   let s' := ((decrement).run s).snd
@@ -105,7 +102,8 @@ theorem decrement_subtracts_one (s : ContractState) :
 theorem getCount_meets_spec (s : ContractState) :
   let result := ((getCount).run s).fst
   getCount_spec result s := by
-  simp [getCount, getCount_spec, count, getStorage, Contract.run, Verity.bind, Bind.bind, Pure.pure, Verity.pure]
+  verity_unfold getCount
+  simp [count, getCount_spec]
 
 theorem getCount_reads_count_value (s : ContractState) :
   let result := ((getCount).run s).fst
@@ -159,18 +157,20 @@ theorem increment_decrement_cancel (s : ContractState) :
 theorem increment_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((increment).run s).snd
   WellFormedState s' := by
-  simp only [increment, count, getStorage, setStorage, Verity.bind, Contract.run, Bind.bind, ContractResult.snd]
+  verity_unfold increment
+  simp [count]
   exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 theorem decrement_preserves_wellformedness (s : ContractState) (h : WellFormedState s) :
   let s' := ((decrement).run s).snd
   WellFormedState s' := by
-  simp only [decrement, count, getStorage, setStorage, Verity.bind, Contract.run, Bind.bind, ContractResult.snd]
+  verity_unfold decrement
+  simp [count]
   exact ⟨h.sender_nonzero, h.contract_nonzero⟩
 
 theorem getCount_preserves_state (s : ContractState) :
   let s' := ((getCount).run s).snd
   s' = s := by
-  simp [getCount, count, getStorage, Contract.run, Verity.bind, Bind.bind, Pure.pure, Verity.pure]
+  verity_unfold getCount
 
 end Contracts.Counter.Proofs
