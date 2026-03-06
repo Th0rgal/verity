@@ -21,10 +21,9 @@ def boolToWord (b : Bool) : Uint256 :=
 
 /-- constructor: sets owner and initializes counters to zero -/
 def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
-  s'.storageAddr 0 = initialOwner ∧
-  storageAddrUnchangedExcept 0 s s' ∧
-  storage2UpdateSpec
-    1 2
+  storageAddrStorage2UpdateSpec
+    0 1 2
+    (fun _ => initialOwner)
     (fun _ => 0)
     (fun _ => 0)
     (fun st st' => sameStorageMap st st' ∧ sameStorageMap2 st st' ∧ sameStorageMapUint st st' ∧ sameContext st st')

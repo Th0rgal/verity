@@ -133,6 +133,20 @@ def storageAddrStorageUpdateSpec
   storageUnchangedExcept storageSlot s s' ∧
   frame s s'
 
+/-- Canonical two-state spec shape for updating one `storageAddr` slot and two `storage` slots. -/
+def storageAddrStorage2UpdateSpec
+    (addrSlot storageSlot1 storageSlot2 : Nat)
+    (addrValue : ContractState → Address)
+    (storageValue1 storageValue2 : ContractState → Uint256)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  s'.storageAddr addrSlot = addrValue s ∧
+  s'.storage storageSlot1 = storageValue1 s ∧
+  s'.storage storageSlot2 = storageValue2 s ∧
+  storageAddrUnchangedExcept addrSlot s s' ∧
+  (∀ other : Nat, other ≠ storageSlot1 → other ≠ storageSlot2 → s'.storage other = s.storage other) ∧
+  frame s s'
+
 /-- Canonical two-state spec shape for updating two `storage` slots. -/
 def storage2UpdateSpec
     (slot1 slot2 : Nat)
