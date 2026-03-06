@@ -30,6 +30,7 @@ def evalBuiltinCall
     (calldata : List Nat)
     (func : String)
     (argVals : List Nat) : Option Nat :=
+  let toWord (x : Nat) : Nat := x % evmModulus
   if func = "mappingSlot" then
     match argVals with
     | [base, key] => some (Compiler.Proofs.abstractMappingSlot base key)
@@ -52,11 +53,17 @@ def evalBuiltinCall
     | _ => none
   else if func = "div" then
     match argVals with
-    | [a, b] => if b = 0 then some 0 else some (a / b)
+    | [a, b] =>
+        let a := toWord a
+        let b := toWord b
+        if b = 0 then some 0 else some (a / b)
     | _ => none
   else if func = "mod" then
     match argVals with
-    | [a, b] => if b = 0 then some 0 else some (a % b)
+    | [a, b] =>
+        let a := toWord a
+        let b := toWord b
+        if b = 0 then some 0 else some (a % b)
     | _ => none
   else if func = "lt" then
     match argVals with
@@ -76,27 +83,32 @@ def evalBuiltinCall
     | _ => none
   else if func = "and" then
     match argVals with
-    | [a, b] => some (a &&& b)
+    | [a, b] => some (toWord a &&& toWord b)
     | _ => none
   else if func = "or" then
     match argVals with
-    | [a, b] => some (a ||| b)
+    | [a, b] => some (toWord a ||| toWord b)
     | _ => none
   else if func = "xor" then
     match argVals with
-    | [a, b] => some (Nat.xor a b)
+    | [a, b] => some (Nat.xor (toWord a) (toWord b))
     | _ => none
   else if func = "not" then
     match argVals with
-    | [a] => some (Nat.xor a (evmModulus - 1))
+    | [a] => some (Nat.xor (toWord a) (evmModulus - 1))
     | _ => none
   else if func = "shl" then
     match argVals with
-    | [shift, value] => some ((value * (2 ^ shift)) % evmModulus)
+    | [shift, value] =>
+        let shift := toWord shift
+        some ((value * (2 ^ shift)) % evmModulus)
     | _ => none
   else if func = "shr" then
     match argVals with
-    | [shift, value] => some (value / (2 ^ shift))
+    | [shift, value] =>
+        let shift := toWord shift
+        let value := toWord value
+        some (value / (2 ^ shift))
     | _ => none
   else if func = "caller" then
     match argVals with

@@ -59,11 +59,23 @@ example : verityEval "div" [42, 7] = bridgeEval "div" [42, 7] := by native_decid
 /-- div: division by zero returns 0 -/
 example : verityEval "div" [42, 0] = bridgeEval "div" [42, 0] := by native_decide
 
+/-- div: operands are interpreted as uint256 words (2^256 ≡ 0). -/
+example : verityEval "div" [Compiler.Constants.evmModulus, 2] =
+          bridgeEval "div" [Compiler.Constants.evmModulus, 2] := by native_decide
+
+/-- div: denominator wraps (2^256 ≡ 0), so this is division by zero. -/
+example : verityEval "div" [7, Compiler.Constants.evmModulus] =
+          bridgeEval "div" [7, Compiler.Constants.evmModulus] := by native_decide
+
 /-- mod: 10 % 3 = 1 -/
 example : verityEval "mod" [10, 3] = bridgeEval "mod" [10, 3] := by native_decide
 
 /-- mod: modulo by zero returns 0 -/
 example : verityEval "mod" [10, 0] = bridgeEval "mod" [10, 0] := by native_decide
+
+/-- mod: operands are interpreted as uint256 words (2^256 ≡ 0). -/
+example : verityEval "mod" [Compiler.Constants.evmModulus, 3] =
+          bridgeEval "mod" [Compiler.Constants.evmModulus, 3] := by native_decide
 
 -- ## Comparison builtins
 
@@ -115,20 +127,44 @@ example : verityEval "gt" [Compiler.Constants.evmModulus, Compiler.Constants.evm
 /-- and: 0xFF & 0x0F = 0x0F -/
 example : verityEval "and" [255, 15] = bridgeEval "and" [255, 15] := by native_decide
 
+/-- and: uint256-wrap on operands (2^256 ≡ 0). -/
+example : verityEval "and" [Compiler.Constants.evmModulus, Compiler.Constants.evmModulus] =
+          bridgeEval "and" [Compiler.Constants.evmModulus, Compiler.Constants.evmModulus] := by native_decide
+
 /-- or: 0xF0 | 0x0F = 0xFF -/
 example : verityEval "or" [240, 15] = bridgeEval "or" [240, 15] := by native_decide
+
+/-- or: uint256-wrap on operands (2^256 ≡ 0). -/
+example : verityEval "or" [Compiler.Constants.evmModulus, 0] =
+          bridgeEval "or" [Compiler.Constants.evmModulus, 0] := by native_decide
 
 /-- xor: 0xFF ^ 0x0F = 0xF0 -/
 example : verityEval "xor" [255, 15] = bridgeEval "xor" [255, 15] := by native_decide
 
+/-- xor: uint256-wrap on operands (2^256 ≡ 0). -/
+example : verityEval "xor" [Compiler.Constants.evmModulus, 0] =
+          bridgeEval "xor" [Compiler.Constants.evmModulus, 0] := by native_decide
+
 /-- not: bitwise NOT of 0 -/
 example : verityEval "not" [0] = bridgeEval "not" [0] := by native_decide
+
+/-- not: uint256-wrap on operand (2^256 ≡ 0). -/
+example : verityEval "not" [Compiler.Constants.evmModulus] =
+          bridgeEval "not" [Compiler.Constants.evmModulus] := by native_decide
 
 /-- shl: 1 << 8 = 256 -/
 example : verityEval "shl" [8, 1] = bridgeEval "shl" [8, 1] := by native_decide
 
+/-- shl: shift operand wraps in uint256 domain (2^256 ≡ 0). -/
+example : verityEval "shl" [Compiler.Constants.evmModulus, 3] =
+          bridgeEval "shl" [Compiler.Constants.evmModulus, 3] := by native_decide
+
 /-- shr: 256 >> 8 = 1 -/
 example : verityEval "shr" [8, 256] = bridgeEval "shr" [8, 256] := by native_decide
+
+/-- shr: both shift and value are interpreted as uint256 words. -/
+example : verityEval "shr" [Compiler.Constants.evmModulus, Compiler.Constants.evmModulus] =
+          bridgeEval "shr" [Compiler.Constants.evmModulus, Compiler.Constants.evmModulus] := by native_decide
 
 -- ## Scope boundary: state-dependent builtins fall through to none
 
