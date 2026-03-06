@@ -73,6 +73,8 @@ theorem isApprovedForAll_meets_spec (s : ContractState) (ownerAddr operator : Ad
 /-- `setApprovalForAll` writes sender/operator flag and leaves other state unchanged. -/
 theorem setApprovalForAll_meets_spec (s : ContractState) (operator : Address) (approved : Bool) :
     setApprovalForAll_spec s.sender operator approved s ((Contracts.MacroContracts.ERC721Addressed.setApprovalForAll operator approved).runState s) := by
+  unfold setApprovalForAll_spec Specs.storageMap2UpdateSpec Specs.storageMap2UnchangedExceptKeyPair
+    Specs.sameStorageAddrMapUintContext
   refine ⟨?_, ?_, ?_⟩
   · cases approved <;>
       simp [Contracts.MacroContracts.ERC721Addressed.setApprovalForAll, Contracts.MacroContracts.ERC721Addressed.operatorApprovals,

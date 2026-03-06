@@ -43,6 +43,7 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
 theorem approve_meets_spec (s : ContractState) (spender : Address) (amount : Uint256) :
     approve_spec s.sender spender amount s ((approve spender amount).runState s) := by
   unfold approve_spec Specs.storageMap2UpdateSpec Specs.storageMap2UnchangedExceptKeyPair
+    Specs.sameStorageAddrMapContext
   refine ⟨?_, ?_, ?_⟩
   · simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind]
   · refine ⟨?_, ?_⟩

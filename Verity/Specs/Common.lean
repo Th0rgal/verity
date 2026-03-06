@@ -115,6 +115,27 @@ def sameStorageMap2Context (s s' : ContractState) : Prop :=
 @[simp] theorem sameStorageMap2Context_rfl (s : ContractState) : sameStorageMap2Context s s :=
   ⟨rfl, rfl, sameContext_rfl s⟩
 
+/-- Uint256 storage, address storage, mapping storage, and context are unchanged. -/
+def sameStorageAddrMapContext (s s' : ContractState) : Prop :=
+  sameStorage s s' ∧
+  sameStorageAddr s s' ∧
+  sameStorageMap s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageAddrMapContext_rfl (s : ContractState) : sameStorageAddrMapContext s s :=
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
+
+/-- Uint256/address storage, mapping storage (word+uint-keyed), and context are unchanged. -/
+def sameStorageAddrMapUintContext (s s' : ContractState) : Prop :=
+  sameStorage s s' ∧
+  sameStorageAddr s s' ∧
+  sameStorageMap s s' ∧
+  sameStorageMapUint s s' ∧
+  sameContext s s'
+
+@[simp] theorem sameStorageAddrMapUintContext_rfl (s : ContractState) : sameStorageAddrMapUintContext s s :=
+  ⟨rfl, rfl, rfl, rfl, sameContext_rfl s⟩
+
 /-- Mapping storage (word + uint-keyed + double), and context are unchanged. -/
 def sameStorageMapsContext (s s' : ContractState) : Prop :=
   sameStorageMap s s' ∧
