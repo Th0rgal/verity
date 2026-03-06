@@ -13,31 +13,26 @@ open Contracts.ERC721.Spec
 /-- `constructor` sets owner slot 0 and zero-initializes supply/counter slots. -/
 theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
     constructor_spec initialOwner s ((Contracts.MacroContracts.ERC721Addressed.constructor initialOwner).runState s) := by
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · simp [Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner, setStorageAddr,
-      setStorage, Contract.runState, Verity.bind, Bind.bind]
-  · simp [Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.totalSupply, setStorageAddr,
-      setStorage, Contract.runState, Verity.bind, Bind.bind]
-  · simp [Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.nextTokenId, setStorageAddr,
-      setStorage, Contract.runState, Verity.bind, Bind.bind]
-  · intro slot h_neq
-    simp [Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
-      Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId, setStorageAddr,
-      setStorage,
+  unfold constructor_spec Specs.storageAddrStorage2UpdateSpec Specs.sameStorageMapsContext
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+  · simp [Contracts.MacroContracts.ERC721Addressed.constructor, setStorageAddr, setStorage,
+      Contract.runState, Verity.bind, Bind.bind]
+  · simp [Contracts.MacroContracts.ERC721Addressed.constructor, setStorageAddr, setStorage,
+      Contract.runState, Verity.bind, Bind.bind]
+  · simp [Contracts.MacroContracts.ERC721Addressed.constructor, setStorageAddr, setStorage,
+      Contract.runState, Verity.bind, Bind.bind]
+  · intro other h_neq
+    simp [Contracts.MacroContracts.ERC721Addressed.constructor, setStorageAddr, setStorage,
       Contract.runState, Verity.bind, Bind.bind, h_neq]
-  · intro slot h_slot1 h_slot2
-    simp [Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
-      Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId, setStorageAddr,
-      setStorage,
+  · intro other h_slot1 h_slot2
+    simp [Contracts.MacroContracts.ERC721Addressed.constructor, setStorageAddr, setStorage,
       Contract.runState, Verity.bind, Bind.bind, h_slot1, h_slot2]
-  · simp [Specs.sameStorageMap, Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
-      Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId,
-      setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
-  · rfl
-  · rfl
-  · simp [Specs.sameContext, Contracts.MacroContracts.ERC721Addressed.constructor, Contracts.MacroContracts.ERC721Addressed.owner,
-      Contracts.MacroContracts.ERC721Addressed.totalSupply, Contracts.MacroContracts.ERC721Addressed.nextTokenId,
-      setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · rfl
+    · rfl
+    · rfl
+    · simp [Specs.sameContext, Contracts.MacroContracts.ERC721Addressed.constructor, setStorageAddr, setStorage,
+        Contract.runState, Verity.bind, Bind.bind]
 
 /-- `balanceOf` returns balances slot 3 at address `addr`. -/
 theorem balanceOf_meets_spec (s : ContractState) (addr : Address) :

@@ -62,10 +62,13 @@ theorem setStorage_preserves_map_storage (s : ContractState) (value : Uint256) :
 theorem increment_meets_spec (s : ContractState) :
   let s' := ((increment).run s).snd
   increment_spec s s' := by
-  verity_unfold increment
-  verity_spec increment_spec with count
-  intro slotIdx h_neq
-  simp [h_neq]
+  unfold increment_spec Specs.storageUpdateSpec Specs.sameAddrMapContext
+  refine ⟨?_, ?_, ?_⟩
+  · simp [increment, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
+  · intro other h_neq
+    simp [increment, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind, h_neq]
+  · simp [Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameContext, increment, count,
+      getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
 
 theorem increment_adds_one (s : ContractState) :
   let s' := ((increment).run s).snd
@@ -77,10 +80,13 @@ theorem increment_adds_one (s : ContractState) :
 theorem decrement_meets_spec (s : ContractState) :
   let s' := ((decrement).run s).snd
   decrement_spec s s' := by
-  verity_unfold decrement
-  verity_spec decrement_spec with count
-  intro slotIdx h_neq
-  simp [h_neq]
+  unfold decrement_spec Specs.storageUpdateSpec Specs.sameAddrMapContext
+  refine ⟨?_, ?_, ?_⟩
+  · simp [decrement, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
+  · intro other h_neq
+    simp [decrement, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind, h_neq]
+  · simp [Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameContext, decrement, count,
+      getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
 
 theorem decrement_subtracts_one (s : ContractState) :
   let s' := ((decrement).run s).snd
