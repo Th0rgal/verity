@@ -215,25 +215,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
-    if: needs.changes.outputs.code == 'true' && secrets.AXLE_API_KEY != ''
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check AXLE API key availability
+        id: axle-key
+        env:
+          AXLE_API_KEY: ${{ secrets.AXLE_API_KEY }}
+        run: |
+          if [ -z "${AXLE_API_KEY}" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "AXLE_API_KEY is not configured for this run."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: dorny/paths-filter@v3
         id: lean-filter
+        if: steps.axle-key.outputs.present == 'true'
         with:
           list-files: csv
           filters: |
             lean:
-              - 'Verity/**.lean'
               - 'Verity/**/*.lean'
               - 'Verity.lean'
-              - 'Compiler/**.lean'
               - 'Compiler/**/*.lean'
               - 'Compiler.lean'
 
       - name: Run AXLE verify_proof pre-check
-        if: steps.lean-filter.outputs.lean == 'true'
+        if: steps.axle-key.outputs.present == 'true' && steps.lean-filter.outputs.lean == 'true'
         env:
           AXLE_API_KEY: ${{ secrets.AXLE_API_KEY }}
         run: |
@@ -241,8 +252,12 @@ jobs:
             --files-csv "${{ steps.lean-filter.outputs.lean_files }}"
 
       - name: No Lean file changes
-        if: steps.lean-filter.outputs.lean != 'true'
+        if: steps.axle-key.outputs.present == 'true' && steps.lean-filter.outputs.lean != 'true'
         run: echo "No changed Lean files; AXLE verify_proof pre-check skipped."
+
+      - name: No AXLE API key
+        if: steps.axle-key.outputs.present != 'true'
+        run: echo "AXLE verify_proof pre-check skipped: AXLE_API_KEY is unavailable."
 
   build:
     runs-on: ubuntu-latest
