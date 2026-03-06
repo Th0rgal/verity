@@ -16,6 +16,14 @@ syntax (name := genSpecCmdFor)
 syntax (name := genSpecCmdForExtra)
   "#gen_spec " ident " for " "(" ident " : " term ")" " (" term ", " term ", " term ", " term ")" : command
 
+syntax (name := genSpecCmdFor2)
+  "#gen_spec " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ")" : command
+
+syntax (name := genSpecCmdFor2Extra)
+  "#gen_spec " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ")" : command
+
 syntax (name := genSpecAddrCmd)
   "#gen_spec_addr " ident " (" term ", " term ", " term ")" : command
 
@@ -27,6 +35,14 @@ syntax (name := genSpecAddrCmdFor)
 
 syntax (name := genSpecAddrCmdForExtra)
   "#gen_spec_addr " ident " for " "(" ident " : " term ")" " (" term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecAddrCmdFor2)
+  "#gen_spec_addr " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ")" : command
+
+syntax (name := genSpecAddrCmdFor2Extra)
+  "#gen_spec_addr " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ")" : command
 
 syntax (name := genSpecAddrStorageCmd)
   "#gen_spec_addr_storage " ident
@@ -42,6 +58,14 @@ syntax (name := genSpecAddrStorageCmdFor)
 
 syntax (name := genSpecAddrStorageCmdForExtra)
   "#gen_spec_addr_storage " ident " for " "(" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecAddrStorageCmdFor2)
+  "#gen_spec_addr_storage " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecAddrStorageCmdFor2Extra)
+  "#gen_spec_addr_storage " ident " for2 " "(" ident " : " term ")" " (" ident " : " term ")"
     " (" term ", " term ", " term ", " term ", " term ", " term ")" : command
 
 syntax (name := genSpecAddrStorage2Cmd)
@@ -191,11 +215,29 @@ macro_rules
       `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
           Verity.Specs.storageUpdateSpec $slot $value
             (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($slot:term, $value:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageUpdateSpec $slot $value $frame s s')
+  | `(#gen_spec $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($slot:term, $value:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageUpdateSpec $slot $value
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
   | `(#gen_spec_addr $name:ident for ($arg:ident : $argTy:term) ($slot:term, $value:term, $frame:term)) =>
       `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
           Verity.Specs.storageAddrUpdateSpec $slot $value $frame s s')
   | `(#gen_spec_addr $name:ident for ($arg:ident : $argTy:term) ($slot:term, $value:term, $frame:term, $extra:term)) =>
       `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageAddrUpdateSpec $slot $value
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_addr $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($slot:term, $value:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageAddrUpdateSpec $slot $value $frame s s')
+  | `(#gen_spec_addr $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($slot:term, $value:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
           Verity.Specs.storageAddrUpdateSpec $slot $value
             (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
   | `(#gen_spec_addr_storage $name:ident
@@ -217,6 +259,17 @@ macro_rules
   | `(#gen_spec_addr_storage $name:ident for ($arg:ident : $argTy:term)
       ($addrSlot:term, $storageSlot:term, $addrValue:term, $storageValue:term, $frame:term, $extra:term)) =>
       `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageAddrStorageUpdateSpec
+            $addrSlot $storageSlot $addrValue $storageValue
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_addr_storage $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($addrSlot:term, $storageSlot:term, $addrValue:term, $storageValue:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageAddrStorageUpdateSpec
+            $addrSlot $storageSlot $addrValue $storageValue $frame s s')
+  | `(#gen_spec_addr_storage $name:ident for2 ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($addrSlot:term, $storageSlot:term, $addrValue:term, $storageValue:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
           Verity.Specs.storageAddrStorageUpdateSpec
             $addrSlot $storageSlot $addrValue $storageValue
             (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')

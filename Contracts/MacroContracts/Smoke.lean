@@ -81,6 +81,46 @@ verity_contract Uint8Smoke where
   function sigV () : Uint8 := do
     return 27
 
+namespace SpecGenSmoke
+
+#gen_spec storage_for2_spec for2 (x : Uint256) (y : Uint256)
+  (0, (fun st => add (st.storage 0) (add x y)), Verity.Specs.sameAddrMapContext)
+
+#gen_spec storage_for2_extra_spec for2 (x : Uint256) (y : Uint256)
+  (0, (fun st => add (st.storage 0) (add x y)), Verity.Specs.sameAddrMapContext,
+    (fun _ s' => s'.storage 0 >= x))
+
+#gen_spec_addr addr_for2_spec for2 (owner : Address) (_salt : Uint256)
+  (0, (fun _ => owner), Verity.Specs.sameStorageMapContext)
+
+#gen_spec_addr addr_for2_extra_spec for2 (owner : Address) (salt : Uint256)
+  (0, (fun _ => owner), Verity.Specs.sameStorageMapContext,
+    (fun _ s' => s'.storage 0 = owner.toNat ∧ salt = salt))
+
+#gen_spec_addr_storage addr_storage_for2_spec for2 (owner : Address) (value : Uint256)
+  (0, 2, (fun _ => owner), (fun _ => value), Verity.Specs.sameStorageMapsContext)
+
+#gen_spec_addr_storage addr_storage_for2_extra_spec for2 (owner : Address) (value : Uint256)
+  (0, 2, (fun _ => owner), (fun _ => value), Verity.Specs.sameStorageMapsContext,
+    (fun _ s' => s'.storage 2 = value))
+
+example (x y : Uint256) (s s' : ContractState) :
+    storage_for2_spec x y s s' =
+      Verity.Specs.storageUpdateSpec 0 (fun st => add (st.storage 0) (add x y))
+        Verity.Specs.sameAddrMapContext s s' := rfl
+
+example (owner : Address) (salt : Uint256) (s s' : ContractState) :
+    addr_for2_spec owner salt s s' =
+      Verity.Specs.storageAddrUpdateSpec 0 (fun _ => owner)
+        Verity.Specs.sameStorageMapContext s s' := rfl
+
+example (owner : Address) (value : Uint256) (s s' : ContractState) :
+    addr_storage_for2_spec owner value s s' =
+      Verity.Specs.storageAddrStorageUpdateSpec 0 2 (fun _ => owner) (fun _ => value)
+        Verity.Specs.sameStorageMapsContext s s' := rfl
+
+end SpecGenSmoke
+
 #check_contract Counter
 #check_contract UintMapSmoke
 #check_contract Bytes32Smoke
