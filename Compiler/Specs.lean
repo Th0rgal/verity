@@ -20,8 +20,12 @@ open Compiler.CompilationModel
 /-- Legacy compatibility alias. Canonical source is macro-generated. -/
 def simpleStorageSpec : CompilationModel := Contracts.MacroContracts.SimpleStorage.spec
 
-/-- Legacy compatibility alias. Canonical source is macro-generated. -/
-def counterSpec : CompilationModel := Contracts.MacroContracts.Counter.spec
+/-- Legacy compatibility shim preserving the historical 3-function Counter surface. -/
+def counterSpec : CompilationModel :=
+  let canonical := Contracts.MacroContracts.Counter.spec
+  { canonical with
+    functions := canonical.functions.filter fun fn =>
+      fn.name = "increment" || fn.name = "decrement" || fn.name = "getCount" }
 
 /-- Legacy compatibility alias. Canonical source is macro-generated. -/
 def ownedSpec : CompilationModel := Contracts.MacroContracts.Owned.spec
