@@ -64,6 +64,17 @@ syntax (name := semantic_bridge_split)
 syntax (name := semantic_bridge_owner)
   "semantic_bridge_owner " ident " with [" term,* "]" : tactic
 
+/-- `semantic_bridge_layer3 contract tx irState` opens the standard Layer-3
+    contract-preservation scaffold used by composed EDSL->IR->Yul bridge proofs. -/
+syntax (name := semantic_bridge_layer3)
+  "semantic_bridge_layer3 " term " " term " " term : tactic
+
+/-- `semantic_bridge_fn_cases [h1, ...] with [...]` discharges the per-function
+    case split after `simp [contract] at hfn`, using the canonical Layer-3 body
+    equivalence rewrite bundle plus local extras. -/
+syntax (name := semantic_bridge_fn_cases)
+  "semantic_bridge_fn_cases [" ident,* "] with [" term,* "]" : tactic
+
 macro_rules
   | `(tactic| semantic_bridge_simp) =>
       `(tactic| simp [
@@ -91,6 +102,25 @@ macro_rules
       `(tactic|
         subst $h
         semantic_bridge_simp [$[$extra],*])
+  | `(tactic| semantic_bridge_layer3 $contract:term $tx:term $irState:term) =>
+      `(tactic|
+        refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
+          $contract $tx $irState ?_ ?_ rfl rfl ?_
+        · simp [$tx, mkIRTransaction, selectorModulus]
+        · intro s hs
+          simp [$contract] at hs
+        · intro fn hfn
+          simp [$contract] at hfn)
+  | `(tactic| semantic_bridge_fn_cases [$[$h:ident],*] with [$[$extra:term],*]) =>
+      `(tactic|
+        rcases hfn with $[$h]|*
+        all_goals
+          subst hfn
+          simpa [Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics,
+            tx, irState, mkIRTransaction, mkIRState,
+            interpretYulBodyFromState, interpretYulBody, yulStateOfIR,
+            yulResultOfExecWithRollback, interpretYulRuntime, execYulStmts,
+            $[$extra],*])
 
 /-! ## State Encoding
 
@@ -528,19 +558,8 @@ theorem simpleStorage_store_edsl_to_yul
   let irState := mkIRState state sender 0x6057361d [value.val] encodeStorage
   have hBridge := simpleStorage_store_semantic_bridge state sender value
   have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState) (interpretYulFromIR simpleStorageIRContract tx irState) := by
-    refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
-      simpleStorageIRContract tx irState ?_ ?_ rfl rfl ?_
-    · simp [tx, mkIRTransaction, selectorModulus]
-    · intro s hs; simp [simpleStorageIRContract] at hs
-    · intro fn hfn
-      simp [simpleStorageIRContract] at hfn
-      rcases hfn with hfn | hfn
-      all_goals
-        subst hfn
-        simpa [Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics,
-          tx, irState, mkIRTransaction, mkIRState, encodeStorage,
-          interpretYulBodyFromState, interpretYulBody, yulStateOfIR,
-          yulResultOfExecWithRollback, interpretYulRuntime, execYulStmts]
+    semantic_bridge_layer3 simpleStorageIRContract tx irState
+    semantic_bridge_fn_cases [hfn, hfn] with [encodeStorage]
   cases hrun : Contract.run (Contracts.MacroContracts.SimpleStorage.store value)
       { state with sender := sender } with
   | success _ s' =>
@@ -578,19 +597,8 @@ theorem simpleStorage_retrieve_edsl_to_yul
   have hBridge := simpleStorage_retrieve_semantic_bridge state sender
   have hYul : resultsMatch (interpretIR simpleStorageIRContract tx irState)
       (interpretYulFromIR simpleStorageIRContract tx irState) := by
-    refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
-      simpleStorageIRContract tx irState ?_ ?_ rfl rfl ?_
-    · simp [tx, mkIRTransaction, selectorModulus]
-    · intro s hs; simp [simpleStorageIRContract] at hs
-    · intro fn hfn
-      simp [simpleStorageIRContract] at hfn
-      rcases hfn with hfn | hfn
-      all_goals
-        subst hfn
-        simpa [Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics,
-          tx, irState, mkIRTransaction, mkIRState, encodeStorage,
-          interpretYulBodyFromState, interpretYulBody, yulStateOfIR,
-          yulResultOfExecWithRollback, interpretYulRuntime, execYulStmts]
+    semantic_bridge_layer3 simpleStorageIRContract tx irState
+    semantic_bridge_fn_cases [hfn, hfn] with [encodeStorage]
   cases hrun : Contract.run Contracts.MacroContracts.SimpleStorage.retrieve { state with sender := sender } with
   | success val s' =>
       have hA : (let tx := mkIRTransaction sender 0x2e64cec1 []
@@ -628,19 +636,8 @@ theorem counter_increment_edsl_to_yul
   have hBridge := counter_increment_semantic_bridge state sender
   have hYul : resultsMatch (interpretIR counterIRContract tx irState)
       (interpretYulFromIR counterIRContract tx irState) := by
-    refine Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_general
-      counterIRContract tx irState ?_ ?_ rfl rfl ?_
-    · simp [tx, mkIRTransaction, selectorModulus]
-    · intro s hs; simp [counterIRContract] at hs
-    · intro fn hfn
-      simp [counterIRContract] at hfn
-      rcases hfn with hfn | hfn | hfn
-      all_goals
-        subst hfn
-        simpa [Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics,
-          tx, irState, mkIRTransaction, mkIRState, encodeStorage,
-          interpretYulBodyFromState, interpretYulBody, yulStateOfIR,
-          yulResultOfExecWithRollback, interpretYulRuntime, execYulStmts]
+    semantic_bridge_layer3 counterIRContract tx irState
+    semantic_bridge_fn_cases [hfn, hfn, hfn] with [encodeStorage]
   cases hrun : Contract.run (Contracts.MacroContracts.Counter.increment)
       { state with sender := sender } with
   | success _ s' =>
