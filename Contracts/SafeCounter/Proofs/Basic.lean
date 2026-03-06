@@ -9,6 +9,7 @@
 -/
 
 import Verity.Proofs.Stdlib.Math
+import Verity.Proofs.Stdlib.Automation
 import Contracts.SafeCounter.Spec
 import Contracts.SafeCounter.Invariants
 
@@ -26,7 +27,8 @@ open Contracts.SafeCounter.Invariants
 
 private theorem getCount_run (s : ContractState) :
   (getCount).run s = ContractResult.success (s.storage 0) s := by
-  simp [getCount, count, getStorage, Verity.bind, Bind.bind, Verity.pure, Pure.pure, Contract.run]
+  verity_unfold getCount
+  simp [count]
 
 theorem getCount_meets_spec (s : ContractState) :
   let result := ((getCount).run s).fst
