@@ -60,19 +60,19 @@ def evalBuiltinCall
     | _ => none
   else if func = "lt" then
     match argVals with
-    | [a, b] => some (if a < b then 1 else 0)
+    | [a, b] => some (if a % evmModulus < b % evmModulus then 1 else 0)
     | _ => none
   else if func = "gt" then
     match argVals with
-    | [a, b] => some (if a > b then 1 else 0)
+    | [a, b] => some (if a % evmModulus > b % evmModulus then 1 else 0)
     | _ => none
   else if func = "eq" then
     match argVals with
-    | [a, b] => some (if a = b then 1 else 0)
+    | [a, b] => some (if a % evmModulus = b % evmModulus then 1 else 0)
     | _ => none
   else if func = "iszero" then
     match argVals with
-    | [a] => some (if a = 0 then 1 else 0)
+    | [a] => some (if a % evmModulus = 0 then 1 else 0)
     | _ => none
   else if func = "and" then
     match argVals with

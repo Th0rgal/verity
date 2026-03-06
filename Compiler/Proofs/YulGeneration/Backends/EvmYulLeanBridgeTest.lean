@@ -88,11 +88,27 @@ example : verityEval "eq" [42, 42] = bridgeEval "eq" [42, 42] := by native_decid
 /-- eq: 42 ≠ 43 -/
 example : verityEval "eq" [42, 43] = bridgeEval "eq" [42, 43] := by native_decide
 
+/-- eq: 2^256 ≡ 0 (word-size wraparound). -/
+example : verityEval "eq" [Compiler.Constants.evmModulus, 0] =
+          bridgeEval "eq" [Compiler.Constants.evmModulus, 0] := by native_decide
+
 /-- iszero: 0 is zero -/
 example : verityEval "iszero" [0] = bridgeEval "iszero" [0] := by native_decide
 
 /-- iszero: 1 is not zero -/
 example : verityEval "iszero" [1] = bridgeEval "iszero" [1] := by native_decide
+
+/-- iszero: 2^256 ≡ 0 (word-size wraparound). -/
+example : verityEval "iszero" [Compiler.Constants.evmModulus] =
+          bridgeEval "iszero" [Compiler.Constants.evmModulus] := by native_decide
+
+/-- lt: 2^256 wraps to 0, so 0 < 1. -/
+example : verityEval "lt" [Compiler.Constants.evmModulus, 1] =
+          bridgeEval "lt" [Compiler.Constants.evmModulus, 1] := by native_decide
+
+/-- gt: 2^256 wraps to 0, so 0 > 2^256-1 is false. -/
+example : verityEval "gt" [Compiler.Constants.evmModulus, Compiler.Constants.evmModulus - 1] =
+          bridgeEval "gt" [Compiler.Constants.evmModulus, Compiler.Constants.evmModulus - 1] := by native_decide
 
 -- ## Bitwise builtins
 
