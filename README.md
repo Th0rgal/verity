@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
+  <a href="https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md"><img src="https://img.shields.io/badge/verification-status-live-brightgreen.svg" alt="Verification status"></a>
   <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
@@ -171,14 +172,7 @@ This creates: implementation, spec, invariants, proofs, and Foundry test files.
 
 ## Verification guarantees
 
-Every claim is enforced by CI on every commit. See [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) for the current counts, coverage tables, and proof-status snapshot.
-
-| Claim | Verify locally |
-|-------|----------------|
-| All proofs type-check, zero `sorry` | `make verify` |
-| Zero undocumented axioms | `make axiom-report` |
-| Foundry runtime tests pass | `make test-foundry` |
-| All CI checks pass | `make check` |
+Every claim is enforced by CI on every commit. See [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) for the current counts, coverage tables, and proof-status snapshot, then use `make verify`, `make axiom-report`, `make test-foundry`, and `make check` for local confirmation.
 
 ---
 

@@ -5,7 +5,7 @@ description: Design decisions, iterations, and proof techniques
 
 # Research & Development
 
-**Compact core, built across 7 iterations. 273 theorems, 406 fully proven, 19 sorry (18 SemanticBridge + 1 Preservation). 1 documented axiom.**
+**Compact core, built across 7 iterations.** See [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current theorem totals, test counts, exclusions, and proof-status snapshot. [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
 
 ## Evolution
 
@@ -173,7 +173,7 @@ def ownedSpec : CompilationModel := {
 **Metrics**:
 - Manual IR eliminated in favor of generated IR from the spec
 - Time to add contract dropped significantly in practice
-- Test results: Foundry tests pass (478 as of 2026-03-04), Lean proofs verify (273 theorems as of 2026-02-19)
+- Test results: see [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current proof and test status snapshot
 - Code quality: More concise, optimized (expression inlining)
 
 **Features Achieved**:
@@ -187,7 +187,7 @@ def ownedSpec : CompilationModel := {
 ```bash
 lake build verity-compiler    # Build compiler
 lake exe verity-compiler      # Generate all contracts
-FOUNDRY_PROFILE=difftest forge test  # 478/478 tests pass (as of 2026-03-04)
+FOUNDRY_PROFILE=difftest forge test
 ```
 
 ### Differential Testing (Completed 2026-02-10)
@@ -224,7 +224,7 @@ FOUNDRY_PROFILE=difftest forge test  # 478/478 tests pass (as of 2026-03-04)
 - 10,000+ random transactions pass per contract in CI (large suite)
 - Large suite is sharded across 8 CI jobs to stay within per-test gas limits
 - Zero mismatches detected
-- All Foundry tests passing (478 as of 2026-03-04)
+- Current Foundry and proof status is tracked in [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md)
 - CI: All checks passing
 
 **Usage**:
