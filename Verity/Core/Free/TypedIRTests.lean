@@ -1114,30 +1114,25 @@ def compiledERC721ApproveTransferSuccess : Option (Nat × Nat × Nat × Nat) :=
               sender := 9 }
           let mintInit : TExecState :=
             { world := mintInitWorld
-              vars := { uint256 := fun i => if i = mintToParam.id then 11 else 0 } }
+              vars := { address := fun i => if i = mintToParam.id then 11 else 0 } }
           match evalTBlock mintInit mintBlock with
           | .revert _ => none
           | .ok postMint =>
               let approveInit : TExecState :=
-                { world := postMint.world
-                  vars := { uint256 := fun i =>
-                              if i = approvedParam.id then 33
-                              else if i = approveTokenParam.id then 0
-                              else 0 } }
+                { world := { postMint.world with sender := 11 }
+                  vars := { address := fun i => if i = approvedParam.id then 33 else 0,
+                            uint256 := fun i => if i = approveTokenParam.id then 0 else 0 } }
               match evalTBlock approveInit approveBlock with
               | .revert _ => none
               | .ok postApprove =>
                   let transferInit : TExecState :=
-                    { world := postApprove.world
-                      vars := { uint256 := fun i =>
-                                  if i = fromParam.id then 11
-                                  else if i = toParam.id then 33
-                                  else if i = transferTokenParam.id then 0
-                                  else 0 } }
+                    { world := { postApprove.world with sender := 33 }
+                      vars := { address := fun i => if i = fromParam.id then 11 else if i = toParam.id then 33 else 0,
+                                uint256 := fun i => if i = transferTokenParam.id then 0 else 0 } }
                   match evalTBlock transferInit transferBlock with
                   | .revert _ => none
                   | .ok s =>
-                      some (s.world.storageMapUint 3 0, s.world.storageMapUint 4 0, s.world.storage 1,
+                      some (s.world.storageMapUint 4 0, s.world.storageMapUint 5 0, s.world.storage 1,
                         s.world.storage 2)
       | _, _, _ => none
   | _, _, _ => none
@@ -1158,17 +1153,14 @@ def compiledERC721TransferUnauthorizedReverts : Bool :=
               sender := 9 }
           let mintInit : TExecState :=
             { world := mintInitWorld
-              vars := { uint256 := fun i => if i = mintToParam.id then 11 else 0 } }
+              vars := { address := fun i => if i = mintToParam.id then 11 else 0 } }
           match evalTBlock mintInit mintBlock with
           | .revert _ => false
           | .ok postMint =>
               let transferInit : TExecState :=
-                { world := postMint.world
-                  vars := { uint256 := fun i =>
-                              if i = fromParam.id then 22
-                              else if i = toParam.id then 33
-                              else if i = transferTokenParam.id then 0
-                              else 0 } }
+                { world := { postMint.world with sender := 22 }
+                  vars := { address := fun i => if i = fromParam.id then 11 else if i = toParam.id then 33 else 0,
+                            uint256 := fun i => if i = transferTokenParam.id then 0 else 0 } }
               match evalTBlock transferInit transferBlock with
               | .ok _ => false
               | .revert _ => true
@@ -2390,13 +2382,15 @@ def compiledERC721ApprovePreservesState : Bool :=
   | .ok block =>
       match block.params with
       | [approvedParam, tokenIdParam] =>
-          let initWorld : Verity.ContractState := Verity.defaultState
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              sender := 11
+              storageMapUint := fun i key =>
+                if i == 4 && key == 7 then 11 else 0 }
           let init : TExecState :=
             { world := initWorld
-              vars := { uint256 := fun i =>
-                          if i = approvedParam.id then 33
-                          else if i = tokenIdParam.id then 7
-                          else 0 } }
+              vars := { address := fun i => if i = approvedParam.id then 33 else 0,
+                        uint256 := fun i => if i = tokenIdParam.id then 7 else 0 } }
           match evalTBlock init block with
           | .ok _ => true
           | .revert _ => false

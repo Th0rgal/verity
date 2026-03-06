@@ -66,6 +66,7 @@ private def fieldTypeToTy : FieldType → Except String Ty
 private def asUInt256 (e : SomeTExpr) : Except String (TExpr Ty.uint256) :=
   match e with
   | ⟨Ty.uint256, expr⟩ => Except.ok expr
+  | ⟨Ty.address, expr⟩ => Except.ok (TExpr.addrToUint expr)
   -- EVM treats booleans as 0/1 words; coerce via ite to preserve typed-IR invariants.
   | ⟨Ty.bool, expr⟩ => Except.ok (TExpr.ite expr (TExpr.uintLit 1) (TExpr.uintLit 0))
   | ⟨ty, _⟩ => Except.error s!"Typed IR compile error: expected uint256 expression, got {repr ty}"
@@ -178,6 +179,8 @@ private def compileExpr (fields : List Field) : Expr → CompileM SomeTExpr
       match a', b' with
       | ⟨Ty.uint256, aExpr⟩, ⟨Ty.uint256, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
       | ⟨Ty.address, aExpr⟩, ⟨Ty.address, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
+      | ⟨Ty.address, aExpr⟩, ⟨Ty.uint256, bExpr⟩ => return ⟨Ty.bool, TExpr.eq (TExpr.addrToUint aExpr) bExpr⟩
+      | ⟨Ty.uint256, aExpr⟩, ⟨Ty.address, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr (TExpr.addrToUint bExpr)⟩
       | ⟨Ty.bool, aExpr⟩, ⟨Ty.bool, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
       | ⟨Ty.unit, aExpr⟩, ⟨Ty.unit, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
       | ⟨aTy, _⟩, ⟨bTy, _⟩ =>

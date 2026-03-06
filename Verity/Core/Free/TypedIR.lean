@@ -46,6 +46,7 @@ inductive TExpr : Ty → Type where
   | getMapping (slot : Nat) (key : TExpr .address) : TExpr .uint256
   | getMapping2 (slot : Nat) (key1 key2 : TExpr .address) : TExpr .uint256
   | getMappingUint (slot : Nat) (key : TExpr .uint256) : TExpr .uint256
+  | addrToUint (value : TExpr .address) : TExpr .uint256
   deriving Repr
 
 /-- Typed statements. Each assignment is type-correct by construction. -/
@@ -185,6 +186,7 @@ def evalTExpr (s : TExecState) : TExpr ty → Ty.denote ty
   | .getMapping slot key => s.world.storageMap slot (evalTExpr s key)
   | .getMapping2 slot key1 key2 => s.world.storageMap2 slot (evalTExpr s key1) (evalTExpr s key2)
   | .getMappingUint slot key => s.world.storageMapUint slot (evalTExpr s key)
+  | .addrToUint value => ((evalTExpr s value).toNat : Verity.Core.Uint256)
 
 /-- Deterministic placeholder topic0 for typed-path `emit`. -/
 def typedEventNameTopicWord (eventName : String) : Verity.Core.Uint256 :=

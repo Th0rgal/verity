@@ -29,7 +29,7 @@ Verity is a **formally verified smart contract compiler** written in [Lean 4](ht
 
 ### 1. Write a contract
 
-Contracts are written using the `verity_contract` [macro](Verity/Macro/Elaborate.lean), which generates both an executable Lean specification (`Contract` monad) and a declarative compilation model (`CompilationModel`) from one definition, with a machine-checked proof that they agree:
+Contracts are written using the `verity_contract` [macro](Verity/Macro/Elaborate.lean). It is the canonical contract authoring path, and it generates both an executable Lean specification (`Contract` monad) and a declarative compilation model (`CompilationModel`) from one definition, with a machine-checked proof that they agree:
 
 ```lean
 -- Contracts/MacroContracts/Counter.lean
@@ -42,7 +42,7 @@ verity_contract Counter where
     setStorage count (add current 1)
 ```
 
-Under the hood, this generates a `Contract α` state monad (`ContractState → ContractResult α`) with operations like `getStorage`, `setStorage`, and `require` that manipulate blockchain state.
+Under the hood, the macro generates a `Contract α` state monad (`ContractState → ContractResult α`) with operations like `getStorage`, `setStorage`, and `require` that manipulate blockchain state. You generally should not hand-write a separate `CompilationModel`; the macro-generated one is the compiler input.
 
 ### 2. Write a spec
 
@@ -216,7 +216,7 @@ verity/
 ├── Contracts/           # Verified contract implementations
 │   ├── <Name>/Spec.lean       #   Formal specification
 │   ├── <Name>/Proofs/*.lean   #   Correctness proofs
-│   └── MacroContracts/  #   Macro-generated contract definitions
+│   └── MacroContracts/        #   Macro-generated contract definitions
 ├── Compiler/            # Compilation pipeline
 │   ├── CompilationModel/      # Declarative compiler-facing model (types, validation, codegen)
 │   ├── Proofs/          #   Compilation correctness proofs (Layers 1-3)

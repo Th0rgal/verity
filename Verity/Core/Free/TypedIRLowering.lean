@@ -47,6 +47,7 @@ def lowerTExpr : {ty : Ty} → TExpr ty → YulExpr
       .call "sload" [.call "mappingSlot" [innerSlot, lowerTExpr key2]]
   | _, .getMappingUint slot key =>
       .call "sload" [.call "mappingSlot" [.lit slot, lowerTExpr key]]
+  | _, .addrToUint value => lowerTExpr value
 
 /-- Lower a list of typed IR statements into Yul statements. -/
 def lowerTStmts : List TStmt → List YulStmt

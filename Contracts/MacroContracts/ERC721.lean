@@ -53,8 +53,8 @@ verity_contract ERC721 where
     let sender ← msgSender
     let ownerWord ← getMappingUint owners tokenId
     require (ownerWord != 0) "Token does not exist"
-    let tokenOwner := wordToAddress ownerWord
-    require (sender == tokenOwner) "Not token owner"
+    let senderWord := addressToWord sender
+    require (senderWord == ownerWord) "Not token owner"
     setMappingUint tokenApprovals tokenId (addressToWord approved)
 
   function setApprovalForAll (operator : Address, approved : Bool) : Unit := do
@@ -65,7 +65,7 @@ verity_contract ERC721 where
     let sender ← msgSender
     let currentOwner ← getStorageAddr owner
     require (sender == currentOwner) "Caller is not the owner"
-    require (to != 0) "Invalid recipient"
+    require (addressToWord to != 0) "Invalid recipient"
 
     let tokenId ← getStorage nextTokenId
     let currentOwnerWord ← getMappingUint owners tokenId
@@ -85,13 +85,13 @@ verity_contract ERC721 where
 
   function transferFrom (fromAddr : Address, to : Address, tokenId : Uint256) : Unit := do
     let sender ← msgSender
-    require (to != 0) "Invalid recipient"
+    require (addressToWord to != 0) "Invalid recipient"
 
     let ownerWord ← getMappingUint owners tokenId
     require (ownerWord != 0) "Token does not exist"
 
-    let tokenOwner := wordToAddress ownerWord
-    require (tokenOwner == fromAddr) "From is not owner"
+    let fromWord := addressToWord fromAddr
+    require (ownerWord == fromWord) "From is not owner"
 
     let approvedWord ← getMappingUint tokenApprovals tokenId
     let operatorWord ← getMapping2 operatorApprovals fromAddr sender

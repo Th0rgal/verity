@@ -33,6 +33,18 @@ STORAGE_SLOT_RE = re.compile(
 COMPILER_FIELD_RE = re.compile(
     r'\{\s*name\s*:=\s*"(\w+)"\s*,\s*ty\s*:=\s*FieldType\.([\w.() ]+?)\s*\}'
 )
+COMPILER_ALIAS_RE = re.compile(
+    r"def\s+(\w+)\s*:\s*CompilationModel\s*:=\s*Contracts\.MacroContracts\.(\w+)\.spec"
+)
+COMPILER_FILTERED_ALIAS_RE = re.compile(
+    r"def\s+(\w+)\s*:\s*CompilationModel\s*:=\s*"
+    r"let\s+canonical\s*:=\s*Contracts\.MacroContracts\.(\w+)\.spec\s*"
+    r"\{\s*canonical\s+with\s+functions\s*:=\s*canonical\.functions\.filter\s+fun\s+fn\s*=>\s*(.*?)\s*\}",
+    re.DOTALL,
+)
+MACRO_STORAGE_LINE_RE = re.compile(
+    r"^\s*(\w+)\s*:\s*(.+?)\s*:=\s*slot\s+(\d+)\s*$", re.MULTILINE
+)
 
 # Regex for CompilationModel name:
 #   name := "<name>"
@@ -51,6 +63,16 @@ SPEC_ADDR_SLOT_RE = re.compile(r"\bs'?\.(?:storageAddr)\s+(\d+)\b")
 SPEC_MAPPING_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap)\s+(\d+)\b")
 SPEC_MAPPING_UINT_SLOT_RE = re.compile(r"\bs'?\.(?:storageMapUint)\s+(\d+)\b")
 SPEC_MAPPING2_SLOT_RE = re.compile(r"\bs'?\.(?:storageMap2)\s+(\d+)\b")
+SPEC_HELPER_SLOT_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
+    (re.compile(r"\bstorageUpdateSpec\s+(\d+)\b"), ("uint256",)),
+    (re.compile(r"\bstorageAddrUpdateSpec\s+(\d+)\b"), ("address",)),
+    (re.compile(r"\bstorageAddrStorageUpdateSpec\s+(\d+)\s+(\d+)\b"), ("address", "uint256")),
+    (re.compile(r"\bstorageAddrStorage2UpdateSpec\s+(\d+)\s+(\d+)\s+(\d+)\b"), ("address", "uint256", "uint256")),
+    (re.compile(r"\bstorage2UpdateSpec\s+(\d+)\s+(\d+)\b"), ("uint256", "uint256")),
+    (re.compile(r"\bstorageMapUpdateSpec\s+(\d+)\b"), ("mapping",)),
+    (re.compile(r"\bstorageMapAndStorageUpdateSpec\s+(\d+)\s+\w+\s+\w+\s+(\d+)\b"), ("mapping", "uint256")),
+    (re.compile(r"\bstorageMap2UpdateSpec\s+(\d+)\b"), ("mapping2",)),
+)
 
 
 def find_matching(text: str, start: int, open_ch: str, close_ch: str) -> int:
@@ -79,6 +101,36 @@ def iter_braced_blocks(text: str, header_pattern: re.Pattern[str]) -> list[str]:
     return blocks
 
 
+def extract_macro_contract_slots(contract_name: str) -> list[tuple[str, str, int]]:
+    """Extract storage field declarations from a `Contracts/MacroContracts/*.lean` file."""
+    path = ROOT / "Contracts" / "MacroContracts" / f"{contract_name}.lean"
+    if not path.exists():
+        return []
+
+    content = strip_lean_comments(path.read_text())
+    storage_match = re.search(r"\bstorage\b", content)
+    if not storage_match:
+        return []
+
+    end_markers = [
+        pos
+        for pos in (
+            content.find("\n  constructor", storage_match.end()),
+            content.find("\n  function", storage_match.end()),
+            content.find("\nend ", storage_match.end()),
+        )
+        if pos != -1
+    ]
+    storage_end = min(end_markers) if end_markers else len(content)
+    storage_block = content[storage_match.end() : storage_end]
+
+    fields: list[tuple[str, str, int]] = []
+    for m in MACRO_STORAGE_LINE_RE.finditer(storage_block):
+        field_name, field_type, slot_num = m.group(1), m.group(2).strip(), int(m.group(3))
+        fields.append((field_name, field_type, slot_num))
+    return fields
+
+
 def extract_edsl_slots(filepath: Path) -> dict[str, list[tuple[str, str, int]]]:
     """Extract StorageSlot definitions from a Lean file.
 
@@ -98,6 +150,14 @@ def extract_edsl_slots(filepath: Path) -> dict[str, list[tuple[str, str, int]]]:
 
     if slots:
         return {namespace: slots}
+    macro_slots = extract_macro_contract_slots(namespace)
+    if macro_slots:
+        return {
+            namespace: [
+                (normalize_field_name(name), ty, slot_num)
+                for name, ty, slot_num in macro_slots
+            ]
+        }
     return {}
 
 
@@ -139,6 +199,20 @@ def extract_compiler_specs(filepath: Path) -> dict[str, list[tuple[str, str, int
             field_type = field_match.group(2)
             fields.append((field_name, field_type, idx))
 
+        if fields:
+            specs[contract_name] = fields
+
+    for _def_name, contract_name in COMPILER_ALIAS_RE.findall(content):
+        if contract_name in specs:
+            continue
+        fields = extract_macro_contract_slots(contract_name)
+        if fields:
+            specs[contract_name] = fields
+
+    for _def_name, contract_name, _filter_body in COMPILER_FILTERED_ALIAS_RE.findall(content):
+        if contract_name in specs:
+            continue
+        fields = extract_macro_contract_slots(contract_name)
         if fields:
             specs[contract_name] = fields
 
@@ -199,6 +273,10 @@ def extract_spec_slots(
         by_slot.setdefault(int(m.group(1)), set()).add("mapping_uint")
     for m in SPEC_MAPPING2_SLOT_RE.finditer(content):
         by_slot.setdefault(int(m.group(1)), set()).add("mapping2")
+    for pattern, kinds in SPEC_HELPER_SLOT_PATTERNS:
+        for m in pattern.finditer(content):
+            for group_index, kind in enumerate(kinds, start=1):
+                by_slot.setdefault(int(m.group(group_index)), set()).add(kind)
 
     entries: list[tuple[str, str, int]] = []
     errors: list[str] = []
@@ -238,6 +316,11 @@ def normalize_type(ty: str) -> str:
     }
     # Try raw first (for Compiler types like "mappingTyped (...)"), then stripped
     return mapping.get(raw, mapping.get(stripped, stripped.lower()))
+
+
+def normalize_field_name(name: str) -> str:
+    """Normalize storage field names across legacy and macro-generated surfaces."""
+    return name[:-4] if name.endswith("Slot") else name
 
 
 def check_intra_collisions(
@@ -288,8 +371,8 @@ def check_layer_consistency(
             continue
 
         ref_fields = reference[contract]
-        ref_map = {name: (ty, slot) for name, ty, slot in ref_fields}
-        subj_map = {name: (ty, slot) for name, ty, slot in subj_fields}
+        ref_map = {normalize_field_name(name): (ty, slot) for name, ty, slot in ref_fields}
+        subj_map = {normalize_field_name(name): (ty, slot) for name, ty, slot in subj_fields}
 
         for name, (s_ty, s_slot) in subj_map.items():
             if name not in ref_map:
@@ -357,7 +440,6 @@ def check_spec_edsl_consistency(
                 errors.append(
                     f"Spec-EDSL: {contract}.slot{slot} ({ty}) in EDSL but not in Spec"
                 )
-
     return errors
 
 
