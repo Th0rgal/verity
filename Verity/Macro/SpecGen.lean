@@ -60,6 +60,16 @@ syntax (name := genSpecAddrStorage2CmdForExtra)
   "#gen_spec_addr_storage2 " ident " for " "(" ident " : " term ")"
     " (" term ", " term ", " term ", " term ", " term ", " term ", " term ", " term ")" : command
 
+syntax (name := genSpecAddrStorage2CmdFor2)
+  "#gen_spec_addr_storage2 " ident " for2 "
+    "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ", " term ")" : command
+
+syntax (name := genSpecAddrStorage2CmdFor2Extra)
+  "#gen_spec_addr_storage2 " ident " for2 "
+    "(" ident " : " term ")" " (" ident " : " term ")"
+    " (" term ", " term ", " term ", " term ", " term ", " term ", " term ", " term ")" : command
+
 syntax (name := genSpecMapCmd)
   "#gen_spec_map " ident
     " (" term ", " term ", " term ", " term ")" : command
@@ -236,6 +246,23 @@ macro_rules
       ($addrSlot:term, $storageSlot1:term, $storageSlot2:term,
        $addrValue:term, $storageValue1:term, $storageValue2:term, $frame:term, $extra:term)) =>
       `(def $name ($arg : $argTy) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageAddrStorage2UpdateSpec
+            $addrSlot $storageSlot1 $storageSlot2
+            $addrValue $storageValue1 $storageValue2
+            (fun s s' => ($frame) s s' ∧ ($extra) s s') s s')
+  | `(#gen_spec_addr_storage2 $name:ident for2
+      ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($addrSlot:term, $storageSlot1:term, $storageSlot2:term,
+       $addrValue:term, $storageValue1:term, $storageValue2:term, $frame:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
+          Verity.Specs.storageAddrStorage2UpdateSpec
+            $addrSlot $storageSlot1 $storageSlot2
+            $addrValue $storageValue1 $storageValue2 $frame s s')
+  | `(#gen_spec_addr_storage2 $name:ident for2
+      ($arg1:ident : $argTy1:term) ($arg2:ident : $argTy2:term)
+      ($addrSlot:term, $storageSlot1:term, $storageSlot2:term,
+       $addrValue:term, $storageValue1:term, $storageValue2:term, $frame:term, $extra:term)) =>
+      `(def $name ($arg1 : $argTy1) ($arg2 : $argTy2) (s s' : Verity.ContractState) : Prop :=
           Verity.Specs.storageAddrStorage2UpdateSpec
             $addrSlot $storageSlot1 $storageSlot2
             $addrValue $storageValue1 $storageValue2
