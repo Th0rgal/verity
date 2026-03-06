@@ -164,6 +164,32 @@ def storageMapUnchangedExceptKeysAtSlot (slot : Nat) (addr1 addr2 : Address) (s 
   storageMapUnchangedExceptKeys slot addr1 addr2 s s' ∧
   storageMapUnchangedExceptSlot slot s s'
 
+/-- Canonical two-state spec shape for updating one `storageMap` slot/key entry. -/
+def storageMapUpdateSpec
+    (slot : Nat)
+    (key : Address)
+    (value : ContractState → Uint256)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  s'.storageMap slot key = value s ∧
+  storageMapUnchangedExceptKeyAtSlot slot key s s' ∧
+  frame s s'
+
+/-- Canonical two-state spec shape for updating one `storageMap` entry and one `storage` slot. -/
+def storageMapAndStorageUpdateSpec
+    (mapSlot : Nat)
+    (key : Address)
+    (mapValue : ContractState → Uint256)
+    (storageSlot : Nat)
+    (storageValue : ContractState → Uint256)
+    (frame : ContractState → ContractState → Prop)
+    (s s' : ContractState) : Prop :=
+  s'.storageMap mapSlot key = mapValue s ∧
+  s'.storage storageSlot = storageValue s ∧
+  storageMapUnchangedExceptKeyAtSlot mapSlot key s s' ∧
+  storageUnchangedExcept storageSlot s s' ∧
+  frame s s'
+
 /-- All storage (uint256, addr, map, mapUint, map2) is unchanged. -/
 def sameAllStorage (s s' : ContractState) : Prop :=
   sameStorage s s' ∧

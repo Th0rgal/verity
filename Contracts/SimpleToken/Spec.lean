@@ -24,12 +24,13 @@ def constructor_spec (initialOwner : Address) (s s' : ContractState) : Prop :=
 
 /-- Mint: increases balance and total supply by amount (owner only) -/
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
-  s'.storageMap 1 to = add (s.storageMap 1 to) amount ∧
-  s'.storage 2 = add (s.storage 2) amount ∧
-  storageMapUnchangedExceptKeyAtSlot 1 to s s' ∧
-  s'.storageAddr 0 = s.storageAddr 0 ∧
-  storageUnchangedExcept 2 s s' ∧
-  sameContext s s'
+  storageMapAndStorageUpdateSpec
+    1 to (fun st => add (st.storageMap 1 to) amount)
+    2 (fun st => add (st.storage 2) amount)
+    (fun st st' =>
+      st'.storageAddr 0 = st.storageAddr 0 ∧
+      sameContext st st')
+    s s'
 
 /-- Transfer: moves amount from sender to recipient, preserves total supply -/
 def transfer_spec (sender to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=

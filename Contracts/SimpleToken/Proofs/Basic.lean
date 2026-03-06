@@ -192,15 +192,16 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
   simp only [Contract.run, ContractResult.snd, mint_spec]
   rw [h_unfold_apply]
   simp only [ContractResult.snd]
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
   · simp -- balance of 'to' updated
   · simp -- supply updated
   · refine ⟨?_, ?_⟩
     · intro addr h_neq; simp [h_neq] -- other balances preserved
     · intro slotIdx h_neq; intro addr; simp [h_neq] -- other mapping slots
-  · trivial -- owner preserved
   · intro slotIdx h_neq; simp [h_neq] -- other uint storage
-  · exact Specs.sameContext_rfl _
+  · refine ⟨?_, ?_⟩
+    · trivial -- owner preserved
+    · exact Specs.sameContext_rfl _
 
 theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
