@@ -42,22 +42,27 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
 /-- `approve` writes allowance(sender, spender) and leaves other state unchanged. -/
 theorem approve_meets_spec (s : ContractState) (spender : Address) (amount : Uint256) :
     approve_spec s.sender spender amount s ((approve spender amount).runState s) := by
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_⟩
   · simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind]
-  · intro o' sp' h_neq
-    simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind,
-      h_neq]
-  · intro sp' h_neq
-    simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind,
-      h_neq]
-  · simp [Specs.sameStorage, approve, allowancesSlot, setMapping2, msgSender,
-      Contract.runState, Verity.bind, Bind.bind]
-  · simp [Specs.sameStorageAddr, approve, allowancesSlot, setMapping2, msgSender,
-      Contract.runState, Verity.bind, Bind.bind]
-  · simp [Specs.sameStorageMap, approve, allowancesSlot, setMapping2, msgSender,
-      Contract.runState, Verity.bind, Bind.bind]
-  · simp [Specs.sameContext, approve, allowancesSlot, setMapping2, msgSender,
-      Contract.runState, Verity.bind, Bind.bind]
+  · refine ⟨?_, ?_, ?_⟩
+    · intro o' h_neq sp'
+      simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind,
+        h_neq]
+    · intro sp' h_neq
+      simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind,
+        h_neq]
+    · intro slotIdx h_neq o' sp'
+      simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind,
+        h_neq]
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · simp [Specs.sameStorage, approve, allowancesSlot, setMapping2, msgSender,
+        Contract.runState, Verity.bind, Bind.bind]
+    · simp [Specs.sameStorageAddr, approve, allowancesSlot, setMapping2, msgSender,
+        Contract.runState, Verity.bind, Bind.bind]
+    · simp [Specs.sameStorageMap, approve, allowancesSlot, setMapping2, msgSender,
+        Contract.runState, Verity.bind, Bind.bind]
+    · simp [Specs.sameContext, approve, allowancesSlot, setMapping2, msgSender,
+        Contract.runState, Verity.bind, Bind.bind]
 
 /-- `balanceOf` returns the value stored in balances slot 2 for `addr`. -/
 theorem balanceOf_meets_spec (s : ContractState) (addr : Address) :
