@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail if issue templates contain pasted CI/GitHub Actions log output."""
+"""Validate GitHub issue templates for structure and contamination."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from pathlib import Path
 from property_utils import ROOT
 
 DEFAULT_TEMPLATES_DIR = ROOT / ".github" / "ISSUE_TEMPLATE"
+REQUIRED_TOP_LEVEL_KEYS = {"name", "description", "title", "labels", "body"}
+DISALLOWED_TOP_LEVEL_KEYS = {"about"}
+TOP_LEVEL_KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):")
 
 LOG_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("timestamped runner log line", re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b")),
@@ -19,6 +22,11 @@ LOG_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("runner version banner", re.compile(r"Current runner version:\s*'[^']+'")),
     ("rendered ANSI escape sequence", re.compile(r"\^\[\[[0-9;]*[A-Za-z]")),
 ]
+
+
+def _yaml_files(templates_dir: Path) -> list[Path]:
+    files = sorted(templates_dir.glob("*.yml")) + sorted(templates_dir.glob("*.yaml"))
+    return sorted({path for path in files if path.is_file()})
 
 
 def _find_log_artifacts(path: Path) -> list[str]:
@@ -32,7 +40,82 @@ def _find_log_artifacts(path: Path) -> list[str]:
 
 
 def _template_files(templates_dir: Path) -> list[Path]:
-    return sorted(path for path in templates_dir.glob("*.yml") if path.is_file())
+    return sorted(
+        {
+            path
+            for path in _yaml_files(templates_dir)
+            if path.is_file() and path.name not in {"config.yml", "config.yaml"}
+        }
+    )
+
+
+def _render_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _collect_top_level_keys(text: str) -> set[str]:
+    keys: set[str] = set()
+    for line in text.splitlines():
+        if not line or line.startswith(" ") or line.startswith("\t"):
+            continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = TOP_LEVEL_KEY_RE.match(line)
+        if match:
+            keys.add(match.group(1))
+    return keys
+
+
+def _check_form(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    keys = _collect_top_level_keys(text)
+    issues: list[str] = []
+
+    missing = sorted(REQUIRED_TOP_LEVEL_KEYS - keys)
+    if missing:
+        issues.append(f"missing required key(s): {', '.join(missing)}")
+
+    forbidden = sorted(DISALLOWED_TOP_LEVEL_KEYS & keys)
+    if forbidden:
+        issues.append(f"disallowed key(s): {', '.join(forbidden)}")
+
+    return issues
+
+
+def check_issue_templates(templates_dir: Path) -> int:
+    if not templates_dir.exists() or not templates_dir.is_dir():
+        print(f"issue template directory not found: {templates_dir}", file=sys.stderr)
+        return 1
+
+    yaml_files = _yaml_files(templates_dir)
+    if not yaml_files:
+        print(f"no YAML issue templates found under: {templates_dir}", file=sys.stderr)
+        return 1
+
+    templates = _template_files(templates_dir)
+    if not templates:
+        print(f"no issue form templates found under: {templates_dir}", file=sys.stderr)
+        return 1
+
+    failures: list[str] = []
+    for template in templates:
+        for issue in _check_form(template):
+            failures.append(f"{_render_path(template)}: {issue}")
+    for path in yaml_files:
+        failures.extend(_find_log_artifacts(path))
+
+    if failures:
+        print("issue template validation failed:", file=sys.stderr)
+        for failure in failures:
+            print(f"  {failure}", file=sys.stderr)
+        return 1
+
+    print(f"issue templates OK ({len(templates)} file(s))")
+    return 0
 
 
 def main() -> int:
@@ -44,28 +127,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    templates_dir = ROOT / args.templates_dir
-    if not templates_dir.exists() or not templates_dir.is_dir():
-        print(f"issue template directory not found: {templates_dir}", file=sys.stderr)
-        return 1
-
-    templates = _template_files(templates_dir)
-    if not templates:
-        print(f"no .yml issue templates found under: {templates_dir}", file=sys.stderr)
-        return 1
-
-    findings: list[str] = []
-    for template in templates:
-        findings.extend(_find_log_artifacts(template))
-
-    if findings:
-        print("issue template contamination check failed:", file=sys.stderr)
-        for finding in findings:
-            print(f"  {finding}", file=sys.stderr)
-        return 1
-
-    print("issue template contamination check passed")
-    return 0
+    return check_issue_templates(ROOT / args.templates_dir)
 
 
 if __name__ == "__main__":
