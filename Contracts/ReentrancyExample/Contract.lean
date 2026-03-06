@@ -259,4 +259,20 @@ theorem deposit_maintains_supply (amount : Uint256) :
 
 end SafeBank
 
+/-! ## Guard Primitive Demonstration
+
+These theorems exercise the first-class `nonReentrant` primitive directly:
+- unlocked execution succeeds
+- nested entry into the same lock is blocked
+-/
+namespace GuardPrimitive
+
+theorem nonReentrant_blocks_when_locked (s : ContractState)
+    (hLocked : s.storage reentrancyLock.slot ≠ 0) :
+    (nonReentrant reentrancyLock (Verity.pure ())).run s =
+      ContractResult.revert "ReentrancyGuard: reentrant call" s := by
+  simpa using nonReentrant_locked_reverts reentrancyLock (Verity.pure ()) s hLocked
+
+end GuardPrimitive
+
 end Contracts.ReentrancyExample

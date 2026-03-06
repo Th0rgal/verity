@@ -175,6 +175,7 @@
   ],
   "ReentrancyExample": [
     "deposit_maintains_supply",
+    "nonReentrant_blocks_when_locked",
     "vulnerable_attack_exists",
     "withdraw_maintains_supply",
     "withdraw_maintains_supply_UNPROVABLE"

@@ -1,6 +1,6 @@
 {
   "codebase": {
-    "core_lines": 376,
+    "core_lines": 400,
     "example_contracts": 12
   },
   "proofs": {
@@ -10,16 +10,16 @@
   "schema_version": 1,
   "tests": {
     "differential_total": 100000,
-    "foundry_functions": 475,
-    "property_functions": 234,
+    "foundry_functions": 478,
+    "property_functions": 237,
     "suites": 38
   },
   "theorems": {
     "categories": 10,
     "coverage_percent": 92,
-    "covered": 250,
+    "covered": 251,
     "excluded": 22,
-    "non_stdlib_total": 272,
+    "non_stdlib_total": 273,
     "per_contract": {
       "Counter": 28,
       "ERC20": 19,
@@ -27,14 +27,14 @@
       "Ledger": 33,
       "Owned": 23,
       "OwnedCounter": 48,
-      "ReentrancyExample": 4,
+      "ReentrancyExample": 5,
       "SafeCounter": 25,
       "SimpleStorage": 20,
       "SimpleToken": 61
     },
-    "proven": 272,
+    "proven": 273,
     "stdlib": 0,
-    "total": 272
+    "total": 273
   },
   "toolchain": {
     "lean": "leanprover/lean4:v4.22.0",

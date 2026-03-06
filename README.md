@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/Th0rgal/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
-  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-272-brightgreen.svg" alt="272 Theorems"></a>
+  <a href="https://github.com/Th0rgal/verity"><img src="https://img.shields.io/badge/theorems-273-brightgreen.svg" alt="273 Theorems"></a>
   <a href="https://github.com/Th0rgal/verity/actions"><img src="https://img.shields.io/github/actions/workflow/status/Th0rgal/verity/verify.yml?label=verify" alt="Verify"></a>
 </p>
 
@@ -113,10 +113,10 @@ Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with 2 axioms (o
 
 ### 5. Test the compiled output (belt and suspenders)
 
-**Foundry tests** (475 tests) validate EDSL = Yul = EVM execution. 475 Foundry tests across 38 test suites run the compiled Yul on a real EVM. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
+**Foundry tests** (478 tests) validate EDSL = Yul = EVM execution. 478 Foundry tests across 38 test suites run the compiled Yul on a real EVM. The proofs already guarantee correctness, but the tests confirm it works end-to-end:
 
 ```bash
-FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
+FOUNDRY_PROFILE=difftest forge test    # 478 tests across 38 suites
 ```
 
 ---
@@ -134,10 +134,10 @@ FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
 | SimpleToken | 61 | Mint/transfer, supply conservation |
 | ERC20 | 19 | ERC-20 baseline with approve/transfer |
 | ERC721 | 11 | NFT ownership/approval baseline |
-| ReentrancyExample | 4 | Reentrancy vulnerability vs safe pattern |
+| ReentrancyExample | 5 | Reentrancy vulnerability vs safe pattern |
 | CryptoHash | — | External library linking demo (no proofs) |
 
-272 theorems across 10 categories. 475 Foundry tests across 38 test suites. 250 covered by property tests (92% coverage, 22 proof-only exclusions). 2 documented axioms. 0 `sorry` placeholders.
+273 theorems across 10 categories. 478 Foundry tests across 38 test suites. 251 covered by property tests (92% coverage, 22 proof-only exclusions). 2 documented axioms. 0 `sorry` placeholders.
 
 ---
 
@@ -162,7 +162,7 @@ Verity's DSL prevents raw external calls for safety. Instead, you can:
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 source ~/.elan/env
 
-# Clone and build — Verifies all 272 theorems
+# Clone and build — Verifies all 273 theorems
 git clone https://github.com/Th0rgal/verity.git && cd verity
 lake build
 
@@ -171,7 +171,7 @@ lake exe verity-compiler                              # all contracts
 lake exe verity-compiler --edsl-contract counter      # specific contract
 
 # Run Foundry tests
-FOUNDRY_PROFILE=difftest forge test    # 475 tests across 38 suites
+FOUNDRY_PROFILE=difftest forge test    # 478 tests across 38 suites
 ```
 
 **Scaffold a new contract**:
@@ -248,7 +248,7 @@ verity/
 │   │   └── YulGeneration/           # IR → Yul preservation
 │   ├── Yul/             #   Yul code generation
 │   └── Modules/         #   External Call Modules (ECMs)
-├── test/                # Foundry tests (475 tests)
+├── test/                # Foundry tests (478 tests)
 ├── artifacts/yul/       # Compiled Yul output
 └── scripts/             # CI validation scripts
 ```

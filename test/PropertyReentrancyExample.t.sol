@@ -4,6 +4,41 @@ pragma solidity ^0.8.33;
 import "forge-std/Test.sol";
 import "../examples/solidity/ReentrancyExample.sol";
 
+interface IReentrancyHook {
+    function onEnter() external;
+}
+
+contract NonReentrantHarness {
+    uint256 public reentrancyLock;
+
+    function forceLock(uint256 value) external {
+        reentrancyLock = value;
+    }
+
+    function guardedCall(IReentrancyHook hook) external {
+        require(reentrancyLock == 0, "ReentrancyGuard: reentrant call");
+        reentrancyLock = 1;
+
+        if (address(hook) != address(0)) {
+            hook.onEnter();
+        }
+
+        reentrancyLock = 0;
+    }
+}
+
+contract ReenteringHook is IReentrancyHook {
+    NonReentrantHarness internal immutable target;
+
+    constructor(NonReentrantHarness _target) {
+        target = _target;
+    }
+
+    function onEnter() external {
+        target.guardedCall(IReentrancyHook(address(0)));
+    }
+}
+
 /**
  * @title PropertyReentrancyExampleTest
  * @notice Property-based tests for the reentrancy example contracts
@@ -22,6 +57,8 @@ import "../examples/solidity/ReentrancyExample.sol";
 contract PropertyReentrancyExampleTest is Test {
     VulnerableBank vulnerable;
     SafeBank safe;
+    NonReentrantHarness guardHarness;
+    ReenteringHook hook;
 
     address alice = address(0xA11CE);
     address bob = address(0xB0B);
@@ -29,6 +66,8 @@ contract PropertyReentrancyExampleTest is Test {
     function setUp() public {
         vulnerable = new VulnerableBank();
         safe = new SafeBank();
+        guardHarness = new NonReentrantHarness();
+        hook = new ReenteringHook(guardHarness);
     }
 
     //═══════════════════════════════════════════════════════════════════════════
@@ -125,6 +164,36 @@ contract PropertyReentrancyExampleTest is Test {
         vm.expectRevert("Insufficient balance");
         vm.prank(alice);
         vulnerable.withdraw(101);
+    }
+
+    //═══════════════════════════════════════════════════════════════════════════
+    // Guard primitive behavioral checks
+    //═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Property: nonReentrant_blocks_when_locked
+     * Mirrors the Lean theorem by forcing the lock slot to nonzero first.
+     */
+    function testProperty_GuardPrimitive_BlocksWhenLocked() public {
+        guardHarness.forceLock(1);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        guardHarness.guardedCall(IReentrancyHook(address(0)));
+    }
+
+    /**
+     * Differential behavior check: nested reentry attempt is blocked.
+     */
+    function testProperty_GuardPrimitive_ReentryAttemptReverts() public {
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        guardHarness.guardedCall(hook);
+    }
+
+    /**
+     * Property: unlocked call succeeds and lock is restored to 0.
+     */
+    function testProperty_GuardPrimitive_UnlocksAfterSuccess() public {
+        guardHarness.guardedCall(IReentrancyHook(address(0)));
+        assertEq(guardHarness.reentrancyLock(), 0, "Lock should be cleared");
     }
 
     //═══════════════════════════════════════════════════════════════════════════

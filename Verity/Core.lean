@@ -321,6 +321,21 @@ def require (condition : Bool) (message : String) : Contract Unit :=
            then ContractResult.success () s
            else ContractResult.revert message s
 
+/-- Reentrancy guard primitive.
+Uses `lockSlot` as a mutex (`0` = unlocked, nonzero = locked), sets it before
+running `body`, and clears it on both success and revert paths. -/
+def nonReentrant (lockSlot : StorageSlot Uint256) (body : Contract α) : Contract α :=
+  fun s =>
+    if s.storage lockSlot.slot == 0 then
+      let sLocked := (setStorage lockSlot 1).runState s
+      match body sLocked with
+      | ContractResult.success a s' =>
+          ContractResult.success a ((setStorage lockSlot 0).runState s')
+      | ContractResult.revert msg s' =>
+          ContractResult.revert msg ((setStorage lockSlot 0).runState s')
+    else
+      ContractResult.revert "ReentrancyGuard: reentrant call" s
+
 -- Simp lemmas for require
 @[simp] theorem require_true (msg : String) (s : ContractState) :
   (require true msg).run s = ContractResult.success () s := rfl
@@ -331,6 +346,15 @@ def require (condition : Bool) (message : String) : Contract Unit :=
 theorem require_succeeds (cond : Bool) (msg : String) (s : ContractState) :
   cond = true → (require cond msg).run s = ContractResult.success () s := by
   intro h; subst h; rfl
+
+@[simp] theorem nonReentrant_locked_reverts
+    (lockSlot : StorageSlot Uint256) (body : Contract α) (s : ContractState)
+    (hLocked : s.storage lockSlot.slot ≠ 0) :
+    (nonReentrant lockSlot body).run s =
+      ContractResult.revert "ReentrancyGuard: reentrant call" s := by
+  have hNe : (s.storage lockSlot.slot == 0) = false := by
+    simp [hLocked]
+  simp [Contract.run, nonReentrant, hNe]
 
 -- Regression for #254: mutations before a revert do not leak through `run`.
 theorem run_revert_rolls_back_storage (value : Uint256) (s : ContractState) :
