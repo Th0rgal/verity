@@ -62,8 +62,8 @@ private theorem deposit_unfold (s : ContractState) (amount : Uint256) :
         if slotIdx == 0 then (s.knownAddresses slotIdx).insert s.sender
         else s.knownAddresses slotIdx,
       events := s.events } := by
-  simp only [deposit, msgSender, getMapping, setMapping, balances,
-    Verity.bind, Bind.bind, Contract.run]
+  verity_unfold deposit
+  simp only [balances]
 
 theorem deposit_meets_spec (s : ContractState) (amount : Uint256) :
   let s' := ((deposit amount).run s).snd

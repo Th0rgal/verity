@@ -100,7 +100,8 @@ theorem getOwner_preserves_state (s : ContractState) :
 theorem isOwner_meets_spec (s : ContractState) :
   let result := ((isOwner).run s).fst
   isOwner_spec result s := by
-  simp only [isOwner, isOwner_spec, msgSender, getStorageAddr, owner, Verity.bind, Bind.bind, Contract.run, ContractResult.fst]
+  verity_unfold isOwner
+  simp only [isOwner_spec]
   rfl
 
 theorem isOwner_returns_correct_value (s : ContractState) :
