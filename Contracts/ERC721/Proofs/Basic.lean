@@ -56,7 +56,7 @@ theorem ownerOf_meets_spec (s : ContractState) (tokenId : Uint256) :
     ownerOf_spec tokenId ((Contracts.ERC721.ownerOf tokenId).run s) s := by
   cases h_owner : (s.storageMapUint 4 tokenId != 0) <;>
     simp [ownerOf_spec, Contracts.ERC721.ownerOf, Contract.run, Verity.bind, Bind.bind,
-      getMappingUint, Contracts.ERC721.owners, Contracts.ERC721.wordToAddress,
+      getMappingUint, Contracts.ERC721.owners,
       Contracts.ERC721.Spec.wordToAddress, Pure.pure, Verity.pure,
       require, h_owner]
 
@@ -66,7 +66,7 @@ theorem getApproved_meets_spec (s : ContractState) (tokenId : Uint256) :
   cases h_owner : (s.storageMapUint 4 tokenId != 0) <;>
     simp [getApproved_spec, Contracts.ERC721.getApproved, Contract.run, Verity.bind, Bind.bind,
       getMappingUint, Contracts.ERC721.owners, Contracts.ERC721.tokenApprovals,
-      Contracts.ERC721.wordToAddress, Contracts.ERC721.Spec.wordToAddress, Pure.pure, Verity.pure,
+      Contracts.ERC721.Spec.wordToAddress, Pure.pure, Verity.pure,
       require, h_owner]
 
 /-- `isApprovedForAll` checks nonzero operator-approval flag in slot 6. -/
@@ -84,34 +84,32 @@ theorem setApprovalForAll_meets_spec (s : ContractState) (operator : Address) (a
   refine ⟨?_, ?_, ?_⟩
   · cases approved <;>
       simp [Contracts.ERC721.setApprovalForAll, Contracts.ERC721.operatorApprovals,
-        setMapping2, Contracts.ERC721.boolToWord, Contracts.ERC721.Spec.boolToWord,
+        setMapping2, Contracts.ERC721.Spec.boolToWord,
         msgSender, Contract.runState, Verity.bind, Bind.bind]
   · refine ⟨?_, ?_⟩
     · intro o' op' h_neq
       simp [Contracts.ERC721.setApprovalForAll, Contracts.ERC721.operatorApprovals,
-        setMapping2, Contracts.ERC721.boolToWord,
+        setMapping2,
         msgSender, Contract.runState, Verity.bind, Bind.bind, h_neq]
     · intro op' h_neq
       simp [Contracts.ERC721.setApprovalForAll, Contracts.ERC721.operatorApprovals,
-        setMapping2, Contracts.ERC721.boolToWord,
+        setMapping2,
         msgSender, Contract.runState, Verity.bind, Bind.bind, h_neq]
   · refine ⟨?_, ?_, ?_, ?_, ?_⟩
     · simp [Specs.sameStorage, Contracts.ERC721.setApprovalForAll, Contracts.ERC721.operatorApprovals,
-      setMapping2, Contracts.ERC721.boolToWord,
+      setMapping2,
       msgSender, Contract.runState, Verity.bind, Bind.bind]
     · simp [Specs.sameStorageAddr, Contracts.ERC721.setApprovalForAll, Contracts.ERC721.operatorApprovals,
-      setMapping2, Contracts.ERC721.boolToWord,
+      setMapping2,
       msgSender, Contract.runState, Verity.bind, Bind.bind]
     · simp [Specs.sameStorageMap, Contracts.ERC721.setApprovalForAll, Contracts.ERC721.operatorApprovals,
-      setMapping2, Contracts.ERC721.boolToWord,
+      setMapping2,
       msgSender, Contract.runState, Verity.bind, Bind.bind]
     · simp [Specs.sameStorageMapUint, Contracts.ERC721.setApprovalForAll,
       Contracts.ERC721.operatorApprovals, setMapping2,
-      Contracts.ERC721.boolToWord,
       msgSender, Contract.runState, Verity.bind, Bind.bind]
     · simp [Specs.sameContext, Contracts.ERC721.setApprovalForAll,
       Contracts.ERC721.operatorApprovals, setMapping2,
-      Contracts.ERC721.boolToWord,
       msgSender, Contract.runState, Verity.bind, Bind.bind]
 
 end Contracts.ERC721.Proofs

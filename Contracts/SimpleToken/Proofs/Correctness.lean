@@ -33,10 +33,10 @@ This is critical for safety: unauthorized or invalid operations must fail.
 theorem mint_reverts_when_not_owner (s : ContractState) (to : Address) (amount : Uint256)
   (h_not_owner : s.sender ≠ s.storageAddr 0) :
   ∃ msg, (mint to amount).run s = ContractResult.revert msg s := by
-  simp only [mint, Contracts.SimpleToken.onlyOwner, isOwner,
+  simp only [mint,
     Contracts.SimpleToken.ownerSlot, Contracts.SimpleToken.balancesSlot, Contracts.SimpleToken.totalSupplySlot,
     msgSender, getStorageAddr, getStorage, setStorage, getMapping, setMapping,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
+    Verity.require, Verity.bind, Bind.bind,
     Contract.run]
   simp [address_beq_false_of_ne s.sender (s.storageAddr 0) h_not_owner]
 

@@ -74,10 +74,10 @@ theorem store_meets_spec (s : ContractState) (value : Uint256) :
   store_spec value s s' := by
   verity_unfold store
   refine ⟨?_, ?_, ?_⟩
-  · simp [store_spec, storedData]
+  · simp [storedData]
   · intro slotIdx h_neq
-    simp [store_spec, storedData, h_neq]
-  · simp [store_spec, storedData, Specs.sameAddrMapContext, Specs.sameStorageAddr,
+    simp [storedData, h_neq]
+  · simp [Specs.sameAddrMapContext, Specs.sameStorageAddr,
       Specs.sameStorageMap, Specs.sameContext]
 
 -- Main theorem: retrieve meets its specification

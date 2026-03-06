@@ -28,9 +28,9 @@ The fundamental access control property: non-owners cannot transfer ownership.
 theorem transferOwnership_reverts_when_not_owner (s : ContractState) (newOwner : Address)
   (h_not_owner : s.sender ≠ s.storageAddr 0) :
   ∃ msg, (transferOwnership newOwner).run s = ContractResult.revert msg s := by
-  simp [transferOwnership, onlyOwner, isOwner, owner,
+  simp [transferOwnership, owner,
     msgSender, getStorageAddr,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
+    Verity.require, Verity.bind, Bind.bind,
     Contract.run,
     address_beq_false_of_ne s.sender (s.storageAddr 0) h_not_owner]
 
@@ -54,7 +54,7 @@ theorem constructor_transferOwnership_getOwner (s : ContractState) (initialOwner
   let s1 := ((setStorageAddr owner initialOwner).run s).snd
   let s2 := ((transferOwnership newOwner).run s1).snd
   ((getOwner).run s2).fst = newOwner := by
-  simp [setStorageAddr, transferOwnership, onlyOwner, isOwner, owner, getOwner,
+  simp [setStorageAddr, transferOwnership, owner, getOwner,
     msgSender, getStorageAddr, setStorageAddr,
     Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
     Contract.run, ContractResult.snd, ContractResult.fst, h_sender]

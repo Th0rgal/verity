@@ -67,16 +67,16 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   let s' := ((setStorageAddr owner initialOwner).run s).snd
   constructor_spec initialOwner s s' := by
   refine ⟨?_, ?_, ?_⟩
-  · simp [constructor_spec, owner, setStorageAddr]
+  · simp [owner]
   · intro slotIdx h_neq
-    simp [constructor_spec, owner, setStorageAddr, h_neq]
-  · simp [constructor_spec, owner, setStorageAddr, Specs.sameStorageMapContext,
+    simp [owner, h_neq]
+  · simp [owner, Specs.sameStorageMapContext,
       Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
 
 theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
   let s' := ((setStorageAddr owner initialOwner).run s).snd
   s'.storageAddr 0 = initialOwner := by
-  simp [owner, setStorageAddr]
+  simp [owner]
 
 /-! ## getOwner Correctness -/
 
@@ -143,10 +143,10 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   transferOwnership_spec newOwner s s' := by
   rw [transferOwnership_unfold s newOwner h_is_owner]
   refine ⟨?_, ?_, ?_⟩
-  · simp [transferOwnership_spec, ContractResult.snd]
+  · simp [ContractResult.snd]
   · intro slotIdx h_neq
-    simp [transferOwnership_spec, ContractResult.snd, h_neq]
-  · simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorageMapContext,
+    simp [ContractResult.snd, h_neq]
+  · simp [ContractResult.snd, Specs.sameStorageMapContext,
       Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
 
 theorem transferOwnership_changes_owner_when_allowed (s : ContractState) (newOwner : Address)

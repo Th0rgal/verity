@@ -40,10 +40,10 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   let s' := ((setStorageAddr owner initialOwner).run s).snd
   constructor_spec initialOwner s s' := by
   refine ⟨?_, ?_, ?_⟩
-  · simp [setStorageAddr, owner, constructor_spec, Contract.run, ContractResult.snd]
+  · simp [setStorageAddr, owner, Contract.run, ContractResult.snd]
   · intro slotIdx h_neq
-    simp [setStorageAddr, owner, constructor_spec, Contract.run, ContractResult.snd, h_neq]
-  · simp [setStorageAddr, owner, constructor_spec, Contract.run, ContractResult.snd,
+    simp [setStorageAddr, owner, Contract.run, ContractResult.snd, h_neq]
+  · simp [setStorageAddr, owner, Contract.run, ContractResult.snd,
       Specs.sameStorageMapContext, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
 
 theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
@@ -131,10 +131,10 @@ theorem increment_meets_spec_when_owner (s : ContractState)
   increment_spec s s' := by
   rw [increment_unfold s h_owner]
   refine ⟨?_, ?_, ?_⟩
-  · simp [increment_spec, ContractResult.snd]
+  · simp [ContractResult.snd]
   · intro slotIdx h_neq
-    simp [increment_spec, ContractResult.snd, h_neq]
-  · simp [increment_spec, ContractResult.snd, Specs.sameAddrMapContext, Specs.sameStorageAddr,
+    simp [ContractResult.snd, h_neq]
+  · simp [ContractResult.snd, Specs.sameAddrMapContext, Specs.sameStorageAddr,
       Specs.sameStorageMap, Specs.sameContext]
 
 theorem increment_adds_one_when_owner (s : ContractState)
@@ -175,10 +175,10 @@ theorem decrement_meets_spec_when_owner (s : ContractState)
   decrement_spec s s' := by
   rw [decrement_unfold s h_owner]
   refine ⟨?_, ?_, ?_⟩
-  · simp [decrement_spec, ContractResult.snd]
+  · simp [ContractResult.snd]
   · intro slotIdx h_neq
-    simp [decrement_spec, ContractResult.snd, h_neq]
-  · simp [decrement_spec, ContractResult.snd, Specs.sameAddrMapContext, Specs.sameStorageAddr,
+    simp [ContractResult.snd, h_neq]
+  · simp [ContractResult.snd, Specs.sameAddrMapContext, Specs.sameStorageAddr,
       Specs.sameStorageMap, Specs.sameContext]
 
 theorem decrement_subtracts_one_when_owner (s : ContractState)
@@ -218,10 +218,10 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   transferOwnership_spec newOwner s s' := by
   rw [transferOwnership_unfold s newOwner h_owner]
   refine ⟨?_, ?_, ?_⟩
-  · simp [transferOwnership_spec, ContractResult.snd]
+  · simp [ContractResult.snd]
   · intro slotIdx h_neq
-    simp [transferOwnership_spec, ContractResult.snd, h_neq]
-  · simp [transferOwnership_spec, ContractResult.snd, Specs.sameStorageMapContext,
+    simp [ContractResult.snd, h_neq]
+  · simp [ContractResult.snd, Specs.sameStorageMapContext,
       Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
 
 theorem transferOwnership_changes_owner (s : ContractState) (newOwner : Address)
@@ -293,7 +293,7 @@ theorem constructor_increment_getCount (s : ContractState) (initialOwner : Addre
   let s2 := (increment.run s1).snd
   (getCount.run s2).fst = EVM.Uint256.add (s.storage 1) 1 := by
   -- Fully unfold constructor → increment → getCount in one go
-  simp only [setStorageAddr, increment, onlyOwner, isOwner, owner, count,
+  simp only [setStorageAddr, increment, owner, count,
     getCount, getStorage, getStorageAddr, setStorage, setStorageAddr,
     msgSender, Verity.require, Verity.pure, Verity.bind,
     Bind.bind, Pure.pure, Contract.run, ContractResult.snd, ContractResult.fst]

@@ -63,10 +63,10 @@ private theorem mint_isolation (s : ContractState) (to : Address) (amount : Uint
   (slotIdx ≠ 2 → ((mint to amount).run s).snd.storage slotIdx = s.storage slotIdx) ∧
   (slotIdx ≠ 1 → ∀ addr, ((mint to amount).run s).snd.storageMap slotIdx addr = s.storageMap slotIdx addr) ∧
   (slotIdx ≠ 0 → ((mint to amount).run s).snd.storageAddr slotIdx = s.storageAddr slotIdx) := by
-  simp only [mint, Contracts.SimpleToken.onlyOwner, isOwner,
+  simp only [mint,
     Contracts.SimpleToken.ownerSlot, Contracts.SimpleToken.balancesSlot, Contracts.SimpleToken.totalSupplySlot,
     msgSender, getStorageAddr, getStorage, setStorage, getMapping, setMapping,
-    Verity.require, Verity.pure, Verity.bind, Bind.bind, Pure.pure,
+    Verity.require, Verity.bind, Bind.bind,
     Contract.run, ContractResult.snd,
     h_owner, beq_self_eq_true, ite_true]
   unfold Stdlib.Math.requireSomeUint
