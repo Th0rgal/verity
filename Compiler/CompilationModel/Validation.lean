@@ -3,9 +3,12 @@
 -/
 import Compiler.CompilationModel.Types
 import Compiler.CompilationModel.AbiHelpers
+import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.EcmAxiomCollection
+import Compiler.CompilationModel.EventAbiHelpers
 import Compiler.CompilationModel.InternalNaming
+import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.LayoutValidation
 import Compiler.CompilationModel.MappingWrites
 import Compiler.CompilationModel.UsageAnalysis
@@ -58,36 +61,6 @@ def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
       false
-
-def issue748Ref : String :=
-  "Issue #748 (logicalAnd/logicalOr eager evaluation footgun)"
-
-def issue586Ref : String :=
-  "Issue #586 (Solidity interop profile)"
-
-def issue623Ref : String :=
-  "Issue #623 (CompilationModel storage layout controls)"
-
-def issue625Ref : String :=
-  "Issue #625 (internal function multi-return support)"
-
-def issue732Ref : String :=
-  "Issue #732 (reject undeclared external call targets)"
-
-def issue734Ref : String :=
-  "Issue #734 (view/pure mutability enforcement)"
-
-def issue738Ref : String :=
-  "Issue #738 (exhaustive return-path analysis)"
-
-def issue753Ref : String :=
-  "Issue #753 (internal dynamic params unsupported)"
-
-def issue756Ref : String :=
-  "Issue #756 (external/helper namespace collisions)"
-
-def issue184Ref : String :=
-  "Issue #184 (verified external interface declarations)"
 
 def validateLogicalOperandPurity (context : String) (a b : Expr) : Except String Unit := do
   if exprContainsCallLike a || exprContainsCallLike b then
@@ -991,59 +964,6 @@ def validateCustomErrorArgShapesInFunction (spec : FunctionSpec) (errors : List 
     Except String Unit := do
   spec.body.forM (validateCustomErrorArgShapesInStmt spec.name spec.params errors)
 
--- Whether an ABI param type is dynamically sized (requires offset-based encoding).
--- Used by both event encoding and calldata parameter loading.
-mutual
-  def isDynamicParamType : ParamType → Bool
-    | ParamType.uint256 => false
-    | ParamType.uint8 => false
-    | ParamType.address => false
-    | ParamType.bool => false
-    | ParamType.bytes32 => false
-    | ParamType.array _ => true
-    | ParamType.bytes => true
-    | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
-    | ParamType.tuple elemTys => isDynamicParamTypeList elemTys
-  termination_by ty => sizeOf ty
-
-  private def isDynamicParamTypeList : List ParamType → Bool
-    | [] => false
-    | ty :: rest => isDynamicParamType ty || isDynamicParamTypeList rest
-  termination_by tys => sizeOf tys
-end
-
--- ABI head size in bytes for a param type. Dynamic types occupy one 32-byte
--- offset word; static composites are the sum of their element head sizes.
--- Used by both event encoding and calldata parameter loading.
-mutual
-  def paramHeadSize : ParamType → Nat
-    | ParamType.uint256 => 32
-    | ParamType.uint8 => 32
-    | ParamType.address => 32
-    | ParamType.bool => 32
-    | ParamType.bytes32 => 32
-    | ParamType.array _ => 32
-    | ParamType.bytes => 32
-    | ParamType.fixedArray elemTy n =>
-        if isDynamicParamType elemTy then 32 else n * paramHeadSize elemTy
-    | ParamType.tuple elemTys =>
-        if isDynamicParamTypeList elemTys then 32 else paramHeadSizeList elemTys
-  termination_by ty => sizeOf ty
-
-  private def paramHeadSizeList : List ParamType → Nat
-    | [] => 0
-    | ty :: rest => paramHeadSize ty + paramHeadSizeList rest
-  termination_by tys => sizeOf tys
-end
-
--- Legacy aliases used throughout event encoding code.
-def eventIsDynamicType := isDynamicParamType
-def eventHeadWordSize := paramHeadSize
-
-def indexedDynamicArrayElemSupported (elemTy : ParamType) : Bool :=
-  !eventIsDynamicType elemTy &&
-    eventHeadWordSize elemTy > 0
-
 partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
     (events : List EventDef) : Stmt → Except String Unit
   | Stmt.emit eventName args => do
@@ -1183,192 +1103,6 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
 def validateEventArgShapesInFunction (spec : FunctionSpec) (events : List EventDef) :
     Except String Unit := do
   spec.body.forM (validateEventArgShapesInStmt spec.name spec.params events)
-
-def normalizeEventWord (ty : ParamType) (expr : YulExpr) : YulExpr :=
-  match ty with
-  | ParamType.uint8 => YulExpr.call "and" [expr, YulExpr.lit 255]
-  | ParamType.address => YulExpr.call "and" [expr, YulExpr.hex addressMask]
-  | ParamType.bool => yulToBool expr
-  | _ => expr
-
-partial def staticCompositeLeaves (baseName : String) (ty : ParamType) :
-    List (ParamType × YulExpr) :=
-  match ty with
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
-      [(ty, YulExpr.ident baseName)]
-  | ParamType.fixedArray elemTy n =>
-      (List.range n).flatMap fun i =>
-        staticCompositeLeaves s!"{baseName}_{i}" elemTy
-  | ParamType.tuple elemTys =>
-      let rec go (tys : List ParamType) (idx : Nat) : List (ParamType × YulExpr) :=
-        match tys with
-        | [] => []
-        | elemTy :: rest =>
-            staticCompositeLeaves s!"{baseName}_{idx}" elemTy ++ go rest (idx + 1)
-      go elemTys 0
-  | _ => []
-
-partial def staticCompositeLeafTypeOffsets
-    (baseOffset : Nat) (ty : ParamType) : List (Nat × ParamType) :=
-  match ty with
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
-      [(baseOffset, ty)]
-  | ParamType.fixedArray elemTy n =>
-      (List.range n).flatMap fun i =>
-        staticCompositeLeafTypeOffsets (baseOffset + i * eventHeadWordSize elemTy) elemTy
-  | ParamType.tuple elemTys =>
-      let rec go (remaining : List ParamType) (curOffset : Nat) : List (Nat × ParamType) :=
-        match remaining with
-        | [] => []
-        | elemTy :: rest =>
-            staticCompositeLeafTypeOffsets curOffset elemTy ++
-              go rest (curOffset + eventHeadWordSize elemTy)
-      go elemTys baseOffset
-  | _ => []
-
-def indexedDynamicBaseOffsetExpr (dynamicSource : DynamicDataSource) (paramName : String) : YulExpr :=
-  match dynamicSource with
-  | .calldata => YulExpr.call "add" [YulExpr.lit 4, YulExpr.ident s!"{paramName}_offset"]
-  | .memory => YulExpr.ident s!"{paramName}_offset"
-
-partial def compileIndexedInPlaceEncoding
-    (dynamicSource : DynamicDataSource) (ty : ParamType)
-    (srcBase dstBase : YulExpr) (stem : String) :
-    Except String (List YulStmt × YulExpr) := do
-  match ty with
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
-      let loaded := dynamicWordLoad dynamicSource srcBase
-      pure ([
-        YulStmt.expr (YulExpr.call "mstore" [dstBase, normalizeEventWord ty loaded])
-      ], YulExpr.lit 32)
-  | ParamType.bytes =>
-      let lenName := s!"{stem}_len"
-      let paddedName := s!"{stem}_padded"
-      pure ([
-        YulStmt.let_ lenName (dynamicWordLoad dynamicSource srcBase)
-      ] ++ dynamicCopyData dynamicSource
-        dstBase
-        (YulExpr.call "add" [srcBase, YulExpr.lit 32])
-        (YulExpr.ident lenName) ++ [
-        YulStmt.let_ paddedName (YulExpr.call "and" [
-          YulExpr.call "add" [YulExpr.ident lenName, YulExpr.lit 31],
-          YulExpr.call "not" [YulExpr.lit 31]
-        ]),
-        YulStmt.expr (YulExpr.call "mstore" [
-          YulExpr.call "add" [dstBase, YulExpr.ident lenName],
-          YulExpr.lit 0
-        ])
-      ], YulExpr.ident paddedName)
-  | ParamType.array elemTy =>
-      let lenName := s!"{stem}_arr_len"
-      let dataBaseName := s!"{stem}_arr_data"
-      let loopIndexName := s!"{stem}_arr_i"
-      let outLenName := s!"{stem}_arr_out_len"
-      let elemSrcName := s!"{stem}_arr_elem_src"
-      let elemDstName := s!"{stem}_arr_elem_dst"
-      let initStmts := [
-        YulStmt.let_ lenName (dynamicWordLoad dynamicSource srcBase),
-        YulStmt.let_ dataBaseName (YulExpr.call "add" [srcBase, YulExpr.lit 32]),
-        YulStmt.let_ outLenName (YulExpr.lit 0)
-      ]
-      let elemSrcExpr :=
-        if eventIsDynamicType elemTy then
-          let relName := s!"{stem}_arr_elem_rel"
-          let relDecl := YulStmt.let_ relName (dynamicWordLoad dynamicSource (YulExpr.call "add" [
-            YulExpr.ident dataBaseName,
-            YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit 32]
-          ]))
-          let srcDecl := YulStmt.let_ elemSrcName (YulExpr.call "add" [
-            YulExpr.ident dataBaseName,
-            YulExpr.ident relName
-          ])
-          ([relDecl, srcDecl], YulExpr.ident elemSrcName)
-        else
-          let srcDecl := YulStmt.let_ elemSrcName (YulExpr.call "add" [
-            YulExpr.ident dataBaseName,
-            YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit (eventHeadWordSize elemTy)]
-          ])
-          ([srcDecl], YulExpr.ident elemSrcName)
-      let (elemEncodeStmts, elemEncodedLen) ←
-        compileIndexedInPlaceEncoding dynamicSource elemTy (elemSrcExpr.2) (YulExpr.ident elemDstName) s!"{stem}_arr_elem"
-      let loopBody :=
-        elemSrcExpr.1 ++ [
-          YulStmt.let_ elemDstName (YulExpr.call "add" [dstBase, YulExpr.ident outLenName])
-        ] ++ elemEncodeStmts ++ [
-          YulStmt.assign outLenName (YulExpr.call "add" [YulExpr.ident outLenName, elemEncodedLen])
-        ]
-      pure (initStmts ++ [
-        YulStmt.for_
-          [YulStmt.let_ loopIndexName (YulExpr.lit 0)]
-          (YulExpr.call "lt" [YulExpr.ident loopIndexName, YulExpr.ident lenName])
-          [YulStmt.assign loopIndexName (YulExpr.call "add" [YulExpr.ident loopIndexName, YulExpr.lit 1])]
-          loopBody
-      ], YulExpr.ident outLenName)
-  | ParamType.fixedArray elemTy n =>
-      let outLenName := s!"{stem}_fixed_out_len"
-      let initStmts := [YulStmt.let_ outLenName (YulExpr.lit 0)]
-      let rec goFixed (i : Nat) : Except String (List YulStmt) := do
-        if i < n then
-          let elemSrcName := s!"{stem}_fixed_elem_src_{i}"
-          let elemDstName := s!"{stem}_fixed_elem_dst_{i}"
-          let srcStmts :=
-            if eventIsDynamicType elemTy then
-              let relName := s!"{stem}_fixed_elem_rel_{i}"
-              [
-                YulStmt.let_ relName (dynamicWordLoad dynamicSource (YulExpr.call "add" [
-                  srcBase, YulExpr.lit (i * 32)
-                ])),
-                YulStmt.let_ elemSrcName (YulExpr.call "add" [srcBase, YulExpr.ident relName])
-              ]
-            else
-              [YulStmt.let_ elemSrcName (YulExpr.call "add" [
-                srcBase, YulExpr.lit (i * eventHeadWordSize elemTy)
-              ])]
-          let elemDstStmt := YulStmt.let_ elemDstName (YulExpr.call "add" [dstBase, YulExpr.ident outLenName])
-          let (elemEncodeStmts, elemEncodedLen) ←
-            compileIndexedInPlaceEncoding dynamicSource elemTy
-              (YulExpr.ident elemSrcName)
-              (YulExpr.ident elemDstName)
-              s!"{stem}_fixed_elem_{i}"
-          let rest ← goFixed (i + 1)
-          pure (srcStmts ++ [elemDstStmt] ++ elemEncodeStmts ++ [
-            YulStmt.assign outLenName (YulExpr.call "add" [YulExpr.ident outLenName, elemEncodedLen])
-          ] ++ rest)
-        else
-          pure []
-      pure (initStmts ++ (← goFixed 0), YulExpr.ident outLenName)
-  | ParamType.tuple elemTys =>
-      let outLenName := s!"{stem}_tuple_out_len"
-      let initStmts := [YulStmt.let_ outLenName (YulExpr.lit 0)]
-      let rec goTuple (remaining : List ParamType) (elemIdx headOffset : Nat) :
-          Except String (List YulStmt) := do
-        match remaining with
-        | [] => pure []
-        | elemTy :: rest =>
-            let elemSrcName := s!"{stem}_tuple_elem_src_{elemIdx}"
-            let elemDstName := s!"{stem}_tuple_elem_dst_{elemIdx}"
-            let srcStmts :=
-              if eventIsDynamicType elemTy then
-                let relName := s!"{stem}_tuple_elem_rel_{elemIdx}"
-                [
-                  YulStmt.let_ relName (dynamicWordLoad dynamicSource (YulExpr.call "add" [
-                    srcBase, YulExpr.lit headOffset
-                  ])),
-                  YulStmt.let_ elemSrcName (YulExpr.call "add" [srcBase, YulExpr.ident relName])
-                ]
-              else
-                [YulStmt.let_ elemSrcName (YulExpr.call "add" [srcBase, YulExpr.lit headOffset])]
-            let elemDstStmt := YulStmt.let_ elemDstName (YulExpr.call "add" [dstBase, YulExpr.ident outLenName])
-            let (elemEncodeStmts, elemEncodedLen) ←
-              compileIndexedInPlaceEncoding dynamicSource elemTy
-                (YulExpr.ident elemSrcName)
-                (YulExpr.ident elemDstName)
-                s!"{stem}_tuple_elem_{elemIdx}"
-            let restStmts ← goTuple rest (elemIdx + 1) (headOffset + eventHeadWordSize elemTy)
-            pure (srcStmts ++ [elemDstStmt] ++ elemEncodeStmts ++ [
-              YulStmt.assign outLenName (YulExpr.call "add" [YulExpr.ident outLenName, elemEncodedLen])
-            ] ++ restStmts)
-      pure (initStmts ++ (← goTuple elemTys 0 0), YulExpr.ident outLenName)
 
 def lowLevelCallUnsupportedError (context : String) (name : String) : Except String Unit :=
   throw s!"Compilation error: {context} uses unsupported low-level call '{name}' ({issue586Ref}). Use a verified linked external function wrapper instead of raw call/staticcall/delegatecall/callcode."
