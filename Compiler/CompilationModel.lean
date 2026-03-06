@@ -12,6 +12,7 @@ import Compiler.CompilationModel.EcmAxiomCollection
 import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.LayoutValidation
 import Compiler.CompilationModel.MappingWrites
+import Compiler.CompilationModel.StorageWrites
 import Compiler.CompilationModel.UsageAnalysis
 import Compiler.CompilationModel.ValidationHelpers
 import Compiler.CompilationModel.SelectorInteropHelpers
