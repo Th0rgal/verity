@@ -1590,6 +1590,65 @@ def execCompiledLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappin
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
+/-- Source semantics for an owner-auth mint pattern with one mapping read and one
+storage read before updating both pieces of state.
+Params: toParam (address, id 0), amountParam (uint256, id 1).
+Locals: senderVar (address, id 2), ownerVar (address, id 3),
+balanceVar (uint256, id 4), supplyVar (uint256, id 5). -/
+def execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+    (init : TExecState) (ownerSlot mappingSlot supplySlot : Nat) (msg : String) : TExecResult :=
+  let sender := init.env.sender
+  let owner := init.world.storageAddr ownerSlot
+  let recipient := init.vars.address 0
+  let amount := init.vars.uint256 1
+  if decide (sender = owner) then
+    let currentBalance := init.world.storageMap mappingSlot recipient
+    let currentSupply := init.world.storage supplySlot
+    .ok { init with
+      vars := TVars.set
+        (TVars.set
+          (TVars.set
+            (TVars.set init.vars
+              { id := 2, ty := Ty.address } sender)
+              { id := 3, ty := Ty.address } owner)
+            { id := 4, ty := Ty.uint256 } currentBalance)
+          { id := 5, ty := Ty.uint256 } currentSupply
+      world := { init.world with
+        storageMap := fun i a =>
+          if i == mappingSlot && a == recipient
+          then currentBalance + amount
+          else init.world.storageMap i a
+        storage := fun i =>
+          if i == supplySlot then currentSupply + amount else init.world.storage i } }
+  else
+    .revert msg
+
+/-- Compiled semantics for the owner-auth mint pattern.
+Pre-populated CompileState: toParam (address, id 0), amountParam (uint256, id 1). -/
+def execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+    (fields : List Field)
+    (ownerField mappingField supplyField senderVar ownerVar balanceVar supplyVar toParam amountParam : String)
+    (msg : String) (init : TExecState) : TExecResult :=
+  match (compileStmts fields
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar ownerVar (Expr.storage ownerField)
+      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg
+      , Stmt.letVar balanceVar (Expr.mapping mappingField (Expr.param toParam))
+      , Stmt.letVar supplyVar (Expr.storage supplyField)
+      , Stmt.setMapping mappingField (Expr.param toParam)
+          (Expr.add (Expr.localVar balanceVar) (Expr.param amountParam))
+      , Stmt.setStorage supplyField
+          (Expr.add (Expr.localVar supplyVar) (Expr.param amountParam))
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 2
+        [(amountParam, { id := 1, ty := Ty.uint256 }),
+         (toParam, { id := 0, ty := Ty.address })]
+        #[{ id := 0, ty := Ty.address }, { id := 1, ty := Ty.uint256 }]
+        #[] #[]) with
+  | .error err => .revert err
+  | .ok (_, st) => evalTStmts init st.body.toList
+
 /-- Source semantics for the Morpho setAuthorization pattern.
 Params: authParam (address, id 0), boolParam (bool, id 1).
 Locals: senderVar (address, id 2), currentVar (uint256, id 3). -/

@@ -2492,6 +2492,58 @@ example (init : TExecState) :
   erc20_totalSupply_correctness init
 
 open Compiler.CompilationModel in
+/-- `SimpleToken.mint`: owner path keeps compiled/source multi-read outputs aligned. -/
+private def simpleTokenMintOwnerAgreement : Bool :=
+  let init : TExecState :=
+    { world := { Verity.defaultState with
+        storageAddr := fun s => if s = 0 then 0xA11CE else 0,
+        storageMap := fun s addr => if s = 1 && addr = 0xBEEF then 7 else 0,
+        «storage» := fun s => if s = 2 then 100 else 0 }
+      env := { Verity.Env.ofWorld Verity.defaultState with sender := 0xA11CE }
+      vars := { address := fun i => if i = 0 then 0xBEEF else 0
+                uint256 := fun i => if i = 1 then 5 else 0 } }
+  match
+      execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        simpleTokenFields "owner" "balances" "totalSupply"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init,
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 1 2 "Caller is not the owner" with
+  | .ok c, .ok s =>
+      c.world.storageMap 1 0xBEEF = 12 &&
+      c.world.storage 2 = 105 &&
+      c.world.storageMap 1 0xBEEF = s.world.storageMap 1 0xBEEF &&
+      c.world.storage 2 = s.world.storage 2
+  | _, _ => false
+
+example : simpleTokenMintOwnerAgreement = true := by
+  native_decide
+
+open Compiler.CompilationModel in
+/-- `SimpleToken.mint`: non-owner path reverts identically. -/
+private def simpleTokenMintNonOwnerAgreement : Bool :=
+  let init : TExecState :=
+    { world := { Verity.defaultState with
+        storageAddr := fun s => if s = 0 then 0xA11CE else 0,
+        storageMap := fun s addr => if s = 1 && addr = 0xBEEF then 7 else 0,
+        «storage» := fun s => if s = 2 then 100 else 0 }
+      env := { Verity.Env.ofWorld Verity.defaultState with sender := 0xBAD }
+      vars := { address := fun i => if i = 0 then 0xBEEF else 0
+                uint256 := fun i => if i = 1 then 5 else 0 } }
+  match
+      execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        simpleTokenFields "owner" "balances" "totalSupply"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init,
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 1 2 "Caller is not the owner" with
+  | .revert c, .revert s => c = "Caller is not the owner" && c = s
+  | _, _ => false
+
+example : simpleTokenMintNonOwnerAgreement = true := by
+  native_decide
+
+open Compiler.CompilationModel in
 /-- Admin `setOwner` pattern belongs to the supported fragment grammar. -/
 example : SupportedStmtList adminPatternFields
     [ Stmt.letVar "sender" Expr.caller
@@ -2632,6 +2684,58 @@ example (init : TExecState) :
       execCompiledSupportedStmtFragments erc20Fields init fragments =
         execSourceSupportedStmtFragments erc20Fields init fragments :=
   erc20_approve_correctness init
+
+open Compiler.CompilationModel in
+/-- `ERC20.mint`: owner path keeps compiled/source multi-read outputs aligned. -/
+private def erc20MintOwnerAgreement : Bool :=
+  let init : TExecState :=
+    { world := { Verity.defaultState with
+        storageAddr := fun s => if s = 0 then 0xCAFE else 0,
+        storageMap := fun s addr => if s = 2 && addr = 0xD00D then 11 else 0,
+        «storage» := fun s => if s = 1 then 250 else 0 }
+      env := { Verity.Env.ofWorld Verity.defaultState with sender := 0xCAFE }
+      vars := { address := fun i => if i = 0 then 0xD00D else 0
+                uint256 := fun i => if i = 1 then 9 else 0 } }
+  match
+      execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        erc20Fields "ownerSlot" "balancesSlot" "totalSupplySlot"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init,
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 2 1 "Caller is not the owner" with
+  | .ok c, .ok s =>
+      c.world.storageMap 2 0xD00D = 20 &&
+      c.world.storage 1 = 259 &&
+      c.world.storageMap 2 0xD00D = s.world.storageMap 2 0xD00D &&
+      c.world.storage 1 = s.world.storage 1
+  | _, _ => false
+
+example : erc20MintOwnerAgreement = true := by
+  native_decide
+
+open Compiler.CompilationModel in
+/-- `ERC20.mint`: non-owner path reverts identically. -/
+private def erc20MintNonOwnerAgreement : Bool :=
+  let init : TExecState :=
+    { world := { Verity.defaultState with
+        storageAddr := fun s => if s = 0 then 0xCAFE else 0,
+        storageMap := fun s addr => if s = 2 && addr = 0xD00D then 11 else 0,
+        «storage» := fun s => if s = 1 then 250 else 0 }
+      env := { Verity.Env.ofWorld Verity.defaultState with sender := 0xBAD }
+      vars := { address := fun i => if i = 0 then 0xD00D else 0
+                uint256 := fun i => if i = 1 then 9 else 0 } }
+  match
+      execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        erc20Fields "ownerSlot" "balancesSlot" "totalSupplySlot"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init,
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 2 1 "Caller is not the owner" with
+  | .revert c, .revert s => c = "Caller is not the owner" && c = s
+  | _, _ => false
+
+example : erc20MintNonOwnerAgreement = true := by
+  native_decide
 
 -- ============================================================
 -- ERC721 bridge theorem tests
