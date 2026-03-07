@@ -8,7 +8,7 @@ def orZeroRightRule : ExprPatchRule :=
     pattern := "or(x, 0)"
     rewrite := "x"
     sideConditions := ["second argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.or_zero_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.or_zero_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 100
@@ -23,7 +23,7 @@ def orZeroLeftRule : ExprPatchRule :=
     pattern := "or(0, x)"
     rewrite := "x"
     sideConditions := ["first argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.or_zero_left_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.or_zero_left_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 95
@@ -38,7 +38,7 @@ def xorZeroRightRule : ExprPatchRule :=
     pattern := "xor(x, 0)"
     rewrite := "x"
     sideConditions := ["second argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.xor_zero_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.xor_zero_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 90
@@ -53,7 +53,7 @@ def xorZeroLeftRule : ExprPatchRule :=
     pattern := "xor(0, x)"
     rewrite := "x"
     sideConditions := ["first argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.xor_zero_left_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.xor_zero_left_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 85
@@ -68,7 +68,7 @@ def andZeroRightRule : ExprPatchRule :=
     pattern := "and(x, 0)"
     rewrite := "0"
     sideConditions := ["second argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.and_zero_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.and_zero_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 80
@@ -83,7 +83,7 @@ def addZeroRightRule : ExprPatchRule :=
     pattern := "add(x, 0)"
     rewrite := "x"
     sideConditions := ["second argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 75
@@ -98,7 +98,7 @@ def addZeroLeftRule : ExprPatchRule :=
     pattern := "add(0, x)"
     rewrite := "x"
     sideConditions := ["first argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_left_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_left_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 74
@@ -113,7 +113,7 @@ def subZeroRightRule : ExprPatchRule :=
     pattern := "sub(x, 0)"
     rewrite := "x"
     sideConditions := ["second argument is literal zero"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.sub_zero_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.sub_zero_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 73
@@ -128,7 +128,7 @@ def mulOneRightRule : ExprPatchRule :=
     pattern := "mul(x, 1)"
     rewrite := "x"
     sideConditions := ["second argument is literal one"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.mul_one_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.mul_one_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 72
@@ -143,7 +143,7 @@ def mulOneLeftRule : ExprPatchRule :=
     pattern := "mul(1, x)"
     rewrite := "x"
     sideConditions := ["first argument is literal one"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.mul_one_left_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.mul_one_left_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 71
@@ -158,7 +158,7 @@ def divOneRightRule : ExprPatchRule :=
     pattern := "div(x, 1)"
     rewrite := "x"
     sideConditions := ["second argument is literal one"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.div_one_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.div_one_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 70
@@ -173,7 +173,7 @@ def modOneRightRule : ExprPatchRule :=
     pattern := "mod(x, 1)"
     rewrite := "0"
     sideConditions := ["second argument is literal one"]
-    proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.mod_one_right_preserves"
+    proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.mod_one_right_preserves"
     scope := .runtime
     passPhase := .postCodegen
     priority := 69
@@ -2828,56 +2828,56 @@ private partial def rewriteAccrueInterestCheckedArithmeticStmts
 
 end
 
-def solcCompatPruneUnreachableHelpersProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_prune_unreachable_helpers_preserves"
+def solcCompatPruneUnreachableHelpersProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_prune_unreachable_helpers_preserves"
 
 /-- Canonicalize Verity internal helper naming to `solc`-style `fun_*` names when collision-free. -/
-def solcCompatCanonicalizeInternalFunNamesProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_canonicalize_internal_fun_names_preserves"
+def solcCompatCanonicalizeInternalFunNamesProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_canonicalize_internal_fun_names_preserves"
 
 /-- Deduplicate top-level helper definitions that are structurally equivalent. -/
-def solcCompatDedupeEquivalentHelpersProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_dedupe_equivalent_helpers_preserves"
+def solcCompatDedupeEquivalentHelpersProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_dedupe_equivalent_helpers_preserves"
 
 /-- Inline dispatch wrapper case calls to top-level zero-arity `fun_*` helper definitions. -/
-def solcCompatInlineDispatchWrapperCallsProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_inline_dispatch_wrapper_calls_preserves"
+def solcCompatInlineDispatchWrapperCallsProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_inline_dispatch_wrapper_calls_preserves"
 
 /-- Outline switch dispatch case bodies into explicit top-level `fun_*` helpers. -/
-def solcCompatOutlineDispatchHelpersProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_outline_dispatch_helpers_preserves"
+def solcCompatOutlineDispatchHelpersProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_outline_dispatch_helpers_preserves"
 
 /-- Inline direct `keccakMarketParams(...)` helper calls into explicit memory writes + `keccak256`. -/
-def solcCompatInlineKeccakMarketParamsCallsProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_inline_keccak_market_params_calls_preserves"
+def solcCompatInlineKeccakMarketParamsCallsProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_inline_keccak_market_params_calls_preserves"
 
 /-- Inline `mappingSlot(baseSlot, key)` helper calls into explicit scratch writes + `keccak256`. -/
-def solcCompatInlineMappingSlotCallsProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_inline_mapping_slot_calls_preserves"
+def solcCompatInlineMappingSlotCallsProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_inline_mapping_slot_calls_preserves"
 
-def solcCompatDropUnusedKeccakMarketParamsHelperProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_drop_unused_keccak_market_params_helper_preserves"
+def solcCompatDropUnusedKeccakMarketParamsHelperProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_drop_unused_keccak_market_params_helper_preserves"
 
-def solcCompatDropUnusedMappingSlotHelperProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_drop_unused_mapping_slot_helper_preserves"
+def solcCompatDropUnusedMappingSlotHelperProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_drop_unused_mapping_slot_helper_preserves"
 
-def solcCompatPruneUnreachableDeployHelpersProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_prune_unreachable_deploy_helpers_preserves"
+def solcCompatPruneUnreachableDeployHelpersProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_prune_unreachable_deploy_helpers_preserves"
 
-def solcCompatRewriteNonceIncrementProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_nonce_increment_preserves"
+def solcCompatRewriteNonceIncrementProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_nonce_increment_preserves"
 
-def solcCompatRewriteElapsedCheckedSubProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_elapsed_checked_sub_preserves"
+def solcCompatRewriteElapsedCheckedSubProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_elapsed_checked_sub_preserves"
 
-def solcCompatRewriteAccrueInterestCheckedArithmeticProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_accrue_interest_checked_arithmetic_preserves"
+def solcCompatRewriteAccrueInterestCheckedArithmeticProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_accrue_interest_checked_arithmetic_preserves"
 
-def solcCompatRewriteAccrueInterestPrologueTempsProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_accrue_interest_prologue_temps_preserves"
+def solcCompatRewriteAccrueInterestPrologueTempsProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_accrue_interest_prologue_temps_preserves"
 
-def solcCompatRewriteAccrueInterestIrmGuardProofRef : String :=
-  "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_accrue_interest_irm_guard_preserves"
+def solcCompatRewriteAccrueInterestIrmGuardProofRef : Lean.Name :=
+  proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_rewrite_accrue_interest_irm_guard_preserves"
 
 private def findEquivalentTopLevelHelper?
     (seen : List (String × List String × List String × String))
@@ -3283,7 +3283,7 @@ structure RewriteRuleBundle where
   blockRules : List BlockPatchRule
   objectRules : List ObjectPatchRule
 
-private def rewriteBundleProofAllowlist (bundle : RewriteRuleBundle) : List String :=
+private def rewriteBundleProofAllowlist (bundle : RewriteRuleBundle) : List Lean.Name :=
   let exprProofs := bundle.exprRules.map (fun rule => rule.proofId)
   let stmtProofs := bundle.stmtRules.map (fun rule => rule.proofId)
   let blockProofs := bundle.blockRules.map (fun rule => rule.proofId)
@@ -3341,15 +3341,15 @@ def rewriteBundleForId (bundleId : String) : RewriteRuleBundle :=
   | some bundle => bundle
   | none => foundationRewriteBundle
 
-def rewriteProofAllowlistForId (bundleId : String) : List String :=
+def rewriteProofAllowlistForId (bundleId : String) : List Lean.Name :=
   rewriteBundleProofAllowlist (rewriteBundleForId bundleId)
 
 /-- Activation-time proof allowlist for the shipped foundation patch packs. -/
-def foundationProofAllowlist : List String :=
+def foundationProofAllowlist : List Lean.Name :=
   rewriteBundleProofAllowlist foundationRewriteBundle
 
 /-- Activation-time proof allowlist for the shipped `solc` compatibility patch bundle. -/
-def solcCompatProofAllowlist : List String :=
+def solcCompatProofAllowlist : List Lean.Name :=
   rewriteBundleProofAllowlist solcCompatRewriteBundle
 
 /-- Smoke test: higher-priority rule wins deterministically. -/
@@ -3455,7 +3455,7 @@ example :
         pattern := "or(x, 0)"
         rewrite := "x"
         sideConditions := []
-        proofId := ""
+        proofId := .anonymous
         scope := .runtime
         passPhase := .postCodegen
         priority := 999
@@ -3477,7 +3477,7 @@ example :
         pattern := "or(x, 0)"
         rewrite := "x"
         sideConditions := ["second argument is literal zero"]
-        proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.not_registered"
+        proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.not_registered"
         scope := .runtime
         passPhase := .postCodegen
         priority := 999
@@ -3504,7 +3504,7 @@ example :
         pattern := "// from"
         rewrite := "// to"
         sideConditions := ["statement is comment // from"]
-        proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.comment_flip_preserves"
+        proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.comment_flip_preserves"
         scope := .runtime
         passPhase := .postCodegen
         priority := 50
@@ -3526,7 +3526,7 @@ example :
         pattern := "// from"
         rewrite := "// to"
         sideConditions := []
-        proofId := ""
+        proofId := .anonymous
         scope := .runtime
         passPhase := .postCodegen
         priority := 999
@@ -3548,7 +3548,7 @@ example :
         pattern := "{ leave }"
         rewrite := "{ /* nop */ }"
         sideConditions := ["block contains exactly one leave statement"]
-        proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.collapse_to_nop_preserves"
+        proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.collapse_to_nop_preserves"
         scope := .runtime
         passPhase := .postCodegen
         priority := 40
@@ -3574,7 +3574,7 @@ example :
         pattern := "{ leave }"
         rewrite := "{ /* nop */ }"
         sideConditions := []
-        proofId := ""
+        proofId := .anonymous
         scope := .runtime
         passPhase := .postCodegen
         priority := 999
@@ -3600,7 +3600,7 @@ example :
         pattern := "object Main"
         rewrite := "object MainParity"
         sideConditions := ["object name is Main"]
-        proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.rename_object_preserves"
+        proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.rename_object_preserves"
         scope := .object
         passPhase := .postCodegen
         priority := 30
@@ -3648,7 +3648,7 @@ example :
         pattern := "add(x, 0)"
         rewrite := "x"
         sideConditions := ["second argument is literal zero"]
-        proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_right_preserves"
+        proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_right_preserves"
         scope := .deploy
         passPhase := .postCodegen
         priority := 1000
@@ -3678,7 +3678,7 @@ example :
         pattern := "add(x, 0)"
         rewrite := "x"
         sideConditions := ["second argument is literal zero"]
-        proofId := "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_right_preserves"
+        proofId := proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.add_zero_right_preserves"
         packAllowlist := ["solc-0.8.28-o999999-viair-true-evm-paris"]
         scope := .runtime
         passPhase := .postCodegen
@@ -7504,7 +7504,7 @@ example :
         pattern := "object Main"
         rewrite := "object MainParity"
         sideConditions := []
-        proofId := ""
+        proofId := .anonymous
         scope := .object
         passPhase := .postCodegen
         priority := 999
