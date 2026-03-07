@@ -127,6 +127,79 @@ private def reservedForEachBinderSpec : CompilationModel := {
   ]
 }
 
+private def reservedInternalAssignBinderSpec : CompilationModel := {
+  name := "ReservedInternalAssignBinder"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.param "next")]
+      isInternal := true
+    },
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.internalCallAssign ["__ret"] "helper" [Expr.param "next"],
+        Stmt.setStorage "value" (Expr.localVar "__ret"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def reservedExternalBindSpec : CompilationModel := {
+  name := "ReservedExternalBind"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.externalCallBind ["__external_ret"] "echo" [Expr.param "next"],
+        Stmt.setStorage "value" (Expr.localVar "__external_ret"),
+        Stmt.stop
+      ]
+    }
+  ]
+  externals := [
+    { name := "echo"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := ["echo_matches_identity"]
+    }
+  ]
+}
+
+private def reservedEcmResultVarSpec : CompilationModel := {
+  name := "ReservedEcmResultVar"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := []
+      returnType := none
+      body := [
+        Stmt.ecm
+          { name := "reservedResult"
+            numArgs := 0
+            resultVars := ["__ecm_result"]
+            writesState := false
+            readsState := false
+            compile := fun _ _ => pure []
+          }
+          [],
+        Stmt.setStorage "value" (Expr.localVar "__ecm_result"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -156,5 +229,17 @@ private def reservedForEachBinderSpec : CompilationModel := {
     "reserved compiler prefix is rejected in forEach binders"
     reservedForEachBinderSpec
     "local binder '__loop_idx' uses reserved compiler prefix '__'"
+  expectCompileErrorContains
+    "reserved compiler prefix is rejected in internal call assignment binders"
+    reservedInternalAssignBinderSpec
+    "local binder '__ret' uses reserved compiler prefix '__'"
+  expectCompileErrorContains
+    "reserved compiler prefix is rejected in external call binders"
+    reservedExternalBindSpec
+    "local binder '__external_ret' uses reserved compiler prefix '__'"
+  expectCompileErrorContains
+    "reserved compiler prefix is rejected in ECM result binders"
+    reservedEcmResultVarSpec
+    "local binder '__ecm_result' uses reserved compiler prefix '__'"
 
 end Compiler.CompilationModelFeatureTest
