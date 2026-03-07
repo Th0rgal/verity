@@ -27,7 +27,10 @@ from typing import Iterable, Iterator, List, Tuple
 import check_selector_fixtures
 from keccak256 import selector as keccak_selector
 from property_utils import ROOT, YUL_DIR, die, report_errors, strip_lean_comments
-SPEC_FILE = ROOT / "Contracts" / "Specs.lean"
+SPEC_FILES = (
+    ROOT / "Contracts" / "Specs.lean",
+    ROOT / "Contracts" / "SpecAliases.lean",
+)
 IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
 CONTRACT_SPEC_FILE = ROOT / "Compiler" / "CompilationModel.lean"
 CONSTANTS_FILE = ROOT / "Compiler" / "Constants.lean"
@@ -187,6 +190,16 @@ def extract_specs(text: str) -> List[SpecInfo]:
         specs.append(_extract_filtered_macro_spec(def_name, contract_name, filter_body))
         seen_def_names.add(def_name)
     return specs
+
+
+def load_specs_text() -> str:
+    missing = [path for path in SPEC_FILES if not path.exists()]
+    if missing:
+        joined = ", ".join(str(path) for path in missing)
+        die(f"Missing specs file(s): {joined}")
+    return "\n".join(
+        strip_lean_comments(path.read_text(encoding="utf-8")) for path in SPEC_FILES
+    )
 
 
 def has_nonempty_externals(spec_block: str) -> bool:
@@ -738,15 +751,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not SPEC_FILE.exists():
-        die(f"Missing specs file: {SPEC_FILE}")
     if not IR_EXPR_FILE.exists():
         die(f"Missing IR proof file: {IR_EXPR_FILE}")
 
     _self_test_param_type_parser()
 
-    specs_text = strip_lean_comments(SPEC_FILE.read_text(encoding="utf-8"))
-    specs = extract_specs(specs_text)
+    specs = extract_specs(load_specs_text())
     if not specs:
         die("No CompilationModel definitions found")
 
