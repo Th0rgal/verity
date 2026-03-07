@@ -36,12 +36,12 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
 | Compiler | `Compiler/Proofs/YulGeneration/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
-| EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for `add`/`sub`/`mul`/`div`/`mod` and `lt`/`gt`/`eq`/`iszero` |
+| EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for `add`/`sub`/`mul`/`div`/`mod`, `lt`/`gt`/`eq`/`iszero`, and `and`/`or`/`xor` |
 | EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Concrete bridge checks for the remaining pure builtins plus regression vectors for the universal cases |
 
 The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees with EVMYulLean's `Fin`-based `UInt256` operations. Current coverage is mixed:
-- universal bridge lemmas for 9 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`
-- concrete bridge smoke tests for `and`, `or`, `xor`, `not`, `shl`, and `shr`
+- universal bridge lemmas for 12 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, and `xor`
+- concrete bridge smoke tests for `not`, `shl`, and `shr`
 
 ## Checked (Safe) Arithmetic
 
@@ -75,7 +75,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 9/15 pure EVMYulLean-backed builtins have universal bridge lemmas; `and`, `or`, `xor`, `not`, `shl`, and `shr` still rely on concrete smoke tests.
+- **Universal bridge equivalence**: 12/15 pure EVMYulLean-backed builtins have universal bridge lemmas; `not`, `shl`, and `shr` still rely on concrete smoke tests.
 
 ## Auditor Checklist
 
