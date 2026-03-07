@@ -29,15 +29,22 @@ No reverse imports are allowed.
 
 ## Current coupling that must be removed
 
-Current compiler and core code still directly reference in-repo contracts and registries:
+The repo has made substantial progress since this RFC was written:
 
-- Hardcoded contract/spec registry in `Compiler/Specs.lean`.
-- Compiler CLI resolution path coupled to that registry in `Compiler/CompileDriver.lean`.
-- Differential interpreter importing concrete contracts in `Compiler/Interpreter.lean`.
-- Macro invariant/fuzz modules in `Compiler/*` importing concrete contract modules.
-- A core-side test dependency importing compiler specs in `Verity/Core/Free/TypedIRTests.lean`.
+- The compiler no longer relies on a baked-in contract/spec registry for CLI input.
+- Split-package builds are checked independently in CI.
+- Compiler-to-contract import boundaries are enforced and currently pass on `main`.
 
-These are implementation couplings, not conceptual requirements. They can be eliminated by moving contract ownership and test ownership into `verity-examples`.
+The remaining package-split work is now narrower and lives on the EDSL side:
+
+- `Verity/Macro.lean` imports `Compiler.CompilationModel`.
+- `Verity/Macro/Check.lean` imports `Compiler.CompilationModel` and `Compiler.Selector`.
+- `Verity/Core/Free/TypedIRCompiler.lean` imports `Compiler.CompilationModel`.
+- `Verity/Core/Free/TypedIRLowering.lean` imports `Compiler.Yul.Ast`.
+- `Verity/Proofs/Stdlib/Automation.lean` imports `Compiler.CompilationModel`.
+- `Verity/Core/Free/TypedIRTests.lean` is still a root-level test module that imports compiler proofs/specs.
+
+These are implementation couplings, not conceptual requirements. The remaining work is to move shared interface types out of `Compiler`, relocate compiler-owned test coverage out of `Verity`, and keep shrinking the EDSL-to-compiler surface until the dependency direction is strict in both package and root-repo builds.
 
 ## Package responsibilities
 
