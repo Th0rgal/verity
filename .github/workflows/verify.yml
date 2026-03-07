@@ -151,7 +151,9 @@ jobs:
       - name: Run compiler CLI regression module
         env:
           LEAN_NUM_THREADS: 4
-        run: lake build Compiler.MainTest
+        run: |
+          set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
+          lake build "$@" Compiler.MainTest
 
       - name: Run CompilationModel feature regression module
         env:
@@ -247,7 +249,9 @@ jobs:
       - name: Build compiler
         env:
           LEAN_NUM_THREADS: 4
-        run: lake build verity-compiler
+        run: |
+          set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
+          lake build "$@" verity-compiler
 
       - name: Build difftest interpreter
         env:
