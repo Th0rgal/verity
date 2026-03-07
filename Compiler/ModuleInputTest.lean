@@ -2,6 +2,7 @@ import Compiler.ModuleInput
 
 namespace Compiler.ModuleInputTest
 
+open Lean
 open Compiler.ModuleInput
 
 private def expectErrorEq (label : String) (actual : Except String α) (expected : String) : IO Unit := do
@@ -11,6 +12,11 @@ private def expectErrorEq (label : String) (actual : Except String α) (expected
       if err != expected then
         throw <| IO.userError s!"✗ {label}: expected '{expected}', got '{err}'"
       IO.println s!"✓ {label}"
+
+private def expectTrue (label : String) (ok : Bool) : IO Unit := do
+  if !ok then
+    throw <| IO.userError s!"✗ {label}"
+  IO.println s!"✓ {label}"
 
 unsafe def runTests : IO Unit := do
   let dupWhitespace ← loadSpecsFromRawModules
@@ -41,6 +47,21 @@ unsafe def runTests : IO Unit := do
     "manifest and explicit module duplicates are rejected after canonical parsing"
     dupManifest
     "Duplicate module input: Contracts.Counter.Counter"
+
+  let originalSearchPath ← searchPathRef.get
+  let loadedSpecs ← loadSpecsFromRawModules ["Contracts.Counter.Counter"]
+  match loadedSpecs with
+  | .ok specs =>
+      expectTrue
+        "module loader imports contracts from split package build outputs"
+        (specs.length == 1)
+  | .error err =>
+      throw <| IO.userError
+        s!"✗ module loader imports contracts from split package build outputs: got error '{err}'"
+  let restoredSearchPath ← searchPathRef.get
+  expectTrue
+    "module loader restores Lean search path after dynamic imports"
+    (restoredSearchPath == originalSearchPath)
 
 #eval! runTests
 
