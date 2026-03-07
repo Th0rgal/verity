@@ -23,8 +23,8 @@ MACRO_SPECS_DEF_RE = re.compile(
 )
 
 
-def _collect_contracts_from_text(text: str) -> set[str]:
-    names: set[str] = set()
+def _collect_contracts_from_text(text: str) -> list[str]:
+    names: list[str] = []
     guard_pending = False
     for line in text.splitlines():
         stripped = line.strip()
@@ -32,12 +32,16 @@ def _collect_contracts_from_text(text: str) -> set[str]:
             guard_pending = True
             continue
         match = CONTRACT_RE.search(line)
+        if guard_pending:
+            if not stripped:
+                continue
+            if match is not None:
+                guard_pending = False
+                continue
+            guard_pending = False
         if match is None:
             continue
-        if guard_pending:
-            guard_pending = False
-            continue
-        names.add(match.group(1))
+        names.append(match.group(1))
     return names
 
 
