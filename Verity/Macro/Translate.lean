@@ -540,6 +540,8 @@ private def translateBindSource
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
       | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
+      | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | _ => throwErrorAt rhs s!"field '{f.name}' is a mapping; use getMapping/getMapping2"
   | `(term| getStorageAddr $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
@@ -548,6 +550,8 @@ private def translateBindSource
       | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
+      | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | _ => throwErrorAt rhs s!"field '{f.name}' is a mapping; use getMapping/getMapping2"
   | `(term| getMapping $field:ident $key:term) =>
       let f ← lookupStorageField fields (toString field.getId)

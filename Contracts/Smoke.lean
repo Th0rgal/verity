@@ -217,6 +217,32 @@ verity_contract StructMappingUnknownMember where
     setStructMember "positions" owner "nonce" value
 end StructMappingUnknownMember
 
+/--
+error: field 'positions' is a struct-valued mapping; use structMember/structMember2
+-/
+#guard_msgs in
+verity_contract StructMappingWrongScalarReadAccessor where
+  storage
+    positions : MappingStruct(Address,[delegate @word 0]) := slot 0
+
+  function positionWord () : Uint256 := do
+    let word ← getStorage positions
+    return word
+end StructMappingWrongScalarReadAccessor
+
+/--
+error: field 'positions' is a struct-valued mapping; use structMember/structMember2
+-/
+#guard_msgs in
+verity_contract StructMappingWrongScalarAddressReadAccessor where
+  storage
+    positions : MappingStruct(Address,[delegate @word 0]) := slot 0
+
+  function delegateWord () : Address := do
+    let word ← getStorageAddr positions
+    return word
+end StructMappingWrongScalarAddressReadAccessor
+
 namespace SpecGenSmoke
 
 #gen_spec storage_for2_spec for2 (x : Uint256) (y : Uint256)
