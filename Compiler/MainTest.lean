@@ -55,7 +55,7 @@ unsafe def runTests : IO Unit := do
   expectErrorContains
     "duplicate --module value"
     (["--module", "Contracts.Counter.Counter", "--module", "Contracts.Counter.Counter"] ++ ["--output", "/tmp/verity-main-test-dup"])
-    "Duplicate --module value: Contracts.Counter.Counter"
+    "Duplicate module input: Contracts.Counter.Counter"
   expectErrorContains
     "empty compiler input is rejected"
     ["--output", "/tmp/verity-main-test-empty"]

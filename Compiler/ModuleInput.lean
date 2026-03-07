@@ -6,14 +6,14 @@ namespace Compiler.ModuleInput
 open Lean
 open Compiler.CompilationModel
 
-/-- Deterministic duplicate detection that preserves the first repeated raw token. -/
-private def findDuplicateRaw? (seen : List String) : List String → Option String
+/-- Deterministic duplicate detection after canonical module-name parsing. -/
+private def findDuplicateModule? (seen : List Name) : List (String × Name) → Option String
   | [] => none
-  | raw :: rest =>
-      if raw ∈ seen then
-        some raw
+  | (raw, moduleName) :: rest =>
+      if moduleName ∈ seen then
+        some raw.trim
       else
-        findDuplicateRaw? (raw :: seen) rest
+        findDuplicateModule? (moduleName :: seen) rest
 
 /-- Parse a dotted Lean module name from CLI/manifest input. -/
 def parseModuleName (raw : String) : Except String Name := do
@@ -83,12 +83,12 @@ unsafe def loadSpecsFromModules (moduleNames : List Name) : IO (Except String (L
 
 /-- Parse raw module names, reject duplicates, then load their canonical specs. -/
 unsafe def loadSpecsFromRawModules (rawModules : List String) : IO (Except String (List CompilationModel)) := do
-  match findDuplicateRaw? [] rawModules with
-  | some dup => pure <| .error s!"Duplicate --module value: {dup}"
-  | none =>
-      match rawModules.mapM parseModuleName with
-      | .error err => pure <| .error err
-      | .ok moduleNames => loadSpecsFromModules moduleNames
+  match rawModules.mapM (fun raw => do pure (raw, ← parseModuleName raw)) with
+  | .error err => pure <| .error err
+  | .ok parsedModules =>
+      match findDuplicateModule? [] parsedModules with
+      | some dup => pure <| .error s!"Duplicate module input: {dup}"
+      | none => loadSpecsFromModules (parsedModules.map Prod.snd)
 
 /-- Merge manifest modules and explicit `--module` values, preserving input order. -/
 def resolveRawModules
