@@ -1,7 +1,7 @@
 {
   "codebase": {
     "core_lines": 400,
-    "example_contracts": 11
+    "example_contracts": 12
   },
   "proofs": {
     "axioms": 1,

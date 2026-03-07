@@ -11,6 +11,7 @@ lean_lib «Verity» where
   srcDir := "../.."
   globs := #[
     .one `Verity,
+    .one `Verity.Macro.Syntax,
     .one `Verity.Core,
     .one `Verity.Core.Address,
     .one `Verity.Core.FiniteSet,

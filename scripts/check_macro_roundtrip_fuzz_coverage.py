@@ -11,7 +11,7 @@ from pathlib import Path
 from property_utils import ROOT
 
 DEFAULT_CONTRACTS_DIR = ROOT / "Contracts"
-DEFAULT_FUZZ_FILE = ROOT / "Compiler" / "MacroTranslateRoundTripFuzz.lean"
+DEFAULT_FUZZ_FILE = ROOT / "Contracts" / "MacroTranslateRoundTripFuzz.lean"
 
 CONTRACT_RE = re.compile(r"\bverity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\b")
 SUITE_ENTRY_RE = re.compile(
@@ -102,17 +102,17 @@ def _check_coverage(contract_sources: list[Path], fuzz_suite: Path) -> int:
         )
     for name in duplicate_entries:
         print(
-            f"  duplicate macroSpecs entry in Compiler/MacroTranslateRoundTripFuzz.lean: {name}",
+            f"  duplicate macroSpecs entry in Contracts/MacroTranslateRoundTripFuzz.lean: {name}",
             file=sys.stderr,
         )
     for name in missing:
         print(
-            f"  missing in Compiler/MacroTranslateRoundTripFuzz.lean: {name}",
+            f"  missing in Contracts/MacroTranslateRoundTripFuzz.lean: {name}",
             file=sys.stderr,
         )
     for name in extra:
         print(
-            f"  unknown in Compiler/MacroTranslateRoundTripFuzz.lean: {name}",
+            f"  unknown in Contracts/MacroTranslateRoundTripFuzz.lean: {name}",
             file=sys.stderr,
         )
     return 1
@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fuzz-suite",
         default=str(DEFAULT_FUZZ_FILE.relative_to(ROOT)),
-        help="Round-trip fuzz suite file to validate (default: Compiler/MacroTranslateRoundTripFuzz.lean).",
+        help="Round-trip fuzz suite file to validate (default: Contracts/MacroTranslateRoundTripFuzz.lean).",
     )
     args = parser.parse_args(argv)
 

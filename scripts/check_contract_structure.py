@@ -42,6 +42,14 @@ EXPECTED_STRUCTURE = [
 ]
 
 
+def is_contract_dir(path) -> bool:
+    """Return whether a Contracts/ child looks like a contract module directory."""
+    if not path.is_dir():
+        return False
+    name = path.name
+    return (path / f"{name}.lean").exists() or (path / "Contract.lean").exists()
+
+
 def find_contracts() -> list[str]:
     """Find all contract names from Contracts/."""
     contracts_dir = ROOT / "Contracts"
@@ -50,7 +58,7 @@ def find_contracts() -> list[str]:
 
     contracts = []
     for f in sorted(contracts_dir.iterdir()):
-        if f.is_dir() and f.name not in EXCLUDED_CONTRACTS:
+        if is_contract_dir(f) and f.name not in EXCLUDED_CONTRACTS:
             contracts.append(f.name)
     return contracts
 
@@ -147,7 +155,7 @@ def main() -> None:
     # Check property test files
     all_examples = [
         f.name for f in sorted((ROOT / "Contracts").iterdir())
-        if f.is_dir()
+        if is_contract_dir(f)
     ]
     for name in all_examples:
         if name in EXCLUDED_FROM_PROPERTY_TESTS:

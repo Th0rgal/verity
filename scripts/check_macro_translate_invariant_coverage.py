@@ -11,7 +11,7 @@ from pathlib import Path
 from property_utils import ROOT
 
 DEFAULT_CONTRACTS_DIR = ROOT / "Contracts"
-DEFAULT_INVARIANT_FILE = ROOT / "Compiler" / "MacroTranslateInvariantTest.lean"
+DEFAULT_INVARIANT_FILE = ROOT / "Contracts" / "MacroTranslateInvariantTest.lean"
 
 CONTRACT_RE = re.compile(r"\bverity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\b")
 SUITE_ENTRY_RE = re.compile(
@@ -96,13 +96,13 @@ def _check_coverage(contract_sources: list[Path], invariant_suite: Path) -> int:
     print("macro invariant suite coverage check failed:", file=sys.stderr)
     for name in duplicate_entries:
         print(
-            f"  duplicate macroSpecs entry in Compiler/MacroTranslateInvariantTest.lean: {name}",
+            f"  duplicate macroSpecs entry in Contracts/MacroTranslateInvariantTest.lean: {name}",
             file=sys.stderr,
         )
     for name in missing:
-        print(f"  missing in Compiler/MacroTranslateInvariantTest.lean: {name}", file=sys.stderr)
+        print(f"  missing in Contracts/MacroTranslateInvariantTest.lean: {name}", file=sys.stderr)
     for name in extra:
-        print(f"  unknown in Compiler/MacroTranslateInvariantTest.lean: {name}", file=sys.stderr)
+        print(f"  unknown in Contracts/MacroTranslateInvariantTest.lean: {name}", file=sys.stderr)
     return 1
 
 
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--invariant-suite",
         default=str(DEFAULT_INVARIANT_FILE.relative_to(ROOT)),
-        help="Invariant suite file to validate (default: Compiler/MacroTranslateInvariantTest.lean).",
+        help="Invariant suite file to validate (default: Contracts/MacroTranslateInvariantTest.lean).",
     )
     args = parser.parse_args(argv)
 

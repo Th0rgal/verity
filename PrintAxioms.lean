@@ -32,7 +32,6 @@ import Compiler.Proofs.ArithmeticProfile
 import Compiler.Proofs.EndToEnd
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
-import Contracts.Proofs.SemanticBridge
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -598,28 +597,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractLoadStorageOrMapping_eq
 #print axioms Compiler.Proofs.abstractStoreStorageOrMapping_eq
 
--- Contracts/Proofs/SemanticBridge.lean
-#print axioms Compiler.Proofs.SemanticBridge.spec_to_ir_preserves_semantics
-#print axioms Compiler.Proofs.SemanticBridge.simpleStorage_store_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.simpleStorage_retrieve_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.counter_increment_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.counter_decrement_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.counter_getCount_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.owned_getOwner_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.owned_transferOwnership_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.safeCounter_increment_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.safeCounter_decrement_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.safeCounter_getCount_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.ownedCounter_getCount_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.ownedCounter_getOwner_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.ownedCounter_increment_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.ownedCounter_decrement_semantic_bridge
-#print axioms Compiler.Proofs.SemanticBridge.ownedCounter_transferOwnership_semantic_bridge
--- #print axioms Compiler.Proofs.SemanticBridge.compose_semantic_bridge_with_yul  -- private
-#print axioms Compiler.Proofs.SemanticBridge.simpleStorage_store_edsl_to_yul
-#print axioms Compiler.Proofs.SemanticBridge.simpleStorage_retrieve_edsl_to_yul
-#print axioms Compiler.Proofs.SemanticBridge.counter_increment_edsl_to_yul
-
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_eq_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_eq_normalized  -- private
@@ -665,4 +642,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 561 theorems/lemmas (528 public, 33 private)
+-- Total: 541 theorems/lemmas (509 public, 32 private)

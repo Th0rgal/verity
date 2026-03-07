@@ -27,7 +27,7 @@ from typing import Iterable, Iterator, List, Tuple
 import check_selector_fixtures
 from keccak256 import selector as keccak_selector
 from property_utils import ROOT, YUL_DIR, die, report_errors, strip_lean_comments
-SPEC_FILE = ROOT / "Compiler" / "Specs.lean"
+SPEC_FILE = ROOT / "Contracts" / "Specs.lean"
 IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
 CONTRACT_SPEC_FILE = ROOT / "Compiler" / "CompilationModel.lean"
 CONSTANTS_FILE = ROOT / "Compiler" / "Constants.lean"

@@ -295,15 +295,15 @@ private def expectedFor
   (table.find? (fun entry => entry.1 == contractName)).map (·.2)
 
 -- Regression: `verity_contract` elaboration emits field-level findIdx simp lemmas.
-#check Contracts.OwnedCounter.findIdx_owner_OwnedCounter
-#check Contracts.OwnedCounter.findIdx_owner_OwnedCounter_decide
-#check Contracts.SimpleToken.findIdx_balancesSlot_SimpleToken
-#check Contracts.SimpleToken.findIdx_balancesSlot_SimpleToken_decide
+private def _findIdxFieldRegression1 := Contracts.OwnedCounter.findIdx_owner_OwnedCounter
+private def _findIdxFieldRegression2 := Contracts.OwnedCounter.findIdx_owner_OwnedCounter_decide
+private def _findIdxFieldRegression3 := Contracts.SimpleToken.findIdx_balancesSlot_SimpleToken
+private def _findIdxFieldRegression4 := Contracts.SimpleToken.findIdx_balancesSlot_SimpleToken_decide
 -- Regression: `verity_contract` elaboration emits parameter-level findIdx simp lemmas.
-#check Contracts.OwnedCounter.findIdx_param_initialOwner_constructor_OwnedCounter
-#check Contracts.OwnedCounter.findIdx_param_newOwner_transferOwnership_OwnedCounter
-#check Contracts.Ledger.findIdx_param_to_transfer_Ledger
-#check Contracts.Ledger.findIdx_param_amount_transfer_Ledger_decide
+private def _findIdxParamRegression1 := Contracts.OwnedCounter.findIdx_param_initialOwner_constructor_OwnedCounter
+private def _findIdxParamRegression2 := Contracts.OwnedCounter.findIdx_param_newOwner_transferOwnership_OwnedCounter
+private def _findIdxParamRegression3 := Contracts.Ledger.findIdx_param_to_transfer_Ledger
+private def _findIdxParamRegression4 := Contracts.Ledger.findIdx_param_amount_transfer_Ledger_decide
 
 private def checkSpec (spec : CompilationModel) : IO Unit := do
   let extFns := externalFunctions spec

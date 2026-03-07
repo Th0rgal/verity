@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 
 from property_utils import ROOT, strip_lean_comments
 
-TARGET = ROOT / "Compiler" / "Proofs" / "SemanticBridge.lean"
+TARGET = ROOT / "Contracts" / "Proofs" / "SemanticBridge.lean"
 
 THEOREM_RE = re.compile(
     r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:private|protected|noncomputable|unsafe)\s+)*"
