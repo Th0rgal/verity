@@ -23,9 +23,11 @@ def calldataloadWord (selector : Nat) (calldata : List Nat) (offset : Nat) : Nat
       let idx := wordOffset / 32
       calldata.getD idx 0 % evmModulus
 
-def evalBuiltinCall
+def evalBuiltinCallWithContext
     (storage : Nat → Nat)
     (sender : Nat)
+    (thisAddress : Nat)
+    (blockTimestamp : Nat)
     (selector : Nat)
     (calldata : List Nat)
     (func : String)
@@ -123,6 +125,14 @@ def evalBuiltinCall
     match argVals with
     | [] => some sender
     | _ => none
+  else if func = "address" then
+    match argVals with
+    | [] => some (toWord thisAddress)
+    | _ => none
+  else if func = "timestamp" then
+    match argVals with
+    | [] => some (toWord blockTimestamp)
+    | _ => none
   else if func = "calldataload" then
     match argVals with
     | [offset] => some (calldataloadWord selector calldata offset)
@@ -145,6 +155,23 @@ inductive BuiltinBackend where
 
 abbrev defaultBuiltinBackend : BuiltinBackend := .verity
 
+def evalBuiltinCallWithBackendContext
+    (backend : BuiltinBackend)
+    (storage : Nat → Nat)
+    (sender : Nat)
+    (thisAddress : Nat)
+    (blockTimestamp : Nat)
+    (selector : Nat)
+    (calldata : List Nat)
+    (func : String)
+    (argVals : List Nat) : Option Nat :=
+  match backend with
+  | .verity =>
+      evalBuiltinCallWithContext storage sender thisAddress blockTimestamp selector calldata func argVals
+  | .evmYulLean =>
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
+        storage sender selector calldata func argVals
+
 def evalBuiltinCallWithBackend
     (backend : BuiltinBackend)
     (storage : Nat → Nat)
@@ -153,28 +180,44 @@ def evalBuiltinCallWithBackend
     (calldata : List Nat)
     (func : String)
     (argVals : List Nat) : Option Nat :=
-  match backend with
-  | .verity =>
-      evalBuiltinCall storage sender selector calldata func argVals
-  | .evmYulLean =>
-      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
-        storage sender selector calldata func argVals
+  evalBuiltinCallWithBackendContext backend storage sender 0 0 selector calldata func argVals
+
+def evalBuiltinCall
+    (storage : Nat → Nat)
+    (sender : Nat)
+    (selector : Nat)
+    (calldata : List Nat)
+    (func : String)
+    (argVals : List Nat) : Option Nat :=
+  evalBuiltinCallWithContext storage sender 0 0 selector calldata func argVals
 
 @[simp] theorem evalBuiltinCall_callvalue_nil
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "callvalue" [] = some 0 := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_calldatasize_nil
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "calldatasize" [] =
       some (4 + calldata.length * 32) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_caller_nil
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) :
     evalBuiltinCall storage sender selector calldata "caller" [] = some sender := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCall_address_nil
+    (storage : Nat → Nat) (sender thisAddress blockTimestamp selector : Nat) (calldata : List Nat) :
+    evalBuiltinCallWithContext storage sender thisAddress blockTimestamp selector calldata "address" [] =
+      some (thisAddress % evmModulus) := by
+  simp [evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCall_timestamp_nil
+    (storage : Nat → Nat) (sender thisAddress blockTimestamp selector : Nat) (calldata : List Nat) :
+    evalBuiltinCallWithContext storage sender thisAddress blockTimestamp selector calldata "timestamp" [] =
+      some (blockTimestamp % evmModulus) := by
+  simp [evalBuiltinCallWithContext]
 
 @[simp] theorem calldataloadWord_offset4
     (selector : Nat) (calldata : List Nat) :
@@ -184,24 +227,38 @@ def evalBuiltinCallWithBackend
 @[simp] theorem evalBuiltinCall_calldataload_offset4_single
     (storage : Nat → Nat) (sender selector value : Nat) :
     evalBuiltinCall storage sender selector [value] "calldataload" [4] = some (value % evmModulus) := by
-  simp [evalBuiltinCall, calldataloadWord]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext, calldataloadWord]
 
 @[simp] theorem evalBuiltinCallWithBackend_calldataload_offset4_single
     (storage : Nat → Nat) (sender selector value : Nat) :
-    evalBuiltinCallWithBackend defaultBuiltinBackend storage sender selector [value] "calldataload" [4] =
+    evalBuiltinCallWithBackend
+        defaultBuiltinBackend
+        storage
+        sender
+        selector
+        [value]
+        "calldataload"
+        [4] =
       some (value % evmModulus) := by
-  simp [evalBuiltinCallWithBackend]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext]
 
 @[simp] theorem evalBuiltinCall_sload_single
     (storage : Nat → Nat) (sender selector : Nat) (slot : Nat) :
     evalBuiltinCall storage sender selector [] "sload" [slot] =
       some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackend_sload_single
     (storage : Nat → Nat) (sender selector : Nat) (slot : Nat) :
-    evalBuiltinCallWithBackend defaultBuiltinBackend storage sender selector [] "sload" [slot] =
+    evalBuiltinCallWithBackend
+        defaultBuiltinBackend
+        storage
+        sender
+        selector
+        []
+        "sload"
+        [slot] =
       some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot) := by
-  simp [evalBuiltinCallWithBackend]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext]
 
 end Compiler.Proofs.YulGeneration

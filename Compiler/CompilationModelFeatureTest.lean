@@ -44,6 +44,11 @@ private def compileToYul (spec : CompilationModel) : Except String String := do
   let contract ← Compiler.CompilationModel.compile spec (selectorsFor spec)
   pure <| Compiler.Yul.render (Compiler.emitYul contract)
 
+private def expectCompileToYul (label : String) (spec : CompilationModel) : IO String := do
+  match compileToYul spec with
+  | .ok yul => pure yul
+  | .error err => throw (IO.userError s!"✗ {label} compile failed:\n{err}")
+
 private def selectorSmokeSpec : CompilationModel := {
   name := "SelectorSmoke"
   fields := [{ name := "value", ty := FieldType.uint256 }]
@@ -61,6 +66,22 @@ private def selectorSmokeSpec : CompilationModel := {
       params := []
       returnType := some FieldType.uint256
       body := [Stmt.return (Expr.storage "value")]
+    }
+  ]
+}
+
+private def envRuntimeSmokeSpec : CompilationModel := {
+  name := "EnvRuntimeSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "selfAndTimestamp"
+      params := []
+      returnType := none
+      returns := [ParamType.address, ParamType.uint256]
+      body := [
+        Stmt.returnValues [Expr.contractAddress, Expr.blockTimestamp]
+      ]
     }
   ]
 }
@@ -377,10 +398,13 @@ private def ecrecoverSmokeSpec : CompilationModel := {
     | .ok _ => true
     | .error _ => false
   expectTrue "string[] event emission compiles for indexed and unindexed params" stringArrayEventsCompile
+  let envYul ← expectCompileToYul "env runtime smoke spec" envRuntimeSmokeSpec
+  expectTrue "address(this) lowers to the Yul address builtin"
+    (contains envYul "address()")
+  expectTrue "block.timestamp lowers to the Yul timestamp builtin"
+    (contains envYul "timestamp()")
   let ecrecoverYul ←
-    match compileToYul ecrecoverSmokeSpec with
-    | .ok yul => pure yul
-    | .error err => throw (IO.userError s!"✗ ecrecover smoke spec compile failed:\n{err}")
+    expectCompileToYul "ecrecover smoke spec" ecrecoverSmokeSpec
   expectTrue "ecrecover ECM lowers to precompile staticcall"
     (contains ecrecoverYul "staticcall(gas(), 1, 0, 128, 0, 32)")
   expectTrue "ecrecover ECM reverts when the precompile call fails"

@@ -60,6 +60,8 @@ private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRS
     (fun s (p, v) => s.setVar p.name v) state
   let yulTx : YulTransaction := {
     sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -87,14 +89,21 @@ theorem yulStateOfIR_eq_initial
     (sel : Nat) (state : IRState) (tx : IRTransaction)
     (hcalldata : state.calldata = tx.args)
     (hsender : state.sender = tx.sender)
+    (hthis : state.thisAddress = tx.thisAddress)
+    (htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
     (hvars : state.vars = []) :
     yulStateOfIR sel state =
-      YulState.initial { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+      YulState.initial
+        { sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          functionSelector := tx.functionSelector
+          args := tx.args }
         state.storage state.events := by
-  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hselector, hreturn]
+  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hthis, htimestamp, hselector, hreturn]
 
 /-- Hypothesis-driven param-load erasure. -/
 theorem execYulStmts_paramState_eq_emptyVars
@@ -103,6 +112,8 @@ theorem execYulStmts_paramState_eq_emptyVars
     (_hmemory : state.memory = fun _ => 0)
     (_hcalldata : state.calldata = tx.args)
     (_hsender : state.sender = tx.sender)
+    (_hthis : state.thisAddress = tx.thisAddress)
+    (_htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (_hselector : state.selector = tx.functionSelector)
     (_hreturn : state.returnValue = none)
     (hparamErase : paramLoadErasure fn tx state) :
@@ -115,6 +126,8 @@ theorem yulBody_from_state_eq_yulBody
     (fn : IRFunction) (tx : IRTransaction) (state : IRState)
     (hcalldata : state.calldata = tx.args)
     (hsender : state.sender = tx.sender)
+    (hthis : state.thisAddress = tx.thisAddress)
+    (htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
@@ -129,13 +142,17 @@ theorem yulBody_from_state_eq_yulBody
       state = interpretYulBody fn tx state by
     rwa [h_eq] at h_ir_from
   simp only [interpretYulBodyFromState, interpretYulBody]
-  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hselector hreturn hmemory hvars
-  have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hselector hreturn hparamErase
+  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hthis htimestamp hselector hreturn hmemory hvars
+  have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hthis htimestamp hselector hreturn hparamErase
   rw [h_rollback]
   simp only at h_exec
   rw [h_exec]
   exact (interpretYulRuntime_eq_yulResultOfExec fn.body
-    { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+    { sender := tx.sender
+      thisAddress := tx.thisAddress
+      blockTimestamp := tx.blockTimestamp
+      functionSelector := tx.functionSelector
+      args := tx.args }
     state.storage state.events).symm
 
 /-! ## Layer 3 Contract-Level: IR → Yul (via runtime dispatch) -/
@@ -150,7 +167,12 @@ theorem layer3_contract_preserves_semantics
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ contract.functions →
       paramLoadErasure fn tx
-        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+        { initialState with
+          sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          calldata := tx.args
+          selector := tx.functionSelector })
     (hWF : ContractWF contract)
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none) :
@@ -160,8 +182,13 @@ theorem layer3_contract_preserves_semantics
   apply yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive
   · intro fn hmem
     exact yulBody_from_state_eq_yulBody fn tx
-    { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
-    rfl rfl rfl (by simp [hreturn])
+    { initialState with
+      sender := tx.sender
+      thisAddress := tx.thisAddress
+      blockTimestamp := tx.blockTimestamp
+      calldata := tx.args
+      selector := tx.functionSelector }
+    rfl rfl rfl rfl (by simp [hreturn])
     (by simp [hmemory])
     (by simp [hvars])
     (hparamErase fn hmem)
@@ -176,9 +203,19 @@ theorem layer3_contract_preserves_semantics_general
     (hbody : ∀ fn, fn ∈ contract.functions →
       Compiler.Proofs.YulGeneration.resultsMatch
         (execIRFunction fn tx.args
-          { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+          { initialState with
+            sender := tx.sender
+            thisAddress := tx.thisAddress
+            blockTimestamp := tx.blockTimestamp
+            calldata := tx.args
+            selector := tx.functionSelector })
         (interpretYulBody fn tx
-          { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
+          { initialState with
+            sender := tx.sender
+            thisAddress := tx.thisAddress
+            blockTimestamp := tx.blockTimestamp
+            calldata := tx.args
+            selector := tx.functionSelector })) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
@@ -198,7 +235,12 @@ theorem layers2_3_ir_matches_yul
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ irContract.functions →
       paramLoadErasure fn tx
-        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
+        { initialState with
+          sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          calldata := tx.args
+          selector := tx.functionSelector })
     (hWF : ContractWF irContract)
     (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none) :
@@ -218,7 +260,12 @@ theorem simpleStorage_endToEnd
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       paramLoadErasure fn tx
-        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }) :
+        { initialState with
+          sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          calldata := tx.args
+          selector := tx.functionSelector }) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=

@@ -37,8 +37,8 @@ The `SpecInterpreter` has been removed. EDSL semantics are now defined directly 
 | Struct member (double) | `Expr.structMember2` | ok | ok | -- | -- | proved |
 | `caller` | `Expr.caller` | ok | ok | ok | del | proved |
 | `msg.value` | `Expr.msgValue` | ok | ok | -- | -- | proved |
-| `block.timestamp` | `Expr.blockTimestamp` | ok | ok | -- | -- | proved |
-| `address(this)` | `Expr.contractAddress` | **0** | **0** | -- | -- | n/m |
+| `block.timestamp` | `Expr.blockTimestamp` | ok | ok | ok | -- | proved |
+| `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | -- | partial |
 | `chainid` | `Expr.chainid` | **0** | **0** | -- | -- | n/m |
 | `mload` | `Expr.mload` | **0** | **0** | ok | -- | partial |
 | `keccak256` | `Expr.keccak256` | **0** | **0** | -- | -- | n/m |
