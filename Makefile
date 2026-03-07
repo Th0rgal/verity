@@ -4,7 +4,7 @@
 # Run `make setup` to install all tooling, then `make verify` to check all proofs.
 
 .PHONY: help setup setup-elan setup-solc setup-foundry \
-        verify verify-targeted profile-lean test test-foundry test-python axiom-report \
+        verify verify-packages verify-targeted profile-lean test test-foundry test-python axiom-report \
         compile generate-yul check \
         refresh-status all clean
 
@@ -65,6 +65,9 @@ setup-foundry: ## Install Foundry (forge, cast, anvil)
 
 verify: ## Verify all proofs (lake build)
 	lake build
+
+verify-packages: ## Verify split Lake packages build independently
+	python3 scripts/check_split_package_builds.py
 
 verify-targeted: ## Fast local iteration on hotspot modules before full verify
 	lake build Compiler.Proofs.SemanticBridge
