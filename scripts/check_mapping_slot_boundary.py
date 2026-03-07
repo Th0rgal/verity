@@ -25,9 +25,7 @@ REQUIRED_ABSTRACTION_IMPORTS = {
     PROOFS_DIR / "YulGeneration" / "Semantics.lean",
 }
 
-LEGACY_SYMBOL_FORBIDDEN_FILES = REQUIRED_ABSTRACTION_IMPORTS | {
-    PROOFS_DIR / "YulGeneration" / "SmokeTests.lean",
-}
+LEGACY_SYMBOL_FORBIDDEN_FILES = REQUIRED_ABSTRACTION_IMPORTS
 
 BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "Builtins.lean"
 IR_INTERPRETER_FILE = PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean"

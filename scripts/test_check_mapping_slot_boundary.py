@@ -28,7 +28,6 @@ class MappingSlotBoundaryTests(unittest.TestCase):
             mapping_slot = proofs / "MappingSlot.lean"
             ir = proofs / "IRGeneration" / "IRInterpreter.lean"
             sem = proofs / "YulGeneration" / "Semantics.lean"
-            smoke = proofs / "YulGeneration" / "SmokeTests.lean"
             builtins = proofs / "YulGeneration" / "Builtins.lean"
             trust = root / "TRUST_ASSUMPTIONS.md"
 
@@ -61,7 +60,6 @@ class MappingSlotBoundaryTests(unittest.TestCase):
                 "def y := Compiler.Proofs.abstractStoreMappingEntry\n",
                 encoding="utf-8",
             )
-            smoke.write_text("-- empty\n", encoding="utf-8")
             builtins.write_text(
                 "import Compiler.Proofs.MappingSlot\n"
                 "def x := Compiler.Proofs.abstractMappingSlot\n"
@@ -90,7 +88,7 @@ class MappingSlotBoundaryTests(unittest.TestCase):
             check_mapping_slot_boundary.BUILTINS_FILE = builtins
             check_mapping_slot_boundary.ALLOWED_MAPPING_ENCODING_IMPORTERS = set()
             check_mapping_slot_boundary.REQUIRED_ABSTRACTION_IMPORTS = {ir, sem}
-            check_mapping_slot_boundary.LEGACY_SYMBOL_FORBIDDEN_FILES = {ir, sem, smoke}
+            check_mapping_slot_boundary.LEGACY_SYMBOL_FORBIDDEN_FILES = {ir, sem}
             check_mapping_slot_boundary.IR_INTERPRETER_FILE = ir
             check_mapping_slot_boundary.YUL_SEMANTICS_FILE = sem
             try:
