@@ -161,8 +161,8 @@ forge create SimpleStorage --from 0x... --private-key ...
 
 **`Compiler/CompilationModel.lean`**
 - Declarative contract DSL
-- Expression language: `literal`, `param`, `storage`, `mapping`, `mappingWord`, `mappingPackedWord`, `mapping2`, `mappingUint`, `caller`, `msgValue`, `blockTimestamp`, `localVar`, `externalCall`, `internalCall`, `arrayLength`, `arrayElement`, arithmetic, bitwise, comparisons, logical operators
-- Statement language: `letVar`, `assignVar`, `setStorage`, `setMapping`, `setMappingWord`, `setMappingPackedWord`, `setMapping2`, `setMappingUint`, `require`, `return`, `stop`, `ite`, `forEach`, `emit`, `internalCall`
+- Expression language: `literal`, `param`, `storage`, `mapping`, `mappingWord`, `mappingPackedWord`, `structMember`, `structMember2`, `mapping2`, `mappingUint`, `caller`, `msgValue`, `blockTimestamp`, `localVar`, `externalCall`, `internalCall`, `arrayLength`, `arrayElement`, arithmetic, bitwise, comparisons, logical operators
+- Statement language: `letVar`, `assignVar`, `setStorage`, `setMapping`, `setMappingWord`, `setMappingPackedWord`, `setStructMember`, `setStructMember2`, `setMapping2`, `setMappingUint`, `require`, `return`, `stop`, `ite`, `forEach`, `emit`, `internalCall`
 - Automatic IR generation from specs
 - Constructor parameter handling (bytecode argument loading)
 - Storage slot inference (field order → slots 0, 1, 2, ...)
@@ -253,6 +253,8 @@ The CompilationModel DSL provides a complete expression and statement language f
 | `mapping "f" key` | Read mapping entry | `sload(mappingSlot(slot, key))` |
 | `mappingWord "f" key offset` | Read mapping member word | `sload(add(mappingSlot(slot, key), offset))` |
 | `mappingPackedWord "f" key offset {offset=o,width=w}` | Read packed bits from mapping member word | `and(shr(o, sload(add(mappingSlot(slot, key), offset))), mask)` |
+| `structMember "f" key "member"` | Read named member of `mapping(K => Struct)` | same lowering as `mappingWord` / `mappingPackedWord` after member lookup |
+| `structMember2 "f" k1 k2 "member"` | Read named member of `mapping(K1 => mapping(K2 => Struct))` | same lowering as nested mapping word/payload access after member lookup |
 | `mapping2 "f" k1 k2` | Read nested mapping (e.g., allowances) | `sload(mappingSlot(mappingSlot(slot, k1), k2))` |
 | `mappingUint "f" key` | Read uint256-keyed mapping | `sload(mappingSlot(slot, key))` |
 | `caller` | Transaction sender | `caller()` |
@@ -296,6 +298,8 @@ Low-level call expressions compile to the expected Yul builtins, but their runti
 
 Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `Expr.chainid`, `Stmt.mstore`) instead of `Expr.externalCall` for these opcodes. Builtin names routed through `externalCall` remain rejected by interop validation.
 
+For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. Members can carry packed bit metadata, so common `uint128`-style packed subfields stay declarative instead of becoming hand-written masking arithmetic in user code.
+
 **Statements** (`Stmt`) — key constructors:
 
 | Constructor | Description | Yul Output |
@@ -306,6 +310,8 @@ Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `E
 | `setMapping "f" key val` | Write mapping entry | `sstore(mappingSlot(slot, key), val)` |
 | `setMappingWord "f" key offset val` | Write mapping member word | `sstore(add(mappingSlot(slot, key), offset), val)` |
 | `setMappingPackedWord "f" key offset {offset=o,width=w} val` | Packed mapping member write (RMW) | `slotWord := sload(...); sstore(..., or(and(slotWord, not(mask<<o)), shl(o, and(val, mask))))` |
+| `setStructMember "f" key "member" val` | Write named member of `mapping(K => Struct)` | same lowering as mapping word / packed-word writes after member lookup |
+| `setStructMember2 "f" k1 k2 "member" val` | Write named member of nested struct mapping | same lowering as nested mapping word / packed-word writes after member lookup |
 | `setMapping2 "f" k1 k2 val` | Write nested mapping entry | `sstore(mappingSlot(mappingSlot(slot, k1), k2), val)` |
 | `setMappingUint "f" key val` | Write uint256-keyed mapping | `sstore(mappingSlot(slot, key), val)` |
 | `require cond "msg"` | Guard with revert message | `if iszero(cond) { revert(...) }` |

@@ -27,11 +27,14 @@ Primary guards:
 - `check_property_manifest.py`
 - `check_property_coverage.py`
 - `check_property_manifest_sync.py`
+- `check_low_level_call_boundary_sync.py`: keep docs aligned with the current low-level call proof boundary.
+- `check_struct_mapping_surface_sync.py`: keep struct-mapping storage docs aligned with the current compiler surface.
 - `check_storage_layout.py`
 - `check_lean_hygiene.py`
 - `check_proof_length.py`
 - `check_macro_health.py`
 - `check_compiler_boundaries.py`
+- `test_check_struct_mapping_surface_sync.py`: unit coverage for the struct-mapping doc sync guard.
 
 ## Foundry/gas/selector pipeline
 
