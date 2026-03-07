@@ -117,6 +117,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_verify_sync.py
 	python3 scripts/check_bridge_coverage_sync.py
 	python3 scripts/check_low_level_call_boundary_sync.py
+	python3 scripts/check_struct_mapping_surface_sync.py
 	python3 scripts/check_solc_pin.py
 	python3 scripts/check_property_manifest_sync.py
 	python3 scripts/check_issue_templates.py

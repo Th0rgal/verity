@@ -75,6 +75,7 @@ Recent progress for storage layout controls (`#623`):
 - `CompilationModel` now supports slot remap policies (`slotAliasRanges := [{ sourceStart := a, sourceEnd := b, targetStart := c }, ...]`) so compatibility windows like `8..11 -> 20..23` can be declared once and applied automatically to canonical field writes.
 - `CompilationModel` now supports declarative reserved storage slot ranges (`reservedSlotRanges := [{ start := a, end_ := b }, ...]`) with compile-time overlap checks and fail-fast diagnostics when field canonical/alias write slots intersect reserved intervals.
 - `CompilationModel.Field` now supports packed subfield placement (`packedBits := some { offset := o, width := w }`) so multiple fields can share a slot with disjoint bit ranges; codegen performs masked read-modify-write updates and masked reads directly from layout metadata.
+- `FieldType.mappingStruct` / `FieldType.mappingStruct2` plus `Expr.structMember` / `Stmt.setStructMember` now make struct-valued mappings and packed submembers first-class in the CompilationModel surface, so Morpho-style storage layouts can stay at the typed member level instead of open-coded slot arithmetic.
 
 Recent progress for low-level calls + returndata handling (`#622`):
 - `CompilationModel.Expr` now supports first-class low-level call primitives (`call`, `staticcall`, `delegatecall`) with explicit gas/value/target/input/output operands and deterministic Yul lowering.

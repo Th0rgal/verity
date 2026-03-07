@@ -31,6 +31,8 @@ python3 scripts/generate_contract.py MyContract --dry-run
 
 This creates 7 scaffold files (EDSL, Spec, Invariants, Proofs re-export shim, Basic proofs, Correctness proofs, Property tests) and prints follow-up steps for `All.lean` plus canonical contract registration.
 
+`generate_contract.py` currently scaffolds scalar fields plus simple `mapping(address => uint256)` / `mapping(uint256 => uint256)` storage only. For `mappingStruct` / `mappingStruct2` layouts with packed members, start from a handwritten contract/module and use `Expr.structMember` / `Stmt.setStructMember` directly; see issue `#1334`.
+
 ## Checklist
 
 1. **Spec**
