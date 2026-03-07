@@ -1,7 +1,7 @@
 {
   "codebase": {
     "core_lines": 445,
-    "example_contracts": 12
+    "example_contracts": 13
   },
   "proofs": {
     "axioms": 1,
@@ -10,9 +10,9 @@
   "schema_version": 1,
   "tests": {
     "differential_total": 100000,
-    "foundry_functions": 478,
+    "foundry_functions": 491,
     "property_functions": 237,
-    "suites": 38
+    "suites": 40
   },
   "theorems": {
     "categories": 10,

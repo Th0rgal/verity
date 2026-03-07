@@ -283,6 +283,8 @@ def _sol_type(lean_ty: str) -> str:
         return "bytes32"
     if ty == "Bytes":
         return "bytes"
+    if ty == "String":
+        return "string"
     if ty.startswith("Array "):
         elem = ty[len("Array ") :].strip()
         return f"{_sol_type(elem)}[]"
@@ -308,6 +310,8 @@ def _example_value(lean_ty: str) -> str:
         return "bytes32(uint256(0xBEEF))"
     if ty == "Bytes":
         return "hex\"CAFE\""
+    if ty == "String":
+        return '"verity"'
     if ty.startswith("Array "):
         elem = ty[len("Array ") :].strip()
         if elem == "Uint256":
@@ -341,7 +345,7 @@ def _return_shape_assertion(lean_ty: str, fn_name: str) -> str:
         return (
             f'        assertEq(ret.length, 32, "{fn_name} ABI return length mismatch (expected 32 bytes)");'
         )
-    if ty == "Bytes":
+    if ty in {"Bytes", "String"}:
         return (
             f'        require(ret.length >= 64, "{fn_name} ABI return payload unexpectedly short");'
         )

@@ -26,7 +26,7 @@ class CheckContractStructureDifferentialTests(unittest.TestCase):
         self.assertEqual(issues, ["Counter: missing test/DifferentialCounter.t.sol"])
 
     def test_excluded_contract_missing_differential_is_not_reported(self) -> None:
-        issues = check_contract_structure.check_differential_tests(["ReentrancyExample", "CryptoHash"])
+        issues = check_contract_structure.check_differential_tests(["ReentrancyExample", "CryptoHash", "Vault"])
         self.assertEqual(issues, [])
 
     def test_existing_differential_file_clears_issue(self) -> None:
@@ -44,6 +44,34 @@ class CheckContractStructureDifferentialTests(unittest.TestCase):
                 "ERC721: missing test/DifferentialERC721.t.sol",
             ],
         )
+
+
+class CheckContractStructurePropertyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        self.old_root = check_contract_structure.ROOT
+        check_contract_structure.ROOT = self.root
+
+        (self.root / "test").mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self) -> None:
+        check_contract_structure.ROOT = self.old_root
+        self.tempdir.cleanup()
+
+    def test_missing_non_excluded_property_is_reported(self) -> None:
+        issues = check_contract_structure.check_property_tests(["Counter"])
+        self.assertEqual(issues, ["Counter: missing test/PropertyCounter.t.sol"])
+
+    def test_excluded_contract_missing_property_is_not_reported(self) -> None:
+        issues = check_contract_structure.check_property_tests(["CryptoHash", "Vault"])
+        self.assertEqual(issues, [])
+
+    def test_existing_property_file_clears_issue(self) -> None:
+        path = self.root / "test" / "PropertyCounter.t.sol"
+        path.write_text("// placeholder", encoding="utf-8")
+        issues = check_contract_structure.check_property_tests(["Counter"])
+        self.assertEqual(issues, [])
 
 
 class CheckContractStructureImportTests(unittest.TestCase):

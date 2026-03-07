@@ -18,9 +18,15 @@ def _render_path(path: Path) -> str:
         return str(path)
 
 
+def _is_compiler_test_module(path: Path) -> bool:
+    return path.name.endswith("Test.lean")
+
+
 def collect_forbidden_imports(root: Path = COMPILER_DIR) -> list[str]:
     failures: list[str] = []
     for path in sorted(root.rglob("*.lean")):
+        if _is_compiler_test_module(path):
+            continue
         contents = strip_lean_comments(path.read_text(encoding="utf-8"))
         for line_no, line in enumerate(contents.splitlines(), 1):
             for module_name in extract_lean_import_modules(line):

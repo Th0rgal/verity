@@ -171,9 +171,9 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
-    def test_render_unknown_type_fails_closed(self) -> None:
+    def test_render_string_param_uses_solidity_string_signature(self) -> None:
         contract = gen.ContractDecl(
-            name="UnknownType",
+            name="StringConsumer",
             constructor=None,
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
             functions=(
@@ -181,8 +181,8 @@ class RenderTests(unittest.TestCase):
             ),
             storage_slots={},
         )
-        with self.assertRaisesRegex(ValueError, "unsupported Lean type"):
-            gen.render_contract_test(contract)
+        rendered = gen.render_contract_test(contract)
+        self.assertIn('abi.encodeWithSignature("mystery(string)", "verity")', rendered)
 
     def test_render_non_uint_array_fails_closed(self) -> None:
         contract = gen.ContractDecl(
@@ -211,6 +211,20 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
+    def test_render_string_return_shape_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="ReturnsString",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(gen.FunctionDecl("echo", (), "String"),),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn(
+            'require(ret.length >= 64, "echo ABI return payload unexpectedly short");',
+            rendered,
+        )
+
     def test_render_bool_return_shape_assertion(self) -> None:
         contract = gen.ContractDecl(
             name="ReturnsBool",
@@ -230,7 +244,7 @@ class RenderTests(unittest.TestCase):
             name="UnknownReturn",
             constructor=None,
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
-            functions=(gen.FunctionDecl("mystery", (), "String"),),
+            functions=(gen.FunctionDecl("mystery", (), "Widget"),),
             storage_slots={},
         )
         with self.assertRaisesRegex(ValueError, "unsupported Lean type"):

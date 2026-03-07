@@ -191,6 +191,18 @@ class CheckPackageImportBoundariesTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn("missing module listed in globs", stderr)
 
+    def test_allows_contract_imports_from_test_modules_in_package_globs(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Verity/Foo.lean": "import Verity.Bar\n",
+                "Compiler/FooTest.lean": "import Contracts\n",
+            },
+            compiler_globs="    .one `Compiler.FooTest",
+        )
+        self.assertEqual(rc, 0)
+        self.assertIn("Package import boundary check passed.", stdout)
+        self.assertEqual(stderr, "")
+
 
 if __name__ == "__main__":
     unittest.main()

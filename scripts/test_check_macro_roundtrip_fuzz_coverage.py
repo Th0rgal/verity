@@ -97,6 +97,9 @@ class MacroRoundTripFuzzCoverageTests(unittest.TestCase):
             ["HappyPath"],
         )
 
+    def test_string_smoke_is_explicitly_excluded_from_required_coverage(self) -> None:
+        self.assertIn("StringSmoke", check_macro_roundtrip_fuzz_coverage.EXCLUDED_CONTRACTS)
+
 
 if __name__ == "__main__":
     unittest.main()

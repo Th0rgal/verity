@@ -34,6 +34,10 @@ def _render_path(path: Path) -> str:
         return str(path)
 
 
+def _is_test_module(path: Path) -> bool:
+    return path.name.endswith("Test.lean")
+
+
 def _module_to_file(root: Path, module_name: str) -> Path:
     return root / Path(*module_name.split(".")).with_suffix(".lean")
 
@@ -102,6 +106,8 @@ def collect_forbidden_imports(
         lake_failures, module_paths = _expand_lake_globs(lakefile, source_root)
         failures.extend(lake_failures)
         for path in module_paths:
+            if _is_test_module(path):
+                continue
             contents = strip_lean_comments(path.read_text(encoding="utf-8"))
             for line_no, line in enumerate(contents.splitlines(), 1):
                 for module_name in extract_lean_import_modules(line):

@@ -34,6 +34,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.SafeCounter.spec
   , Contracts.OwnedCounter.spec
   , Contracts.SimpleToken.spec
+  , Contracts.Vault.spec
   , Contracts.ERC20.spec
   , Contracts.ERC721.spec
   , Contracts.Smoke.UintMapSmoke.spec

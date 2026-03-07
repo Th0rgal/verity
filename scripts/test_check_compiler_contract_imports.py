@@ -77,6 +77,16 @@ class CheckCompilerContractImportsTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn("forbidden Compiler -> Contracts import `Contracts.Specs`", stderr)
 
+    def test_allows_contract_imports_from_compiler_test_modules(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Compiler/FooTest.lean": "import Contracts\nimport Compiler.Bar\n",
+            }
+        )
+        self.assertEqual(rc, 0)
+        self.assertIn("boundary check passed", stdout)
+        self.assertEqual(stderr, "")
+
 
 if __name__ == "__main__":
     unittest.main()

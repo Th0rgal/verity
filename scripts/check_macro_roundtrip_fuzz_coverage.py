@@ -12,6 +12,9 @@ from property_utils import ROOT
 
 DEFAULT_CONTRACTS_DIR = ROOT / "Contracts"
 DEFAULT_FUZZ_FILE = ROOT / "Contracts" / "MacroTranslateRoundTripFuzz.lean"
+EXCLUDED_CONTRACTS = {
+    "StringSmoke",  # ABI-level string support is not yet covered by the numeric-only round-trip fuzz harness
+}
 
 CONTRACT_RE = re.compile(r"\bverity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\b")
 SUITE_ENTRY_RE = re.compile(
@@ -120,7 +123,7 @@ def _check_coverage(contract_sources: list[Path], fuzz_suite: Path) -> int:
             duplicate_entries.append(name)
         seen.add(name)
 
-    missing = sorted(declared - covered)
+    missing = sorted((declared - EXCLUDED_CONTRACTS) - covered)
     extra = sorted(covered - declared)
 
     if not missing and not extra and not duplicate_entries and not duplicate_declarations:
