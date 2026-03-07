@@ -142,6 +142,9 @@ jobs:
           set -o pipefail
           lake build 2>&1 | tee lake-build.log
 
+      - name: Build split Lake packages independently
+        run: python3 scripts/check_split_package_builds.py
+
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 

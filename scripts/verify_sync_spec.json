@@ -41,6 +41,7 @@
   ],
   "expected_checks_other_commands": [],
   "expected_build_commands": [
+    "check_split_package_builds.py",
     "check_lean_warning_regression.py --log lake-build.log",
     "check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY",
     "report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY",
