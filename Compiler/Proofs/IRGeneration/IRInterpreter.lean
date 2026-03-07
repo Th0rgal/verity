@@ -382,12 +382,51 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
 
   -- Find matching function by selector
   match contract.functions.find? (·.selector == tx.functionSelector) with
-  | some fn => execIRFunction fn tx.args initialState
+  | some fn =>
+    if _ : fn.params.length ≤ tx.args.length then
+      execIRFunction fn tx.args initialState
+    else
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events }
   | none =>
     { success := false
       returnValue := none
       finalStorage := initialState.storage
       finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
       events := initialState.events }
+
+private def shortCalldataRegressionContract : IRContract :=
+  { name := "ShortCalldataRegression"
+    deploy := []
+    constructorPayable := false
+    functions := [
+      { name := "store"
+        selector := 0x12345678
+        params := [{ name := "value", ty := .uint256 }]
+        ret := .unit
+        payable := false
+        body := [
+          YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.ident "value"]),
+          YulStmt.expr (YulExpr.call "stop" [])
+        ] }
+    ]
+    usesMapping := false }
+
+example :
+    (interpretIR shortCalldataRegressionContract
+      { sender := 7, functionSelector := 0x12345678, args := [] }
+      (IRState.initial 0)).success = false := by
+  simp [interpretIR, shortCalldataRegressionContract, IRState.initial]
+
+example :
+    let result := interpretIR shortCalldataRegressionContract
+      { sender := 7, functionSelector := 0x12345678, args := [99] }
+      (IRState.initial 0)
+    result.success = true ∧ result.finalStorage 0 = 99 := by
+  simp [interpretIR, execIRFunction, execIRStmts, execIRStmt, evalIRExpr,
+    shortCalldataRegressionContract, IRState.initial, IRState.setVar, IRState.getVar]
 
 end Compiler.Proofs.IRGeneration
