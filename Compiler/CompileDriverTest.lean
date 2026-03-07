@@ -1,3 +1,4 @@
+import Contracts
 import Compiler.CompileDriver
 import Compiler.CompilationModel
 import Compiler.CompilationModel.TrustSurface
