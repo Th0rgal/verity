@@ -36,12 +36,12 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
 | Compiler | `Compiler/Proofs/YulGeneration/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
-| EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for `add`/`sub`/`mul`/`div`/`mod`, `lt`/`gt`/`eq`/`iszero`, `and`/`or`/`xor`, and `shl`/`shr` |
-| EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Concrete bridge checks for the remaining pure builtin (`not`) plus regression vectors for the universal cases |
+| EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for all 15 pure builtins: `add`/`sub`/`mul`/`div`/`mod`, `lt`/`gt`/`eq`/`iszero`, `and`/`or`/`xor`/`not`, and `shl`/`shr` |
+| EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Regression vectors for the universal pure-builtin bridge lemmas |
 
-The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees with EVMYulLean's `Fin`-based `UInt256` operations. Current coverage is mixed:
-- universal bridge lemmas for 14 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `shl`, and `shr`
-- concrete bridge smoke tests for `not`
+The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees with EVMYulLean's `Fin`-based `UInt256` operations. Current coverage is fully symbolic:
+- universal bridge lemmas for 15 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, and `shr`
+- concrete bridge smoke tests are no longer needed for any pure builtin
 
 ## Checked (Safe) Arithmetic
 
@@ -75,7 +75,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 14/15 pure EVMYulLean-backed builtins have universal bridge lemmas; `not` still relies on concrete smoke tests.
+- **Universal bridge equivalence**: 15/15 pure EVMYulLean-backed builtins have universal bridge lemmas.
 
 ## Auditor Checklist
 

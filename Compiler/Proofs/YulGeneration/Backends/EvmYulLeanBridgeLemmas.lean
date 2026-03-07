@@ -177,6 +177,56 @@ private theorem bridge_eval_xor_normalized (a b : Nat) :
   rw [Nat.mod_eq_of_lt]
   exact Nat.xor_lt_two_pow (word_lt_uint256_size a) (word_lt_uint256_size b)
 
+private theorem xor_all_ones_uint256_word (a : Nat) :
+    (a % EvmYul.UInt256.size) ^^^ (EvmYul.UInt256.size - 1) =
+      EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size) := by
+  calc
+    (a % EvmYul.UInt256.size) ^^^ (EvmYul.UInt256.size - 1) =
+        ((BitVec.ofNat 256 a) ^^^ BitVec.allOnes 256).toNat := by
+      simp [BitVec.toNat_xor, EvmYul.UInt256.size]
+    _ = (~~~(BitVec.ofNat 256 a)).toNat := by
+      rw [BitVec.xor_allOnes]
+    _ = EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size) := by
+      simp [BitVec.toNat_not, EvmYul.UInt256.size]
+
+private theorem bridge_eval_not_normalized (a : Nat) :
+    evalPureBuiltinViaEvmYulLean "not" [a] =
+      some ((a % EvmYul.UInt256.size) ^^^ (EvmYul.UInt256.size - 1)) := by
+  have hsub : evalPureBuiltinViaEvmYulLean "not" [a] =
+      some (EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size)) := by
+    change evalPureBuiltinViaEvmYulLean "sub" [EvmYul.UInt256.size - 1, a] =
+        some (EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size))
+    rw [bridge_eval_sub_normalized]
+    have hs : 0 < EvmYul.UInt256.size := by
+      simp [EvmYul.UInt256.size]
+    have ha : a % EvmYul.UInt256.size < EvmYul.UInt256.size := by
+      exact Nat.mod_lt _ hs
+    have hlt : EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size) < EvmYul.UInt256.size := by
+      omega
+    have hmod :
+        ((EvmYul.UInt256.size - a % EvmYul.UInt256.size + (EvmYul.UInt256.size - 1)) %
+          EvmYul.UInt256.size) =
+        EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size) := by
+      have harr :
+          EvmYul.UInt256.size - a % EvmYul.UInt256.size + (EvmYul.UInt256.size - 1) =
+            EvmYul.UInt256.size +
+              (EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size)) := by
+        omega
+      calc
+        ((EvmYul.UInt256.size - a % EvmYul.UInt256.size + (EvmYul.UInt256.size - 1)) %
+            EvmYul.UInt256.size) =
+            ((EvmYul.UInt256.size +
+              (EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size))) %
+              EvmYul.UInt256.size) := by
+          rw [harr]
+        _ = ((EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size)) % EvmYul.UInt256.size) := by
+          rw [Nat.add_mod_left]
+        _ = EvmYul.UInt256.size - 1 - (a % EvmYul.UInt256.size) := by
+          rw [Nat.mod_eq_of_lt hlt]
+    simp [Nat.mod_eq_of_lt (by omega : EvmYul.UInt256.size - 1 < EvmYul.UInt256.size), hmod]
+  rw [hsub]
+  simp [xor_all_ones_uint256_word]
+
 private theorem bridge_eval_shl_normalized (shift value : Nat) :
     evalPureBuiltinViaEvmYulLean "shl" [shift, value] =
       (if shift % EvmYul.UInt256.size < 256 then
@@ -341,6 +391,17 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [EvmYul.UInt256.size, evmModulus]
   rfl
 
+/-- Universal bridge theorem for `not`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_not_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
+    evalBuiltinCall storage sender selector calldata "not" [a] =
+      evalPureBuiltinViaEvmYulLean "not" [a] := by
+  change some (a % evmModulus ^^^ (evmModulus - 1)) =
+    evalPureBuiltinViaEvmYulLean "not" [a]
+  rw [bridge_eval_not_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
 /-- Universal bridge theorem for `shl`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
 @[simp] theorem evalBuiltinCall_shl_bridge
@@ -440,6 +501,12 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "xor" [a, b] =
       evalBuiltinCall storage sender selector calldata "xor" [a, b] := by
   simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_xor_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_not_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "not" [a] =
+      evalBuiltinCall storage sender selector calldata "not" [a] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_not_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shl_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :

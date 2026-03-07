@@ -229,6 +229,12 @@ example : verityEval "not" [0] = bridgeEval "not" [0] := by native_decide
 example : verityEval "not" [Compiler.Constants.evmModulus] =
           bridgeEval "not" [Compiler.Constants.evmModulus] := by native_decide
 
+/-- Universal bridge theorem for `not` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
+    evalBuiltinCall storage sender selector calldata "not" [a] =
+      evalPureBuiltinViaEvmYulLean "not" [a] := by
+  exact evalBuiltinCall_not_bridge storage sender selector calldata a
+
 /-- shl: 1 << 8 = 256 -/
 example : verityEval "shl" [8, 1] = bridgeEval "shl" [8, 1] := by native_decide
 

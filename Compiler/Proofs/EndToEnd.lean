@@ -250,7 +250,7 @@ smaller pieces before they can be re-stated without timeout.
 See: `ArithmeticProfile.lean` and
 `YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` for the current
 replacement coverage: universal bridge lemmas for all pure bridged
-builtins except `not`, plus concrete smoke tests for `not`.
+builtins.
 -/
 
 end Compiler.Proofs.EndToEnd
