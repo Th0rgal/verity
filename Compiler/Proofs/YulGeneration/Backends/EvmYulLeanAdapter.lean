@@ -133,9 +133,9 @@ def evalPureBuiltinViaEvmYulLean
   | _, _              => none
 
 /-- Full builtin bridge: delegates pure arithmetic/comparison/bitwise builtins
-    to EVMYulLean UInt256 operations. State-dependent builtins (sload, caller,
-    calldataload) and Verity-specific helpers (mappingSlot) fall through to
-    the Verity path via `none`. -/
+    to EVMYulLean UInt256 operations. State-dependent builtins (`sload`,
+    `caller`, `address`, `timestamp`, `calldataload`) and Verity-specific
+    helpers (`mappingSlot`) fall through to the Verity path via `none`. -/
 def evalBuiltinCallViaEvmYulLean
     (_storage : Nat → Nat)
     (_sender : Nat)

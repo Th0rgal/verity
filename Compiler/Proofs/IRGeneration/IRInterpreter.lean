@@ -55,6 +55,10 @@ structure IRState where
   returnValue : Option Nat
   /-- Sender address -/
   sender : Nat
+  /-- Contract address seen by `address()`. -/
+  thisAddress : Nat := 0
+  /-- Block timestamp seen by `timestamp()`. -/
+  blockTimestamp : Nat := 0
   /-- Function selector (4-byte value used by calldataload(0)) -/
   selector : Nat
   /-- Emitted log records for this execution. -/
@@ -69,6 +73,8 @@ def IRState.initial (sender : Nat) : IRState :=
     calldata := []
     returnValue := none
     sender := sender
+    thisAddress := 0
+    blockTimestamp := 0
     selector := 0
     events := [] }
 
@@ -123,9 +129,9 @@ identical to the Yul version, enabling direct equivalence proofs without axioms.
 def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
   | args => do
     let argVals ← evalIRExprs state args
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
       Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-      state.storage state.sender state.selector state.calldata func argVals
+      state.storage state.sender state.thisAddress state.blockTimestamp state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   omega
@@ -328,6 +334,8 @@ theorem execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
 
 structure IRTransaction where
   sender : Nat
+  thisAddress : Nat := 0
+  blockTimestamp : Nat := 0
   functionSelector : Nat
   args : List Nat
   deriving Repr
@@ -378,7 +386,14 @@ noncomputable def execIRFunction (fn : IRFunction) (args : List Nat) (initialSta
 /-- Interpret an entire IR contract execution -/
 noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (initialState : IRState) : IRResult :=
   -- Execution sender and selector come from the transaction (matches SpecInterpreter)
-  let initialState := { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
+  let initialState := {
+    initialState with
+    sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    calldata := tx.args
+    selector := tx.functionSelector
+  }
 
   -- Find matching function by selector
   match contract.functions.find? (·.selector == tx.functionSelector) with

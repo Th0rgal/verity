@@ -18,6 +18,10 @@ import property_utils
 
 
 class EVMYulLeanCapabilityExtractionTests(unittest.TestCase):
+    def test_overlap_boundary_includes_delegated_env_builtins(self) -> None:
+        self.assertIn("address", evmyullean_capability.EVMYULLEAN_OVERLAP_BUILTINS)
+        self.assertIn("timestamp", evmyullean_capability.EVMYULLEAN_OVERLAP_BUILTINS)
+
     def test_extract_found_builtins_resolves_alias_literal(self) -> None:
         with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
             builtins_file = Path(tmpdir) / "Builtins.lean"

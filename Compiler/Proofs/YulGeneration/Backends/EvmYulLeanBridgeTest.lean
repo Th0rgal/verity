@@ -25,12 +25,26 @@ open Compiler.Proofs.YulGeneration.Backends
 -- Shared test parameters (state-independent for pure builtins)
 private def testStorage : Nat → Nat := fun _ => 0
 private def testSender : Nat := 42
+private def testThisAddress : Nat := 0xC0FFEE
+private def testBlockTimestamp : Nat := 0x123456
 private def testSelector : Nat := 0
 private def testCalldata : List Nat := []
 
 /-- Helper: evaluate a builtin via the Verity path. -/
 private def verityEval (func : String) (args : List Nat) : Option Nat :=
   evalBuiltinCall testStorage testSender testSelector testCalldata func args
+
+/-- Helper: evaluate a builtin via the context-aware Verity path. -/
+private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat :=
+  evalBuiltinCallWithContext
+    testStorage
+    testSender
+    testThisAddress
+    testBlockTimestamp
+    testSelector
+    testCalldata
+    func
+    args
 
 /-- Helper: evaluate a builtin via the EVMYulLean bridge path. -/
 private def bridgeEval (func : String) (args : List Nat) : Option Nat :=
@@ -280,6 +294,18 @@ example : bridgeEval "caller" [] = none := by native_decide
 /-- calldataload: bridge returns none (state-dependent) -/
 example : bridgeEval "calldataload" [0] = none := by native_decide
 
+/-- address: context-aware Verity path returns the current contract address. -/
+example : verityEvalWithContext "address" [] = some testThisAddress := by native_decide
+
+/-- timestamp: context-aware Verity path returns the current block timestamp. -/
+example : verityEvalWithContext "timestamp" [] = some testBlockTimestamp := by native_decide
+
+/-- address: bridge returns none (state-dependent). -/
+example : bridgeEval "address" [] = none := by native_decide
+
+/-- timestamp: bridge returns none (state-dependent). -/
+example : bridgeEval "timestamp" [] = none := by native_decide
+
 /-- mappingSlot: bridge returns none (Verity-specific helper) -/
 example : bridgeEval "mappingSlot" [0, 1] = none := by native_decide
 
@@ -312,7 +338,7 @@ def main : IO Unit := do
   IO.println "✓ Comparison builtins: lt, gt, eq, iszero — universally bridged"
   IO.println "✓ Bitwise builtins: and, or, xor, shl, shr — universally bridged"
   IO.println "✓ Bitwise builtin: not — concrete bridge coverage retained"
-  IO.println "✓ State-dependent builtins: sload, caller, calldataload — correctly delegated"
+  IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "EVMYulLean bridge test: all checks passed"

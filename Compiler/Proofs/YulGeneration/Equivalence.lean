@@ -18,6 +18,8 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     selector := state.selector
     returnValue := state.returnValue
     sender := state.sender
+    thisAddress := state.thisAddress
+    blockTimestamp := state.blockTimestamp
     events := state.events }
 
 def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
@@ -32,6 +34,8 @@ compare results directly in smoke tests.
 noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -41,6 +45,8 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
 noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
     functionSelector := tx.functionSelector
     args := tx.args
   }

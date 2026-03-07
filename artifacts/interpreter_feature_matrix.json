@@ -157,7 +157,7 @@
       "constructor": "Expr.blockTimestamp",
       "SpecInterpreter_basic": "supported",
       "SpecInterpreter_fuel": "supported",
-      "IRInterpreter": "n/a",
+      "IRInterpreter": "supported",
       "EVMYulLean_bridge": "n/a",
       "proof_status": "proved"
     },
@@ -166,9 +166,9 @@
       "constructor": "Expr.contractAddress",
       "SpecInterpreter_basic": "fallback_zero",
       "SpecInterpreter_fuel": "fallback_zero",
-      "IRInterpreter": "n/a",
+      "IRInterpreter": "supported",
       "EVMYulLean_bridge": "n/a",
-      "proof_status": "not_modeled"
+      "proof_status": "partial"
     },
     {
       "feature": "chainid",

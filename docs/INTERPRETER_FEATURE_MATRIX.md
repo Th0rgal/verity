@@ -37,8 +37,8 @@ The `SpecInterpreter` has been removed. EDSL semantics are now defined directly 
 | Struct member (double) | `Expr.structMember2` | ok | ok | -- | -- | proved |
 | `caller` | `Expr.caller` | ok | ok | ok | del | proved |
 | `msg.value` | `Expr.msgValue` | ok | ok | -- | -- | proved |
-| `block.timestamp` | `Expr.blockTimestamp` | ok | ok | -- | -- | proved |
-| `address(this)` | `Expr.contractAddress` | **0** | **0** | -- | -- | n/m |
+| `block.timestamp` | `Expr.blockTimestamp` | ok | ok | ok | -- | proved |
+| `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | -- | partial |
 | `chainid` | `Expr.chainid` | **0** | **0** | -- | -- | n/m |
 | `mload` | `Expr.mload` | **0** | **0** | ok | -- | partial |
 | `keccak256` | `Expr.keccak256` | **0** | **0** | -- | -- | n/m |
@@ -123,12 +123,14 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 | `shr` | ok | ok | yes |
 | `sload` | ok | del | -- |
 | `caller` | ok | del | -- |
+| `address` | ok | del | -- |
+| `timestamp` | ok | del | -- |
 | `calldataload` | ok | del | -- |
 | `mappingSlot` | ok | del | -- |
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
 
-15/19 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 15 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. The remaining 4 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+15/21 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 15 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, and none still require concrete-only regression coverage. The remaining 6 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
@@ -138,7 +140,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 |---|---|---|---|---|
 | Expression features | 25 | 1 (`externalCall`) | 1 (`mload`) | 6 |
 | Statement features | 24 | 0 | 1 (`mstore`) | 7 |
-| Builtins (agreement) | 15 | 0 | 0 | 4 (delegated) |
+| Builtins (agreement) | 15 | 0 | 0 | 6 (delegated) |
 
 **Not-modeled features** are handled correctly by the compiler but are outside the current proof scope. They include low-level calls, returndata handling, linear memory, contract introspection, and external call modules. These features are validated by differential testing (70,000+ test vectors against actual EVM execution).
 

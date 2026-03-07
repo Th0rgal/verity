@@ -39,6 +39,7 @@ def _strip_outer_parens(text: str) -> str:
 EVMYULLEAN_OVERLAP_BUILTINS = {
     "add",
     "and",
+    "address",
     "calldataload",
     "calldatasize",
     "caller",
@@ -56,6 +57,7 @@ EVMYULLEAN_OVERLAP_BUILTINS = {
     "shr",
     "sload",
     "sub",
+    "timestamp",
     "xor",
 }
 

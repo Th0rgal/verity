@@ -3,6 +3,7 @@
   "adapter_lowering_status": "complete",
   "allowed_overlap_builtins": [
     "add",
+    "address",
     "and",
     "calldataload",
     "calldatasize",
@@ -21,6 +22,7 @@
     "shr",
     "sload",
     "sub",
+    "timestamp",
     "xor"
   ],
   "allowed_verity_helpers": [
@@ -29,6 +31,7 @@
   "builtins_file": "Compiler/Proofs/YulGeneration/Builtins.lean",
   "found_builtins": [
     "add",
+    "address",
     "and",
     "calldataload",
     "calldatasize",
@@ -48,6 +51,7 @@
     "shr",
     "sload",
     "sub",
+    "timestamp",
     "xor"
   ],
   "schema_version": 2,

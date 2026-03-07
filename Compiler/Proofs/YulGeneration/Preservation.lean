@@ -22,7 +22,11 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
 @[simp] private theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body
-        { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+        { sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          functionSelector := tx.functionSelector
+          args := tx.args }
         state.storage state.events := by
   rfl
 
@@ -39,11 +43,19 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
     interpretYulBody fn tx state =
       yulResultOfExecWithRollback
         (YulState.initial
-          { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+          { sender := tx.sender
+            thisAddress := tx.thisAddress
+            blockTimestamp := tx.blockTimestamp
+            functionSelector := tx.functionSelector
+            args := tx.args }
           state.storage state.events)
         (execYulStmts
           (YulState.initial
-            { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+            { sender := tx.sender
+              thisAddress := tx.thisAddress
+              blockTimestamp := tx.blockTimestamp
+              functionSelector := tx.functionSelector
+              args := tx.args }
             state.storage state.events)
           fn.body) := by
   simp [interpretYulBody]
@@ -302,17 +314,29 @@ private def SwitchCaseBodyBridge
     resultsMatch
       (execIRFunction fn tx.args irState)
       (interpretYulRuntime fn.body
-        { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+        { sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          functionSelector := tx.functionSelector
+          args := tx.args }
         irState.storage irState.events) →
     resultsMatch
       (execIRFunction fn tx.args irState)
       (yulResultOfExecWithRollback
         (YulState.initial
-          { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+          { sender := tx.sender
+            thisAddress := tx.thisAddress
+            blockTimestamp := tx.blockTimestamp
+            functionSelector := tx.functionSelector
+            args := tx.args }
           irState.storage irState.events)
         (execYulStmtsFuel fuel
           ((YulState.initial
-            { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+            { sender := tx.sender
+              thisAddress := tx.thisAddress
+              blockTimestamp := tx.blockTimestamp
+              functionSelector := tx.functionSelector
+              args := tx.args }
             irState.storage irState.events).setVar "__has_selector" 1)
           (switchCaseBody fn)))
 
@@ -334,14 +358,35 @@ theorem yulCodegen_preserves_semantics
     (hNoReceive : contract.receiveEntrypoint = none)
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
-        (execIRFunction fn tx.args { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
-        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
+        (execIRFunction fn tx.args
+          { initialState with
+            sender := tx.sender
+            thisAddress := tx.thisAddress
+            blockTimestamp := tx.blockTimestamp
+            calldata := tx.args
+            selector := tx.functionSelector })
+        (interpretYulBody fn tx
+          { initialState with
+            sender := tx.sender
+            thisAddress := tx.thisAddress
+            blockTimestamp := tx.blockTimestamp
+            calldata := tx.args
+            selector := tx.functionSelector })) :
     resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
-  let irState := { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
+  let irState := {
+    initialState with
+    sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    calldata := tx.args
+    selector := tx.functionSelector
+  }
   let yulTx : YulTransaction := {
     sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -436,7 +481,12 @@ theorem yulCodegen_preserves_semantics
       rw [show m + 4 + 1 = Nat.succ (m + 4) from by omega]
       rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
       exact SwitchCaseBodyBridge fn tx
-        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
+        { initialState with
+          sender := tx.sender
+          thisAddress := tx.thisAddress
+          blockTimestamp := tx.blockTimestamp
+          calldata := tx.args
+          selector := tx.functionSelector }
         (m + 4) hmatch
 
 /-! ## Complete Preservation Theorem

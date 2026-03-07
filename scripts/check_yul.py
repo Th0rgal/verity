@@ -27,10 +27,15 @@ IMPORT_BUILTINS_RE = re.compile(
     r"^\s*import\s+Compiler\.Proofs\.YulGeneration\.Builtins\s*$", re.MULTILINE
 )
 BUILTIN_CALL_RE = re.compile(
-    r"\bCompiler\.Proofs\.YulGeneration\.(?:evalBuiltinCall|evalBuiltinCallWithBackend)\b"
+    r"\bCompiler\.Proofs\.YulGeneration\.(?:"
+    r"evalBuiltinCall"
+    r"|evalBuiltinCallWithContext"
+    r"|evalBuiltinCallWithBackend"
+    r"|evalBuiltinCallWithBackendContext"
+    r")\b"
 )
 INLINE_DISPATCH_RE = re.compile(
-    r'func\s*=\s*"(?:mappingSlot|sload|add|sub|mul|div|mod|lt|gt|eq|iszero|and|or|xor|not|shl|shr|caller|calldataload)"'
+    r'func\s*=\s*"(?:mappingSlot|sload|add|sub|mul|div|mod|lt|gt|eq|iszero|and|or|xor|not|shl|shr|caller|calldataload|address|timestamp)"'
 )
 
 
@@ -200,7 +205,8 @@ def collect_builtin_boundary_failures() -> list[str]:
         if not BUILTIN_CALL_RE.search(text):
             failures.append(
                 f"{rel}: missing call to Compiler.Proofs.YulGeneration."
-                "evalBuiltinCall or evalBuiltinCallWithBackend"
+                "evalBuiltinCall, evalBuiltinCallWithContext, "
+                "evalBuiltinCallWithBackend, or evalBuiltinCallWithBackendContext"
             )
 
         if INLINE_DISPATCH_RE.search(text):
