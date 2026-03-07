@@ -122,6 +122,13 @@ verity_contract AddressHelpersSmoke where
     let owner ← getMappingUintAddr ownersById tokenId
     return owner
 
+verity_contract ZeroAddressShadowSmoke where
+  storage
+    delegates : Address → Uint256 := slot 0
+
+  function shadowWrite (zeroAddress : Address) : Unit := do
+    setMappingAddr delegates zeroAddress zeroAddress
+
 namespace SpecGenSmoke
 
 #gen_spec storage_for2_spec for2 (x : Uint256) (y : Uint256)
@@ -170,6 +177,7 @@ end SpecGenSmoke
 #check_contract TupleSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
+#check_contract ZeroAddressShadowSmoke
 
 example :
     (Compiler.CompilationModel.FunctionSpec.body

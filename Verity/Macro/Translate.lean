@@ -279,7 +279,11 @@ partial def translatePureExpr
   | `(term| chainid) => `(Compiler.CompilationModel.Expr.chainid)
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
   | `(term| returndataSize) => `(Compiler.CompilationModel.Expr.returndataSize)
-  | `(term| zeroAddress) => `(Compiler.CompilationModel.Expr.literal 0)
+  | `(term| zeroAddress) =>
+      if params.any (fun p => p.name == "zeroAddress") || locals.contains "zeroAddress" then
+        lookupVarExpr params locals "zeroAddress"
+      else
+        `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| isZeroAddress $a:term) =>
       `(Compiler.CompilationModel.Expr.eq
           $(← translatePureExpr params locals a)

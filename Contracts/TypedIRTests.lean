@@ -1240,6 +1240,9 @@ private def erc721Spec : Compiler.CompilationModel.CompilationModel :=
 private def addressHelpersSmokeSpec : Compiler.CompilationModel.CompilationModel :=
   Contracts.Smoke.AddressHelpersSmoke.spec
 
+private def zeroAddressShadowSmokeSpec : Compiler.CompilationModel.CompilationModel :=
+  Contracts.Smoke.ZeroAddressShadowSmoke.spec
+
 /-- Smoke test: core ERC721 spec functions compile to typed IR. -/
 example : compilesOk erc721Spec "mint" = true := by native_decide
 example : compilesOk erc721Spec "transferFrom" = true := by native_decide
@@ -1255,6 +1258,7 @@ example : compilesOk addressHelpersSmokeSpec "hasDelegate" = true := by native_d
 example : compilesOk addressHelpersSmokeSpec "isDelegateZero" = true := by native_decide
 example : compilesOk addressHelpersSmokeSpec "setOwnerForId" = true := by native_decide
 example : compilesOk addressHelpersSmokeSpec "getOwnerForId" = true := by native_decide
+example : compilesOk zeroAddressShadowSmokeSpec "shadowWrite" = true := by native_decide
 
 /-- Address-keyed mapping helpers write encoded addresses and clear back to zero. -/
 def compiledAddressHelpersSmokeDelegateWrites : Option (Nat × Nat) :=
@@ -1362,6 +1366,24 @@ def compiledAddressHelpersSmokeGetOwnerForIdBody : Bool :=
 
 /-- `getOwnerForId` keeps Uint256-keyed address reads on the typed helper path. -/
 example : compiledAddressHelpersSmokeGetOwnerForIdBody = true := by native_decide
+
+/-- A parameter named `zeroAddress` must stay a parameter, not collapse to the builtin zero literal. -/
+def compiledZeroAddressShadowWrite : Option (Nat × Nat) :=
+  match compileFunctionNamed zeroAddressShadowSmokeSpec "shadowWrite" with
+  | .ok block =>
+      match block.params with
+      | [shadowParam] =>
+          let init : TExecState :=
+            { world := Verity.defaultState
+              vars := { address := fun i => if i = shadowParam.id then 77 else 0 } }
+          match evalTBlock init block with
+          | .ok post => some (post.world.storageMap 0 77, post.world.storageMap 0 0)
+          | .revert _ => none
+      | _ => none
+  | _ => none
+
+/-- The `zeroAddress` builtin does not shadow user parameters during macro lowering. -/
+example : compiledZeroAddressShadowWrite = some (77, 0) := by native_decide
 
 /-- End-to-end ERC721 mint + approve + transferFrom success path. -/
 def compiledERC721ApproveTransferSuccess : Option (Nat × Nat × Nat × Nat) :=
