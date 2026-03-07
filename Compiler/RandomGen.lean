@@ -87,7 +87,7 @@ private def gen256Bits (rng : RNG) : RNG × Nat :=
 def genUint256 (rng : RNG) : RNG × Nat :=
   let (rng, n) := rng.next
   let selector := n % 32
-  match edgeUint256Values.get? selector with
+  match edgeUint256Values[selector]? with
   | some v =>
     -- Deterministic edge case
     (rng, v)
@@ -124,7 +124,7 @@ private def addressPool : List Address :=
 -- Generate random address from an expanded pool that includes edge cases
 def genAddress (rng : RNG) : RNG × Address :=
   let (rng', n) := rng.next
-  let addr := match addressPool.get? (n % addressPool.length) with
+  let addr := match addressPool[n % addressPool.length]? with
     | some a => a
     | none   => (0 : Address)  -- fallback; unreachable when addressPool is non-empty
   (rng', addr)

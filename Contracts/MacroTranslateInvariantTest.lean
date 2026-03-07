@@ -364,7 +364,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
       let indexedFns := List.zip (List.range extFns.length) extFns
       let mappingSafeFns :=
         indexedFns.filterMap (fun (idx, fnSpec) =>
-          match irFns.get? idx, selectors.get? idx with
+          match irFns[idx]?, selectors[idx]? with
           | some irFn, some sel =>
               if functionUsesMappingSlot irFn then none else some (fnSpec, sel)
           | _, _ => none)
