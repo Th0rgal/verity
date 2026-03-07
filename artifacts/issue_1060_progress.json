@@ -147,14 +147,14 @@
         "Tests cover expression sanity, statement typing, block construction, evaluation, and end-to-end storage effects."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRTests.lean"
+        "Contracts/TypedIRTests.lean"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRTests",
+        "lake build Contracts.TypedIRTests",
         "lake build"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRTests [artifact_sha256=1e54597bd2967c]",
+        "pass: lake build Contracts.TypedIRTests [artifact_sha256=1e54597bd2967c]",
         "pass: lake build [artifact_sha256=1e54597bd2967c] (CI build job passed on PR #1065)"
       ],
       "evidence": {
@@ -180,14 +180,14 @@
         "`compileFunctionNamed` provides named-function lookup and compilation."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean"
+        "Compiler/TypedIRCompiler.lean"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRCompiler",
+        "lake build Compiler.TypedIRCompiler",
         "lake build"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [artifact_sha256=1e54597bd2967c]",
+        "pass: lake build Compiler.TypedIRCompiler [artifact_sha256=1e54597bd2967c]",
         "pass: lake build [artifact_sha256=1e54597bd2967c] (CI build job passed on PR #1065)"
       ],
       "evidence": {
@@ -264,20 +264,20 @@
         "Extend semantic-preservation coverage to a sequencing subset where a unified require guard-family clause list executes before nested `ite (eq (literal n) (literal m)) [ite (eq (literal p) (literal q)) [return (literal thenVal)] [return (literal elseVal)]] [setStorage fieldName (literal outerElseWriteVal); return (literal outerElseRetVal)]`, preserving clause-list short-circuit revert behavior together with nested return-only inner branches and outer storage-then-return continuation under explicit field-resolution assumptions."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean",
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean",
         "artifacts/issue_1060_progress.json"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRCompiler",
-        "lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests",
+        "lake build Compiler.TypedIRCompiler",
+        "lake build Compiler.TypedIRCompilerCorrectness Contracts.TypedIRTests",
         "lake build",
         "python3 scripts/check_issue_1060_integrity.py"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T15:57:35Z artifact_sha256=2489b8aa]",
-        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T15:57:35Z artifact_sha256=2489b8aa; non-blocking warning: unnecessary simpa at line 3083]",
+        "pass: lake build Compiler.TypedIRCompiler [run_id=2026-03-02T15:57:35Z artifact_sha256=2489b8aa]",
+        "pass: lake build Compiler.TypedIRCompilerCorrectness Contracts.TypedIRTests [run_id=2026-03-02T15:57:35Z artifact_sha256=2489b8aa; non-blocking warning: unnecessary simpa at line 3083]",
         "pass: lake build [run_id=2026-03-02T15:57:35Z artifact_sha256=2489b8aa; non-blocking warning: unnecessary simpa at line 3083]",
         "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T15:57:35Z artifact_sha256=2489b8aa]"
       ],
@@ -285,539 +285,539 @@
         "theorems": [
           {
             "name": "compileStmts_append",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Compiling pre ++ post is equivalent to sequentially compiling pre then post."
           },
           {
             "name": "compileStmts_append_from",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "The append-composition theorem holds when run from any initial CompileState."
           },
           {
             "name": "compileStmts_let_assign_add_literal_setStorage_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Three-statement compilation for letVar-literal; assignVar-add(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed addition and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_assign_literal_setStorage_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Three-statement compilation for letVar-literal; assignVar-literal; setStorage-localVar emits the expected two SSA lets and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_assign_mul_literal_setStorage_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Three-statement compilation for letVar-literal; assignVar-mul(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed multiplication and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_assign_sub_literal_setStorage_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Three-statement compilation for letVar-literal; assignVar-sub(localVar,literal); setStorage-localVar emits the expected SSA let rebinding with typed subtraction and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_literal_setStorage_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Two-statement compilation for letVar-literal followed by setStorage-localVar emits the expected SSA let and typed setStorage sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_return_local_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Two-statement compilation for letVar-literal; return-localVar emits the expected SSA let and typed returnUint sequence from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_return_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with return on both branches emits the expected typed if_ with two returnUint branches from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_return_then_setStorage_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with return-then/setStorage-else branches emits the expected typed if_ with heterogeneous branch statements from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_setStorage_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with setStorage literal branches emits the expected typed if_ with typed setStorage branches from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_setStorage_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for ite(eq(literal,literal)) with setStorage-then/return-else branches emits the expected typed if_ with heterogeneous branch statements from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_return_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with return-only leaves emits the expected typed nested if_ structure from empty compile state."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/setStorage branches and outer false-branch return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/setStorage branches and outer false-branch setStorage emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_require_and_eq_lt_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(logicalAnd(eq(literal,literal), lt(literal,literal)), message) emits the expected typed if_ with a typed and-guard and revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_eq_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(eq(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_ge_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(ge(literal,literal), message) emits the expected typed if_ with guard not(lt(...)) and a revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_gt_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(gt(literal,literal), message) emits the expected typed if_ with guard lt(rhs,lhs) and a revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_le_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(le(literal,literal), message) emits the expected typed if_ with guard not(lt(rhs,lhs)) and a revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_lt_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(lt(literal,literal), message) emits the expected typed if_ with a revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_not_eq_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(logicalNot(eq(literal,literal)), message) emits the expected typed if_ with a typed not(eq(...)) guard and revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_require_or_eq_lt_literals_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for require(logicalOr(eq(literal,literal), lt(literal,literal)), message) emits the expected typed if_ with a typed or-guard and revert else-branch from empty compile state."
           },
           {
             "name": "compileStmts_single_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for return literal emits the expected typed returnUint statement from any initial compile state."
           },
           {
             "name": "compileStmts_single_setStorage_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for setStorage literal emits the expected typed setStorage write under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with return on both branches."
           },
           {
             "name": "compile_ite_eq_return_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported heterogeneous branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with return true branch and setStorage false branch under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_setStorage_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported branch subset with an equality guard over literals, compiled typed-IR execution preserves source branch-selected storage update semantics."
           },
           {
             "name": "compile_ite_eq_setStorage_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported heterogeneous branch subset, compiled typed-IR execution preserves source semantics for ite(eq) with setStorage true branch and return false branch under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported nested-branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner return/return ite(eq) and a direct return branch."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported nested heterogeneous branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner storage/storage ite(eq) and a return false branch under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported nested storage branch subset, compiled typed-IR execution preserves source semantics for outer ite(eq) selecting between an inner storage/storage ite(eq) and a storage false branch under explicit field-resolution assumptions."
           },
           {
             "name": "compile_let_assign_add_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported arithmetic letVar/assignVar-add/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n + m) and the expected SSA rebinding effect."
           },
           {
             "name": "compile_let_assign_mul_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported arithmetic letVar/assignVar-mul/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n * m) and the expected SSA rebinding effect."
           },
           {
             "name": "compile_let_assign_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported letVar/assignVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA rebinding sequence."
           },
           {
             "name": "compile_let_assign_sub_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported arithmetic letVar/assignVar-sub/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics (n - m) and the expected SSA rebinding effect."
           },
           {
             "name": "compile_let_return_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported let-then-return subset, compiled typed-IR execution preserves source variable-binding and halting semantics."
           },
           {
             "name": "compile_let_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported letVar/setStorage-local subset, compiled typed-IR execution preserves source storage-update semantics and records the expected SSA variable binding effect."
           },
           {
             "name": "compile_require_and_eq_lt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported composite require guard subset (eq && lt over literals), compiled typed-IR execution preserves direct source short-circuit require semantics."
           },
           {
             "name": "compile_require_binary_literal_clauses_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Structural-induction theorem: for lists of supported single-guard require clauses, compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           },
           {
             "name": "compile_require_binary_literal_guard_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Generalized theorem: for guard family `eq/notEq/lt/gt/ge/le`, compiled single-guard require execution equals source require semantics."
           },
           {
             "name": "compile_require_eq_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged on true, revert on false)."
           },
           {
             "name": "compile_require_family_clauses_tail_programs_append_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Generic append/composition theorem connecting compiled and source semantics over concatenated supported `(require-clause-list + tail)` program lists."
           },
           {
             "name": "compile_require_family_clauses_tail_programs_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Structural-induction theorem: for lists of supported `(require-clause-list + tail)` fragments, compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before ite(eq) with return on both branches, compiled execution preserves source short-circuit/revert and branch behavior."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before heterogeneous ite(eq) (return true branch, setStorage false branch), compiled execution preserves source short-circuit/revert and branch behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_setStorage_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by ite(eq(literal,literal)) with literal-storage branches, compiled execution matches source clause-list short-circuit semantics plus branch-selected storage update under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before heterogeneous ite(eq) (setStorage true branch, return false branch), compiled execution preserves source short-circuit/revert and branch behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with return-only leaves, compiled execution preserves source short-circuit/revert and nested branch behavior."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner return/return branches and outer false-branch storage write, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner storage/storage branches and outer false-branch return, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For unified require-family clause lists sequenced before nested ite(eq) with inner storage/storage branches and outer false-branch storage write, compiled execution preserves source short-circuit/revert and nested branch behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_let_assign_add_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-add/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_let_assign_mul_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-mul/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_let_assign_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar-literal; assignVar-literal; setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with literal rebinding/storage behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_let_assign_sub_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar/assignVar-sub/setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with arithmetic rebinding/storage behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_let_return_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar-literal then return-localVar, compiled execution matches source clause-list short-circuit semantics together with local-binding return behavior."
           },
           {
             "name": "compile_require_family_clauses_then_let_setStorage_local_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by letVar-literal then setStorage-localVar, compiled execution matches source clause-list short-circuit semantics together with local-binding storage behavior under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_noop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists with no continuation tail, compiled execution matches source clause-list short-circuit semantics."
           },
           {
             "name": "compile_require_family_clauses_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by return-literal, compiled execution matches source clause-list short-circuit semantics and halting behavior."
           },
           {
             "name": "compile_require_family_clauses_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by setStorage-literal, compiled execution matches source clause-list short-circuit semantics plus storage update under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_tail_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Generic sequencing semantic-preservation theorem over supported tails after unified require guard-family clause lists, proved by tail-family case split reusing existing specialized theorems."
           },
           {
             "name": "compile_require_family_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard families followed by return-literal, compiled execution matches source short-circuit require semantics and halting behavior."
           },
           {
             "name": "compile_require_family_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard families followed by setStorage-literal, compiled execution matches source short-circuit require semantics plus storage update under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_ge_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-ge-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n >= m, revert otherwise)."
           },
           {
             "name": "compile_require_gt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-gt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n > m, revert otherwise)."
           },
           {
             "name": "compile_require_le_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-le-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n <= m, revert otherwise)."
           },
           {
             "name": "compile_require_literal_guard_family_clauses_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Structural-induction theorem: for lists of unified require guard-family clauses (`binary`, `andEqLt`, `orEqLt`), compiled evaluation equals source evaluation with identical short-circuit revert behavior."
           },
           {
             "name": "compile_require_literal_guard_family_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Generalized theorem: for unified require guard families (binary guard set plus and(eq,lt)/or(eq,lt)), compiled single-require execution equals source require semantics."
           },
           {
             "name": "compile_require_lt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-lt-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n < m, revert otherwise)."
           },
           {
             "name": "compile_require_not_eq_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported require-not-eq-literals subset, compiled typed-IR execution preserves direct source require semantics (state unchanged when n != m, revert otherwise)."
           },
           {
             "name": "compile_require_or_eq_lt_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported composite require guard subset (eq || lt over literals), compiled typed-IR execution preserves direct source short-circuit require semantics."
           },
           {
             "name": "compile_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported return-literal subset, compiled typed-IR execution preserves direct source return semantics (state unchanged, halting)."
           },
           {
             "name": "compile_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For the supported setStorage-literal subset, compiled typed-IR execution matches direct source-level storage update semantics."
           },
           {
             "name": "compile_supported_stmt_fragments_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "One generic list-level semantic-preservation theorem over the explicit supported statement-fragment grammar (`SupportedStmtFragment`)."
           },
           {
             "name": "compile_supported_stmt_list_direct_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For arbitrary raw statement lists in the declared supported fragment, compiled and source semantics are directly equal without existential decomposition in the conclusion."
           },
           {
             "name": "compile_supported_stmt_list_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For arbitrary raw statement lists witnessed to belong to the declared supported fragment grammar, there exists a fragment decomposition whose compiled and source semantics are equal."
           },
           {
             "name": "execCompiledRequireFamilyClausesTailPrograms",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Compiled semantics dispatcher over lists of supported `(require-clause-list + tail)` fragments."
           },
           {
             "name": "execCompiledRequireFamilyClausesTailPrograms_append_from",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Structural append theorem for compiled semantics over supported `(require-clause-list + tail)` program lists from arbitrary initial execution states."
           },
           {
             "name": "execCompiledRequireFamilyClausesThenTail",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Compiled semantics dispatcher over the supported tail family after unified require guard-family clause lists."
           },
           {
             "name": "execCompiledSupportedStmtFragments",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Compiled semantics dispatcher over lists of explicit supported statement fragments."
           },
           {
             "name": "execSourceRequireFamilyClausesTailPrograms",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source semantics dispatcher over lists of supported `(require-clause-list + tail)` fragments."
           },
           {
             "name": "execSourceRequireFamilyClausesTailPrograms_append_from",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Structural append theorem for source semantics over supported `(require-clause-list + tail)` program lists from arbitrary initial execution states."
           },
           {
             "name": "execSourceRequireFamilyClausesThenTail",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source semantics dispatcher over the supported tail family after unified require guard-family clause lists."
           },
           {
             "name": "execSourceSupportedStmtFragments",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source semantics dispatcher over lists of explicit supported statement fragments."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner return/setStorage branches and outer false-branch return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For nested ite(eq(literal,literal)) with inner return/setStorage branches and outer false-branch return, compiled typed-IR execution matches direct source semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by nested ite(eq) with inner return/setStorage and outer false-branch return, compiled execution matches source clause-list short-circuit semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorage_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner return/setStorage branches and outer false-branch setStorage emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For nested ite(eq(literal,literal)) with inner return/setStorage branches and outer false-branch setStorage, compiled typed-IR execution matches direct source semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by nested ite(eq) with inner return/setStorage and outer false-branch setStorage, compiled execution matches source clause-list short-circuit semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_then_return_literal_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/return branches and outer false-branch return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_setStorage_then_return_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For nested ite(eq(literal,literal)) with inner setStorage/return branches and outer false-branch return, compiled typed-IR execution matches direct source semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_then_return_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by nested ite(eq) with inner setStorage/return and outer false-branch return, compiled execution matches source clause-list short-circuit semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_setStorage_then_return_literal_then_setStorage_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner setStorage/return branches and outer false-branch setStorage emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_setStorage_then_return_literal_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For nested ite(eq(literal,literal)) with inner setStorage/return branches and outer false-branch setStorage, compiled typed-IR execution matches direct source semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_then_return_literal_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by nested ite(eq) with inner setStorage/return and outer false-branch setStorage, compiled execution matches source clause-list short-circuit semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compileStmts_single_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Single-statement compilation for nested ite(eq(literal,literal)) with inner return/return branches and outer false-branch setStorage then return emits the expected typed nested if_ structure from empty compile state under explicit field-resolution assumptions."
           },
           {
             "name": "compile_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "For nested ite(eq(literal,literal)) with inner return/return branches and outer false-branch setStorage then return, compiled typed-IR execution matches direct source semantics under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by nested ite(eq) with inner return/return and outer false-branch setStorage then return, compiled execution matches source clause-list short-circuit semantics under explicit field-resolution assumptions."
           }
         ],
         "tests": [
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for ite(eq) continuation with return on both branches."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_return_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for heterogeneous ite(eq) continuation with return true branch and setStorage false branch under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_setStorage_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for heterogeneous ite(eq) continuation with setStorage true branch and return false branch under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/return branches and outer false-branch return."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/return branches and outer false-branch storage write under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner storage/storage branches and outer false-branch return under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_literals_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner storage/storage branches and outer false-branch storage write under explicit field-resolution assumptions."
           },
           "TypedIRTests example instantiating compile_supported_stmt_list_direct_semantics",
@@ -862,27 +862,27 @@
           "TypedIRTests: example instantiating compile_supported_stmt_fragments_semantics over arbitrary fields/init/lists of explicit supported statement fragments",
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/setStorage branches and outer false-branch return under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_then_setStorage_literal_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/setStorage branches and outer false-branch setStorage under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_then_return_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner setStorage/return branches and outer false-branch return under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_setStorage_then_return_literal_then_setStorage_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner setStorage/return branches and outer false-branch setStorage under explicit field-resolution assumptions."
           },
           {
             "name": "TypedIRTests example instantiating compile_require_family_clauses_then_ite_eq_then_ite_eq_return_literals_then_setStorage_literal_then_return_literal_semantics",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Checks clause-list sequencing semantic preservation for nested ite(eq) continuation with inner return/return branches and outer false-branch setStorage then return under explicit field-resolution assumptions."
           }
         ]
@@ -904,14 +904,14 @@
         "Mapping storage operations lower to `mappingSlot`-based `sload`/`sstore` patterns."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRLowering.lean"
+        "Compiler/TypedIRLowering.lean"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRLowering",
+        "lake build Compiler.TypedIRLowering",
         "lake build"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRLowering [artifact_sha256=1e54597bd2967c]",
+        "pass: lake build Compiler.TypedIRLowering [artifact_sha256=1e54597bd2967c]",
         "pass: lake build [artifact_sha256=1e54597bd2967c] (CI build job passed on PR #1065)"
       ],
       "evidence": {
@@ -934,14 +934,14 @@
         "Compiled Counter block lowers to Yul with matching final storage (end-to-end: CompilationModel -> typed IR -> Yul)."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRTests.lean"
+        "Contracts/TypedIRTests.lean"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRTests",
+        "lake build Contracts.TypedIRTests",
         "lake build"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRTests [artifact_sha256=1e54597bd2967c]",
+        "pass: lake build Contracts.TypedIRTests [artifact_sha256=1e54597bd2967c]",
         "pass: lake build [artifact_sha256=1e54597bd2967c] (CI build job passed on PR #1065)"
       ],
       "evidence": {
@@ -966,14 +966,14 @@
         "Both store and retrieve can be compiled in sequence and evaluated together."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRTests.lean"
+        "Contracts/TypedIRTests.lean"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRTests",
+        "lake build Contracts.TypedIRTests",
         "lake build"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRTests [artifact_sha256=1e54597bd2967c]",
+        "pass: lake build Contracts.TypedIRTests [artifact_sha256=1e54597bd2967c]",
         "pass: lake build [artifact_sha256=1e54597bd2967c] (CI build job passed on PR #1065)"
       ],
       "evidence": {
@@ -1034,9 +1034,9 @@
         "lake build succeeds with no errors (only known simpa linter warning)."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean"
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean"
       ],
       "verification_commands": [
         "lake build",
@@ -1052,73 +1052,73 @@
         "theorems": [
           {
             "name": "compileStmts_let_storage_setStorage_add_local_stop_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape for letVar(storage) ; setStorage(add) ; stop pattern",
             "statement_summary": "Compiling [letVar tmp (storage fieldName), setStorage fieldName (add (localVar tmp) (literal m)), stop] emits SSA let-getStorage, add, setStorage, stop sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_storage_setStorage_sub_local_stop_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape for letVar(storage) ; setStorage(sub) ; stop pattern",
             "statement_summary": "Compiling [letVar tmp (storage fieldName), setStorage fieldName (sub (localVar tmp) (literal m)), stop] emits SSA let-getStorage, sub, setStorage, stop sequence from empty compile state."
           },
           {
             "name": "compileStmts_let_storage_return_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape for letVar(storage) ; return(localVar) pattern",
             "statement_summary": "Compiling [letVar tmp (storage fieldName), return (localVar tmp)] emits SSA let-getStorage, return-var sequence from empty compile state."
           },
           {
             "name": "compile_let_storage_setStorage_add_local_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for storage-read/add/setStorage/stop",
             "statement_summary": "Source and compiled semantics agree for the storage-read, add-literal, setStorage, stop pattern."
           },
           {
             "name": "compile_let_storage_setStorage_sub_local_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for storage-read/sub/setStorage/stop",
             "statement_summary": "Source and compiled semantics agree for the storage-read, sub-literal, setStorage, stop pattern."
           },
           {
             "name": "compile_let_storage_return_local_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for storage-read/return",
             "statement_summary": "Source and compiled semantics agree for the storage-read, return-localVar pattern."
           },
           {
             "name": "counter_increment_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Counter.increment body is in SupportedStmtList",
             "statement_summary": "The Counter increment body [letVar current (storage count), setStorage count (add (localVar current) (literal 1)), stop] belongs to SupportedStmtList counterFields."
           },
           {
             "name": "counter_decrement_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Counter.decrement body is in SupportedStmtList",
             "statement_summary": "The Counter decrement body [letVar current (storage count), setStorage count (sub (localVar current) (literal 1)), stop] belongs to SupportedStmtList counterFields."
           },
           {
             "name": "counter_getCount_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Counter.getCount body is in SupportedStmtList",
             "statement_summary": "The Counter getCount body [letVar current (storage count), return (localVar current)] belongs to SupportedStmtList counterFields."
           },
           {
             "name": "counter_increment_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Counter.increment compilation correctness from generic theorem",
             "statement_summary": "Counter.increment compilation correctness: source and compiled semantics are equal, derived from the generic compile_supported_stmt_list_semantics theorem."
           },
           {
             "name": "counter_decrement_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Counter.decrement compilation correctness from generic theorem",
             "statement_summary": "Counter.decrement compilation correctness: source and compiled semantics are equal, derived from the generic compile_supported_stmt_list_semantics theorem."
           },
           {
             "name": "counter_getCount_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Counter.getCount compilation correctness from generic theorem",
             "statement_summary": "Counter.getCount compilation correctness: source and compiled semantics are equal, derived from the generic compile_supported_stmt_list_semantics theorem."
           }
@@ -1126,7 +1126,7 @@
         "tests": [
           {
             "name": "counter_bridge_test_examples",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "6 test examples exercising Counter bridge theorems (3 SupportedStmtList witnesses + 3 correctness derivations)"
           }
         ]
@@ -1151,9 +1151,9 @@
         "lake build succeeds with no errors (only known linter warnings)."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean"
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean"
       ],
       "verification_commands": [
         "lake build",
@@ -1169,73 +1169,73 @@
         "theorems": [
           {
             "name": "compileStmts_single_return_storage_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape for return(storage field) uint256 pattern",
             "statement_summary": "Compiling [return (storage fieldName)] with uint256 field type emits a single TStmt.returnUint(getStorage slot) from empty compile state."
           },
           {
             "name": "compileStmts_single_return_storage_addr_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape for return(storage field) address pattern",
             "statement_summary": "Compiling [return (storage fieldName)] with address field type emits a single TStmt.returnAddr(getStorageAddr slot) from empty compile state."
           },
           {
             "name": "compile_return_storage_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for return(storage field) uint256",
             "statement_summary": "Source and compiled semantics agree for the return(storage field) pattern when the field has uint256 type."
           },
           {
             "name": "compile_return_storage_addr_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for return(storage field) address",
             "statement_summary": "Source and compiled semantics agree for the return(storage field) pattern when the field has address type."
           },
           {
             "name": "compile_require_family_clauses_then_return_storage_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Sequencing theorem for require-clauses + return-storage uint256",
             "statement_summary": "Compiled execution of require-family clauses followed by return(storage field) (uint256) matches source semantics."
           },
           {
             "name": "compile_require_family_clauses_then_return_storage_addr_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Sequencing theorem for require-clauses + return-storage address",
             "statement_summary": "Compiled execution of require-family clauses followed by return(storage field) (address) matches source semantics."
           },
           {
             "name": "simpleStorageFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleStorage field resolution: storedData \u2192 slot 0",
             "statement_summary": "findFieldWithResolvedSlot simpleStorageFields 'storedData' resolves to ({name := 'storedData', ty := FieldType.uint256}, 0)."
           },
           {
             "name": "simpleStorage_retrieve_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleStorage.retrieve body is in SupportedStmtList",
             "statement_summary": "The SimpleStorage retrieve body [return (storage 'storedData')] belongs to SupportedStmtList simpleStorageFields."
           },
           {
             "name": "simpleStorage_retrieve_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleStorage.retrieve compilation correctness from generic theorem",
             "statement_summary": "SimpleStorage.retrieve compilation correctness: source and compiled semantics are equal, derived from the generic compile_supported_stmt_list_semantics theorem."
           },
           {
             "name": "ownedFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Owned field resolution: owner \u2192 slot 0",
             "statement_summary": "findFieldWithResolvedSlot ownedFields 'owner' resolves to ({name := 'owner', ty := FieldType.address}, 0)."
           },
           {
             "name": "owned_getOwner_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Owned.getOwner body is in SupportedStmtList",
             "statement_summary": "The Owned getOwner body [return (storage 'owner')] belongs to SupportedStmtList ownedFields."
           },
           {
             "name": "owned_getOwner_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Owned.getOwner compilation correctness from generic theorem",
             "statement_summary": "Owned.getOwner compilation correctness: source and compiled semantics are equal, derived from the generic compile_supported_stmt_list_semantics theorem."
           }
@@ -1243,7 +1243,7 @@
         "tests": [
           {
             "name": "simpleStorage_owned_bridge_test_examples",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "2 test examples exercising SimpleStorage.retrieve and Owned.getOwner correctness derivations from generic theorems"
           }
         ]
@@ -1266,21 +1266,21 @@
         "Test examples in TypedIRTests.lean exercise all new bridge correctness theorems."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean",
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean",
         "artifacts/issue_1060_progress.json"
       ],
       "verification_commands": [
-        "lake build Verity.Core.Free.TypedIRCompiler",
-        "lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests",
+        "lake build Compiler.TypedIRCompiler",
+        "lake build Compiler.TypedIRCompilerCorrectness Contracts.TypedIRTests",
         "lake build",
         "python3 scripts/check_issue_1060_integrity.py",
         "python3 scripts/check_proof_length.py"
       ],
       "verification_results": [
-        "pass: lake build Verity.Core.Free.TypedIRCompiler [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
-        "pass: lake build Verity.Core.Free.TypedIRCompilerCorrectness Verity.Core.Free.TypedIRTests [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2; non-blocking warnings: unused evalTExpr simp arg at lines 1042/1055, unnecessary simpa at line 3676]",
+        "pass: lake build Compiler.TypedIRCompiler [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
+        "pass: lake build Compiler.TypedIRCompilerCorrectness Contracts.TypedIRTests [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2; non-blocking warnings: unused evalTExpr simp arg at lines 1042/1055, unnecessary simpa at line 3676]",
         "pass: lake build [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
         "pass: python3 scripts/check_issue_1060_integrity.py [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]",
         "pass: python3 scripts/check_proof_length.py [run_id=2026-03-02T17:34:28Z artifact_sha256=97c0f9e2]"
@@ -1289,124 +1289,124 @@
         "theorems": [
           {
             "name": "compileStmts_require_caller_eq_storage_addr_setStorage_add_storage_literal_stop_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Compiling [require(eq caller (storage ownerField)) msg, setStorage countField (add (storage countField) (literal n)), stop] emits the expected TStmt.if_ with getStorageAddr guard, TStmt.setStorage with add, and TStmt.stop."
           },
           {
             "name": "compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_literal_stop_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "statement_summary": "Compiling [require(eq caller (storage ownerField)) msg, setStorage countField (sub (storage countField) (literal n)), stop] emits the expected TStmt.if_ with getStorageAddr guard, TStmt.setStorage with sub, and TStmt.stop."
           },
           {
             "name": "compile_require_caller_eq_storage_addr_setStorage_add_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source and compiled semantics agree for the require(caller==storage owner) + setStorage(add) + stop pattern under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_caller_eq_storage_addr_setStorage_sub_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Source and compiled semantics agree for the require(caller==storage owner) + setStorage(sub) + stop pattern under explicit field-resolution assumptions."
           },
           {
             "name": "compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_add_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by require(caller==storage) + setStorage(add) + stop, compiled execution matches source semantics."
           },
           {
             "name": "compile_require_family_clauses_then_require_caller_eq_storage_addr_setStorage_sub_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "Sequencing theorem: for unified require guard-family clause lists followed by require(caller==storage) + setStorage(sub) + stop, compiled execution matches source semantics."
           },
           {
             "name": "safeCounterFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "findFieldWithResolvedSlot safeCounterFields 'count' resolves to ({name := 'count', ty := FieldType.uint256}, 0)."
           },
           {
             "name": "safeCounter_getCount_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "SafeCounter.getCount body [return (storage 'count')] belongs to SupportedStmtList safeCounterFields."
           },
           {
             "name": "safeCounter_getCount_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "SafeCounter.getCount compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
           },
           {
             "name": "ownedCounterCountFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "findFieldWithResolvedSlot ownedCounterFields 'count' resolves to ({name := 'count', ty := FieldType.uint256}, 0)."
           },
           {
             "name": "ownedCounterOwnerFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "findFieldWithResolvedSlot ownedCounterFields 'owner' resolves to ({name := 'owner', ty := FieldType.address}, 1)."
           },
           {
             "name": "ownedCounter_getCount_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.getCount body [return (storage 'count')] belongs to SupportedStmtList ownedCounterFields."
           },
           {
             "name": "ownedCounter_getCount_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.getCount compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
           },
           {
             "name": "ownedCounter_getOwner_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.getOwner body [return (storage 'owner')] belongs to SupportedStmtList ownedCounterFields."
           },
           {
             "name": "ownedCounter_getOwner_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.getOwner compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
           },
           {
             "name": "ownedCounter_increment_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.increment body [require(eq caller (storage 'owner')) 'Not owner', setStorage 'count' (add (storage 'count') (literal 1)), stop] belongs to SupportedStmtList ownedCounterFields."
           },
           {
             "name": "ownedCounter_increment_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.increment compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
           },
           {
             "name": "ownedCounter_decrement_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.decrement body [require(eq caller (storage 'owner')) 'Not owner', setStorage 'count' (sub (storage 'count') (literal 1)), stop] belongs to SupportedStmtList ownedCounterFields."
           },
           {
             "name": "ownedCounter_decrement_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "statement_summary": "OwnedCounter.decrement compilation correctness: source and compiled semantics are equal, derived from the generic theorem."
           }
         ],
         "tests": [
           {
             "name": "safeCounter_getCount_test",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Example verifying SafeCounter.getCount correctness theorem instantiation."
           },
           {
             "name": "ownedCounter_getCount_test",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Example verifying OwnedCounter.getCount correctness theorem instantiation."
           },
           {
             "name": "ownedCounter_getOwner_test",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Example verifying OwnedCounter.getOwner correctness theorem instantiation."
           },
           {
             "name": "ownedCounter_increment_test",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Example verifying OwnedCounter.increment correctness theorem instantiation."
           },
           {
             "name": "ownedCounter_decrement_test",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "assertion_summary": "Example verifying OwnedCounter.decrement correctness theorem instantiation."
           }
         ]
@@ -1430,9 +1430,9 @@
         "lake build passes all 1140 modules. Integrity and proof length checks pass."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean"
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean"
       ],
       "verification_commands": [
         "lake build",
@@ -1448,85 +1448,85 @@
         "theorems": [
           {
             "name": "compileStmts_single_return_mapping_caller_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape: return(mapping field caller) \u2192 returnUint(getMapping slot sender)",
             "statement_summary": "compileStmts fields [Stmt.return (Expr.mapping fieldName Expr.caller)] = ok (returnUint (getMapping slot sender))"
           },
           {
             "name": "compile_return_mapping_caller_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for return(mapping field caller): compiled = source (.ok init)",
             "statement_summary": "execCompiledReturnMappingCaller fields fieldName init = execSourceReturnMappingCaller init slot"
           },
           {
             "name": "compile_require_family_clauses_then_return_mapping_caller_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Sequencing: require clauses + return(mapping field caller) preserves semantics",
             "statement_summary": "execCompiledRequireFamilyClausesThenReturnMappingCaller = execSourceRequireFamilyClausesThenReturnMappingCaller"
           },
           {
             "name": "compile_require_family_clauses_then_tail_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Generic tail dispatcher (extended with returnMappingCaller case)",
             "statement_summary": "Extended with case: returnMappingCaller fieldName slot hSlot => simpa using mapping caller semantics"
           },
           {
             "name": "ledgerBalancesFieldSlot",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Ledger field slot: balances \u2192 slot 0",
             "statement_summary": "findFieldSlot ledgerFields \"balances\" = some 0"
           },
           {
             "name": "ledgerBalancesFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Ledger field resolution: balances is a mappingTyped at slot 0",
             "statement_summary": "findFieldWithResolvedSlot ledgerFields \"balances\" = some ({balances, mappingTyped}, 0)"
           },
           {
             "name": "simpleTokenOwnerFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken field resolution: owner is address at slot 0",
             "statement_summary": "findFieldWithResolvedSlot simpleTokenFields \"owner\" = some ({owner, address}, 0)"
           },
           {
             "name": "simpleTokenBalancesFieldSlot",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken field slot: balances \u2192 slot 1",
             "statement_summary": "findFieldSlot simpleTokenFields \"balances\" = some 1"
           },
           {
             "name": "simpleTokenBalancesFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken field resolution: balances is a mappingTyped at slot 1",
             "statement_summary": "findFieldWithResolvedSlot simpleTokenFields \"balances\" = some ({balances, mappingTyped}, 1)"
           },
           {
             "name": "simpleTokenTotalSupplyFieldResolution",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken field resolution: totalSupply is uint256 at slot 2",
             "statement_summary": "findFieldWithResolvedSlot simpleTokenFields \"totalSupply\" = some ({totalSupply, uint256}, 2)"
           },
           {
             "name": "simpleToken_totalSupply_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken.totalSupply body is in the supported fragment grammar",
             "statement_summary": "SupportedStmtList simpleTokenFields [Stmt.return (Expr.storage \"totalSupply\")]"
           },
           {
             "name": "simpleToken_totalSupply_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken.totalSupply compilation correctness bridge theorem",
             "statement_summary": "execCompiledSupportedStmtFragments = execSourceSupportedStmtFragments for totalSupply body"
           },
           {
             "name": "simpleToken_owner_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken.owner body is in the supported fragment grammar",
             "statement_summary": "SupportedStmtList simpleTokenFields [Stmt.return (Expr.storage \"owner\")]"
           },
           {
             "name": "simpleToken_owner_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "SimpleToken.owner compilation correctness bridge theorem",
             "statement_summary": "execCompiledSupportedStmtFragments = execSourceSupportedStmtFragments for owner body"
           }
@@ -1534,37 +1534,37 @@
         "tests": [
           {
             "name": "compiledLedgerGetBalancePreservesState",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "Ledger.getBalance(addr=42) compiles and succeeds via evalTBlock"
           },
           {
             "name": "compiledSimpleTokenBalanceOfPreservesState",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "SimpleToken.balanceOf(addr=42) compiles and succeeds via evalTBlock"
           },
           {
             "name": "compiledSimpleTokenTotalSupplyPreservesState",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "SimpleToken.totalSupply compiles and succeeds via evalTBlock"
           },
           {
             "name": "compiledSimpleTokenOwnerPreservesState",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "SimpleToken.owner compiles and succeeds via evalTBlock"
           },
           {
             "name": "simpleToken_totalSupply_correctness_example",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "SimpleToken.totalSupply bridge correctness theorem instantiation"
           },
           {
             "name": "simpleToken_owner_correctness_example",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "SimpleToken.owner bridge correctness theorem instantiation"
           },
           {
             "name": "compile_return_mapping_caller_semantics_example",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "Mapping return semantics preservation theorem instantiation"
           }
         ]
@@ -1592,9 +1592,9 @@
         "lake build passes all 1140 modules. Integrity and proof length checks pass."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean",
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean",
         "Compiler/Specs.lean"
       ],
       "verification_commands": [
@@ -1611,109 +1611,109 @@
         "theorems": [
           {
             "name": "compileStmts_let_storage_addr_return_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape: letVar tmp (storage field); return (localVar tmp) for address fields.",
             "statement_summary": "compileStmts fields [letVar tmp (storage fieldName), return (localVar tmp)] = ok (...getStorageAddr slot..., returnAddr ...)"
           },
           {
             "name": "compileStmts_let_mapping_param_return_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape: mapping(param) + return from 1-param CompileState.",
             "statement_summary": "compileStmts fields [letVar tmp (mapping fieldName (param p)), return (localVar tmp)] from oneParamState = ok (...getMapping slot (var p)..., returnUint ...)"
           },
           {
             "name": "compileStmts_let_mapping2_params_return_local_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape: mapping2(param1, param2) + return from 2-param CompileState (requires p1\u2260p2).",
             "statement_summary": "compileStmts fields [letVar tmp (mapping2 field (param p1) (param p2)), return (localVar tmp)] from twoParamState = ok (...getMapping2 slot (var p1) (var p2)..., returnUint ...)"
           },
           {
             "name": "compileStmts_let_caller_setMapping2_stop_run",
-            "file": "Verity/Core/Free/TypedIRCompiler.lean",
+            "file": "Compiler/TypedIRCompiler.lean",
             "description": "Compilation shape: approve pattern (caller + setMapping2 + stop) from 2-param mixed state.",
             "statement_summary": "compileStmts fields [letVar s caller, setMapping2 field (localVar s) (param p1) (param p2), stop] from mixedParamState = ok (...let sender; setMapping2 slot sender p1_var p2_var; stop)"
           },
           {
             "name": "compile_let_storage_addr_return_local_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for address storage read + return.",
             "statement_summary": "execCompiledLetStorageAddrReturnLocal fields fieldName tmp init = execSourceLetStorageAddrReturnLocal init slot"
           },
           {
             "name": "compile_let_mapping_param_return_local_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for mapping(param) + return pattern.",
             "statement_summary": "execCompiledLetMappingParamReturnLocal fields fieldName paramName tmp init = execSourceLetMappingParamReturnLocal init slot"
           },
           {
             "name": "compile_let_mapping2_params_return_local_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for mapping2(param1, param2) + return (requires p1\u2260p2).",
             "statement_summary": "execCompiledLetMapping2ParamsReturnLocal fields fieldName p1 p2 tmp init = execSourceLetMapping2ParamsReturnLocal init slot"
           },
           {
             "name": "compile_let_caller_setMapping2_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic preservation for approve pattern with distinctness hypotheses.",
             "statement_summary": "execCompiledLetCallerSetMapping2Stop fields fieldName senderVar p1 p2 init = execSourceLetCallerSetMapping2Stop init slot"
           },
           {
             "name": "erc20_totalSupply_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.totalSupply body belongs to the supported statement fragment grammar.",
             "statement_summary": "SupportedStmtList erc20Fields [letVar \"currentSupply\" (storage \"totalSupplySlot\"), return (localVar \"currentSupply\")]"
           },
           {
             "name": "erc20_totalSupply_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.totalSupply compilation correctness: compiled = source for all initial states.",
             "statement_summary": "\u2203 fragments, toStmts fragments = totalSupply_body \u2227 execCompiled = execSource"
           },
           {
             "name": "erc20_owner_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.owner body belongs to the supported statement fragment grammar.",
             "statement_summary": "SupportedStmtList erc20Fields [letVar \"currentOwner\" (storage \"ownerSlot\"), return (localVar \"currentOwner\")]"
           },
           {
             "name": "erc20_owner_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.owner compilation correctness.",
             "statement_summary": "\u2203 fragments, toStmts fragments = owner_body \u2227 execCompiled = execSource"
           },
           {
             "name": "erc20_balanceOf_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.balanceOf body belongs to the supported statement fragment grammar.",
             "statement_summary": "SupportedStmtList erc20Fields [letVar \"currentBalance\" (mapping \"balancesSlot\" (param \"addr\")), return (localVar \"currentBalance\")]"
           },
           {
             "name": "erc20_balanceOf_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.balanceOf compilation correctness.",
             "statement_summary": "\u2203 fragments, toStmts fragments = balanceOf_body \u2227 execCompiled = execSource"
           },
           {
             "name": "erc20_allowanceOf_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.allowanceOf body belongs to the supported statement fragment grammar.",
             "statement_summary": "SupportedStmtList erc20Fields [letVar \"currentAllowance\" (mapping2 \"allowancesSlot\" (param \"ownerAddr\") (param \"spender\")), return (localVar \"currentAllowance\")]"
           },
           {
             "name": "erc20_allowanceOf_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.allowanceOf compilation correctness.",
             "statement_summary": "\u2203 fragments, toStmts fragments = allowanceOf_body \u2227 execCompiled = execSource"
           },
           {
             "name": "erc20_approve_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.approve body belongs to the supported statement fragment grammar.",
             "statement_summary": "SupportedStmtList erc20Fields [letVar \"sender\" caller, setMapping2 \"allowancesSlot\" (localVar \"sender\") (param \"spender\") (param \"amount\"), stop]"
           },
           {
             "name": "erc20_approve_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC20.approve compilation correctness.",
             "statement_summary": "\u2203 fragments, toStmts fragments = approve_body \u2227 execCompiled = execSource"
           }
@@ -1749,9 +1749,9 @@
         "`lake build` passes all 1140 modules with 0 errors."
       ],
       "files_changed": [
-        "Verity/Core/Free/TypedIRCompiler.lean",
-        "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
-        "Verity/Core/Free/TypedIRTests.lean",
+        "Compiler/TypedIRCompiler.lean",
+        "Compiler/TypedIRCompilerCorrectness.lean",
+        "Contracts/TypedIRTests.lean",
         "Compiler/Specs.lean"
       ],
       "verification_commands": [
@@ -1770,37 +1770,37 @@
         "theorems": [
           {
             "name": "erc721_getApproved_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC721.getApproved body belongs to the supported statement fragment grammar",
             "statement_summary": "SupportedStmtList erc721Fields [letVar approvedWord (mappingUint tokenApprovalsSlot (param tokenId)), return (localVar approvedWord)]"
           },
           {
             "name": "erc721_getApproved_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC721.getApproved compilation correctness: compiled and source semantics agree",
             "statement_summary": "∃ fragments, supportedStmtFragmentsToStmts fragments = [getApproved stmts] ∧ execCompiled = execSource"
           },
           {
             "name": "erc721_approve_supported",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC721.approve body belongs to the supported statement fragment grammar",
             "statement_summary": "SupportedStmtList erc721Fields [setMappingUint tokenApprovalsSlot (param tokenId) (param approved), stop]"
           },
           {
             "name": "erc721_approve_correctness",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "ERC721.approve compilation correctness: compiled and source semantics agree",
             "statement_summary": "∃ fragments, supportedStmtFragmentsToStmts fragments = [approve stmts] ∧ execCompiled = execSource"
           },
           {
             "name": "compile_let_mappingUint_param_return_local_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic-preservation for Uint256-keyed mapping read + return pattern",
             "statement_summary": "execCompiledLetMappingUintParamReturnLocal = execSourceLetMappingUintParamReturnLocal"
           },
           {
             "name": "compile_setMappingUint_params_stop_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Semantic-preservation for Uint256-keyed setMappingUint + stop pattern",
             "statement_summary": "execCompiledSetMappingUintParamsStop = execSourceSetMappingUintParamsStop"
           }
@@ -1808,22 +1808,22 @@
         "tests": [
           {
             "name": "compiledERC721GetApprovedPreservesState",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "End-to-end ERC721.getApproved: compiled block executes without reverting (native_decide)"
           },
           {
             "name": "compiledERC721ApprovePreservesState",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "End-to-end ERC721.approve: compiled block executes without reverting (native_decide)"
           },
           {
             "name": "erc721_getApproved_correctness_instantiation",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "ERC721.getApproved correctness theorem instantiation example"
           },
           {
             "name": "erc721_approve_correctness_instantiation",
-            "file": "Verity/Core/Free/TypedIRTests.lean",
+            "file": "Contracts/TypedIRTests.lean",
             "description": "ERC721.approve correctness theorem instantiation example"
           }
         ]
@@ -1944,7 +1944,7 @@
         "theorems": [
           {
             "name": "compile_require_family_clauses_then_tail_semantics",
-            "file": "Verity/Core/Free/TypedIRCompilerCorrectness.lean",
+            "file": "Compiler/TypedIRCompilerCorrectness.lean",
             "description": "Generic correctness theorem for require-guard + continuation pattern; fully proven with zero sorry, covering all 36 supported statement fragment constructors",
             "statement_summary": "∀ fields init clauses tail, execCompiledRequireFamilyClausesThenTail = execSourceRequireFamilyClausesThenTail (zero sorry, all cases proven)"
           }

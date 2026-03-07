@@ -13,9 +13,6 @@ lean_lib «Compiler» where
     .andSubmodules `Compiler,
     .one `Verity.Macro,
     .andSubmodules `Verity.Macro,
-    .one `Verity.Core.Free.TypedIRCompiler,
-    .one `Verity.Core.Free.TypedIRCompilerCorrectness,
-    .one `Verity.Core.Free.TypedIRLowering,
     .one `Verity.Proofs.Stdlib.Automation,
     .one `Verity.Proofs.Stdlib.MappingAutomation
   ]

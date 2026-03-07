@@ -39,7 +39,7 @@ EVM Bytecode
 
 > **Note**: Stdlib (0 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (273 total properties).
 
-Layer 1 uses macro-generated bridge theorems backed by a generic typed-IR compilation-correctness theorem ([`TypedIRCompilerCorrectness.lean`](../Verity/Core/Free/TypedIRCompilerCorrectness.lean)). Advanced constructs (linked libraries, ECMs, custom ABI) are expressed directly in `CompilationModel` and trusted at that boundary.
+Layer 1 uses macro-generated bridge theorems backed by a generic typed-IR compilation-correctness theorem ([`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)). Advanced constructs (linked libraries, ECMs, custom ABI) are expressed directly in `CompilationModel` and trusted at that boundary.
 
 ### Lowering Bridge
 

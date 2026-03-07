@@ -91,7 +91,7 @@ EVM Bytecode
 
 | Layer | What it proves | Key file |
 |-------|---------------|----------|
-| 1 | EDSL execution = CompilationModel interpretation | [TypedIRCompilerCorrectness.lean](Verity/Core/Free/TypedIRCompilerCorrectness.lean) |
+| 1 | EDSL execution = CompilationModel interpretation | [TypedIRCompilerCorrectness.lean](Compiler/TypedIRCompilerCorrectness.lean) |
 | 2 | CompilationModel → IR preserves behavior | [IRInterpreter.lean](Compiler/Proofs/IRGeneration/IRInterpreter.lean) |
 | 3 | IR → Yul codegen preserves behavior | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 

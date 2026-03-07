@@ -1,4 +1,4 @@
-import Verity.Core.Free.TypedIRCompiler
+import Compiler.TypedIRCompiler
 
 namespace Verity.Core.Free
 open Compiler.CompilationModel
