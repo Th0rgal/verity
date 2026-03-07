@@ -125,7 +125,7 @@ class GenerateContractFunctionSignatureValidationTests(unittest.TestCase):
 
 
 class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
-    def test_getter_scaffold_is_explicit_todo_placeholder(self) -> None:
+    def test_scalar_getter_scaffold_reads_seeded_slot_and_preserves_storage(self) -> None:
         cfg = ContractConfig(
             name="Demo",
             fields=[Field(name="storedValue", ty="uint256")],
@@ -134,13 +134,47 @@ class GenerateContractGetterPropertyScaffoldTests(unittest.TestCase):
 
         out = gen_property_tests(cfg)
         self.assertIn(
-            "function testTODO_GetStoredValue_GetterNeedsSpecAssertions() public {",
+            "function testProperty_GetStoredValue_MeetsSpec() public {",
             out,
         )
-        self.assertIn("Property TODO: getStoredValue_meets_spec", out)
+        self.assertIn("Property: getStoredValue_meets_spec", out)
+        self.assertIn("vm.store(target, bytes32(uint256(0)), bytes32(uint256(1337)));", out)
+        self.assertIn("uint256 decoded = abi.decode(ret, (uint256));", out)
+        self.assertIn('assertEq(decoded, 1337, "getter should return seeded uint256 slot");', out)
+        self.assertIn('assertEq(readStorage(0), slot0Before, "slot 0 unchanged by getter");', out)
+
+    def test_mapping_getter_scaffold_reads_seeded_entry_and_preserves_storage(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[Field(name="balances", ty="mapping")],
+            functions=[Function(name="getBalance", params=[Param(name="account", ty="address")])],
+        )
+
+        out = gen_property_tests(cfg)
+        self.assertIn("function testProperty_GetBalance_MeetsSpec() public {", out)
+        self.assertIn("setBalancesInStorage(alice, 1337);", out)
+        self.assertIn("uint256 balancesBefore = getBalancesFromStorage(alice);", out)
+        self.assertIn("abi.encodeWithSignature(\"getBalance(address)\", alice)", out)
+        self.assertIn('assertEq(decoded, 1337, "getter should return seeded mapping entry");', out)
+        self.assertIn(
+            'assertEq(getBalancesFromStorage(alice), balancesBefore, "balances mapping entry unchanged by getter");',
+            out,
+        )
+
+    def test_predicate_getter_scaffold_stays_explicit_todo(self) -> None:
+        cfg = ContractConfig(
+            name="Demo",
+            fields=[Field(name="owner", ty="address")],
+            functions=[Function(name="isOwner", params=[])],
+        )
+
+        out = gen_property_tests(cfg)
+        self.assertIn(
+            "function testTODO_IsOwner_GetterNeedsSpecAssertions() public {",
+            out,
+        )
+        self.assertIn("Property TODO: isOwner_meets_spec", out)
         self.assertIn("revert(\"TODO: implement getter property assertions\");", out)
-        self.assertNotIn("bytes memory data", out)
-        self.assertNotIn("assertEq(readStorage(0), slot0Before", out)
 
     def test_non_getter_scaffold_keeps_meets_spec_template(self) -> None:
         cfg = ContractConfig(

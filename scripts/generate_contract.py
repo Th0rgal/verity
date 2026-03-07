@@ -893,19 +893,89 @@ def _gen_single_test(
         encode_args = f'"{sol_sig}"'
 
     if is_getter:
-        return f"""    //═══════════════════════════════════════════════════════════════════════
+        getter_prefix = _getter_prefix(fn.name)
+        if getter_prefix in ("is", "has"):
+            return f"""    //═══════════════════════════════════════════════════════════════════════
     // Property {idx + 1}: TODO_{fn.name}_meets_spec
-    // Getter theorem extraction requires manual return/storage assertions.
+    // Predicate getter extraction still needs manual boolean semantics.
     //═══════════════════════════════════════════════════════════════════════
 
     /// Property TODO: {fn.name}_meets_spec
     function testTODO_{camel}_GetterNeedsSpecAssertions() public {{
-        // TODO: Implement getter-specific checks:
+        // TODO: Implement predicate-specific checks:
         // 1) set up deterministic storage,
         // 2) decode return data from `{fn.name}`,
-        // 3) assert decoded value matches spec/state,
-        // 4) assert no unintended storage mutation (all relevant slots/mappings).
+        // 3) assert decoded boolean matches spec/state,
+        // 4) assert no unintended storage mutation.
         revert("TODO: implement getter property assertions");
+    }}
+"""
+
+        target = _require_getter_target_field(fn, cfg.fields)
+        target_slot = _field_slot(cfg.fields, target)
+        helper_field_name = f"{target.name[0].upper()}{target.name[1:]}"
+
+        setup_lines: list[str] = []
+        if target.is_mapping:
+            sample_key = "42" if target.ty == "mapping_uint" else "alice"
+            setup_lines.append(f"        set{helper_field_name}InStorage({sample_key}, 1337);")
+            decoded_ty = "uint256"
+            decode_assertion = '        assertEq(decoded, 1337, "getter should return seeded mapping entry");'
+        elif target.ty == "address":
+            setup_lines.append(
+                f"        vm.store(target, bytes32(uint256({target_slot})), bytes32(uint256(uint160(alice))));"
+            )
+            decoded_ty = "address"
+            decode_assertion = '        assertEq(decoded, alice, "getter should return seeded address slot");'
+        else:
+            setup_lines.append(
+                f"        vm.store(target, bytes32(uint256({target_slot})), bytes32(uint256(1337)));"
+            )
+            decoded_ty = "uint256"
+            decode_assertion = '        assertEq(decoded, 1337, "getter should return seeded uint256 slot");'
+
+        snapshot_lines: list[str] = []
+        assertion_lines: list[str] = []
+        for slot_idx, field in enumerate(cfg.fields):
+            if field.is_mapping:
+                helper_name = f"{field.name[0].upper()}{field.name[1:]}"
+                key_expr = "42" if field.ty == "mapping_uint" else "alice"
+                before_name = f"{field.name}Before"
+                snapshot_lines.append(
+                    f"        uint256 {before_name} = get{helper_name}FromStorage({key_expr});"
+                )
+                assertion_lines.append(
+                    f'        assertEq(get{helper_name}FromStorage({key_expr}), {before_name}, "{field.name} mapping entry unchanged by getter");'
+                )
+            else:
+                before_name = f"slot{slot_idx}Before"
+                snapshot_lines.append(
+                    f"        uint256 {before_name} = readStorage({slot_idx});"
+                )
+                assertion_lines.append(
+                    f'        assertEq(readStorage({slot_idx}), {before_name}, "slot {slot_idx} unchanged by getter");'
+                )
+
+        return f"""    //═══════════════════════════════════════════════════════════════════════
+    // Property {idx + 1}: {fn.name}_meets_spec
+    // Inferred getter scaffold seeds storage, decodes the return value, and
+    // checks that the getter does not mutate known storage slots.
+    //═══════════════════════════════════════════════════════════════════════
+
+    /// Property: {fn.name}_meets_spec
+    function testProperty_{camel}_MeetsSpec() public {{
+{chr(10).join(setup_lines)}
+{chr(10).join(snapshot_lines)}
+
+        (bool success, bytes memory ret) = target.call(
+            abi.encodeWithSignature({encode_args})
+        );
+        require(success, "{fn.name} call failed");
+
+        {decoded_ty} decoded = abi.decode(ret, ({decoded_ty}));
+{decode_assertion}
+
+{chr(10).join(assertion_lines)}
     }}
 """
     else:
