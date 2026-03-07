@@ -51,4 +51,8 @@ contract StringSmokeTest is Test, YulTestBase {
             "string support should round-trip through the generated yul runtime without truncation"
         );
     }
+
+    function testEchoStringUtf8Multibyte() public {
+        _assertEchoParity(unicode"Verity grüßt the 🌍");
+    }
 }
