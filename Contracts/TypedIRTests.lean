@@ -2497,8 +2497,14 @@ private def simpleTokenMintOwnerAgreement : Bool :=
   let init : TExecState :=
     { world := { Verity.defaultState with
         storageAddr := fun s => if s = 0 then 0xA11CE else 0,
-        storageMap := fun s addr => if s = 1 && addr = 0xBEEF then 7 else 0,
-        «storage» := fun s => if s = 2 then 100 else 0 }
+        storageMap := fun s addr =>
+          if s = 1 && addr = 0xBEEF then 7
+          else if s = 1 && addr = 0xF00D then 99
+          else 0,
+        «storage» := fun s =>
+          if s = 2 then 100
+          else if s = 9 then 444
+          else 0 }
       env := { Verity.Env.ofWorld Verity.defaultState with sender := 0xA11CE }
       vars := { address := fun i => if i = 0 then 0xBEEF else 0
                 uint256 := fun i => if i = 1 then 5 else 0 } }
@@ -2512,8 +2518,22 @@ private def simpleTokenMintOwnerAgreement : Bool :=
   | .ok c, .ok s =>
       c.world.storageMap 1 0xBEEF = 12 &&
       c.world.storage 2 = 105 &&
+      c.world.storageMap 1 0xF00D = 99 &&
+      c.world.storage 9 = 444 &&
+      c.world.storageAddr 0 = 0xA11CE &&
+      c.vars.address 2 = 0xA11CE &&
+      c.vars.address 3 = 0xA11CE &&
+      c.vars.uint256 4 = 7 &&
+      c.vars.uint256 5 = 100 &&
       c.world.storageMap 1 0xBEEF = s.world.storageMap 1 0xBEEF &&
-      c.world.storage 2 = s.world.storage 2
+      c.world.storage 2 = s.world.storage 2 &&
+      c.world.storageMap 1 0xF00D = s.world.storageMap 1 0xF00D &&
+      c.world.storage 9 = s.world.storage 9 &&
+      c.world.storageAddr 0 = s.world.storageAddr 0 &&
+      c.vars.address 2 = s.vars.address 2 &&
+      c.vars.address 3 = s.vars.address 3 &&
+      c.vars.uint256 4 = s.vars.uint256 4 &&
+      c.vars.uint256 5 = s.vars.uint256 5
   | _, _ => false
 
 example : simpleTokenMintOwnerAgreement = true := by
@@ -2691,8 +2711,14 @@ private def erc20MintOwnerAgreement : Bool :=
   let init : TExecState :=
     { world := { Verity.defaultState with
         storageAddr := fun s => if s = 0 then 0xCAFE else 0,
-        storageMap := fun s addr => if s = 2 && addr = 0xD00D then 11 else 0,
-        «storage» := fun s => if s = 1 then 250 else 0 }
+        storageMap := fun s addr =>
+          if s = 2 && addr = 0xD00D then 11
+          else if s = 2 && addr = 0xABCD then 77
+          else 0,
+        «storage» := fun s =>
+          if s = 1 then 250
+          else if s = 8 then 333
+          else 0 }
       env := { Verity.Env.ofWorld Verity.defaultState with sender := 0xCAFE }
       vars := { address := fun i => if i = 0 then 0xD00D else 0
                 uint256 := fun i => if i = 1 then 9 else 0 } }
@@ -2706,8 +2732,22 @@ private def erc20MintOwnerAgreement : Bool :=
   | .ok c, .ok s =>
       c.world.storageMap 2 0xD00D = 20 &&
       c.world.storage 1 = 259 &&
+      c.world.storageMap 2 0xABCD = 77 &&
+      c.world.storage 8 = 333 &&
+      c.world.storageAddr 0 = 0xCAFE &&
+      c.vars.address 2 = 0xCAFE &&
+      c.vars.address 3 = 0xCAFE &&
+      c.vars.uint256 4 = 11 &&
+      c.vars.uint256 5 = 250 &&
       c.world.storageMap 2 0xD00D = s.world.storageMap 2 0xD00D &&
-      c.world.storage 1 = s.world.storage 1
+      c.world.storage 1 = s.world.storage 1 &&
+      c.world.storageMap 2 0xABCD = s.world.storageMap 2 0xABCD &&
+      c.world.storage 8 = s.world.storage 8 &&
+      c.world.storageAddr 0 = s.world.storageAddr 0 &&
+      c.vars.address 2 = s.vars.address 2 &&
+      c.vars.address 3 = s.vars.address 3 &&
+      c.vars.uint256 4 = s.vars.uint256 4 &&
+      c.vars.uint256 5 = s.vars.uint256 5
   | _, _ => false
 
 example : erc20MintOwnerAgreement = true := by
