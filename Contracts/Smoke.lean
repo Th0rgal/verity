@@ -69,6 +69,18 @@ verity_contract StringSmoke where
   function echoString (message : String) : String := do
     returnBytes message
 
+/--
+error: storage field cannot be String; use Uint256 encoding
+-/
+#guard_msgs in
+verity_contract StringStorageUnsupported where
+  storage
+    label : String := slot 0
+
+  function echoString () : Unit := do
+    pure ()
+end StringStorageUnsupported
+
 verity_contract TupleSmoke where
   storage
     values : Uint256 → Uint256 := slot 0
