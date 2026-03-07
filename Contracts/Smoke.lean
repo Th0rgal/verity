@@ -1,4 +1,5 @@
 import Contracts.Common
+import Compiler.CheckContract
 import Contracts.Counter.Counter
 import Contracts.SimpleStorage.SimpleStorage
 import Contracts.Owned.Owned

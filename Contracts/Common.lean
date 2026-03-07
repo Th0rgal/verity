@@ -1,3 +1,4 @@
+import Compiler.CompilationModel
 import Verity.Core
 import Verity.EVM.Uint256
 import Verity.Macro
