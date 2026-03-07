@@ -177,6 +177,60 @@ private theorem bridge_eval_xor_normalized (a b : Nat) :
   rw [Nat.mod_eq_of_lt]
   exact Nat.xor_lt_two_pow (word_lt_uint256_size a) (word_lt_uint256_size b)
 
+private theorem bridge_eval_shl_normalized (shift value : Nat) :
+    evalPureBuiltinViaEvmYulLean "shl" [shift, value] =
+      (if shift % EvmYul.UInt256.size < 256 then
+        some (((value % EvmYul.UInt256.size) * 2 ^ (shift % EvmYul.UInt256.size)) %
+          EvmYul.UInt256.size)
+      else
+        some 0) := by
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftLeft (EvmYul.UInt256.ofNat value) (EvmYul.UInt256.ofNat shift))) =
+      (if shift % EvmYul.UInt256.size < 256 then
+        some (((value % EvmYul.UInt256.size) * 2 ^ (shift % EvmYul.UInt256.size)) %
+          EvmYul.UInt256.size)
+      else
+        some 0)
+  by_cases hs : shift % EvmYul.UInt256.size < 256
+  · have hs' : ¬ 256 ≤ (EvmYul.UInt256.ofNat shift).val := by
+      change ¬ 256 ≤ shift % EvmYul.UInt256.size
+      exact Nat.not_le_of_lt hs
+    simp [hs, EvmYul.UInt256.shiftLeft, EvmYul.UInt256.toNat, hs', Nat.shiftLeft_eq]
+    change (value % EvmYul.UInt256.size) * 2 ^ (shift % EvmYul.UInt256.size) %
+        EvmYul.UInt256.size =
+      value * 2 ^ (shift % EvmYul.UInt256.size) % EvmYul.UInt256.size
+    rw [Nat.mul_mod, Nat.mul_mod]
+    simp
+  · have hs' : 256 ≤ (EvmYul.UInt256.ofNat shift).val := by
+      change 256 ≤ shift % EvmYul.UInt256.size
+      exact Nat.not_lt.mp hs
+    simp [hs, EvmYul.UInt256.shiftLeft, EvmYul.UInt256.toNat, hs']
+
+private theorem bridge_eval_shr_normalized (shift value : Nat) :
+    evalPureBuiltinViaEvmYulLean "shr" [shift, value] =
+      (if shift % EvmYul.UInt256.size < 256 then
+        some ((value % EvmYul.UInt256.size) / 2 ^ (shift % EvmYul.UInt256.size))
+      else
+        some 0) := by
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.shiftRight (EvmYul.UInt256.ofNat value) (EvmYul.UInt256.ofNat shift))) =
+      (if shift % EvmYul.UInt256.size < 256 then
+        some ((value % EvmYul.UInt256.size) / 2 ^ (shift % EvmYul.UInt256.size))
+      else
+        some 0)
+  by_cases hs : shift % EvmYul.UInt256.size < 256
+  · have hs' : ¬ 256 ≤ (EvmYul.UInt256.ofNat shift).val := by
+      change ¬ 256 ≤ shift % EvmYul.UInt256.size
+      exact Nat.not_le_of_lt hs
+    simp [hs, EvmYul.UInt256.shiftRight, EvmYul.UInt256.toNat, hs', Nat.shiftRight_eq_div_pow]
+    change value % EvmYul.UInt256.size / 2 ^ (shift % EvmYul.UInt256.size) =
+      value % EvmYul.UInt256.size / 2 ^ (shift % EvmYul.UInt256.size)
+    rfl
+  · have hs' : 256 ≤ (EvmYul.UInt256.ofNat shift).val := by
+      change 256 ≤ shift % EvmYul.UInt256.size
+      exact Nat.not_lt.mp hs
+    simp [hs, EvmYul.UInt256.shiftRight, EvmYul.UInt256.toNat, hs']
+
 @[simp] theorem evalBuiltinCall_add_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "add" [a, b] =
@@ -287,6 +341,34 @@ EVMYulLean UInt256 semantics on all inputs. -/
   simp [EvmYul.UInt256.size, evmModulus]
   rfl
 
+/-- Universal bridge theorem for `shl`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_shl_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCall storage sender selector calldata "shl" [shift, value] =
+      evalPureBuiltinViaEvmYulLean "shl" [shift, value] := by
+  rw [show evalBuiltinCall storage sender selector calldata "shl" [shift, value] =
+      (if shift % evmModulus < 256 then
+        some (((value % evmModulus) * 2 ^ (shift % evmModulus)) % evmModulus)
+      else
+        some 0) by simp [evalBuiltinCall]]
+  rw [bridge_eval_shl_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
+/-- Universal bridge theorem for `shr`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_shr_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCall storage sender selector calldata "shr" [shift, value] =
+      evalPureBuiltinViaEvmYulLean "shr" [shift, value] := by
+  rw [show evalBuiltinCall storage sender selector calldata "shr" [shift, value] =
+      (if shift % evmModulus < 256 then
+        some ((value % evmModulus) / 2 ^ (shift % evmModulus))
+      else
+        some 0) by simp [evalBuiltinCall]]
+  rw [bridge_eval_shr_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_add_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "add" [a, b] =
@@ -358,5 +440,17 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "xor" [a, b] =
       evalBuiltinCall storage sender selector calldata "xor" [a, b] := by
   simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_xor_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shl_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "shl" [shift, value] =
+      evalBuiltinCall storage sender selector calldata "shl" [shift, value] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_shl_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shr_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "shr" [shift, value] =
+      evalBuiltinCall storage sender selector calldata "shr" [shift, value] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_shr_bridge]
 
 end Compiler.Proofs.YulGeneration.Backends

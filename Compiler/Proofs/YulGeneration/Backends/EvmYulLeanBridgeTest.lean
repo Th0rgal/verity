@@ -240,6 +240,12 @@ example : verityEval "shl" [Compiler.Constants.evmModulus, 3] =
 example : verityEval "shl" [Compiler.Constants.evmModulus - 1, 3] =
           bridgeEval "shl" [Compiler.Constants.evmModulus - 1, 3] := by native_decide
 
+/-- Universal bridge theorem for `shl` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCall storage sender selector calldata "shl" [shift, value] =
+      evalPureBuiltinViaEvmYulLean "shl" [shift, value] := by
+  exact evalBuiltinCall_shl_bridge storage sender selector calldata shift value
+
 /-- shr: 256 >> 8 = 1 -/
 example : verityEval "shr" [8, 256] = bridgeEval "shr" [8, 256] := by native_decide
 
@@ -250,6 +256,12 @@ example : verityEval "shr" [Compiler.Constants.evmModulus, Compiler.Constants.ev
 /-- shr: very large uint256 shift (2^256 - 1) saturates to 0. -/
 example : verityEval "shr" [Compiler.Constants.evmModulus - 1, 12345] =
           bridgeEval "shr" [Compiler.Constants.evmModulus - 1, 12345] := by native_decide
+
+/-- Universal bridge theorem for `shr` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
+    evalBuiltinCall storage sender selector calldata "shr" [shift, value] =
+      evalPureBuiltinViaEvmYulLean "shr" [shift, value] := by
+  exact evalBuiltinCall_shr_bridge storage sender selector calldata shift value
 
 -- ## Scope boundary: state-dependent builtins fall through to none
 
@@ -292,7 +304,8 @@ def main : IO Unit := do
   IO.println "✓ Arithmetic builtins: add, sub, mul, div — universally bridged"
   IO.println "✓ Arithmetic builtins: mod — universally bridged"
   IO.println "✓ Comparison builtins: lt, gt, eq, iszero — universally bridged"
-  IO.println "✓ Bitwise builtins: and, or, xor, not, shl, shr — Verity ≡ EVMYulLean"
+  IO.println "✓ Bitwise builtins: and, or, xor, shl, shr — universally bridged"
+  IO.println "✓ Bitwise builtin: not — concrete bridge coverage retained"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload — correctly delegated"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Adapter: all 11 statement types lower without error"
