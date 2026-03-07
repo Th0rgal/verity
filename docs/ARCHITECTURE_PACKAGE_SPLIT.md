@@ -35,19 +35,21 @@ The repo has made substantial progress since this RFC was written:
 - Split-package builds are checked independently in CI.
 - Compiler-to-contract import boundaries are enforced and currently pass on `main`.
 
-The remaining package-split work is now narrower and lives on the EDSL side:
+The remaining package-split work is now narrower and lives on the compiler-owned
+bridge surface:
 
-- `Verity/Macro.lean` imports `Compiler.CompilationModel`.
-- `Verity/Macro/Check.lean` imports `Compiler.CompilationModel` and `Compiler.Selector`.
-- `Verity/Proofs/Stdlib/Automation.lean` imports `Compiler.CompilationModel`.
-- `Verity/Proofs/Stdlib/MappingAutomation.lean` depends on compiler-owned automation helpers.
+- `verity-edsl` exports only `Verity.*` modules.
+- `verity-examples` exports only `Contracts.*` modules.
+- `verity-compiler` exports `Compiler.*` plus a small, explicit `Verity.*`
+  bridge surface (`Verity.Macro` and proof automation helpers) that still sits
+  above compiler types.
 
 The typed-IR compiler, lowering, correctness, and test modules now live under
-`Compiler/`, which matches the package split more closely. The remaining work is
-to move shared interface types out of `Compiler`, relocate the remaining
-compiler-owned automation helpers out of `Verity`, and keep shrinking the
-EDSL-to-compiler surface until the dependency direction is strict in both
-package and root-repo builds.
+`Compiler/`, which matches the package split more closely. CI now enforces both
+import-direction checks and package-glob ownership checks, so the remaining work
+is structural: move the shared interface types out of `Compiler` and then shrink
+or eliminate the temporary `Verity.*` bridge surface carried by
+`verity-compiler`.
 
 ## Package responsibilities
 
