@@ -174,12 +174,18 @@ macro "verity_spec " spec:simpLemma " with " extra:simpLemma : tactic =>
 macro "verity_arith" : tactic =>
   `(tactic|
     first
-      | exact Verity.Proofs.Stdlib.Math.safeAdd_none _ _ (by first | assumption | omega)
-      | exact Verity.Proofs.Stdlib.Math.safeSub_none _ _ (by first | assumption | omega)
-      | exact Verity.Proofs.Stdlib.Math.safeMul_none _ _ (by first | assumption | omega)
-      | exact safeAdd_some_val _ _ (by first | assumption | omega)
-      | exact safeSub_some_val _ _ (by first | assumption | omega)
-      | exact Verity.Proofs.Stdlib.Math.safeMul_some _ _ (by first | assumption | omega)
+      | simpa using
+          (Verity.Proofs.Stdlib.Math.safeAdd_none _ _ (by first | assumption | omega))
+      | simpa using
+          (Verity.Proofs.Stdlib.Math.safeSub_none _ _ (by first | assumption | omega))
+      | simpa using
+          (Verity.Proofs.Stdlib.Math.safeMul_none _ _ (by first | assumption | omega))
+      | simpa using
+          (Verity.Proofs.Stdlib.Automation.safeAdd_some_val _ _ (by first | assumption | omega))
+      | simpa using
+          (Verity.Proofs.Stdlib.Automation.safeSub_some_val _ _ (by first | assumption | omega))
+      | simpa using
+          (Verity.Proofs.Stdlib.Math.safeMul_some _ _ (by first | assumption | omega))
       | simpa [safeAdd_some_iff_le, safeAdd_none_iff_gt,
           safeSub_some_iff_ge, safeSub_none_iff_lt,
           safeMul_some_iff_le, safeMul_none_iff_gt]
