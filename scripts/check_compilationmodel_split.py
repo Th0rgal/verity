@@ -24,8 +24,11 @@ def _render_path(path: Path) -> str:
 
 def _discover_expected_imports(submodule_dir: Path) -> list[str]:
     modules: list[str] = []
-    for path in sorted(submodule_dir.glob("*.lean")):
-        modules.append(f"Compiler.CompilationModel.{path.stem}")
+    for path in sorted(submodule_dir.rglob("*.lean")):
+        relative = path.relative_to(submodule_dir).with_suffix("")
+        modules.append(
+            "Compiler.CompilationModel." + ".".join(relative.parts)
+        )
     return modules
 
 

@@ -27,7 +27,9 @@ class CheckCompilationModelSplitTests(unittest.TestCase):
         module_dir = compiler_dir / "CompilationModel"
         module_dir.mkdir(parents=True)
         for name in submodules:
-            (module_dir / f"{name}.lean").write_text("-- stub\n", encoding="utf-8")
+            module_path = module_dir / Path(*name.split("."))
+            module_path.parent.mkdir(parents=True, exist_ok=True)
+            module_path.with_suffix(".lean").write_text("-- stub\n", encoding="utf-8")
         facade = compiler_dir / "CompilationModel.lean"
         facade.write_text(facade_text, encoding="utf-8")
         return facade, module_dir
@@ -115,6 +117,23 @@ class CheckCompilationModelSplitTests(unittest.TestCase):
                 rc = checker.check_compilationmodel_split(facade=facade, submodule_dir=module_dir)
         self.assertEqual(rc, 1)
         self.assertIn("unexpected Compiler.Other", stderr.getvalue())
+
+    def test_requires_nested_submodule_imports(self) -> None:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tempdir_str:
+            tempdir = Path(tempdir_str)
+            facade, module_dir = self._make_layout(
+                tempdir,
+                facade_text=(
+                    "import Compiler.CompilationModel.Types\n"
+                    "import Compiler.CompilationModel.Deep.Walker\n"
+                ),
+                submodules=("Types", "Deep.Walker"),
+            )
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                rc = checker.check_compilationmodel_split(facade=facade, submodule_dir=module_dir)
+        self.assertEqual(rc, 0)
+        self.assertIn("CompilationModel split check passed", stdout.getvalue())
 
 
 if __name__ == "__main__":
