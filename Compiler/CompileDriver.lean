@@ -5,6 +5,7 @@ import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ABI
 import Compiler.ModuleInput
+import Compiler.CompilationModel.TrustSurface
 
 open Compiler
 open Compiler.Yul
@@ -32,6 +33,9 @@ private def renderPatchReportTsv (rows : List (String × Yul.PatchPassReport)) :
 
 private def writePatchReport (path : String) (rows : List (String × Yul.PatchPassReport)) : IO Unit := do
   IO.FS.writeFile path (renderPatchReportTsv rows)
+
+private def writeTrustReport (path : String) (specs : List CompilationModel) : IO Unit := do
+  IO.FS.writeFile path (emitTrustReportJson specs ++ "\n")
 
 private def writeContract
     (outDir : String)
@@ -76,6 +80,7 @@ def compileSpecsWithOptions
     (libraryPaths : List String)
     (options : YulEmitOptions)
     (patchReportPath : Option String)
+    (trustReportPath : Option String)
     (abiOutDir : Option String) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
@@ -112,8 +117,45 @@ def compileSpecsWithOptions
       if verbose then
         IO.println s!"✓ Wrote patch report: {path}"
   | none => pure ()
+  match trustReportPath with
+  | some path =>
+      writeTrustReport path specs
+      if verbose then
+        IO.println s!"✓ Wrote trust report: {path}"
+  | none => pure ()
   -- Axiom aggregation report (verbose mode)
   if verbose then
+    IO.println ""
+    IO.println "Low-level mechanics report:"
+    let mut anyMechanics := false
+    for spec in specs do
+      let mechanics := collectLowLevelMechanics spec
+      if !mechanics.isEmpty then
+        anyMechanics := true
+        IO.println s!"  {spec.name}: {String.intercalate ", " mechanics}"
+    if !anyMechanics then
+      IO.println "  (no first-class low-level call or returndata primitives used)"
+    IO.println "  Proof boundary: mechanics are lowered natively by the compiler; current proof interpreters do not model these primitives, and callee behavior remains assumption-backed unless discharged separately."
+    IO.println ""
+    IO.println "External assumption report:"
+    let mut anyExternalAssumptions := false
+    for spec in specs do
+      let externals := collectUsedExternalAssumptions spec
+      let ecmAxioms := collectEcmAxioms spec
+      if !externals.isEmpty || !ecmAxioms.isEmpty then
+        anyExternalAssumptions := true
+        IO.println s!"  {spec.name}:"
+        if !externals.isEmpty then
+          for (name, axioms) in externals do
+            let renderedAxioms :=
+              if axioms.isEmpty then "(no declared axioms)"
+              else String.intercalate ", " axioms
+            IO.println s!"    [linked:{name}] {renderedAxioms}"
+        if !ecmAxioms.isEmpty then
+          for (modName, assumption) in ecmAxioms do
+            IO.println s!"    [ecm:{modName}] {assumption}"
+    if !anyExternalAssumptions then
+      IO.println "  (no linked external assumptions or ECM axioms)"
     IO.println ""
     IO.println "ECM axiom report:"
     let mut anyAxioms := false
@@ -138,9 +180,10 @@ unsafe def compileModulesWithOptions
     (libraryPaths : List String := [])
     (options : YulEmitOptions := {})
     (patchReportPath : Option String := none)
+    (trustReportPath : Option String := none)
     (abiOutDir : Option String := none) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
     | .error err => throw (IO.userError err)
-  compileSpecsWithOptions specs outDir verbose libraryPaths options patchReportPath abiOutDir
+  compileSpecsWithOptions specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir

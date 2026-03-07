@@ -26,6 +26,7 @@ private structure CLIArgs where
   patchMaxIterations : Nat := 2
   patchMaxIterationsExplicit : Bool := false
   patchReportPath : Option String := none
+  trustReportPath : Option String := none
   mappingSlotScratchBase : Nat := 0
   mappingSlotScratchBaseExplicit : Bool := false
 
@@ -79,6 +80,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --enable-patches   Enable deterministic Yul patch pass"
         IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
         IO.println "  --patch-report <path>       Write TSV patch coverage report"
+        IO.println "  --trust-report <path>       Write JSON trust-surface report"
         IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)"
         IO.println "  --verbose          Enable verbose output"
         IO.println "  -v                 Short form of --verbose"
@@ -162,6 +164,10 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with patchEnabled := true, patchReportPath := some path }
     | ["--patch-report"] =>
         throw (IO.userError "Missing value for --patch-report")
+    | "--trust-report" :: path :: rest =>
+        go rest { cfg with trustReportPath := some path }
+    | ["--trust-report"] =>
+        throw (IO.userError "Missing value for --trust-report")
     | "--mapping-slot-scratch-base" :: raw :: rest =>
         match raw.toNat? with
         | some n => go rest { cfg with mappingSlotScratchBase := n, mappingSlotScratchBaseExplicit := true }
@@ -218,6 +224,9 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.patchReportPath with
       | some path => IO.println s!"Patch report: {path}"
       | none => pure ()
+      match cfg.trustReportPath with
+      | some path => IO.println s!"Trust report: {path}"
+      | none => pure ()
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       IO.println ""
     let packRequiredProofRefs :=
@@ -245,7 +254,7 @@ unsafe def main (args : List String) : IO Unit := do
       }
       mappingSlotScratchBase := cfg.mappingSlotScratchBase
     }
-    compileModulesWithOptions cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.abiOutDir
+    compileModulesWithOptions cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath cfg.abiOutDir
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

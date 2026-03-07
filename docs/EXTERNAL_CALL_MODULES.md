@@ -174,6 +174,12 @@ ECM axiom report:
 This makes the trust boundary explicit and auditable. A team choosing which
 modules to use is choosing which trust assumptions to accept.
 
+For machine-readable audit trails, `verity-compiler --trust-report <path>` now
+emits per-contract JSON that includes:
+- first-class low-level call / returndata mechanics used by the spec
+- linked external assumptions (`spec.externals`)
+- ECM assumption entries (`module`, `assumption`)
+
 ## Trust Model
 
 - The compiler trusts that `mod.compile` produces Yul that correctly implements

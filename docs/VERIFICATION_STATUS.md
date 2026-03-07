@@ -133,6 +133,7 @@ Diagnostics policy for unsupported constructs:
 1. Report the exact unsupported construct at compile time.
 2. Suggest the nearest supported migration pattern.
 3. Link to the owning tracking issue.
+4. When low-level mechanics or external assumptions are in play, emit a machine-readable trust report via `verity-compiler --trust-report <path>`.
 
 ## Trust Assumptions
 

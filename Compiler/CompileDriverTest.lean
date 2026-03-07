@@ -1,5 +1,7 @@
 import Compiler.CompileDriver
 import Compiler.CompilationModel
+import Compiler.CompilationModel.TrustSurface
+import Compiler.ECM
 import Compiler.ModuleInput
 import Compiler.TestModules
 
@@ -86,6 +88,48 @@ private def linkedLibrarySpec : CompilationModel := {
   ]
 }
 
+private def trustSurfaceSpec : CompilationModel := {
+  name := "TrustSurfaceSmoke"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  externals := [
+    { name := "PoseidonT3_hash"
+      params := [ParamType.uint256, ParamType.uint256]
+      returnType := some ParamType.uint256
+      axiomNames := ["poseidon_t3_deterministic"] }
+  ]
+  functions := [
+    { name := "exercise"
+      params := [{ name := "target", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.letVar "ok"
+          (Expr.staticcall
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.letVar "rd" Expr.returndataSize,
+        Stmt.returndataCopy (Expr.literal 0) (Expr.literal 0) (Expr.localVar "rd"),
+        Stmt.letVar "hash" (Expr.externalCall "PoseidonT3_hash" [Expr.literal 1, Expr.literal 2]),
+        Stmt.ecm
+          { name := "testCall"
+            numArgs := 1
+            resultVars := []
+            writesState := false
+            readsState := true
+            axioms := ["test_call_interface"]
+            compile := fun _ _ => pure [] }
+          [Expr.localVar "hash"],
+        Stmt.setStorage "value" (Expr.localVar "ok"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -128,6 +172,7 @@ unsafe def runTests : IO Unit := do
   let selectedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-abi"
   let reversedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-out"
   let reversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-abi"
+  let trustReportPath := s!"/tmp/verity-compile-driver-test-{nonce}-trust-report.json"
   let missingLib := "/tmp/definitely-missing-library.yul"
   let earlySuccessfulAbi := s!"{abiDir}/AbiSmoke.abi.json"
 
@@ -144,7 +189,7 @@ unsafe def runTests : IO Unit := do
 
   expectFailureContains
     "compileSpecsWithOptions reports missing linked library"
-    (compileSpecsWithOptions [abiSmokeSpec, linkedLibrarySpec] outDir false [missingLib] {} none (some abiDir))
+    (compileSpecsWithOptions [abiSmokeSpec, linkedLibrarySpec] outDir false [missingLib] {} none none (some abiDir))
     missingLib
 
   let hasEarlySuccessfulAbi ← fileExists earlySuccessfulAbi
@@ -152,14 +197,14 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {earlySuccessfulAbi}")
   IO.println "✓ ABI artifacts still emitted for contracts compiled before failure"
 
-  compileModulesWithOptions outDir canonicalModules false [] {} none (some abiDir)
+  compileModulesWithOptions outDir canonicalModules false [] {} none none (some abiDir)
   expectModuleArtifacts "explicit module list emits Yul/ABI for all requested contracts" canonicalModules outDir abiDir
 
   let manifestModules ←
     match ← Compiler.ModuleInput.resolveRawModules (some "packages/verity-examples/contracts.manifest") [] with
     | .ok modules => pure modules
     | .error err => throw (IO.userError err)
-  compileModulesWithOptions manifestOutDir manifestModules false [] {} none (some manifestAbiDir)
+  compileModulesWithOptions manifestOutDir manifestModules false [] {} none none (some manifestAbiDir)
   expectModuleArtifacts "manifest module list emits Yul/ABI for all requested contracts" manifestModules manifestOutDir manifestAbiDir
 
   for moduleName in canonicalModules do
@@ -174,7 +219,7 @@ unsafe def runTests : IO Unit := do
       s!"{manifestAbiDir}/{contractName}.abi.json"
 
   let selectedModules := ["Contracts.SimpleStorage.SimpleStorage", "Contracts.Counter.Counter"]
-  compileModulesWithOptions selectedOutDir selectedModules false [] {} none (some selectedAbiDir)
+  compileModulesWithOptions selectedOutDir selectedModules false [] {} none none (some selectedAbiDir)
   expectOnlySelectedArtifacts
     "selected module compilation emits only requested artifacts"
     selectedModules
@@ -182,7 +227,7 @@ unsafe def runTests : IO Unit := do
     selectedOutDir
     selectedAbiDir
 
-  compileModulesWithOptions reversedOutDir selectedModules.reverse false [] {} none (some reversedAbiDir)
+  compileModulesWithOptions reversedOutDir selectedModules.reverse false [] {} none none (some reversedAbiDir)
   expectOnlySelectedArtifacts
     "selected module compilation is order-invariant for artifact set"
     selectedModules
@@ -203,8 +248,27 @@ unsafe def runTests : IO Unit := do
 
   expectFailureContains
     "duplicate selected modules fail closed"
-    (compileModulesWithOptions outDir ["Contracts.Counter.Counter", "Contracts.Counter.Counter"] false [] {} none (some abiDir))
+    (compileModulesWithOptions outDir ["Contracts.Counter.Counter", "Contracts.Counter.Counter"] false [] {} none none (some abiDir))
     "Duplicate module input: Contracts.Counter.Counter"
+
+  let trustReport := emitTrustReportJson [trustSurfaceSpec]
+  if !contains trustReport "\"contract\":\"TrustSurfaceSmoke\"" then
+    throw (IO.userError "✗ trust report emits contract name")
+  if !contains trustReport "\"modeledLowLevelMechanics\":[\"staticcall\",\"returndataSize\",\"returndataCopy\"]" then
+    throw (IO.userError "✗ trust report emits low-level mechanics")
+  if !contains trustReport "\"name\":\"PoseidonT3_hash\"" then
+    throw (IO.userError "✗ trust report emits linked external name")
+  if !contains trustReport "\"axioms\":[\"poseidon_t3_deterministic\"]" then
+    throw (IO.userError "✗ trust report emits linked external axioms")
+  if !contains trustReport "\"module\":\"testCall\"" || !contains trustReport "\"assumption\":\"test_call_interface\"" then
+    throw (IO.userError "✗ trust report emits ECM axioms")
+  IO.println "✓ trust report emits low-level mechanics and external assumptions"
+
+  compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
+  let writtenTrustReport ← fileExists trustReportPath
+  if !writtenTrustReport then
+    throw (IO.userError "✗ compileSpecsWithOptions writes trust report file")
+  IO.println "✓ compileSpecsWithOptions writes trust report file"
 
 #eval! runTests
 
