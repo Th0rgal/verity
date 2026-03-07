@@ -75,7 +75,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
 - **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
-- **Universal bridge equivalence**: 12/15 pure EVMYulLean-backed builtins have universal bridge lemmas; `not`, `shl`, and `shr` still rely on concrete smoke tests.
+- **Universal bridge equivalence**: 14/15 pure EVMYulLean-backed builtins have universal bridge lemmas; only `not` still relies on concrete smoke tests.
 
 ## Auditor Checklist
 

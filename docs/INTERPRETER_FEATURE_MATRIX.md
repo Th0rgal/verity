@@ -127,7 +127,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
 
-15/19 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 12 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, while `not`, `shl`, and `shr` are currently guarded by concrete regression checks in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean`. The remaining 4 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+15/19 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 14 pure builtins are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, while `not` is still guarded by concrete regression checks in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean`. The remaining 4 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
