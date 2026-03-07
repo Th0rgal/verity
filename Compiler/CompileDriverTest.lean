@@ -46,6 +46,13 @@ private def expectFileEquals (label : String) (lhs rhs : String) : IO Unit := do
     throw (IO.userError s!"✗ {label}: files differ\nlhs: {lhs}\nrhs: {rhs}")
   IO.println s!"✓ {label}"
 
+private def expectFileContains (label path : String) (needles : List String) : IO Unit := do
+  let text ← IO.FS.readFile path
+  for needle in needles do
+    if !contains text needle then
+      throw (IO.userError s!"✗ {label}: missing '{needle}' in:\n{text}")
+  IO.println s!"✓ {label}"
+
 private def abiSmokeSpec : CompilationModel := {
   name := "AbiSmoke"
   fields := [{ name := "value", ty := FieldType.uint256 }]
@@ -58,6 +65,30 @@ private def abiSmokeSpec : CompilationModel := {
         Stmt.setStorage "value" (Expr.param "next"),
         Stmt.stop
       ]
+    }
+  ]
+}
+
+private def stringAbiSmokeSpec : CompilationModel := {
+  name := "StringAbiSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echoString"
+      params := [{ name := "message", ty := ParamType.string }]
+      returnType := none
+      returns := [ParamType.string]
+      body := [Stmt.returnBytes "message"]
+    }
+  ]
+  events := [
+    { name := "MessageLogged"
+      params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
+    }
+  ]
+  errors := [
+    { name := "BadMessage"
+      params := [ParamType.string]
     }
   ]
 }
@@ -172,6 +203,8 @@ unsafe def runTests : IO Unit := do
   let selectedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-abi"
   let reversedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-out"
   let reversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-abi"
+  let stringOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-string-out"
+  let stringAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-string-abi"
   let trustReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/trust"
   let trustReportPath := s!"{trustReportDir}/trust-report.json"
   let patchReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/patch"
@@ -187,6 +220,8 @@ unsafe def runTests : IO Unit := do
   IO.FS.createDirAll selectedAbiDir
   IO.FS.createDirAll reversedOutDir
   IO.FS.createDirAll reversedAbiDir
+  IO.FS.createDirAll stringOutDir
+  IO.FS.createDirAll stringAbiDir
 
   try IO.FS.removeFile earlySuccessfulAbi catch _ => pure ()
 
@@ -199,6 +234,17 @@ unsafe def runTests : IO Unit := do
   if !hasEarlySuccessfulAbi then
     throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {earlySuccessfulAbi}")
   IO.println "✓ ABI artifacts still emitted for contracts compiled before failure"
+
+  compileSpecsWithOptions [stringAbiSmokeSpec] stringOutDir false [] {} none none (some stringAbiDir)
+  expectFileContains
+    "compileSpecsWithOptions emits string ABI artifacts"
+    s!"{stringAbiDir}/StringAbiSmoke.abi.json"
+    [ "\"name\": \"echoString\""
+    , "\"inputs\": [{\"name\": \"message\", \"type\": \"string\"}]"
+    , "\"outputs\": [{\"name\": \"\", \"type\": \"string\"}]"
+    , "\"name\": \"MessageLogged\""
+    , "\"name\": \"BadMessage\""
+    ]
 
   compileModulesWithOptions outDir canonicalModules false [] {} none none (some abiDir)
   expectModuleArtifacts "explicit module list emits Yul/ABI for all requested contracts" canonicalModules outDir abiDir
