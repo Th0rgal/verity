@@ -21,6 +21,7 @@ import Compiler.CompilationModel.ScopeValidation
 import Compiler.CompilationModel.StorageWrites
 import Compiler.CompilationModel.UsageAnalysis
 import Compiler.CompilationModel.ValidationCalls
+import Compiler.CompilationModel.ValidationEvents
 import Compiler.CompilationModel.ValidationHelpers
 import Compiler.CompilationModel.ValidationInterop
 import Compiler.CompilationModel.SelectorInteropHelpers
