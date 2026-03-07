@@ -133,6 +133,30 @@ class CheckSplitPackageBuildsTests(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("does not contain a Lake manifest", stderr.getvalue())
 
+    def test_check_split_package_builds_accepts_toml_manifest(self) -> None:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tmpdir:
+            root = Path(tmpdir)
+            package_dir = root / "packages" / "verity-edsl"
+            package_dir.mkdir(parents=True, exist_ok=True)
+            (package_dir / "lakefile.toml").write_text("name = \"test\"\n", encoding="utf-8")
+
+            with patch.object(check, "ROOT", root):
+                with patch.object(check, "run_lake_build") as run_lake_build:
+                    run_lake_build.return_value = check.subprocess.CompletedProcess(
+                        ["lake", "build"],
+                        0,
+                        "",
+                        "",
+                    )
+                    stdout = io.StringIO()
+                    stderr = io.StringIO()
+                    with redirect_stdout(stdout), redirect_stderr(stderr):
+                        rc = check.check_split_package_builds([package_dir])
+
+        self.assertEqual(rc, 0)
+        self.assertIn("Split package build check passed (1 package(s)).", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
 
 if __name__ == "__main__":
     unittest.main()
