@@ -7,6 +7,7 @@ import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.IssueRefs
+import Compiler.CompilationModel.UsageAnalysis
 
 namespace Compiler.CompilationModel
 
@@ -473,6 +474,12 @@ def ensureContractIdentifier (kind name : String) : Except String Unit := do
   | .ok _ => pure ()
   | .error err => throw s!"Compilation error: {err}"
 
+/-- Source identifiers that lower directly to Yul variables must avoid the
+compiler-reserved `__` prefix used by dispatch and scratch temporaries. -/
+private def ensureNonReservedYulIdentifier (kind name : String) : Except String Unit := do
+  if name.startsWith "__" then
+    throw s!"Compilation error: {kind} '{name}' uses reserved compiler prefix '__' ({issue756Ref}). Rename it."
+
 def validateIdentifierShapes (spec : CompilationModel) : Except String Unit := do
   ensureContractIdentifier "contract" spec.name
   for field in spec.fields do
@@ -481,11 +488,19 @@ def validateIdentifierShapes (spec : CompilationModel) : Except String Unit := d
     ensureContractIdentifier "function" fn.name
     for p in fn.params do
       ensureContractIdentifier "function parameter" p.name
+      ensureNonReservedYulIdentifier "function parameter" p.name
+    for localName in collectStmtListBindNames fn.body do
+      ensureContractIdentifier "local binder" localName
+      ensureNonReservedYulIdentifier "local binder" localName
   match spec.constructor with
   | none => pure ()
   | some ctor =>
       for p in ctor.params do
         ensureContractIdentifier "constructor parameter" p.name
+        ensureNonReservedYulIdentifier "constructor parameter" p.name
+      for localName in collectStmtListBindNames ctor.body do
+        ensureContractIdentifier "local binder" localName
+        ensureNonReservedYulIdentifier "local binder" localName
   for eventDef in spec.events do
     ensureContractIdentifier "event" eventDef.name
     for p in eventDef.params do
