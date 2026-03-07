@@ -3,12 +3,14 @@
 -/
 
 import Compiler.Constants
+import Compiler.IR
+import Compiler.Yul.Ast
 
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
-open Compiler.Yul
 open Compiler.Constants
+open Compiler.Yul
 
 /-- Concrete IR contract for SimpleStorage. -/
 def simpleStorageIRContract : IRContract :=
