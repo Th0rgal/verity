@@ -89,8 +89,9 @@ scoped to contracts that use the module.
 
 The repository removed prior axioms related to IR and Yul expression and statement equivalence and address injectivity by making interpreters total and by using a bounded-nat `Address` representation.
 
-These removals reduced prior axiom debt. The remaining Layer 3 switch-case bridge is now
-an explicit theorem parameter (`SwitchCaseBodyBridge`) rather than a Lean kernel axiom.
+These removals reduced prior axiom debt. The Layer 3 switch-case bridge no longer
+escapes theorem boundaries as an explicit contract-level assumption; it is discharged
+internally by the preservation proof term rather than tracked as a Lean kernel axiom.
 
 ## Non-Axiom: Arithmetic Semantics
 

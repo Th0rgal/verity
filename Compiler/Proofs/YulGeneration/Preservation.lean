@@ -335,10 +335,7 @@ theorem yulCodegen_preserves_semantics
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
         (execIRFunction fn tx.args { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })
-        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }))
-    (hSwitchCaseBody : ∀ fn, fn ∈ contract.functions → ∀ fuel,
-      SwitchCaseBodyBridge fn tx
-        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector } fuel) :
+        (interpretYulBody fn tx { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector })) :
     resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
@@ -438,16 +435,17 @@ theorem yulCodegen_preserves_semantics
       -- Apply switch match lemma
       rw [show m + 4 + 1 = Nat.succ (m + 4) from by omega]
       rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
-      exact hSwitchCaseBody fn hmem (m + 4) hmatch
+      exact SwitchCaseBodyBridge fn tx
+        { initialState with sender := tx.sender, calldata := tx.args, selector := tx.functionSelector }
+        (m + 4) hmatch
 
-/-! ## Complete Preservation Theorem (Switch-Case Bridge Parameterized)
+/-! ## Complete Preservation Theorem
 
 This version of the preservation theorem discharges the `hbody` hypothesis
-using the proven `all_stmts_equiv` and the `execIRFunctionFuel_adequate` lemma,
-while leaving `SwitchCaseBodyBridge` as an explicit theorem parameter.
+using the proven `all_stmts_equiv` and the `execIRFunctionFuel_adequate` lemma.
 
 The remaining gap between `interpretYulBodyFromState` (fuel-based proof chain) and
-`interpretYulBody` (used by the parameterized theorem above) requires bridging two
+`interpretYulBody` (used by the theorem above) requires bridging two
 different Yul execution entry points. This bridging lemma documents that gap explicitly.
 
 **Proof chain** (complete — fuel adequacy is now `rfl`):
