@@ -31,10 +31,27 @@ private def renderPatchReportTsv (rows : List (String × Yul.PatchPassReport)) :
   let body := rows.foldr (fun (contractName, report) acc => reportRow contractName report ++ acc) []
   String.intercalate "\n" (header :: body) ++ "\n"
 
+private def parentDir? (path : String) : Option String :=
+  match path.splitOn "/" |>.reverse with
+  | [] | [_] => none
+  | _file :: revParents =>
+      let parent := String.intercalate "/" revParents.reverse
+      if parent.isEmpty then
+        if path.startsWith "/" then some "/" else none
+      else
+        some parent
+
+private def ensureParentDirExists (path : String) : IO Unit := do
+  match parentDir? path with
+  | some dir => IO.FS.createDirAll dir
+  | none => pure ()
+
 private def writePatchReport (path : String) (rows : List (String × Yul.PatchPassReport)) : IO Unit := do
+  ensureParentDirExists path
   IO.FS.writeFile path (renderPatchReportTsv rows)
 
 private def writeTrustReport (path : String) (specs : List CompilationModel) : IO Unit := do
+  ensureParentDirExists path
   IO.FS.writeFile path (emitTrustReportJson specs ++ "\n")
 
 private def writeContract

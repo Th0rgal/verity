@@ -172,7 +172,10 @@ unsafe def runTests : IO Unit := do
   let selectedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-selected-abi"
   let reversedOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-out"
   let reversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-abi"
-  let trustReportPath := s!"/tmp/verity-compile-driver-test-{nonce}-trust-report.json"
+  let trustReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/trust"
+  let trustReportPath := s!"{trustReportDir}/trust-report.json"
+  let patchReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/patch"
+  let patchReportPath := s!"{patchReportDir}/patch-report.tsv"
   let missingLib := "/tmp/definitely-missing-library.yul"
   let earlySuccessfulAbi := s!"{abiDir}/AbiSmoke.abi.json"
 
@@ -269,6 +272,12 @@ unsafe def runTests : IO Unit := do
   if !writtenTrustReport then
     throw (IO.userError "✗ compileSpecsWithOptions writes trust report file")
   IO.println "✓ compileSpecsWithOptions writes trust report file"
+
+  compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none
+  let writtenPatchReport ← fileExists patchReportPath
+  if !writtenPatchReport then
+    throw (IO.userError "✗ compileSpecsWithOptions writes patch report file")
+  IO.println "✓ compileSpecsWithOptions writes patch report file"
 
 #eval! runTests
 
