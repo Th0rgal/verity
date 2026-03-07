@@ -279,6 +279,11 @@ partial def translatePureExpr
   | `(term| chainid) => `(Compiler.CompilationModel.Expr.chainid)
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)
   | `(term| returndataSize) => `(Compiler.CompilationModel.Expr.returndataSize)
+  | `(term| zeroAddress) => `(Compiler.CompilationModel.Expr.literal 0)
+  | `(term| isZeroAddress $a:term) =>
+      `(Compiler.CompilationModel.Expr.eq
+          $(← translatePureExpr params locals a)
+          (Compiler.CompilationModel.Expr.literal 0))
   | `(term| wordToAddress $a:term) => translatePureExpr params locals a
   | `(term| addressToWord $a:term) => translatePureExpr params locals a
   | `(term| boolToWord $a:term) =>
@@ -453,6 +458,16 @@ private def translateBindSource
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
+  | `(term| getMappingAddr $field:ident $key:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .mappingAddressToUint256 =>
+          `(Compiler.CompilationModel.Expr.mapping $(strTerm f.name) $(← translatePureExpr params locals key))
+      | .mappingUintToUint256 =>
+          throwErrorAt rhs s!"field '{f.name}' is Uint256-keyed; use getMappingUintAddr"
+      | .mapping2AddressToAddressToUint256 =>
+          throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
+      | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
   | `(term| getMappingUint $field:ident $key:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
@@ -460,6 +475,16 @@ private def translateBindSource
           `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr params locals key))
       | .mappingAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is Address-keyed; use getMapping"
+      | .mapping2AddressToAddressToUint256 =>
+          throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
+      | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
+  | `(term| getMappingUintAddr $field:ident $key:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .mappingUintToUint256 =>
+          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr params locals key))
+      | .mappingAddressToUint256 =>
+          throwErrorAt rhs s!"field '{f.name}' is Address-keyed; use getMappingAddr"
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
@@ -486,7 +511,7 @@ private def translateBindSource
   | `(term| msgSender) => `(Compiler.CompilationModel.Expr.caller)
   | _ =>
       throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingUint/getMappingWord/getMapping2/msgSender"
+        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/msgSender"
 
 private def translateSafeRequireBind
     (params : Array ParamDecl)
@@ -554,6 +579,19 @@ private def translateEffectStmt
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
+  | `(term| setMappingAddr $field:ident $key:term $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .mappingAddressToUint256 =>
+          `(Compiler.CompilationModel.Stmt.setMapping
+              $(strTerm f.name)
+              $(← translatePureExpr params locals key)
+              $(← translatePureExpr params locals value))
+      | .mappingUintToUint256 =>
+          throwErrorAt stx s!"field '{f.name}' is Uint256-keyed; use setMappingUintAddr"
+      | .mapping2AddressToAddressToUint256 =>
+          throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
+      | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
   | `(term| setMappingUint $field:ident $key:term $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
@@ -564,6 +602,19 @@ private def translateEffectStmt
               $(← translatePureExpr params locals value))
       | .mappingAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is Address-keyed; use setMapping"
+      | .mapping2AddressToAddressToUint256 =>
+          throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
+      | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
+  | `(term| setMappingUintAddr $field:ident $key:term $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .mappingUintToUint256 =>
+          `(Compiler.CompilationModel.Stmt.setMappingUint
+              $(strTerm f.name)
+              $(← translatePureExpr params locals key)
+              $(← translatePureExpr params locals value))
+      | .mappingAddressToUint256 =>
+          throwErrorAt stx s!"field '{f.name}' is Address-keyed; use setMappingAddr"
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"

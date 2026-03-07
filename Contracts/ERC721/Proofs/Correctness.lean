@@ -31,8 +31,8 @@ theorem ownerOf_preserves_state (s : ContractState) (tokenId : Uint256) :
 theorem getApproved_preserves_state (s : ContractState) (tokenId : Uint256) :
     ((Contracts.ERC721.getApproved tokenId).runState s) = s := by
   cases h_owner : (s.storageMapUint Contracts.ERC721.owners.slot tokenId != 0) <;>
-    simp [Contracts.ERC721.getApproved, getMappingUint, Contract.runState, Verity.bind, Bind.bind,
-      require, Pure.pure, Verity.pure, h_owner]
+    simp [Contracts.ERC721.getApproved, getMappingUint, getMappingUintAddr,
+      Contract.runState, Verity.bind, Bind.bind, require, Pure.pure, Verity.pure, h_owner]
 
 /-- Read-only `isApprovedForAll` preserves state. -/
 theorem isApprovedForAll_preserves_state (s : ContractState) (ownerAddr operator : Address) :

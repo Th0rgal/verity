@@ -17,6 +17,17 @@ open Verity.Core (FiniteAddressSet)
 abbrev Address := Verity.Core.Address
 abbrev Uint256 := Verity.Core.Uint256
 
+@[simp] def zeroAddress : Address := 0
+
+@[simp] def addressToWord (a : Address) : Uint256 :=
+  (a.toNat : Uint256)
+
+@[simp] def wordToAddress (w : Uint256) : Address :=
+  Verity.Core.Address.ofNat (w : Nat)
+
+@[simp] def isZeroAddress (a : Address) : Bool :=
+  a == zeroAddress
+
 -- Storage key-value abstraction
 structure StorageSlot (α : Type) where
   slot : Nat
@@ -235,6 +246,23 @@ def setMapping (s : StorageSlot (Address → Uint256)) (key : Address) (value : 
         state.knownAddresses slot
   } := rfl
 
+-- Typed address-valued mapping helpers on top of the word-backed storage model.
+def getMappingAddr (s : StorageSlot (Address → Uint256)) (key : Address) : Contract Address :=
+  fun state => ContractResult.success (wordToAddress (state.storageMap s.slot key)) state
+
+def setMappingAddr (s : StorageSlot (Address → Uint256)) (key value : Address) : Contract Unit :=
+  setMapping s key (addressToWord value)
+
+@[simp] theorem getMappingAddr_run (s : StorageSlot (Address → Uint256)) (key : Address)
+    (state : ContractState) :
+  (getMappingAddr s key).run state =
+    ContractResult.success (wordToAddress (state.storageMap s.slot key)) state := rfl
+
+@[simp] theorem setMappingAddr_run (s : StorageSlot (Address → Uint256)) (key value : Address)
+    (state : ContractState) :
+  (setMappingAddr s key value).run state =
+    (setMapping s key (addressToWord value)).run state := rfl
+
 -- Double mapping operations (Address → Address → Uint256) (#154)
 def getMapping2 (s : StorageSlot (Address → Address → Uint256)) (key1 key2 : Address) : Contract Uint256 :=
   fun state => ContractResult.success (state.storageMap2 s.slot key1 key2) state
@@ -278,6 +306,23 @@ def setMappingUint (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (valu
       if slot == s.slot && k == key then value
       else state.storageMapUint slot k
   } := rfl
+
+def getMappingUintAddr (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) : Contract Address :=
+  fun state => ContractResult.success (wordToAddress (state.storageMapUint s.slot key)) state
+
+def setMappingUintAddr (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (value : Address) :
+    Contract Unit :=
+  setMappingUint s key (addressToWord value)
+
+@[simp] theorem getMappingUintAddr_run (s : StorageSlot (Uint256 → Uint256)) (key : Uint256)
+    (state : ContractState) :
+  (getMappingUintAddr s key).run state =
+    ContractResult.success (wordToAddress (state.storageMapUint s.slot key)) state := rfl
+
+@[simp] theorem setMappingUintAddr_run (s : StorageSlot (Uint256 → Uint256)) (key : Uint256)
+    (value : Address) (state : ContractState) :
+  (setMappingUintAddr s key value).run state =
+    (setMappingUint s key (addressToWord value)).run state := rfl
 
 -- Event emission (#153)
 def emitEvent (name : String) (args : List Uint256) (indexedArgs : List Uint256 := []) : Contract Unit :=

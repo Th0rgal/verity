@@ -11,12 +11,6 @@ namespace Contracts.ERC721.Spec
 open Verity
 open Verity.Specs
 
-def addressToWord (a : Address) : Uint256 :=
-  (a.toNat : Uint256)
-
-def wordToAddress (w : Uint256) : Address :=
-  Verity.Core.Address.ofNat (w : Nat)
-
 def boolToWord (b : Bool) : Uint256 :=
   if b then 1 else 0
 
@@ -38,7 +32,7 @@ def balanceOf_spec (addr : Address) (result : Uint256) (s : ContractState) : Pro
 def ownerOf_spec (tokenId : Uint256) (result : ContractResult Address) (s : ContractState) : Prop :=
   let ownerWord := s.storageMapUint 4 tokenId
   if ownerWord != 0 then
-    result = ContractResult.success (wordToAddress ownerWord) s
+    result = ContractResult.success (Verity.wordToAddress ownerWord) s
   else
     result = ContractResult.revert "Token does not exist" s
 
@@ -46,7 +40,7 @@ def ownerOf_spec (tokenId : Uint256) (result : ContractResult Address) (s : Cont
 def getApproved_spec (tokenId : Uint256) (result : ContractResult Address) (s : ContractState) : Prop :=
   let ownerWord := s.storageMapUint 4 tokenId
   if ownerWord != 0 then
-    result = ContractResult.success (wordToAddress (s.storageMapUint 5 tokenId)) s
+    result = ContractResult.success (Verity.wordToAddress (s.storageMapUint 5 tokenId)) s
   else
     result = ContractResult.revert "Token does not exist" s
 

@@ -57,7 +57,7 @@ theorem ownerOf_meets_spec (s : ContractState) (tokenId : Uint256) :
   cases h_owner : (s.storageMapUint 4 tokenId != 0) <;>
     simp [ownerOf_spec, Contracts.ERC721.ownerOf, Contract.run, Verity.bind, Bind.bind,
       getMappingUint, Contracts.ERC721.owners,
-      Contracts.ERC721.Spec.wordToAddress, Pure.pure, Verity.pure,
+      Verity.wordToAddress, Pure.pure, Verity.pure,
       require, h_owner]
 
 /-- `getApproved` reverts for unminted tokens and returns approval for minted tokens. -/
@@ -65,8 +65,8 @@ theorem getApproved_meets_spec (s : ContractState) (tokenId : Uint256) :
     getApproved_spec tokenId ((Contracts.ERC721.getApproved tokenId).run s) s := by
   cases h_owner : (s.storageMapUint 4 tokenId != 0) <;>
     simp [getApproved_spec, Contracts.ERC721.getApproved, Contract.run, Verity.bind, Bind.bind,
-      getMappingUint, Contracts.ERC721.owners, Contracts.ERC721.tokenApprovals,
-      Contracts.ERC721.Spec.wordToAddress, Pure.pure, Verity.pure,
+      getMappingUint, getMappingUintAddr, Contracts.ERC721.owners, Contracts.ERC721.tokenApprovals,
+      Verity.wordToAddress, Pure.pure, Verity.pure,
       require, h_owner]
 
 /-- `isApprovedForAll` checks nonzero operator-approval flag in slot 6. -/

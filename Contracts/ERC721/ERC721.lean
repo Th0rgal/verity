@@ -6,12 +6,6 @@ open Verity hiding pure bind
 open Verity.EVM.Uint256
 open Verity.Stdlib.Math
 
-@[simp] def addressToWord (a : Address) : Uint256 :=
-  (a.toNat : Uint256)
-
-@[simp] def wordToAddress (w : Uint256) : Address :=
-  Verity.Core.Address.ofNat (w : Nat)
-
 @[simp] def boolToWord (b : Bool) : Uint256 :=
   if b then 1 else 0
 
@@ -42,8 +36,8 @@ verity_contract ERC721 where
   function getApproved (tokenId : Uint256) : Address := do
     let ownerWord ← getMappingUint owners tokenId
     require (ownerWord != 0) "Token does not exist"
-    let approvedWord ← getMappingUint tokenApprovals tokenId
-    return wordToAddress approvedWord
+    let approvedAddr ← getMappingUintAddr tokenApprovals tokenId
+    return approvedAddr
 
   function isApprovedForAll (ownerAddr : Address, operator : Address) : Bool := do
     let flag ← getMapping2 operatorApprovals ownerAddr operator
@@ -55,7 +49,7 @@ verity_contract ERC721 where
     require (ownerWord != 0) "Token does not exist"
     let senderWord := addressToWord sender
     require (senderWord == ownerWord) "Not token owner"
-    setMappingUint tokenApprovals tokenId (addressToWord approved)
+    setMappingUintAddr tokenApprovals tokenId approved
 
   function setApprovalForAll (operator : Address, approved : Bool) : Unit := do
     let sender ← msgSender
@@ -65,7 +59,7 @@ verity_contract ERC721 where
     let sender ← msgSender
     let currentOwner ← getStorageAddr owner
     require (sender == currentOwner) "Caller is not the owner"
-    require (addressToWord to != 0) "Invalid recipient"
+    require (to != zeroAddress) "Invalid recipient"
 
     let tokenId ← getStorage nextTokenId
     let currentOwnerWord ← getMappingUint owners tokenId
@@ -77,7 +71,7 @@ verity_contract ERC721 where
     let currentSupply ← getStorage totalSupply
     let newSupply ← requireSomeUint (safeAdd currentSupply 1) "Supply overflow"
 
-    setMappingUint owners tokenId (addressToWord to)
+    setMappingUintAddr owners tokenId to
     setMapping balances to newRecipientBalance
     setStorage totalSupply newSupply
     setStorage nextTokenId (add tokenId 1)
@@ -85,7 +79,7 @@ verity_contract ERC721 where
 
   function transferFrom (fromAddr : Address, to : Address, tokenId : Uint256) : Unit := do
     let sender ← msgSender
-    require (addressToWord to != 0) "Invalid recipient"
+    require (to != zeroAddress) "Invalid recipient"
 
     let ownerWord ← getMappingUint owners tokenId
     require (ownerWord != 0) "Token does not exist"
@@ -109,8 +103,8 @@ verity_contract ERC721 where
       setMapping balances fromAddr (sub fromBalance 1)
       setMapping balances to newToBalance
 
-    setMappingUint owners tokenId (addressToWord to)
-    setMappingUint tokenApprovals tokenId 0
+    setMappingUintAddr owners tokenId to
+    setMappingUintAddr tokenApprovals tokenId zeroAddress
 
 namespace ERC721
 
@@ -118,10 +112,6 @@ def «constructor» (initialOwner : Address) : Contract Unit := do
   setStorageAddr owner initialOwner
   setStorage totalSupply 0
   setStorage nextTokenId 0
-
-abbrev addressToWord : Address → Uint256 := Contracts.addressToWord
-
-abbrev wordToAddress : Uint256 → Address := Contracts.wordToAddress
 
 abbrev boolToWord : Bool → Uint256 := Contracts.boolToWord
 
