@@ -27,12 +27,10 @@ import Verity.Core
 import Verity.Specs.Common
 import Verity.Stdlib.Math
 import Verity.EVM.Uint256
-import Compiler.CompilationModel
 
 namespace Verity.Proofs.Stdlib.Automation
 
 open Verity
-open Compiler.CompilationModel
 open Lean Parser.Tactic
 
 /-!
