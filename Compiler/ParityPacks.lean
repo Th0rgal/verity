@@ -1,5 +1,6 @@
 import Compiler.Codegen
 import Compiler.Yul.PatchRules
+import Lean
 
 namespace Compiler
 
@@ -23,13 +24,13 @@ structure ParityPack where
   /-- Rewrite bundle ID selected for this parity tuple. -/
   rewriteBundleId : String
   /-- Pack-level composition theorem for the active rewrite set. -/
-  compositionProofRef : String
+  compositionProofRef : Lean.Name
   /-- Activation-time proof registry used by this pack's rewrite policy. -/
-  requiredProofRefs : List String
+  requiredProofRefs : List Lean.Name
   deriving Repr, DecidableEq
 
-private def isDeduped (xs : List String) : Bool :=
-  let rec go (seen : List String) : List String → Bool
+private def isDeduped (xs : List Lean.Name) : Bool :=
+  let rec go (seen : List Lean.Name) : List Lean.Name → Bool
     | [] => true
     | x :: rest =>
         if seen.any (fun prior => prior = x) then
@@ -38,7 +39,7 @@ private def isDeduped (xs : List String) : Bool :=
           go (x :: seen) rest
   go [] xs
 
-private def containsAll (superset subset : List String) : Bool :=
+private def containsAll (superset subset : List Lean.Name) : Bool :=
   subset.all (fun item => superset.any (fun present => present = item))
 
 /-- Fail-closed pack-level proof composition check for the selected rewrite bundle. -/
@@ -46,9 +47,9 @@ def ParityPack.proofCompositionValid (pack : ParityPack) : Bool :=
   match Compiler.Yul.findRewriteBundle? pack.rewriteBundleId with
   | none => false
   | some _ =>
-      !(pack.compositionProofRef.isEmpty) &&
+      pack.compositionProofRef != .anonymous &&
         !(pack.requiredProofRefs.isEmpty) &&
-        pack.requiredProofRefs.all (fun ref => !(ref.isEmpty)) &&
+        pack.requiredProofRefs.all (fun ref => ref != .anonymous) &&
         isDeduped pack.requiredProofRefs &&
         containsAll pack.requiredProofRefs (Compiler.Yul.rewriteProofAllowlistForId pack.rewriteBundleId)
 
@@ -66,7 +67,7 @@ def solc_0_8_28_o200_viair_false_evm_shanghai : ParityPack :=
     forcePatches := true
     defaultPatchMaxIterations := 6
     rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
+    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 
@@ -84,7 +85,7 @@ def solc_0_8_33_o200_viair_false_evm_shanghai : ParityPack :=
     forcePatches := true
     defaultPatchMaxIterations := 6
     rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
+    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 
@@ -102,7 +103,7 @@ def solc_0_8_28_o999999_viair_true_evm_paris : ParityPack :=
     forcePatches := true
     defaultPatchMaxIterations := 6
     rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
+    compositionProofRef := Compiler.Yul.proofRefName "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 

@@ -84,6 +84,59 @@ class RewriteProofMetadataTests(unittest.TestCase):
         )
         self.assertEqual(guard.check_active_object_rule_proofs(root / "PatchRules.lean", root), [])
 
+    def test_accepts_lean_name_aliases_and_helper_calls(self) -> None:
+        root = self._write_repo(
+            """
+            def proofAlias : Lean.Name := ``Proofs.alias
+            def helperAlias : Lean.Name := proofRefName "Proofs.helper"
+
+            def exprRuleA : ExprPatchRule := {
+              patchName := "expr-a"
+              proofId := proofAlias
+            }
+
+            def stmtRuleA : StmtPatchRule := {
+              patchName := "stmt-a"
+              proofId := proofRefName "Proofs.stmt_a"
+            }
+
+            def blockRuleA : BlockPatchRule := {
+              patchName := "block-a"
+              proofId := helperAlias
+            }
+
+            def ruleA : ObjectPatchRule := {
+              patchName := "a"
+              proofId := ``Proofs.object_a
+            }
+
+            def foundationRewriteBundle : RewriteRuleBundle := {
+              id := "foundation"
+              exprRules := [exprRuleA]
+              stmtRules := [stmtRuleA]
+              blockRules := [blockRuleA]
+              objectRules := [ruleA]
+            }
+
+            def solcCompatRewriteBundle : RewriteRuleBundle := {
+              id := "solc"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := []
+            }
+            """,
+            proofs_text="""
+            namespace Proofs
+            theorem alias : True := by trivial
+            theorem helper : True := by trivial
+            theorem stmt_a : True := by trivial
+            theorem object_a : True := by trivial
+            end Proofs
+            """,
+        )
+        self.assertEqual(guard.check_active_object_rule_proofs(root / "PatchRules.lean", root), [])
+
     def test_rejects_empty_proof_id_literal(self) -> None:
         root = self._write_repo(
             """
@@ -106,6 +159,34 @@ class RewriteProofMetadataTests(unittest.TestCase):
               stmtRules := []
               blockRules := []
               objectRules := [badRule]
+            }
+            """
+        )
+        errors = guard.check_active_object_rule_proofs(root / "PatchRules.lean", root)
+        self.assertTrue(any("unresolved or empty proofId token" in err for err in errors))
+
+    def test_rejects_anonymous_lean_name_proof_ref(self) -> None:
+        root = self._write_repo(
+            """
+            def badRule : ObjectPatchRule := {
+              patchName := "bad"
+              proofId := .anonymous
+            }
+
+            def foundationRewriteBundle : RewriteRuleBundle := {
+              id := "foundation"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := [badRule]
+            }
+
+            def solcCompatRewriteBundle : RewriteRuleBundle := {
+              id := "solc"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := []
             }
             """
         )
@@ -261,6 +342,55 @@ class RewriteProofMetadataTests(unittest.TestCase):
             def packA : ParityPack := {
               id := "pack-a"
               compositionProofRef := "Proofs.after_section_end"
+            }
+            """,
+        )
+        errors = guard._check_parity_pack_proof_refs(root / "ParityPacks.lean", root)
+        self.assertEqual(errors, [])
+
+    def test_accepts_lean_name_parity_pack_refs(self) -> None:
+        root = self._write_repo(
+            """
+            def foundationRewriteBundle : RewriteRuleBundle := {
+              id := "foundation"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := []
+            }
+
+            def solcCompatRewriteBundle : RewriteRuleBundle := {
+              id := "solc"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := []
+            }
+            """,
+            proofs_text="""
+            namespace Proofs
+            theorem alias : True := by trivial
+            theorem helper : True := by trivial
+            theorem direct : True := by trivial
+            end Proofs
+            """,
+            parity_packs_text="""
+            def packAlias : Lean.Name := ``Proofs.alias
+            def helperAlias : Lean.Name := proofRefName "Proofs.helper"
+
+            def packA : ParityPack := {
+              id := "pack-a"
+              compositionProofRef := packAlias
+            }
+
+            def packB : ParityPack := {
+              id := "pack-b"
+              compositionProofRef := helperAlias
+            }
+
+            def packC : ParityPack := {
+              id := "pack-c"
+              compositionProofRef := ``Proofs.direct
             }
             """,
         )

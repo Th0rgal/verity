@@ -1,4 +1,5 @@
 import Compiler.Yul.Ast
+import Lean
 
 namespace Compiler.Yul
 
@@ -28,7 +29,7 @@ structure ExprPatchRule where
   pattern : String
   rewrite : String
   sideConditions : List String
-  proofId : String
+  proofId : Lean.Name
   packAllowlist : List String := []
   scope : RewriteScope
   passPhase : PatchPhase
@@ -41,7 +42,7 @@ structure StmtPatchRule where
   pattern : String
   rewrite : String
   sideConditions : List String
-  proofId : String
+  proofId : Lean.Name
   packAllowlist : List String := []
   scope : RewriteScope
   passPhase : PatchPhase
@@ -54,7 +55,7 @@ structure BlockPatchRule where
   pattern : String
   rewrite : String
   sideConditions : List String
-  proofId : String
+  proofId : Lean.Name
   packAllowlist : List String := []
   scope : RewriteScope
   passPhase : PatchPhase
@@ -67,7 +68,7 @@ structure ObjectPatchRule where
   pattern : String
   rewrite : String
   sideConditions : List String
-  proofId : String
+  proofId : Lean.Name
   packAllowlist : List String := []
   scope : RewriteScope
   passPhase : PatchPhase
@@ -84,7 +85,7 @@ structure PatchPassConfig where
   rewriteBundleId : String := "foundation"
   /-- Optional activation-time proof registry for fail-closed rule filtering.
       When non-empty, only rules whose `proofId` appears in this list can run. -/
-  requiredProofRefs : List String := []
+  requiredProofRefs : List Lean.Name := []
 
 /-- Per-rule usage entry emitted by the patch pass. -/
 structure PatchManifestEntry where
@@ -110,20 +111,28 @@ structure ObjectPatchPassReport where
 
 private structure PatchRuleMeta where
   patchName : String
-  proofRef : String
+  proofRef : Lean.Name
 
 private class PatchRuleLike (α : Type) where
   patchName : α → String
-  proofId : α → String
+  proofId : α → Lean.Name
   sideConditions : α → List String
   packAllowlist : α → List String
   scope : α → RewriteScope
   passPhase : α → PatchPhase
   priority : α → Nat
 
+private def proofRefPresent (proofRef : Lean.Name) : Bool :=
+  proofRef != .anonymous
+
+/-- Parse a dotted declaration name into `Lean.Name` metadata without requiring the
+    declaration to be imported at the call site. -/
+def proofRefName (ref : String) : Lean.Name :=
+  ref.splitOn "." |>.foldl Lean.Name.str .anonymous
+
 private def isRuleAuditable [PatchRuleLike α] (r : α) : Bool :=
   !(PatchRuleLike.patchName r).isEmpty &&
-    !(PatchRuleLike.proofId r).isEmpty &&
+    proofRefPresent (PatchRuleLike.proofId r) &&
     !(PatchRuleLike.sideConditions r).isEmpty
 
 private instance : PatchRuleLike ExprPatchRule where
@@ -417,7 +426,7 @@ private def manifestFromHits (ruleMeta : List PatchRuleMeta) (hits : List String
       { patchName := m.patchName
         matchCount := hitCount
         changedNodes := hitCount
-        proofRef := m.proofRef } :: acc) [])
+        proofRef := toString m.proofRef } :: acc) [])
 
 private def runPatchPassLoop
     (config : PatchPassConfig)

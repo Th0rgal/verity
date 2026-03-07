@@ -3,7 +3,7 @@
 
 Checks:
 - Active shipped rewrite rules declare non-empty `proofId`.
-- `proofId` may be a string literal or a String def alias.
+- `proofId` may be a string literal, a quoted Lean name, or a def alias.
 - Resolved proof refs point at real Lean declarations in the repo.
 - Shipped parity packs carry resolvable composition-proof refs that also exist.
 """
@@ -20,6 +20,11 @@ PATCH_RULES_PATH = ROOT / "Compiler" / "Yul" / "PatchRules.lean"
 PARITY_PACKS_PATH = ROOT / "Compiler" / "ParityPacks.lean"
 BUNDLES_TO_CHECK = ["foundationRewriteBundle", "solcCompatRewriteBundle"]
 _DEF_STRING_RE = re.compile(r'^\s*def\s+([A-Za-z_][A-Za-z0-9_\']*)\s*:\s*String\s*:=\s*"([^"]*)"', re.MULTILINE)
+_DEF_NAME_RE = re.compile(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_']*)\s*:\s*Lean\.Name\s*:=\s*``([A-Za-z0-9_.']+)", re.MULTILINE)
+_DEF_NAME_FROM_HELPER_RE = re.compile(
+    r'^\s*def\s+([A-Za-z_][A-Za-z0-9_\']*)\s*:\s*Lean\.Name\s*:=\s*(?:[A-Za-z_][A-Za-z0-9_.\']*\.)?proofRefName\s*"([^"]*)"',
+    re.MULTILINE,
+)
 _DECL_RE = re.compile(
     r"^\s*(?:private\s+|protected\s+|noncomputable\s+|unsafe\s+|partial\s+)*"
     r"(?:def|theorem|lemma|abbrev|opaque|axiom)\s+([A-Za-z_][A-Za-z0-9_.']*)\b"
@@ -85,8 +90,11 @@ def _extract_rule_proof_tokens(text: str, type_name: str) -> dict[str, str]:
     return rules
 
 
-def _extract_string_defs(text: str) -> dict[str, str]:
-    return {name: value for name, value in _DEF_STRING_RE.findall(text)}
+def _extract_ref_defs(text: str) -> dict[str, str]:
+    out = {name: value for name, value in _DEF_STRING_RE.findall(text)}
+    out.update({name: value for name, value in _DEF_NAME_RE.findall(text)})
+    out.update({name: value for name, value in _DEF_NAME_FROM_HELPER_RE.findall(text)})
+    return out
 
 
 def _extract_bundle_block(text: str, bundle_name: str) -> str:
@@ -293,11 +301,18 @@ def _extract_rules_from_bundle(
     return _extract_rules_from_expression(expr, pack_defs)
 
 
-def _resolve_proof_ref(token: str, string_defs: dict[str, str]) -> str:
+def _resolve_proof_ref(token: str, ref_defs: dict[str, str]) -> str:
     token = token.strip()
+    if token == ".anonymous":
+        return ""
+    helper_match = re.fullmatch(r'(?:[A-Za-z_][A-Za-z0-9_.\']*\.)?proofRefName\s*"([^"]*)"', token)
+    if helper_match is not None:
+        return helper_match.group(1)
+    if token.startswith("``"):
+        return token[2:]
     if token.startswith('"') and token.endswith('"') and len(token) >= 2:
         return token[1:-1]
-    return string_defs.get(token, "")
+    return ref_defs.get(token, "")
 
 
 def _collect_decl_names(root: Path) -> set[str]:
@@ -344,7 +359,7 @@ def _check_active_bundle_rule_proofs(path: Path, decl_root: Path) -> list[str]:
         raise ValueError(f"Missing PatchRules file: {path}")
 
     text = strip_lean_comments(path.read_text(encoding="utf-8"))
-    string_defs = _extract_string_defs(text)
+    ref_defs = _extract_ref_defs(text)
     decl_names = _collect_decl_names(decl_root)
     rule_tokens_by_kind = {
         field_name: _extract_rule_proof_tokens(text, type_name)
@@ -371,7 +386,7 @@ def _check_active_bundle_rule_proofs(path: Path, decl_root: Path) -> list[str]:
                 if not token:
                     errors.append(f"{bundle_name}: {rule_name} missing proofId field")
                     continue
-                proof_ref = _resolve_proof_ref(token, string_defs)
+                proof_ref = _resolve_proof_ref(token, ref_defs)
                 if not proof_ref:
                     errors.append(
                         f"{bundle_name}: {rule_name} has unresolved or empty proofId token {token!r}"
@@ -403,7 +418,7 @@ def _check_parity_pack_proof_refs(path: Path, decl_root: Path) -> list[str]:
         raise ValueError(f"Missing ParityPacks file: {path}")
 
     text = strip_lean_comments(path.read_text(encoding="utf-8"))
-    string_defs = _extract_string_defs(text)
+    ref_defs = _extract_ref_defs(text)
     decl_names = _collect_decl_names(decl_root)
 
     errors: list[str] = []
@@ -413,7 +428,7 @@ def _check_parity_pack_proof_refs(path: Path, decl_root: Path) -> list[str]:
         if not token:
             errors.append(f"{pack_name}: missing compositionProofRef field")
             continue
-        proof_ref = _resolve_proof_ref(token, string_defs)
+        proof_ref = _resolve_proof_ref(token, ref_defs)
         if not proof_ref:
             errors.append(f"{pack_name}: unresolved or empty compositionProofRef token {token!r}")
             continue
