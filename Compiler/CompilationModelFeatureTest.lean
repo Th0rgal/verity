@@ -383,6 +383,10 @@ private def ecrecoverSmokeSpec : CompilationModel := {
     | .error err => throw (IO.userError s!"✗ ecrecover smoke spec compile failed:\n{err}")
   expectTrue "ecrecover ECM lowers to precompile staticcall"
     (contains ecrecoverYul "staticcall(gas(), 1, 0, 128, 0, 32)")
+  expectTrue "ecrecover ECM reverts when the precompile call fails"
+    (contains ecrecoverYul "if iszero(__ecr_success) {")
+  expectTrue "ecrecover ECM zeroes scratch memory on empty returndata"
+    (contains ecrecoverYul "if iszero(returndatasize()) {")
   expectTrue "ecrecover ECM masks recovered address to 160 bits"
     (contains ecrecoverYul "let signer := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
 
