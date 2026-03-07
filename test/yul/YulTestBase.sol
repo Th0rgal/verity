@@ -60,22 +60,21 @@ abstract contract YulTestBase is Test {
         string memory outDir
     ) internal {
         string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
-        if (vm.exists(artifactPath)) {
-            return;
-        }
-
         string[] memory cmds = new string[](3);
         cmds[0] = "bash";
         cmds[1] = "-lc";
         cmds[2] = string.concat(
-            "mkdir -p ",
+            "artifact='",
+            artifactPath,
+            "'; out='",
             outDir,
-            " && if [ ! -x ./.lake/build/bin/verity-compiler ]; then lake build verity-compiler >/dev/null; fi && ",
-            "./.lake/build/bin/verity-compiler --module ",
+            "'; module='",
             moduleName,
-            " --output ",
-            outDir,
-            " >/dev/null"
+            "'; compiler='./.lake/build/bin/verity-compiler'; ",
+            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
+            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
+            "mkdir -p \"$out\" && lake build verity-compiler >/dev/null && ",
+            "\"$compiler\" --module \"$module\" --output \"$out\" >/dev/null"
         );
         vm.ffi(cmds);
         require(vm.exists(artifactPath), "Verity module compile did not emit Yul artifact");
