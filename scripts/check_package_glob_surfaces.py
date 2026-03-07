@@ -16,6 +16,7 @@ SUBMODULES_GLOB_RE = re.compile(r"\.submodules\s+`([A-Za-z0-9_.']+)")
 BRIDGE_GLOBS = {
     ("one", "Verity.Macro"),
     ("andSubmodules", "Verity.Macro"),
+    ("submodules", "Verity.Macro"),
     ("one", "Verity.Proofs.Stdlib.Automation"),
     ("one", "Verity.Proofs.Stdlib.MappingAutomation"),
 }

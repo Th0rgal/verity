@@ -85,6 +85,19 @@ class CheckPackageGlobSurfacesTests(unittest.TestCase):
         self.assertIn("Package glob surface check passed.", stdout)
         self.assertEqual(stderr, "")
 
+    def test_accepts_compiler_bridge_submodules_glob(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            compiler_globs="\n".join(
+                [
+                    "    .andSubmodules `Compiler",
+                    "    .submodules `Verity.Macro",
+                ]
+            )
+        )
+        self.assertEqual(rc, 0)
+        self.assertIn("Package glob surface check passed.", stdout)
+        self.assertEqual(stderr, "")
+
     def test_rejects_edsl_non_verity_glob(self) -> None:
         rc, stdout, stderr = self._run_check(edsl_globs="    .one `Compiler.CompilationModel")
         self.assertEqual(rc, 1)
