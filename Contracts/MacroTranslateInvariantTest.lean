@@ -52,10 +52,10 @@ private def externalFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
 
 private def bodyUsesAddressStorageRead (body : List Stmt) : Bool :=
-  contains (reprStr body) "storageAddr"
+  contains (reprStr body) "Expr.storageAddr"
 
 private def bodyUsesAddressStorageWrite (body : List Stmt) : Bool :=
-  contains (reprStr body) "setStorageAddr"
+  contains (reprStr body) "Stmt.setStorageAddr"
 
 private def canonicalFieldSlots (spec : CompilationModel) : List Nat :=
   let indexed := List.zip (List.range spec.fields.length) spec.fields
