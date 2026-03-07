@@ -86,7 +86,8 @@ axiom-report: ## Generate axiom dependency report for all 550 theorems
 # ---------------------------------------------------------------------------
 
 compile: ## Build compiler + interpreter
-	lake build verity-compiler difftest-interpreter
+	set -- $$(grep -vE '^[[:space:]]*($$|#)' packages/verity-examples/contracts.manifest); \
+	lake build "$$@" verity-compiler difftest-interpreter
 
 generate-yul: compile ## Compile all contracts to Yul
 	./.lake/build/bin/verity-compiler

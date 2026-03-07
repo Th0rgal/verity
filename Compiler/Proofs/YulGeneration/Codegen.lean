@@ -26,7 +26,7 @@ theorem emitYul_runtimeCode_eq (contract : IRContract) :
 theorem evalYulExpr_selectorExpr (state : YulState) :
     evalYulExpr state selectorExpr = some (state.selector % selectorModulus) :=
 by
-  simpa using (Compiler.Proofs.YulGeneration.evalYulExpr_selectorExpr_semantics state)
+  exact Compiler.Proofs.YulGeneration.evalYulExpr_selectorExpr_semantics state
 
 /-- Selector extraction yields the raw selector when it fits in 4 bytes. -/
 @[simp]
@@ -34,7 +34,7 @@ theorem evalYulExpr_selectorExpr_eq (state : YulState)
     (hselector : state.selector < selectorModulus) :
     evalYulExpr state selectorExpr = some state.selector :=
 by
-  simp [evalYulExpr_selectorExpr, Nat.mod_eq_of_lt hselector]
+  simp [Nat.mod_eq_of_lt hselector]
 
 /-- Dispatch body emitted for one external function case. -/
 def switchCaseBody (fn : IRFunction) : List YulStmt :=
@@ -123,11 +123,11 @@ theorem find_switch_case_of_find_function
   | cons f rest ih =>
       by_cases hsel : f.selector = sel
       · have hselb : (f.selector == sel) = true := by
-          simpa [hsel] using hsel
+          simp [hsel]
         have hFind' : some f = some fn := by
           simpa [List.find?, hselb] using hFind
         cases hFind'
-        simp [switchCases, List.find?, hsel]
+        simp [switchCases, hsel]
       · have hselb : (f.selector == sel) = false := by
           simp [hsel]
         have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
@@ -160,9 +160,9 @@ theorem find_switch_case_of_find_function_none
   | cons f rest ih =>
       by_cases hsel : f.selector = sel
       · have hselb : (f.selector == sel) = true := by
-          simpa [hsel] using hsel
+          simp [hsel]
         have hFind' : (some f : Option IRFunction) = none := by
-          simpa [List.find?, hselb] using hFind
+          simp [List.find?, hselb] at hFind
         cases hFind'
       · have hselb : (f.selector == sel) = false := by
           simp [hsel]
