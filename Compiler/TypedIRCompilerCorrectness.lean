@@ -6182,60 +6182,36 @@ theorem erc20_approve_correctness (init : TExecState) :
 
 /-- ERC721 contract field layout (matching MacroContracts.lean):
 ownerSlot (address, slot 0), totalSupplySlot (uint256, slot 1),
-nextTokenIdSlot (uint256, slot 2), ownersSlot (uint256→uint256, slot 3),
-tokenApprovalsSlot (uint256→uint256, slot 4). -/
+nextTokenIdSlot (uint256, slot 2), balancesSlot (address→uint256, slot 3),
+ownersSlot (uint256→uint256, slot 4), tokenApprovalsSlot (uint256→uint256, slot 5),
+operatorApprovalsSlot (address→address→uint256, slot 6). -/
 def erc721Fields : List Field :=
   [{ name := "ownerSlot", ty := FieldType.address },
    { name := "totalSupplySlot", ty := FieldType.uint256 },
    { name := "nextTokenIdSlot", ty := FieldType.uint256 },
+   { name := "balancesSlot", ty := FieldType.mappingTyped (.simple .address) },
    { name := "ownersSlot", ty := FieldType.mappingTyped (.simple .uint256) },
-   { name := "tokenApprovalsSlot", ty := FieldType.mappingTyped (.simple .uint256) }]
+   { name := "tokenApprovalsSlot", ty := FieldType.mappingTyped (.simple .uint256) },
+   { name := "operatorApprovalsSlot", ty := FieldType.mappingTyped (.nested .address .address) }]
 
-/-- ERC721 field slot: tokenApprovalsSlot at slot 4. -/
+/-- ERC721 field slot: ownersSlot at slot 4. -/
+theorem erc721OwnersSlotFieldSlot :
+    findFieldSlot erc721Fields "ownersSlot" = some 4 := by rfl
+
+/-- ERC721 field slot: tokenApprovalsSlot at slot 5. -/
 theorem erc721TokenApprovalsSlotFieldSlot :
-    findFieldSlot erc721Fields "tokenApprovalsSlot" = some 4 := by rfl
+    findFieldSlot erc721Fields "tokenApprovalsSlot" = some 5 := by rfl
 
 -- -- getApproved(tokenId) -- --
 
-/-- ERC721.getApproved body belongs to the supported statement fragment grammar. -/
-theorem erc721_getApproved_supported :
-    SupportedStmtList erc721Fields
-      [ Stmt.letVar "approvedWord" (Expr.mappingUint "tokenApprovalsSlot" (Expr.param "tokenId"))
-      , Stmt.return (Expr.localVar "approvedWord") ] := by
-  exact ⟨[.requireClausesThenLetMappingUintParamReturnLocal
-    [] "tokenApprovalsSlot" "tokenId" "approvedWord" 4
-    erc721TokenApprovalsSlotFieldSlot], rfl⟩
-
-/-- ERC721.getApproved compilation correctness. -/
-theorem erc721_getApproved_correctness (init : TExecState) :
-    ∃ fragments : List (SupportedStmtFragment erc721Fields),
-      supportedStmtFragmentsToStmts fragments =
-        [ Stmt.letVar "approvedWord" (Expr.mappingUint "tokenApprovalsSlot" (Expr.param "tokenId"))
-        , Stmt.return (Expr.localVar "approvedWord") ] ∧
-      execCompiledSupportedStmtFragments erc721Fields init fragments =
-        execSourceSupportedStmtFragments erc721Fields init fragments :=
-  compile_supported_stmt_list_semantics erc721Fields init _ erc721_getApproved_supported
-
 -- -- approve(approved, tokenId) -- --
 
-/-- ERC721.approve body belongs to the supported statement fragment grammar. -/
-theorem erc721_approve_supported :
-    SupportedStmtList erc721Fields
-      [ Stmt.setMappingUint "tokenApprovalsSlot" (Expr.param "tokenId") (Expr.param "approved")
-      , Stmt.stop ] := by
-  exact ⟨[.requireClausesThenSetMappingUintParamsStop
-    [] "tokenApprovalsSlot" "tokenId" "approved" 4
-    erc721TokenApprovalsSlotFieldSlot (by decide)], rfl⟩
-
-/-- ERC721.approve compilation correctness. -/
-theorem erc721_approve_correctness (init : TExecState) :
-    ∃ fragments : List (SupportedStmtFragment erc721Fields),
-      supportedStmtFragmentsToStmts fragments =
-        [ Stmt.setMappingUint "tokenApprovalsSlot" (Expr.param "tokenId") (Expr.param "approved")
-        , Stmt.stop ] ∧
-      execCompiledSupportedStmtFragments erc721Fields init fragments =
-        execSourceSupportedStmtFragments erc721Fields init fragments :=
-  compile_supported_stmt_list_semantics erc721Fields init _ erc721_approve_supported
+/-!
+`getApproved` and `approve` depend on the live `ownersSlot = 4` /
+`tokenApprovalsSlot = 5` layout and include multi-step owner guards. They do
+not fit the older single-fragment witness surface used above, so their emitted
+typed-IR shapes are regression-tested directly in `Contracts/TypedIRTests.lean`.
+-/
 
 -- ============================================================================
 -- Constructor-level witness coverage (audit #1075)

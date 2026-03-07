@@ -4,7 +4,43 @@ import Compiler.TypedIRCompiler
 import Compiler.TypedIRCompilerCorrectness
 import Compiler.TypedIRLowering
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Contracts.Specs
+import Contracts.Counter
+import Contracts.SimpleStorage
+import Contracts.Owned
+import Contracts.OwnedCounter
+import Contracts.SafeCounter
+import Contracts.Ledger
+import Contracts.SimpleToken
+import Contracts.ERC20
+import Contracts.ERC721
+
+namespace Compiler.Specs
+
+open Compiler.CompilationModel
+
+def simpleStorageSpec : CompilationModel := Contracts.SimpleStorage.spec
+
+def counterSpec : CompilationModel :=
+  let canonical := Contracts.Counter.spec
+  { canonical with
+    functions := canonical.functions.filter fun fn =>
+      fn.name = "increment" || fn.name = "decrement" || fn.name = "getCount" }
+
+def ownedSpec : CompilationModel := Contracts.Owned.spec
+
+def ledgerSpec : CompilationModel := Contracts.Ledger.spec
+
+def ownedCounterSpec : CompilationModel := Contracts.OwnedCounter.spec
+
+def simpleTokenSpec : CompilationModel := Contracts.SimpleToken.spec
+
+def safeCounterSpec : CompilationModel := Contracts.SafeCounter.spec
+
+def erc20Spec : CompilationModel := Contracts.ERC20.spec
+
+def erc721Spec : CompilationModel := Contracts.ERC721.spec
+
+end Compiler.Specs
 
 namespace Verity.Core.Free
 
@@ -2352,8 +2388,59 @@ example (init : TExecState) :
 -- ERC721 bridge theorem tests
 -- ============================================================
 
-/-- End-to-end ERC721.getApproved: compiled block executes without reverting. -/
-def compiledERC721GetApprovedPreservesState : Bool :=
+/-- ERC721.getApproved must keep the owner-existence guard and the corrected
+slot layout from `Compiler.TypedIRCompilerCorrectness`. -/
+def compiledERC721GetApprovedHasExpectedBody : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "getApproved" with
+  | .error _ => false
+  | .ok block =>
+      reprStr block.body =
+        r#"[Verity.Core.Free.TStmt.let_
+   { id := 1, ty := Verity.Core.Free.Ty.uint256 }
+   (Verity.Core.Free.TExpr.getMappingUint
+     4
+     (Verity.Core.Free.TExpr.var { id := 0, ty := Verity.Core.Free.Ty.uint256 })),
+ Verity.Core.Free.TStmt.if_
+   (Verity.Core.Free.TExpr.not
+     (Verity.Core.Free.TExpr.eq
+       (Verity.Core.Free.TExpr.var { id := 1, ty := Verity.Core.Free.Ty.uint256 })
+       (Verity.Core.Free.TExpr.uintLit 0)))
+   []
+   [Verity.Core.Free.TStmt.revert "Token does not exist"],
+ Verity.Core.Free.TStmt.let_
+   { id := 2, ty := Verity.Core.Free.Ty.uint256 }
+   (Verity.Core.Free.TExpr.getMappingUint
+     5
+     (Verity.Core.Free.TExpr.var { id := 0, ty := Verity.Core.Free.Ty.uint256 })),
+ Verity.Core.Free.TStmt.returnUint (Verity.Core.Free.TExpr.var { id := 2, ty := Verity.Core.Free.Ty.uint256 })]"#
+
+/-- ERC721.getApproved emits the expected owner-guarded typed IR body. -/
+example : compiledERC721GetApprovedHasExpectedBody = true := by native_decide
+
+/-- ERC721.getApproved should revert for an unminted token. -/
+def compiledERC721GetApprovedRejectsUnminted : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "getApproved" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [tokenIdParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with storageMapUint := fun _ _ => 0 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { uint256 := fun i =>
+                          if i = tokenIdParam.id then 7 else 0 } }
+          match evalTBlock init block with
+          | .revert "Token does not exist" => true
+          | _ => false
+      | _ => false
+
+/-- ERC721.getApproved rejects unminted tokens. -/
+example : compiledERC721GetApprovedRejectsUnminted = true := by native_decide
+
+/-- ERC721.getApproved should load the approval from slot 5 after passing the
+owner check on slot 4. -/
+def compiledERC721GetApprovedLoadsApproval : Bool :=
   match compileFunctionNamed Compiler.Specs.erc721Spec "getApproved" with
   | .error _ => false
   | .ok block =>
@@ -2362,21 +2449,105 @@ def compiledERC721GetApprovedPreservesState : Bool :=
           let initWorld : Verity.ContractState :=
             { Verity.defaultState with
               storageMapUint := fun i key =>
-                if i == 4 && key == 7 then 999 else 0 }
+                if i == 4 && key == 7 then 999
+                else if i == 5 && key == 7 then 333
+                else 0 }
           let init : TExecState :=
             { world := initWorld
               vars := { uint256 := fun i =>
                           if i = tokenIdParam.id then 7 else 0 } }
           match evalTBlock init block with
-          | .ok _ => true
-          | .revert _ => false
+          | .ok st => st.vars.uint256 2 = 333
+          | _ => false
       | _ => false
 
-/-- ERC721.getApproved: succeeds without reverting. -/
-example : compiledERC721GetApprovedPreservesState = true := by native_decide
+/-- ERC721.getApproved returns the approval word from slot 5. -/
+example : compiledERC721GetApprovedLoadsApproval = true := by native_decide
 
-/-- End-to-end ERC721.approve: compiled block executes without reverting. -/
-def compiledERC721ApprovePreservesState : Bool :=
+/-- ERC721.approve must keep both owner checks and write to slot 5. -/
+def compiledERC721ApproveHasExpectedBody : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "approve" with
+  | .error _ => false
+  | .ok block =>
+      reprStr block.body =
+        r#"[Verity.Core.Free.TStmt.let_ { id := 2, ty := Verity.Core.Free.Ty.address } (Verity.Core.Free.TExpr.sender),
+ Verity.Core.Free.TStmt.let_
+   { id := 3, ty := Verity.Core.Free.Ty.uint256 }
+   (Verity.Core.Free.TExpr.getMappingUint
+     4
+     (Verity.Core.Free.TExpr.var { id := 1, ty := Verity.Core.Free.Ty.uint256 })),
+ Verity.Core.Free.TStmt.if_
+   (Verity.Core.Free.TExpr.not
+     (Verity.Core.Free.TExpr.eq
+       (Verity.Core.Free.TExpr.var { id := 3, ty := Verity.Core.Free.Ty.uint256 })
+       (Verity.Core.Free.TExpr.uintLit 0)))
+   []
+   [Verity.Core.Free.TStmt.revert "Token does not exist"],
+ Verity.Core.Free.TStmt.let_
+   { id := 4, ty := Verity.Core.Free.Ty.address }
+   (Verity.Core.Free.TExpr.var { id := 2, ty := Verity.Core.Free.Ty.address }),
+ Verity.Core.Free.TStmt.if_
+   (Verity.Core.Free.TExpr.eq
+     (Verity.Core.Free.TExpr.addrToUint (Verity.Core.Free.TExpr.var { id := 4, ty := Verity.Core.Free.Ty.address }))
+     (Verity.Core.Free.TExpr.var { id := 3, ty := Verity.Core.Free.Ty.uint256 }))
+   []
+   [Verity.Core.Free.TStmt.revert "Not token owner"],
+ Verity.Core.Free.TStmt.setMappingUint
+   5
+   (Verity.Core.Free.TExpr.var { id := 1, ty := Verity.Core.Free.Ty.uint256 })
+   (Verity.Core.Free.TExpr.addrToUint (Verity.Core.Free.TExpr.var { id := 0, ty := Verity.Core.Free.Ty.address })),
+ Verity.Core.Free.TStmt.stop]"#
+
+/-- ERC721.approve emits the expected guarded typed IR body. -/
+example : compiledERC721ApproveHasExpectedBody = true := by native_decide
+
+/-- ERC721.approve should reject unminted tokens. -/
+def compiledERC721ApproveRejectsUnminted : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "approve" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [approvedParam, tokenIdParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with sender := 11, storageMapUint := fun _ _ => 0 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { address := fun i => if i = approvedParam.id then 33 else 0,
+                        uint256 := fun i => if i = tokenIdParam.id then 7 else 0 } }
+          match evalTBlock init block with
+          | .revert "Token does not exist" => true
+          | _ => false
+      | _ => false
+
+/-- ERC721.approve rejects unminted tokens. -/
+example : compiledERC721ApproveRejectsUnminted = true := by native_decide
+
+/-- ERC721.approve should reject callers that are not the token owner. -/
+def compiledERC721ApproveRejectsNonOwner : Bool :=
+  match compileFunctionNamed Compiler.Specs.erc721Spec "approve" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [approvedParam, tokenIdParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              sender := 11
+              storageMapUint := fun i key =>
+                if i == 4 && key == 7 then 22 else 0 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { address := fun i => if i = approvedParam.id then 33 else 0,
+                        uint256 := fun i => if i = tokenIdParam.id then 7 else 0 } }
+          match evalTBlock init block with
+          | .revert "Not token owner" => true
+          | _ => false
+      | _ => false
+
+/-- ERC721.approve enforces token-owner authorization. -/
+example : compiledERC721ApproveRejectsNonOwner = true := by native_decide
+
+/-- ERC721.approve writes approvals into slot 5 on success. -/
+def compiledERC721ApproveWritesApproval : Bool :=
   match compileFunctionNamed Compiler.Specs.erc721Spec "approve" with
   | .error _ => false
   | .ok block =>
@@ -2392,33 +2563,19 @@ def compiledERC721ApprovePreservesState : Bool :=
               vars := { address := fun i => if i = approvedParam.id then 33 else 0,
                         uint256 := fun i => if i = tokenIdParam.id then 7 else 0 } }
           match evalTBlock init block with
-          | .ok _ => true
-          | .revert _ => false
+          | .ok st => st.world.storageMapUint 5 7 = 33
+          | _ => false
       | _ => false
 
-/-- ERC721.approve: succeeds without reverting. -/
-example : compiledERC721ApprovePreservesState = true := by native_decide
+/-- ERC721.approve writes the approval word to slot 5. -/
+example : compiledERC721ApproveWritesApproval = true := by native_decide
 
 open Compiler.CompilationModel in
-/-- ERC721.getApproved correctness instantiation. -/
-example (init : TExecState) :
-    ∃ fragments : List (SupportedStmtFragment erc721Fields),
-      supportedStmtFragmentsToStmts fragments =
-        [ Stmt.letVar "approvedWord" (Expr.mappingUint "tokenApprovalsSlot" (Expr.param "tokenId"))
-        , Stmt.return (Expr.localVar "approvedWord") ] ∧
-      execCompiledSupportedStmtFragments erc721Fields init fragments =
-        execSourceSupportedStmtFragments erc721Fields init fragments :=
-  erc721_getApproved_correctness init
+example : findFieldSlot erc721Fields "ownersSlot" = some 4 := by
+  simpa using erc721OwnersSlotFieldSlot
 
 open Compiler.CompilationModel in
-/-- ERC721.approve correctness instantiation. -/
-example (init : TExecState) :
-    ∃ fragments : List (SupportedStmtFragment erc721Fields),
-      supportedStmtFragmentsToStmts fragments =
-        [ Stmt.setMappingUint "tokenApprovalsSlot" (Expr.param "tokenId") (Expr.param "approved")
-        , Stmt.stop ] ∧
-      execCompiledSupportedStmtFragments erc721Fields init fragments =
-        execSourceSupportedStmtFragments erc721Fields init fragments :=
-  erc721_approve_correctness init
+example : findFieldSlot erc721Fields "tokenApprovalsSlot" = some 5 := by
+  simpa using erc721TokenApprovalsSlotFieldSlot
 
 end Verity.Core.Free
