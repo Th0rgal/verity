@@ -78,8 +78,8 @@ theorem mod_by_zero (a : Nat) :
 -- § 3. EVMYulLean bridge agreement for pure arithmetic
 -- ============================================================================
 
--- Arithmetic bridging is now universally proved for add/sub/mul/div.
--- `mod` and the bitwise family still retain concrete bridge coverage here.
+-- Arithmetic bridging is now universally proved for add/sub/mul/div/mod.
+-- The bitwise family still retains concrete bridge coverage here.
 
 /-- Universal bridge theorem for addition. -/
 theorem add_bridge (a b : Nat) :
@@ -109,9 +109,12 @@ theorem div_bridge (a b : Nat) :
   exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_div_bridge
     s sender sel cd a b
 
-/-- Bridge agrees on modulo by zero. -/
-example : evalBuiltinCall s sender sel cd "mod" [10, 0] =
-          evalPureBuiltinViaEvmYulLean "mod" [10, 0] := by native_decide
+/-- Universal bridge theorem for modulo. -/
+theorem mod_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "mod" [a, b] =
+      evalPureBuiltinViaEvmYulLean "mod" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mod_bridge
+    s sender sel cd a b
 
 -- ============================================================================
 -- § 4. Backend profile invariant
@@ -142,8 +145,8 @@ example : ∀ b : Compiler.Proofs.YulGeneration.BuiltinBackend,
 -- Cryptographic primitives: keccak256 is axiomatized (see AXIOMS.md).
 -- The mapping-slot derivation trusts the keccak FFI.
 --
--- Universal bridge equivalence: add/sub/mul/div now have direct symbolic
+-- Universal bridge equivalence: add/sub/mul/div/mod now have direct symbolic
 -- bridge lemmas in `Backends/EvmYulLeanBridgeLemmas.lean`.
--- `mod` plus the bitwise family still rely on concrete bridge coverage.
+-- The bitwise family still relies on concrete bridge coverage.
 
 end Compiler.Proofs.ArithmeticProfile

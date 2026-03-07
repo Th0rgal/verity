@@ -63,6 +63,37 @@ private theorem bridge_eval_div_normalized (a b : Nat) :
   · simp [hb]
   · simp [hb]
 
+private theorem verity_eval_mod_normalized
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "mod" [a, b] =
+      (if b % evmModulus = 0 then some 0 else some ((a % evmModulus) % (b % evmModulus))) := by
+  simp [evalBuiltinCall]
+
+private theorem bridge_eval_mod_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "mod" [a, b] =
+      (if b % EvmYul.UInt256.size = 0 then some 0 else
+        some ((a % EvmYul.UInt256.size) % (b % EvmYul.UInt256.size))) := by
+  change some (EvmYul.UInt256.toNat (EvmYul.UInt256.mod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) =
+      (if b % EvmYul.UInt256.size = 0 then some 0 else
+        some ((a % EvmYul.UInt256.size) % (b % EvmYul.UInt256.size)))
+  by_cases hb : b % EvmYul.UInt256.size = 0
+  · have hb0val : ((EvmYul.UInt256.ofNat b).val).val = 0 := by
+      change b % EvmYul.UInt256.size = 0
+      exact hb
+    have hb0 : (EvmYul.UInt256.ofNat b).val = 0 := Fin.ext hb0val
+    simp [EvmYul.UInt256.mod, EvmYul.UInt256.toNat, hb, hb0]
+  · have hb0 : ¬ (EvmYul.UInt256.ofNat b).val = 0 := by
+      intro h
+      apply hb
+      exact congrArg Fin.val h
+    rw [show EvmYul.UInt256.mod (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b) =
+          ⟨(EvmYul.UInt256.ofNat a).val % (EvmYul.UInt256.ofNat b).val⟩ by
+            simp [EvmYul.UInt256.mod, hb0]]
+    simp [hb, EvmYul.UInt256.toNat]
+    change (a % EvmYul.UInt256.size) % (b % EvmYul.UInt256.size) =
+      (a % EvmYul.UInt256.size) % (b % EvmYul.UInt256.size)
+    rfl
+
 private theorem verity_eval_eq_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "eq" [a, b] =
@@ -142,6 +173,13 @@ private theorem bridge_eval_gt_normalized (a b : Nat) :
   rw [verity_eval_div_normalized, bridge_eval_div_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
+@[simp] theorem evalBuiltinCall_mod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "mod" [a, b] =
+      evalPureBuiltinViaEvmYulLean "mod" [a, b] := by
+  rw [verity_eval_mod_normalized, bridge_eval_mod_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
 /-- Universal bridge theorem for `eq`: Verity builtin semantics agree with
 EVMYulLean UInt256 semantics on all inputs. -/
 @[simp] theorem evalBuiltinCall_eq_bridge
@@ -201,6 +239,12 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "div" [a, b] =
       evalBuiltinCall storage sender selector calldata "div" [a, b] := by
   simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_div_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mod_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mod" [a, b] =
+      evalBuiltinCall storage sender selector calldata "mod" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_mod_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_eq_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :

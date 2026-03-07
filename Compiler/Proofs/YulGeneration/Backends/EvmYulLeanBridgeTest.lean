@@ -143,6 +143,12 @@ example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a
       evalPureBuiltinViaEvmYulLean "div" [a, b] := by
   exact evalBuiltinCall_div_bridge storage sender selector calldata a b
 
+/-- Universal bridge theorem for `mod` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "mod" [a, b] =
+      evalPureBuiltinViaEvmYulLean "mod" [a, b] := by
+  exact evalBuiltinCall_mod_bridge storage sender selector calldata a b
+
 /-- Universal bridge theorem for `eq` (symbolic, not vector-based). -/
 example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "eq" [a, b] =
@@ -266,7 +272,7 @@ example : (lowerStmts adapterSmokeStmts).isOk = true := by native_decide
 -- ## Summary output
 def main : IO Unit := do
   IO.println "✓ Arithmetic builtins: add, sub, mul, div — universally bridged"
-  IO.println "✓ Arithmetic builtin mod: vector coverage retained"
+  IO.println "✓ Arithmetic builtins: mod — universally bridged"
   IO.println "✓ Comparison builtins: lt, gt, eq, iszero — universally bridged"
   IO.println "✓ Bitwise builtins: and, or, xor, not, shl, shr — Verity ≡ EVMYulLean"
   IO.println "✓ State-dependent builtins: sload, caller, calldataload — correctly delegated"
