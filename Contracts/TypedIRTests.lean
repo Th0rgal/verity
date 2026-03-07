@@ -2540,6 +2540,17 @@ example : simpleTokenMintOwnerAgreement = true := by
   native_decide
 
 open Compiler.CompilationModel in
+/-- `SimpleToken.mint`: generic owner-auth multi-read theorem instantiates cleanly. -/
+example (init : TExecState) :
+    execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        simpleTokenFields "owner" "balances" "totalSupply"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init =
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 1 2 "Caller is not the owner" :=
+  simpleToken_mint_ownerAuth_multiRead_correctness init
+
+open Compiler.CompilationModel in
 /-- `SimpleToken.mint`: non-owner path reverts identically. -/
 private def simpleTokenMintNonOwnerAgreement : Bool :=
   let init : TExecState :=
@@ -2752,6 +2763,17 @@ private def erc20MintOwnerAgreement : Bool :=
 
 example : erc20MintOwnerAgreement = true := by
   native_decide
+
+open Compiler.CompilationModel in
+/-- `ERC20.mint`: generic owner-auth multi-read theorem instantiates cleanly. -/
+example (init : TExecState) :
+    execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        erc20Fields "ownerSlot" "balancesSlot" "totalSupplySlot"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init =
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 2 1 "Caller is not the owner" :=
+  erc20_mint_ownerAuth_multiRead_correctness init
 
 open Compiler.CompilationModel in
 /-- `ERC20.mint`: non-owner path reverts identically. -/

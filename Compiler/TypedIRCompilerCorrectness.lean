@@ -1766,6 +1766,56 @@ theorem compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageA
       hEq1, TVars.set, TVars.get]
 
 /-- Semantic-preservation for the Morpho enableIrm pattern. -/
+theorem compile_letCaller_letStorageAddr_reqEq_letMapping_letStorage_setMapping_add_param_setStorage_add_param_stop_semantics
+    (fields : List Field)
+    (ownerField mappingField supplyField senderVar ownerVar balanceVar supplyVar toParam amountParam
+      : String)
+    (ownerSlot mappingSlot supplySlot : Nat) (init : TExecState) (msg : String)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
+    (hSupply : findFieldWithResolvedSlot fields supplyField =
+      some ({ name := supplyField, ty := FieldType.uint256 }, supplySlot))
+    (hne_ap_tp : amountParam ≠ toParam)
+    (hne_sv_tp : senderVar ≠ toParam)
+    (hne_sv_ap : senderVar ≠ amountParam)
+    (hne_ov_tp : ownerVar ≠ toParam)
+    (hne_ov_ap : ownerVar ≠ amountParam)
+    (hne_ov_sv : ownerVar ≠ senderVar)
+    (hne_bv_tp : balanceVar ≠ toParam)
+    (hne_bv_ap : balanceVar ≠ amountParam)
+    (hne_sp_tp : supplyVar ≠ toParam)
+    (hne_sp_ap : supplyVar ≠ amountParam)
+    (hne_sp_bv : supplyVar ≠ balanceVar) :
+    execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        fields ownerField mappingField supplyField senderVar ownerVar balanceVar supplyVar toParam
+        amountParam msg init =
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init ownerSlot mappingSlot supplySlot msg := by
+  simp [execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop,
+    execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop,
+    compileStmts_letCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop_run,
+    hOwner, hMapping, hSupply, hne_ap_tp, hne_sv_tp, hne_sv_ap, hne_ov_tp, hne_ov_ap, hne_ov_sv,
+    hne_bv_tp, hne_bv_ap, hne_sp_tp, hne_sp_ap, hne_sp_bv, evalTStmts, defaultEvalFuel]
+  by_cases hEq : init.env.sender = init.world.storageAddr ownerSlot
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq, TVars.set, TVars.get]
+    constructor
+    · funext i
+      by_cases hi : i = supplySlot
+      · subst hi
+        simp
+        change Verity.Core.Uint256.add (init.world.storage i) (init.vars.uint256 1) =
+          Verity.Core.Uint256.add (init.world.storage i) (init.vars.uint256 1)
+        rfl
+      · simp [hi]
+    · funext i a
+      by_cases hia : i = mappingSlot ∧ a = init.vars.address 0
+      · simp [hia]
+        exact Verity.Core.Uint256.add_comm _ _
+      · simp [hia]
+  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq, TVars.set, TVars.get]
+
+/-- Semantic-preservation for the Morpho enableIrm pattern. -/
 theorem compile_letCaller_letStorageAddr_reqEq_letMapping_reqEqLit_setMapping_stop_semantics
     (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
     (ownerSlot mappingSlot : Nat) (writeVal : Nat) (init : TExecState) (msg1 msg2 : String)
@@ -6096,6 +6146,24 @@ theorem simpleToken_owner_correctness (init : TExecState) :
         execSourceSupportedStmtFragments simpleTokenFields init fragments :=
   compile_supported_stmt_list_semantics simpleTokenFields init _ simpleToken_owner_supported
 
+/-- SimpleToken.mint owner-auth multi-read pattern: compiled and source semantics match. -/
+theorem simpleToken_mint_ownerAuth_multiRead_correctness (init : TExecState) :
+    execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        simpleTokenFields "owner" "balances" "totalSupply"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init =
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 1 2 "Caller is not the owner" :=
+  compile_letCaller_letStorageAddr_reqEq_letMapping_letStorage_setMapping_add_param_setStorage_add_param_stop_semantics
+    simpleTokenFields "owner" "balances" "totalSupply"
+    "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+    0 1 2 init "Caller is not the owner"
+    simpleTokenOwnerFieldResolution simpleTokenBalancesFieldSlot simpleTokenTotalSupplyFieldResolution
+    (by decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide)
+    (by decide) (by decide) (by decide)
+
 -- ============================================================================
 -- ERC20 fields and correctness theorems
 -- ============================================================================
@@ -6234,6 +6302,24 @@ theorem erc20_approve_correctness (init : TExecState) :
       execCompiledSupportedStmtFragments erc20Fields init fragments =
         execSourceSupportedStmtFragments erc20Fields init fragments :=
   compile_supported_stmt_list_semantics erc20Fields init _ erc20_approve_supported
+
+/-- ERC20.mint owner-auth multi-read pattern: compiled and source semantics match. -/
+theorem erc20_mint_ownerAuth_multiRead_correctness (init : TExecState) :
+    execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        erc20Fields "ownerSlot" "balancesSlot" "totalSupplySlot"
+        "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+        "Caller is not the owner" init =
+      execSourceLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop
+        init 0 2 1 "Caller is not the owner" :=
+  compile_letCaller_letStorageAddr_reqEq_letMapping_letStorage_setMapping_add_param_setStorage_add_param_stop_semantics
+    erc20Fields "ownerSlot" "balancesSlot" "totalSupplySlot"
+    "sender" "currentOwner" "currentBalance" "currentSupply" "to" "amount"
+    0 2 1 init "Caller is not the owner"
+    erc20OwnerSlotFieldResolution erc20BalancesSlotFieldSlot erc20TotalSupplySlotFieldResolution
+    (by decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide)
+    (by decide) (by decide) (by decide)
 
 -- ============================================================
 -- ERC721 field definitions and bridge theorems

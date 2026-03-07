@@ -1747,6 +1747,105 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageA
  require (eq (localVar currentVar) (literal 0)) msg2 ;
  setMapping mappingField (param keyParam) (literal writeVal) ; stop`.
 This pattern is used by Morpho Blue's `enableIrm` admin function. -/
+theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop_run
+    (fields : List Field)
+    (ownerField mappingField supplyField senderVar ownerVar balanceVar supplyVar toParam amountParam
+      msg : String)
+    (ownerSlot mappingSlot supplySlot : Nat)
+    (hOwner : findFieldWithResolvedSlot fields ownerField =
+      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
+    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
+    (hSupply : findFieldWithResolvedSlot fields supplyField =
+      some ({ name := supplyField, ty := FieldType.uint256 }, supplySlot))
+    (hne_ap_tp : amountParam ≠ toParam)
+    (hne_sv_tp : senderVar ≠ toParam)
+    (hne_sv_ap : senderVar ≠ amountParam)
+    (hne_ov_tp : ownerVar ≠ toParam)
+    (hne_ov_ap : ownerVar ≠ amountParam)
+    (hne_ov_sv : ownerVar ≠ senderVar)
+    (hne_bv_tp : balanceVar ≠ toParam)
+    (hne_bv_ap : balanceVar ≠ amountParam)
+    (hne_sp_tp : supplyVar ≠ toParam)
+    (hne_sp_ap : supplyVar ≠ amountParam)
+    (hne_sp_bv : supplyVar ≠ balanceVar) :
+    (compileStmts fields
+      [ Stmt.letVar senderVar Expr.caller
+      , Stmt.letVar ownerVar (Expr.storage ownerField)
+      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg
+      , Stmt.letVar balanceVar (Expr.mapping mappingField (Expr.param toParam))
+      , Stmt.letVar supplyVar (Expr.storage supplyField)
+      , Stmt.setMapping mappingField (Expr.param toParam)
+          (Expr.add (Expr.localVar balanceVar) (Expr.param amountParam))
+      , Stmt.setStorage supplyField
+          (Expr.add (Expr.localVar supplyVar) (Expr.param amountParam))
+      , Stmt.stop
+      ]).run
+      (CompileState.mk 2
+        [(amountParam, { id := 1, ty := Ty.uint256 }),
+         (toParam, { id := 0, ty := Ty.address })]
+        #[{ id := 0, ty := Ty.address }, { id := 1, ty := Ty.uint256 }]
+        #[] #[]) =
+      Except.ok ((),
+        { nextId := 6
+          vars := [(supplyVar, { id := 5, ty := Ty.uint256 }),
+                   (balanceVar, { id := 4, ty := Ty.uint256 }),
+                   (ownerVar, { id := 3, ty := Ty.address }),
+                   (senderVar, { id := 2, ty := Ty.address }),
+                   (amountParam, { id := 1, ty := Ty.uint256 }),
+                   (toParam, { id := 0, ty := Ty.address })]
+          params := #[{ id := 0, ty := Ty.address }, { id := 1, ty := Ty.uint256 }]
+          locals := #[{ id := 2, ty := Ty.address }, { id := 3, ty := Ty.address },
+                      { id := 4, ty := Ty.uint256 }, { id := 5, ty := Ty.uint256 }]
+          body := #[
+            TStmt.let_ { id := 2, ty := Ty.address } TExpr.sender,
+            TStmt.let_ { id := 3, ty := Ty.address } (TExpr.getStorageAddr ownerSlot),
+            TStmt.if_ (TExpr.eq
+                (TExpr.var { id := 2, ty := Ty.address })
+                (TExpr.var { id := 3, ty := Ty.address }))
+              [] [TStmt.revert msg],
+            TStmt.let_ { id := 4, ty := Ty.uint256 }
+              (TExpr.getMapping mappingSlot (TExpr.var { id := 0, ty := Ty.address })),
+            TStmt.let_ { id := 5, ty := Ty.uint256 } (TExpr.getStorage supplySlot),
+            TStmt.setMapping mappingSlot
+              (TExpr.var { id := 0, ty := Ty.address })
+              (TExpr.add
+                (TExpr.var { id := 4, ty := Ty.uint256 })
+                (TExpr.var { id := 1, ty := Ty.uint256 })),
+            TStmt.setStorage supplySlot
+              (TExpr.add
+                (TExpr.var { id := 5, ty := Ty.uint256 })
+                (TExpr.var { id := 1, ty := Ty.uint256 })),
+            TStmt.stop
+          ] }) := by
+  have h0 : (amountParam == toParam) = false := beq_false_of_ne hne_ap_tp
+  have h1 : (senderVar == toParam) = false := beq_false_of_ne hne_sv_tp
+  have h2 : (senderVar == amountParam) = false := beq_false_of_ne hne_sv_ap
+  have h3 : (ownerVar == toParam) = false := beq_false_of_ne hne_ov_tp
+  have h4 : (ownerVar == amountParam) = false := beq_false_of_ne hne_ov_ap
+  have h5 : (ownerVar == senderVar) = false := beq_false_of_ne hne_ov_sv
+  have h6 : (balanceVar == toParam) = false := beq_false_of_ne hne_bv_tp
+  have h7 : (balanceVar == amountParam) = false := beq_false_of_ne hne_bv_ap
+  have h10 : (supplyVar == toParam) = false := beq_false_of_ne hne_sp_tp
+  have h11 : (supplyVar == amountParam) = false := beq_false_of_ne hne_sp_ap
+  have h14 : (supplyVar == balanceVar) = false := beq_false_of_ne hne_sp_bv
+  have hsrOwner : compileStorageRead fields ownerField =
+      Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
+    simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
+  have hsrSupply : compileStorageRead fields supplyField =
+      Except.ok ⟨Ty.uint256, TExpr.getStorage supplySlot⟩ := by
+    simp only [compileStorageRead, hSupply, fieldTypeToTy]; rfl
+  simp [compileStmts, compileStmt, compileExpr, hsrOwner, hsrSupply, hSupply, fieldTypeToTy,
+    emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asAddress, asBool, asUInt256,
+    liftExcept, emit, List.find?, hMapping, h0, h1, h2, h3, h4, h5, h6, h7, h10, h11, h14]
+  rfl
+
+/-- Compilation shape for the Morpho `enableIrm` pattern:
+`letVar senderVar caller ; letVar ownerVar (storage ownerField) ;
+ require (eq (localVar senderVar) (localVar ownerVar)) msg1 ;
+ letVar currentVar (mapping mappingField (param keyParam)) ;
+ require (eq (localVar currentVar) (literal 0)) msg2 ;
+ setMapping mappingField (param keyParam) (literal writeVal) ; stop`.
+This pattern is used by Morpho Blue's `enableIrm` admin function. -/
 theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_run
     (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam msg1 msg2 : String)
     (ownerSlot mappingSlot : Nat) (writeVal : Nat)
