@@ -1,3 +1,4 @@
+import Contracts
 import Compiler.ModuleInput
 
 namespace Compiler.ModuleInputTest

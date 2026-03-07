@@ -1,3 +1,4 @@
+import Contracts
 import Compiler.Main
 import Compiler.Linker
 import Compiler.TestModules

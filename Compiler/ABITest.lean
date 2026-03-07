@@ -88,6 +88,32 @@ private def abiSpec : CompilationModel := {
   ]
 }
 
+private def stringAbiSpec : CompilationModel := {
+  name := "StringABIEmitterFixture"
+  fields := []
+  constructor := none
+  functions := [
+    { name := "echoString"
+      params := [{ name := "message", ty := ParamType.string }]
+      returnType := none
+      returns := [ParamType.string]
+      body := [Stmt.returnBytes "message"]
+    }
+  ]
+  events := [
+    { name := "MessageLogged"
+      params := [
+        { name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }
+      ]
+    }
+  ]
+  errors := [
+    { name := "BadMessage"
+      params := [ParamType.string]
+    }
+  ]
+}
+
 #eval! do
   let rendered := Compiler.ABI.emitContractABIJson abiSpec
   assertContains "constructor entry" rendered ["\"type\": \"constructor\"", "\"stateMutability\": \"payable\""]
@@ -101,5 +127,19 @@ private def abiSpec : CompilationModel := {
   if contains rendered "internalHelper" then
     throw (IO.userError s!"✗ internal functions must not appear in ABI: {rendered}")
   IO.println "✓ internal function filtering"
+
+  let stringRendered := Compiler.ABI.emitContractABIJson stringAbiSpec
+  assertContains
+    "string function input/output ABI"
+    stringRendered
+    ["\"name\": \"echoString\"", "\"inputs\": [{\"name\": \"message\", \"type\": \"string\"}]", "\"outputs\": [{\"name\": \"\", \"type\": \"string\"}]"]
+  assertContains
+    "string event ABI"
+    stringRendered
+    ["\"type\": \"event\"", "\"name\": \"MessageLogged\"", "\"type\": \"string\"", "\"indexed\": false"]
+  assertContains
+    "string error ABI"
+    stringRendered
+    ["\"type\": \"error\"", "\"name\": \"BadMessage\"", "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}]"]
 
 end Compiler.ABITest
