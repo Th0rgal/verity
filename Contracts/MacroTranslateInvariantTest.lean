@@ -5,6 +5,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.StringSmoke
 
 namespace Compiler.MacroTranslateInvariantTest
 
@@ -245,7 +246,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.Bytes32Smoke.spec
   , Contracts.Smoke.MappingWordSmoke.spec
   , Contracts.Smoke.StorageWordsSmoke.spec
-  , Contracts.Smoke.StringSmoke.spec
+  , Contracts.StringSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
