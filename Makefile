@@ -106,6 +106,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_property_coverage.py
 	python3 scripts/check_contract_structure.py
 	python3 scripts/check_paths.py
+	python3 scripts/check_compilationmodel_split.py
 	python3 scripts/check_axioms.py
 	python3 scripts/generate_verification_status.py --check
 	python3 scripts/check_verification_status_doc.py
