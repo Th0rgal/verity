@@ -91,4 +91,77 @@ def foundation_patch_pack_obligations (eval : EvalExpr) : Prop :=
   div_one_right_preserves eval ∧
   mod_one_right_preserves eval
 
+/-- Placeholder object-level proof hook until object semantics preservation is stated directly. -/
+def ObjectPatchPreserves (_rule : ObjectPatchRule) : Prop :=
+  True
+
+/-- Obligation for `solc-compat` internal-helper canonicalization. -/
+def solc_compat_canonicalize_internal_fun_names_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatCanonicalizeInternalFunNamesRule
+
+/-- Obligation for `solc-compat` helper deduplication. -/
+def solc_compat_dedupe_equivalent_helpers_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatDedupeEquivalentHelpersRule
+
+/-- Obligation for `solc-compat` dispatch-wrapper inlining. -/
+def solc_compat_inline_dispatch_wrapper_calls_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatInlineDispatchWrapperCallsRule
+
+/-- Obligation for `solc-compat` keccak helper inlining. -/
+def solc_compat_inline_keccak_market_params_calls_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatInlineKeccakMarketParamsCallsRule
+
+/-- Obligation for `solc-compat` mapping-slot helper inlining. -/
+def solc_compat_inline_mapping_slot_calls_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatInlineMappingSlotCallsRule
+
+/-- Obligation for `solc-compat` unused keccak helper pruning. -/
+def solc_compat_drop_unused_keccak_market_params_helper_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatDropUnusedKeccakMarketParamsHelperRule
+
+/-- Obligation for `solc-compat` unused mapping-slot helper pruning. -/
+def solc_compat_drop_unused_mapping_slot_helper_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatDropUnusedMappingSlotHelperRule
+
+/-- Obligation for `solc-compat` nonce-increment rewriting. -/
+def solc_compat_rewrite_nonce_increment_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatRewriteNonceIncrementRule
+
+/-- Obligation for `solc-compat` elapsed checked-sub rewriting. -/
+def solc_compat_rewrite_elapsed_checked_sub_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatRewriteElapsedCheckedSubRule
+
+/-- Obligation for `solc-compat` checked-arithmetic rewriting in `accrueInterest`. -/
+def solc_compat_rewrite_accrue_interest_checked_arithmetic_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatRewriteAccrueInterestCheckedArithmeticRule
+
+/-- Obligation for `solc-compat` `accrueInterest` prologue temp rewriting. -/
+def solc_compat_rewrite_accrue_interest_prologue_temps_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatRewriteAccrueInterestPrologueTempsRule
+
+/-- Obligation for `solc-compat` `accrueInterest` IRM guard rewriting. -/
+def solc_compat_rewrite_accrue_interest_irm_guard_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatRewriteAccrueInterestIrmGuardRule
+
+/-- Obligation for `solc-compat` deploy-helper reachability pruning. -/
+def solc_compat_prune_unreachable_deploy_helpers_preserves : Prop :=
+  ObjectPatchPreserves Compiler.Yul.solcCompatPruneUnreachableDeployHelpersRule
+
+/-- Registry hook: shipped `solc-compat` packs reference the exact active bundle obligations. -/
+def solc_compat_patch_pack_obligations (eval : EvalExpr) : Prop :=
+  foundation_patch_pack_obligations eval ∧
+  solc_compat_canonicalize_internal_fun_names_preserves ∧
+  solc_compat_dedupe_equivalent_helpers_preserves ∧
+  solc_compat_inline_dispatch_wrapper_calls_preserves ∧
+  solc_compat_inline_keccak_market_params_calls_preserves ∧
+  solc_compat_inline_mapping_slot_calls_preserves ∧
+  solc_compat_drop_unused_keccak_market_params_helper_preserves ∧
+  solc_compat_drop_unused_mapping_slot_helper_preserves ∧
+  solc_compat_rewrite_nonce_increment_preserves ∧
+  solc_compat_rewrite_elapsed_checked_sub_preserves ∧
+  solc_compat_rewrite_accrue_interest_checked_arithmetic_preserves ∧
+  solc_compat_rewrite_accrue_interest_prologue_temps_preserves ∧
+  solc_compat_rewrite_accrue_interest_irm_guard_preserves ∧
+  solc_compat_prune_unreachable_deploy_helpers_preserves
+
 end Compiler.Proofs.YulGeneration.PatchRulesProofs

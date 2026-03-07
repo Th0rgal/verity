@@ -66,7 +66,7 @@ def solc_0_8_28_o200_viair_false_evm_shanghai : ParityPack :=
     forcePatches := true
     defaultPatchMaxIterations := 6
     rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
+    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 
@@ -84,7 +84,7 @@ def solc_0_8_33_o200_viair_false_evm_shanghai : ParityPack :=
     forcePatches := true
     defaultPatchMaxIterations := 6
     rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
+    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 
@@ -102,7 +102,7 @@ def solc_0_8_28_o999999_viair_true_evm_paris : ParityPack :=
     forcePatches := true
     defaultPatchMaxIterations := 6
     rewriteBundleId := Compiler.Yul.solcCompatRewriteBundleId
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
+    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.solcCompatProofAllowlist
   }
 

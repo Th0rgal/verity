@@ -128,7 +128,7 @@ unsafe def runTests : IO Unit := do
       requiredProofRefs := [] }
   expectTrue "parity pack proof composition rejects empty metadata" (!invalidPack.proofCompositionValid)
   let missingBundlePack := { invalidPack with
-    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.foundation_patch_pack_obligations"
+    compositionProofRef := "Compiler.Proofs.YulGeneration.PatchRulesProofs.solc_compat_patch_pack_obligations"
     requiredProofRefs := Compiler.Yul.foundationProofAllowlist
     rewriteBundleId := "missing-rewrite-bundle" }
   expectTrue "parity pack proof composition rejects unknown rewrite bundle IDs"
