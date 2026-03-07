@@ -54,6 +54,42 @@ abstract contract YulTestBase is Test {
         return _deploy(_compileYul(path));
     }
 
+    function _ensureVerityModuleYul(
+        string memory moduleName,
+        string memory contractName,
+        string memory outDir
+    ) internal {
+        string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
+        string[] memory cmds = new string[](3);
+        cmds[0] = "bash";
+        cmds[1] = "-lc";
+        cmds[2] = string.concat(
+            "artifact='",
+            artifactPath,
+            "'; out='",
+            outDir,
+            "'; module='",
+            moduleName,
+            "'; compiler='./.lake/build/bin/verity-compiler'; ",
+            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
+            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
+            "mkdir -p \"$out\" && lake build verity-compiler >/dev/null && ",
+            "\"$compiler\" --module \"$module\" --output \"$out\" >/dev/null"
+        );
+        vm.ffi(cmds);
+        require(vm.exists(artifactPath), "Verity module compile did not emit Yul artifact");
+    }
+
+    function deployCompiledVerityModule(
+        string memory moduleName,
+        string memory contractName,
+        string memory outDir
+    ) internal returns (address) {
+        _ensureVerityModuleYul(moduleName, contractName, outDir);
+        string memory path = string.concat(outDir, "/", contractName, ".yul");
+        return _deploy(_compileYul(path));
+    }
+
     function deployYulWithArgs(string memory name, bytes memory args) internal returns (address) {
         string memory path = string.concat(_yulDir(), "/", name, ".yul");
         bytes memory initCode = bytes.concat(_compileYul(path), args);
