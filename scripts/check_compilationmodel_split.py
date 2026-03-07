@@ -76,7 +76,9 @@ def check_compilationmodel_split(
     failures.extend(_find_non_import_lines(facade_path))
 
     expected_imports = _discover_expected_imports(submodule_path)
-    actual_imports = _collect_imports(facade_path.read_text(encoding="utf-8").splitlines())
+    actual_imports = _collect_imports(
+        strip_lean_comments(facade_path.read_text(encoding="utf-8")).splitlines()
+    )
 
     missing = sorted(set(expected_imports) - set(actual_imports))
     unexpected = sorted(

@@ -101,6 +101,22 @@ class CheckCompilationModelSplitTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("missing Compiler.CompilationModel.Compile", stderr.getvalue())
 
+    def test_ignores_commented_out_import_decoy(self) -> None:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tempdir_str:
+            tempdir = Path(tempdir_str)
+            facade, module_dir = self._make_layout(
+                tempdir,
+                facade_text=(
+                    "import Compiler.CompilationModel.Types\n"
+                    "-- import Compiler.CompilationModel.Compile\n"
+                ),
+            )
+            stderr = io.StringIO()
+            with redirect_stderr(stderr):
+                rc = checker.check_compilationmodel_split(facade=facade, submodule_dir=module_dir)
+        self.assertEqual(rc, 1)
+        self.assertIn("missing Compiler.CompilationModel.Compile", stderr.getvalue())
+
     def test_rejects_unexpected_import_namespace(self) -> None:
         with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tempdir_str:
             tempdir = Path(tempdir_str)
