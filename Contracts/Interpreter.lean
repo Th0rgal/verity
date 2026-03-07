@@ -1,5 +1,5 @@
-/-
-  Compiler.Interpreter: EDSL Interpreter for Differential Testing
+/- 
+  Contracts.Interpreter: EDSL Interpreter for Differential Testing
 
   This module provides an interpreter that executes EDSL contracts on abstract state,
   enabling comparison with compiled EVM execution for differential testing.

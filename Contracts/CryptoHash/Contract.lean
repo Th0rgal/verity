@@ -27,7 +27,7 @@ This allows us to prove properties about the contract logic without dealing
 with complex cryptographic primitives.
 
 At compile time, the real Poseidon hash is linked via `Expr.externalCall` in
-the CompilationModel and the `--link` CLI flag. See `Compiler/Specs.lean` for the
+the CompilationModel and the `--link` CLI flag. See `Contracts/Specs.lean` for the
 CompilationModel that references `PoseidonT3_hash`/`PoseidonT4_hash`, and
 `examples/external-libs/` for the Yul library files.
 

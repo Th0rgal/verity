@@ -196,3 +196,5 @@ def main : IO Unit := do
   IO.println "✓ macro round-trip fuzz harness passed"
 
 end Compiler.MacroTranslateRoundTripFuzz
+
+def main : IO Unit := Compiler.MacroTranslateRoundTripFuzz.main

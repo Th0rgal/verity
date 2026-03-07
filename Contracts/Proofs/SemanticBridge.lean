@@ -1,5 +1,5 @@
-/-
-  Compiler.Proofs.SemanticBridge: Full EDSL ≡ Compiled IR theorem statements
+/- 
+  Contracts.Proofs.SemanticBridge: Full EDSL ≡ Compiled IR theorem statements
 
   This file states the *target* theorem per contract function: that EDSL execution
   produces the same storage effects as compiling the CompilationModel spec and
@@ -24,12 +24,12 @@
   importing both the EDSL types and the IR execution types, stating the
   theorems that directly reference `interpretIR`.
 
-  Run: lake build Compiler.Proofs.SemanticBridge
+  Run: lake build Contracts.Proofs.SemanticBridge
 -/
 
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.EndToEnd
-import Compiler.Specs
+import Contracts.Specs
 import Verity.Core
 import Contracts
 import Lean

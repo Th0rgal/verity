@@ -12,6 +12,11 @@ lean_lib «Contracts» where
   globs := #[
     .one `Contracts,
     .one `Contracts.Common,
+    .one `Contracts.Specs,
+    .one `Contracts.Interpreter,
+    .one `Contracts.MacroTranslateInvariantTest,
+    .one `Contracts.MacroTranslateRoundTripFuzz,
+    .one `Contracts.Proofs.SemanticBridge,
     .one `Contracts.Smoke,
     .andSubmodules `Contracts.Counter,
     .andSubmodules `Contracts.SimpleStorage,

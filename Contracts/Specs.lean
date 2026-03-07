@@ -1,5 +1,5 @@
 /- 
-  Compiler.Specs: Declarative Contract Specifications
+  Contracts.Specs: Declarative Contract Specifications
 
   Shipped compiler inputs are the macro-generated `CompilationModel` values
   emitted by `verity_contract`. This module keeps compatibility aliases for

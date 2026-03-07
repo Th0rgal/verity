@@ -4,7 +4,7 @@ import Verity.Core.Free.TypedIRCompiler
 import Verity.Core.Free.TypedIRCompilerCorrectness
 import Verity.Core.Free.TypedIRLowering
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Compiler.Specs
+import Contracts.Specs
 
 namespace Verity.Core.Free
 

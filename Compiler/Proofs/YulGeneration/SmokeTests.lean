@@ -3,7 +3,7 @@ import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.Semantics
-import Compiler.Specs
+import Contracts.Specs
 import Std.Tactic
 
 namespace Compiler.Proofs.YulGeneration
@@ -18,8 +18,8 @@ open Compiler.Yul
 private def emptyStorage : Nat → Nat := fun _ => 0
 private def emptyMappings : Nat → Nat → Nat := fun _ _ => 0
 
-private def storageWith (slot value : Nat) : Nat → Nat :=
-  fun s => if s = slot then value else 0
+private def storageWith (slotIdx value : Nat) : Nat → Nat :=
+  fun s => if s = slotIdx then value else 0
 
 private def mappingsWith (base key value : Nat) : Nat → Nat → Nat :=
   fun b k => if b = base ∧ k = key then value else 0
@@ -27,8 +27,8 @@ private def mappingsWith (base key value : Nat) : Nat → Nat → Nat :=
 /-! ## Yul Runtime Semantics Smoke Tests -/
 
 private def runYul (runtimeCode : List YulStmt) (tx : YulTransaction)
-    (storage : Nat → Nat) (mappings : Nat → Nat → Nat) : YulResult :=
-  let initialState := YulState.initial tx storage mappings
+    (storageFn : Nat → Nat) (mappings : Nat → Nat → Nat) : YulResult :=
+  let initialState := YulState.initial tx storageFn mappings
   let fuel := 500
   match execYulStmtsFuel fuel initialState runtimeCode with
   | .continue s =>
@@ -49,7 +49,7 @@ private def runYul (runtimeCode : List YulStmt) (tx : YulTransaction)
   | .revert _ =>
       { success := false
         returnValue := none
-        finalStorage := storage
+        finalStorage := storageFn
         finalMappings := mappings }
 
 -- return(0,32) returns memory[0]
@@ -114,10 +114,10 @@ example :
         YulExpr.lit 321
       ])
     ]
-    let slot := solidityMappingSlot 4 9
+    let slotIdx := solidityMappingSlot 4 9
     match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
     | { success := true, finalStorage, finalMappings, .. } =>
-        decide (finalStorage slot = 321 ∧ finalMappings 4 9 = 0)
+        decide (finalStorage slotIdx = 321 ∧ finalMappings 4 9 = 0)
     | _ => false) = true := by
   native_decide
 
@@ -129,10 +129,10 @@ example :
         YulExpr.lit 555
       ])
     ]
-    let slot := solidityMappingSlot 4 9
+    let slotIdx := solidityMappingSlot 4 9
     match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
     | { success := true, finalStorage, finalMappings, .. } =>
-        decide (finalStorage slot = 555 ∧ finalMappings 4 9 = 0)
+        decide (finalStorage slotIdx = 555 ∧ finalMappings 4 9 = 0)
     | _ => false) = true := by
   native_decide
 
@@ -177,17 +177,17 @@ example :
         YulExpr.lit 777
       ])
     ]
-    let slot := solidityMappingSlot (solidityMappingSlot 3 4) 5
+    let slotIdx := solidityMappingSlot (solidityMappingSlot 3 4) 5
     match runYul runtime { sender := 0, functionSelector := 0, args := [] } emptyStorage emptyMappings with
     | { success := true, finalStorage, finalMappings, .. } =>
-        decide (finalStorage slot = 777 ∧ finalMappings 3 4 = 0 ∧ finalMappings (solidityMappingSlot 3 4) 5 = 0)
+        decide (finalStorage slotIdx = 777 ∧ finalMappings 3 4 = 0 ∧ finalMappings (solidityMappingSlot 3 4) 5 = 0)
     | _ => false) = true := by
   native_decide
 
 /-! ## IR vs Yul Smoke Tests -/
 
-private def mkIRState (sender : Nat) (storage : Nat → Nat) (mappings : Nat → Nat → Nat) : IRState :=
-  { (IRState.initial sender) with storage := storage, mappings := mappings }
+private def mkIRState (sender : Nat) (storageFn : Nat → Nat) (mappings : Nat → Nat → Nat) : IRState :=
+  { (IRState.initial sender) with storage := storageFn, mappings := mappings }
 
 private def interpretYulFromIRFuel (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }

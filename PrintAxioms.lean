@@ -32,7 +32,7 @@ import Compiler.Proofs.ArithmeticProfile
 import Compiler.Proofs.EndToEnd
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.SemanticBridge
+import Contracts.Proofs.SemanticBridge
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -598,7 +598,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractLoadStorageOrMapping_eq
 #print axioms Compiler.Proofs.abstractStoreStorageOrMapping_eq
 
--- Compiler/Proofs/SemanticBridge.lean
+-- Contracts/Proofs/SemanticBridge.lean
 #print axioms Compiler.Proofs.SemanticBridge.spec_to_ir_preserves_semantics
 #print axioms Compiler.Proofs.SemanticBridge.simpleStorage_store_semantic_bridge
 #print axioms Compiler.Proofs.SemanticBridge.simpleStorage_retrieve_semantic_bridge

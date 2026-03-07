@@ -23,6 +23,11 @@ lean_lib «Contracts» where
   globs := #[
     .one `Contracts,
     .one `Contracts.Common,
+    .one `Contracts.Specs,
+    .one `Contracts.Interpreter,
+    .one `Contracts.MacroTranslateInvariantTest,
+    .one `Contracts.MacroTranslateRoundTripFuzz,
+    .one `Contracts.Proofs.SemanticBridge,
     .one `Contracts.Smoke,
     .andSubmodules `Contracts.Counter,
     .andSubmodules `Contracts.SimpleStorage,
@@ -49,7 +54,7 @@ lean_exe «verity-compiler» where
   root := `Compiler.Main
 
 lean_exe «difftest-interpreter» where
-  root := `Compiler.Interpreter
+  root := `Contracts.Interpreter
 
 lean_exe «random-gen» where
   root := `Compiler.RandomGen
@@ -58,4 +63,4 @@ lean_exe «gas-report» where
   root := `Compiler.Gas.Report
 
 lean_exe «macro-roundtrip-fuzz» where
-  root := `Compiler.MacroTranslateRoundTripFuzz
+  root := `Contracts.MacroTranslateRoundTripFuzz
