@@ -327,6 +327,10 @@ def Compiler.Modules.Calls.withReturn
 
 First-class low-level forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`).
 
+They are not yet modeled by the current proof interpreters. In the machine-readable interpreter feature matrix, the spec interpreters still treat these forms as fallback-zero / not-modeled constructs, so low-level call plumbing and returndata behavior remain a compiler-and-testing trust boundary rather than a proved semantic feature today.
+
+Prefer ECM wrappers when they fit the use case, and see issue `#1332` plus [`docs/INTERPRETER_FEATURE_MATRIX.md`](../../docs/INTERPRETER_FEATURE_MATRIX.md) for the current proof boundary.
+
 Reference: `Compiler/CompilationModel.lean`.
 
 ## Context Accessors
