@@ -443,7 +443,8 @@ def _getter_target_field(fn: Function, fields: List[Field]) -> Field | None:
 
     Matches the getter suffix (e.g., ``getTotalSupply`` → ``totalSupply``,
     ``getBalance`` → ``balances``) case-insensitively against field names.
-    Tries exact match first, then common plural suffix (``+s``/``+es``).
+    Tries exact match first, then common plural forms (``+s``, ``+es``,
+    ``y`` → ``ies``).
     Returns ``None`` if no match.
     """
     prefix = _getter_prefix(fn.name)
@@ -454,8 +455,12 @@ def _getter_target_field(fn: Function, fields: List[Field]) -> Field | None:
     for f in fields:
         if f.name.lower() == suffix:
             return f
-    # Try plural forms: getBalance → balances, getAddress → addresses
-    for plural in (suffix + "s", suffix + "es"):
+    # Try plural forms: getBalance → balances, getAddress → addresses,
+    # getCategory → categories.
+    plural_candidates = [suffix + "s", suffix + "es"]
+    if suffix.endswith("y") and len(suffix) > 1 and suffix[-2] not in "aeiou":
+        plural_candidates.append(suffix[:-1] + "ies")
+    for plural in plural_candidates:
         for f in fields:
             if f.name.lower() == plural:
                 return f

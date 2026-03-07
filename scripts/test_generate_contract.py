@@ -308,6 +308,30 @@ class GenerateContractSpecGetterTests(unittest.TestCase):
         self.assertIn("result = s.storageMapUint 0 id", out)
 
 
+class GenerateContractGetterTargetInferenceTests(unittest.TestCase):
+    def test_infers_y_to_ies_plural_field_for_mapping_getter(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="categories", ty="mapping")],
+            functions=[Function(name="getCategory", params=[Param(name="account", ty="address")])],
+        )
+
+        out = gen_example(cfg)
+        self.assertIn("def getCategory (account : Address) : Contract Uint256 := do", out)
+        self.assertIn("let currentValue ← getMapping categories account", out)
+
+    def test_infers_y_to_ies_plural_field_for_scalar_getter(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="treasuries", ty="uint256")],
+            functions=[Function(name="getTreasury", params=[])],
+        )
+
+        out = gen_spec(cfg)
+        self.assertIn("def getTreasury_spec (result : Uint256) (s : ContractState) : Prop :=", out)
+        self.assertIn("result = s.storage 0", out)
+
+
 class GenerateContractInvariantScaffoldTests(unittest.TestCase):
     def test_address_mapping_invariant_uses_address_keyed_storage_map(self) -> None:
         cfg = ContractConfig(
