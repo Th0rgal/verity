@@ -1,9 +1,14 @@
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Mathlib.Data.Nat.Bitwise
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Proofs.YulGeneration
+
+private theorem word_lt_uint256_size (x : Nat) :
+    x % EvmYul.UInt256.size < 2 ^ 256 := by
+  simpa [EvmYul.UInt256.size] using Nat.mod_lt x (by decide : 0 < EvmYul.UInt256.size)
 
 private theorem verity_eval_add_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
@@ -140,6 +145,38 @@ private theorem bridge_eval_gt_normalized (a b : Nat) :
       some (if b % EvmYul.UInt256.size < a % EvmYul.UInt256.size then 1 else 0) := by
   rfl
 
+private theorem bridge_eval_and_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "and" [a, b] =
+      some (a % EvmYul.UInt256.size &&& b % EvmYul.UInt256.size) := by
+  change some (((Nat.bitwise Bool.and (a % EvmYul.UInt256.size) (b % EvmYul.UInt256.size)) %
+      EvmYul.UInt256.size)) =
+    some (Nat.bitwise Bool.and (a % EvmYul.UInt256.size) (b % EvmYul.UInt256.size))
+  congr 1
+  rw [Nat.mod_eq_of_lt]
+  exact Nat.bitwise_lt_two_pow (f := Bool.and) (n := 256)
+    (word_lt_uint256_size a) (word_lt_uint256_size b)
+
+private theorem bridge_eval_or_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "or" [a, b] =
+      some (a % EvmYul.UInt256.size ||| b % EvmYul.UInt256.size) := by
+  change some (((Nat.bitwise Bool.or (a % EvmYul.UInt256.size) (b % EvmYul.UInt256.size)) %
+      EvmYul.UInt256.size)) =
+    some (Nat.bitwise Bool.or (a % EvmYul.UInt256.size) (b % EvmYul.UInt256.size))
+  congr 1
+  rw [Nat.mod_eq_of_lt]
+  exact Nat.bitwise_lt_two_pow (f := Bool.or) (n := 256)
+    (word_lt_uint256_size a) (word_lt_uint256_size b)
+
+private theorem bridge_eval_xor_normalized (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "xor" [a, b] =
+      some (a % EvmYul.UInt256.size ^^^ b % EvmYul.UInt256.size) := by
+  change some (((a % EvmYul.UInt256.size ^^^ b % EvmYul.UInt256.size) %
+      EvmYul.UInt256.size)) =
+    some (a % EvmYul.UInt256.size ^^^ b % EvmYul.UInt256.size)
+  congr 1
+  rw [Nat.mod_eq_of_lt]
+  exact Nat.xor_lt_two_pow (word_lt_uint256_size a) (word_lt_uint256_size b)
+
 @[simp] theorem evalBuiltinCall_add_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "add" [a, b] =
@@ -216,6 +253,40 @@ EVMYulLean UInt256 semantics on all inputs. -/
   rw [verity_eval_gt_normalized, bridge_eval_gt_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
+/-- Universal bridge theorem for `and`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_and_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "and" [a, b] =
+      evalPureBuiltinViaEvmYulLean "and" [a, b] := by
+  rw [show evalBuiltinCall storage sender selector calldata "and" [a, b] =
+      some (a % evmModulus &&& b % evmModulus) by simp [evalBuiltinCall]]
+  rw [bridge_eval_and_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
+/-- Universal bridge theorem for `or`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_or_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "or" [a, b] =
+      evalPureBuiltinViaEvmYulLean "or" [a, b] := by
+  rw [show evalBuiltinCall storage sender selector calldata "or" [a, b] =
+      some (a % evmModulus ||| b % evmModulus) by simp [evalBuiltinCall]]
+  rw [bridge_eval_or_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+
+/-- Universal bridge theorem for `xor`: Verity builtin semantics agree with
+EVMYulLean UInt256 semantics on all inputs. -/
+@[simp] theorem evalBuiltinCall_xor_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "xor" [a, b] =
+      evalPureBuiltinViaEvmYulLean "xor" [a, b] := by
+  change some (Nat.bitwise bne (a % evmModulus) (b % evmModulus)) =
+    evalPureBuiltinViaEvmYulLean "xor" [a, b]
+  rw [bridge_eval_xor_normalized]
+  simp [EvmYul.UInt256.size, evmModulus]
+  rfl
+
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_add_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "add" [a, b] =
@@ -269,5 +340,23 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "gt" [a, b] =
       evalBuiltinCall storage sender selector calldata "gt" [a, b] := by
   simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_gt_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_and_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "and" [a, b] =
+      evalBuiltinCall storage sender selector calldata "and" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_and_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_or_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "or" [a, b] =
+      evalBuiltinCall storage sender selector calldata "or" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_or_bridge]
+
+@[simp] theorem evalBuiltinCallWithBackend_evmYulLean_xor_bridge
+    (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "xor" [a, b] =
+      evalBuiltinCall storage sender selector calldata "xor" [a, b] := by
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_xor_bridge]
 
 end Compiler.Proofs.YulGeneration.Backends

@@ -79,7 +79,8 @@ theorem mod_by_zero (a : Nat) :
 -- ============================================================================
 
 -- Arithmetic bridging is now universally proved for add/sub/mul/div/mod.
--- The bitwise family still retains concrete bridge coverage here.
+-- Bitwise `and`/`or`/`xor` now also have direct symbolic bridge lemmas.
+-- `not` and the shift family still retain concrete bridge coverage here.
 
 /-- Universal bridge theorem for addition. -/
 theorem add_bridge (a b : Nat) :
@@ -116,6 +117,27 @@ theorem mod_bridge (a b : Nat) :
   exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mod_bridge
     s sender sel cd a b
 
+/-- Universal bridge theorem for bitwise and. -/
+theorem and_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "and" [a, b] =
+      evalPureBuiltinViaEvmYulLean "and" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_and_bridge
+    s sender sel cd a b
+
+/-- Universal bridge theorem for bitwise or. -/
+theorem or_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "or" [a, b] =
+      evalPureBuiltinViaEvmYulLean "or" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_or_bridge
+    s sender sel cd a b
+
+/-- Universal bridge theorem for bitwise xor. -/
+theorem xor_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "xor" [a, b] =
+      evalPureBuiltinViaEvmYulLean "xor" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_xor_bridge
+    s sender sel cd a b
+
 -- ============================================================================
 -- § 4. Backend profile invariant
 -- ============================================================================
@@ -145,8 +167,8 @@ example : ∀ b : Compiler.Proofs.YulGeneration.BuiltinBackend,
 -- Cryptographic primitives: keccak256 is axiomatized (see AXIOMS.md).
 -- The mapping-slot derivation trusts the keccak FFI.
 --
--- Universal bridge equivalence: add/sub/mul/div/mod now have direct symbolic
--- bridge lemmas in `Backends/EvmYulLeanBridgeLemmas.lean`.
--- The bitwise family still relies on concrete bridge coverage.
+-- Universal bridge equivalence: add/sub/mul/div/mod and bitwise and/or/xor now
+-- have direct symbolic bridge lemmas in `Backends/EvmYulLeanBridgeLemmas.lean`.
+-- `not` and the shift family still rely on concrete bridge coverage.
 
 end Compiler.Proofs.ArithmeticProfile

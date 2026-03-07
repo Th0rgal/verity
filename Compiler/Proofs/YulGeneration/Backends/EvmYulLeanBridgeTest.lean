@@ -204,6 +204,24 @@ example : verityEval "xor" [255, 15] = bridgeEval "xor" [255, 15] := by native_d
 example : verityEval "xor" [Compiler.Constants.evmModulus, 0] =
           bridgeEval "xor" [Compiler.Constants.evmModulus, 0] := by native_decide
 
+/-- Universal bridge theorem for `and` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "and" [a, b] =
+      evalPureBuiltinViaEvmYulLean "and" [a, b] := by
+  exact evalBuiltinCall_and_bridge storage sender selector calldata a b
+
+/-- Universal bridge theorem for `or` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "or" [a, b] =
+      evalPureBuiltinViaEvmYulLean "or" [a, b] := by
+  exact evalBuiltinCall_or_bridge storage sender selector calldata a b
+
+/-- Universal bridge theorem for `xor` (symbolic, not vector-based). -/
+example (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
+    evalBuiltinCall storage sender selector calldata "xor" [a, b] =
+      evalPureBuiltinViaEvmYulLean "xor" [a, b] := by
+  exact evalBuiltinCall_xor_bridge storage sender selector calldata a b
+
 /-- not: bitwise NOT of 0 -/
 example : verityEval "not" [0] = bridgeEval "not" [0] := by native_decide
 
