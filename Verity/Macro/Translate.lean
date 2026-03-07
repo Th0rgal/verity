@@ -71,6 +71,11 @@ structure ConstructorDecl where
 private def strTerm (s : String) : Term := ⟨Syntax.mkStrLit s⟩
 private def natTerm (n : Nat) : Term := ⟨Syntax.mkNumLit (toString n)⟩
 
+private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
+  match stx.isNatLit? with
+  | some n => pure n
+  | none => throwErrorAt stx "expected natural literal"
+
 private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := do
   match ty with
   | `(term| Uint256) => pure .uint256
@@ -94,11 +99,6 @@ private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := 
   | _ => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Uint8, Address, Bytes32, Bool, Bytes, Array <type>, Tuple [...], or Unit"
 
 private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
-  let natFromSyntaxLocal (stx : Syntax) : CommandElabM Nat :=
-    match stx.isNatLit? with
-    | some n => pure n
-    | none => throwErrorAt stx "expected natural literal"
-
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
     match stx with
     | `(term| Address) => pure .address
@@ -110,13 +110,13 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
     | `(verityStructMember| $name:ident @word $wordOffset:num) =>
         pure {
           name := toString name.getId
-          wordOffset := ← natFromSyntaxLocal wordOffset
+          wordOffset := ← natFromSyntax wordOffset
         }
     | `(verityStructMember| $name:ident @word $wordOffset:num packed($offset:num,$width:num)) =>
         pure {
           name := toString name.getId
-          wordOffset := ← natFromSyntaxLocal wordOffset
-          packed := some (← natFromSyntaxLocal offset, ← natFromSyntaxLocal width)
+          wordOffset := ← natFromSyntax wordOffset
+          packed := some (← natFromSyntax offset, ← natFromSyntax width)
         }
     | _ => throwErrorAt stx "invalid struct member declaration"
 
@@ -138,11 +138,6 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
       match vt with
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
       | _ => pure (.scalar vt)
-
-private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
-  match stx.isNatLit? with
-  | some n => pure n
-  | none => throwErrorAt stx "expected natural literal"
 
 private def modelMappingKeyTypeTerm : MappingKeyType → CommandElabM Term
   | .address => `(Compiler.CompilationModel.MappingKeyType.address)
@@ -625,6 +620,10 @@ private def translateBindSource
               $(strTerm f.name)
               $(← translatePureExpr fields params locals key1)
               $(← translatePureExpr fields params locals key2))
+      | .mappingStruct2 _ _ _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a nested struct mapping; use structMember2"
+      | .mappingStruct _ _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember"
       | _ => throwErrorAt rhs s!"field '{f.name}' is not a double mapping"
   | `(term| structMember $field:term $key:term $member:term) =>
       let fieldName := ← expectStringOrIdent field

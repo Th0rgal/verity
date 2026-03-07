@@ -167,6 +167,56 @@ verity_contract StructMappingSmoke where
     let nextNonce ← structMember2 "approvals" owner spender "nonce"
     return nextNonce
 
+/--
+error: field 'approvals' is a nested struct mapping; use structMember2/setStructMember2
+-/
+#guard_msgs in
+verity_contract StructMappingWrongReadAccessor where
+  storage
+    approvals : MappingStruct2(Address,Address,[allowance @word 0]) := slot 0
+
+  function approvalOf (owner : Address, spender : Address) : Uint256 := do
+    let amount ← structMember "approvals" owner "allowance"
+    return amount
+end StructMappingWrongReadAccessor
+
+/--
+error: field 'approvals' is a nested struct mapping; use structMember2
+-/
+#guard_msgs in
+verity_contract StructMappingWrongLegacyReadAccessor where
+  storage
+    approvals : MappingStruct2(Address,Address,[allowance @word 0]) := slot 0
+
+  function approvalOf (owner : Address, spender : Address) : Uint256 := do
+    let amount ← getMapping2 approvals owner spender
+    return amount
+end StructMappingWrongLegacyReadAccessor
+
+/--
+error: field 'positions' is not a nested struct mapping
+-/
+#guard_msgs in
+verity_contract StructMappingWrongWriteAccessor where
+  storage
+    positions : MappingStruct(Address,[delegate @word 0]) := slot 0
+
+  function setDelegate (owner : Address, delegate_ : Address) : Unit := do
+    setStructMember2 "positions" owner owner "delegate" delegate_
+end StructMappingWrongWriteAccessor
+
+/--
+error: unknown struct member 'nonce' on field 'positions'
+-/
+#guard_msgs in
+verity_contract StructMappingUnknownMember where
+  storage
+    positions : MappingStruct(Address,[delegate @word 0]) := slot 0
+
+  function setNonce (owner : Address, value : Uint256) : Unit := do
+    setStructMember "positions" owner "nonce" value
+end StructMappingUnknownMember
+
 namespace SpecGenSmoke
 
 #gen_spec storage_for2_spec for2 (x : Uint256) (y : Uint256)
