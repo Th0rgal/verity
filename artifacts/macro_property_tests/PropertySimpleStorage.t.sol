@@ -23,13 +23,15 @@ contract PropertySimpleStorageTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("store(uint256)", uint256(1)));
         require(ok, "store reverted unexpectedly");
     }
-    // Property 2: TODO decode and assert `retrieve` result
-    function testTODO_Retrieve_DecodeAndAssert() public {
+    // Property 2: retrieve reads storage slot 0 and decodes the result
+    function testAuto_Retrieve_ReadsConfiguredStorage() public {
+        uint256 expected = uint256(1);
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("retrieve()"));
         require(ok, "retrieve reverted unexpectedly");
         assertEq(ret.length, 32, "retrieve ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, expected, "retrieve should return storage slot 0");
     }
 }

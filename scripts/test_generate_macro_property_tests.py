@@ -41,6 +41,7 @@ class ParseContractsTests(unittest.TestCase):
         self.assertEqual(sorted(parsed.keys()), ["Counter", "Owned"])
         self.assertEqual([f.name for f in parsed["Counter"].functions], ["increment", "getCount"])
         self.assertEqual(parsed["Counter"].functions[1].return_type, "Uint256")
+        self.assertEqual(parsed["Counter"].storage_slots, {"count": 0})
 
     def test_parse_params(self) -> None:
         out = gen._split_params("to : Address, amount : Uint256")
@@ -64,6 +65,26 @@ class ParseContractsTests(unittest.TestCase):
         self.assertEqual(
             [(p.name, p.lean_type) for p in owned.constructor.params],
             [("initialOwner", "Address")],
+        )
+
+    def test_parse_function_body_and_storage_slots(self) -> None:
+        src = textwrap.dedent(
+            """
+            verity_contract SimpleStorage where
+              storage
+                storedData : Uint256 := slot 0
+
+              function retrieve () : Uint256 := do
+                let current ← getStorage storedData
+                return current
+            """
+        )
+        parsed = gen.parse_contracts(src, Path("dummy.lean"))
+        contract = parsed["SimpleStorage"]
+        self.assertEqual(contract.storage_slots, {"storedData": 0})
+        self.assertEqual(
+            contract.functions[0].body,
+            ("let current ← getStorage storedData", "return current"),
         )
 
     def test_parse_contracts_ignores_guard_msgs_negative_fixtures(self) -> None:
@@ -100,6 +121,7 @@ class RenderTests(unittest.TestCase):
                 gen.FunctionDecl("touch", (), "Unit"),
                 gen.FunctionDecl("read", (gen.ParamDecl("who", "Address"),), "Uint256"),
             ),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn("function testAuto_Touch_NoUnexpectedRevert()", rendered)
@@ -122,6 +144,7 @@ class RenderTests(unittest.TestCase):
                     "Unit",
                 ),
             ),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn("_singletonUintArray", rendered)
@@ -139,6 +162,7 @@ class RenderTests(unittest.TestCase):
                     "Unit",
                 ),
             ),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn("_singletonBytes32Array", rendered)
@@ -155,6 +179,7 @@ class RenderTests(unittest.TestCase):
             functions=(
                 gen.FunctionDecl("mystery", (gen.ParamDecl("x", "String"),), "Unit"),
             ),
+            storage_slots={},
         )
         with self.assertRaisesRegex(ValueError, "unsupported Lean type"):
             gen.render_contract_test(contract)
@@ -167,6 +192,7 @@ class RenderTests(unittest.TestCase):
             functions=(
                 gen.FunctionDecl("consume", (gen.ParamDecl("values", "Array Address"),), "Unit"),
             ),
+            storage_slots={},
         )
         with self.assertRaisesRegex(ValueError, "unsupported Lean array element type"):
             gen.render_contract_test(contract)
@@ -177,6 +203,7 @@ class RenderTests(unittest.TestCase):
             constructor=None,
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
             functions=(gen.FunctionDecl("blob", (), "Bytes"),),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn(
@@ -190,6 +217,7 @@ class RenderTests(unittest.TestCase):
             constructor=None,
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
             functions=(gen.FunctionDecl("isReady", (), "Bool"),),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn(
@@ -203,8 +231,9 @@ class RenderTests(unittest.TestCase):
             constructor=None,
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
             functions=(gen.FunctionDecl("mystery", (), "String"),),
+            storage_slots={},
         )
-        with self.assertRaisesRegex(ValueError, "unsupported Lean return type"):
+        with self.assertRaisesRegex(ValueError, "unsupported Lean type"):
             gen.render_contract_test(contract)
 
     def test_render_constructor_uses_deploy_with_args(self) -> None:
@@ -213,6 +242,7 @@ class RenderTests(unittest.TestCase):
             constructor=gen.ConstructorDecl(params=(gen.ParamDecl("initialOwner", "Address"),)),
             source=gen.ROOT / "Contracts/Sample/Sample.lean",
             functions=(gen.FunctionDecl("owner", (), "Address"),),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn('target = deployYulWithArgs("Owned", abi.encode(alice));', rendered)
@@ -230,6 +260,7 @@ class RenderTests(unittest.TestCase):
                     "Unit",
                 ),
             ),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn('"submit((address,address,uint256))"', rendered)
@@ -247,12 +278,67 @@ class RenderTests(unittest.TestCase):
                     "Tuple [Uint256, Uint256]",
                 ),
             ),
+            storage_slots={},
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn(
             'require(ret.length >= 64, "getPair ABI tuple return payload unexpectedly short");',
             rendered,
         )
+
+    def test_render_storage_getter_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="SimpleStorage",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "retrieve",
+                    (),
+                    "Uint256",
+                    body=("let current ← getStorage storedData", "return current"),
+                ),
+            ),
+            storage_slots={"storedData": 0},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_Retrieve_ReadsConfiguredStorage()", rendered)
+        self.assertIn("vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));", rendered)
+        self.assertIn('assertEq(actual, expected, "retrieve should return storage slot 0");', rendered)
+
+    def test_render_constant_return_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="Uint8Smoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(gen.FunctionDecl("sigV", (), "Uint8", body=("return 27",)),),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_SigV_ReturnsDeclaredConstant()", rendered)
+        self.assertIn("uint8 actual = abi.decode(ret, (uint8));", rendered)
+        self.assertIn('assertEq(actual, 27, "sigV should return the declared constant");', rendered)
+
+    def test_render_tuple_return_values_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="TupleSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "getPair",
+                    (gen.ParamDecl("key", "Uint256"),),
+                    "Tuple [Uint256, Uint256]",
+                    body=("returnValues [key, key]",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_GetPair_DecodesTupleResult()", rendered)
+        self.assertIn("(uint256 actual0, uint256 actual1) = abi.decode(ret, (uint256, uint256));", rendered)
+        self.assertIn('assertEq(actual0, uint256(1), "getPair tuple element 0 mismatch");', rendered)
+        self.assertIn('assertEq(actual1, uint256(1), "getPair tuple element 1 mismatch");', rendered)
 
     def test_parse_tuple_params(self) -> None:
         out = gen._split_params("cfg : Tuple [Address, Uint256], amount : Uint256")

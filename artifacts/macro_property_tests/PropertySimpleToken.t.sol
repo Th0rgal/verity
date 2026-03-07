@@ -38,22 +38,26 @@ contract PropertySimpleTokenTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 4: TODO decode and assert `totalSupply` result
-    function testTODO_TotalSupply_DecodeAndAssert() public {
+    // Property 4: totalSupply reads storage slot 2 and decodes the result
+    function testAuto_TotalSupply_ReadsConfiguredStorage() public {
+        uint256 expected = uint256(1);
+        vm.store(target, bytes32(uint256(2)), bytes32(uint256(expected)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("totalSupply()"));
         require(ok, "totalSupply reverted unexpectedly");
         assertEq(ret.length, 32, "totalSupply ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, expected, "totalSupply should return storage slot 2");
     }
-    // Property 5: TODO decode and assert `owner` result
-    function testTODO_Owner_DecodeAndAssert() public {
+    // Property 5: owner reads storage slot 0 and decodes the result
+    function testAuto_Owner_ReadsConfiguredStorage() public {
+        address expected = alice;
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(uint160(expected))));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("owner()"));
         require(ok, "owner reverted unexpectedly");
         assertEq(ret.length, 32, "owner ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, expected, "owner should return storage slot 0");
     }
 }

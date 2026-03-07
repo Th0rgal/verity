@@ -29,23 +29,27 @@ contract PropertyOwnedCounterTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("decrement()"));
         require(ok, "decrement reverted unexpectedly");
     }
-    // Property 3: TODO decode and assert `getCount` result
-    function testTODO_GetCount_DecodeAndAssert() public {
+    // Property 3: getCount reads storage slot 1 and decodes the result
+    function testAuto_GetCount_ReadsConfiguredStorage() public {
+        uint256 expected = uint256(1);
+        vm.store(target, bytes32(uint256(1)), bytes32(uint256(expected)));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("getCount()"));
         require(ok, "getCount reverted unexpectedly");
         assertEq(ret.length, 32, "getCount ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, expected, "getCount should return storage slot 1");
     }
-    // Property 4: TODO decode and assert `getOwner` result
-    function testTODO_GetOwner_DecodeAndAssert() public {
+    // Property 4: getOwner reads storage slot 0 and decodes the result
+    function testAuto_GetOwner_ReadsConfiguredStorage() public {
+        address expected = alice;
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(uint160(expected))));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("getOwner()"));
         require(ok, "getOwner reverted unexpectedly");
         assertEq(ret.length, 32, "getOwner ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, expected, "getOwner should return storage slot 0");
     }
     // Property 5: transferOwnership has no unexpected revert
     function testAuto_TransferOwnership_NoUnexpectedRevert() public {

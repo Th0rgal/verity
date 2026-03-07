@@ -25,6 +25,9 @@ FUNCTION_RE = re.compile(
 )
 CONSTRUCTOR_RE = re.compile(r"^\s*constructor\s*\(([^)]*)\)\s*:=\s*")
 PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
+STORAGE_RE = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*slot\s+([0-9]+)\s*$",
+)
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,7 @@ class FunctionDecl:
     name: str
     params: tuple[ParamDecl, ...]
     return_type: str
+    body: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -50,6 +54,7 @@ class ContractDecl:
     name: str
     constructor: ConstructorDecl | None
     functions: tuple[FunctionDecl, ...]
+    storage_slots: dict[str, int]
     source: Path
 
 
@@ -94,22 +99,45 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
     contracts: dict[str, ContractDecl] = {}
     current_name: str | None = None
     current_constructor: ConstructorDecl | None = None
+    current_storage_slots: dict[str, int] = {}
     current_functions: list[FunctionDecl] = []
+    current_function: FunctionDecl | None = None
+    current_body: list[str] = []
     guard_pending = False
+    in_storage_block = False
+
+    def flush_function() -> None:
+        nonlocal current_function, current_body
+        if current_function is None:
+            return
+        current_functions.append(
+            FunctionDecl(
+                name=current_function.name,
+                params=current_function.params,
+                return_type=current_function.return_type,
+                body=tuple(current_body),
+            )
+        )
+        current_function = None
+        current_body = []
 
     def flush_current() -> None:
-        nonlocal current_name, current_constructor, current_functions
+        nonlocal current_name, current_constructor, current_storage_slots, current_functions, in_storage_block
         if current_name is None:
             return
+        flush_function()
         contracts[current_name] = ContractDecl(
             name=current_name,
             constructor=current_constructor,
             functions=tuple(current_functions),
+            storage_slots=dict(current_storage_slots),
             source=source,
         )
         current_name = None
         current_constructor = None
+        current_storage_slots = {}
         current_functions = []
+        in_storage_block = False
 
     for line in text.splitlines():
         if line.strip() == "#guard_msgs in":
@@ -128,25 +156,45 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
         if current_name is None:
             continue
 
+        if line.strip() == "storage":
+            in_storage_block = True
+            continue
+
         ctor = CONSTRUCTOR_RE.match(line)
         if ctor:
+            flush_function()
             if current_constructor is not None:
                 raise ValueError(f"duplicate constructor in contract '{current_name}'")
             current_constructor = ConstructorDecl(params=_split_params(ctor.group(1)))
+            in_storage_block = False
             continue
 
         fm = FUNCTION_RE.match(line)
         if fm:
+            flush_function()
             fn_name = fm.group(1)
             params_src = fm.group(2)
             ret_ty = _normalize_type(fm.group(3))
-            current_functions.append(
-                FunctionDecl(
-                    name=fn_name,
-                    params=_split_params(params_src),
-                    return_type=ret_ty,
-                )
+            current_function = FunctionDecl(
+                name=fn_name,
+                params=_split_params(params_src),
+                return_type=ret_ty,
             )
+            in_storage_block = False
+            continue
+
+        if in_storage_block:
+            sm = STORAGE_RE.match(line)
+            if sm:
+                current_storage_slots[sm.group(1)] = int(sm.group(3))
+                continue
+            if line.strip():
+                in_storage_block = False
+
+        if current_function is not None and line.startswith("    "):
+            stripped = line.strip()
+            if stripped:
+                current_body.append(stripped)
 
     flush_current()
     return contracts
@@ -283,6 +331,117 @@ def _return_shape_assertion(lean_ty: str, fn_name: str) -> str:
     raise ValueError(f"unsupported Lean return type for generated assertion: {ty!r}")
 
 
+def _storage_word_expr(lean_ty: str, value_expr: str) -> str:
+    ty = _normalize_type(lean_ty)
+    if ty in {"Uint256", "Uint8"}:
+        return f"bytes32(uint256({value_expr}))"
+    if ty == "Bool":
+        return f"bytes32(uint256({value_expr} ? 1 : 0))"
+    if ty == "Address":
+        return f"bytes32(uint256(uint160({value_expr})))"
+    if ty == "Bytes32":
+        return value_expr
+    raise ValueError(f"unsupported Lean type for generated storage write: {ty!r}")
+
+
+def _literal_expr(value: str, lean_ty: str) -> str | None:
+    ty = _normalize_type(lean_ty)
+    if ty in {"Uint256", "Uint8"} and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
+        return value
+    if ty == "Bool" and value in {"true", "false"}:
+        return value
+    if ty == "Bytes32" and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
+        return f"bytes32(uint256({value}))"
+    return None
+
+
+def _split_return_values(exprs_src: str) -> list[str]:
+    return [part.strip() for part in exprs_src.split(",") if part.strip()]
+
+
+def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx: int, encode_args: str) -> str | None:
+    fn_camel = _fn_camel(fn.name)
+    body = list(fn.body)
+    ty = _normalize_type(fn.return_type)
+    param_examples = {param.name: _example_value(param.lean_type) for param in fn.params}
+    decoded_type = _sol_type(fn.return_type)
+
+    if len(body) == 1:
+        literal_match = re.fullmatch(r"return\s+(.+)", body[0])
+        if literal_match:
+            literal_expr = _literal_expr(literal_match.group(1).strip(), ty)
+            if literal_expr is not None:
+                ret_assert = _return_shape_assertion(fn.return_type, fn.name)
+                return f"""    // Property {idx}: {fn.name} returns the declared constant result
+    function testAuto_{fn_camel}_ReturnsDeclaredConstant() public {{
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature({encode_args}));
+        require(ok, \"{fn.name} reverted unexpectedly\");
+{ret_assert}
+        {decoded_type} actual = abi.decode(ret, ({decoded_type}));
+        assertEq(actual, {literal_expr}, \"{fn.name} should return the declared constant\");
+    }}
+"""
+        tuple_match = re.fullmatch(r"returnValues\s+\[(.+)\]", body[0])
+        if tuple_match and ty.startswith("Tuple [") and ty.endswith("]"):
+            elems = _parse_tuple_elements(ty[len("Tuple [") : -1])
+            exprs = _split_return_values(tuple_match.group(1))
+            if len(elems) != len(exprs):
+                return None
+            expected_exprs: list[str] = []
+            for elem_ty, expr in zip(elems, exprs):
+                if expr in param_examples:
+                    expected_exprs.append(param_examples[expr])
+                    continue
+                literal_expr = _literal_expr(expr, elem_ty)
+                if literal_expr is None:
+                    return None
+                expected_exprs.append(literal_expr)
+            typed_vars = ", ".join(f"{_sol_type(elem_ty)} actual{i}" for i, elem_ty in enumerate(elems))
+            raw_types = ", ".join(_sol_type(elem_ty) for elem_ty in elems)
+            assert_lines = "\n".join(
+                f'        assertEq(actual{i}, {expected_exprs[i]}, "{fn.name} tuple element {i} mismatch");'
+                for i in range(len(elems))
+            )
+            ret_assert = _return_shape_assertion(fn.return_type, fn.name)
+            return f"""    // Property {idx}: {fn.name} decodes and matches the returned tuple elements
+    function testAuto_{fn_camel}_DecodesTupleResult() public {{
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature({encode_args}));
+        require(ok, \"{fn.name} reverted unexpectedly\");
+{ret_assert}
+        ({typed_vars}) = abi.decode(ret, ({raw_types}));
+{assert_lines}
+    }}
+"""
+
+    if len(body) == 2:
+        getter_match = re.fullmatch(
+            r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(getStorage|getStorageAddr)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            body[0],
+        )
+        if getter_match and body[1] == f"return {getter_match.group(1)}":
+            storage_name = getter_match.group(3)
+            slot = contract.storage_slots.get(storage_name)
+            if slot is None:
+                return None
+            ret_assert = _return_shape_assertion(fn.return_type, fn.name)
+            return f"""    // Property {idx}: {fn.name} reads storage slot {slot} and decodes the result
+    function testAuto_{fn_camel}_ReadsConfiguredStorage() public {{
+        {decoded_type} expected = {_example_value(fn.return_type)};
+        vm.store(target, bytes32(uint256({slot})), {_storage_word_expr(fn.return_type, "expected")});
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature({encode_args}));
+        require(ok, \"{fn.name} reverted unexpectedly\");
+{ret_assert}
+        {decoded_type} actual = abi.decode(ret, ({decoded_type}));
+        assertEq(actual, expected, \"{fn.name} should return storage slot {slot}\");
+    }}
+"""
+
+    return None
+
+
 def render_contract_test(contract: ContractDecl) -> str:
     tests: list[str] = []
     need_uint_array_helper = False
@@ -324,8 +483,10 @@ def render_contract_test(contract: ContractDecl) -> str:
     }}
 """
         else:
-            ret_assert = _return_shape_assertion(fn.return_type, fn.name)
-            body = f"""    // Property {idx}: TODO decode and assert `{fn.name}` result
+            body = _render_inferred_non_unit_test(contract, fn, idx, encode_args)
+            if body is None:
+                ret_assert = _return_shape_assertion(fn.return_type, fn.name)
+                body = f"""    // Property {idx}: TODO decode and assert `{fn.name}` result
     function testTODO_{fn_camel}_DecodeAndAssert() public {{
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature({encode_args}));

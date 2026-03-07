@@ -23,13 +23,15 @@ contract PropertyOwnedTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("transferOwnership(address)", alice));
         require(ok, "transferOwnership reverted unexpectedly");
     }
-    // Property 2: TODO decode and assert `getOwner` result
-    function testTODO_GetOwner_DecodeAndAssert() public {
+    // Property 2: getOwner reads storage slot 0 and decodes the result
+    function testAuto_GetOwner_ReadsConfiguredStorage() public {
+        address expected = alice;
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(uint160(expected))));
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("getOwner()"));
         require(ok, "getOwner reverted unexpectedly");
         assertEq(ret.length, 32, "getOwner ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        address actual = abi.decode(ret, (address));
+        assertEq(actual, expected, "getOwner should return storage slot 0");
     }
 }

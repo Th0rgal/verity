@@ -23,13 +23,15 @@ contract PropertyBytes32SmokeTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("setDigest(bytes32)", bytes32(uint256(0xBEEF))));
         require(ok, "setDigest reverted unexpectedly");
     }
-    // Property 2: TODO decode and assert `getDigest` result
-    function testTODO_GetDigest_DecodeAndAssert() public {
+    // Property 2: getDigest reads storage slot 0 and decodes the result
+    function testAuto_GetDigest_ReadsConfiguredStorage() public {
+        bytes32 expected = bytes32(uint256(0xBEEF));
+        vm.store(target, bytes32(uint256(0)), expected);
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("getDigest()"));
         require(ok, "getDigest reverted unexpectedly");
         assertEq(ret.length, 32, "getDigest ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        bytes32 actual = abi.decode(ret, (bytes32));
+        assertEq(actual, expected, "getDigest should return storage slot 0");
     }
 }

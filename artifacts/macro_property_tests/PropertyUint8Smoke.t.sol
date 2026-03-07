@@ -23,13 +23,13 @@ contract PropertyUint8SmokeTest is YulTestBase {
         (bool ok,) = target.call(abi.encodeWithSignature("acceptSig((uint8,bytes32,bytes32))", abi.encode(uint8(27), bytes32(uint256(0xBEEF)), bytes32(uint256(0xBEEF)))));
         require(ok, "acceptSig reverted unexpectedly");
     }
-    // Property 2: TODO decode and assert `sigV` result
-    function testTODO_SigV_DecodeAndAssert() public {
+    // Property 2: sigV returns the declared constant result
+    function testAuto_SigV_ReturnsDeclaredConstant() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("sigV()"));
         require(ok, "sigV reverted unexpectedly");
         assertEq(ret.length, 32, "sigV ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint8 actual = abi.decode(ret, (uint8));
+        assertEq(actual, 27, "sigV should return the declared constant");
     }
 }
