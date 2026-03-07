@@ -288,6 +288,8 @@ The CompilationModel DSL provides a complete expression and statement language f
 | `lt a b` | Less than | `lt(a, b)` |
 | `ge a b` | Greater or equal | `iszero(lt(a, b))` |
 | `le a b` | Less or equal | `iszero(gt(a, b))` |
+
+Low-level call expressions compile to the expected Yul builtins, but their runtime semantics are still outside the current proof-interpreter model. Today they are a partial feature: codegen exists, while call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`.
 | `logicalAnd a b` | Short-circuit logical AND | `and(iszero(iszero(a)), iszero(iszero(b)))` |
 | `logicalOr a b` | Short-circuit logical OR | `or(iszero(iszero(a)), iszero(iszero(b)))` |
 | `logicalNot a` | Logical NOT | `iszero(a)` |
