@@ -50,6 +50,14 @@ def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset
     Contract Uint256 := pure 0
 def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :
     Contract Unit := pure ()
+def structMember {κ α : Type} [Inhabited α] (_field : String) (_key : κ) (_member : String) :
+    Contract α := pure default
+def structMember2 {κ₁ κ₂ α : Type} [Inhabited α]
+    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_member : String) : Contract α := pure default
+def setStructMember {κ α : Type} (_field : String) (_key : κ) (_member : String) (_value : α) :
+    Contract Unit := pure ()
+def setStructMember2 {κ₁ κ₂ α : Type}
+    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_member : String) (_value : α) : Contract Unit := pure ()
 def forEach (_name : String) (_count : Uint256) (body : Contract Unit) : Contract Unit := body
 def blockTimestamp : Uint256 := 0
 def contractAddress : Uint256 := 0

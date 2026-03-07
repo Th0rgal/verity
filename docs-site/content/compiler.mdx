@@ -298,7 +298,21 @@ Low-level call expressions compile to the expected Yul builtins, but their runti
 
 Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `Expr.chainid`, `Stmt.mstore`) instead of `Expr.externalCall` for these opcodes. Builtin names routed through `externalCall` remain rejected by interop validation.
 
-For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. Members can carry packed bit metadata, so common `uint128`-style packed subfields stay declarative instead of becoming hand-written masking arithmetic in user code.
+For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. The `verity_contract` surface now exposes matching storage forms:
+
+```lean
+positions : MappingStruct(Address,[
+  supplyShares @word 0 packed(0,128),
+  borrowShares @word 0 packed(128,128),
+  delegate @word 1
+]) := slot 0
+approvals : MappingStruct2(Address,Address,[
+  allowance @word 0 packed(0,128),
+  nonce @word 1
+]) := slot 1
+```
+
+Members can carry packed bit metadata, so common `uint128`-style packed subfields stay declarative instead of becoming hand-written masking arithmetic in user code.
 
 **Statements** (`Stmt`) — key constructors:
 

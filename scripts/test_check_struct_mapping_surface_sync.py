@@ -100,7 +100,7 @@ class StructMappingSurfaceSyncTests(unittest.TestCase):
             `setStructMember2 "f" k1 k2 "member" val`
             For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2`.
             `generate_contract.py` currently scaffolds scalar fields plus simple `mapping(address => uint256)` / `mapping(uint256 => uint256)` storage only.
-            For `mappingStruct` / `mappingStruct2` layouts with packed members, start from a handwritten contract/module and use `Expr.structMember` / `Stmt.setStructMember` directly; see issue `#1334`.
+            For `mappingStruct` / `mappingStruct2` layouts with packed members, use the native `verity_contract` storage forms `MappingStruct(...)` / `MappingStruct2(...)` and the corresponding `structMember` / `setStructMember` operations directly.
             """
         )
         rc, output = self._run_check(

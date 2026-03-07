@@ -248,6 +248,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
+  , Contracts.Smoke.StructMappingSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -281,6 +282,9 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
       "hasDelegate(address)", "isDelegateZero(address)", "setOwnerForId(uint256,address)", "getOwnerForId(uint256)"])
   , ("ZeroAddressShadowSmoke", ["shadowWrite(address)"])
+  , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
+      "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
+      "approvalNonce(address,address)"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -304,6 +308,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
       "0x0b0126c5", "0x85a9cdd0"])
   , ("ZeroAddressShadowSmoke", ["0xc0aab575"])
+  , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
+      "0x6c241120"])
   ]
 
 private def expectedFor

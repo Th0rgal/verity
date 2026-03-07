@@ -53,7 +53,7 @@ def expected_snippets(struct_surface_present: bool) -> dict[str, list[str]]:
         ],
         "ADD_CONTRACT": [
             "`generate_contract.py` currently scaffolds scalar fields plus simple `mapping(address => uint256)` / `mapping(uint256 => uint256)` storage only.",
-            "For `mappingStruct` / `mappingStruct2` layouts with packed members, start from a handwritten contract/module and use `Expr.structMember` / `Stmt.setStructMember` directly; see issue `#1334`.",
+            "For `mappingStruct` / `mappingStruct2` layouts with packed members, use the native `verity_contract` storage forms `MappingStruct(...)` / `MappingStruct2(...)` and the corresponding `structMember` / `setStructMember` operations directly.",
         ],
     }
 

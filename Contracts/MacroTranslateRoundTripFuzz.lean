@@ -44,6 +44,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.Uint8Smoke.spec
   , Contracts.Smoke.AddressHelpersSmoke.spec
   , Contracts.Smoke.ZeroAddressShadowSmoke.spec
+  , Contracts.Smoke.StructMappingSmoke.spec
   ]
 
 private structure FuzzRng where
