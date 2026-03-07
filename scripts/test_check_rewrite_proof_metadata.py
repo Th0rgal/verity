@@ -230,6 +230,43 @@ class RewriteProofMetadataTests(unittest.TestCase):
         errors = guard._check_parity_pack_proof_refs(root / "ParityPacks.lean", root)
         self.assertTrue(any("missing composition proof declaration" in err for err in errors))
 
+    def test_collect_decl_names_keeps_namespace_after_section_end(self) -> None:
+        root = self._write_repo(
+            """
+            def foundationRewriteBundle : RewriteRuleBundle := {
+              id := "foundation"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := []
+            }
+
+            def solcCompatRewriteBundle : RewriteRuleBundle := {
+              id := "solc"
+              exprRules := []
+              stmtRules := []
+              blockRules := []
+              objectRules := []
+            }
+            """,
+            proofs_text="""
+            namespace Proofs
+            section Internal
+            theorem before_section_end : True := by trivial
+            end Internal
+            theorem after_section_end : True := by trivial
+            end Proofs
+            """,
+            parity_packs_text="""
+            def packA : ParityPack := {
+              id := "pack-a"
+              compositionProofRef := "Proofs.after_section_end"
+            }
+            """,
+        )
+        errors = guard._check_parity_pack_proof_refs(root / "ParityPacks.lean", root)
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()

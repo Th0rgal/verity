@@ -25,7 +25,8 @@ _DECL_RE = re.compile(
     r"(?:def|theorem|lemma|abbrev|opaque|axiom)\s+([A-Za-z_][A-Za-z0-9_.']*)\b"
 )
 _NAMESPACE_RE = re.compile(r"^\s*namespace\s+([A-Za-z_][A-Za-z0-9_.']*)\s*$")
-_END_RE = re.compile(r"^\s*end(?:\s+[A-Za-z_][A-Za-z0-9_.']*)?\s*$")
+_SECTION_RE = re.compile(r"^\s*section(?:\s+[A-Za-z_][A-Za-z0-9_.']*)?\s*$")
+_END_RE = re.compile(r"^\s*end(?:\s+([A-Za-z_][A-Za-z0-9_.']*))?\s*$")
 _STRUCT_DEF_RE = r"\bdef\s+([A-Za-z_][A-Za-z0-9_']*)\s*:\s*{type_name}\s*:=\s*\{{"
 _LIST_DEF_RE = r"\bdef\s+([A-Za-z_][A-Za-z0-9_']*)\s*:\s*List\s+{type_name}\s*:="
 _RULE_KINDS = {
@@ -308,14 +309,24 @@ def _collect_decl_names(root: Path) -> set[str]:
     for path in lean_paths:
         text = strip_lean_comments(path.read_text(encoding="utf-8"))
         namespaces: list[str] = []
+        scopes: list[str] = []
         for line in text.splitlines():
             namespace_match = _NAMESPACE_RE.match(line)
             if namespace_match:
                 name = namespace_match.group(1)
                 namespaces.append(f"{namespaces[-1]}.{name}" if namespaces else name)
+                scopes.append("namespace")
                 continue
-            if _END_RE.match(line):
-                if namespaces:
+            if _SECTION_RE.match(line):
+                scopes.append("section")
+                continue
+            end_match = _END_RE.match(line)
+            if end_match:
+                if scopes:
+                    scope = scopes.pop()
+                else:
+                    scope = ""
+                if scope == "namespace" and namespaces:
                     namespaces.pop()
                 continue
             decl_match = _DECL_RE.match(line)
