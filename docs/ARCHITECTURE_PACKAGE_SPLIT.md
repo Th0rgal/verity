@@ -39,12 +39,15 @@ The remaining package-split work is now narrower and lives on the EDSL side:
 
 - `Verity/Macro.lean` imports `Compiler.CompilationModel`.
 - `Verity/Macro/Check.lean` imports `Compiler.CompilationModel` and `Compiler.Selector`.
-- `Verity/Core/Free/TypedIRCompiler.lean` imports `Compiler.CompilationModel`.
-- `Verity/Core/Free/TypedIRLowering.lean` imports `Compiler.Yul.Ast`.
 - `Verity/Proofs/Stdlib/Automation.lean` imports `Compiler.CompilationModel`.
-- `Verity/Core/Free/TypedIRTests.lean` is still a root-level test module that imports compiler proofs/specs.
+- `Verity/Proofs/Stdlib/MappingAutomation.lean` depends on compiler-owned automation helpers.
 
-These are implementation couplings, not conceptual requirements. The remaining work is to move shared interface types out of `Compiler`, relocate compiler-owned test coverage out of `Verity`, and keep shrinking the EDSL-to-compiler surface until the dependency direction is strict in both package and root-repo builds.
+The typed-IR compiler, lowering, correctness, and test modules now live under
+`Compiler/`, which matches the package split more closely. The remaining work is
+to move shared interface types out of `Compiler`, relocate the remaining
+compiler-owned automation helpers out of `Verity`, and keep shrinking the
+EDSL-to-compiler surface until the dependency direction is strict in both
+package and root-repo builds.
 
 ## Package responsibilities
 

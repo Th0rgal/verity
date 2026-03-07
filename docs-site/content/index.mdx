@@ -81,7 +81,7 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 - **User-facing specs**: `Verity/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
 - **Implementations (EDSL)**: `Verity/Examples/<Name>.lean`
 - **Layer 1 proofs (EDSL correctness)**: `Verity/Proofs/<Name>/Basic.lean` + `Correctness.lean`
-- **Compilation correctness**: `Verity/Core/Free/TypedIRCompilerCorrectness.lean` (generic theorem) + `Compiler/Proofs/SemanticBridge.lean`
+- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic theorem) + `Compiler/Proofs/SemanticBridge.lean`
 - **Reusable proof infrastructure**: `Verity/Proofs/Stdlib/` (spec interpreter + automation)
 - **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
 - **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)

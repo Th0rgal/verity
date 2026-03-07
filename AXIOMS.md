@@ -114,7 +114,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
   `Compiler/Proofs/EndToEnd.lean`, `Compiler/Proofs/SemanticBridge.lean`,
   `Verity/Macro/Bridge.lean`, and the `Verity/Core/Free/TypedIR*` pipeline)
   does not add, remove, or modify Lean axioms. `SemanticBridge.lean` now has
-  zero `sorry`. The typed-IR compilation path (`TypedIRCompiler*.lean`) also
+  zero `sorry`. The typed-IR compilation path (`Compiler/TypedIRCompiler*.lean`) also
   has zero `sorry`.
 
 ## Maintenance Rule

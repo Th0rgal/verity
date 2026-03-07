@@ -144,7 +144,7 @@ class Issue1060IntegrityTests(unittest.TestCase):
         entries["2.2"] = {
             "status": "partial",
             "acceptance_criteria": ["criterion"],
-            "files_changed": ["Verity/Core/Free/TypedIRCompilerCorrectness.lean"],
+            "files_changed": ["Compiler/TypedIRCompilerCorrectness.lean"],
             "verification_commands": ["lake build"],
             "verification_results": ["pass: lake build"],
             "evidence": {"theorems": [], "tests": ["test"]},

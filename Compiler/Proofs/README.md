@@ -9,7 +9,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
 
 - **Layer 1: EDSL ≡ CompilationModel**. Contract-specific proofs live in
   `Contracts/<Name>/Proofs/`, with generic typed-IR compilation correctness in
-  `Verity/Core/Free/TypedIRCompilerCorrectness.lean`.
+  `Compiler/TypedIRCompilerCorrectness.lean`.
 - **Layer 2: CompilationModel -> IR**. The IR generation proof surface lives in
   `Compiler/Proofs/IRGeneration/`.
 - **Layer 3: IR -> Yul**. Yul semantics, equivalence, and preservation proofs

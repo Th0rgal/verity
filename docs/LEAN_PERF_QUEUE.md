@@ -23,7 +23,7 @@ Mode: incremental (cached) build
 | `Compiler.Proofs.EndToEnd` | 0.88 |
 | `Compiler.Proofs.YulGeneration.StatementEquivalence` | 0.77 |
 | `Compiler.Proofs.YulGeneration.Preservation` | 0.76 |
-| `Verity.Core.Free.TypedIRCompilerCorrectness` | 0.60 |
+| `Compiler.TypedIRCompilerCorrectness` | 0.60 |
 
 ## Next Actions
 

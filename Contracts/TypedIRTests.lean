@@ -1,8 +1,8 @@
 import Verity.Core.Free.TypedIR
 import Verity.Core.Free.ContractStep
-import Verity.Core.Free.TypedIRCompiler
-import Verity.Core.Free.TypedIRCompilerCorrectness
-import Verity.Core.Free.TypedIRLowering
+import Compiler.TypedIRCompiler
+import Compiler.TypedIRCompilerCorrectness
+import Compiler.TypedIRLowering
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Contracts.Specs
 

@@ -2,6 +2,6 @@
 Compiler.Proofs.SemanticBridge
 Compiler.Proofs.YulGeneration.Preservation
 Compiler.Proofs.YulGeneration.StatementEquivalence
-Verity.Core.Free.TypedIRCompilerCorrectness
+Compiler.TypedIRCompilerCorrectness
 Compiler.Proofs.EndToEnd
 Compiler.MainTest
