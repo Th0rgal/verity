@@ -564,6 +564,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.ArithmeticProfile.mul_wraps
 #print axioms Compiler.Proofs.ArithmeticProfile.div_by_zero
 #print axioms Compiler.Proofs.ArithmeticProfile.mod_by_zero
+#print axioms Compiler.Proofs.ArithmeticProfile.add_bridge
+#print axioms Compiler.Proofs.ArithmeticProfile.sub_bridge
+#print axioms Compiler.Proofs.ArithmeticProfile.mul_bridge
+#print axioms Compiler.Proofs.ArithmeticProfile.div_bridge
 
 -- Compiler/Proofs/EndToEnd.lean
 #print axioms Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics
@@ -598,6 +602,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.abstractStoreStorageOrMapping_eq
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_add_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_add_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_sub_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_sub_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_mul_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_mul_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_div_normalized  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_div_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_eq_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_eq_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_iszero_normalized  -- private
@@ -606,10 +618,18 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_lt_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.verity_eval_gt_normalized  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridge_eval_gt_normalized  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_add_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sub_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mul_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_div_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_eq_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_iszero_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_lt_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_gt_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_add_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_sub_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_mul_bridge
+#print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_div_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_eq_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_iszero_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_lt_bridge
@@ -642,4 +662,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 541 theorems/lemmas (509 public, 32 private)
+-- Total: 561 theorems/lemmas (521 public, 40 private)

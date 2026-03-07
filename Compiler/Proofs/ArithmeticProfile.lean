@@ -17,6 +17,7 @@
 import Compiler.Constants
 import Compiler.Proofs.YulGeneration.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Verity.Core.Uint256
 import EvmYul.UInt256
 
@@ -54,7 +55,8 @@ theorem add_wraps (a b : Nat) :
 
 /-- Subtraction wraps: (2^256 + a - b) mod 2^256. -/
 theorem sub_wraps (a b : Nat) :
-    evalBuiltinCall s sender sel cd "sub" [a, b] = some ((evmModulus + a - b) % evmModulus) := by
+    evalBuiltinCall s sender sel cd "sub" [a, b] =
+      some ((evmModulus + a % evmModulus - b % evmModulus) % evmModulus) := by
   simp [evalBuiltinCall]
 
 /-- Multiplication wraps: (a * b) mod 2^256. -/
@@ -76,27 +78,36 @@ theorem mod_by_zero (a : Nat) :
 -- § 3. EVMYulLean bridge agreement for pure arithmetic
 -- ============================================================================
 
--- These smoke-test proofs demonstrate that the EVMYulLean bridge produces
--- the same results as Verity's evalBuiltinCall on concrete values.
--- A full universal equivalence proof (∀ a b, verity a b = evmyullean a b)
--- would require bridging Nat-modular and Fin-based UInt256 representations;
--- that is a future proof-engineering task.
+-- Arithmetic bridging is now universally proved for add/sub/mul/div.
+-- `mod` and the bitwise family still retain concrete bridge coverage here.
 
-/-- Bridge agrees on addition: 100 + 200. -/
-example : evalBuiltinCall s sender sel cd "add" [100, 200] =
-          evalPureBuiltinViaEvmYulLean "add" [100, 200] := by native_decide
+/-- Universal bridge theorem for addition. -/
+theorem add_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "add" [a, b] =
+      evalPureBuiltinViaEvmYulLean "add" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_add_bridge
+    s sender sel cd a b
 
-/-- Bridge agrees on subtraction: 0 - 1 (underflow wraps). -/
-example : evalBuiltinCall s sender sel cd "sub" [0, 1] =
-          evalPureBuiltinViaEvmYulLean "sub" [0, 1] := by native_decide
+/-- Universal bridge theorem for subtraction. -/
+theorem sub_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "sub" [a, b] =
+      evalPureBuiltinViaEvmYulLean "sub" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sub_bridge
+    s sender sel cd a b
 
-/-- Bridge agrees on multiplication: 1000 * 2000. -/
-example : evalBuiltinCall s sender sel cd "mul" [1000, 2000] =
-          evalPureBuiltinViaEvmYulLean "mul" [1000, 2000] := by native_decide
+/-- Universal bridge theorem for multiplication. -/
+theorem mul_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "mul" [a, b] =
+      evalPureBuiltinViaEvmYulLean "mul" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mul_bridge
+    s sender sel cd a b
 
-/-- Bridge agrees on division by zero. -/
-example : evalBuiltinCall s sender sel cd "div" [42, 0] =
-          evalPureBuiltinViaEvmYulLean "div" [42, 0] := by native_decide
+/-- Universal bridge theorem for division. -/
+theorem div_bridge (a b : Nat) :
+    evalBuiltinCall s sender sel cd "div" [a, b] =
+      evalPureBuiltinViaEvmYulLean "div" [a, b] := by
+  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_div_bridge
+    s sender sel cd a b
 
 /-- Bridge agrees on modulo by zero. -/
 example : evalBuiltinCall s sender sel cd "mod" [10, 0] =
@@ -131,10 +142,8 @@ example : ∀ b : Compiler.Proofs.YulGeneration.BuiltinBackend,
 -- Cryptographic primitives: keccak256 is axiomatized (see AXIOMS.md).
 -- The mapping-slot derivation trusts the keccak FFI.
 --
--- Universal bridge equivalence: add/sub/mul are universally proven in
--- EndToEnd.lean (pure_add_bridge, pure_sub_bridge, pure_mul_bridge).
--- div/mod have proofs with in-range preconditions (pending Fin unfolding).
--- These build on the smoke tests here by upgrading concrete-value checks to
--- universally quantified theorems.
+-- Universal bridge equivalence: add/sub/mul/div now have direct symbolic
+-- bridge lemmas in `Backends/EvmYulLeanBridgeLemmas.lean`.
+-- `mod` plus the bitwise family still rely on concrete bridge coverage.
 
 end Compiler.Proofs.ArithmeticProfile
