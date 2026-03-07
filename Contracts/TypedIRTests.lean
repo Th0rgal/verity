@@ -912,6 +912,88 @@ example : compilesOk Compiler.Specs.ledgerSpec "deposit" = true := by native_dec
 example : compilesOk Compiler.Specs.ledgerSpec "withdraw" = true := by native_decide
 example : compilesOk Compiler.Specs.ledgerSpec "getBalance" = true := by native_decide
 
+/-- Smoke test: all Vault spec functions compile to typed IR. -/
+example : compilesOk Compiler.Specs.vaultSpec "deposit" = true := by native_decide
+example : compilesOk Compiler.Specs.vaultSpec "withdraw" = true := by native_decide
+example : compilesOk Compiler.Specs.vaultSpec "balanceOf" = true := by native_decide
+example : compilesOk Compiler.Specs.vaultSpec "totalAssets" = true := by native_decide
+example : compilesOk Compiler.Specs.vaultSpec "totalSupply" = true := by native_decide
+
+/-- End-to-end Vault.deposit: sender shares and 1:1 totals increase together. -/
+def compiledVaultDepositResult : Option (Nat × Nat × Nat) :=
+  match compileFunctionNamed Compiler.Specs.vaultSpec "deposit" with
+  | .error _ => none
+  | .ok block =>
+      match block.params with
+      | [amountParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              «storage» := fun i => if i == 0 || i == 1 then 100 else 0
+              storageMap := fun i addr =>
+                if i == 2 && addr == 1 then 100 else 0
+              sender := 1 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { uint256 := fun i =>
+                          if i = amountParam.id then 50 else 0 } }
+          match evalTBlock init block with
+          | .ok s => some (s.world.storageMap 2 1, s.world.storage 0, s.world.storage 1)
+          | .revert _ => none
+      | _ => none
+
+/-- Vault.deposit(amount=50): shares 100→150, totalAssets 100→150, totalSupply 100→150. -/
+example : compiledVaultDepositResult = some (150, 150, 150) := by native_decide
+
+/-- End-to-end Vault.withdraw (happy path): sufficient shares burn 1:1 from balances and totals. -/
+def compiledVaultWithdrawSuccess : Option (Nat × Nat × Nat) :=
+  match compileFunctionNamed Compiler.Specs.vaultSpec "withdraw" with
+  | .error _ => none
+  | .ok block =>
+      match block.params with
+      | [sharesParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              «storage» := fun i => if i == 0 || i == 1 then 100 else 0
+              storageMap := fun i addr =>
+                if i == 2 && addr == 1 then 100 else 0
+              sender := 1 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { uint256 := fun i =>
+                          if i = sharesParam.id then 30 else 0 } }
+          match evalTBlock init block with
+          | .ok s => some (s.world.storageMap 2 1, s.world.storage 0, s.world.storage 1)
+          | .revert _ => none
+      | _ => none
+
+/-- Vault.withdraw(shares=30): shares 100→70, totalAssets 100→70, totalSupply 100→70. -/
+example : compiledVaultWithdrawSuccess = some (70, 70, 70) := by native_decide
+
+/-- End-to-end Vault.withdraw (revert path): insufficient shares are rejected. -/
+def compiledVaultWithdrawReverts : Bool :=
+  match compileFunctionNamed Compiler.Specs.vaultSpec "withdraw" with
+  | .error _ => false
+  | .ok block =>
+      match block.params with
+      | [sharesParam] =>
+          let initWorld : Verity.ContractState :=
+            { Verity.defaultState with
+              «storage» := fun i => if i == 0 || i == 1 then 100 else 0
+              storageMap := fun i addr =>
+                if i == 2 && addr == 1 then 10 else 0
+              sender := 1 }
+          let init : TExecState :=
+            { world := initWorld
+              vars := { uint256 := fun i =>
+                          if i = sharesParam.id then 50 else 0 } }
+          match evalTBlock init block with
+          | .ok _ => false
+          | .revert _ => true
+      | _ => false
+
+/-- Vault.withdraw(shares=50) with only 10 shares: reverts. -/
+example : compiledVaultWithdrawReverts = true := by native_decide
+
 /-- End-to-end Ledger.deposit: increases sender balance via mapping write. -/
 def compiledLedgerDepositResult : Option Nat :=
   match compileFunctionNamed Compiler.Specs.ledgerSpec "deposit" with

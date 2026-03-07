@@ -35,6 +35,7 @@ inductive ContractType
   | counter
   | owned
   | ledger
+  | vault
   | ownedCounter
   | simpleToken
   | safeCounter

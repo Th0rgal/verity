@@ -235,6 +235,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Counter.spec
   , Contracts.Owned.spec
   , Contracts.Ledger.spec
+  , Contracts.Vault.spec
   , Contracts.SafeCounter.spec
   , Contracts.OwnedCounter.spec
   , Contracts.SimpleToken.spec
@@ -263,6 +264,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "previewLowLevel(uint256,uint256)"])
   , ("Owned", ["transferOwnership(address)", "getOwner()"])
   , ("Ledger", ["deposit(uint256)", "withdraw(uint256)", "transfer(address,uint256)", "getBalance(address)"])
+  , ("Vault", ["deposit(uint256)", "withdraw(uint256)", "balanceOf(address)", "totalAssets()", "totalSupply()"])
   , ("SafeCounter", ["increment()", "decrement()", "getCount()"])
   , ("OwnedCounter", ["increment()", "decrement()", "getCount()", "getOwner()", "transferOwnership(address)"])
   , ("SimpleToken", ["mint(address,uint256)", "transfer(address,uint256)", "balanceOf(address)", "totalSupply()",
@@ -292,6 +294,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("Counter", ["0xd09de08a", "0x2baeceb7", "0xa87d942c", "0x04a34e04", "0x8022f026", "0x0a7486d3", "0x9d4825af"])
   , ("Owned", ["0xf2fde38b", "0x893d20e8"])
   , ("Ledger", ["0xb6b55f25", "0x2e1a7d4d", "0xa9059cbb", "0xf8b2cb4f"])
+  , ("Vault", ["0xb6b55f25", "0x2e1a7d4d", "0x70a08231", "0x01e1d114", "0x18160ddd"])
   , ("SafeCounter", ["0xd09de08a", "0x2baeceb7", "0xa87d942c"])
   , ("OwnedCounter", ["0xd09de08a", "0x2baeceb7", "0xa87d942c", "0x893d20e8", "0xf2fde38b"])
   , ("SimpleToken", ["0x40c10f19", "0xa9059cbb", "0x70a08231", "0x18160ddd", "0x8da5cb5b"])

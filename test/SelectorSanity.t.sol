@@ -30,6 +30,12 @@ contract SelectorSanityTest is Test {
         _assertSelector(_yulPath("Ledger"), "transfer(address,uint256)");
         _assertSelector(_yulPath("Ledger"), "getBalance(address)");
 
+        _assertSelector(_yulPath("Vault"), "deposit(uint256)");
+        _assertSelector(_yulPath("Vault"), "withdraw(uint256)");
+        _assertSelector(_yulPath("Vault"), "balanceOf(address)");
+        _assertSelector(_yulPath("Vault"), "totalAssets()");
+        _assertSelector(_yulPath("Vault"), "totalSupply()");
+
         _assertSelector(_yulPath("SimpleToken"), "mint(address,uint256)");
         _assertSelector(_yulPath("SimpleToken"), "transfer(address,uint256)");
         _assertSelector(_yulPath("SimpleToken"), "balanceOf(address)");

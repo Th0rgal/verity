@@ -224,6 +224,24 @@ def genSimpleTokenTx (rng : RNG) : RNG × Transaction :=
   | _ =>
       (rng, { sender := sender, functionName := "owner", args := [] })
 
+def genVaultTx (rng : RNG) : RNG × Transaction :=
+  let (rng, sender) := genAddress rng
+  let (rng, choice) := genUint256 rng
+  match choice % 5 with
+  | 0 =>
+      let (rng, assets) := genUint256 rng
+      (rng, { sender := sender, functionName := "deposit", args := [assets] })
+  | 1 =>
+      let (rng, shares) := genUint256 rng
+      (rng, { sender := sender, functionName := "withdraw", args := [shares] })
+  | 2 =>
+      let (rng, addr) := genAddress rng
+      (rng, { sender := sender, functionName := "balanceOf", args := [addressToNatNormalized addr] })
+  | 3 =>
+      (rng, { sender := sender, functionName := "totalAssets", args := [] })
+  | _ =>
+      (rng, { sender := sender, functionName := "totalSupply", args := [] })
+
 -- Generate random block timestamp (range: 0 to ~year 2100 in seconds)
 def genTimestamp (rng : RNG) : RNG × Nat :=
   let (rng', n) := rng.next
@@ -240,6 +258,7 @@ def genTransaction (contractType : ContractType) (rng : RNG) : Except String (RN
   | ContractType.safeCounter => Except.ok (genSafeCounterTx rng)
   | ContractType.owned => Except.ok (genOwnedTx rng)
   | ContractType.ledger => Except.ok (genLedgerTx rng)
+  | ContractType.vault => Except.ok (genVaultTx rng)
   | ContractType.ownedCounter => Except.ok (genOwnedCounterTx rng)
   | ContractType.simpleToken => Except.ok (genSimpleTokenTx rng)
   result.map fun (rng', tx) => (rng', { tx with blockTimestamp := timestamp })
@@ -290,6 +309,7 @@ def main (args : List String) : IO Unit := do
       | "Counter" => some ContractType.counter
       | "Owned" => some ContractType.owned
       | "Ledger" => some ContractType.ledger
+      | "Vault" => some ContractType.vault
       | "OwnedCounter" => some ContractType.ownedCounter
       | "SimpleToken" => some ContractType.simpleToken
       | "SafeCounter" => some ContractType.safeCounter
@@ -314,7 +334,7 @@ def main (args : List String) : IO Unit := do
           IO.println "]"
     | none =>
       throw <| IO.userError
-        s!"Unknown contract type: {contractType}. Supported: SimpleStorage, Counter, Owned, Ledger, OwnedCounter, SimpleToken, SafeCounter"
+        s!"Unknown contract type: {contractType}. Supported: SimpleStorage, Counter, Owned, Ledger, Vault, OwnedCounter, SimpleToken, SafeCounter"
   | _ =>
     IO.println "Usage: random-gen <contract> <count> <seed>"
     IO.println "Example: random-gen SimpleStorage 100 42"

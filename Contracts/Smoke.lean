@@ -6,6 +6,7 @@ import Contracts.Owned.Owned
 import Contracts.SafeCounter.SafeCounter
 import Contracts.OwnedCounter.OwnedCounter
 import Contracts.Ledger.Ledger
+import Contracts.Vault.Vault
 import Contracts.SimpleToken.SimpleToken
 import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
@@ -305,6 +306,7 @@ end SpecGenSmoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
 #check_contract StructMappingSmoke
+#check_contract Contracts.Vault
 
 example :
     (Compiler.CompilationModel.FunctionSpec.body

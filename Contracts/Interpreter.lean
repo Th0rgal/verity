@@ -404,6 +404,28 @@ def interpretLedger (tx : Transaction) (state : ContractState) : ExecutionResult
   ]
 
 /-!
+## Vault Interpreter
+-/
+
+def interpretVault (tx : Transaction) (state : ContractState) : ExecutionResult :=
+  dispatch tx [
+    case1 "deposit" tx (fun assets =>
+      let senderKey := (2, tx.sender)
+      runUnit (Vault.deposit assets) state [0, 1] [] [senderKey]
+    ),
+    case1 "withdraw" tx (fun shares =>
+      let senderKey := (2, tx.sender)
+      runUnit (Vault.withdraw shares) state [0, 1] [] [senderKey]
+    ),
+    case1Address "balanceOf" tx (fun addr =>
+      let addrKey := (2, addr)
+      runUint (Vault.balanceOf addr) state [] [] [addrKey]
+    ),
+    case0 "totalAssets" tx (fun _ => runUint Vault.getTotalAssets state [0] [] []),
+    case0 "totalSupply" tx (fun _ => runUint Vault.getTotalSupply state [1] [] [])
+  ]
+
+/-!
 ## OwnedCounter Interpreter
 -/
 
@@ -572,6 +594,7 @@ def interpret (contractType : ContractType) (tx : Transaction) (state : Contract
   | ContractType.safeCounter => interpretSafeCounter tx state
   | ContractType.owned => interpretOwned tx state
   | ContractType.ledger => interpretLedger tx state
+  | ContractType.vault => interpretVault tx state
   | ContractType.ownedCounter => interpretOwnedCounter tx state
   | ContractType.simpleToken => interpretSimpleToken tx state
 
@@ -939,6 +962,7 @@ def main (args : List String) : IO Unit := do
       | "Counter" => some ContractType.counter
       | "Owned" => some ContractType.owned
       | "Ledger" => some ContractType.ledger
+      | "Vault" => some ContractType.vault
       | "OwnedCounter" => some ContractType.ownedCounter
       | "SimpleToken" => some ContractType.simpleToken
       | "SafeCounter" => some ContractType.safeCounter

@@ -6,6 +6,7 @@ import Contracts.Owned
 import Contracts.OwnedCounter
 import Contracts.SafeCounter
 import Contracts.Ledger
+import Contracts.Vault
 import Contracts.ERC20
 import Contracts.ERC721
 import Contracts.SimpleToken

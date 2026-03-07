@@ -35,6 +35,7 @@ lean_lib «Contracts» where
     .andSubmodules `Contracts.OwnedCounter,
     .andSubmodules `Contracts.SafeCounter,
     .andSubmodules `Contracts.Ledger,
+    .andSubmodules `Contracts.Vault,
     .andSubmodules `Contracts.ERC20,
     .andSubmodules `Contracts.ERC721,
     .andSubmodules `Contracts.SimpleToken,

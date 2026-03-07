@@ -5,6 +5,7 @@ def canonicalModules : List String :=
   , "Contracts.Counter.Counter"
   , "Contracts.Owned.Owned"
   , "Contracts.Ledger.Ledger"
+  , "Contracts.Vault.Vault"
   , "Contracts.OwnedCounter.OwnedCounter"
   , "Contracts.SimpleToken.SimpleToken"
   , "Contracts.SafeCounter.SafeCounter"

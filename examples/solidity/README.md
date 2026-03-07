@@ -12,6 +12,7 @@ These Solidity contracts serve as **reference implementations** for Verity's dif
 | `Owned.sol` | `Contracts/Owned/Owned.lean` | 23 theorems | Access control (owner-only functions) |
 | `OwnedCounter.sol` | `Contracts/OwnedCounter/OwnedCounter.lean` | 48 theorems | Combined access control + counter |
 | `Ledger.sol` | `Contracts/Ledger/Ledger.lean` | 33 theorems | Balance mapping (deposit/withdraw/transfer) |
+| `Vault.sol` | `Contracts/Vault/Vault.lean` | scaffolding | Minimal ERC4626-style vault with 1:1 share accounting |
 | `SimpleToken.sol` | `Contracts/SimpleToken/SimpleToken.lean` | 61 theorems | Token with mint/transfer + supply invariants |
 | `(pending)` | `Contracts/ERC20/ERC20.lean` | 19 theorems | ERC20 scaffold with initial read-state/spec bridge proofs |
 | `(pending)` | `Contracts/ERC721/ERC721.lean` | 11 theorems | ERC721 scaffold with ownership/approval read-state proof baseline |
