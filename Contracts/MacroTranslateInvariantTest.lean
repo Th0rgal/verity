@@ -51,6 +51,12 @@ private def allDistinct [DecidableEq α] (xs : List α) : Bool :=
 private def externalFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
 
+private def bodyUsesAddressStorageRead (body : List Stmt) : Bool :=
+  contains (reprStr body) "storageAddr"
+
+private def bodyUsesAddressStorageWrite (body : List Stmt) : Bool :=
+  contains (reprStr body) "setStorageAddr"
+
 private def canonicalFieldSlots (spec : CompilationModel) : List Nat :=
   let indexed := List.zip (List.range spec.fields.length) spec.fields
   indexed.map (fun (idx, field) => field.slot.getD idx)
@@ -261,8 +267,9 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ERC20", ["mint(address,uint256)", "transfer(address,uint256)", "approve(address,uint256)",
       "transferFrom(address,address,uint256)", "balanceOf(address)", "allowanceOf(address,address)",
       "totalSupply()", "owner()"])
-  , ("ERC721", ["ownerOf(uint256)", "getApproved(uint256)", "approve(uint256,uint256)", "mint(uint256)",
-      "transferFrom(uint256,uint256,uint256)"])
+  , ("ERC721", ["balanceOf(address)", "ownerOf(uint256)", "getApproved(uint256)",
+      "isApprovedForAll(address,address)", "approve(address,uint256)", "setApprovalForAll(address,bool)",
+      "mint(address)", "transferFrom(address,address,uint256)"])
   , ("UintMapSmoke", ["setValue(uint256,uint256)", "getValue(uint256)"])
   , ("Bytes32Smoke", ["setDigest(bytes32)", "getDigest()"])
   , ("MappingWordSmoke", ["setWord1(uint256,uint256)", "getWord1(uint256)", "isWord1NonZero(uint256)"])
@@ -281,7 +288,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("SimpleToken", ["0x40c10f19", "0xa9059cbb", "0x70a08231", "0x18160ddd", "0x8da5cb5b"])
   , ("ERC20", ["0x40c10f19", "0xa9059cbb", "0x095ea7b3", "0x23b872dd", "0x70a08231", "0x1a46ec82", "0x18160ddd",
       "0x8da5cb5b"])
-  , ("ERC721", ["0x6352211e", "0x081812fc", "0x5d35a3d9", "0xa0712d68", "0x310ed7f0"])
+  , ("ERC721", ["0x70a08231", "0x6352211e", "0x081812fc", "0xe985e9c5", "0x095ea7b3", "0xa22cb465",
+      "0x6a627842", "0x23b872dd"])
   , ("UintMapSmoke", ["0x7b8d56e3", "0x0ff4c916"])
   , ("Bytes32Smoke", ["0xed9fdc05", "0xae0d3e27"])
   , ("MappingWordSmoke", ["0x60ab11c4", "0x8f8a322f", "0xea3aded7"])
@@ -389,6 +397,12 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
     (macroSpecs.length == expectedExternalSignatures.length)
   expectTrue "macro spec count matches pinned selector snapshot"
     (macroSpecs.length == expectedExternalSelectors.length)
+  expectTrue
+    "Owned.getOwner keeps address storage reads explicit in macro output"
+    (bodyUsesAddressStorageRead Contracts.Owned.getOwner_modelBody)
+  expectTrue
+    "Owned.transferOwnership keeps address storage writes explicit in macro output"
+    (bodyUsesAddressStorageWrite Contracts.Owned.transferOwnership_modelBody)
   for spec in macroSpecs do
     checkSpec spec
 

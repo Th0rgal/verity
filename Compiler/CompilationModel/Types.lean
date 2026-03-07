@@ -223,6 +223,7 @@ inductive Expr
   | param (name : String)
   | constructorArg (index : Nat)  -- Access constructor argument (loaded from bytecode)
   | storage (field : String)
+  | storageAddr (field : String)
   | mapping (field : String) (key : Expr)
   | mappingWord (field : String) (key : Expr) (wordOffset : Nat)  -- mappingSlot(base,key) + wordOffset
   | mappingPackedWord (field : String) (key : Expr) (wordOffset : Nat) (packed : PackedBits)
@@ -319,6 +320,7 @@ inductive Stmt
   | letVar (name : String) (value : Expr)  -- Declare local variable
   | assignVar (name : String) (value : Expr)  -- Reassign existing variable
   | setStorage (field : String) (value : Expr)
+  | setStorageAddr (field : String) (value : Expr)
   | setMapping (field : String) (key : Expr) (value : Expr)
   | setMappingWord (field : String) (key : Expr) (wordOffset : Nat) (value : Expr)  -- mappingSlot(base,key)+wordOffset write
   | setMappingPackedWord (field : String) (key : Expr) (wordOffset : Nat) (packed : PackedBits) (value : Expr)

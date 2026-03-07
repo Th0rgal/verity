@@ -111,7 +111,7 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def validateInteropStmt (context : String) : Stmt → Except String Unit
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInteropExpr context value
   | Stmt.requireError cond _ args => do

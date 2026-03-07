@@ -8,6 +8,18 @@ import Contracts.Specs
 
 namespace Verity.Core.Free
 
+private def contains (haystack needle : String) : Bool :=
+  let h := haystack.toList
+  let n := needle.toList
+  if n.isEmpty then true
+  else
+    let rec go : List Char → Bool
+      | [] => false
+      | c :: cs =>
+        if (c :: cs).take n.length == n then true
+        else go cs
+    go h
+
 def x : TVar := { id := 0, ty := .uint256 }
 def y : TVar := { id := 1, ty := .uint256 }
 def flag : TVar := { id := 2, ty := .bool }
@@ -116,6 +128,29 @@ def compileRawLogSucceeds : Bool :=
   | .ok _ => true
   | .error _ => false
 
+def compileStorageAddrReturnUsesTypedAddressRead : Bool :=
+  let fields : List Compiler.CompilationModel.Field :=
+    [{ name := "owner", ty := Compiler.CompilationModel.FieldType.address }]
+  match (compileStmts fields
+      [Compiler.CompilationModel.Stmt.return
+        (Compiler.CompilationModel.Expr.storageAddr "owner")]).run {} with
+  | .ok st =>
+      let rendered := reprStr st.2.body.toList
+      contains rendered "returnAddr" &&
+      contains rendered "getStorageAddr 0"
+  | .error _ => false
+
+def compileSetStorageAddrUsesTypedAddressWrite : Bool :=
+  let fields : List Compiler.CompilationModel.Field :=
+    [{ name := "owner", ty := Compiler.CompilationModel.FieldType.address }]
+  match (compileStmts fields
+      [Compiler.CompilationModel.Stmt.setStorageAddr "owner" Compiler.CompilationModel.Expr.caller]).run {} with
+  | .ok st =>
+      let rendered := reprStr st.2.body.toList
+      contains rendered "setStorageAddr 0" &&
+      contains rendered "sender"
+  | .error _ => false
+
 def compileRawLogLoweringShapeOk : Bool :=
   match (compileStmts []
       [Compiler.CompilationModel.Stmt.rawLog
@@ -212,6 +247,12 @@ example : compileModExprSucceeds = true := by native_decide
 
 /-- Typed-IR compiler accepts source-level `Stmt.rawLog`. -/
 example : compileRawLogSucceeds = true := by native_decide
+
+/-- Address-typed storage reads stay explicit through typed IR compilation. -/
+example : compileStorageAddrReturnUsesTypedAddressRead = true := by native_decide
+
+/-- Address-typed storage writes stay explicit through typed IR compilation. -/
+example : compileSetStorageAddrUsesTypedAddressWrite = true := by native_decide
 
 /-- Typed-IR compiler emits the expected typed `rawLog` statement shape. -/
 example : compileRawLogLoweringShapeOk = true := by native_decide

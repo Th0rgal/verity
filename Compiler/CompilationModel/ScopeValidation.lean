@@ -191,7 +191,7 @@ def validateScopedExprIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount cond
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount thenVal
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount elseVal
-  | Expr.literal _ | Expr.storage _ | Expr.caller | Expr.contractAddress | Expr.chainid
+  | Expr.literal _ | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid
   | Expr.msgValue | Expr.blockTimestamp | Expr.calldatasize | Expr.returndataSize =>
       pure ()
 termination_by e => sizeOf e
@@ -222,7 +222,7 @@ def validateScopedStmtIdentifiers
         throw s!"Compilation error: {context} assigns to undeclared local variable '{name}'"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
       pure localScope
-  | Stmt.setStorage _ value | Stmt.return value | Stmt.require value _ => do
+  | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.return value | Stmt.require value _ => do
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
       pure localScope
   | Stmt.setMapping _ key value | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value | Stmt.setMappingUint _ key value

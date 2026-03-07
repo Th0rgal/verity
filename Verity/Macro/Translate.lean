@@ -438,7 +438,7 @@ private def translateBindSource
   | `(term| getStorageAddr $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .address => `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
+      | .scalar .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm f.name))
       | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
@@ -537,7 +537,7 @@ private def translateEffectStmt
       let f ← lookupStorageField fields (toString field.getId)
       if f.ty != .scalar .address then
         throwErrorAt stx s!"field '{f.name}' is not Address; use setStorage"
-      `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExpr params locals value))
+      `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm f.name) $(← translatePureExpr params locals value))
   | `(term| setMapping $field:ident $key:term $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with

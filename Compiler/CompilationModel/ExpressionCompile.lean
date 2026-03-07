@@ -62,6 +62,18 @@ def compileExpr (fields : List Field)
                 YulExpr.lit (packedMaskNat packed)
               ])
       | none => throw s!"Compilation error: unknown storage field '{field}'"
+  | Expr.storageAddr field =>
+    if isMapping fields field then
+      throw s!"Compilation error: field '{field}' is a mapping; use Expr.mapping, Expr.mappingWord, or Expr.mappingPackedWord"
+    else
+      match findFieldWithResolvedSlot fields field with
+      | some (f, slot) =>
+          match f.ty with
+          | .address =>
+              pure (YulExpr.call "sload" [YulExpr.lit slot])
+          | _ =>
+              throw s!"Compilation error: field '{field}' is not address-typed; use Expr.storage instead"
+      | none => throw s!"Compilation error: unknown storage field '{field}'"
   | Expr.mapping field key => do
       compileMappingSlotRead fields field (← compileExpr fields dynamicSource key) "mapping"
   | Expr.mappingWord field key wordOffset => do

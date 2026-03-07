@@ -13,7 +13,7 @@ def collectStmtBindNames : Stmt → List String
   | Stmt.externalCallBind resultVars _ _ => resultVars
   | Stmt.ecm mod _ => mod.resultVars
   -- Statements that never bind new names.
-  | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.return _
+  | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.return _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
   | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _
@@ -78,7 +78,7 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.ite cond thenVal elseVal =>
       exprUsesArrayElement cond || exprUsesArrayElement thenVal || exprUsesArrayElement elseVal
   -- Leaf expressions: no sub-expressions that could contain arrayElement.
-  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
       false
@@ -92,7 +92,7 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtUsesArrayElement : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       exprUsesArrayElement value
   | Stmt.requireError cond _ args =>

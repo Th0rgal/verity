@@ -34,7 +34,7 @@ def exprContainsCallLike (expr : Expr) : Bool :=
       exprContainsCallLike a
   | Expr.ite cond thenVal elseVal =>
       exprContainsCallLike cond || exprContainsCallLike thenVal || exprContainsCallLike elseVal
-  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
       false
@@ -107,7 +107,7 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
       exprContainsUnsafeLogicalCallLike cond ||
       exprContainsUnsafeLogicalCallLike thenVal ||
       exprContainsUnsafeLogicalCallLike elseVal
-  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
       false
@@ -121,7 +121,7 @@ termination_by es => sizeOf es
 decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtContainsUnsafeLogicalCallLike : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       exprContainsUnsafeLogicalCallLike value
   | Stmt.requireError cond _ args =>

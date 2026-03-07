@@ -143,7 +143,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def validateInternalCallShapesInStmt
     (functions : List FunctionSpec) (callerName : String) : Stmt → Except String Unit
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInternalCallShapesInExpr functions callerName value
   | Stmt.requireError cond _ args => do
@@ -339,7 +339,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def validateExternalCallTargetsInStmt
     (externals : List ExternalFunction) (context : String) : Stmt → Except String Unit
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       validateExternalCallTargetsInExpr externals context value
   | Stmt.requireError cond _ args => do

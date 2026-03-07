@@ -167,7 +167,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.literal _ => false
   | Expr.param _ => false
   | Expr.constructorArg _ => false
-  | Expr.storage _ => true
+  | Expr.storage _ | Expr.storageAddr _ => true
   | Expr.mapping _ _ | Expr.mappingWord _ _ _ | Expr.mappingPackedWord _ _ _ _
   | Expr.mapping2 _ _ _ | Expr.mapping2Word _ _ _ _
   | Expr.mappingUint _ _
@@ -256,7 +256,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 def stmtWritesState : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprWritesState value
-  | Stmt.setStorage _ _
+  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
   | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _ => true
@@ -307,7 +307,7 @@ end
 
 mutual
 def stmtReadsStateOrEnv : Stmt → Bool
-  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value |
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       exprReadsStateOrEnv value
   | Stmt.requireError cond _ args =>

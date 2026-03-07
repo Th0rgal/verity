@@ -67,16 +67,16 @@ verity_contract TupleSmoke where
     authorized : Address → Uint256 := slot 1
 
   function setFromPair (pair : Tuple [Uint256, Uint256]) : Unit := do
-    let pair' := pair
-    let _ignored := pair'
+    let pairValue := pair
+    let _ignored := pairValue
     pure ()
 
   function getPair (key : Uint256) : Tuple [Uint256, Uint256] := do
     returnValues [key, key]
 
   function processConfig (cfg : Tuple [Address, Address, Uint256]) : Unit := do
-    let cfg' := cfg
-    let _ignored := cfg'
+    let cfgValue := cfg
+    let _ignored := cfgValue
     pure ()
 
 verity_contract Uint8Smoke where
@@ -84,8 +84,8 @@ verity_contract Uint8Smoke where
     sentinel : Uint256 := slot 0
 
   function acceptSig (sig : Tuple [Uint8, Bytes32, Bytes32]) : Unit := do
-    let sig' := sig
-    let _ignored := sig'
+    let sigValue := sig
+    let _ignored := sigValue
     pure ()
 
   function sigV () : Uint8 := do

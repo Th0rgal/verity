@@ -109,6 +109,8 @@ private def compileExpr (fields : List Field) : Expr → CompileM SomeTExpr
       return ⟨v.ty, TExpr.var v⟩
   | .storage fieldName =>
       liftExcept <| compileStorageRead fields fieldName
+  | .storageAddr fieldName =>
+      liftExcept <| compileStorageRead fields fieldName
   | .mapping field key => do
       let keyExpr ← compileExpr fields key
       let keyAddr ← liftExcept <| asAddress keyExpr
@@ -240,6 +242,18 @@ private def compileStmt (fields : List Field) : Stmt → CompileM Unit
           | Ty.address, ⟨Ty.address, expr⟩ => emit (.setStorageAddr slot expr)
           | expectedTy, ⟨actualTy, _⟩ =>
               throw s!"Typed IR compile error: setStorage type mismatch for '{fieldName}' (expected {repr expectedTy}, got {repr actualTy})"
+  | .setStorageAddr fieldName value => do
+      let rhs ← compileExpr fields value
+      match findFieldWithResolvedSlot fields fieldName with
+      | none =>
+          throw s!"Typed IR compile error: unknown storage field '{fieldName}'"
+      | some (field, slot) =>
+          match (← fieldTypeToTy field.ty), rhs with
+          | Ty.address, ⟨Ty.address, expr⟩ => emit (.setStorageAddr slot expr)
+          | Ty.uint256, _ =>
+              throw s!"Typed IR compile error: setStorageAddr requires an address-typed field '{fieldName}'"
+          | expectedTy, ⟨actualTy, _⟩ =>
+              throw s!"Typed IR compile error: setStorageAddr type mismatch for '{fieldName}' (expected {repr expectedTy}, got {repr actualTy})"
   | .setMapping fieldName key value => do
       let keyExpr ← liftExcept <| asAddress (← compileExpr fields key)
       let valueExpr ← liftExcept <| asUInt256 (← compileExpr fields value)
