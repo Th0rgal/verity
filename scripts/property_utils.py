@@ -27,6 +27,8 @@ PROPERTY_SIMPLE_RE = re.compile(
 FILE_RE = re.compile(r"^Property(.+)\.t\.sol$")
 CONTRACT_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 THEOREM_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_']*$")
+LEAN_IMPORT_RE = re.compile(r"^\s*import\b(?P<body>.*)$")
+LEAN_MODULE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.']*$")
 
 # Regex pattern for theorem/lemma declarations with optional Lean prefixes.
 THEOREM_RE = re.compile(
@@ -76,6 +78,31 @@ def load_exclusions() -> dict[str, set[str]]:
         Returns empty dict if exclusions file does not exist.
     """
     return _load_contract_name_sets(EXCLUSIONS, missing_ok=True)
+
+
+def extract_lean_import_modules(line: str) -> list[str]:
+    """Extract imported module names from a Lean `import` line.
+
+    Supports multiple modules on one line and ignores `as Alias` clauses.
+    Returns an empty list for non-import lines.
+    """
+    match = LEAN_IMPORT_RE.match(line)
+    if match is None:
+        return []
+
+    modules: list[str] = []
+    tokens = match.group("body").split()
+    skip_alias = False
+    for token in tokens:
+        if skip_alias:
+            skip_alias = False
+            continue
+        if token == "as":
+            skip_alias = True
+            continue
+        if LEAN_MODULE_NAME_RE.fullmatch(token):
+            modules.append(token)
+    return modules
 
 
 def _load_contract_name_sets(path: Path, *, missing_ok: bool) -> dict[str, set[str]]:

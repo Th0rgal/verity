@@ -3,14 +3,12 @@
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
-from property_utils import ROOT, strip_lean_comments
+from property_utils import ROOT, extract_lean_import_modules, strip_lean_comments
 
 COMPILER_DIR = ROOT / "Compiler"
-IMPORT_RE = re.compile(r"^\s*import\s+(Contracts\.[A-Za-z0-9_.']+)\s*$", re.MULTILINE)
 
 
 def _render_path(path: Path) -> str:
@@ -25,12 +23,12 @@ def collect_forbidden_imports(root: Path = COMPILER_DIR) -> list[str]:
     for path in sorted(root.rglob("*.lean")):
         contents = strip_lean_comments(path.read_text(encoding="utf-8"))
         for line_no, line in enumerate(contents.splitlines(), 1):
-            match = IMPORT_RE.match(line)
-            if match is None:
-                continue
-            failures.append(
-                f"{_render_path(path)}:{line_no}: forbidden Compiler -> Contracts import `{match.group(1)}`"
-            )
+            for module_name in extract_lean_import_modules(line):
+                if module_name != "Contracts" and not module_name.startswith("Contracts."):
+                    continue
+                failures.append(
+                    f"{_render_path(path)}:{line_no}: forbidden Compiler -> Contracts import `{module_name}`"
+                )
     return failures
 
 
