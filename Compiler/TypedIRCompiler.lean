@@ -1740,13 +1740,15 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageA
     emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asBool,
     liftExcept, emit, List.find?, h1, h2, h3, h4, monadLift]; rfl
 
-/-- Compilation shape for the Morpho `enableIrm` pattern:
+/-- Compilation shape for an owner-auth mint pattern:
 `letVar senderVar caller ; letVar ownerVar (storage ownerField) ;
- require (eq (localVar senderVar) (localVar ownerVar)) msg1 ;
- letVar currentVar (mapping mappingField (param keyParam)) ;
- require (eq (localVar currentVar) (literal 0)) msg2 ;
- setMapping mappingField (param keyParam) (literal writeVal) ; stop`.
-This pattern is used by Morpho Blue's `enableIrm` admin function. -/
+ require (eq (localVar senderVar) (localVar ownerVar)) msg ;
+ letVar balanceVar (mapping mappingField (param toParam)) ;
+ letVar supplyVar (storage supplyField) ;
+ setMapping mappingField (param toParam)
+   (add (localVar balanceVar) (param amountParam)) ;
+ setStorage supplyField
+   (add (localVar supplyVar) (param amountParam)) ; stop`. -/
 theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddParamSetStorageAddParamStop_run
     (fields : List Field)
     (ownerField mappingField supplyField senderVar ownerVar balanceVar supplyVar toParam amountParam

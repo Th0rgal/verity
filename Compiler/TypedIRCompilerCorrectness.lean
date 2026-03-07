@@ -1765,7 +1765,8 @@ theorem compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageA
   · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
       hEq1, TVars.set, TVars.get]
 
-/-- Semantic-preservation for the Morpho enableIrm pattern. -/
+/-- Semantic-preservation for the owner-auth mint pattern with one balance read
+and one total-supply read before updating both values. -/
 theorem compile_letCaller_letStorageAddr_reqEq_letMapping_letStorage_setMapping_add_param_setStorage_add_param_stop_semantics
     (fields : List Field)
     (ownerField mappingField supplyField senderVar ownerVar balanceVar supplyVar toParam amountParam
