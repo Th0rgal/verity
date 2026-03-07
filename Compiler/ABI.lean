@@ -29,6 +29,7 @@ private def abiTypeString : ParamType → String
   | .address => "address"
   | .bool => "bool"
   | .bytes32 => "bytes32"
+  | .string => "string"
   | .bytes => "bytes"
   | .tuple _ => "tuple"
   | .array t => abiTypeString t ++ "[]"

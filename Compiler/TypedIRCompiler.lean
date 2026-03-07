@@ -51,6 +51,7 @@ private def paramTypeToTy : ParamType → Except String Ty
   | .address => Except.ok Ty.address
   | .bool => Except.ok Ty.bool
   | .bytes32 => Except.ok Ty.uint256
+  | .string => Except.error "Typed IR compile error: string params are not yet supported"
   | .tuple _ => Except.error "Typed IR compile error: tuple params are not yet supported"
   | .array _ => Except.error "Typed IR compile error: dynamic array params are not yet supported"
   | .fixedArray _ _ => Except.error "Typed IR compile error: fixed array params are not yet supported"

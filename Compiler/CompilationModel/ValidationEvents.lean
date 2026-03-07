@@ -131,31 +131,31 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
                         throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
                 | _ =>
                     throw s!"Compilation error: function '{fnName}' unindexed composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
-          | ParamType.bytes =>
+          | ParamType.bytes | ParamType.string =>
               match arg with
               | Expr.param name =>
                   match findParamType params name with
-                  | some ParamType.bytes => pure ()
+                  | some ParamType.bytes | some ParamType.string => pure ()
                   | some ty =>
-                      throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
+                      throw s!"Compilation error: function '{fnName}' unindexed dynamic-bytes event param '{eventParam.name}' in event '{eventName}' expects bytes/string arg to reference a matching parameter, got {repr ty} ({issue586Ref})."
                   | none =>
-                      throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                      throw s!"Compilation error: function '{fnName}' unindexed dynamic-bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
               | _ =>
-                  throw s!"Compilation error: function '{fnName}' unindexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+                  throw s!"Compilation error: function '{fnName}' unindexed dynamic-bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes/string parameter reference ({issue586Ref})."
           | _ => pure ()
         if eventParam.kind == EventParamKind.indexed then
           match eventParam.ty with
-          | ParamType.bytes =>
+          | ParamType.bytes | ParamType.string =>
               match arg with
               | Expr.param name =>
                   match findParamType params name with
-                  | some ParamType.bytes => pure ()
+                  | some ParamType.bytes | some ParamType.string => pure ()
                   | some ty =>
-                      throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' expects bytes arg to reference a bytes parameter, got {repr ty} ({issue586Ref})."
+                      throw s!"Compilation error: function '{fnName}' indexed dynamic-bytes event param '{eventParam.name}' in event '{eventName}' expects bytes/string arg to reference a matching parameter, got {repr ty} ({issue586Ref})."
                   | none =>
-                      throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                      throw s!"Compilation error: function '{fnName}' indexed dynamic-bytes event param '{eventParam.name}' in event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
               | _ =>
-                  throw s!"Compilation error: function '{fnName}' indexed bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+                  throw s!"Compilation error: function '{fnName}' indexed dynamic-bytes event param '{eventParam.name}' in event '{eventName}' currently requires direct bytes/string parameter reference ({issue586Ref})."
           | ParamType.array elemTy =>
               match elemTy with
               | ParamType.bytes =>

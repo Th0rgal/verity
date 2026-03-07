@@ -44,9 +44,9 @@ def validateStmtParamReferences (fnName : String) (params : List Param) :
           throw s!"Compilation error: function '{fnName}' returnArray references unknown parameter '{name}'"
   | Stmt.returnBytes name =>
       match findParamType params name with
-      | some ParamType.bytes => pure ()
+      | some ParamType.bytes | some ParamType.string => pure ()
       | some ty =>
-          throw s!"Compilation error: function '{fnName}' returnBytes '{name}' requires bytes parameter, got {repr ty}"
+          throw s!"Compilation error: function '{fnName}' returnBytes '{name}' requires bytes/string parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: function '{fnName}' returnBytes references unknown parameter '{name}'"
   | Stmt.returnStorageWords name =>
@@ -78,7 +78,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
-def validateReturnShapesInStmt (fnName : String)
+def validateReturnShapesInStmt (fnName : String) (params : List Param)
     (expectedReturns : List ParamType) (isInternal : Bool) : Stmt → Except String Unit
   | Stmt.return _ =>
       if isInternal then
@@ -106,11 +106,18 @@ def validateReturnShapesInStmt (fnName : String)
         pure ()
       else
         throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray but declared returns are {repr expectedReturns}"
-  | Stmt.returnBytes _ =>
+  | Stmt.returnBytes name =>
       if isInternal then
         throw s!"Compilation error: internal function '{fnName}' cannot use Stmt.returnBytes; only static returns via Stmt.return/Stmt.returnValues are supported ({issue625Ref})."
-      else if expectedReturns == [ParamType.bytes] then
-        pure ()
+      else if expectedReturns == [ParamType.bytes] || expectedReturns == [ParamType.string] then
+        match findParamType params name with
+        | some ty =>
+            if expectedReturns == [ty] then
+              pure ()
+            else
+              throw s!"Compilation error: function '{fnName}' uses Stmt.returnBytes to return parameter '{name}' of type {repr ty}, but declared returns are {repr expectedReturns}"
+        | none =>
+            throw s!"Compilation error: function '{fnName}' returnBytes references unknown parameter '{name}'"
       else
         throw s!"Compilation error: function '{fnName}' uses Stmt.returnBytes but declared returns are {repr expectedReturns}"
   | Stmt.returnStorageWords _ =>
@@ -121,20 +128,20 @@ def validateReturnShapesInStmt (fnName : String)
       else
         throw s!"Compilation error: function '{fnName}' uses Stmt.returnStorageWords but declared returns are {repr expectedReturns}"
   | Stmt.ite _ thenBranch elseBranch => do
-      validateReturnShapesInStmtList fnName expectedReturns isInternal thenBranch
-      validateReturnShapesInStmtList fnName expectedReturns isInternal elseBranch
+      validateReturnShapesInStmtList fnName params expectedReturns isInternal thenBranch
+      validateReturnShapesInStmtList fnName params expectedReturns isInternal elseBranch
   | Stmt.forEach _ _ body =>
-      validateReturnShapesInStmtList fnName expectedReturns isInternal body
+      validateReturnShapesInStmtList fnName params expectedReturns isInternal body
   | _ => pure ()
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
 
 def validateReturnShapesInStmtList (fnName : String)
-    (expectedReturns : List ParamType) (isInternal : Bool) : List Stmt → Except String Unit
+    (params : List Param) (expectedReturns : List ParamType) (isInternal : Bool) : List Stmt → Except String Unit
   | [] => pure ()
   | s :: ss => do
-      validateReturnShapesInStmt fnName expectedReturns isInternal s
-      validateReturnShapesInStmtList fnName expectedReturns isInternal ss
+      validateReturnShapesInStmt fnName params expectedReturns isInternal s
+      validateReturnShapesInStmtList fnName params expectedReturns isInternal ss
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
 end
@@ -361,7 +368,7 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
   if spec.body.any stmtContainsUnsafeLogicalCallLike then
     throw s!"Compilation error: function '{spec.name}' uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
   let returns ← functionReturns spec
-  spec.body.forM (validateReturnShapesInStmt spec.name returns spec.isInternal)
+  spec.body.forM (validateReturnShapesInStmt spec.name spec.params returns spec.isInternal)
   if !returns.isEmpty && !stmtListAlwaysReturnsOrReverts spec.body then
     throw s!"Compilation error: function '{spec.name}' declares return values but not all control-flow paths end in return/revert ({issue738Ref})"
   spec.body.forM (validateStmtParamReferences spec.name spec.params)

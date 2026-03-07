@@ -42,7 +42,7 @@ partial def compileUnindexedAbiEncode
       pure ([
         YulStmt.expr (YulExpr.call "mstore" [dstBase, normalizeEventWord ty loaded])
       ], YulExpr.lit 32)
-  | ParamType.bytes =>
+  | ParamType.bytes | ParamType.string =>
       let lenName := s!"{stem}_len"
       let paddedName := s!"{stem}_padded"
       pure ([
@@ -306,7 +306,7 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
               pure stores
         | _ =>
             throw s!"Compilation error: custom error '{errorDef.name}' parameter of type {repr ty} currently requires direct parameter reference ({issue586Ref})."
-    | ParamType.bytes | ParamType.array _ =>
+    | ParamType.bytes | ParamType.string | ParamType.array _ =>
         match srcExpr with
         | Expr.param name =>
             let dstName := s!"__err_arg{idx}_dst"

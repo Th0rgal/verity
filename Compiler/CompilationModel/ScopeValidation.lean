@@ -33,6 +33,7 @@ def isDynamicParamTypeForScope : ParamType → Bool
   | ParamType.address => false
   | ParamType.bool => false
   | ParamType.bytes32 => false
+  | ParamType.string => true
   | ParamType.array _ => true
   | ParamType.bytes => true
   | ParamType.fixedArray elemTy _ => isDynamicParamTypeForScope elemTy

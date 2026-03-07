@@ -11,6 +11,7 @@ mutual
     | ParamType.address => false
     | ParamType.bool => false
     | ParamType.bytes32 => false
+    | ParamType.string => true
     | ParamType.array _ => true
     | ParamType.bytes => true
     | ParamType.fixedArray elemTy _ => isDynamicParamType elemTy
@@ -33,6 +34,7 @@ mutual
     | ParamType.address => 32
     | ParamType.bool => 32
     | ParamType.bytes32 => 32
+    | ParamType.string => 32
     | ParamType.array _ => 32
     | ParamType.bytes => 32
     | ParamType.fixedArray elemTy n =>

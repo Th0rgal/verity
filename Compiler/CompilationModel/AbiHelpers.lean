@@ -49,6 +49,7 @@ mutual
     | ParamType.address => "address"
     | ParamType.bool => "bool"
     | ParamType.bytes32 => "bytes32"
+    | ParamType.string => "string"
     | ParamType.tuple ts =>
         "(" ++ String.intercalate "," (paramTypeListToSolidityStrings ts) ++ ")"
     | ParamType.array t => paramTypeToSolidityString t ++ "[]"

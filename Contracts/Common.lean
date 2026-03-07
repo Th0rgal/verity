@@ -44,6 +44,7 @@ def calldatacopy (_destOffset _sourceOffset _size : Uint256) : Contract Unit := 
 def returndataCopy (_destOffset _sourceOffset _size : Uint256) : Contract Unit := pure ()
 def revertReturndata : Contract Unit := pure ()
 def returnValues (_values : List Uint256) : Contract Unit := pure ()
+def returnBytes {α : Type} [Inhabited α] (_value : α) : Contract α := pure default
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := pure #[]
 def mstore (_offset _value : Uint256) : Contract Unit := pure ()
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :

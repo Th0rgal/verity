@@ -56,7 +56,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
         let curHeadPtr := YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit headOffset]
         let current ←
           match p.ty with
-          | ParamType.bytes =>
+          | ParamType.bytes | ParamType.string =>
               match srcExpr with
               | Expr.param name =>
                   let lenName := s!"__evt_arg{argIdx}_len"
@@ -88,9 +88,9 @@ def compileEmit (fields : List Field) (events : List EventDef)
                     ])
                   ])
               | _ =>
-                  throw s!"Compilation error: unindexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+                  throw s!"Compilation error: unindexed dynamic-bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes/string parameter reference ({issue586Ref})."
           | ParamType.array elemTy =>
-              if elemTy == ParamType.bytes then
+              if elemTy == ParamType.bytes || elemTy == ParamType.string then
                   match srcExpr with
                   | Expr.param name =>
                       let lenName := s!"__evt_arg{argIdx}_len"
@@ -281,7 +281,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
     if hasUnindexedDynamicData then YulExpr.ident "__evt_data_tail" else YulExpr.lit unindexedHeadSize
   let indexedTopicParts ← indexed.zipIdx.mapM fun ((p, srcExpr, argExpr), idx) => do
     match p.ty with
-    | ParamType.bytes =>
+    | ParamType.bytes | ParamType.string =>
         match srcExpr with
         | Expr.param name =>
             let topicName := s!"__evt_topic{idx + 1}"
@@ -297,10 +297,10 @@ def compileEmit (fields : List Field) (events : List EventDef)
             ]
             pure (hashStmts, YulExpr.ident topicName)
         | _ =>
-            throw s!"Compilation error: indexed bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes parameter reference ({issue586Ref})."
+            throw s!"Compilation error: indexed dynamic-bytes event param '{p.name}' in event '{eventName}' currently requires direct bytes/string parameter reference ({issue586Ref})."
     | ParamType.array elemTy =>
         match elemTy with
-        | ParamType.bytes =>
+        | ParamType.bytes | ParamType.string =>
             match srcExpr with
             | Expr.param name =>
                 let topicName := s!"__evt_topic{idx + 1}"

@@ -141,6 +141,7 @@ inductive ParamType
   | address
   | bool                                   -- Solidity bool (ABI-encoded as 32-byte 0/1)
   | bytes32                                -- Fixed 32-byte value
+  | string                                 -- Dynamic UTF-8 string (ABI-compatible with bytes)
   | tuple (elemTypes : List ParamType)     -- ABI tuple
   | array (elemType : ParamType)           -- Dynamic array: uint256[], address[]
   | fixedArray (elemType : ParamType) (size : Nat)  -- Fixed array: uint256[3]
@@ -159,6 +160,7 @@ def ParamType.toIRType : ParamType → IRType
   | address => IRType.address
   | bool => IRType.uint256
   | bytes32 => IRType.uint256  -- bytes32 is a 256-bit value
+  | string => IRType.uint256
   | tuple _ => IRType.uint256  -- Tuples are represented as ABI offsets for now
   | array _ => IRType.uint256  -- Arrays are represented as calldata offsets
   | fixedArray _ _ => IRType.uint256

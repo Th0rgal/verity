@@ -49,7 +49,7 @@ private def genDynamicParamLoads
     (YulExpr.call "sub" [sizeExpr, YulExpr.ident tailHeadEndName])
   let lengthBoundsCheck :=
     match ty with
-    | ParamType.bytes =>
+    | ParamType.bytes | ParamType.string =>
         [YulStmt.if_ (YulExpr.call "gt" [
             YulExpr.ident s!"{name}_length",
             YulExpr.ident tailRemainingName
@@ -161,7 +161,7 @@ private def genParamLoadsFrom
                       []
                 | _ => []
               staticLoads ++ firstAlias
-        | ParamType.bytes =>
+        | ParamType.bytes | ParamType.string =>
           genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
       stmts ++ go rest (headOffset + paramHeadSize param.ty)
   minInputSizeCheck :: go params headStart

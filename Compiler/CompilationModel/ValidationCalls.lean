@@ -439,7 +439,7 @@ def validateExternalCallTargetsInConstructor
 
 mutual
 def supportedCustomErrorParamType : ParamType → Bool
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 | ParamType.bytes => true
+  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 | ParamType.bytes | ParamType.string => true
   | ParamType.array elemTy => supportedCustomErrorParamType elemTy
   | ParamType.fixedArray elemTy _ => supportedCustomErrorParamType elemTy
   | ParamType.tuple elemTys => supportedCustomErrorParamTypes elemTys
@@ -460,7 +460,7 @@ end
 def validateErrorDef (err : ErrorDef) : Except String Unit := do
   for ty in err.params do
     if !supportedCustomErrorParamType ty then
-      throw s!"Compilation error: custom error '{err.name}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref}). Use uint256/address/bool/bytes32/bytes parameters."
+      throw s!"Compilation error: custom error '{err.name}' uses unsupported dynamic parameter type {repr ty} ({issue586Ref}). Use uint256/address/bool/bytes32/bytes/string parameters."
 
 def validateEventDef (eventDef : EventDef) : Except String Unit := do
   let indexedCount := eventDef.params.foldl

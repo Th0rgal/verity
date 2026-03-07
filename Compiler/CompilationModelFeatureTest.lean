@@ -1,4 +1,5 @@
 import Compiler.CompilationModel
+import Compiler.ABI
 
 namespace Compiler.CompilationModelFeatureTest
 
@@ -200,6 +201,86 @@ private def reservedEcmResultVarSpec : CompilationModel := {
   ]
 }
 
+private def stringAbiSpec : CompilationModel := {
+  name := "StringABI"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "message", ty := ParamType.string }]
+      returnType := none
+      returns := [ParamType.string]
+      body := [Stmt.returnBytes "message"]
+    }
+  ]
+  events := [
+    { name := "MessageLogged"
+      params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
+    }
+  ]
+  errors := [
+    { name := "BadMessage"
+      params := [ParamType.string]
+    }
+  ]
+}
+
+private def stringReturnMismatchSpec : CompilationModel := {
+  name := "StringReturnMismatch"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "message", ty := ParamType.bytes }]
+      returnType := none
+      returns := [ParamType.string]
+      body := [Stmt.returnBytes "message"]
+    }
+  ]
+}
+
+private def stringEventMismatchSpec : CompilationModel := {
+  name := "StringEventMismatch"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [{ name := "message", ty := ParamType.bytes }]
+      returnType := none
+      body := [Stmt.emit "MessageLogged" [Expr.param "message"], Stmt.stop]
+    }
+  ]
+  events := [
+    { name := "MessageLogged"
+      params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
+private def stringArrayEventSpec : CompilationModel := {
+  name := "StringArrayEvents"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [{ name := "messages", ty := ParamType.array ParamType.string }]
+      returnType := none
+      body := [
+        Stmt.emit "MessageBatch" [Expr.param "messages", Expr.param "messages"],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "MessageBatch"
+      params := [
+        { name := "body", ty := ParamType.array ParamType.string, kind := EventParamKind.unindexed },
+        { name := "topicBody", ty := ParamType.array ParamType.string, kind := EventParamKind.indexed }
+      ]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -241,5 +322,26 @@ private def reservedEcmResultVarSpec : CompilationModel := {
     "reserved compiler prefix is rejected in ECM result binders"
     reservedEcmResultVarSpec
     "local binder '__ecm_result' uses reserved compiler prefix '__'"
+  let stringCompiled :=
+    match Compiler.CompilationModel.compile stringAbiSpec (selectorsFor stringAbiSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "string params/returns compile via dynamic bytes path" stringCompiled
+  let stringAbi := Compiler.ABI.emitContractABIJson stringAbiSpec
+  expectTrue "string ABI uses Solidity string type"
+    (contains stringAbi "\"type\": \"string\"")
+  expectCompileErrorContains
+    "returnBytes rejects bytes params for string returns"
+    stringReturnMismatchSpec
+    "uses Stmt.returnBytes to return parameter 'message' of type"
+  expectCompileErrorContains
+    "string events reject bytes parameters"
+    stringEventMismatchSpec
+    "event 'MessageLogged' param 'message' expects"
+  let stringArrayEventsCompile :=
+    match Compiler.CompilationModel.compile stringArrayEventSpec (selectorsFor stringArrayEventSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "string[] event emission compiles for indexed and unindexed params" stringArrayEventsCompile
 
 end Compiler.CompilationModelFeatureTest

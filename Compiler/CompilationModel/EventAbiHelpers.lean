@@ -70,7 +70,7 @@ partial def compileIndexedInPlaceEncoding
       pure ([
         YulStmt.expr (YulExpr.call "mstore" [dstBase, normalizeEventWord ty loaded])
       ], YulExpr.lit 32)
-  | ParamType.bytes =>
+  | ParamType.bytes | ParamType.string =>
       let lenName := s!"{stem}_len"
       let paddedName := s!"{stem}_padded"
       pure ([
