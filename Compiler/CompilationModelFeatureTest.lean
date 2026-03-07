@@ -225,6 +225,38 @@ private def stringAbiSpec : CompilationModel := {
   ]
 }
 
+private def stringReturnMismatchSpec : CompilationModel := {
+  name := "StringReturnMismatch"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "message", ty := ParamType.bytes }]
+      returnType := none
+      returns := [ParamType.string]
+      body := [Stmt.returnBytes "message"]
+    }
+  ]
+}
+
+private def stringEventMismatchSpec : CompilationModel := {
+  name := "StringEventMismatch"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [{ name := "message", ty := ParamType.bytes }]
+      returnType := none
+      body := [Stmt.emit "MessageLogged" [Expr.param "message"], Stmt.stop]
+    }
+  ]
+  events := [
+    { name := "MessageLogged"
+      params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -274,5 +306,13 @@ private def stringAbiSpec : CompilationModel := {
   let stringAbi := Compiler.ABI.emitContractABIJson stringAbiSpec
   expectTrue "string ABI uses Solidity string type"
     (contains stringAbi "\"type\": \"string\"")
+  expectCompileErrorContains
+    "returnBytes rejects bytes params for string returns"
+    stringReturnMismatchSpec
+    "uses Stmt.returnBytes to return parameter 'message' of type"
+  expectCompileErrorContains
+    "string events reject bytes parameters"
+    stringEventMismatchSpec
+    "event 'MessageLogged' param 'message' expects"
 
 end Compiler.CompilationModelFeatureTest
