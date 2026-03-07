@@ -659,14 +659,19 @@ end Contracts.{cfg.name}.Spec
 def gen_invariants(cfg: ContractConfig) -> str:
     """Generate Contracts/{Name}/Invariants.lean"""
     # Build isolation predicates based on fields
-    # Address fields use storageAddr, uint256 fields use storage, mappings use storageMap
+    # Address fields use storageAddr, uint256 fields use storage, mappings use the
+    # storage accessor that matches their key type.
     slot_isolation = []
     for i, f in enumerate(cfg.fields):
         if f.is_mapping:
+            key_ty = "Uint256" if f.ty == "mapping_uint" else "Address"
+            key_name = "key" if f.ty == "mapping_uint" else "addr"
+            accessor = "storageMapUint" if f.ty == "mapping_uint" else "storageMap"
             slot_isolation.append(
                 f"-- Mapping storage isolation for {f.name} (slot {i})\n"
                 f"def {f.name}_mapping_isolated (s s' : ContractState) (slot : Nat) : Prop :=\n"
-                f"  slot ≠ {i} → ∀ addr : Address, s'.storageMap slot addr = s.storageMap slot addr"
+                f"  slot ≠ {i} → ∀ {key_name} : {key_ty}, "
+                f"s'.{accessor} slot {key_name} = s.{accessor} slot {key_name}"
             )
         elif f.ty == "address":
             slot_isolation.append(

@@ -18,6 +18,7 @@ from generate_contract import (
     Param,
     gen_all_lean_imports,
     gen_basic_proofs,
+    gen_invariants,
     gen_example,
     gen_compiler_spec,
     gen_spec,
@@ -271,6 +272,35 @@ class GenerateContractSpecGetterTests(unittest.TestCase):
             out,
         )
         self.assertIn("result = s.storageMapUint 0 id", out)
+
+
+class GenerateContractInvariantScaffoldTests(unittest.TestCase):
+    def test_address_mapping_invariant_uses_address_keyed_storage_map(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="balances", ty="mapping")],
+            functions=[],
+        )
+
+        out = gen_invariants(cfg)
+        self.assertIn("def balances_mapping_isolated", out)
+        self.assertIn("∀ addr : Address, s'.storageMap slot addr = s.storageMap slot addr", out)
+
+    def test_uint_mapping_invariant_uses_uint_keyed_storage_map(self) -> None:
+        cfg = ContractConfig(
+            name="AuditDemo",
+            fields=[Field(name="values", ty="mapping_uint")],
+            functions=[],
+        )
+
+        out = gen_invariants(cfg)
+        self.assertIn("def values_mapping_isolated", out)
+        self.assertIn(
+            "∀ key : Uint256, s'.storageMapUint slot key = s.storageMapUint slot key",
+            out,
+        )
+        self.assertNotIn("storageMap slot", out)
+        self.assertNotIn("∀ addr : Address", out)
 
 
 class GenerateContractCompilerSpecGetterTests(unittest.TestCase):
