@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import io
-import re
 import sys
 import tempfile
 import unittest
@@ -61,13 +60,11 @@ class CheckPackageImportBoundariesTests(unittest.TestCase):
             boundaries = (
                 (
                     root / "packages" / "verity-edsl" / "lakefile.lean",
-                    re.compile(r"^\s*import\s+(Compiler\.[A-Za-z0-9_.']+)\s*$", re.MULTILINE),
                     "verity-edsl",
                     "Compiler",
                 ),
                 (
                     root / "packages" / "verity-compiler" / "lakefile.lean",
-                    re.compile(r"^\s*import\s+(Contracts\.[A-Za-z0-9_.']+)\s*$", re.MULTILINE),
                     "verity-compiler",
                     "Contracts",
                 ),
@@ -112,6 +109,18 @@ class CheckPackageImportBoundariesTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn("forbidden verity-compiler -> Contracts import", stderr)
 
+    def test_rejects_root_namespace_imports(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Verity/Foo.lean": "import Compiler\n",
+                "Compiler/Foo.lean": "import Contracts\n",
+            }
+        )
+        self.assertEqual(rc, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("forbidden verity-edsl -> Compiler import `Compiler`", stderr)
+        self.assertIn("forbidden verity-compiler -> Contracts import `Contracts`", stderr)
+
     def test_ignores_comment_decoys(self) -> None:
         rc, stdout, stderr = self._run_check(
             {
@@ -122,6 +131,18 @@ class CheckPackageImportBoundariesTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("Package import boundary check passed.", stdout)
         self.assertEqual(stderr, "")
+
+    def test_rejects_forbidden_module_from_multi_import_line(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Verity/Foo.lean": "import Verity.Bar Compiler.CompilationModel\n",
+                "Compiler/Foo.lean": "import Compiler.Bar Contracts.Specs\n",
+            }
+        )
+        self.assertEqual(rc, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("forbidden verity-edsl -> Compiler import `Compiler.CompilationModel`", stderr)
+        self.assertIn("forbidden verity-compiler -> Contracts import `Contracts.Specs`", stderr)
 
     def test_expands_and_submodules_globs(self) -> None:
         rc, stdout, stderr = self._run_check(
@@ -135,6 +156,30 @@ class CheckPackageImportBoundariesTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("Package import boundary check passed.", stdout)
         self.assertEqual(stderr, "")
+
+    def test_expands_submodules_globs_without_root_module(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Verity/Core/Address.lean": "import Verity.Core.Uint256\n",
+                "Compiler/Foo.lean": "import Compiler.Bar\n",
+            },
+            edsl_globs="    .submodules `Verity.Core",
+        )
+        self.assertEqual(rc, 0)
+        self.assertIn("Package import boundary check passed.", stdout)
+        self.assertEqual(stderr, "")
+
+    def test_reports_empty_submodules_glob(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Verity/Core/.keep": "",
+                "Compiler/Foo.lean": "import Compiler.Bar\n",
+            },
+            edsl_globs="    .submodules `Verity.Core",
+        )
+        self.assertEqual(rc, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("empty submodule glob: Verity.Core", stderr)
 
     def test_reports_missing_module_from_lake_glob(self) -> None:
         rc, stdout, stderr = self._run_check(

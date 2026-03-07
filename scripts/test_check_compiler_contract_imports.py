@@ -57,6 +57,26 @@ class CheckCompilerContractImportsTests(unittest.TestCase):
         self.assertIn("boundary check passed", stdout)
         self.assertEqual(stderr, "")
 
+    def test_rejects_root_namespace_import(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Compiler/Foo.lean": "import Contracts\n",
+            }
+        )
+        self.assertEqual(rc, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("forbidden Compiler -> Contracts import `Contracts`", stderr)
+
+    def test_rejects_forbidden_module_from_multi_import_line(self) -> None:
+        rc, stdout, stderr = self._run_check(
+            {
+                "Compiler/Foo.lean": "import Compiler.Bar Contracts.Specs\n",
+            }
+        )
+        self.assertEqual(rc, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("forbidden Compiler -> Contracts import `Contracts.Specs`", stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

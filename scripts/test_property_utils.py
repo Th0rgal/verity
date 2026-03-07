@@ -114,6 +114,24 @@ class PropertyUtilsPropertyTagTests(unittest.TestCase):
             self.assertEqual(names, ["theorem_indexed", "theorem_simple", "theorem_block_doc"])
 
 
+class PropertyUtilsImportParsingTests(unittest.TestCase):
+    def test_extract_lean_import_modules_supports_multiple_modules(self) -> None:
+        modules = property_utils.extract_lean_import_modules(
+            "import Verity.Bar Compiler.CompilationModel"
+        )
+        self.assertEqual(modules, ["Verity.Bar", "Compiler.CompilationModel"])
+
+    def test_extract_lean_import_modules_ignores_aliases(self) -> None:
+        modules = property_utils.extract_lean_import_modules(
+            "import Compiler as C Contracts.Specs as Specs"
+        )
+        self.assertEqual(modules, ["Compiler", "Contracts.Specs"])
+
+    def test_extract_lean_import_modules_ignores_non_import_lines(self) -> None:
+        modules = property_utils.extract_lean_import_modules("theorem not_an_import : True := by")
+        self.assertEqual(modules, [])
+
+
 class PropertyUtilsTheoremExtractionTests(unittest.TestCase):
     def test_collect_theorems_ignores_block_and_line_comments(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
