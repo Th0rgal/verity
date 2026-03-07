@@ -247,8 +247,10 @@ for the default heartbeat limit during type-checking. The proofs were
 mathematically correct but need `evalBuiltinCall` to be factored into
 smaller pieces before they can be re-stated without timeout.
 
-See: ArithmeticProfile.lean for concrete smoke tests that verify
-the same equivalences on specific values.
+See: `ArithmeticProfile.lean` and
+`YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` for the current
+replacement coverage: universal bridge lemmas for all pure bridged
+builtins except `not`, plus concrete smoke tests for `not`.
 -/
 
 end Compiler.Proofs.EndToEnd

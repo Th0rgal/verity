@@ -46,8 +46,8 @@ The `SpecInterpreter` has been removed. EDSL semantics are now defined directly 
 | `staticcall` | `Expr.staticcall` | **0** | **0** | -- | -- | n/m |
 | `delegatecall` | `Expr.delegatecall` | **0** | **0** | -- | -- | n/m |
 | Arithmetic | `add/sub/mul/div/mod` | ok | ok | ok | ok | proved |
-| Bitwise | `and/or/xor` | ok | ok | ok | ok | proved |
-| Bitwise | `not/shl/shr` | ok | ok | ok | ok | partial |
+| Bitwise | `and/or/xor/shl/shr` | ok | ok | ok | ok | proved |
+| Bitwise | `not` | ok | ok | ok | ok | partial |
 | Comparison | `eq/lt/gt/le/ge` | ok | ok | ok | ok | proved |
 | Logical | `logicalAnd/Or/Not` | ok | ok | -- | -- | proved |
 | Fixed-point math | `mulDivDown/Up, wMulDown/wDivUp, min/max` | ok | ok | -- | -- | proved |
@@ -128,7 +128,7 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 
 Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge returns `none`).
 
-15/19 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 12 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, while `not`, `shl`, and `shr` are currently guarded by concrete regression checks in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean`. The remaining 4 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
+15/19 builtins have bridge agreement coverage between Verity and EVMYulLean evaluation paths. 14 are discharged by universal symbolic lemmas in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, while `not` is currently guarded by concrete regression checks in `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean`. The remaining 4 are state-dependent or Verity-specific helpers that remain on the Verity evaluation path.
 
 ---
 
