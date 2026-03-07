@@ -91,6 +91,37 @@ verity_contract Uint8Smoke where
   function sigV () : Uint8 := do
     return 27
 
+verity_contract AddressHelpersSmoke where
+  storage
+    delegates : Address → Uint256 := slot 0
+    ownersById : Uint256 → Uint256 := slot 1
+
+  function setDelegate (owner : Address, delegate : Address) : Unit := do
+    setMappingAddr delegates owner delegate
+
+  function getDelegate (owner : Address) : Address := do
+    let delegate ← getMappingAddr delegates owner
+    return delegate
+
+  function clearDelegate (owner : Address) : Unit := do
+    setMappingAddr delegates owner zeroAddress
+
+  function hasDelegate (owner : Address) : Bool := do
+    let delegate ← getMappingAddr delegates owner
+    return (delegate != zeroAddress)
+
+  function isDelegateZero (owner : Address) : Bool := do
+    let delegate ← getMappingAddr delegates owner
+    return isZeroAddress delegate
+
+  function setOwnerForId (tokenId : Uint256, owner : Address) : Unit := do
+    require (owner != zeroAddress) "Invalid owner"
+    setMappingUintAddr ownersById tokenId owner
+
+  function getOwnerForId (tokenId : Uint256) : Address := do
+    let owner ← getMappingUintAddr ownersById tokenId
+    return owner
+
 namespace SpecGenSmoke
 
 #gen_spec storage_for2_spec for2 (x : Uint256) (y : Uint256)
@@ -138,6 +169,7 @@ end SpecGenSmoke
 #check_contract StorageWordsSmoke
 #check_contract TupleSmoke
 #check_contract Uint8Smoke
+#check_contract AddressHelpersSmoke
 
 example :
     (Compiler.CompilationModel.FunctionSpec.body

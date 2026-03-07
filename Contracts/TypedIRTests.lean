@@ -7,6 +7,7 @@ import Compiler.TypedIRCompilerCorrectness
 import Compiler.TypedIRLowering
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Contracts.SpecAliases
+import Contracts.Smoke
 
 namespace Verity.Core.Free
 
@@ -32,6 +33,12 @@ private def returnedWordName? : List Compiler.Yul.YulStmt → Option String
   | .expr (.call "mstore" [.lit 0, .ident name]) :: .expr (.call "return" [.lit 0, .lit 32]) :: _ =>
       some name
   | _ :: rest => returnedWordName? rest
+
+/-- Recognize `sload(mappingSlot(slot, ident keyName))`. -/
+private def isMappingLoadExpr (slotNum : Nat) (keyName : String) : Compiler.Yul.YulExpr → Bool
+  | .call "sload" [.call "mappingSlot" [.lit slot', .ident keyName']] =>
+      slot' == slotNum && keyName' == keyName
+  | _ => false
 
 def x : TVar := { id := 0, ty := .uint256 }
 def y : TVar := { id := 1, ty := .uint256 }
@@ -1230,12 +1237,131 @@ example : compiledERC20TransferFromInsufficientAllowanceReverts = true := by nat
 private def erc721Spec : Compiler.CompilationModel.CompilationModel :=
   Contracts.ERC721.spec
 
+private def addressHelpersSmokeSpec : Compiler.CompilationModel.CompilationModel :=
+  Contracts.Smoke.AddressHelpersSmoke.spec
+
 /-- Smoke test: core ERC721 spec functions compile to typed IR. -/
 example : compilesOk erc721Spec "mint" = true := by native_decide
 example : compilesOk erc721Spec "transferFrom" = true := by native_decide
 example : compilesOk erc721Spec "ownerOf" = true := by native_decide
 example : compilesOk erc721Spec "approve" = true := by native_decide
 example : compilesOk erc721Spec "getApproved" = true := by native_decide
+
+/-- Smoke test: address helper macro functions compile to typed IR. -/
+example : compilesOk addressHelpersSmokeSpec "setDelegate" = true := by native_decide
+example : compilesOk addressHelpersSmokeSpec "getDelegate" = true := by native_decide
+example : compilesOk addressHelpersSmokeSpec "clearDelegate" = true := by native_decide
+example : compilesOk addressHelpersSmokeSpec "hasDelegate" = true := by native_decide
+example : compilesOk addressHelpersSmokeSpec "isDelegateZero" = true := by native_decide
+example : compilesOk addressHelpersSmokeSpec "setOwnerForId" = true := by native_decide
+example : compilesOk addressHelpersSmokeSpec "getOwnerForId" = true := by native_decide
+
+/-- Address-keyed mapping helpers write encoded addresses and clear back to zero. -/
+def compiledAddressHelpersSmokeDelegateWrites : Option (Nat × Nat) :=
+  match compileFunctionNamed addressHelpersSmokeSpec "setDelegate",
+        compileFunctionNamed addressHelpersSmokeSpec "clearDelegate" with
+  | .ok setBlock, .ok clearBlock =>
+      match setBlock.params, clearBlock.params with
+      | [setOwnerParam, delegateParam], [clearOwnerParam] =>
+          let setInit : TExecState :=
+            { world := Verity.defaultState
+              vars := { address := fun i =>
+                          if i = setOwnerParam.id then 11
+                          else if i = delegateParam.id then 42
+                          else 0 } }
+          match evalTBlock setInit setBlock with
+          | .revert _ => none
+          | .ok postSet =>
+              let clearInit : TExecState :=
+                { world := postSet.world
+                  vars := { address := fun i => if i = clearOwnerParam.id then 11 else 0 } }
+              match evalTBlock clearInit clearBlock with
+              | .ok postClear => some (postSet.world.storageMap 0 11, postClear.world.storageMap 0 11)
+              | .revert _ => none
+      | _, _ => none
+  | _, _ => none
+
+/-- Address-keyed mapping helpers round-trip address writes and zero-address clearing. -/
+example : compiledAddressHelpersSmokeDelegateWrites = some (42, 0) := by native_decide
+
+/-- `getDelegate` should compile to a direct slot-0 mapping read and return that address. -/
+def compiledAddressHelpersSmokeGetDelegateBody : Bool :=
+  match compileFunctionNamed addressHelpersSmokeSpec "getDelegate" with
+  | .error _ => false
+  | .ok block =>
+      match block.params, lowerTStmts block.body with
+      | [ownerParam],
+        [ .let_ delegateName delegateRead
+        , .expr (.call "mstore" [.lit 0, .ident delegateName'])
+        , .expr (.call "return" [.lit 0, .lit 32])
+        ] =>
+            isMappingLoadExpr 0 (tVarName ownerParam) delegateRead &&
+            delegateName' == delegateName
+      | _, _ => false
+
+/-- `getDelegate` keeps address-valued mapping reads on the typed path. -/
+example : compiledAddressHelpersSmokeGetDelegateBody = true := by native_decide
+
+/-- `isDelegateZero` should compile the explicit zero-address predicate over the mapping read. -/
+def compiledAddressHelpersSmokeIsDelegateZeroBody : Bool :=
+  match compileFunctionNamed addressHelpersSmokeSpec "isDelegateZero" with
+  | .error _ => false
+  | .ok block =>
+      match block.params, lowerTStmts block.body with
+      | [_], stmts =>
+          let rendered := reprStr stmts
+          contains rendered "mappingSlot" &&
+          contains rendered "\"eq\"" &&
+          contains rendered "\"iszero\""
+      | _, _ => false
+
+/-- `isZeroAddress` lowers to an explicit zero comparison over the typed mapping read. -/
+example : compiledAddressHelpersSmokeIsDelegateZeroBody = true := by native_decide
+
+/-- End-to-end Uint256→Address helper flow: nonzero owner writes/read back, zero-address is rejected. -/
+def compiledAddressHelpersSmokeUintOwnerFlow : Option (Nat × Bool) :=
+  match compileFunctionNamed addressHelpersSmokeSpec "setOwnerForId" with
+  | .ok setBlock =>
+      match setBlock.params with
+      | [tokenParam, ownerParam] =>
+          let setInit : TExecState :=
+            { world := Verity.defaultState
+              vars := { uint256 := fun i => if i = tokenParam.id then 7 else 0
+                        address := fun i => if i = ownerParam.id then 99 else 0 } }
+          match evalTBlock setInit setBlock with
+          | .revert _ => none
+          | .ok postSet =>
+              let zeroInit : TExecState :=
+                { world := Verity.defaultState
+                  vars := { uint256 := fun i => if i = tokenParam.id then 7 else 0
+                            address := fun i => if i = ownerParam.id then 0 else 0 } }
+              match evalTBlock zeroInit setBlock with
+              | .revert "Invalid owner" =>
+                  some (postSet.world.storageMapUint 1 7, true)
+              | _ => none
+      | _ => none
+  | _ => none
+
+/-- Uint256-keyed address helpers compile through the macro path and enforce zero-address rejection. -/
+example : compiledAddressHelpersSmokeUintOwnerFlow = some (99, true) := by native_decide
+
+/-- `getOwnerForId` should compile to a direct slot-1 Uint256-keyed mapping read. -/
+def compiledAddressHelpersSmokeGetOwnerForIdBody : Bool :=
+  match compileFunctionNamed addressHelpersSmokeSpec "getOwnerForId" with
+  | .error _ => false
+  | .ok block =>
+      match block.params, lowerTStmts block.body with
+      | [tokenParam],
+        [ .let_ ownerName ownerRead
+        , .expr (.call "mstore" [.lit 0, .ident ownerName'])
+        , .expr (.call "return" [.lit 0, .lit 32])
+        ] =>
+            isMappingLoadExpr 1 (tVarName tokenParam) ownerRead &&
+            ownerName' == ownerName
+      | _, _ => false
+
+/-- `getOwnerForId` keeps Uint256-keyed address reads on the typed helper path. -/
+example : compiledAddressHelpersSmokeGetOwnerForIdBody = true := by native_decide
 
 /-- End-to-end ERC721 mint + approve + transferFrom success path. -/
 def compiledERC721ApproveTransferSuccess : Option (Nat × Nat × Nat × Nat) :=
@@ -2488,12 +2614,6 @@ example (init : TExecState) :
 -- ============================================================
 -- ERC721 bridge theorem tests
 -- ============================================================
-
-/-- Recognize `sload(mappingSlot(slot, ident keyName))`. -/
-def isMappingLoadExpr (slotNum : Nat) (keyName : String) : Compiler.Yul.YulExpr → Bool
-  | .call "sload" [.call "mappingSlot" [.lit slot', .ident keyName']] =>
-      slot' == slotNum && keyName' == keyName
-  | _ => false
 
 /-- Recognize the lowered owner-existence guard emitted from `not (owner == 0)`. -/
 def isOwnerExistsSwitch (ownerName : String) : Compiler.Yul.YulStmt → Bool

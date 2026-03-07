@@ -246,6 +246,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StorageWordsSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
   , Contracts.Smoke.Uint8Smoke.spec
+  , Contracts.Smoke.AddressHelpersSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -276,6 +277,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StorageWordsSmoke", ["extSloadsLike(bytes32[])"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
   , ("Uint8Smoke", ["acceptSig((uint8,bytes32,bytes32))", "sigV()"])
+  , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
+      "hasDelegate(address)", "isDelegateZero(address)", "setOwnerForId(uint256,address)", "getOwnerForId(uint256)"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -296,6 +299,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageWordsSmoke", ["0x764fa434"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])
+  , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
+      "0x0b0126c5", "0x85a9cdd0"])
   ]
 
 private def expectedFor
