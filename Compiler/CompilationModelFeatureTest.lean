@@ -725,6 +725,98 @@ private def erc4626TotalAssetsSmokeSpec : CompilationModel := {
   ]
 }
 
+private def erc4626MaxDepositSmokeSpec : CompilationModel := {
+  name := "ERC4626MaxDepositSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxDeposit"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "receiver", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxDeposit
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "receiver"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626MaxMintSmokeSpec : CompilationModel := {
+  name := "ERC4626MaxMintSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxMint"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "receiver", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxMint
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "receiver"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
+private def erc4626MaxWithdrawSmokeSpec : CompilationModel := {
+  name := "ERC4626MaxWithdrawSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxWithdraw"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxWithdraw
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "owner"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626MaxRedeemSmokeSpec : CompilationModel := {
+  name := "ERC4626MaxRedeemSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxRedeem"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxRedeem
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "owner"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -918,6 +1010,46 @@ private def erc4626TotalAssetsSmokeSpec : CompilationModel := {
     (contains erc4626TotalAssetsYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "erc4626 totalAssets ECM ABI-encodes the selector"
     (contains erc4626TotalAssetsYul "mstore(0, shl(224, 0x01e1d114))")
+  let erc4626MaxDepositYul ←
+    expectCompileToYul "erc4626 maxDeposit smoke spec" erc4626MaxDepositSmokeSpec
+  expectTrue "erc4626 maxDeposit ECM lowers to staticcall"
+    (contains erc4626MaxDepositYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 maxDeposit ECM forwards revert returndata"
+    (contains erc4626MaxDepositYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 maxDeposit ECM rejects non-32-byte returndata"
+    (contains erc4626MaxDepositYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 maxDeposit ECM ABI-encodes the selector"
+    (contains erc4626MaxDepositYul "mstore(0, shl(224, 0x402d267d))")
+  let erc4626MaxMintYul ←
+    expectCompileToYul "erc4626 maxMint smoke spec" erc4626MaxMintSmokeSpec
+  expectTrue "erc4626 maxMint ECM lowers to staticcall"
+    (contains erc4626MaxMintYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 maxMint ECM forwards revert returndata"
+    (contains erc4626MaxMintYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 maxMint ECM rejects non-32-byte returndata"
+    (contains erc4626MaxMintYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 maxMint ECM ABI-encodes the selector"
+    (contains erc4626MaxMintYul "mstore(0, shl(224, 0xc63d75b6))")
+  let erc4626MaxWithdrawYul ←
+    expectCompileToYul "erc4626 maxWithdraw smoke spec" erc4626MaxWithdrawSmokeSpec
+  expectTrue "erc4626 maxWithdraw ECM lowers to staticcall"
+    (contains erc4626MaxWithdrawYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 maxWithdraw ECM forwards revert returndata"
+    (contains erc4626MaxWithdrawYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 maxWithdraw ECM rejects non-32-byte returndata"
+    (contains erc4626MaxWithdrawYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 maxWithdraw ECM ABI-encodes the selector"
+    (contains erc4626MaxWithdrawYul "mstore(0, shl(224, 0xce96cb77))")
+  let erc4626MaxRedeemYul ←
+    expectCompileToYul "erc4626 maxRedeem smoke spec" erc4626MaxRedeemSmokeSpec
+  expectTrue "erc4626 maxRedeem ECM lowers to staticcall"
+    (contains erc4626MaxRedeemYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 maxRedeem ECM forwards revert returndata"
+    (contains erc4626MaxRedeemYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 maxRedeem ECM rejects non-32-byte returndata"
+    (contains erc4626MaxRedeemYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 maxRedeem ECM ABI-encodes the selector"
+    (contains erc4626MaxRedeemYul "mstore(0, shl(224, 0xd905777e))")
   let macroEcrecoverYul ←
     expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
   expectTrue "macro ecrecover bind elaborates to the same ECM lowering"

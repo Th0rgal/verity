@@ -503,6 +503,98 @@ private def erc4626TotalAssetsTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc4626MaxDepositTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626MaxDepositTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxDeposit"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "receiver", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxDeposit
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "receiver"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626MaxMintTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626MaxMintTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxMint"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "receiver", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxMint
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "receiver"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
+private def erc4626MaxWithdrawTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626MaxWithdrawTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxWithdraw"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxWithdraw
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "owner"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626MaxRedeemTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626MaxRedeemTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "maxRedeem"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.maxRedeem
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "owner"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -802,6 +894,46 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626TotalAssetsTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"totalAssets\"]}" then
     throw (IO.userError "✗ erc4626 totalAssets trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 totalAssets trust report emits standard vault module assumption"
+
+  let erc4626MaxDepositTrustReport := emitTrustReportJson [erc4626MaxDepositTrustSurfaceSpec]
+  if !contains erc4626MaxDepositTrustReport "\"contract\":\"ERC4626MaxDepositTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 maxDeposit trust report emits contract name")
+  if !contains erc4626MaxDepositTrustReport "\"module\":\"maxDeposit\"" ||
+      !contains erc4626MaxDepositTrustReport "\"assumption\":\"erc4626_maxDeposit_interface\"" then
+    throw (IO.userError "✗ erc4626 maxDeposit trust report emits module assumption")
+  if !contains erc4626MaxDepositTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxDeposit\"]}" then
+    throw (IO.userError "✗ erc4626 maxDeposit trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 maxDeposit trust report emits standard vault module assumption"
+
+  let erc4626MaxMintTrustReport := emitTrustReportJson [erc4626MaxMintTrustSurfaceSpec]
+  if !contains erc4626MaxMintTrustReport "\"contract\":\"ERC4626MaxMintTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 maxMint trust report emits contract name")
+  if !contains erc4626MaxMintTrustReport "\"module\":\"maxMint\"" ||
+      !contains erc4626MaxMintTrustReport "\"assumption\":\"erc4626_maxMint_interface\"" then
+    throw (IO.userError "✗ erc4626 maxMint trust report emits module assumption")
+  if !contains erc4626MaxMintTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxMint\"]}" then
+    throw (IO.userError "✗ erc4626 maxMint trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 maxMint trust report emits standard vault module assumption"
+
+  let erc4626MaxWithdrawTrustReport := emitTrustReportJson [erc4626MaxWithdrawTrustSurfaceSpec]
+  if !contains erc4626MaxWithdrawTrustReport "\"contract\":\"ERC4626MaxWithdrawTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 maxWithdraw trust report emits contract name")
+  if !contains erc4626MaxWithdrawTrustReport "\"module\":\"maxWithdraw\"" ||
+      !contains erc4626MaxWithdrawTrustReport "\"assumption\":\"erc4626_maxWithdraw_interface\"" then
+    throw (IO.userError "✗ erc4626 maxWithdraw trust report emits module assumption")
+  if !contains erc4626MaxWithdrawTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxWithdraw\"]}" then
+    throw (IO.userError "✗ erc4626 maxWithdraw trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 maxWithdraw trust report emits standard vault module assumption"
+
+  let erc4626MaxRedeemTrustReport := emitTrustReportJson [erc4626MaxRedeemTrustSurfaceSpec]
+  if !contains erc4626MaxRedeemTrustReport "\"contract\":\"ERC4626MaxRedeemTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 maxRedeem trust report emits contract name")
+  if !contains erc4626MaxRedeemTrustReport "\"module\":\"maxRedeem\"" ||
+      !contains erc4626MaxRedeemTrustReport "\"assumption\":\"erc4626_maxRedeem_interface\"" then
+    throw (IO.userError "✗ erc4626 maxRedeem trust report emits module assumption")
+  if !contains erc4626MaxRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxRedeem\"]}" then
+    throw (IO.userError "✗ erc4626 maxRedeem trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 maxRedeem trust report emits standard vault module assumption"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
   let writtenTrustReport ← fileExists trustReportPath
