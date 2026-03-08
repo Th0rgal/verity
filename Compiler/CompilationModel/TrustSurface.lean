@@ -1,8 +1,11 @@
 import Compiler.CompilationModel.Types
 import Compiler.CompilationModel.EcmAxiomCollection
+import Compiler.Json
 import Compiler.ProofStatus
 
 namespace Compiler.CompilationModel
+
+open Compiler.Json
 
 private def dedupPreserve (items : List String) : List String :=
   items.foldl (fun acc item => if acc.contains item then acc else acc ++ [item]) []
@@ -732,27 +735,6 @@ private def collectLocalObligationNamesByStatus
     (fun acc obligation =>
       if obligation.proofStatus == status then acc ++ [obligation.name] else acc)
     []
-
-private def escapeJsonChar (c : Char) : String :=
-  match c with
-  | '"' => "\\\""
-  | '\\' => "\\\\"
-  | '\n' => "\\n"
-  | '\r' => "\\r"
-  | '\t' => "\\t"
-  | _ => String.singleton c
-
-private def escapeJsonString (s : String) : String :=
-  s.data.foldl (fun acc c => acc ++ escapeJsonChar c) ""
-
-private def jsonString (s : String) : String :=
-  "\"" ++ escapeJsonString s ++ "\""
-
-private def jsonArray (items : List String) : String :=
-  "[" ++ String.intercalate "," items ++ "]"
-
-private def jsonObject (fields : List (String × String)) : String :=
-  "{" ++ String.intercalate "," (fields.map fun (name, value) => jsonString name ++ ":" ++ value) ++ "}"
 
 private def proofStatusString (status : Compiler.ProofStatus) : String :=
   jsonString status.toJsonString

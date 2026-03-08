@@ -198,6 +198,22 @@ unsafe def runTests : IO Unit := do
     "strict local-obligation gate rejects macro proxy obligations"
     ["--module", "Contracts.ProxyUpgradeabilityMacroSmoke", "--deny-local-obligations", "--output", s!"/tmp/verity-main-test-{nonce}-proxy-macro-local-fail-out"]
     "ProxyUpgradeabilityMacroSmoke [function:initProxy]: assumed local obligations: implementation_slot_discipline"
+  let proxyMacroLayoutReportPath := s!"/tmp/verity-main-test-{nonce}-proxy-macro-layout-report.json"
+  let proxyMacroLayoutOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-macro-layout-out"
+  IO.FS.createDirAll proxyMacroLayoutOutDir
+  main
+    [ "--module", "Contracts.ProxyUpgradeabilityMacroSmoke"
+    , "--layout-report", proxyMacroLayoutReportPath
+    , "--output", proxyMacroLayoutOutDir
+    ]
+  let proxyMacroLayoutReport ← IO.FS.readFile proxyMacroLayoutReportPath
+  expectTrue "macro proxy layout report includes implementation slot"
+    (contains proxyMacroLayoutReport "\"name\":\"implementation\",\"declaredSlot\":2,\"canonicalSlot\":2")
+  expectTrue "macro proxy layout report includes initializer slot"
+    (contains proxyMacroLayoutReport "\"name\":\"initializedVersion\",\"declaredSlot\":0,\"canonicalSlot\":0")
+  expectTrue "macro proxy layout report keeps empty alias policies explicit"
+    ((contains proxyMacroLayoutReport "\"reservedSlotRanges\":[]") &&
+      (contains proxyMacroLayoutReport "\"slotAliasRanges\":[]"))
   let nonSelectedArtifactFlags ←
     (canonicalModules.filter (· != "Contracts.Counter.Counter")).mapM
       (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))
@@ -205,6 +221,7 @@ unsafe def runTests : IO Unit := do
   expectTrue "selected module mode does not emit non-selected artifacts" nonSelectedArtifactsAbsent
 
   expectErrorContains "missing --patch-report value" ["--patch-report"] "Missing value for --patch-report"
+  expectErrorContains "missing --layout-report value" ["--layout-report"] "Missing value for --layout-report"
   expectErrorContains "missing --patch-max-iterations value" ["--patch-max-iterations"] "Missing value for --patch-max-iterations"
   expectErrorContains "missing --backend-profile value" ["--backend-profile"] "Missing value for --backend-profile"
   expectErrorContains "invalid --backend-profile value" ["--backend-profile", "invalid-profile"] "Invalid value for --backend-profile: invalid-profile"

@@ -1,6 +1,7 @@
 import Contracts
 import Compiler.CompileDriver
 import Compiler.CompilationModel
+import Compiler.CompilationModel.LayoutReport
 import Compiler.CompilationModel.TrustSurface
 import Compiler.ECM
 import Compiler.ModuleInput
@@ -64,6 +65,48 @@ private def abiSmokeSpec : CompilationModel := {
     }
   ]
 }
+
+private def layoutReportSpec : CompilationModel := {
+  name := "LayoutReportSmoke"
+  fields := [
+    layoutReportAdminField,
+    layoutReportPausedField,
+    layoutReportBalancesField
+  ]
+  reservedSlotRanges := [{ start := 20, end_ := 29 }]
+  slotAliasRanges := [{ sourceStart := 5, sourceEnd := 6, targetStart := 100 }]
+  «constructor» := none
+  functions := [
+    { name := "touch"
+      params := [{ name := "nextAdmin", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.setStorageAddr "admin" (Expr.param "nextAdmin"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+where
+  layoutReportAdminField : Field :=
+    let base : Field := { name := "admin", ty := FieldType.address }
+    { base with
+      «slot» := some 5
+      aliasSlots := [50]
+    }
+
+  layoutReportPausedField : Field :=
+    let base : Field := { name := "paused", ty := FieldType.uint256 }
+    { base with
+      «slot» := some 6
+      packedBits := some { offset := 8, width := 8 }
+    }
+
+  layoutReportBalancesField : Field :=
+    let base : Field := { name := "balances", ty := FieldType.mappingTyped (.simple .address) }
+    { base with
+      «slot» := some 7
+    }
 
 private def stringAbiSmokeSpec : CompilationModel := {
   name := "StringAbiSmoke"
@@ -902,6 +945,8 @@ unsafe def runTests : IO Unit := do
   let abiHeadAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-abi-head-abi"
   let trustReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/trust"
   let trustReportPath := s!"{trustReportDir}/trust-report.json"
+  let layoutReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/layout"
+  let layoutReportPath := s!"{layoutReportDir}/layout-report.json"
   let patchReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/patch"
   let patchReportPath := s!"{patchReportDir}/patch-report.tsv"
   let missingLib := "/tmp/definitely-missing-library.yul"
@@ -1060,6 +1105,23 @@ unsafe def runTests : IO Unit := do
   if !contains trustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exercise\",\"modeledLowLevelMechanics\":[\"staticcall\",\"returndataSize\",\"returndataCopy\"],\"notModeledEventEmission\":[],\"notModeledProxyUpgradeability\":[]" then
     throw (IO.userError "✗ trust report preserves per-function low-level mechanics")
   IO.println "✓ trust report emits low-level mechanics, proof-status buckets, structured primitive assumptions, and external assumptions"
+
+  let layoutReport := emitLayoutReportJson [layoutReportSpec]
+  if !contains layoutReport "\"contract\":\"LayoutReportSmoke\"" then
+    throw (IO.userError "✗ layout report emits contract name")
+  if !contains layoutReport "\"name\":\"admin\",\"declaredSlot\":5,\"canonicalSlot\":5,\"declaredAliasSlots\":[50],\"effectiveAliasSlots\":[50,100],\"writeSlots\":[5,50,100]" then
+    throw (IO.userError "✗ layout report emits effective alias slots")
+  if !contains layoutReport "\"name\":\"paused\",\"declaredSlot\":6,\"canonicalSlot\":6,\"declaredAliasSlots\":[],\"effectiveAliasSlots\":[101],\"writeSlots\":[6,101]" then
+    throw (IO.userError "✗ layout report emits derived slot-alias writes")
+  if !contains layoutReport "\"packedBits\":{\"offset\":8,\"width\":8}" then
+    throw (IO.userError "✗ layout report emits packed field metadata")
+  if !contains layoutReport "\"kind\":\"mapping\",\"keys\":[\"address\"],\"valueKind\":\"uint256\"" then
+    throw (IO.userError "✗ layout report emits mapping field type metadata")
+  if !contains layoutReport "\"reservedSlotRanges\":[{\"start\":20,\"end\":29}]" then
+    throw (IO.userError "✗ layout report emits reserved slot ranges")
+  if !contains layoutReport "\"slotAliasRanges\":[{\"sourceStart\":5,\"sourceEnd\":6,\"targetStart\":100}]" then
+    throw (IO.userError "✗ layout report emits slot alias ranges")
+  IO.println "✓ layout report emits storage-layout metadata for upgrade auditing"
 
   let verboseUsageSites := emitVerboseUsageSiteLines [trustSurfaceSpec]
   let verboseUsageSiteReport := String.intercalate "\n" verboseUsageSites
@@ -1368,6 +1430,15 @@ unsafe def runTests : IO Unit := do
   if !writtenTrustReport then
     throw (IO.userError "✗ compileSpecsWithOptions writes trust report file")
   IO.println "✓ compileSpecsWithOptions writes trust report file"
+
+  compileSpecsWithOptions [layoutReportSpec] outDir false [] {} none none none false false false false false false false false false (some layoutReportPath)
+  let writtenLayoutReport ← fileExists layoutReportPath
+  if !writtenLayoutReport then
+    throw (IO.userError "✗ compileSpecsWithOptions writes layout report file")
+  expectFileContains
+    "compileSpecsWithOptions layout report includes effective write slots"
+    layoutReportPath
+    ["\"contract\":\"LayoutReportSmoke\"", "\"writeSlots\":[5,50,100]", "\"writeSlots\":[6,101]"]
 
   let deniedTrustReportPath := s!"{trustReportDir}/trust-report-denied.json"
   expectFailureContains

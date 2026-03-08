@@ -1,24 +1,11 @@
 import Std
 import Compiler.CompilationModel
+import Compiler.Json
 
 namespace Compiler.ABI
 
 open Compiler.CompilationModel
-
-private def escapeJsonChar (c : Char) : String :=
-  match c with
-  | '"' => "\\\""
-  | '\\' => "\\\\"
-  | '\n' => "\\n"
-  | '\r' => "\\r"
-  | '\t' => "\\t"
-  | _ => String.singleton c
-
-private def escapeJsonString (s : String) : String :=
-  s.data.foldl (fun acc c => acc ++ escapeJsonChar c) ""
-
-private def jsonString (s : String) : String :=
-  "\"" ++ escapeJsonString s ++ "\""
+open Compiler.Json
 
 private def joinJsonFields (fields : List String) : String :=
   String.intercalate ", " fields

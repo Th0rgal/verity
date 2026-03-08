@@ -5,6 +5,7 @@ import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ABI
 import Compiler.ModuleInput
+import Compiler.CompilationModel.LayoutReport
 import Compiler.CompilationModel.TrustSurface
 
 open Compiler
@@ -53,6 +54,10 @@ private def writePatchReport (path : String) (rows : List (String × Yul.PatchPa
 private def writeTrustReport (path : String) (specs : List CompilationModel) : IO Unit := do
   ensureParentDirExists path
   IO.FS.writeFile path (emitTrustReportJson specs ++ "\n")
+
+private def writeLayoutReport (path : String) (specs : List CompilationModel) : IO Unit := do
+  ensureParentDirExists path
+  IO.FS.writeFile path (emitLayoutReportJson specs ++ "\n")
 
 private def ensureNoUncheckedDependencies (specs : List CompilationModel) : IO Unit := do
   let uncheckedSites := emitUncheckedUsageSiteLines specs
@@ -161,7 +166,8 @@ def compileSpecsWithOptions
     (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false)
-    (denyProxyUpgradeability : Bool := false) : IO Unit := do
+    (denyProxyUpgradeability : Bool := false)
+    (layoutReportPath : Option String := none) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -202,6 +208,12 @@ def compileSpecsWithOptions
       writeTrustReport path specs
       if verbose then
         IO.println s!"✓ Wrote trust report: {path}"
+  | none => pure ()
+  match layoutReportPath with
+  | some path =>
+      writeLayoutReport path specs
+      if verbose then
+        IO.println s!"✓ Wrote layout report: {path}"
   | none => pure ()
   if denyLocalObligations then
     ensureNoLocalObligations specs
@@ -437,7 +449,8 @@ unsafe def compileModulesWithOptions
     (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false)
-    (denyProxyUpgradeability : Bool := false) : IO Unit := do
+    (denyProxyUpgradeability : Bool := false)
+    (layoutReportPath : Option String := none) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
@@ -445,4 +458,4 @@ unsafe def compileModulesWithOptions
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
-    denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability
+    denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath

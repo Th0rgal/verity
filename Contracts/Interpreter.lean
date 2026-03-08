@@ -16,6 +16,7 @@ import Contracts
 import Contracts.CryptoHash
 import Compiler.DiffTestTypes
 import Compiler.Hex
+import Compiler.Json
 
 namespace Compiler.Interpreter
 
@@ -25,6 +26,7 @@ open Verity
 open Contracts
 open Compiler.DiffTestTypes
 open Compiler.Hex
+open Compiler.Json
 
 /-!
 ## Execution Result
@@ -614,30 +616,6 @@ def interpret (contractType : ContractType) (tx : Transaction) (state : Contract
 
 For communication with Foundry via vm.ffi.
 -/
-
--- Simple JSON serialization (could be improved with proper JSON library)
-private def toHex2 (n : Nat) : String :=
-  let hi := (n / 16) % 16
-  let lo := n % 16
-  String.mk [hexDigit hi, hexDigit lo]
-
-private def escapeJsonChar (c : Char) : String :=
-  match c with
-  | '\"' => "\\\""
-  | '\\' => "\\\\"
-  | '\n' => "\\n"
-  | '\r' => "\\r"
-  | '\t' => "\\t"
-  | '\u0008' => "\\b"
-  | '\u000c' => "\\f"
-  | _ =>
-      if c.toNat < 0x20 then
-        "\\u00" ++ toHex2 c.toNat
-      else
-        String.singleton c
-
-private def escapeJsonString (s : String) : String :=
-  s.data.foldl (fun acc c => acc ++ escapeJsonChar c) ""
 
 def ExecutionResult.toJSON (r : ExecutionResult) : String :=
   let successStr := if r.success then "true" else "false"
