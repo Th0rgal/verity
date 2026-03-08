@@ -10,6 +10,10 @@
     exactly one 32-byte return word.
   - `previewRedeem`: staticcall `previewRedeem(uint256)` and require exactly
     one 32-byte return word.
+  - `convertToAssets`: staticcall `convertToAssets(uint256)` and require
+    exactly one 32-byte return word.
+  - `convertToShares`: staticcall `convertToShares(uint256)` and require
+    exactly one 32-byte return word.
 
   Trust assumption: the target address implements the selected ERC-4626 read
   interface and returns one ABI-encoded `uint256` word.
@@ -24,9 +28,9 @@ open Compiler.Yul
 open Compiler.ECM
 open Compiler.CompilationModel (Stmt Expr)
 
-/-- Shared implementation for read-only ERC-4626 preview calls that take a
-    single `uint256` argument and return one ABI-encoded `uint256` word. -/
-private def previewUint256Module
+/-- Shared implementation for read-only ERC-4626 calls that take a single
+    `uint256` argument and return one ABI-encoded `uint256` word. -/
+private def readUint256Module
     (moduleName : String)
     (axiomName : String)
     (resultVar : String)
@@ -82,7 +86,7 @@ private def previewUint256Module
 
     Arguments passed to the module are `[vault, assets]`. -/
 def previewDepositModule (resultVar : String) : ExternalCallModule :=
-  previewUint256Module
+  readUint256Module
     "previewDeposit"
     "erc4626_previewDeposit_interface"
     resultVar
@@ -102,7 +106,7 @@ def previewDeposit (resultVar : String) (vault assets : Expr) : Stmt :=
 
     Arguments passed to the module are `[vault, shares]`. -/
 def previewMintModule (resultVar : String) : ExternalCallModule :=
-  previewUint256Module
+  readUint256Module
     "previewMint"
     "erc4626_previewMint_interface"
     resultVar
@@ -122,7 +126,7 @@ def previewMint (resultVar : String) (vault shares : Expr) : Stmt :=
 
     Arguments passed to the module are `[vault, assets]`. -/
 def previewWithdrawModule (resultVar : String) : ExternalCallModule :=
-  previewUint256Module
+  readUint256Module
     "previewWithdraw"
     "erc4626_previewWithdraw_interface"
     resultVar
@@ -142,7 +146,7 @@ def previewWithdraw (resultVar : String) (vault assets : Expr) : Stmt :=
 
     Arguments passed to the module are `[vault, shares]`. -/
 def previewRedeemModule (resultVar : String) : ExternalCallModule :=
-  previewUint256Module
+  readUint256Module
     "previewRedeem"
     "erc4626_previewRedeem_interface"
     resultVar
@@ -153,5 +157,45 @@ def previewRedeemModule (resultVar : String) : ExternalCallModule :=
     call. -/
 def previewRedeem (resultVar : String) (vault shares : Expr) : Stmt :=
   .ecm (previewRedeemModule resultVar) [vault, shares]
+
+/-- Read-only ERC-4626 `convertToAssets(uint256)` module.
+
+    It ABI-encodes the canonical `convertToAssets(uint256)` selector, performs
+    a `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, shares]`. -/
+def convertToAssetsModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "convertToAssets"
+    "erc4626_convertToAssets_interface"
+    resultVar
+    0x07a2d13a
+    "shares"
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `convertToAssets(uint256)`
+    call. -/
+def convertToAssets (resultVar : String) (vault shares : Expr) : Stmt :=
+  .ecm (convertToAssetsModule resultVar) [vault, shares]
+
+/-- Read-only ERC-4626 `convertToShares(uint256)` module.
+
+    It ABI-encodes the canonical `convertToShares(uint256)` selector, performs
+    a `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, assets]`. -/
+def convertToSharesModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "convertToShares"
+    "erc4626_convertToShares_interface"
+    resultVar
+    0xc6e6f592
+    "assets"
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `convertToShares(uint256)`
+    call. -/
+def convertToShares (resultVar : String) (vault assets : Expr) : Stmt :=
+  .ecm (convertToSharesModule resultVar) [vault, assets]
 
 end Compiler.Modules.ERC4626

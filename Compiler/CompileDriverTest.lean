@@ -438,6 +438,52 @@ private def erc4626PreviewRedeemTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc4626ConvertToAssetsTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626ConvertToAssetsTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "convert"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "shares", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.convertToAssets
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "shares"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626ConvertToSharesTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626ConvertToSharesTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "convert"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.convertToShares
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -707,6 +753,26 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626PreviewRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewRedeem\"]}" then
     throw (IO.userError "✗ erc4626 previewRedeem trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 previewRedeem trust report emits standard vault module assumption"
+
+  let erc4626ConvertToAssetsTrustReport := emitTrustReportJson [erc4626ConvertToAssetsTrustSurfaceSpec]
+  if !contains erc4626ConvertToAssetsTrustReport "\"contract\":\"ERC4626ConvertToAssetsTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 convertToAssets trust report emits contract name")
+  if !contains erc4626ConvertToAssetsTrustReport "\"module\":\"convertToAssets\"" ||
+      !contains erc4626ConvertToAssetsTrustReport "\"assumption\":\"erc4626_convertToAssets_interface\"" then
+    throw (IO.userError "✗ erc4626 convertToAssets trust report emits module assumption")
+  if !contains erc4626ConvertToAssetsTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"convertToAssets\"]}" then
+    throw (IO.userError "✗ erc4626 convertToAssets trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 convertToAssets trust report emits standard vault module assumption"
+
+  let erc4626ConvertToSharesTrustReport := emitTrustReportJson [erc4626ConvertToSharesTrustSurfaceSpec]
+  if !contains erc4626ConvertToSharesTrustReport "\"contract\":\"ERC4626ConvertToSharesTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 convertToShares trust report emits contract name")
+  if !contains erc4626ConvertToSharesTrustReport "\"module\":\"convertToShares\"" ||
+      !contains erc4626ConvertToSharesTrustReport "\"assumption\":\"erc4626_convertToShares_interface\"" then
+    throw (IO.userError "✗ erc4626 convertToShares trust report emits module assumption")
+  if !contains erc4626ConvertToSharesTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"convertToShares\"]}" then
+    throw (IO.userError "✗ erc4626 convertToShares trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 convertToShares trust report emits standard vault module assumption"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
   let writtenTrustReport ← fileExists trustReportPath

@@ -337,6 +337,10 @@ def Compiler.Modules.ERC4626.previewWithdraw
   (resultVar : String) (vault assets : Expr) : Stmt
 def Compiler.Modules.ERC4626.previewRedeem
   (resultVar : String) (vault shares : Expr) : Stmt
+def Compiler.Modules.ERC4626.convertToAssets
+  (resultVar : String) (vault shares : Expr) : Stmt
+def Compiler.Modules.ERC4626.convertToShares
+  (resultVar : String) (vault assets : Expr) : Stmt
 def Compiler.Modules.Oracle.oracleReadUint256
   (resultVar : String) (target : Expr) (selector : Nat)
   (staticArgs : List Expr) : Stmt
@@ -387,6 +391,10 @@ This elaborates to `Compiler.Modules.Precompiles.ecrecoverModule` and the trust 
 `Compiler.Modules.ERC4626.previewWithdraw` covers the asset-withdrawal quote case: it ABI-encodes `previewWithdraw(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewWithdraw_interface`.
 
 `Compiler.Modules.ERC4626.previewRedeem` covers the complementary redeem-quote case: it ABI-encodes `previewRedeem(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewRedeem_interface`.
+
+`Compiler.Modules.ERC4626.convertToAssets` covers the canonical share-to-asset conversion case: it ABI-encodes `convertToAssets(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset amount to a local result variable. The trust report records the explicit ECM assumption `erc4626_convertToAssets_interface`.
+
+`Compiler.Modules.ERC4626.convertToShares` covers the canonical asset-to-share conversion case: it ABI-encodes `convertToShares(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share amount to a local result variable. The trust report records the explicit ECM assumption `erc4626_convertToShares_interface`.
 
 ### Low-level `call` / `staticcall` / `delegatecall`
 
