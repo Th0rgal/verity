@@ -438,6 +438,19 @@ private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
       throwErrorAt imm.ident
         s!"contract immutables currently support only Uint256 and Address; '{imm.name}' uses unsupported type"
 
+private def externalExecutableWordType? : ValueType → Bool
+  | .uint256 | .uint8 | .address | .bytes32 | .bool => true
+  | _ => false
+
+private def validateExternalExecutableType
+    (extIdent : Ident)
+    (extName : String)
+    (ty : ValueType)
+    (role : String) : CommandElabM Unit := do
+  if !externalExecutableWordType? ty then
+    throwErrorAt extIdent
+      s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Uint8, Address, Bytes32, and Bool"
+
 private partial def stripParens (stx : Term) : Term :=
   match stx with
   | `(term| ($inner)) => stripParens inner
@@ -2006,6 +2019,19 @@ def validateImmutableDeclsPublic
       throwErrorAt imm.ident
         s!"duplicate immutable declaration '{imm.name}'"
     seenNames := seenNames.push imm.name
+
+def validateExternalDeclsPublic
+    (externalDecls : Array ExternalDecl) : CommandElabM Unit := do
+  let mut seenNames : Array String := #[]
+  for ext in externalDecls do
+    if seenNames.contains ext.name then
+      throwErrorAt ext.ident
+        s!"duplicate external declaration '{ext.name}'"
+    for paramTy in ext.params do
+      validateExternalExecutableType ext.ident ext.name paramTy "parameter"
+    for returnTy in ext.returnTys do
+      validateExternalExecutableType ext.ident ext.name returnTy "return"
+    seenNames := seenNames.push ext.name
 
 def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)

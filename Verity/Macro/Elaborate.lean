@@ -19,6 +19,7 @@ def elabVerityContract : CommandElab := fun stx => do
 
   validateConstantDeclsPublic constDecls
   validateImmutableDeclsPublic fields constDecls immutableDecls
+  validateExternalDeclsPublic externalDecls
 
   for field in fields do
     elabCommand (← mkStorageDefCommandPublic field)

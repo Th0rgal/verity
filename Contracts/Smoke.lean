@@ -357,6 +357,19 @@ verity_contract ExternalCallSmoke where
     return current
 
 /--
+error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Uint8, Address, Bytes32, and Bool
+-/
+#guard_msgs in
+verity_contract ExternalCallUnsupportedType where
+  storage
+  linked_externals
+    external describe(String) -> (Uint256)
+
+  function noop () : Unit := do
+    pure ()
+end ExternalCallUnsupportedType
+
+/--
 error: field 'approvals' is a nested struct mapping; use structMember2/setStructMember2
 -/
 #guard_msgs in
