@@ -51,11 +51,13 @@ private def paramTypeToTy : ParamType → Except String Ty
   | .address => Except.ok Ty.address
   | .bool => Except.ok Ty.bool
   | .bytes32 => Except.ok Ty.uint256
-  | .string => Except.error "Typed IR compile error: string params are not yet supported"
-  | .tuple _ => Except.error "Typed IR compile error: tuple params are not yet supported"
-  | .array _ => Except.error "Typed IR compile error: dynamic array params are not yet supported"
-  | .fixedArray _ _ => Except.error "Typed IR compile error: fixed array params are not yet supported"
-  | .bytes => Except.error "Typed IR compile error: bytes params are not yet supported"
+  -- Complex ABI params enter the compilation model as calldata head words/offsets.
+  -- The typed IR can track those heads as ordinary uint256 values.
+  | .string => Except.ok Ty.uint256
+  | .tuple _ => Except.ok Ty.uint256
+  | .array _ => Except.ok Ty.uint256
+  | .fixedArray _ _ => Except.ok Ty.uint256
+  | .bytes => Except.ok Ty.uint256
 
 private def fieldTypeToTy : FieldType → Except String Ty
   | .uint256 => Except.ok Ty.uint256
@@ -392,6 +394,16 @@ def compileFunctionNamed (spec : CompilationModel) (functionName : String) : Exc
   match spec.functions.find? (fun fn => fn.name == functionName) with
   | some fn => compileFunctionToTBlock spec fn
   | none => throw s!"Typed IR compile error: function '{functionName}' not found in spec '{spec.name}'"
+
+example : paramTypeToTy (ParamType.tuple [ParamType.address, ParamType.uint256]) = Except.ok Ty.uint256 := rfl
+
+example : paramTypeToTy ParamType.bytes = Except.ok Ty.uint256 := rfl
+
+example : paramTypeToTy (ParamType.fixedArray ParamType.uint256 3) = Except.ok Ty.uint256 := rfl
+
+example : paramTypeToTy (ParamType.array ParamType.address) = Except.ok Ty.uint256 := rfl
+
+example : paramTypeToTy ParamType.string = Except.ok Ty.uint256 := rfl
 
 /-- Single-statement compilation shape for the supported subset:
 `setStorage fieldName (literal n)` lowers to one typed `setStorage` when the
