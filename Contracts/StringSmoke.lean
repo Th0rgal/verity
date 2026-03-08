@@ -14,6 +14,15 @@ verity_contract StringSmoke where
   function echoString (message : String) : String := do
     returnBytes message
 
+  function echoStringAfterUint (_tag : Uint256, message : String) : String := do
+    returnBytes message
+
+  function echoStringBeforeUint (message : String, _tag : Uint256) : String := do
+    returnBytes message
+
+  function echoSecondString (_prefix : String, message : String) : String := do
+    returnBytes message
+
 def echoStringExecutableRoundTrips : Bool :=
   match StringSmoke.echoString "hello" Verity.defaultState with
   | .success message state =>
@@ -21,6 +30,21 @@ def echoStringExecutableRoundTrips : Bool :=
   | .revert _ _ => false
 
 example : echoStringExecutableRoundTrips = true := by decide
+
+def mixedStringExecutableRoundTrips : Bool :=
+  match StringSmoke.echoStringAfterUint 7 "hello" Verity.defaultState,
+      StringSmoke.echoStringBeforeUint "hello" 9 Verity.defaultState,
+      StringSmoke.echoSecondString "ignored" "hello" Verity.defaultState with
+  | .success after stateAfter, .success before stateBefore, .success second stateSecond =>
+      after == "hello" &&
+      before == "hello" &&
+      second == "hello" &&
+      stateAfter.sender == Verity.defaultState.sender &&
+      stateBefore.sender == Verity.defaultState.sender &&
+      stateSecond.sender == Verity.defaultState.sender
+  | _, _, _ => false
+
+example : mixedStringExecutableRoundTrips = true := by decide
 
 /--
 error: storage field cannot be String; use Uint256 encoding

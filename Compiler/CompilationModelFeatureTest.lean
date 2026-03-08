@@ -1499,6 +1499,24 @@ private def stringAbiSpec : CompilationModel := {
       returns := [ParamType.string]
       body := [Stmt.returnBytes "message"]
     }
+    , { name := "echoAfterUint"
+        params := [{ name := "tag", ty := ParamType.uint256 }, { name := "message", ty := ParamType.string }]
+        returnType := none
+        returns := [ParamType.string]
+        body := [Stmt.returnBytes "message"]
+      }
+    , { name := "echoBeforeUint"
+        params := [{ name := "message", ty := ParamType.string }, { name := "tag", ty := ParamType.uint256 }]
+        returnType := none
+        returns := [ParamType.string]
+        body := [Stmt.returnBytes "message"]
+      }
+    , { name := "echoSecondString"
+        params := [{ name := "prefix", ty := ParamType.string }, { name := "message", ty := ParamType.string }]
+        returnType := none
+        returns := [ParamType.string]
+        body := [Stmt.returnBytes "message"]
+      }
   ]
   events := [
     { name := "MessageLogged"
@@ -2153,6 +2171,10 @@ set_option maxRecDepth 4096 in
   let stringAbi := Compiler.ABI.emitContractABIJson stringAbiSpec
   expectTrue "string ABI uses Solidity string type"
     (contains stringAbi "\"type\": \"string\"")
+  expectTrue "string ABI includes mixed static/dynamic and multi-dynamic functions"
+    ((contains stringAbi "\"name\": \"echoAfterUint\"") &&
+      (contains stringAbi "\"name\": \"echoBeforeUint\"") &&
+      (contains stringAbi "\"name\": \"echoSecondString\""))
   expectCompileErrorContains
     "returnBytes rejects bytes params for string returns"
     stringReturnMismatchSpec

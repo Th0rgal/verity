@@ -99,6 +99,24 @@ private def stringAbiSpec : CompilationModel := {
       returns := [ParamType.string]
       body := [Stmt.returnBytes "message"]
     }
+    , { name := "echoStringAfterUint"
+        params := [{ name := "tag", ty := ParamType.uint256 }, { name := "message", ty := ParamType.string }]
+        returnType := none
+        returns := [ParamType.string]
+        body := [Stmt.returnBytes "message"]
+      }
+    , { name := "echoStringBeforeUint"
+        params := [{ name := "message", ty := ParamType.string }, { name := "tag", ty := ParamType.uint256 }]
+        returnType := none
+        returns := [ParamType.string]
+        body := [Stmt.returnBytes "message"]
+      }
+    , { name := "echoSecondString"
+        params := [{ name := "prefix", ty := ParamType.string }, { name := "message", ty := ParamType.string }]
+        returnType := none
+        returns := [ParamType.string]
+        body := [Stmt.returnBytes "message"]
+      }
   ]
   events := [
     { name := "MessageLogged"
@@ -132,7 +150,16 @@ private def stringAbiSpec : CompilationModel := {
   assertContains
     "string function input/output ABI"
     stringRendered
-    ["\"name\": \"echoString\"", "\"inputs\": [{\"name\": \"message\", \"type\": \"string\"}]", "\"outputs\": [{\"name\": \"\", \"type\": \"string\"}]"]
+    [ "\"name\": \"echoString\""
+    , "\"inputs\": [{\"name\": \"message\", \"type\": \"string\"}]"
+    , "\"name\": \"echoStringAfterUint\""
+    , "\"inputs\": [{\"name\": \"tag\", \"type\": \"uint256\"}, {\"name\": \"message\", \"type\": \"string\"}]"
+    , "\"name\": \"echoStringBeforeUint\""
+    , "\"inputs\": [{\"name\": \"message\", \"type\": \"string\"}, {\"name\": \"tag\", \"type\": \"uint256\"}]"
+    , "\"name\": \"echoSecondString\""
+    , "\"inputs\": [{\"name\": \"prefix\", \"type\": \"string\"}, {\"name\": \"message\", \"type\": \"string\"}]"
+    , "\"outputs\": [{\"name\": \"\", \"type\": \"string\"}]"
+    ]
   assertContains
     "string event ABI"
     stringRendered
