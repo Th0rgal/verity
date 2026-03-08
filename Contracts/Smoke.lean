@@ -10,6 +10,8 @@ import Contracts.Vault.Vault
 import Contracts.SimpleToken.SimpleToken
 import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
+import Compiler.Modules.ERC20
+import Compiler.Modules.Oracle
 
 namespace Contracts.Smoke
 
@@ -17,6 +19,15 @@ open Contracts
 open Verity hiding pure bind
 open Verity.EVM.Uint256
 open Verity.Stdlib.Math
+
+private def genericECMEffectDemoModule : Compiler.ECM.ExternalCallModule where
+  name := "genericEffectDemo"
+  numArgs := 2
+  resultVars := []
+  writesState := false
+  readsState := false
+  axioms := []
+  compile := fun _ctx _args => pure []
 
 verity_contract UintMapSmoke where
   storage
@@ -537,6 +548,23 @@ verity_contract ERC20HelperSmoke where
     setStorage lastSupply supply
     return supply
 
+verity_contract GenericECMReadSmoke where
+  storage
+    lastQuote : Uint256 := slot 0
+
+  function snapshotQuote (oracle : Address, asset : Address) : Uint256 := do
+    let quote ← ecmCall
+      (fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar 0x12345678 1)
+      [oracle, asset]
+    setStorage lastQuote quote
+    return quote
+
+verity_contract GenericECMWriteSmoke where
+  storage
+
+  function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
+    ecmDo genericECMEffectDemoModule [lhs, rhs]
+
 /--
 error: ERC-20 helper form 'balanceOf' conflicts with contract function 'balanceOf'; rename the function or avoid the direct helper syntax here
 -/
@@ -588,6 +616,28 @@ verity_contract ExternalCallUnsupportedMultiReturn where
 
   function noop () : Unit := do
     pure ()
+
+/--
+error: ecmDo requires an effect-only ECM module, but 'oracleReadUint256' binds 1 result value(s)
+-/
+#guard_msgs in
+verity_contract GenericECMDoRejectsResultModules where
+  storage
+
+  function badEffect (oracle : Address) : Uint256 := do
+    ecmDo (Compiler.Modules.Oracle.oracleReadUint256Module "quote" 0x12345678 0) [oracle]
+    return 0
+
+/--
+error: ecmCall must elaborate to an ECM module binding exactly ['quote'], but 'genericEffectDemo' binds []
+-/
+#guard_msgs in
+verity_contract GenericECMCallRejectsEffectOnlyModules where
+  storage
+
+  function badBind (lhs : Uint256, rhs : Uint256) : Uint256 := do
+    let quote ← ecmCall (fun _ => genericECMEffectDemoModule) [lhs, rhs]
+    return quote
 
 /--
 error: field 'approvals' is a nested struct mapping; use structMember2/setStructMember2
@@ -942,6 +992,43 @@ example :
       (Contracts.ERC20.owner_model : Compiler.CompilationModel.FunctionSpec)) =
     Contracts.ERC20.owner_modelBody := by
   simpa using Contracts.ERC20.owner_semantic_preservation
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (GenericECMReadSmoke.snapshotQuote_model : Compiler.CompilationModel.FunctionSpec)) =
+    GenericECMReadSmoke.snapshotQuote_modelBody := by
+  simpa using GenericECMReadSmoke.snapshotQuote_semantic_preservation
+
+example :
+    GenericECMReadSmoke.snapshotQuote_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          ((fun resultVar => Compiler.Modules.Oracle.oracleReadUint256Module resultVar 0x12345678 1)
+            "quote")
+          [ Compiler.CompilationModel.Expr.param "oracle"
+          , Compiler.CompilationModel.Expr.param "asset"
+          ]
+      , Compiler.CompilationModel.Stmt.setStorage
+          "lastQuote"
+          (Compiler.CompilationModel.Expr.localVar "quote")
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "quote")
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (GenericECMWriteSmoke.runEffect_model : Compiler.CompilationModel.FunctionSpec)) =
+    GenericECMWriteSmoke.runEffect_modelBody := by
+  simpa using GenericECMWriteSmoke.runEffect_semantic_preservation
+
+example :
+    GenericECMWriteSmoke.runEffect_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          genericECMEffectDemoModule
+          [ Compiler.CompilationModel.Expr.param "lhs"
+          , Compiler.CompilationModel.Expr.param "rhs"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
 
 example :
     (Compiler.CompilationModel.FunctionSpec.body

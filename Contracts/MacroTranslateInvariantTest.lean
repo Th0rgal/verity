@@ -293,6 +293,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
+  , Contracts.Smoke.GenericECMReadSmoke.spec
+  , Contracts.Smoke.GenericECMWriteSmoke.spec
   ]
 
 private def functionSignature (fn : FunctionSpec) : String :=
@@ -344,6 +346,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ERC20HelperSmoke", ["pushTokens(address,address,uint256)", "pullTokens(address,address,address,uint256)",
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
+  , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
+  , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
   ]
 
 private def expectedExternalSelectors : List (String × List String) :=
@@ -381,6 +385,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])
+  , ("GenericECMReadSmoke", ["0x78f2e50f"])
+  , ("GenericECMWriteSmoke", ["0xc1192eb1"])
   ]
 
 private def expectedFor

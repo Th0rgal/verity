@@ -24,6 +24,8 @@ syntax "error " ident "(" sepBy(term, ",") ")" : verityError
 syntax ident " : " term:max " := " term:max : verityConstant
 syntax ident " : " term:max " := " term:max : verityImmutable
 syntax "external " ident "(" sepBy(term, ",") ")" (" -> " "(" sepBy(term, ",") ")")? : verityExternal
+syntax "ecmCall " term:max ppSpace term:max : term
+syntax "ecmDo " term:max ppSpace term:max : term
 syntax "revert " ident "(" sepBy(term, ",") ")" : doElem
 syntax "revertError " ident "(" sepBy(term, ",") ")" : doElem
 syntax "requireError " term:max ppSpace ident "(" sepBy(term, ",") ")" : doElem

@@ -1042,6 +1042,14 @@ private partial def inferBindSourceType
   | `(term| totalSupply $token:term) => do
       requireWordLikeType token "ERC-20 helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals token)
       pure .uint256
+  | `(term| ecmCall $_moduleFactory:term $args:term) => do
+      match stripParens args with
+      | `(term| [ $[$xs],* ]) =>
+          for x in xs do
+            requireWordLikeType x "ECM argument"
+              (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+      | _ => throwErrorAt args "expected list literal [..]"
+      pure .uint256
   | `(term| requireSomeUint $optExpr:term $_msg:term) =>
       match stripParens optExpr with
       | `(term| safeAdd $a:term $b:term) | `(term| safeSub $a:term $b:term) => do
@@ -1051,7 +1059,7 @@ private partial def inferBindSourceType
       | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
   | _ =>
       throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/structMember/structMember2/msgSender/tload/ecrecover"
+        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/structMember/structMember2/msgSender/tload/ecrecover/ecmCall"
 
 private partial def inferTupleSourceTypes?
     (fields : Array StorageFieldDecl)
@@ -1389,6 +1397,44 @@ partial def translatePureExpr
           $(strTerm memberName))
   | _ => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 end
+
+private def validateWordLikeExprListLiteral
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (args : Term)
+    (context : String) : CommandElabM Unit := do
+  match stripParens args with
+  | `(term| [ $[$xs],* ]) =>
+      for x in xs do
+        requireWordLikeType x context
+          (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+  | _ => throwErrorAt args "expected list literal [..]"
+
+private unsafe def evalExternalCallModuleTerm
+    (moduleTerm : Term) : CommandElabM Compiler.ECM.ExternalCallModule := do
+  liftTermElabM do
+    let expectedType := mkConst ``Compiler.ECM.ExternalCallModule
+    let expr ← Lean.Elab.Term.elabTermEnsuringType moduleTerm expectedType
+    Lean.Meta.evalExpr Compiler.ECM.ExternalCallModule expectedType expr .unsafe
+
+private def validateEffectOnlyEcmModuleTerm
+    (moduleTerm : Term) : CommandElabM Unit := do
+  let mod ← unsafe evalExternalCallModuleTerm moduleTerm
+  if !mod.resultVars.isEmpty then
+    throwErrorAt moduleTerm
+      s!"ecmDo requires an effect-only ECM module, but '{mod.name}' binds {mod.resultVars.length} result value(s)"
+
+private def validateSingleResultEcmModuleTerm
+    (moduleTerm : Term)
+    (boundVarName : String) : CommandElabM Unit := do
+  let mod ← unsafe evalExternalCallModuleTerm moduleTerm
+  if mod.resultVars != [boundVarName] then
+    throwErrorAt moduleTerm
+      s!"ecmCall must elaborate to an ECM module binding exactly ['{boundVarName}'], but '{mod.name}' binds {repr mod.resultVars}"
 
 private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
@@ -1865,6 +1911,10 @@ private partial def validateEffectStmtExprTypes
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals x
       | _ => throwErrorAt values "expected list literal [..]"
       pure ()
+  | `(term| ecmDo $_module:term $args:term) => do
+      validateWordLikeExprListLiteral fields constDecls immutableDecls externalDecls params locals
+        args "ECM argument"
+      pure ()
   | `(term| returnArray $_name:term) | `(term| returnBytes $_name:term) =>
       pure ()
   | `(term| internalCall $_fnName:term $args:term)
@@ -2007,6 +2057,12 @@ private def translateEffectStmt
           `(Compiler.CompilationModel.Stmt.ecm
               Compiler.Modules.ERC20.safeApproveModule
               [$tokenExpr, $spenderExpr, $amountExpr])
+  | `(term| ecmDo $module:term $args:term) =>
+      validateEffectOnlyEcmModuleTerm module
+      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+      `(Compiler.CompilationModel.Stmt.ecm
+          $module
+          [ $[$argExprs],* ])
   | `(term| setStorage $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       if f.ty != .scalar .uint256 then
@@ -2329,6 +2385,16 @@ private partial def translateDoElem
           if locals.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
           match stripParens rhs with
+          | `(term| ecmCall $moduleFactory:term $args:term) =>
+              let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+              let moduleTerm ← `(term| (($moduleFactory) $(strTerm varName)))
+              validateSingleResultEcmModuleTerm moduleTerm varName
+              pure
+                (#[(← `(Compiler.CompilationModel.Stmt.ecm
+                        $moduleTerm
+                        [ $[$argExprs],* ]))],
+                  locals.push varName,
+                  mutableLocals)
           | `(term| ecrecover $hash:term $v:term $r:term $s:term) =>
               let hashExpr ← translatePureExpr fields constDecls immutableDecls params locals hash
               let vExpr ← translatePureExpr fields constDecls immutableDecls params locals v
