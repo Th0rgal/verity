@@ -669,6 +669,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/YulGeneration/Builtins.lean
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil
@@ -697,4 +698,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 596 theorems/lemmas (546 public, 50 private)
+-- Total: 597 theorems/lemmas (547 public, 50 private)
