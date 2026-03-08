@@ -6348,6 +6348,41 @@ theorem erc721OwnersSlotFieldSlot :
 theorem erc721TokenApprovalsSlotFieldSlot :
     findFieldSlot erc721Fields "tokenApprovalsSlot" = some 5 := by rfl
 
+private def abiHeadParamWitnessFn : FunctionSpec := {
+  name := "acceptHeads"
+  params := [
+    { name := "cfg", ty := ParamType.tuple [ParamType.address, ParamType.uint256] },
+    { name := "payload", ty := ParamType.bytes },
+    { name := "fixedRecipients", ty := ParamType.fixedArray ParamType.address 2 },
+    { name := "recipients", ty := ParamType.array ParamType.address },
+    { name := "note", ty := ParamType.string }
+  ]
+  returnType := none
+  body := [Stmt.stop]
+}
+
+private def abiHeadParamWitnessSpec : CompilationModel := {
+  name := "AbiHeadParamWitness"
+  fields := []
+  «constructor» := none
+  functions := [abiHeadParamWitnessFn]
+}
+
+private def abiHeadParamWitnessExpectedTys : List Ty :=
+  [Ty.uint256, Ty.uint256, Ty.uint256, Ty.uint256, Ty.uint256]
+
+/-- ABI head-shaped params remain inside the generic typed-IR correctness surface. -/
+theorem witness_abiHeadParamShapes_compile :
+    (match compileFunctionNamed abiHeadParamWitnessSpec "acceptHeads" with
+    | .ok block =>
+        decide (block.params.map TVar.ty = abiHeadParamWitnessExpectedTys) &&
+          decide (block.locals = ([] : List TVar)) &&
+          match block.body with
+          | [TStmt.stop] => true
+          | _ => false
+    | .error _ => false) = true := by
+  native_decide
+
 -- -- getApproved(tokenId) -- --
 
 -- -- approve(approved, tokenId) -- --
@@ -6355,8 +6390,9 @@ theorem erc721TokenApprovalsSlotFieldSlot :
 /-!
 `getApproved` and `approve` depend on the live `ownersSlot = 4` /
 `tokenApprovalsSlot = 5` layout and include multi-step owner guards. They do
-not fit the older single-fragment witness surface used above, so their emitted
-typed-IR shapes are regression-tested directly in `Contracts/TypedIRTests.lean`.
+not fit the older single-fragment witness surface used above. Likewise, the
+broader ABI-head roundtrip/lowering regressions for tuple/bytes/array/string
+params live in `Contracts/TypedIRTests.lean`.
 -/
 
 -- ============================================================================
