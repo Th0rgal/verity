@@ -308,6 +308,7 @@ Location: `Contracts/Common.lean`
 
 ```lean
 let (first, second) := pair
+let (_, second) := pair
 let (lhs, rhs) := (seed, add seed 1)
 let (assets, shares) := preview seed
 let (assets, shares) ← preview seed
@@ -316,7 +317,7 @@ return (first, second)
 return structMembers2 approvals owner spender [allowance, nonce]
 ```
 
-Today this elaborates cleanly for tuple literals, tuple-typed parameters, internal helper multi-returns via either `let (...) := helper ...` or `let (...) ← helper ...`, and storage-backed mapping-struct reads via `structMembers` / `structMembers2`. `return (..)` lowers to `Stmt.returnValues [...]`, tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), helper-call destructuring lowers to `Stmt.internalCallAssign [...]`, and struct-backed destructuring lowers to explicit `Expr.structMember` / `Expr.structMember2` reads, so the generated model stays explicit for debugging and proofs.
+Today this elaborates cleanly for tuple literals, tuple-typed parameters, internal helper multi-returns via either `let (...) := helper ...` or `let (...) ← helper ...`, and storage-backed mapping-struct reads via `structMembers` / `structMembers2`. `_` binders are accepted inside tuple destructuring and are discarded hygienically instead of entering scope. `return (..)` lowers to `Stmt.returnValues [...]`, tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), helper-call destructuring lowers to `Stmt.internalCallAssign [...]`, and struct-backed destructuring lowers to explicit `Expr.structMember` / `Expr.structMember2` reads, so the generated model stays explicit for debugging and proofs.
 
 ## Dynamic Array Surface
 

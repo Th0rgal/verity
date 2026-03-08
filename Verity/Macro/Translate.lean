@@ -385,17 +385,19 @@ private def tupleElemsFromSyntax? (stx : Syntax) : Option (Array Syntax) :=
 private def tupleElemsFromTerm? (stx : Term) : Option (Array Term) :=
   tupleElemsFromSyntax? (stripParens stx).raw |>.map (·.map (fun syn => ⟨syn⟩))
 
-private def tupleBinderNames? (stx : Syntax) : Option (Array String) := do
+private def tupleBinderNames? (stx : Syntax) : Option (Array (Option String)) := do
   let elems ← tupleElemsFromSyntax? stx
   elems.mapM fun elem =>
     match elem with
     | .ident _ raw _ _ => some raw.toString
+    | .node _ `Lean.Parser.Term.hole _ => some none
     | _ => none
 
 private def ensureFreshLocalNames
     (locals : Array String)
-    (names : Array String)
+    (names : Array (Option String))
     (stx : Syntax) : CommandElabM Unit := do
+  let boundNames := names.filterMap id
   let rec firstDuplicate (seen : Array String) (rest : Array String) (idx : Nat) : Option String :=
     if h : idx < rest.size then
       let name := rest[idx]
@@ -405,12 +407,15 @@ private def ensureFreshLocalNames
         firstDuplicate (seen.push name) rest (idx + 1)
     else
       none
-  match firstDuplicate #[] names 0 with
+  match firstDuplicate #[] boundNames 0 with
   | some dup => throwErrorAt stx s!"duplicate local variable '{dup}'"
   | none => pure ()
-  for name in names do
+  for name in boundNames do
     if locals.contains name then
       throwErrorAt stx s!"duplicate local variable '{name}'"
+
+private def freshDiscardName (_params : Array ParamDecl) (_locals : Array String) (idx : Nat) : String :=
+  s!"__tuple_discard_{idx}"
 
 private def tupleParamElemExprs?
     (params : Array ParamDecl)
@@ -677,15 +682,17 @@ private def tupleInternalCallAssignStmt?
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term)
-    (names : Array String) : CommandElabM (Option Term) := do
+    (names : Array (Option String)) : CommandElabM (Option Term) := do
   let rhs := stripParens rhs
+  let targetNames := names.toList.zipIdx.map fun (name?, idx) =>
+    name?.getD (freshDiscardName params locals idx)
+  let resultNameTerms := targetNames.toArray.map strTerm
   match rhs.raw with
   | .node _ `Lean.Parser.Term.app args =>
       match args.getD 0 Syntax.missing with
       | .ident _ raw _ _ =>
           let argExprs ← (args.getD 1 Syntax.missing).getArgs.mapM
             (translatePureExpr fields params locals ∘ fun syn => ⟨syn⟩)
-          let resultNameTerms := names.map strTerm
           pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
             [ $[$resultNameTerms],* ]
             $(strTerm raw.toString)
@@ -693,7 +700,6 @@ private def tupleInternalCallAssignStmt?
       | _ =>
           pure none
   | .ident _ raw _ _ =>
-      let resultNameTerms := names.map strTerm
       pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
         [ $[$resultNameTerms],* ]
         $(strTerm raw.toString)
@@ -1113,32 +1119,39 @@ private partial def translateDoElem
               | some valueExprs =>
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                    name?.map (fun name => (name, valueExpr))
+                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  pure (some (stmts, locals ++ names, mutableLocals))
+                  pure (some (stmts, locals ++ (boundPairs.map (·.1)), mutableLocals))
               | none =>
                   match (← tupleInternalCallAssignStmt? fields params locals rhs names) with
-                  | some stmt => pure (some (#[(stmt)], locals ++ names, mutableLocals))
+                  | some stmt =>
+                      pure (some (#[(stmt)], locals ++ (names.filterMap (fun x => x)), mutableLocals))
                   | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, or internal helper call"
           | _ =>
               match (← tupleLiteralOrStructValueExprs? fields params locals rhs) with
               | some valueExprs =>
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                    name?.map (fun name => (name, valueExpr))
+                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  pure (some (stmts, locals ++ names, mutableLocals))
+                  pure (some (stmts, locals ++ (boundPairs.map (·.1)), mutableLocals))
               | none =>
                 match (← tupleInternalCallAssignStmt? fields params locals rhs names) with
                 | some stmt =>
-                    pure (some (#[(stmt)], locals ++ names, mutableLocals))
+                    pure (some (#[(stmt)], locals ++ (names.filterMap (fun x => x)), mutableLocals))
                 | none =>
                   let valueExprs ← tupleValueExprs fields params locals rhs
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-                  let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+                  let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
+                    name?.map (fun name => (name, valueExpr))
+                  let stmts ← boundPairs.mapM fun (name, valueExpr) =>
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-                  pure (some (stmts, locals ++ names, mutableLocals))
+                  pure (some (stmts, locals ++ (boundPairs.map (·.1)), mutableLocals))
       | none => pure none
     else if stx.getKind == `Lean.Parser.Term.doLetArrow then
       let patDecl := stx[2]
@@ -1147,7 +1160,8 @@ private partial def translateDoElem
           ensureFreshLocalNames locals names stx
           let rhs : Term := ⟨patDecl[2][0]⟩
           match (← tupleInternalCallAssignStmt? fields params locals rhs names) with
-          | some stmt => pure (some (#[(stmt)], locals ++ names, mutableLocals))
+          | some stmt =>
+              pure (some (#[(stmt)], locals ++ (names.filterMap (fun x => x)), mutableLocals))
           | none => throwErrorAt rhs "tuple bind sources must be internal helper calls"
       | none => pure none
     else
