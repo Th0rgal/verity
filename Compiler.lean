@@ -16,6 +16,7 @@ import Compiler.CompileDriver
 import Compiler.CheckContract
 import Compiler.Modules.Calls
 import Compiler.Modules.Callbacks
+import Compiler.Modules.ERC4626
 import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles

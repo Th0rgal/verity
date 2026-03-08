@@ -4,6 +4,7 @@ import Compiler.CompilationModel
 import Compiler.CompilationModel.TrustSurface
 import Compiler.ECM
 import Compiler.ModuleInput
+import Compiler.Modules.ERC4626
 import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.TestModules
@@ -277,6 +278,29 @@ private def oracleTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc4626TrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626TrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewDeposit
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -476,6 +500,16 @@ unsafe def runTests : IO Unit := do
   if !contains oracleTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"oracleReadUint256\"]}" then
     throw (IO.userError "✗ oracle trust report emits assumed ECM proof-status bucket")
   IO.println "✓ oracle trust report emits standard oracle module assumption"
+
+  let erc4626TrustReport := emitTrustReportJson [erc4626TrustSurfaceSpec]
+  if !contains erc4626TrustReport "\"contract\":\"ERC4626TrustSurface\"" then
+    throw (IO.userError "✗ erc4626 trust report emits contract name")
+  if !contains erc4626TrustReport "\"module\":\"previewDeposit\"" ||
+      !contains erc4626TrustReport "\"assumption\":\"erc4626_previewDeposit_interface\"" then
+    throw (IO.userError "✗ erc4626 trust report emits previewDeposit module assumption")
+  if !contains erc4626TrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewDeposit\"]}" then
+    throw (IO.userError "✗ erc4626 trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 trust report emits standard vault module assumption"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
   let writtenTrustReport ← fileExists trustReportPath

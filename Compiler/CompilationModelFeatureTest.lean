@@ -1,6 +1,7 @@
 import Compiler.CompilationModel
 import Compiler.ABI
 import Compiler.Codegen
+import Compiler.Modules.ERC4626
 import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.Yul.PrettyPrint
@@ -499,6 +500,29 @@ private def oracleReadSmokeSpec : CompilationModel := {
   ]
 }
 
+private def erc4626PreviewDepositSmokeSpec : CompilationModel := {
+  name := "ERC4626PreviewDepositSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewDeposit
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -592,6 +616,16 @@ private def oracleReadSmokeSpec : CompilationModel := {
     (contains oracleReadYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "oracle read ECM ABI-encodes the selector"
     (contains oracleReadYul "mstore(0, shl(224, 0xfeaf968c))")
+  let erc4626PreviewDepositYul ←
+    expectCompileToYul "erc4626 previewDeposit smoke spec" erc4626PreviewDepositSmokeSpec
+  expectTrue "erc4626 previewDeposit ECM lowers to staticcall"
+    (contains erc4626PreviewDepositYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 previewDeposit ECM forwards revert returndata"
+    (contains erc4626PreviewDepositYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 previewDeposit ECM rejects non-32-byte returndata"
+    (contains erc4626PreviewDepositYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 previewDeposit ECM ABI-encodes the selector"
+    (contains erc4626PreviewDepositYul "mstore(0, shl(224, 0xef8b30f7))")
   let macroEcrecoverYul ←
     expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
   expectTrue "macro ecrecover bind elaborates to the same ECM lowering"

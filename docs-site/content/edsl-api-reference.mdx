@@ -323,6 +323,8 @@ Today this elaborates cleanly for tuple literals and tuple-typed parameters. `re
 ```lean
 def Compiler.Modules.ERC20.safeTransfer (token to amount : Expr) : Stmt
 def Compiler.Modules.ERC20.safeTransferFrom (token fromAddr to amount : Expr) : Stmt
+def Compiler.Modules.ERC4626.previewDeposit
+  (resultVar : String) (vault assets : Expr) : Stmt
 def Compiler.Modules.Oracle.oracleReadUint256
   (resultVar : String) (target : Expr) (selector : Nat)
   (staticArgs : List Expr) : Stmt
@@ -359,6 +361,8 @@ let signer <- ecrecover digest v r s
 This elaborates to `Compiler.Modules.Precompiles.ecrecoverModule` and the trust report records the explicit assumption `evm_ecrecover_precompile`.
 
 `Compiler.Modules.Oracle.oracleReadUint256` covers the common read-only oracle case: it ABI-encodes the selector plus static arguments, performs a `staticcall`, requires exactly one 32-byte return word, and binds that word to a local result variable. The trust report records the explicit ECM assumption `oracle_read_uint256_interface`.
+
+`Compiler.Modules.ERC4626.previewDeposit` covers the common vault preview case: it ABI-encodes `previewDeposit(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewDeposit_interface`.
 
 ### Low-level `call` / `staticcall` / `delegatecall`
 

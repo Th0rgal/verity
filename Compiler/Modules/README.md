@@ -9,6 +9,7 @@ structure that the compiler can plug in without modification.
 | File | Modules | Replaces |
 |------|---------|----------|
 | `ERC20.lean` | `safeTransfer`, `safeTransferFrom`, `safeApprove` | `Stmt.safeTransfer`, `Stmt.safeTransferFrom` |
+| `ERC4626.lean` | `previewDeposit` | canonical vault preview wrappers |
 | `Precompiles.lean` | `ecrecover` | `Stmt.ecrecover` |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |
 | `Calls.lean` | `withReturn` | `Stmt.externalCallWithReturn` |
