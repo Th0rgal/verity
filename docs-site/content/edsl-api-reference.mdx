@@ -353,6 +353,8 @@ def Compiler.Modules.ERC4626.maxWithdraw
   (resultVar : String) (vault owner : Expr) : Stmt
 def Compiler.Modules.ERC4626.maxRedeem
   (resultVar : String) (vault owner : Expr) : Stmt
+def Compiler.Modules.ERC4626.deposit
+  (resultVar : String) (vault assets receiver : Expr) : Stmt
 def Compiler.Modules.Oracle.oracleReadUint256
   (resultVar : String) (target : Expr) (selector : Nat)
   (staticArgs : List Expr) : Stmt
@@ -419,6 +421,8 @@ This elaborates to `Compiler.Modules.Precompiles.ecrecoverModule` and the trust 
 `Compiler.Modules.ERC4626.maxWithdraw` covers the canonical owner-scoped withdrawal ceiling case: it ABI-encodes `maxWithdraw(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset limit to a local result variable. The trust report records the explicit ECM assumption `erc4626_maxWithdraw_interface`.
 
 `Compiler.Modules.ERC4626.maxRedeem` covers the canonical owner-scoped redeem ceiling case: it ABI-encodes `maxRedeem(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share limit to a local result variable. The trust report records the explicit ECM assumption `erc4626_maxRedeem_interface`.
+
+`Compiler.Modules.ERC4626.deposit` covers the canonical vault deposit path: it ABI-encodes `deposit(uint256,address)`, performs a `call`, requires exactly one 32-byte return word, and binds the returned share amount to a local result variable. The trust report records the explicit ECM assumption `erc4626_deposit_interface`.
 
 ### Low-level `call` / `staticcall` / `delegatecall`
 

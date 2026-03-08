@@ -836,6 +836,31 @@ private def erc4626MaxRedeemSmokeSpec : CompilationModel := {
   ]
 }
 
+private def erc4626DepositSmokeSpec : CompilationModel := {
+  name := "ERC4626DepositSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "deposit"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+        , { name := "receiver", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.deposit
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets")
+          (Expr.param "receiver"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -1081,6 +1106,16 @@ private def erc4626MaxRedeemSmokeSpec : CompilationModel := {
     (contains erc4626MaxRedeemYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "erc4626 maxRedeem ECM ABI-encodes the selector"
     (contains erc4626MaxRedeemYul "mstore(0, shl(224, 0xd905777e))")
+  let erc4626DepositYul ←
+    expectCompileToYul "erc4626 deposit smoke spec" erc4626DepositSmokeSpec
+  expectTrue "erc4626 deposit ECM lowers to call"
+    (contains erc4626DepositYul "call(gas(), vault, 0, 0, 68, 0, 32)")
+  expectTrue "erc4626 deposit ECM forwards revert returndata"
+    (contains erc4626DepositYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 deposit ECM rejects non-32-byte returndata"
+    (contains erc4626DepositYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 deposit ECM ABI-encodes the selector"
+    (contains erc4626DepositYul "mstore(0, shl(224, 0x6e553f65))")
   let macroEcrecoverYul ←
     expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
   expectTrue "macro ecrecover bind elaborates to the same ECM lowering"

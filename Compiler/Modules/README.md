@@ -9,7 +9,7 @@ structure that the compiler can plug in without modification.
 | File | Modules | Replaces |
 |------|---------|----------|
 | `ERC20.lean` | `safeTransfer`, `safeTransferFrom`, `safeApprove`, `balanceOf`, `allowance`, `totalSupply` | `Stmt.safeTransfer`, `Stmt.safeTransferFrom`, canonical ERC-20 read wrappers |
-| `ERC4626.lean` | `previewDeposit`, `previewMint`, `previewWithdraw`, `previewRedeem`, `convertToAssets`, `convertToShares`, `totalAssets`, `asset`, `maxDeposit`, `maxMint`, `maxWithdraw`, `maxRedeem` | canonical vault preview/conversion wrappers |
+| `ERC4626.lean` | `previewDeposit`, `previewMint`, `previewWithdraw`, `previewRedeem`, `convertToAssets`, `convertToShares`, `totalAssets`, `asset`, `maxDeposit`, `maxMint`, `maxWithdraw`, `maxRedeem`, `deposit` | canonical vault preview/conversion wrappers plus a standard deposit wrapper |
 | `Oracle.lean` | `oracleReadUint256` | canonical oracle read wrappers |
 | `Precompiles.lean` | `ecrecover` | `Stmt.ecrecover` |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |

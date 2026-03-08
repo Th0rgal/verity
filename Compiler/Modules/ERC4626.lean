@@ -25,9 +25,11 @@
     32-byte return word.
   - `maxRedeem`: staticcall `maxRedeem(address)` and require exactly one
     32-byte return word.
+  - `deposit`: call `deposit(uint256,address)` and require exactly one 32-byte
+    return word.
 
   Trust assumption: the target address implements the selected ERC-4626 read
-  interface and returns one ABI-encoded `uint256` word.
+  or write interface and returns one ABI-encoded result word where required.
 -/
 
 import Compiler.ECM
@@ -71,6 +73,58 @@ private def readUint256Module
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       vaultExpr,
+      YulExpr.lit 0, YulExpr.lit (4 + argNames.length * 32),
+      YulExpr.lit 0, YulExpr.lit 32
+    ]
+    let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__erc4626_success"]) [
+      YulStmt.let_ "__erc4626_rds" (YulExpr.call "returndatasize" []),
+      YulStmt.expr (YulExpr.call "returndatacopy" [
+        YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__erc4626_rds"
+      ]),
+      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__erc4626_rds"])
+    ]
+    let requireSingleWord := YulStmt.if_ (YulExpr.call "iszero" [
+      YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]
+    ]) [
+      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+    ]
+    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
+    pure [YulStmt.block (
+      [storeSelector] ++ storeArgs ++
+      [YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord]
+    ), bindResult]
+
+/-- Shared implementation for state-changing ERC-4626 calls that return one
+    ABI-encoded `uint256` word. -/
+private def writeUint256Module
+    (moduleName : String)
+    (axiomName : String)
+    (resultVar : String)
+    (selector : Nat)
+    (argNames : List String) : ExternalCallModule where
+  name := moduleName
+  numArgs := 1 + argNames.length
+  resultVars := [resultVar]
+  writesState := true
+  readsState := false
+  axioms := [axiomName]
+  compile := fun _ctx args => do
+    let vaultExpr ← match args.head? with
+      | some vault => pure vault
+      | none => throw s!"{moduleName} expects at least 1 argument (vault)"
+    let argExprs := args.drop 1
+    if argExprs.length != argNames.length then
+      throw s!"{moduleName} expects {1 + argNames.length} arguments (vault{if argNames.isEmpty then "" else s!", {String.intercalate ", " argNames}"})"
+    let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit 0,
+      YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
+    ])
+    let storeArgs := argExprs.zipIdx.map fun (argExpr, idx) =>
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+    let callExpr := YulExpr.call "call" [
+      YulExpr.call "gas" [],
+      vaultExpr,
+      YulExpr.lit 0,
       YulExpr.lit 0, YulExpr.lit (4 + argNames.length * 32),
       YulExpr.lit 0, YulExpr.lit 32
     ]
@@ -360,5 +414,25 @@ def maxRedeemModule (resultVar : String) : ExternalCallModule :=
     call. -/
 def maxRedeem (resultVar : String) (vault owner : Expr) : Stmt :=
   .ecm (maxRedeemModule resultVar) [vault, owner]
+
+/-- State-changing ERC-4626 `deposit(uint256,address)` module.
+
+    It ABI-encodes the canonical `deposit(uint256,address)` selector, performs
+    a `call`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, assets, receiver]`. -/
+def depositModule (resultVar : String) : ExternalCallModule :=
+  writeUint256Module
+    "deposit"
+    "erc4626_deposit_interface"
+    resultVar
+    0x6e553f65
+    ["assets", "receiver"]
+
+/-- Convenience: create a `Stmt.ecm` for an ERC-4626 `deposit(uint256,address)`
+    call. -/
+def deposit (resultVar : String) (vault assets receiver : Expr) : Stmt :=
+  .ecm (depositModule resultVar) [vault, assets, receiver]
 
 end Compiler.Modules.ERC4626

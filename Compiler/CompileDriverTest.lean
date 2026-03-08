@@ -614,6 +614,31 @@ private def erc4626MaxRedeemTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc4626DepositTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626DepositTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "deposit"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+        , { name := "receiver", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.deposit
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets")
+          (Expr.param "receiver"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -963,6 +988,16 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626MaxRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxRedeem\"]}" then
     throw (IO.userError "✗ erc4626 maxRedeem trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 maxRedeem trust report emits standard vault module assumption"
+
+  let erc4626DepositTrustReport := emitTrustReportJson [erc4626DepositTrustSurfaceSpec]
+  if !contains erc4626DepositTrustReport "\"contract\":\"ERC4626DepositTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 deposit trust report emits contract name")
+  if !contains erc4626DepositTrustReport "\"module\":\"deposit\"" ||
+      !contains erc4626DepositTrustReport "\"assumption\":\"erc4626_deposit_interface\"" then
+    throw (IO.userError "✗ erc4626 deposit trust report emits module assumption")
+  if !contains erc4626DepositTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"deposit\"]}" then
+    throw (IO.userError "✗ erc4626 deposit trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 deposit trust report emits standard vault module assumption"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
   let writtenTrustReport ← fileExists trustReportPath
