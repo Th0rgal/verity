@@ -294,6 +294,9 @@ verity_contract MacroDynamicArray where
   function echoAmounts (amounts : Array Uint256) : Array Uint256 := do
     returnArray amounts
 
+  function echoRecipients (recipients : Array Address) : Array Address := do
+    returnArray recipients
+
 def countRecipientsModelUsesArrayLength : Bool :=
   match MacroDynamicArray.countRecipients_modelBody with
   | [Stmt.letVar "count" (Expr.arrayLength "recipients"),
@@ -319,6 +322,14 @@ def echoAmountsModelUsesReturnArray : Bool :=
   | _ => false
 
 example : echoAmountsModelUsesReturnArray = true := by native_decide
+
+def echoRecipientsModelUsesReturnArray : Bool :=
+  match MacroDynamicArray.echoRecipients_modelBody with
+  | [Stmt.returnArray "recipients"] =>
+      true
+  | _ => false
+
+example : echoRecipientsModelUsesReturnArray = true := by native_decide
 
 def countRecipientsExecutableUsesRuntimeHelper : Bool :=
   match MacroDynamicArray.countRecipients #[(11 : Address), (17 : Address)] Verity.defaultState with
@@ -351,6 +362,15 @@ def echoAmountsExecutableRoundTrips : Bool :=
   | .revert _ _ => false
 
 example : echoAmountsExecutableRoundTrips = true := by native_decide
+
+def echoRecipientsExecutableRoundTrips : Bool :=
+  match MacroDynamicArray.echoRecipients #[(11 : Address), (17 : Address)] Verity.defaultState with
+  | .success recipients state =>
+      recipients == #[(11 : Address), (17 : Address)] &&
+        state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : echoRecipientsExecutableRoundTrips = true := by native_decide
 
 end MacroDynamicArraySmoke
 
@@ -650,6 +670,47 @@ private def stringArrayEventSpec : CompilationModel := {
         { name := "body", ty := ParamType.array ParamType.string, kind := EventParamKind.unindexed },
         { name := "topicBody", ty := ParamType.array ParamType.string, kind := EventParamKind.indexed }
       ]
+    }
+  ]
+}
+
+private def addressArrayReturnSpec : CompilationModel := {
+  name := "AddressArrayReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "recipients", ty := ParamType.array ParamType.address }]
+      returnType := none
+      returns := [ParamType.array ParamType.address]
+      body := [Stmt.returnArray "recipients"]
+    }
+  ]
+}
+
+private def bytesArrayReturnSpec : CompilationModel := {
+  name := "BytesArrayReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echo"
+      params := [{ name := "calls", ty := ParamType.array ParamType.bytes }]
+      returnType := none
+      returns := [ParamType.array ParamType.bytes]
+      body := [Stmt.returnArray "calls"]
+    }
+  ]
+}
+
+private def bytesArrayElementSpec : CompilationModel := {
+  name := "BytesArrayElement"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "headWord"
+      params := [{ name := "calls", ty := ParamType.array ParamType.bytes }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.arrayElement "calls" (Expr.literal 0))]
     }
   ]
 }
@@ -1129,6 +1190,19 @@ private def erc4626DepositSmokeSpec : CompilationModel := {
     | .ok _ => true
     | .error _ => false
   expectTrue "string[] event emission compiles for indexed and unindexed params" stringArrayEventsCompile
+  let addressArrayReturnCompiled :=
+    match Compiler.CompilationModel.compile addressArrayReturnSpec (selectorsFor addressArrayReturnSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "address[] params can round-trip through returnArray" addressArrayReturnCompiled
+  expectCompileErrorContains
+    "returnArray rejects bytes[] params until dynamic-element lowering lands"
+    bytesArrayReturnSpec
+    "only arrays with single-word static elements are currently supported"
+  expectCompileErrorContains
+    "arrayElement rejects bytes[] params until dynamic-element indexing lands"
+    bytesArrayElementSpec
+    "Expr.arrayElement 'calls' requires an array with single-word static elements"
   let envYul ← expectCompileToYul "env runtime smoke spec" envRuntimeSmokeSpec
   expectTrue "address(this) lowers to the Yul address builtin"
     (contains envYul "address()")
