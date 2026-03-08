@@ -78,6 +78,75 @@ example : hashSliceExecutableUsesRuntimeStub = true := by native_decide
 
 end MacroKeccakSmoke
 
+namespace MacroTupleDestructuringSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroTupleDestructuring where
+  storage
+    firstSlot : Uint256 := slot 0
+    secondSlot : Uint256 := slot 1
+
+  function storePair (pair : Tuple [Uint256, Uint256]) : Unit := do
+    let (first, second) := pair
+    setStorage firstSlot first
+    setStorage secondSlot second
+
+  function storeLiteralPair (seed : Uint256) : Unit := do
+    let (first, second) := (seed, add seed 1)
+    setStorage firstSlot first
+    setStorage secondSlot second
+
+  function echoPair (pair : Tuple [Uint256, Uint256]) : Tuple [Uint256, Uint256] := do
+    let (first, second) := pair
+    return (first, second)
+
+def storePairModelDestructuresTupleParam : Bool :=
+  match MacroTupleDestructuring.storePair_modelBody with
+  | [Stmt.letVar "first" (Expr.param "pair_0"),
+      Stmt.letVar "second" (Expr.param "pair_1"),
+      Stmt.setStorage "firstSlot" (Expr.localVar "first"),
+      Stmt.setStorage "secondSlot" (Expr.localVar "second"),
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : storePairModelDestructuresTupleParam = true := by native_decide
+
+def storeLiteralPairModelDestructuresTupleExpr : Bool :=
+  match MacroTupleDestructuring.storeLiteralPair_modelBody with
+  | [Stmt.letVar "first" (Expr.param "seed"),
+      Stmt.letVar "second" (Expr.add (Expr.param "seed") (Expr.literal 1)),
+      Stmt.setStorage "firstSlot" (Expr.localVar "first"),
+      Stmt.setStorage "secondSlot" (Expr.localVar "second"),
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : storeLiteralPairModelDestructuresTupleExpr = true := by native_decide
+
+def echoPairModelReturnsMultipleWords : Bool :=
+  match MacroTupleDestructuring.echoPair_modelBody with
+  | [Stmt.letVar "first" (Expr.param "pair_0"),
+      Stmt.letVar "second" (Expr.param "pair_1"),
+      Stmt.returnValues [Expr.localVar "first", Expr.localVar "second"]] =>
+      true
+  | _ => false
+
+example : echoPairModelReturnsMultipleWords = true := by native_decide
+
+def echoPairExecutableKeepsTupleShape : Bool :=
+  match MacroTupleDestructuring.echoPair (11, 17) Verity.defaultState with
+  | .success (first, second) state =>
+      first == 11 && second == 17 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : echoPairExecutableKeepsTupleShape = true := by native_decide
+
+end MacroTupleDestructuringSmoke
+
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
   if !ok then
     throw (IO.userError s!"✗ {label}")

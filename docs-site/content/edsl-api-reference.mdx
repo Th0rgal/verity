@@ -302,6 +302,18 @@ def mulDivUp (a b c : Uint256) : Uint256
 
 Location: `Contracts/Common.lean`
 
+## Tuple Surface
+
+`verity_contract` now accepts tuple-shaped local sugar for the static tuple cases already supported by the compilation model:
+
+```lean
+let (first, second) := pair
+let (lhs, rhs) := (seed, add seed 1)
+return (first, second)
+```
+
+Today this elaborates cleanly for tuple literals and tuple-typed parameters. `return (..)` lowers to `Stmt.returnValues [...]`, and tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), so the generated model stays explicit for debugging and proofs.
+
 ## External Calls (ECM)
 
 ### ERC-20 safe wrappers

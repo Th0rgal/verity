@@ -235,6 +235,15 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `([ $[$elemTerms.toArray],* ])
 
+mutual
+private partial def mkTupleContractType (elemTys : List ValueType) : CommandElabM Term := do
+  let rec go : List ValueType → CommandElabM Term
+    | [] => throwError "tuple types must have at least 2 elements"
+    | [ty] => contractValueTypeTerm ty
+    | ty :: rest => do
+        `(($(← contractValueTypeTerm ty) × $(← go rest)))
+  go elemTys
+
 private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
   | .uint256 => `(Uint256)
@@ -246,8 +255,9 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
   | .bytes => `(ByteArray)
   | .array elemTy => do
       `(Array $(← contractValueTypeTerm elemTy))
-  | .tuple _ => `(Unit)
+  | .tuple elemTys => mkTupleContractType elemTys
   | .unit => `(Unit)
+end
 
 private def parseStorageField (stx : Syntax) : CommandElabM StorageFieldDecl := do
   match stx with
@@ -342,6 +352,63 @@ private def expectStringList (stx : Term) : CommandElabM (Array String) := do
   | `(term| [ $[$xs],* ]) =>
       xs.mapM expectStringOrIdent
   | _ => throwErrorAt stx "expected list literal [..]"
+
+private partial def collectTupleElems (stx : Syntax) : Array Syntax :=
+  if stx.isAtom then
+    if stx.getAtomVal == "," then #[] else #[]
+  else if stx.getKind == `null then
+    stx.getArgs.foldl (fun acc child => acc ++ collectTupleElems child) #[]
+  else
+    #[stx]
+
+private def tupleElemsFromSyntax? (stx : Syntax) : Option (Array Syntax) :=
+  if stx.getKind == `Lean.Parser.Term.tuple then
+    some (collectTupleElems stx[1])
+  else
+    none
+
+private def tupleElemsFromTerm? (stx : Term) : Option (Array Term) :=
+  tupleElemsFromSyntax? (stripParens stx).raw |>.map (·.map (fun syn => ⟨syn⟩))
+
+private def tupleBinderNames? (stx : Syntax) : Option (Array String) := do
+  let elems ← tupleElemsFromSyntax? stx
+  elems.mapM fun elem =>
+    match elem with
+    | .ident _ raw _ _ => some raw.toString
+    | _ => none
+
+private def ensureFreshLocalNames
+    (locals : Array String)
+    (names : Array String)
+    (stx : Syntax) : CommandElabM Unit := do
+  let rec firstDuplicate (seen : Array String) (rest : Array String) (idx : Nat) : Option String :=
+    if h : idx < rest.size then
+      let name := rest[idx]
+      if seen.contains name then
+        some name
+      else
+        firstDuplicate (seen.push name) rest (idx + 1)
+    else
+      none
+  match firstDuplicate #[] names 0 with
+  | some dup => throwErrorAt stx s!"duplicate local variable '{dup}'"
+  | none => pure ()
+  for name in names do
+    if locals.contains name then
+      throwErrorAt stx s!"duplicate local variable '{name}'"
+
+private def tupleParamElemExprs?
+    (params : Array ParamDecl)
+    (name : String) : CommandElabM (Option (Array Term)) := do
+  match params.find? (fun p => p.name == name) with
+  | some p =>
+      match p.ty with
+      | .tuple elemTys => do
+          let exprs ← (elemTys.toArray.zipIdx).mapM fun (_ty, idx) =>
+            `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_{idx}"))
+          pure (some exprs)
+      | _ => pure none
+  | none => pure none
 
 private def isTupleComponentRef (params : Array ParamDecl) (name : String) : Bool :=
   -- Check if `name` matches `<paramName>_<digit>` for a tuple-typed param
@@ -524,6 +591,23 @@ partial def translatePureExpr
           $(← translatePureExpr fields params locals key2)
           $(strTerm memberName))
   | _ => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
+
+private def tupleValueExprs
+    (fields : Array StorageFieldDecl)
+    (params : Array ParamDecl)
+    (locals : Array String)
+    (rhs : Term) : CommandElabM (Array Term) := do
+  match tupleElemsFromTerm? rhs with
+  | some elems =>
+      elems.mapM (translatePureExpr fields params locals)
+  | none =>
+      match stripParens rhs with
+      | `(term| $id:ident) =>
+          match (← tupleParamElemExprs? params (toString id.getId)) with
+          | some exprs => pure exprs
+          | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal or tuple-typed parameter"
+      | _ =>
+          throwErrorAt rhs "tuple destructuring currently requires a tuple literal or tuple-typed parameter"
 
 private def expectExprList
     (fields : Array StorageFieldDecl)
@@ -919,7 +1003,57 @@ private partial def translateDoElem
     (locals : Array String)
     (mutableLocals : Array String)
     (elem : TSyntax `doElem) : CommandElabM (Array Term × Array String × Array String) := do
-  match elem with
+  let tupleCase? ← do
+    let stx := elem.raw
+    if stx.getKind == `Lean.Parser.Term.doLet then
+      let decl := stx[2]
+      let patDecl := decl[0]
+      match tupleBinderNames? patDecl[0] with
+      | some names =>
+          ensureFreshLocalNames locals names stx
+          let valueExprs ← tupleValueExprs fields params locals ⟨patDecl[4]⟩
+          if names.size != valueExprs.size then
+            throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+          let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+            `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+          pure (some (stmts, locals ++ names, mutableLocals))
+      | none => pure none
+    else if stx.getKind == `Lean.Parser.Term.doLetArrow then
+      let patDecl := stx[2]
+      match tupleBinderNames? patDecl[0] with
+      | some names =>
+          ensureFreshLocalNames locals names stx
+          let rhs : Term := ⟨patDecl[2][0]⟩
+          let rhs := stripParens rhs
+          match rhs.raw with
+          | .node _ `Lean.Parser.Term.app args =>
+              match args.getD 0 Syntax.missing with
+              | .ident _ raw _ _ =>
+                  let argExprs ← (args.getD 1 Syntax.missing).getArgs.mapM
+                    (translatePureExpr fields params locals ∘ fun syn => ⟨syn⟩)
+                  let resultNameTerms := names.map strTerm
+                  let stmt ← `(Compiler.CompilationModel.Stmt.internalCallAssign
+                    [ $[$resultNameTerms],* ]
+                    $(strTerm raw.toString)
+                    [ $[$argExprs],* ])
+                  pure (some (#[(stmt)], locals ++ names, mutableLocals))
+              | _ =>
+                  throwErrorAt rhs "tuple bind sources must be internal helper calls"
+          | .ident _ raw _ _ =>
+              let resultNameTerms := names.map strTerm
+              let stmt ← `(Compiler.CompilationModel.Stmt.internalCallAssign
+                [ $[$resultNameTerms],* ]
+                $(strTerm raw.toString)
+                [])
+              pure (some (#[(stmt)], locals ++ names, mutableLocals))
+          | _ =>
+              throwErrorAt rhs "tuple bind sources must be internal helper calls"
+      | none => pure none
+    else
+      pure none
+  match tupleCase? with
+  | some result => pure result
+  | none => match elem with
   | `(doElem| let mut $name:ident := $rhs:term) =>
       let varName := toString name.getId
       if locals.contains varName then
@@ -929,6 +1063,15 @@ private partial def translateDoElem
         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
           locals.push varName,
           mutableLocals.push varName)
+  | `(doElem| let $name:ident := $rhs:term) =>
+      let varName := toString name.getId
+      if locals.contains varName then
+        throwErrorAt name s!"duplicate local variable '{varName}'"
+      let rhsExpr ← translatePureExpr fields params locals rhs
+      pure
+        (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
+          locals.push varName,
+          mutableLocals)
   | `(doElem| let $name:ident ← $rhs:term) =>
       let varName := toString name.getId
       if locals.contains varName then
@@ -955,15 +1098,6 @@ private partial def translateDoElem
                 (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
                   locals.push varName,
                   mutableLocals)
-  | `(doElem| let $name:ident := $rhs:term) =>
-      let varName := toString name.getId
-      if locals.contains varName then
-        throwErrorAt name s!"duplicate local variable '{varName}'"
-      let rhsExpr ← translatePureExpr fields params locals rhs
-      pure
-        (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
-          locals.push varName,
-          mutableLocals)
   | `(doElem| $name:ident := $rhs:term) =>
       let varName := toString name.getId
       if !locals.contains varName then
@@ -976,7 +1110,11 @@ private partial def translateDoElem
           locals,
           mutableLocals)
   | `(doElem| return $value:term) =>
-      pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExpr fields params locals value)))], locals, mutableLocals)
+      try
+        let valueExprs ← tupleValueExprs fields params locals value
+        pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
+      catch _ =>
+        pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExpr fields params locals value)))], locals, mutableLocals)
   | `(doElem| pure ()) =>
       pure (#[], locals, mutableLocals)
   | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
