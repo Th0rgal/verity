@@ -549,6 +549,25 @@ private def erc20AllowanceSmokeSpec : CompilationModel := {
   ]
 }
 
+private def erc20TotalSupplySmokeSpec : CompilationModel := {
+  name := "ERC20TotalSupplySmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "totalSupply"
+      params := [{ name := "token", ty := ParamType.address }]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC20.totalSupply
+          "supply"
+          (Expr.param "token"),
+        Stmt.returnValues [Expr.localVar "supply"]
+      ]
+    }
+  ]
+}
+
 private def erc4626PreviewDepositSmokeSpec : CompilationModel := {
   name := "ERC4626PreviewDepositSmoke"
   fields := []
@@ -708,6 +727,16 @@ private def erc4626PreviewRedeemSmokeSpec : CompilationModel := {
     (contains erc20AllowanceYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "erc20 allowance ECM ABI-encodes the selector"
     (contains erc20AllowanceYul "mstore(0, shl(224, 0xdd62ed3e))")
+  let erc20TotalSupplyYul ←
+    expectCompileToYul "erc20 totalSupply smoke spec" erc20TotalSupplySmokeSpec
+  expectTrue "erc20 totalSupply ECM lowers to staticcall"
+    (contains erc20TotalSupplyYul "staticcall(gas(), token, 0, 4, 0, 32)")
+  expectTrue "erc20 totalSupply ECM forwards revert returndata"
+    (contains erc20TotalSupplyYul "returndatacopy(0, 0, __totalSupply_rds)")
+  expectTrue "erc20 totalSupply ECM rejects non-32-byte returndata"
+    (contains erc20TotalSupplyYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc20 totalSupply ECM ABI-encodes the selector"
+    (contains erc20TotalSupplyYul "mstore(0, shl(224, 0x18160ddd))")
   let erc4626PreviewDepositYul ←
     expectCompileToYul "erc4626 previewDeposit smoke spec" erc4626PreviewDepositSmokeSpec
   expectTrue "erc4626 previewDeposit ECM lowers to staticcall"

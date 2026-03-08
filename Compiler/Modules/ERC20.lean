@@ -7,6 +7,7 @@
   - `safeApprove`:      approve(address,uint256)        selector 0x095ea7b3
   - `balanceOf`:        balanceOf(address)              selector 0x70a08231
   - `allowance`:        allowance(address,address)      selector 0xdd62ed3e
+  - `totalSupply`:      totalSupply()                   selector 0x18160ddd
 
   All modules handle the ERC-20 optional-bool-return pattern: if the call
   succeeds but returndatasize == 32 and the returned word is zero, the
@@ -218,5 +219,24 @@ def allowanceModule (resultVar : String) : ExternalCallModule :=
 /-- Convenience: create a `Stmt.ecm` for a read-only `allowance(address,address)` call. -/
 def allowance (resultVar : String) (token owner spender : Expr) : Stmt :=
   .ecm (allowanceModule resultVar) [token, owner, spender]
+
+/-- Read-only ERC-20 `totalSupply()` module.
+
+    It ABI-encodes the canonical `totalSupply()` selector, performs a
+    `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[token]`. -/
+def totalSupplyModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "totalSupply"
+    "erc20_totalSupply_interface"
+    resultVar
+    0x18160ddd
+    []
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `totalSupply()` call. -/
+def totalSupply (resultVar : String) (token : Expr) : Stmt :=
+  .ecm (totalSupplyModule resultVar) [token]
 
 end Compiler.Modules.ERC20
