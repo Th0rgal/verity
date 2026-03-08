@@ -369,6 +369,52 @@ private def erc4626TrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc4626PreviewMintTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626PreviewMintTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "shares", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewMint
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "shares"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626PreviewWithdrawTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626PreviewWithdrawTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewWithdraw
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 private def erc4626PreviewRedeemTrustSurfaceSpec : CompilationModel := {
   name := "ERC4626PreviewRedeemTrustSurface"
   fields := []
@@ -631,6 +677,26 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626TrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewDeposit\"]}" then
     throw (IO.userError "✗ erc4626 trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 trust report emits standard vault module assumption"
+
+  let erc4626PreviewMintTrustReport := emitTrustReportJson [erc4626PreviewMintTrustSurfaceSpec]
+  if !contains erc4626PreviewMintTrustReport "\"contract\":\"ERC4626PreviewMintTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 previewMint trust report emits contract name")
+  if !contains erc4626PreviewMintTrustReport "\"module\":\"previewMint\"" ||
+      !contains erc4626PreviewMintTrustReport "\"assumption\":\"erc4626_previewMint_interface\"" then
+    throw (IO.userError "✗ erc4626 previewMint trust report emits module assumption")
+  if !contains erc4626PreviewMintTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewMint\"]}" then
+    throw (IO.userError "✗ erc4626 previewMint trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 previewMint trust report emits standard vault module assumption"
+
+  let erc4626PreviewWithdrawTrustReport := emitTrustReportJson [erc4626PreviewWithdrawTrustSurfaceSpec]
+  if !contains erc4626PreviewWithdrawTrustReport "\"contract\":\"ERC4626PreviewWithdrawTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 previewWithdraw trust report emits contract name")
+  if !contains erc4626PreviewWithdrawTrustReport "\"module\":\"previewWithdraw\"" ||
+      !contains erc4626PreviewWithdrawTrustReport "\"assumption\":\"erc4626_previewWithdraw_interface\"" then
+    throw (IO.userError "✗ erc4626 previewWithdraw trust report emits module assumption")
+  if !contains erc4626PreviewWithdrawTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewWithdraw\"]}" then
+    throw (IO.userError "✗ erc4626 previewWithdraw trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 previewWithdraw trust report emits standard vault module assumption"
 
   let erc4626PreviewRedeemTrustReport := emitTrustReportJson [erc4626PreviewRedeemTrustSurfaceSpec]
   if !contains erc4626PreviewRedeemTrustReport "\"contract\":\"ERC4626PreviewRedeemTrustSurface\"" then

@@ -591,6 +591,52 @@ private def erc4626PreviewDepositSmokeSpec : CompilationModel := {
   ]
 }
 
+private def erc4626PreviewMintSmokeSpec : CompilationModel := {
+  name := "ERC4626PreviewMintSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "shares", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewMint
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "shares"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
+private def erc4626PreviewWithdrawSmokeSpec : CompilationModel := {
+  name := "ERC4626PreviewWithdrawSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "assets", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewWithdraw
+          "shares"
+          (Expr.param "vault")
+          (Expr.param "assets"),
+        Stmt.returnValues [Expr.localVar "shares"]
+      ]
+    }
+  ]
+}
+
 private def erc4626PreviewRedeemSmokeSpec : CompilationModel := {
   name := "ERC4626PreviewRedeemSmoke"
   fields := []
@@ -747,6 +793,26 @@ private def erc4626PreviewRedeemSmokeSpec : CompilationModel := {
     (contains erc4626PreviewDepositYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "erc4626 previewDeposit ECM ABI-encodes the selector"
     (contains erc4626PreviewDepositYul "mstore(0, shl(224, 0xef8b30f7))")
+  let erc4626PreviewMintYul ←
+    expectCompileToYul "erc4626 previewMint smoke spec" erc4626PreviewMintSmokeSpec
+  expectTrue "erc4626 previewMint ECM lowers to staticcall"
+    (contains erc4626PreviewMintYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 previewMint ECM forwards revert returndata"
+    (contains erc4626PreviewMintYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 previewMint ECM rejects non-32-byte returndata"
+    (contains erc4626PreviewMintYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 previewMint ECM ABI-encodes the selector"
+    (contains erc4626PreviewMintYul "mstore(0, shl(224, 0xb3d7f6b9))")
+  let erc4626PreviewWithdrawYul ←
+    expectCompileToYul "erc4626 previewWithdraw smoke spec" erc4626PreviewWithdrawSmokeSpec
+  expectTrue "erc4626 previewWithdraw ECM lowers to staticcall"
+    (contains erc4626PreviewWithdrawYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+  expectTrue "erc4626 previewWithdraw ECM forwards revert returndata"
+    (contains erc4626PreviewWithdrawYul "returndatacopy(0, 0, __erc4626_rds)")
+  expectTrue "erc4626 previewWithdraw ECM rejects non-32-byte returndata"
+    (contains erc4626PreviewWithdrawYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc4626 previewWithdraw ECM ABI-encodes the selector"
+    (contains erc4626PreviewWithdrawYul "mstore(0, shl(224, 0x0a28a477))")
   let erc4626PreviewRedeemYul ←
     expectCompileToYul "erc4626 previewRedeem smoke spec" erc4626PreviewRedeemSmokeSpec
   expectTrue "erc4626 previewRedeem ECM lowers to staticcall"
