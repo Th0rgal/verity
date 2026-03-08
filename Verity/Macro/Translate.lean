@@ -425,7 +425,7 @@ def immutableStorageFieldDecl
     ident := immutableSlotIdent imm
     name := immutableHiddenName imm
     ty := match imm.ty with
-      | .uint256 => .scalar .uint256
+      | .uint256 | .uint8 | .bytes32 | .bool => .scalar .uint256
       | .address => .scalar .address
       | _ => .scalar imm.ty
     slotNum := immutableSlotIndex fields idx
@@ -433,10 +433,10 @@ def immutableStorageFieldDecl
 
 private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
   match imm.ty with
-  | .uint256 | .address => pure ()
+  | .uint256 | .uint8 | .address | .bytes32 | .bool => pure ()
   | _ =>
       throwErrorAt imm.ident
-        s!"contract immutables currently support only Uint256 and Address; '{imm.name}' uses unsupported type"
+        s!"contract immutables currently support only Uint256, Uint8, Address, Bytes32, and Bool; '{imm.name}' uses unsupported type"
 
 private def externalExecutableWordType? : ValueType → Bool
   | .uint256 | .uint8 | .address | .bytes32 | .bool => true
@@ -578,12 +578,21 @@ private def mkImmutableBoundBody
     !fn.params.any (fun p => p.name == imm.name)
   match body with
   | `(term| do $[$elems:doElem]*) =>
-      let preludeElems ← visibleImmutables.zipIdx.mapM fun (imm, idx) => do
+      let preludeElemGroups ← visibleImmutables.zipIdx.mapM fun (imm, idx) => do
         let slotField := immutableStorageFieldDecl fields imm idx
         match imm.ty with
-        | .uint256 => `(doElem| let $(imm.ident) ← getStorage $(slotField.ident))
-        | .address => `(doElem| let $(imm.ident) ← getStorageAddr $(slotField.ident))
+        | .uint256 | .uint8 | .bytes32 =>
+            pure #[← `(doElem| let $(imm.ident) ← getStorage $(slotField.ident))]
+        | .bool =>
+            let rawName := mkIdent (Name.mkSimple s!"__verity_immutable_raw_{imm.name}")
+            pure #[
+              ← `(doElem| let $rawName ← getStorage $(slotField.ident)),
+              ← `(doElem| let $(imm.ident) := ($rawName != 0))
+            ]
+        | .address =>
+            pure #[← `(doElem| let $(imm.ident) ← getStorageAddr $(slotField.ident))]
         | _ => throwErrorAt imm.ident s!"immutable '{imm.name}' uses unsupported type"
+      let preludeElems := preludeElemGroups.foldl (· ++ ·) #[]
       `(do $[$preludeElems:doElem]* $[$elems:doElem]*)
   | _ => throwErrorAt body "function body must be a do block"
 
@@ -708,6 +717,8 @@ private partial def validateConstantBody
     (visiting : List String := []) : CommandElabM Unit := do
   let stx := stripParens stx
   match stx with
+  | `(term| true) => pure ()
+  | `(term| false) => pure ()
   | `(term| constructorArg $idx:num) => throwNonCompileTimeConstantError idx "constructorArg"
   | `(term| blockTimestamp) => throwNonCompileTimeConstantError stx "blockTimestamp"
   | `(term| blockNumber) => throwNonCompileTimeConstantError stx "blockNumber"
@@ -803,6 +814,8 @@ partial def translatePureExpr
     (visitingConstants : List String := []) : CommandElabM Term := do
   let stx := stripParens stx
   match stx with
+  | `(term| true) => `(Compiler.CompilationModel.Expr.literal 1)
+  | `(term| false) => `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
   | `(term| blockTimestamp) => `(Compiler.CompilationModel.Expr.blockTimestamp)
@@ -834,7 +847,8 @@ partial def translatePureExpr
         lookupVarExpr params locals name
       else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
         match imm.ty with
-        | .uint256 => `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
+        | .uint256 | .uint8 | .bytes32 | .bool =>
+            `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
         | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
         | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
       else
@@ -1716,7 +1730,7 @@ private def immutableInitStmtTerms
     let slotField := immutableStorageFieldDecl fields imm idx
     let valueExpr ← translatePureExpr fields constDecls #[] ctorParams #[] imm.body
     match imm.ty with
-    | .uint256 =>
+    | .uint256 | .uint8 | .bytes32 | .bool =>
         `(Compiler.CompilationModel.Stmt.setStorage $(strTerm slotField.name) $valueExpr)
     | .address =>
         `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm slotField.name) $valueExpr)

@@ -746,6 +746,23 @@ verity_contract MacroImplicitImmutable where
   function getFeeScale () : Uint256 := do
     return feeScale
 
+verity_contract MacroTypedImmutable where
+  storage
+
+  immutables
+    paused : Bool := true
+    feeBps : Uint8 := 7
+    domainTag : Bytes32 := 42
+
+  function isPaused () : Bool := do
+    return paused
+
+  function feeScale () : Uint8 := do
+    return feeBps
+
+  function domainSeparator () : Bytes32 := do
+    return domainTag
+
 def specIncludesInternalImmutableFields : Bool :=
   MacroImmutable.spec.fields.map (·.name) ==
     ["owner", "__immutable_seededSupply", "__immutable_treasury"]
@@ -797,6 +814,38 @@ def implicitImmutableExecutableReadsRuntimeSlot : Bool :=
   | _ => false
 
 example : implicitImmutableExecutableReadsRuntimeSlot = true := by native_decide
+
+def typedImmutableSpecUsesWordBackedHiddenSlots : Bool :=
+  match MacroTypedImmutable.spec.fields.map (fun f => (f.name, f.ty)) with
+  | [("__immutable_paused", FieldType.uint256),
+      ("__immutable_feeBps", FieldType.uint256),
+      ("__immutable_domainTag", FieldType.uint256)] => true
+  | _ => false
+
+example : typedImmutableSpecUsesWordBackedHiddenSlots = true := by native_decide
+
+def typedImmutableConstructorSeedsWordSlots : Bool :=
+  match MacroTypedImmutable.spec.constructor with
+  | some ctor =>
+      ctor.params.isEmpty &&
+      match ctor.body with
+      | [Stmt.setStorage "__immutable_paused" (Expr.literal 1),
+          Stmt.setStorage "__immutable_feeBps" (Expr.literal 7),
+          Stmt.setStorage "__immutable_domainTag" (Expr.literal 42)] => true
+      | _ => false
+  | none => false
+
+example : typedImmutableConstructorSeedsWordSlots = true := by native_decide
+
+def typedImmutableExecutableReadsConvertedValues : Bool :=
+  match MacroTypedImmutable.isPaused Verity.defaultState,
+      MacroTypedImmutable.feeScale Verity.defaultState,
+      MacroTypedImmutable.domainSeparator Verity.defaultState with
+  | .success paused _, .success feeBps _, .success domainTag _ =>
+      paused = false && feeBps == 0 && domainTag == 0
+  | _, _, _ => false
+
+example : typedImmutableExecutableReadsConvertedValues = true := by native_decide
 
 end MacroImmutableSmoke
 
@@ -1907,6 +1956,33 @@ set_option maxRecDepth 4096 in
   expectTrue
     "macro reinitializer executable path advances the tracked version"
     MacroInitializerSmoke.reinitializerExecutableAdvancesVersion
+  expectTrue
+    "macro immutable spec includes internal hidden fields"
+    MacroImmutableSmoke.specIncludesInternalImmutableFields
+  expectTrue
+    "macro immutable constructor seeds internal slots before user code"
+    MacroImmutableSmoke.constructorSeedsInternalImmutableSlots
+  expectTrue
+    "macro immutable executable path loads runtime slot values"
+    MacroImmutableSmoke.runtimeFunctionsLoadImmutableValuesFromState
+  expectTrue
+    "macro immutable function parameters still shadow immutable names"
+    MacroImmutableSmoke.functionParamsStillShadowImmutableNames
+  expectTrue
+    "macro immutables synthesize a constructor when needed"
+    MacroImmutableSmoke.implicitConstructorCreatedForImmutableInitializers
+  expectTrue
+    "macro synthesized immutable constructor reads runtime storage on the executable path"
+    MacroImmutableSmoke.implicitImmutableExecutableReadsRuntimeSlot
+  expectTrue
+    "macro typed immutables lower to word-backed hidden slots in the spec"
+    MacroImmutableSmoke.typedImmutableSpecUsesWordBackedHiddenSlots
+  expectTrue
+    "macro typed immutables seed word-backed hidden slots in the constructor"
+    MacroImmutableSmoke.typedImmutableConstructorSeedsWordSlots
+  expectTrue
+    "macro typed immutables convert executable runtime reads back to source types"
+    MacroImmutableSmoke.typedImmutableExecutableReadsConvertedValues
   expectTrue "macro emit lowers to Stmt.emit"
     MacroEventTraceSmoke.emitNamedModelUsesStmtEmit
   expectTrue "macro rawLog lowers to Stmt.rawLog with dynamic topic expressions"

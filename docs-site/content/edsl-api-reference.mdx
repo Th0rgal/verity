@@ -414,6 +414,9 @@ verity_contract ImmutableConfig where
   immutables
     seededSupply : Uint256 := add seed offset
     treasury : Address := ownerSeed
+    paused : Bool := true
+    feeBps : Uint8 := 7
+    domainTag : Bytes32 := 42
 
   constructor (seed : Uint256, ownerSeed : Address) := do
     setStorageAddr owner ownerSeed
@@ -423,13 +426,16 @@ verity_contract ImmutableConfig where
 
   function treasuryAddr () : Address := do
     return treasury
+
+  function isPaused () : Bool := do
+    return paused
 ```
 
-In this initial parity slice, immutables are lowered to internal read-only slots named `__immutable_<name>`. Constructor initialization is prepended automatically in the generated compilation-model constructor, and runtime functions load those slots into local bindings before the user body runs. Function parameters still shadow immutable names normally, and contracts with `immutables` but no explicit `constructor` receive a synthetic zero-argument constructor that seeds the immutable slots.
+In this parity slice, immutables are lowered to internal read-only slots named `__immutable_<name>`. `Uint256`, `Uint8`, `Bytes32`, and `Bool` immutables use word-backed hidden storage slots, while `Address` immutables keep the address-typed executable accessor. Constructor initialization is prepended automatically in the generated compilation-model constructor, and runtime functions load those slots into local bindings before the user body runs. Function parameters still shadow immutable names normally, and contracts with `immutables` but no explicit `constructor` receive a synthetic zero-argument constructor that seeds the immutable slots.
 
 Immutable names must be unique within the `immutables` block and must not reuse a storage-field or contract-constant name. That keeps runtime name resolution unambiguous across the executable fallback and the generated compilation model.
 
-The current surface supports `Uint256` and `Address` immutables only. That keeps the executable fallback and the compilation model aligned without pretending the repository already has native bytecode-embedded immutable lowering.
+The current surface supports `Uint256`, `Uint8`, `Address`, `Bytes32`, and `Bool` immutables. Dynamic types still stay out of scope so the executable fallback and the compilation model remain aligned without pretending the repository already has native bytecode-embedded immutable lowering.
 
 ## Linked Externals
 

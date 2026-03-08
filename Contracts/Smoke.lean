@@ -121,6 +121,23 @@ verity_contract ImmutableSmoke where
   function shadowed (seededSupply : Uint256) : Uint256 := do
     return seededSupply
 
+verity_contract TypedImmutableSmoke where
+  storage
+
+  immutables
+    paused : Bool := true
+    feeBps : Uint8 := 7
+    domainTag : Bytes32 := 42
+
+  function isPaused () : Bool := do
+    return paused
+
+  function feeScale () : Uint8 := do
+    return feeBps
+
+  function domainSeparator () : Bytes32 := do
+    return domainTag
+
 verity_contract InitializerSmoke where
   storage
     initializedVersion : Uint256 := slot 0
@@ -171,17 +188,17 @@ verity_contract ConstantRuntimeBuiltinRejected where
 end ConstantRuntimeBuiltinRejected
 
 /--
-error: contract immutables currently support only Uint256 and Address; 'paused' uses unsupported type
+error: contract immutables currently support only Uint256, Uint8, Address, Bytes32, and Bool; 'metadata' uses unsupported type
 -/
 #guard_msgs in
 verity_contract ImmutableTypeRejected where
   storage
 
   immutables
-    paused : Bool := true
+    metadata : String := "paused"
 
-  function isPaused () : Bool := do
-    return paused
+  function metadataWord () : Uint256 := do
+    return 0
 end ImmutableTypeRejected
 
 /--
