@@ -88,6 +88,11 @@ unsafe def runTests : IO Unit := do
   main (["--module", "Contracts.Counter.Counter", "--deny-unchecked-dependencies", "--output", strictOutDir])
   let strictCounterArtifact ← fileExists s!"{strictOutDir}/Counter.yul"
   expectTrue "strict unchecked-dependency gate accepts proved local modules" strictCounterArtifact
+  let proofStrictOutDir := s!"/tmp/verity-main-test-{nonce}-proof-strict-out"
+  IO.FS.createDirAll proofStrictOutDir
+  main (["--module", "Contracts.Counter.Counter", "--deny-assumed-dependencies", "--output", proofStrictOutDir])
+  let proofStrictCounterArtifact ← fileExists s!"{proofStrictOutDir}/Counter.yul"
+  expectTrue "strict assumed-dependency gate accepts proved local modules" proofStrictCounterArtifact
   let nonSelectedArtifactFlags ←
     (canonicalModules.filter (· != "Contracts.Counter.Counter")).mapM
       (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))

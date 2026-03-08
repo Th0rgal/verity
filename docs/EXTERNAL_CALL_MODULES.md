@@ -198,7 +198,10 @@ For verification-oriented compiles, `verity-compiler --deny-unchecked-dependenci
 turns that report into a hard gate: compilation exits nonzero if any selected
 contract still depends on an `unchecked` linked external or ECM module, and the
 failure now cites the exact constructor/function usage site that introduced the
-unchecked dependency.
+unchecked dependency. For proof-strict runs that require fully proved foreign
+surfaces, `verity-compiler --deny-assumed-dependencies` fails closed on both
+`assumed` and `unchecked` linked externals / ECM modules and localizes the
+diagnostic to the exact usage site.
 
 ## Trust Model
 

@@ -532,6 +532,13 @@ private def hasUncheckedDependenciesForSite
   externals.any (fun ext => ext.proofStatus == .unchecked) ||
     modules.any (fun mod => mod.proofStatus == .unchecked)
 
+private def hasDependenciesForStatusesForSite
+    (statuses : List Compiler.ProofStatus)
+    (externals : List ExternalFunction)
+    (modules : List ECM.ExternalCallModule) : Bool :=
+  externals.any (fun ext => statuses.contains ext.proofStatus) ||
+    modules.any (fun mod => statuses.contains mod.proofStatus)
+
 private structure UsageSiteSummary where
   kind : String
   name : String
@@ -685,32 +692,51 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
     []
 
 /-- Render localized unchecked-foreign-dependency lines for fail-closed diagnostics. -/
-def emitUncheckedUsageSiteLines (specs : List CompilationModel) : List String :=
+private def emitUsageSiteLinesForStatuses
+    (specs : List CompilationModel)
+    (statuses : List Compiler.ProofStatus) : List String :=
   specs.foldl
     (fun acc spec =>
       let siteLines :=
         (collectUsageSiteSummaries spec).foldl
           (fun siteAcc site =>
-            let uncheckedExternals := (namesByProofStatus .unchecked site.externals site.modules).fst
-            let uncheckedModules := (namesByProofStatus .unchecked site.externals site.modules).snd
-            let uncheckedCategories :=
-              (if uncheckedExternals.isEmpty then [] else
-                [s!"unchecked linked externals: {String.intercalate ", " uncheckedExternals}"]) ++
-              (if uncheckedModules.isEmpty then [] else
-                [s!"unchecked ECM modules: {String.intercalate ", " uncheckedModules}"])
-            if uncheckedCategories.isEmpty then
+            let dependencyCategories :=
+              statuses.foldl
+                (fun categoryAcc status =>
+                  let (externals, modules) := namesByProofStatus status site.externals site.modules
+                  categoryAcc ++
+                    (if externals.isEmpty then [] else
+                      [s!"{status.toJsonString} linked externals: {String.intercalate ", " externals}"]) ++
+                    (if modules.isEmpty then [] else
+                      [s!"{status.toJsonString} ECM modules: {String.intercalate ", " modules}"]))
+                []
+            if dependencyCategories.isEmpty then
               siteAcc
             else
               siteAcc ++
-                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate "; " uncheckedCategories}"])
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate "; " dependencyCategories}"])
           []
       acc ++ siteLines)
     []
+
+/-- Render localized unchecked-foreign-dependency lines for fail-closed diagnostics. -/
+def emitUncheckedUsageSiteLines (specs : List CompilationModel) : List String :=
+  emitUsageSiteLinesForStatuses specs [.unchecked]
+
+/-- Render localized assumed-or-unchecked foreign-dependency lines for proof-strict diagnostics. -/
+def emitAssumedUsageSiteLines (specs : List CompilationModel) : List String :=
+  emitUsageSiteLinesForStatuses specs [.assumed, .unchecked]
 
 /-- True when a contract depends on any foreign surface marked `unchecked`. -/
 def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
   !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||
     !(collectUsedEcmModuleNamesByStatus spec .unchecked).isEmpty
+
+/-- True when a contract depends on any foreign surface that remains assumed or unchecked. -/
+def hasAssumedDependencies (spec : CompilationModel) : Bool :=
+  hasDependenciesForStatusesForSite [.assumed, .unchecked]
+    (collectUsedExternalAssumptions spec)
+    (collectUsedEcmModules spec)
 
 /-- Render the machine-readable trust report consumed by CLI/tests. -/
 def emitTrustReportJson (specs : List CompilationModel) : String :=

@@ -28,6 +28,7 @@ private structure CLIArgs where
   patchReportPath : Option String := none
   trustReportPath : Option String := none
   denyUncheckedDependencies : Bool := false
+  denyAssumedDependencies : Bool := false
   mappingSlotScratchBase : Nat := 0
   mappingSlotScratchBaseExplicit : Bool := false
 
@@ -83,6 +84,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --patch-report <path>       Write TSV patch coverage report"
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
         IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
+        IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
         IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)"
         IO.println "  --verbose          Enable verbose output"
         IO.println "  -v                 Short form of --verbose"
@@ -172,6 +174,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         throw (IO.userError "Missing value for --trust-report")
     | "--deny-unchecked-dependencies" :: rest =>
         go rest { cfg with denyUncheckedDependencies := true }
+    | "--deny-assumed-dependencies" :: rest =>
+        go rest { cfg with denyAssumedDependencies := true }
     | "--mapping-slot-scratch-base" :: raw :: rest =>
         match raw.toNat? with
         | some n => go rest { cfg with mappingSlotScratchBase := n, mappingSlotScratchBaseExplicit := true }
@@ -231,6 +235,8 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.trustReportPath with
       | some path => IO.println s!"Trust report: {path}"
       | none => pure ()
+      if cfg.denyAssumedDependencies then
+        IO.println "Assumed dependencies: denied"
       if cfg.denyUncheckedDependencies then
         IO.println "Unchecked dependencies: denied"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
@@ -262,7 +268,7 @@ unsafe def main (args : List String) : IO Unit := do
     }
     compileModulesWithOptions
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
-      cfg.abiOutDir cfg.denyUncheckedDependencies
+      cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

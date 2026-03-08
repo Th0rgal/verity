@@ -1094,6 +1094,17 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ denied unchecked-dependency compile still writes trust report file")
   IO.println "✓ denied unchecked-dependency compile still writes trust report file"
 
+  let deniedAssumedTrustReportPath := s!"{trustReportDir}/trust-report-denied-assumed.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
+    (compileSpecsWithOptions
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true)
+    "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
+  let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
+  if !deniedAssumedTrustReportWritten then
+    throw (IO.userError "✗ denied assumed-dependency compile still writes trust report file")
+  IO.println "✓ denied assumed-dependency compile still writes trust report file"
+
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none
   let writtenPatchReport ← fileExists patchReportPath
   if !writtenPatchReport then

@@ -60,6 +60,12 @@ private def ensureNoUncheckedDependencies (specs : List CompilationModel) : IO U
     throw (IO.userError
       s!"Unchecked foreign dependencies remain:\n{String.intercalate "\n" uncheckedSites}")
 
+private def ensureNoAssumedDependencies (specs : List CompilationModel) : IO Unit := do
+  let assumedSites := emitAssumedUsageSiteLines specs
+  if !assumedSites.isEmpty then
+    throw (IO.userError
+      s!"Assumed or unchecked foreign dependencies remain:\n{String.intercalate "\n" assumedSites}")
+
 private def writeContract
     (outDir : String)
     (contract : IRContract)
@@ -105,7 +111,8 @@ def compileSpecsWithOptions
     (patchReportPath : Option String)
     (trustReportPath : Option String)
     (abiOutDir : Option String)
-    (denyUncheckedDependencies : Bool := false) : IO Unit := do
+    (denyUncheckedDependencies : Bool := false)
+    (denyAssumedDependencies : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -147,6 +154,8 @@ def compileSpecsWithOptions
       if verbose then
         IO.println s!"✓ Wrote trust report: {path}"
   | none => pure ()
+  if denyAssumedDependencies then
+    ensureNoAssumedDependencies specs
   if denyUncheckedDependencies then
     ensureNoUncheckedDependencies specs
   -- Axiom aggregation report (verbose mode)
@@ -283,11 +292,12 @@ unsafe def compileModulesWithOptions
     (patchReportPath : Option String := none)
     (trustReportPath : Option String := none)
     (abiOutDir : Option String := none)
-    (denyUncheckedDependencies : Bool := false) : IO Unit := do
+    (denyUncheckedDependencies : Bool := false)
+    (denyAssumedDependencies : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
-    denyUncheckedDependencies
+    denyUncheckedDependencies denyAssumedDependencies
