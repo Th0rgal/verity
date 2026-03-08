@@ -28,6 +28,7 @@ Primary guards:
 - `check_property_coverage.py`
 - `check_property_manifest_sync.py`
 - `check_builtin_bridge_matrix_sync.py`: keep the builtin bridge matrix artifact and docs in sync, including delegated env builtins.
+- `check_interpreter_feature_boundary_catalog_sync.py`: keep the interpreter proof-boundary category note aligned with the machine-readable feature matrix.
 - `check_interpreter_feature_summary_sync.py`: keep the interpreter feature summary table aligned with the machine-readable feature matrix artifact.
 - `check_low_level_call_boundary_sync.py`: keep docs aligned with the current low-level call proof boundary.
 - `check_linear_memory_boundary_sync.py`: keep docs aligned with the current linear-memory proof boundary.

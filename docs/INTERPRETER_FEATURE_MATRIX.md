@@ -145,7 +145,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 | Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
 | Builtins (agreement) | 15 | 0 | 0 | 7 (delegated) |
 
-**Not-modeled features** are handled correctly by the compiler but are outside the current proof scope. They include low-level calls, returndata handling, linear memory, contract introspection, and external call modules. These features are validated by differential testing (70,000+ test vectors against actual EVM execution).
+Proof-boundary features split across two buckets. Partially modeled features currently include runtime introspection (`blockNumber`, `contractAddress`, `chainid`) and single-word linear-memory forms (`mload`, `mstore`, `returndataOptionalBoolAt`). Fully not-modeled features currently include `keccak256`, low-level call / returndata plumbing (`call`, `staticcall`, `delegatecall`, `calldatacopy`, `returndataCopy`, `revertReturndata`), event emission (`rawLog`), and external call modules (`externalCallBind`, `ecm`). These features are still compiler-supported and are validated by differential testing (70,000+ test vectors against actual EVM execution).
 
 ---
 
