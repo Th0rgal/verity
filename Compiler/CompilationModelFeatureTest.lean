@@ -81,6 +81,49 @@ example : hashSliceExecutableUsesRuntimeStub = true := by native_decide
 
 end MacroKeccakSmoke
 
+namespace MacroExternalSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroExternal where
+  storage
+    echoedValue : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function storeEcho (next : Uint256) : Unit := do
+    let echoed := externalCall "echo" [next]
+    setStorage echoedValue echoed
+
+def storeEchoModelUsesDeclaredExternal : Bool :=
+  (match MacroExternal.spec.externals with
+    | [{ name := "echo"
+         params := [ParamType.uint256]
+         returnType := some ParamType.uint256
+         returns := [ParamType.uint256]
+         proofStatus := Compiler.ProofStatus.assumed
+         axiomNames := [] }] => true
+    | _ => false) &&
+    match MacroExternal.storeEcho_modelBody with
+    | [Stmt.letVar "echoed" (Expr.externalCall "echo" [Expr.param "next"]),
+        Stmt.setStorage "echoedValue" (Expr.localVar "echoed"),
+        Stmt.stop] => true
+    | _ => false
+
+example : storeEchoModelUsesDeclaredExternal = true := by native_decide
+
+def storeEchoExecutableUsesStub : Bool :=
+  match MacroExternal.storeEcho 33 Verity.defaultState with
+  | .success () state =>
+      state.storage 0 == 33
+  | .revert _ _ => false
+
+example : storeEchoExecutableUsesStub = true := by native_decide
+
+end MacroExternalSmoke
+
 namespace MacroTransientStorageSmoke
 
 open Contracts
@@ -2148,6 +2191,14 @@ set_option maxRecDepth 4096 in
   expectTrue "macro blobbasefee trust report surfaces the post-core builtin"
     (contains macroBlobbasefeeTrustReport "\"modeledLowLevelMechanics\"" &&
       contains macroBlobbasefeeTrustReport "\"blobbasefee\"")
+  let macroExternalYul ←
+    expectCompileToYul "macro external smoke spec" MacroExternalSmoke.MacroExternal.spec
+  expectTrue "macro externalCall lowers to the linked external symbol"
+    (contains macroExternalYul "let echoed := echo(next)")
+  let macroExternalTrustReport := emitTrustReportJson [MacroExternalSmoke.MacroExternal.spec]
+  expectTrue "macro externals surface in the trust report"
+    (contains macroExternalTrustReport "\"linkedExternals\"" &&
+      contains macroExternalTrustReport "\"echo\"")
   expectTrue "macro constant expressions inline into model bodies"
     MacroConstantSmoke.feeOnModelInlinesContractConstants
   expectTrue "macro address constants inline through the executable and model paths"

@@ -431,6 +431,25 @@ Immutable names must be unique within the `immutables` block and must not reuse 
 
 The current surface supports `Uint256` and `Address` immutables only. That keeps the executable fallback and the compilation model aligned without pretending the repository already has native bytecode-embedded immutable lowering.
 
+## Linked Externals
+
+`verity_contract` can now declare linked external functions directly and use them from `externalCall` expressions:
+
+```lean
+verity_contract LinkedOracle where
+  storage
+    lastQuote : Uint256 := slot 0
+
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function storeQuote (value : Uint256) : Unit := do
+    let quoted := externalCall "echo" [value]
+    setStorage lastQuote quoted
+```
+
+These declarations populate `spec.externals` with assumed foreign signatures so the existing compilation-model validation for `Expr.externalCall` works from the macro surface too. This first slice is intentionally narrow: it covers linked external declarations plus `externalCall` expression lowering, while richer statement-style bindings and ECM module declarations still remain separate follow-up work.
+
 ## Low-Level Log Surface
 
 `verity_contract` bodies can emit low-level runtime-dependent logs directly:

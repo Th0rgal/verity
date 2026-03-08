@@ -105,6 +105,33 @@ def tstore (offset value : Uint256) : Contract Unit := fun state =>
   ContractResult.success () { state with
     transientStorage := fun i => if i == (offset : Nat) then value else state.transientStorage i
   }
+class ExternalArg (α : Type) where
+  toWord : α → Uint256
+class ExternalResult (α : Type) where
+  fromWord : Uint256 → α
+instance : ExternalArg Uint256 where
+  toWord value := value
+instance : ExternalArg Address where
+  toWord value := value.toNat
+instance : ExternalArg Bool where
+  toWord value := if value then 1 else 0
+instance : ExternalResult Uint256 where
+  fromWord value := value
+instance : ExternalResult Address where
+  fromWord value := wordToAddress value
+instance : ExternalResult Bool where
+  fromWord value := value != 0
+private def externalCallStubWord (name : String) (args : List Uint256) : Uint256 :=
+  match name, args with
+  | "echo", [value] => value
+  | _, _ => args.foldl add name.length
+def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : List Uint256) : α :=
+  ExternalResult.fromWord (externalCallStubWord name args)
+macro_rules
+  | `(term| externalCall $name:ident [ $[$args:term],* ]) =>
+      `(externalCallWords $(Lean.quote (toString name.getId)) [ $[ExternalArg.toWord $args],* ])
+  | `(term| externalCall $name:str [ $[$args:term],* ]) =>
+      `(externalCallWords $name [ $[ExternalArg.toWord $args],* ])
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := pure 0
 def setMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset _value : Uint256) :

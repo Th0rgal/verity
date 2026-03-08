@@ -342,6 +342,20 @@ verity_contract StructMappingSmoke where
     let nextNonce ← structMember2 "approvals" owner spender "nonce"
     return nextNonce
 
+verity_contract ExternalCallSmoke where
+  storage
+    echoedValue : Uint256 := slot 0
+  linked_externals
+    external echo(Uint256) -> (Uint256)
+
+  function storeEcho (next : Uint256) : Unit := do
+    let echoed := externalCall "echo" [next]
+    setStorage echoedValue echoed
+
+  function getEchoedValue () : Uint256 := do
+    let current ← getStorage echoedValue
+    return current
+
 /--
 error: field 'approvals' is a nested struct mapping; use structMember2/setStructMember2
 -/
@@ -482,6 +496,7 @@ end SpecGenSmoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
 #check_contract StructMappingSmoke
+#check_contract ExternalCallSmoke
 #check_contract Contracts.Vault
 
 example : TupleSmoke.setFromPair = (TupleSmoke.setFromPair : (Uint256 × Uint256) → Verity.Contract Unit) := rfl
@@ -490,6 +505,7 @@ example :
     TupleSmoke.processConfig =
       (TupleSmoke.processConfig : (Address × Address × Uint256) → Verity.Contract Unit) := rfl
 example : Uint8Smoke.acceptSig = (Uint8Smoke.acceptSig : (Uint256 × Uint256 × Uint256) → Verity.Contract Unit) := rfl
+example : ExternalCallSmoke.storeEcho = (ExternalCallSmoke.storeEcho : Uint256 → Verity.Contract Unit) := rfl
 
 example :
     (Compiler.CompilationModel.FunctionSpec.body
