@@ -78,6 +78,12 @@ private def ensureNoRuntimeIntrospection (specs : List CompilationModel) : IO Un
     throw (IO.userError
       s!"Partially modeled runtime-introspection mechanics remain:\n{String.intercalate "\n" runtimeIntrospectionSites}")
 
+private def ensureNoLowLevelMechanics (specs : List CompilationModel) : IO Unit := do
+  let lowLevelSites := emitLowLevelMechanicsUsageSiteLines specs
+  if !lowLevelSites.isEmpty then
+    throw (IO.userError
+      s!"Low-level mechanics remain:\n{String.intercalate "\n" lowLevelSites}")
+
 private def writeContract
     (outDir : String)
     (contract : IRContract)
@@ -126,6 +132,7 @@ def compileSpecsWithOptions
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
+    (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
@@ -170,6 +177,8 @@ def compileSpecsWithOptions
   | none => pure ()
   if denyLinearMemoryMechanics then
     ensureNoLinearMemoryMechanics specs
+  if denyLowLevelMechanics then
+    ensureNoLowLevelMechanics specs
   if denyRuntimeIntrospection then
     ensureNoRuntimeIntrospection specs
   if denyAssumedDependencies then
@@ -335,6 +344,7 @@ unsafe def compileModulesWithOptions
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
+    (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
@@ -342,4 +352,5 @@ unsafe def compileModulesWithOptions
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
-    denyUncheckedDependencies denyAssumedDependencies denyLinearMemoryMechanics denyRuntimeIntrospection
+    denyUncheckedDependencies denyAssumedDependencies denyLinearMemoryMechanics
+    denyLowLevelMechanics denyRuntimeIntrospection

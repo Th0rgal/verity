@@ -211,7 +211,10 @@ surfaces, `verity-compiler --deny-assumed-dependencies` fails closed on both
 diagnostic to the exact usage site. For memory-proof-strict runs,
 `verity-compiler --deny-linear-memory-mechanics` fails closed when any selected
 contract still uses partially modeled linear-memory mechanics, again citing the
-exact constructor/function usage site. For runtime-proof-strict runs,
+exact constructor/function usage site. For low-level-proof-strict runs,
+`verity-compiler --deny-low-level-mechanics` fails closed when any selected
+contract still uses first-class low-level call / returndata mechanics, again
+citing the exact constructor/function usage site. For runtime-proof-strict runs,
 `verity-compiler --deny-runtime-introspection` fails closed when any selected
 contract still uses partially modeled runtime-introspection primitives, again
 citing the exact constructor/function usage site.

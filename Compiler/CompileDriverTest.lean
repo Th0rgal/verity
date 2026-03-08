@@ -16,16 +16,7 @@ open Compiler
 open Compiler.CompilationModel
 
 private def contains (haystack needle : String) : Bool :=
-  let h := haystack.toList
-  let n := needle.toList
-  if n.isEmpty then true
-  else
-    let rec go : List Char → Bool
-      | [] => false
-      | c :: cs =>
-        if (c :: cs).take n.length == n then true
-        else go cs
-    go h
+  if needle.isEmpty then true else (haystack.splitOn needle).length > 1
 
 private def expectFailureContains (label : String) (action : IO Unit) (needle : String) : IO Unit := do
   try
@@ -226,6 +217,25 @@ private def memoryTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def memoryOnlyTrustSurfaceSpec : CompilationModel := {
+  name := "MemoryOnlyTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "exerciseMemoryOnly"
+      params := []
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Stmt.mstore (Expr.literal 0) (Expr.literal 1),
+        Stmt.calldatacopy (Expr.literal 32) (Expr.literal 4) (Expr.literal 32),
+        Stmt.letVar "word" (Expr.mload (Expr.literal 0)),
+        Stmt.returnValues [Expr.localVar "word"]
+      ]
+    }
+  ]
+}
+
 private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
   name := "RuntimeIntrospectionTrustSurface"
   fields := []
@@ -240,6 +250,51 @@ private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
         Stmt.letVar "self" Expr.contractAddress,
         Stmt.letVar "cid" Expr.chainid,
         Stmt.returnValues [Expr.add (Expr.add (Expr.localVar "bn") (Expr.localVar "self")) (Expr.localVar "cid")]
+      ]
+    }
+  ]
+}
+
+private def lowLevelOnlyTrustSurfaceSpec : CompilationModel := {
+  name := "LowLevelOnlyTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "exerciseLowLevel"
+      params := [{ name := "target", ty := ParamType.address }]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Stmt.letVar "ok"
+          (Expr.call
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.letVar "okStatic"
+          (Expr.staticcall
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.letVar "okDelegate"
+          (Expr.delegatecall
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.returndataCopy (Expr.literal 0) (Expr.literal 0) (Expr.literal 32),
+        Stmt.letVar "rd" Expr.returndataSize,
+        Stmt.returnValues
+          [Expr.add (Expr.add (Expr.localVar "ok") (Expr.localVar "okStatic"))
+            (Expr.add (Expr.localVar "okDelegate") (Expr.localVar "rd"))]
       ]
     }
   ]
@@ -749,6 +804,7 @@ private def expectOnlySelectedArtifacts
         s!"✗ {label}: unexpected ABI artifact presence for {contractName} (expected={shouldExist}, found={abiExists})")
   IO.println s!"✓ {label}"
 
+set_option maxRecDepth 100000 in
 unsafe def runTests : IO Unit := do
   let nonce ← IO.rand 0 1000000000
   let outDir := s!"/tmp/verity-compile-driver-test-{nonce}-out"
@@ -914,6 +970,11 @@ unsafe def runTests : IO Unit := do
   if !contains verboseUsageSiteReport "[ecm:testCall][assumed] test_call_interface" then
     throw (IO.userError "✗ verbose trust report localizes ECM assumptions")
   IO.println "✓ verbose trust report localizes per-site trust surfaces"
+  let lowLevelUsageSiteLines := emitLowLevelMechanicsUsageSiteLines [trustSurfaceSpec]
+  let lowLevelUsageSiteReport := String.intercalate "\n" lowLevelUsageSiteLines
+  if !contains lowLevelUsageSiteReport "- TrustSurfaceSmoke [function:exercise]: staticcall, returndataSize, returndataCopy" then
+    throw (IO.userError "✗ low-level diagnostics localize low-level mechanics")
+  IO.println "✓ low-level diagnostics localize per-site low-level mechanics"
 
   let memoryTrustReport := emitTrustReportJson [memoryTrustSurfaceSpec]
   if !contains memoryTrustReport "\"contract\":\"MemoryTrustSurface\"" then
@@ -1150,9 +1211,27 @@ unsafe def runTests : IO Unit := do
 
   let deniedTrustReportPath := s!"{trustReportDir}/trust-report-denied.json"
   expectFailureContains
+    "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
+    (compileSpecsWithOptions
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false true false)
+    "Low-level mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: call, staticcall, delegatecall, returndataCopy, returndataSize"
+  let deniedLowLevelTrustReportWritten ← fileExists deniedTrustReportPath
+  if !deniedLowLevelTrustReportWritten then
+    throw (IO.userError "✗ compileSpecsWithOptions writes trust report before rejecting low-level mechanics")
+  IO.println "✓ compileSpecsWithOptions writes trust report before rejecting low-level mechanics"
+
+  let denyLowLevelMemoryOutDir := s!"/tmp/compile-driver-deny-low-level-memory-ok-{nonce}"
+  compileSpecsWithOptions
+    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false true false
+  let denyLowLevelMemoryArtifactWritten ← fileExists s!"{denyLowLevelMemoryOutDir}/MemoryOnlyTrustSurface.yul"
+  if !denyLowLevelMemoryArtifactWritten then
+    throw (IO.userError "✗ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate")
+  IO.println "✓ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate"
+
+  expectFailureContains
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
-      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false)
+      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false)
     "Unchecked foreign dependencies remain:\n- ConstructorOnlyEcmTrustSurface [constructor:constructor]: unchecked ECM modules: ctorHook"
   let deniedTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedTrustReportWritten then
@@ -1163,7 +1242,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
     (compileSpecsWithOptions
-      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false)
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false)
     "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
   let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
   if !deniedAssumedTrustReportWritten then
@@ -1174,7 +1253,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled linear memory when deny flag enabled"
     (compileSpecsWithOptions
-      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false true false)
+      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false true false false)
     "Partially modeled linear-memory mechanics remain:\n- MemoryTrustSurface [function:exerciseMemory]: mstore, calldatacopy, returndataCopy, mload"
   let deniedLinearMemoryTrustReportWritten ← fileExists deniedLinearMemoryTrustReportPath
   if !deniedLinearMemoryTrustReportWritten then
@@ -1185,7 +1264,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled runtime introspection when deny flag enabled"
     (compileSpecsWithOptions
-      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false true)
+      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false true)
     "Partially modeled runtime-introspection mechanics remain:\n- RuntimeIntrospectionTrustSurface [function:exerciseRuntime]: blockNumber, contractAddress, chainid"
   let deniedRuntimeIntrospectionTrustReportWritten ← fileExists deniedRuntimeIntrospectionTrustReportPath
   if !deniedRuntimeIntrospectionTrustReportWritten then

@@ -255,6 +255,15 @@ private def isRuntimeIntrospectionMechanic (mechanic : String) : Bool :=
 private def collectRuntimeIntrospectionMechanicsFromMechanics (mechanics : List String) : List String :=
   dedupPreserve (mechanics.filter isRuntimeIntrospectionMechanic)
 
+private def isDeniedLowLevelMechanic (mechanic : String) : Bool :=
+  match mechanic with
+  | "call" | "staticcall" | "delegatecall" | "returndataSize" | "returndataCopy"
+  | "revertReturndata" | "returndataOptionalBoolAt" => true
+  | _ => false
+
+private def collectDeniedLowLevelMechanicsFromMechanics (mechanics : List String) : List String :=
+  dedupPreserve (mechanics.filter isDeniedLowLevelMechanic)
+
 /-- Collect unique low-level call and returndata mechanics used by a spec. -/
 def collectLowLevelMechanics (spec : CompilationModel) : List String :=
   let stmtsFromFn (fn : FunctionSpec) := fn.body
@@ -918,6 +927,23 @@ def emitRuntimeIntrospectionUsageSiteLines (specs : List CompilationModel) : Lis
             else
               siteAcc ++
                 [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " site.runtimeIntrospection}"])
+          []
+      acc ++ siteLines)
+    []
+
+/-- Render localized low-level-mechanics lines for fail-closed diagnostics. -/
+def emitLowLevelMechanicsUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            let lowLevelMechanics := collectDeniedLowLevelMechanicsFromMechanics site.mechanics
+            if lowLevelMechanics.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " lowLevelMechanics}"])
           []
       acc ++ siteLines)
     []
