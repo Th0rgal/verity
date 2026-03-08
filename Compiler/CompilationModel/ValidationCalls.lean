@@ -397,8 +397,6 @@ def validateExternalCallTargetsInStmt
           if args.length != ext.params.length then
             throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
           let returns ← externalFunctionReturns ext
-          if resultVars.isEmpty then
-            throw s!"Compilation error: {context} uses Stmt.externalCallBind with no result variables."
           if returns.length != resultVars.length then
             throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
           let rec checkDuplicateVars (seen : List String) : List String → Except String Unit

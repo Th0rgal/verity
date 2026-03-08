@@ -183,7 +183,10 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       pure [YulStmt.letMany names (YulExpr.call (internalFunctionYulName functionName) argExprs)]
   | Stmt.externalCallBind resultVars externalName args => do
       let argExprs ← compileExprList fields dynamicSource args
-      pure [YulStmt.letMany resultVars (YulExpr.call externalName argExprs)]
+      if resultVars.isEmpty then
+        pure [YulStmt.expr (YulExpr.call externalName argExprs)]
+      else
+        pure [YulStmt.letMany resultVars (YulExpr.call externalName argExprs)]
   -- NOTE: safeTransfer, safeTransferFrom, externalCallWithReturn, callback, ecrecover
   -- have been removed. Use Stmt.ecm with the appropriate module from Compiler/Modules/.
   | Stmt.ecm mod args => do

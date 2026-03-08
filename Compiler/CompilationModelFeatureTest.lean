@@ -1445,6 +1445,54 @@ private def reservedExternalBindSpec : CompilationModel := {
   ]
 }
 
+private def effectOnlyExternalBindSpec : CompilationModel := {
+  name := "EffectOnlyExternalBind"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "poke"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.externalCallBind [] "notify" [Expr.param "next"],
+        Stmt.stop
+      ]
+    }
+  ]
+  externals := [
+    { name := "notify"
+      params := [ParamType.uint256]
+      returnType := none
+      returns := []
+      axiomNames := ["notify_effect_only"]
+    }
+  ]
+}
+
+private def effectOnlyExternalBindMismatchSpec : CompilationModel := {
+  name := "EffectOnlyExternalBindMismatch"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.externalCallBind [] "echo" [Expr.param "next"],
+        Stmt.stop
+      ]
+    }
+  ]
+  externals := [
+    { name := "echo"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := ["echo_matches_identity"]
+    }
+  ]
+}
+
 private def rawLogTraceSmokeSpec : CompilationModel := {
   name := "RawLogTraceSmoke"
   fields := []
@@ -2097,6 +2145,16 @@ set_option maxRecDepth 4096 in
     "reserved compiler prefix is rejected in external call binders"
     reservedExternalBindSpec
     "local binder '__external_ret' uses reserved compiler prefix '__'"
+  let effectOnlyExternalBindYul ← expectCompileToYul
+    "effect-only external call bind compiles"
+    effectOnlyExternalBindSpec
+  expectTrue "effect-only external call bind lowers to a bare Yul call"
+    (contains effectOnlyExternalBindYul "notify(next)" &&
+      !(contains effectOnlyExternalBindYul "let  := notify(next)"))
+  expectCompileErrorContains
+    "effect-only external call bind still rejects non-void externals"
+    effectOnlyExternalBindMismatchSpec
+    "binds 0 values from external function 'echo', but it returns 1."
   expectCompileErrorContains
     "reserved compiler prefix is rejected in ECM result binders"
     reservedEcmResultVarSpec
