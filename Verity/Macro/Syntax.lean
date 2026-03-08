@@ -26,7 +26,7 @@ syntax "function " ident " (" sepBy(verityParam, ",") ")" " : " term " := " term
 
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "
-  "storage " verityStorageField+
+  "storage " verityStorageField*
   ("errors " verityError+)?
   (verityConstructor)?
   verityFunction+ : command

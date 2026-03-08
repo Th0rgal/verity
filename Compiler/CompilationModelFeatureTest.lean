@@ -277,6 +277,88 @@ example : storeHelperPairTailNameCollisionExecutablePreservesParam = true := by 
 
 end MacroTupleDestructuringSmoke
 
+namespace MacroStatelessSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroStateless where
+  storage
+
+  function echoWord (value : Uint256) : Uint256 := do
+    return value
+
+  function callerEcho () : Address := do
+    let sender ← msgSender
+    return sender
+
+def specHasNoFields : Bool :=
+  MacroStateless.spec.fields.isEmpty
+
+example : specHasNoFields = true := by native_decide
+
+def echoWordModelUsesOnlyParams : Bool :=
+  match MacroStateless.echoWord_modelBody with
+  | [Stmt.return (Expr.param "value")] => true
+  | _ => false
+
+example : echoWordModelUsesOnlyParams = true := by native_decide
+
+def callerEchoExecutableReadsSender : Bool :=
+  let state := { Verity.defaultState with sender := Verity.wordToAddress 77 }
+  match MacroStateless.callerEcho state with
+  | .success sender nextState =>
+      sender == Verity.wordToAddress 77 && nextState.sender == state.sender
+  | .revert _ _ => false
+
+example : callerEchoExecutableReadsSender = true := by native_decide
+
+end MacroStatelessSmoke
+
+namespace MacroStatelessSectionsSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroStatelessSections where
+  storage
+
+  errors
+    error BadSeed(Uint256)
+
+  constructor (seed : Uint256) := do
+    let same := seed == seed
+    require same "seed sanity check"
+
+  function failWith (_seed : Uint256) : Unit := do
+    let failingSeed := _seed
+    revert BadSeed(failingSeed)
+
+def specKeepsEmptyFieldsWithErrorsAndConstructor : Bool :=
+  MacroStatelessSections.spec.fields.isEmpty &&
+  MacroStatelessSections.spec.errors.map (·.name) == ["BadSeed"] &&
+  match MacroStatelessSections.spec.constructor with
+  | some ctor =>
+      match ctor.params with
+      | [{ name := "seed", ty := ParamType.uint256 }] => true
+      | _ => false
+  | none => false
+
+example : specKeepsEmptyFieldsWithErrorsAndConstructor = true := by native_decide
+
+def failWithModelUsesDeclaredCustomError : Bool :=
+  match MacroStatelessSections.failWith_modelBody with
+  | [Stmt.letVar "failingSeed" (Expr.param "_seed"),
+      Stmt.revertError "BadSeed" [Expr.localVar "failingSeed"],
+      Stmt.stop] => true
+  | _ => false
+
+example : failWithModelUsesDeclaredCustomError = true := by native_decide
+
+end MacroStatelessSectionsSmoke
+
 namespace MacroStructDestructuringSmoke
 
 open Contracts

@@ -73,6 +73,16 @@ verity_contract CustomErrorSmoke where
   function echo (amount : Uint256) : Uint256 := do
     return amount
 
+verity_contract StatelessSmoke where
+  storage
+
+  function echoWord (value : Uint256) : Uint256 := do
+    return value
+
+  function whoAmI () : Address := do
+    let sender ← msgSender
+    return sender
+
 verity_contract TupleSmoke where
   storage
     values : Uint256 → Uint256 := slot 0
@@ -313,6 +323,7 @@ end SpecGenSmoke
 #check_contract MappingWordSmoke
 #check_contract StorageWordsSmoke
 #check_contract CustomErrorSmoke
+#check_contract StatelessSmoke
 #check_contract TupleSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke

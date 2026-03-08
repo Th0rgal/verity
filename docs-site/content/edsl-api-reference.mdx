@@ -319,6 +319,24 @@ return structMembers2 approvals owner spender [allowance, nonce]
 
 Today this elaborates cleanly for tuple literals, tuple-typed parameters, internal helper multi-returns via either `let (...) := helper ...` or `let (...) ← helper ...`, and storage-backed mapping-struct reads via `structMembers` / `structMembers2`. `_` binders are accepted inside tuple destructuring and are discarded hygienically instead of entering scope. `return (..)` lowers to `Stmt.returnValues [...]`, tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), helper-call destructuring lowers to `Stmt.internalCallAssign [...]`, and struct-backed destructuring lowers to explicit `Expr.structMember` / `Expr.structMember2` reads, so the generated model stays explicit for debugging and proofs.
 
+## Stateless Contracts
+
+`verity_contract` now accepts an empty `storage` block when a contract is purely functional or only depends on ambient values such as `msg.sender`:
+
+```lean
+verity_contract Stateless where
+  storage
+
+  function echoWord (value : Uint256) : Uint256 := do
+    return value
+
+  function whoAmI () : Address := do
+    let sender ← msgSender
+    return sender
+```
+
+This keeps the macro surface usable for helper-style and interface-shaped contracts without forcing a dummy storage slot. The generated `CompilationModel.fields` list is empty, ABI generation still works normally, and selectors remain computed from the external functions exactly as before.
+
 ## Dynamic Array Surface
 
 Dynamic array parameters can be consumed directly from `verity_contract` bodies using the same helper names that lower into the compilation model:

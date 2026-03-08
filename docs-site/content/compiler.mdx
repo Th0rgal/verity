@@ -637,6 +637,8 @@ verity_contract MyContract where
     return (← getStorage value)
 ```
 
+If a contract is stateless, the `storage` block may be left empty instead of inventing a dummy slot.
+
 2. **Register it in** `Compiler/Specs.lean` **under** `allSpecs`:
 ```lean
 Contracts.MyContract.spec
