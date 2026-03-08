@@ -327,6 +327,25 @@ private def erc20AllowanceTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc20TotalSupplyTrustSurfaceSpec : CompilationModel := {
+  name := "ERC20TotalSupplyTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "totalSupply"
+      params := [{ name := "token", ty := ParamType.address }]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC20.totalSupply
+          "supply"
+          (Expr.param "token"),
+        Stmt.returnValues [Expr.localVar "supply"]
+      ]
+    }
+  ]
+}
+
 private def erc4626TrustSurfaceSpec : CompilationModel := {
   name := "ERC4626TrustSurface"
   fields := []
@@ -592,6 +611,16 @@ unsafe def runTests : IO Unit := do
   if !contains erc20AllowanceTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"allowance\"]}" then
     throw (IO.userError "✗ erc20 allowance trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc20 allowance trust report emits standard token read module assumption"
+
+  let erc20TotalSupplyTrustReport := emitTrustReportJson [erc20TotalSupplyTrustSurfaceSpec]
+  if !contains erc20TotalSupplyTrustReport "\"contract\":\"ERC20TotalSupplyTrustSurface\"" then
+    throw (IO.userError "✗ erc20 totalSupply trust report emits contract name")
+  if !contains erc20TotalSupplyTrustReport "\"module\":\"totalSupply\"" ||
+      !contains erc20TotalSupplyTrustReport "\"assumption\":\"erc20_totalSupply_interface\"" then
+    throw (IO.userError "✗ erc20 totalSupply trust report emits module assumption")
+  if !contains erc20TotalSupplyTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"totalSupply\"]}" then
+    throw (IO.userError "✗ erc20 totalSupply trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc20 totalSupply trust report emits standard token read module assumption"
 
   let erc4626TrustReport := emitTrustReportJson [erc4626TrustSurfaceSpec]
   if !contains erc4626TrustReport "\"contract\":\"ERC4626TrustSurface\"" then
