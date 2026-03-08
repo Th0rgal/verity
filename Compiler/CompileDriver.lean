@@ -66,6 +66,12 @@ private def ensureNoAssumedDependencies (specs : List CompilationModel) : IO Uni
     throw (IO.userError
       s!"Assumed or unchecked foreign dependencies remain:\n{String.intercalate "\n" assumedSites}")
 
+private def ensureNoAxiomatizedPrimitives (specs : List CompilationModel) : IO Unit := do
+  let primitiveSites := emitAxiomatizedPrimitiveUsageSiteLines specs
+  if !primitiveSites.isEmpty then
+    throw (IO.userError
+      s!"Axiomatized primitives remain:\n{String.intercalate "\n" primitiveSites}")
+
 private def ensureNoLinearMemoryMechanics (specs : List CompilationModel) : IO Unit := do
   let linearMemorySites := emitLinearMemoryUsageSiteLines specs
   if !linearMemorySites.isEmpty then
@@ -131,6 +137,7 @@ def compileSpecsWithOptions
     (abiOutDir : Option String)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
+    (denyAxiomatizedPrimitives : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false) : IO Unit := do
@@ -175,6 +182,8 @@ def compileSpecsWithOptions
       if verbose then
         IO.println s!"✓ Wrote trust report: {path}"
   | none => pure ()
+  if denyAxiomatizedPrimitives then
+    ensureNoAxiomatizedPrimitives specs
   if denyLinearMemoryMechanics then
     ensureNoLinearMemoryMechanics specs
   if denyLowLevelMechanics then
@@ -343,6 +352,7 @@ unsafe def compileModulesWithOptions
     (abiOutDir : Option String := none)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
+    (denyAxiomatizedPrimitives : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false) : IO Unit := do
@@ -352,5 +362,5 @@ unsafe def compileModulesWithOptions
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
-    denyUncheckedDependencies denyAssumedDependencies denyLinearMemoryMechanics
+    denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLinearMemoryMechanics
     denyLowLevelMechanics denyRuntimeIntrospection

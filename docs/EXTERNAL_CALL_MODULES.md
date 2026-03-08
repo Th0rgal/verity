@@ -208,7 +208,10 @@ failure now cites the exact constructor/function usage site that introduced the
 unchecked dependency. For proof-strict runs that require fully proved foreign
 surfaces, `verity-compiler --deny-assumed-dependencies` fails closed on both
 `assumed` and `unchecked` linked externals / ECM modules and localizes the
-diagnostic to the exact usage site. For memory-proof-strict runs,
+diagnostic to the exact usage site. For primitive-proof-strict runs,
+`verity-compiler --deny-axiomatized-primitives` fails closed when any selected
+contract still uses axiomatized primitives such as `keccak256`, again citing
+the exact constructor/function usage site. For memory-proof-strict runs,
 `verity-compiler --deny-linear-memory-mechanics` fails closed when any selected
 contract still uses partially modeled linear-memory mechanics, again citing the
 exact constructor/function usage site. For low-level-proof-strict runs,

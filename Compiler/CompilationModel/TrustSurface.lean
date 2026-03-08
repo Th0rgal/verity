@@ -931,6 +931,22 @@ def emitRuntimeIntrospectionUsageSiteLines (specs : List CompilationModel) : Lis
       acc ++ siteLines)
     []
 
+/-- Render localized axiomatized-primitive lines for proof-strict diagnostics. -/
+def emitAxiomatizedPrimitiveUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.primitives.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " site.primitives}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- Render localized low-level-mechanics lines for fail-closed diagnostics. -/
 def emitLowLevelMechanicsUsageSiteLines (specs : List CompilationModel) : List String :=
   specs.foldl

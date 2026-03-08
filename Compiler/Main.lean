@@ -29,6 +29,7 @@ private structure CLIArgs where
   trustReportPath : Option String := none
   denyUncheckedDependencies : Bool := false
   denyAssumedDependencies : Bool := false
+  denyAxiomatizedPrimitives : Bool := false
   denyLinearMemoryMechanics : Bool := false
   denyLowLevelMechanics : Bool := false
   denyRuntimeIntrospection : Bool := false
@@ -88,6 +89,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
         IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
         IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
+        IO.println "  --deny-axiomatized-primitives  Fail if any contract uses axiomatized primitives"
         IO.println "  --deny-linear-memory-mechanics  Fail if any contract uses partially modeled linear-memory mechanics"
         IO.println "  --deny-low-level-mechanics    Fail if any contract uses first-class low-level call / returndata mechanics"
         IO.println "  --deny-runtime-introspection   Fail if any contract uses partially modeled runtime-introspection primitives"
@@ -182,6 +184,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with denyUncheckedDependencies := true }
     | "--deny-assumed-dependencies" :: rest =>
         go rest { cfg with denyAssumedDependencies := true }
+    | "--deny-axiomatized-primitives" :: rest =>
+        go rest { cfg with denyAxiomatizedPrimitives := true }
     | "--deny-linear-memory-mechanics" :: rest =>
         go rest { cfg with denyLinearMemoryMechanics := true }
     | "--deny-low-level-mechanics" :: rest =>
@@ -255,6 +259,8 @@ unsafe def main (args : List String) : IO Unit := do
         IO.println "Runtime introspection: denied"
       if cfg.denyAssumedDependencies then
         IO.println "Assumed dependencies: denied"
+      if cfg.denyAxiomatizedPrimitives then
+        IO.println "Axiomatized primitives: denied"
       if cfg.denyUncheckedDependencies then
         IO.println "Unchecked dependencies: denied"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
@@ -287,7 +293,8 @@ unsafe def main (args : List String) : IO Unit := do
     compileModulesWithOptions
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
       cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
-      cfg.denyLinearMemoryMechanics cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection
+      cfg.denyAxiomatizedPrimitives cfg.denyLinearMemoryMechanics
+      cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

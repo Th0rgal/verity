@@ -84,6 +84,15 @@ unsafe def runTests : IO Unit := do
   main (["--module", "Contracts.Counter.Counter", "--deny-assumed-dependencies", "--output", proofStrictOutDir])
   let proofStrictCounterArtifact ← fileExists s!"{proofStrictOutDir}/Counter.yul"
   expectTrue "strict assumed-dependency gate accepts proved local modules" proofStrictCounterArtifact
+  let primitiveStrictOutDir := s!"/tmp/verity-main-test-{nonce}-primitive-strict-out"
+  IO.FS.createDirAll primitiveStrictOutDir
+  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-axiomatized-primitives", "--output", primitiveStrictOutDir])
+  let primitiveStrictArtifact ← fileExists s!"{primitiveStrictOutDir}/SimpleStorage.yul"
+  expectTrue "strict axiomatized-primitive gate accepts contracts without axiomatized primitives" primitiveStrictArtifact
+  expectErrorContains
+    "strict axiomatized-primitive gate rejects axiomatized primitives"
+    ["--module", "Contracts.Counter.Counter", "--deny-axiomatized-primitives", "--output", s!"/tmp/verity-main-test-{nonce}-primitive-fail-out"]
+    "Counter [function:previewEnvOps]: keccak256"
   let memoryStrictOutDir := s!"/tmp/verity-main-test-{nonce}-memory-strict-out"
   IO.FS.createDirAll memoryStrictOutDir
   main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-linear-memory-mechanics", "--output", memoryStrictOutDir])

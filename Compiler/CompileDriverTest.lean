@@ -255,6 +255,23 @@ private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def primitiveOnlyTrustSurfaceSpec : CompilationModel := {
+  name := "PrimitiveOnlyTrustSurface"
+  fields := [{ name := "digest", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "exercisePrimitive"
+      params := []
+      returnType := none
+      body := [
+        Stmt.letVar "digest" (Expr.keccak256 (Expr.literal 0) (Expr.literal 64)),
+        Stmt.setStorage "digest" (Expr.localVar "digest"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def lowLevelOnlyTrustSurfaceSpec : CompilationModel := {
   name := "LowLevelOnlyTrustSurface"
   fields := []
@@ -1002,6 +1019,12 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ verbose trust report localizes partially modeled runtime-introspection primitives")
   IO.println "✓ trust report surfaces partially modeled runtime-introspection primitives"
 
+  let axiomatizedPrimitiveUsageSiteLines := emitAxiomatizedPrimitiveUsageSiteLines [trustSurfaceSpec]
+  let axiomatizedPrimitiveUsageSiteReport := String.intercalate "\n" axiomatizedPrimitiveUsageSiteLines
+  if !contains axiomatizedPrimitiveUsageSiteReport "- TrustSurfaceSmoke [function:exercise]: keccak256" then
+    throw (IO.userError "✗ axiomatized-primitive diagnostics localize usage sites")
+  IO.println "✓ axiomatized-primitive diagnostics localize usage sites"
+
   let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
   if !contains uncheckedTrustReport "\"hasUncheckedDependencies\":true" then
     throw (IO.userError "✗ trust report flags unchecked dependencies")
@@ -1213,7 +1236,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
     (compileSpecsWithOptions
-      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false true false)
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false false true false)
     "Low-level mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: call, staticcall, delegatecall, returndataCopy, returndataSize"
   let deniedLowLevelTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedLowLevelTrustReportWritten then
@@ -1222,7 +1245,7 @@ unsafe def runTests : IO Unit := do
 
   let denyLowLevelMemoryOutDir := s!"/tmp/compile-driver-deny-low-level-memory-ok-{nonce}"
   compileSpecsWithOptions
-    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false true false
+    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false false true false
   let denyLowLevelMemoryArtifactWritten ← fileExists s!"{denyLowLevelMemoryOutDir}/MemoryOnlyTrustSurface.yul"
   if !denyLowLevelMemoryArtifactWritten then
     throw (IO.userError "✗ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate")
@@ -1231,7 +1254,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
-      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false)
+      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false false false)
     "Unchecked foreign dependencies remain:\n- ConstructorOnlyEcmTrustSurface [constructor:constructor]: unchecked ECM modules: ctorHook"
   let deniedTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedTrustReportWritten then
@@ -1242,18 +1265,29 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
     (compileSpecsWithOptions
-      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false)
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false false)
     "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
   let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
   if !deniedAssumedTrustReportWritten then
     throw (IO.userError "✗ denied assumed-dependency compile still writes trust report file")
   IO.println "✓ denied assumed-dependency compile still writes trust report file"
 
+  let deniedPrimitiveTrustReportPath := s!"{trustReportDir}/trust-report-denied-primitives.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects axiomatized primitives when deny flag enabled"
+    (compileSpecsWithOptions
+      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none false false true false false false)
+    "Axiomatized primitives remain:\n- PrimitiveOnlyTrustSurface [function:exercisePrimitive]: keccak256"
+  let deniedPrimitiveTrustReportWritten ← fileExists deniedPrimitiveTrustReportPath
+  if !deniedPrimitiveTrustReportWritten then
+    throw (IO.userError "✗ denied axiomatized-primitive compile still writes trust report file")
+  IO.println "✓ denied axiomatized-primitive compile still writes trust report file"
+
   let deniedLinearMemoryTrustReportPath := s!"{trustReportDir}/trust-report-denied-linear-memory.json"
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled linear memory when deny flag enabled"
     (compileSpecsWithOptions
-      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false true false false)
+      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false false true false false)
     "Partially modeled linear-memory mechanics remain:\n- MemoryTrustSurface [function:exerciseMemory]: mstore, calldatacopy, returndataCopy, mload"
   let deniedLinearMemoryTrustReportWritten ← fileExists deniedLinearMemoryTrustReportPath
   if !deniedLinearMemoryTrustReportWritten then
@@ -1264,7 +1298,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled runtime introspection when deny flag enabled"
     (compileSpecsWithOptions
-      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false true)
+      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false false true)
     "Partially modeled runtime-introspection mechanics remain:\n- RuntimeIntrospectionTrustSurface [function:exerciseRuntime]: blockNumber, contractAddress, chainid"
   let deniedRuntimeIntrospectionTrustReportWritten ← fileExists deniedRuntimeIntrospectionTrustReportPath
   if !deniedRuntimeIntrospectionTrustReportWritten then
