@@ -53,4 +53,14 @@ def eventIsDynamicType := isDynamicParamType
 
 def eventHeadWordSize := paramHeadSize
 
+/-- Whether a parameter type is ABI-encoded as exactly one 32-byte word without
+needing offset-based dynamic handling. -/
+def isSingleWordStaticParamType (ty : ParamType) : Bool :=
+  !isDynamicParamType ty && paramHeadSize ty == 32
+
+/-- Dynamic array parameters whose elements can be copied/read word-for-word. -/
+def isWordArrayParam : ParamType → Bool
+  | ParamType.array elemTy => isSingleWordStaticParamType elemTy
+  | _ => false
+
 end Compiler.CompilationModel

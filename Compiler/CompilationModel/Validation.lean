@@ -36,10 +36,11 @@ def validateStmtParamReferences (fnName : String) (params : List Param) :
     Stmt → Except String Unit
   | Stmt.returnArray name =>
       match findParamType params name with
-      | some (ParamType.array _) =>
-          pure ()
       | some ty =>
-          throw s!"Compilation error: function '{fnName}' returnArray '{name}' requires array parameter, got {repr ty}"
+          if isWordArrayParam ty then
+            pure ()
+          else
+            throw s!"Compilation error: function '{fnName}' returnArray '{name}' requires an array parameter with single-word static elements, got {repr ty}"
       | none =>
           throw s!"Compilation error: function '{fnName}' returnArray references unknown parameter '{name}'"
   | Stmt.returnBytes name =>
@@ -99,13 +100,20 @@ def validateReturnShapesInStmt (fnName : String) (params : List Param)
         throw s!"Compilation error: function '{fnName}' returnValues count mismatch: expected {expectedReturns.length}, got {values.length}"
       else
         pure ()
-  | Stmt.returnArray _ =>
+  | Stmt.returnArray name =>
       if isInternal then
         throw s!"Compilation error: internal function '{fnName}' cannot use Stmt.returnArray; only static returns via Stmt.return/Stmt.returnValues are supported ({issue625Ref})."
-      else if expectedReturns == [ParamType.array ParamType.uint256] then
-        pure ()
       else
-        throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray but declared returns are {repr expectedReturns}"
+        match findParamType params name with
+        | some ty =>
+            if !isWordArrayParam ty then
+              throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray with parameter '{name}' of type {repr ty}; only arrays with single-word static elements are currently supported"
+            else if expectedReturns == [ty] then
+              pure ()
+            else
+              throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray to return parameter '{name}' of type {repr ty}, but declared returns are {repr expectedReturns}"
+        | none =>
+            throw s!"Compilation error: function '{fnName}' returnArray references unknown parameter '{name}'"
   | Stmt.returnBytes name =>
       if isInternal then
         throw s!"Compilation error: internal function '{fnName}' cannot use Stmt.returnBytes; only static returns via Stmt.return/Stmt.returnValues are supported ({issue625Ref})."

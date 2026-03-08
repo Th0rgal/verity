@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.Types
+import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.LogicalPurity
 import Compiler.CompilationModel.EcmAxiomCollection
@@ -109,7 +110,11 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayLength"
   | Expr.arrayElement name index => do
       match findParamType params name with
-      | some (ParamType.array _) => pure ()
+      | some ty@(ParamType.array elemTy) =>
+          if isSingleWordStaticParamType elemTy then
+            pure ()
+          else
+            throw s!"Compilation error: {context} Expr.arrayElement '{name}' requires an array with single-word static elements, got {repr ty}"
       | some ty =>
           throw s!"Compilation error: {context} Expr.arrayElement '{name}' requires array parameter, got {repr ty}"
       | none =>
