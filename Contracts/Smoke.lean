@@ -370,6 +370,19 @@ verity_contract ExternalCallUnsupportedType where
 end ExternalCallUnsupportedType
 
 /--
+error: linked external 'fanout' currently supports at most one return value; statement-style external bindings are not exposed from verity_contract yet
+-/
+#guard_msgs in
+verity_contract ExternalCallUnsupportedMultiReturn where
+  storage
+  linked_externals
+    external fanout(Uint256) -> (Uint256, Address)
+
+  function noop () : Unit := do
+    pure ()
+end ExternalCallUnsupportedMultiReturn
+
+/--
 error: field 'approvals' is a nested struct mapping; use structMember2/setStructMember2
 -/
 #guard_msgs in

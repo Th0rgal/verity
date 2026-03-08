@@ -2027,6 +2027,9 @@ def validateExternalDeclsPublic
     if seenNames.contains ext.name then
       throwErrorAt ext.ident
         s!"duplicate external declaration '{ext.name}'"
+    if ext.returnTys.size > 1 then
+      throwErrorAt ext.ident
+        s!"linked external '{ext.name}' currently supports at most one return value; statement-style external bindings are not exposed from verity_contract yet"
     for paramTy in ext.params do
       validateExternalExecutableType ext.ident ext.name paramTy "parameter"
     for returnTy in ext.returnTys do
