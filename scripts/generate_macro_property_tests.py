@@ -296,6 +296,16 @@ def _sol_type(lean_ty: str) -> str:
     raise ValueError(f"unsupported Lean type for Solidity signature mapping: {ty!r}")
 
 
+def _sol_tuple_value_type(lean_ty: str) -> str:
+    ty = _normalize_type(lean_ty)
+    if ty.startswith("Tuple [") and ty.endswith("]"):
+        inner = ty[len("Tuple [") : -1]
+        elems = _parse_tuple_elements(inner)
+        sol_elems = ", ".join(_sol_type(e) for e in elems)
+        return f"({sol_elems})"
+    raise ValueError(f"unsupported Lean tuple type for Solidity tuple value mapping: {ty!r}")
+
+
 def _example_value(lean_ty: str) -> str:
     ty = _normalize_type(lean_ty)
     if ty == "Uint256":
@@ -326,7 +336,8 @@ def _example_value(lean_ty: str) -> str:
         inner = ty[len("Tuple [") : -1]
         elems = _parse_tuple_elements(inner)
         elem_vals = ", ".join(_example_value(e) for e in elems)
-        return f"abi.encode({elem_vals})"
+        tuple_ty = _sol_tuple_value_type(ty)
+        return f"abi.decode(abi.encode({elem_vals}), {tuple_ty})"
     raise ValueError(f"unsupported Lean type for generated example value: {ty!r}")
 
 

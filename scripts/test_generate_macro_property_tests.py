@@ -278,7 +278,16 @@ class RenderTests(unittest.TestCase):
         )
         rendered = gen.render_contract_test(contract)
         self.assertIn('"submit((address,address,uint256))"', rendered)
-        self.assertIn("abi.encode(alice, alice, uint256(1))", rendered)
+        self.assertIn(
+            "abi.decode(abi.encode(alice, alice, uint256(1)), (address, address, uint256))",
+            rendered,
+        )
+
+    def test_example_value_tuple_uses_tuple_typed_expression(self) -> None:
+        self.assertEqual(
+            gen._example_value("Tuple [Uint8, Bytes32, Bytes32]"),
+            "abi.decode(abi.encode(uint8(27), bytes32(uint256(0xBEEF)), bytes32(uint256(0xBEEF))), (uint8, bytes32, bytes32))",
+        )
 
     def test_render_tuple_return_shape_assertion(self) -> None:
         contract = gen.ContractDecl(

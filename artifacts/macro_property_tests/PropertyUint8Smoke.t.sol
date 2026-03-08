@@ -20,7 +20,7 @@ contract PropertyUint8SmokeTest is YulTestBase {
     // Property 1: acceptSig has no unexpected revert
     function testAuto_AcceptSig_NoUnexpectedRevert() public {
         vm.prank(alice);
-        (bool ok,) = target.call(abi.encodeWithSignature("acceptSig((uint8,bytes32,bytes32))", abi.encode(uint8(27), bytes32(uint256(0xBEEF)), bytes32(uint256(0xBEEF)))));
+        (bool ok,) = target.call(abi.encodeWithSignature("acceptSig((uint8,bytes32,bytes32))", abi.decode(abi.encode(uint8(27), bytes32(uint256(0xBEEF)), bytes32(uint256(0xBEEF))), (uint8, bytes32, bytes32))));
         require(ok, "acceptSig reverted unexpectedly");
     }
     // Property 2: sigV returns the declared constant result

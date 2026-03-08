@@ -20,7 +20,7 @@ contract PropertyTupleSmokeTest is YulTestBase {
     // Property 1: setFromPair has no unexpected revert
     function testAuto_SetFromPair_NoUnexpectedRevert() public {
         vm.prank(alice);
-        (bool ok,) = target.call(abi.encodeWithSignature("setFromPair((uint256,uint256))", abi.encode(uint256(1), uint256(1))));
+        (bool ok,) = target.call(abi.encodeWithSignature("setFromPair((uint256,uint256))", abi.decode(abi.encode(uint256(1), uint256(1)), (uint256, uint256))));
         require(ok, "setFromPair reverted unexpectedly");
     }
     // Property 2: TODO decode and assert `getPair` result
@@ -35,7 +35,7 @@ contract PropertyTupleSmokeTest is YulTestBase {
     // Property 3: processConfig has no unexpected revert
     function testAuto_ProcessConfig_NoUnexpectedRevert() public {
         vm.prank(alice);
-        (bool ok,) = target.call(abi.encodeWithSignature("processConfig((address,address,uint256))", abi.encode(alice, alice, uint256(1))));
+        (bool ok,) = target.call(abi.encodeWithSignature("processConfig((address,address,uint256))", abi.decode(abi.encode(alice, alice, uint256(1)), (address, address, uint256))));
         require(ok, "processConfig reverted unexpectedly");
     }
 }
