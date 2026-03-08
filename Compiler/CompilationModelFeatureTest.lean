@@ -359,6 +359,47 @@ example : failWithModelUsesDeclaredCustomError = true := by native_decide
 
 end MacroStatelessSectionsSmoke
 
+namespace MacroPayableConstructorSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroNonPayableConstructor where
+  storage
+    owner : Address := slot 0
+
+  constructor (seedOwner : Address) := do
+    setStorageAddr owner seedOwner
+
+  function getOwner () : Address := do
+    let currentOwner ← getStorageAddr owner
+    return currentOwner
+
+verity_contract MacroPayableConstructor where
+  storage
+    owner : Address := slot 0
+
+  constructor (seedOwner : Address) payable := do
+    setStorageAddr owner seedOwner
+
+  function getOwner () : Address := do
+    let currentOwner ← getStorageAddr owner
+    return currentOwner
+
+def specMarksConstructorPayable : Bool :=
+  match MacroPayableConstructor.spec.constructor with
+  | some ctor =>
+      ctor.isPayable &&
+      match ctor.params with
+      | [{ name := "seedOwner", ty := ParamType.address }] => true
+      | _ => false
+  | none => false
+
+example : specMarksConstructorPayable = true := by native_decide
+
+end MacroPayableConstructorSmoke
+
 namespace MacroStructDestructuringSmoke
 
 open Contracts
@@ -541,6 +582,20 @@ private def contains (haystack needle : String) : Bool :=
         else go cs
     go h
 
+private def countOccurrences (haystack needle : String) : Nat :=
+  let h := haystack.toList
+  let n := needle.toList
+  if n.isEmpty then 0
+  else
+    let rec go : List Char → Nat
+      | [] => 0
+      | c :: cs =>
+        if (c :: cs).take n.length == n then
+          1 + go cs
+        else
+          go cs
+    go h
+
 private def selectorCount (spec : CompilationModel) : Nat :=
   (spec.functions.filter (fun fn => !fn.isInternal && fn.name != "fallback" && fn.name != "receive")).length
 
@@ -558,6 +613,11 @@ private def expectCompileErrorContains (label : String)
 private def compileToYul (spec : CompilationModel) : Except String String := do
   let contract ← Compiler.CompilationModel.compile spec (selectorsFor spec)
   pure <| Compiler.Yul.render (Compiler.emitYul contract)
+
+private def expectCompile (label : String) (spec : CompilationModel) : IO Compiler.IRContract := do
+  match Compiler.CompilationModel.compile spec (selectorsFor spec) with
+  | .ok contract => pure contract
+  | .error err => throw (IO.userError s!"✗ {label} compile failed:\n{err}")
 
 private def expectCompileToYul (label : String) (spec : CompilationModel) : IO String := do
   match compileToYul spec with
@@ -1276,6 +1336,7 @@ private def erc4626DepositSmokeSpec : CompilationModel := {
   ]
 }
 
+set_option maxRecDepth 4096 in
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -1317,6 +1378,27 @@ private def erc4626DepositSmokeSpec : CompilationModel := {
     "reserved compiler prefix is rejected in ECM result binders"
     reservedEcmResultVarSpec
     "local binder '__ecm_result' uses reserved compiler prefix '__'"
+  expectTrue
+    "macro payable constructor preserves constructor isPayable flag"
+    MacroPayableConstructorSmoke.specMarksConstructorPayable
+  let payableCtorAbi := Compiler.ABI.emitContractABIJson MacroPayableConstructorSmoke.MacroPayableConstructor.spec
+  expectTrue "macro payable constructor ABI reports payable state mutability"
+    (contains payableCtorAbi "\"type\": \"constructor\"" &&
+      contains payableCtorAbi "\"stateMutability\": \"payable\"")
+  let payableCtorContract ← expectCompile
+    "macro payable constructor compiles"
+    MacroPayableConstructorSmoke.MacroPayableConstructor.spec
+  expectTrue "macro payable constructor reaches IR with constructorPayable enabled"
+    payableCtorContract.constructorPayable
+  let nonPayableCtorYul ← expectCompileToYul
+    "macro non-payable constructor compiles to Yul"
+    MacroPayableConstructorSmoke.MacroNonPayableConstructor.spec
+  let payableCtorYul ← expectCompileToYul
+    "macro payable constructor compiles to Yul"
+    MacroPayableConstructorSmoke.MacroPayableConstructor.spec
+  expectTrue "macro payable constructor removes one deploy-time callvalue guard from rendered Yul"
+    (countOccurrences nonPayableCtorYul "callvalue()" ==
+      countOccurrences payableCtorYul "callvalue()" + 1)
   let envRuntimeYul ← expectCompileToYul "env runtime smoke compiles" envRuntimeSmokeSpec
   expectTrue "env runtime smoke lowers block.number" (contains envRuntimeYul "number()")
   let stringCompiled :=

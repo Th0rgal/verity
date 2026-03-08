@@ -73,6 +73,7 @@ structure FunctionDecl where
 
 structure ConstructorDecl where
   params : Array ParamDecl
+  isPayable : Bool := false
   body : Term
 
 private def strTerm (s : String) : Term := ⟨Syntax.mkStrLit s⟩
@@ -309,6 +310,12 @@ private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
 
 private def parseConstructor (stx : Syntax) : CommandElabM ConstructorDecl := do
   match stx with
+  | `(verityConstructor| constructor ($[$params:verityParam],*) payable := $body:term) =>
+      pure {
+        params := ← params.mapM parseParam
+        isPayable := true
+        body := body
+      }
   | `(verityConstructor| constructor ($[$params:verityParam],*) := $body:term) =>
       pure {
         params := ← params.mapM parseParam
@@ -1424,9 +1431,11 @@ private def mkSpecCommand
     | none => `(none)
     | some ctor =>
         let ctorParams ← mkModelParamsTerm ctor.params
+        let ctorPayable ← if ctor.isPayable then `(true) else `(false)
         let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields ctor
         `(some {
           params := $ctorParams
+          isPayable := $ctorPayable
           body := [ $[$ctorBodyTerms],* ]
         })
   let functionModelIds ← functions.mapM fun fn => mkSuffixedIdent fn.ident "_model"

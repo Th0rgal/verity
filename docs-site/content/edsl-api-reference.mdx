@@ -337,6 +337,23 @@ verity_contract Stateless where
 
 This keeps the macro surface usable for helper-style and interface-shaped contracts without forcing a dummy storage slot. The generated `CompilationModel.fields` list is empty, ABI generation still works normally, and selectors remain computed from the external functions exactly as before.
 
+Constructors can also be marked payable directly in the macro surface:
+
+```lean
+verity_contract PayableInit where
+  storage
+    owner : Address := slot 0
+
+  constructor (seedOwner : Address) payable := do
+    setStorageAddr owner seedOwner
+
+  function getOwner () : Address := do
+    let currentOwner ← getStorageAddr owner
+    return currentOwner
+```
+
+This sets `spec.constructor.isPayable := true`, emits constructor ABI `stateMutability: "payable"`, and removes the deploy-time `callvalue` guard from generated Yul.
+
 ## Dynamic Array Surface
 
 Dynamic array parameters can be consumed directly from `verity_contract` bodies using the same helper names that lower into the compilation model:
