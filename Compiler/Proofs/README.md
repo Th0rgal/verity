@@ -10,8 +10,12 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
 - **Layer 1: EDSL ≡ CompilationModel**. Contract-specific proofs live in
   `Contracts/<Name>/Proofs/`, with generic typed-IR compilation correctness in
   `Compiler/TypedIRCompilerCorrectness.lean`.
-- **Layer 2: CompilationModel -> IR**. The IR generation proof surface lives in
-  `Compiler/Proofs/IRGeneration/`.
+- **Layer 2: CompilationModel -> IR**. The current proof surface is split:
+  a generic supported-statement-fragment theorem lives in
+  `Compiler/TypedIRCompilerCorrectness.lean` and
+  `Compiler/Proofs/IRGeneration/SupportedFragment.lean`, while full-contract
+  EDSL/CompilationModel-to-IR bridges still rely on contract-specific theorems
+  in `Contracts/Proofs/SemanticBridge.lean`.
 - **Layer 3: IR -> Yul**. Yul semantics, equivalence, and preservation proofs
   live in `Compiler/Proofs/YulGeneration/`.
 
@@ -19,12 +23,14 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
 
 - `Compiler/Proofs/SemanticBridge.lean`: contract-level bridge theorems that
   connect EDSL executions to compiled IR/Yul executions for supported
-  contracts.
+  contracts. This is still the active full-contract Layer 2 bridge surface.
 - `Compiler/Proofs/EndToEnd.lean`: composed Layers 2 and 3 theorem spine,
   showing compiled IR execution matches Yul execution.
 - `Compiler/Proofs/IRGeneration/Expr.lean` and
   `Compiler/Proofs/IRGeneration/IRInterpreter.lean`: Layer 2 semantics and
   interpreter lemmas for the compilation-model path.
+- `Compiler/Proofs/IRGeneration/SupportedFragment.lean`: exposes the current
+  generic Layer 2 theorem for the explicit `SupportedStmtList` fragment.
 - `Compiler/Proofs/YulGeneration/`: Layer 3 semantics, statement equivalence,
   codegen preservation, builtin modeling, and patch-rule proofs.
 - `Compiler/Proofs/MappingSlot.lean` and
@@ -32,7 +38,40 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   layout invariants and arithmetic/backend alignment.
 
 The current compiler path consumes `CompilationModel` values directly. There is
-no separate verified EDSL-lowering boundary module in the active pipeline.
+no separate verified EDSL-lowering boundary module in the active pipeline, and
+there is not yet a single generic theorem saying `CompilationModel.compile`
+preserves semantics for every supported full contract.
+
+## Current Layer 2 Boundary
+
+What exists today:
+- A structural theorem for raw statement lists admitted by the explicit
+  `SupportedStmtList` witness:
+  `Compiler.compile_supported_stmt_list_direct_semantics`
+- Contract-specific bridge theorems in
+  `Contracts/Proofs/SemanticBridge.lean` that instantiate the current
+  compiler/interpreter machinery for specific contracts
+- Generic Layer 3 preservation from IR to Yul
+
+What does not exist yet:
+- A compiler-level theorem quantified over an arbitrary supported
+  `CompilationModel` and the successful result of `CompilationModel.compile`
+- A generic dispatch/function-body/whole-contract Layer 2 preservation proof
+  that removes the contract-specific `hpost` premise used by
+  `spec_to_ir_preserves_semantics`
+
+Current supported-fragment scope for the generic theorem:
+- Included: statement lists that can be witnessed by `SupportedStmtList`
+- Outside the current generic theorem: full contract dispatch, constructor
+  lowering, mappings as contract-wide compilation targets, events/logs,
+  external or linked functionality, and other features that still require
+  contract-specific bridge work
+
+Negative boundary example:
+- A contract whose proof depends on entrypoint selection plus linked external
+  assumptions is outside `SupportedStmtList` and still needs a contract-level
+  bridge theorem today. `Contracts/Proofs/SemanticBridge.lean` remains the
+  place where those full-contract bridges are instantiated.
 
 Internal helper calls are part of the supported `CompilationModel` execution
 surface, but the proof library does not yet provide a first-class

@@ -8,7 +8,7 @@ Verity implements a **three-layer verification stack** proving smart contracts c
 EDSL contracts (Lean)
     ↓ Layer 1: EDSL ≡ CompilationModel [PROVEN]
 CompilationModel (declarative compiler-facing model)
-    ↓ Layer 2: CompilationModel → IR [PROVEN]
+    ↓ Layer 2: CompilationModel → IR [PARTIAL GENERIC, CONTRACT BRIDGES ACTIVE]
 Intermediate Representation (IR)
     ↓ Layer 3: IR → Yul [PROVEN, 1 axiom]
 Yul (EVM Assembly)
@@ -52,21 +52,43 @@ theorems for supported EDSL contracts, covering:
 - Explicit revert-path bridges for owner-gated and arithmetic failure paths
 - Composition with the compiled IR/Yul semantics used by the proof pipeline
 
-## Layer 2: CompilationModel → IR — COMPLETE
+## Layer 2: CompilationModel → IR — PARTIAL GENERIC
 
-**What it proves**: IR generation preserves CompilationModel semantics.
+**What is generic today**: the repository has a structural theorem for raw
+statement lists inside the explicit `SupportedStmtList` fragment witness in
+[`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean),
+re-exported for the compiler-proof layer in
+[`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean).
+
+**What is not generic yet**: there is not yet a single compiler-level theorem
+quantified over arbitrary supported `CompilationModel` programs and successful
+`CompilationModel.compile` output. Full-contract Layer 2 reasoning still
+depends on contract-specific bridge theorems in
+[`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean).
+
+**Current boundary**:
+- Generic: supported statement-list compilation
+- Contract-specific: full entrypoint dispatch, constructor behavior, and the
+  final bridge from contract execution to compiled IR for the current contract set
+- Outside the current generic theorem: events/logs, external or linked
+  functionality, and other full-contract features that are not captured by the
+  `SupportedStmtList` witness alone
 
 | Contract | IR Functions | Status |
 |----------|-------------|--------|
-| SimpleStorage | 2 | Proven |
-| Counter | 3 | Proven |
-| SafeCounter | 3 | Proven |
-| Owned | 3 | Proven |
-| OwnedCounter | 5 | Proven |
-| Ledger | 4 | Proven |
-| SimpleToken | 6 | Proven |
+| SimpleStorage | 2 | Contract bridge proven |
+| Counter | 3 | Contract bridge proven |
+| SafeCounter | 3 | Contract bridge proven |
+| Owned | 3 | Contract bridge proven |
+| OwnedCounter | 5 | Contract bridge proven |
+| Ledger | 4 | Contract bridge proven |
+| SimpleToken | 6 | Contract bridge proven |
 
-Key files: [`IRInterpreter.lean`](../Compiler/Proofs/IRGeneration/IRInterpreter.lean), [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
+Key files:
+- [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)
+- [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)
+- [`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
+- [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
 
 ## Layer 3: IR → Yul — COMPLETE
 
