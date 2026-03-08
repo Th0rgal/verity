@@ -186,6 +186,8 @@ emits per-contract JSON that includes:
 - ECM assumption entries (`module`, `assumption`) plus per-module `status`
 - explicit `proofStatus.proved` / `proofStatus.assumed` / `proofStatus.unchecked`
   buckets for foreign trust surfaces
+- `usageSites` entries that localize those mechanics and assumptions to the
+  constructor or individual function that introduced them
 - `hasUncheckedDependencies` so CI/reporting layers can fail or warn on
   contracts that are not eligible for full-verification claims
 
