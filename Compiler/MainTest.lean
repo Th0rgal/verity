@@ -1,6 +1,8 @@
 import Contracts
 import Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke
 import Contracts.LocalObligationTrustSurface
+import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
+import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.RawLogTrustSurface
 import Compiler.Main
@@ -40,6 +42,7 @@ private def moduleArgs (modules : List String) : List String :=
 private def contractArtifactPath (outDir : String) (moduleName : String) : String :=
   s!"{outDir}/{contractNameOfModule moduleName}.yul"
 
+set_option maxRecDepth 100000 in
 unsafe def runTests : IO Unit := do
   expectErrorContains "missing --link value" ["--link"] "Missing value for --link"
   expectErrorContains "missing --output value" ["--output"] "Missing value for --output"
@@ -225,6 +228,28 @@ unsafe def runTests : IO Unit := do
   expectTrue "macro proxy layout report keeps empty alias policies explicit"
     ((contains proxyMacroLayoutReport "\"reservedSlotRanges\":[]") &&
       (contains proxyMacroLayoutReport "\"slotAliasRanges\":[]"))
+  let proxyLayoutCompatReportPath := s!"/tmp/verity-main-test-{nonce}-proxy-layout-compat-report.json"
+  let proxyLayoutCompatOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-layout-compat-out"
+  IO.FS.createDirAll proxyLayoutCompatOutDir
+  main
+    [ "--module", "Contracts.ProxyUpgradeabilityMacroSmoke"
+    , "--module", "Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke"
+    , "--layout-compat-report", proxyLayoutCompatReportPath
+    , "--output", proxyLayoutCompatOutDir
+    ]
+  let proxyLayoutCompatReport ← IO.FS.readFile proxyLayoutCompatReportPath
+  expectTrue "proxy layout compatibility report accepts preserved baseline slots"
+    (contains proxyLayoutCompatReport "\"compatible\":true")
+  expectTrue "proxy layout compatibility report surfaces trailing added field"
+    (contains proxyLayoutCompatReport "\"addedFields\":[\"pendingImplementation\"]")
+  expectErrorContains
+    "strict layout-compatibility gate rejects proxy slot drift"
+    [ "--module", "Contracts.ProxyUpgradeabilityMacroSmoke"
+    , "--module", "Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke"
+    , "--deny-layout-incompatibility"
+    , "--output", s!"/tmp/verity-main-test-{nonce}-proxy-layout-compat-fail-out"
+    ]
+    "field 'admin' moved slots: 1 -> 2"
   let nonSelectedArtifactFlags ←
     (canonicalModules.filter (· != "Contracts.Counter.Counter")).mapM
       (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))
@@ -234,6 +259,7 @@ unsafe def runTests : IO Unit := do
   expectErrorContains "missing --patch-report value" ["--patch-report"] "Missing value for --patch-report"
   expectErrorContains "missing --assumption-report value" ["--assumption-report"] "Missing value for --assumption-report"
   expectErrorContains "missing --layout-report value" ["--layout-report"] "Missing value for --layout-report"
+  expectErrorContains "missing --layout-compat-report value" ["--layout-compat-report"] "Missing value for --layout-compat-report"
   expectErrorContains "missing --patch-max-iterations value" ["--patch-max-iterations"] "Missing value for --patch-max-iterations"
   expectErrorContains "missing --backend-profile value" ["--backend-profile"] "Missing value for --backend-profile"
   expectErrorContains "invalid --backend-profile value" ["--backend-profile", "invalid-profile"] "Invalid value for --backend-profile: invalid-profile"

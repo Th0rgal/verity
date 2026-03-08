@@ -1,6 +1,7 @@
 import Contracts
 import Compiler.CompileDriver
 import Compiler.CompilationModel
+import Compiler.CompilationModel.LayoutCompatibilityReport
 import Compiler.CompilationModel.LayoutReport
 import Compiler.CompilationModel.TrustSurface
 import Compiler.ECM
@@ -107,6 +108,42 @@ where
     { base with
       «slot» := some 7
     }
+
+private def proxyLayoutBaselineSpec : CompilationModel := {
+  name := "ProxyLayoutBaseline"
+  fields := [
+    { name := "initializedVersion", ty := FieldType.uint256, «slot» := some 0 },
+    { name := "admin", ty := FieldType.address, «slot» := some 1 },
+    { name := "implementation", ty := FieldType.address, «slot» := some 2 }
+  ]
+  reservedSlotRanges := [{ start := 10, end_ := 11 }]
+  «constructor» := none
+  functions := []
+}
+
+private def proxyLayoutCompatibleSpec : CompilationModel := {
+  name := "ProxyLayoutCompatible"
+  fields := [
+    { name := "initializedVersion", ty := FieldType.uint256, «slot» := some 0 },
+    { name := "admin", ty := FieldType.address, «slot» := some 1 },
+    { name := "implementation", ty := FieldType.address, «slot» := some 2 },
+    { name := "pendingImplementation", ty := FieldType.address, «slot» := some 10 }
+  ]
+  «constructor» := none
+  functions := []
+}
+
+private def proxyLayoutIncompatibleSpec : CompilationModel := {
+  name := "ProxyLayoutIncompatible"
+  fields := [
+    { name := "initializedVersion", ty := FieldType.uint256, «slot» := some 0 },
+    { name := "pendingImplementation", ty := FieldType.address, «slot» := some 1 },
+    { name := "admin", ty := FieldType.address, «slot» := some 2 },
+    { name := "implementation", ty := FieldType.address, «slot» := some 3 }
+  ]
+  «constructor» := none
+  functions := []
+}
 
 private def stringAbiSmokeSpec : CompilationModel := {
   name := "StringAbiSmoke"
@@ -1123,6 +1160,28 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ layout report emits slot alias ranges")
   IO.println "✓ layout report emits storage-layout metadata for upgrade auditing"
 
+  let layoutCompatibilityReport :=
+    emitLayoutCompatibilityReportJson proxyLayoutBaselineSpec proxyLayoutCompatibleSpec
+  if !contains layoutCompatibilityReport "\"baselineContract\":\"ProxyLayoutBaseline\"" then
+    throw (IO.userError "✗ layout compatibility report emits baseline contract name")
+  if !contains layoutCompatibilityReport "\"candidateContract\":\"ProxyLayoutCompatible\"" then
+    throw (IO.userError "✗ layout compatibility report emits candidate contract name")
+  if !contains layoutCompatibilityReport "\"compatible\":true" then
+    throw (IO.userError "✗ layout compatibility report marks preserved layouts compatible")
+  if !contains layoutCompatibilityReport "\"addedFields\":[\"pendingImplementation\"]" then
+    throw (IO.userError "✗ layout compatibility report emits added fields")
+  if !contains layoutCompatibilityReport "\"reservedSlotConsumption\":[{\"field\":\"pendingImplementation\",\"slots\":[10]}]" then
+    throw (IO.userError "✗ layout compatibility report emits reserved-slot consumption")
+  IO.println "✓ layout compatibility report emits upgrade-layout preservation summary"
+
+  let incompatibleLayoutCompatibilityReport :=
+    emitLayoutCompatibilityReportJson proxyLayoutBaselineSpec proxyLayoutIncompatibleSpec
+  if !contains incompatibleLayoutCompatibilityReport "\"compatible\":false" then
+    throw (IO.userError "✗ incompatible layout report marks slot drift incompatible")
+  if !contains incompatibleLayoutCompatibilityReport "\"field\":\"admin\",\"kind\":\"canonicalSlotChanged\"" then
+    throw (IO.userError "✗ incompatible layout report emits moved baseline fields")
+  IO.println "✓ layout compatibility report emits incompatible slot drift"
+
   let verboseUsageSites := emitVerboseUsageSiteLines [trustSurfaceSpec]
   let verboseUsageSiteReport := String.intercalate "\n" verboseUsageSites
   if !contains verboseUsageSiteReport "TrustSurfaceSmoke [function:exercise]" then
@@ -1467,6 +1526,18 @@ unsafe def runTests : IO Unit := do
     layoutReportPath
     ["\"contract\":\"LayoutReportSmoke\"", "\"writeSlots\":[5,50,100]", "\"writeSlots\":[6,101]"]
 
+  let layoutCompatibilityReportPath := s!"{layoutReportDir}/layout-compat-report.json"
+  compileSpecsWithOptions
+    [proxyLayoutBaselineSpec, proxyLayoutCompatibleSpec] outDir false [] {} none none none none
+    false false false false false false false false false none (some layoutCompatibilityReportPath)
+  let writtenLayoutCompatibilityReport ← fileExists layoutCompatibilityReportPath
+  if !writtenLayoutCompatibilityReport then
+    throw (IO.userError "✗ compileSpecsWithOptions writes layout compatibility report file")
+  expectFileContains
+    "compileSpecsWithOptions layout compatibility report includes compatible outcome"
+    layoutCompatibilityReportPath
+    ["\"compatible\":true", "\"addedFields\":[\"pendingImplementation\"]"]
+
   let deniedTrustReportPath := s!"{trustReportDir}/trust-report-denied.json"
   expectFailureContains
     "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
@@ -1513,6 +1584,18 @@ unsafe def runTests : IO Unit := do
   if !deniedTrustReportWritten then
     throw (IO.userError "✗ denied unchecked-dependency compile still writes trust report file")
   IO.println "✓ denied unchecked-dependency compile still writes trust report file"
+
+  let deniedLayoutCompatibilityReportPath := s!"{layoutReportDir}/layout-compat-denied.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects layout-incompatible upgrades when deny flag enabled"
+    (compileSpecsWithOptions
+      [proxyLayoutBaselineSpec, proxyLayoutIncompatibleSpec] outDir false [] {} none none none none
+      false false false false false false false false false none (some deniedLayoutCompatibilityReportPath) true)
+    "Layout incompatibilities remain:\n- field 'admin' moved slots: 1 -> 2"
+  let deniedLayoutCompatibilityReportWritten ← fileExists deniedLayoutCompatibilityReportPath
+  if !deniedLayoutCompatibilityReportWritten then
+    throw (IO.userError "✗ denied layout-compatibility compile still writes report file")
+  IO.println "✓ denied layout-compatibility compile still writes report file"
 
   let deniedAssumedTrustReportPath := s!"{trustReportDir}/trust-report-denied-assumed.json"
   expectFailureContains

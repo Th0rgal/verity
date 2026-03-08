@@ -5,6 +5,7 @@ import Compiler.Yul.PrettyPrint
 import Compiler.Linker
 import Compiler.ABI
 import Compiler.ModuleInput
+import Compiler.CompilationModel.LayoutCompatibilityReport
 import Compiler.CompilationModel.LayoutReport
 import Compiler.CompilationModel.TrustSurface
 
@@ -63,6 +64,21 @@ private def writeLayoutReport (path : String) (specs : List CompilationModel) : 
   ensureParentDirExists path
   IO.FS.writeFile path (emitLayoutReportJson specs ++ "\n")
 
+private def requireLayoutCompatibilityPair
+    (specs : List CompilationModel) : IO (CompilationModel × CompilationModel) :=
+  match specs with
+  | [baseline, candidate] => pure (baseline, candidate)
+  | _ =>
+      throw (IO.userError
+        "Layout compatibility comparison requires exactly 2 selected contracts (baseline first, candidate second)")
+
+private def writeLayoutCompatibilityReport
+    (path : String)
+    (specs : List CompilationModel) : IO Unit := do
+  let (baseline, candidate) ← requireLayoutCompatibilityPair specs
+  ensureParentDirExists path
+  IO.FS.writeFile path (emitLayoutCompatibilityReportJson baseline candidate ++ "\n")
+
 private def ensureNoUncheckedDependencies (specs : List CompilationModel) : IO Unit := do
   let uncheckedSites := emitUncheckedUsageSiteLines specs
   if !uncheckedSites.isEmpty then
@@ -116,6 +132,13 @@ private def ensureNoLowLevelMechanics (specs : List CompilationModel) : IO Unit 
   if !lowLevelSites.isEmpty then
     throw (IO.userError
       s!"Low-level mechanics remain:\n{String.intercalate "\n" lowLevelSites}")
+
+private def ensureLayoutCompatible (specs : List CompilationModel) : IO Unit := do
+  let (baseline, candidate) ← requireLayoutCompatibilityPair specs
+  let incompatibilities := emitIncompatibleLayoutChangeLines baseline candidate
+  if !incompatibilities.isEmpty then
+    throw (IO.userError
+      s!"Layout incompatibilities remain:\n{String.intercalate "\n" incompatibilities}")
 
 private def writeContract
     (outDir : String)
@@ -172,7 +195,9 @@ def compileSpecsWithOptions
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false)
     (denyProxyUpgradeability : Bool := false)
-    (layoutReportPath : Option String := none) : IO Unit := do
+    (layoutReportPath : Option String := none)
+    (layoutCompatibilityReportPath : Option String := none)
+    (denyLayoutIncompatibility : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -226,6 +251,12 @@ def compileSpecsWithOptions
       if verbose then
         IO.println s!"✓ Wrote layout report: {path}"
   | none => pure ()
+  match layoutCompatibilityReportPath with
+  | some path =>
+      writeLayoutCompatibilityReport path specs
+      if verbose then
+        IO.println s!"✓ Wrote layout compatibility report: {path}"
+  | none => pure ()
   if denyLocalObligations then
     ensureNoLocalObligations specs
   if denyAxiomatizedPrimitives then
@@ -240,6 +271,8 @@ def compileSpecsWithOptions
     ensureNoRuntimeIntrospection specs
   if denyProxyUpgradeability then
     ensureNoProxyUpgradeability specs
+  if denyLayoutIncompatibility then
+    ensureLayoutCompatible specs
   if denyAssumedDependencies then
     ensureNoAssumedDependencies specs
   if denyUncheckedDependencies then
@@ -462,7 +495,9 @@ unsafe def compileModulesWithOptions
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false)
     (denyProxyUpgradeability : Bool := false)
-    (layoutReportPath : Option String := none) : IO Unit := do
+    (layoutReportPath : Option String := none)
+    (layoutCompatibilityReportPath : Option String := none)
+    (denyLayoutIncompatibility : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
@@ -471,3 +506,4 @@ unsafe def compileModulesWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath
+    layoutCompatibilityReportPath denyLayoutIncompatibility

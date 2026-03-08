@@ -29,6 +29,7 @@ private structure CLIArgs where
   trustReportPath : Option String := none
   assumptionReportPath : Option String := none
   layoutReportPath : Option String := none
+  layoutCompatibilityReportPath : Option String := none
   denyUncheckedDependencies : Bool := false
   denyAssumedDependencies : Bool := false
   denyAxiomatizedPrimitives : Bool := false
@@ -38,6 +39,7 @@ private structure CLIArgs where
   denyLowLevelMechanics : Bool := false
   denyRuntimeIntrospection : Bool := false
   denyProxyUpgradeability : Bool := false
+  denyLayoutIncompatibility : Bool := false
   mappingSlotScratchBase : Nat := 0
   mappingSlotScratchBaseExplicit : Bool := false
 
@@ -94,6 +96,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
         IO.println "  --assumption-report <path>  Write JSON assumption inventory report"
         IO.println "  --layout-report <path>      Write JSON storage-layout report"
+        IO.println "  --layout-compat-report <path>  Compare baseline/candidate layouts and write JSON compatibility report"
         IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
         IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
         IO.println "  --deny-axiomatized-primitives  Fail if any contract uses axiomatized primitives"
@@ -103,6 +106,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --deny-low-level-mechanics    Fail if any contract uses first-class low-level call / returndata mechanics"
         IO.println "  --deny-runtime-introspection   Fail if any contract uses partially modeled runtime-introspection primitives"
         IO.println "  --deny-proxy-upgradeability   Fail if any contract uses `delegatecall`-style proxy / upgradeability mechanics"
+        IO.println "  --deny-layout-incompatibility Fail if the candidate layout moves or mutates baseline storage fields"
         IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)"
         IO.println "  --verbose          Enable verbose output"
         IO.println "  -v                 Short form of --verbose"
@@ -198,6 +202,10 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with layoutReportPath := some path }
     | ["--layout-report"] =>
         throw (IO.userError "Missing value for --layout-report")
+    | "--layout-compat-report" :: path :: rest =>
+        go rest { cfg with layoutCompatibilityReportPath := some path }
+    | ["--layout-compat-report"] =>
+        throw (IO.userError "Missing value for --layout-compat-report")
     | "--deny-unchecked-dependencies" :: rest =>
         go rest { cfg with denyUncheckedDependencies := true }
     | "--deny-assumed-dependencies" :: rest =>
@@ -216,6 +224,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with denyRuntimeIntrospection := true }
     | "--deny-proxy-upgradeability" :: rest =>
         go rest { cfg with denyProxyUpgradeability := true }
+    | "--deny-layout-incompatibility" :: rest =>
+        go rest { cfg with denyLayoutIncompatibility := true }
     | "--mapping-slot-scratch-base" :: raw :: rest =>
         match raw.toNat? with
         | some n => go rest { cfg with mappingSlotScratchBase := n, mappingSlotScratchBaseExplicit := true }
@@ -281,6 +291,9 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.layoutReportPath with
       | some path => IO.println s!"Layout report: {path}"
       | none => pure ()
+      match cfg.layoutCompatibilityReportPath with
+      | some path => IO.println s!"Layout compatibility report: {path}"
+      | none => pure ()
       if cfg.denyLinearMemoryMechanics then
         IO.println "Linear memory mechanics: denied"
       if cfg.denyEventEmission then
@@ -291,6 +304,8 @@ unsafe def main (args : List String) : IO Unit := do
         IO.println "Runtime introspection: denied"
       if cfg.denyProxyUpgradeability then
         IO.println "Proxy / upgradeability: denied"
+      if cfg.denyLayoutIncompatibility then
+        IO.println "Layout incompatibility: denied"
       if cfg.denyAssumedDependencies then
         IO.println "Assumed dependencies: denied"
       if cfg.denyAxiomatizedPrimitives then
@@ -329,6 +344,7 @@ unsafe def main (args : List String) : IO Unit := do
       cfg.assumptionReportPath cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
       cfg.denyAxiomatizedPrimitives cfg.denyLocalObligations cfg.denyLinearMemoryMechanics cfg.denyEventEmission
       cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability cfg.layoutReportPath
+      cfg.layoutCompatibilityReportPath cfg.denyLayoutIncompatibility
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

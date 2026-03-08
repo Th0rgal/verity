@@ -32,3 +32,6 @@ import Compiler.CompilationModel.Validation
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
 import Compiler.CompilationModel.Dispatch
+import Compiler.CompilationModel.LayoutReport
+import Compiler.CompilationModel.LayoutCompatibilityReport
+import Compiler.CompilationModel.TrustSurface
