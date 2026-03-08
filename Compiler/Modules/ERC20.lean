@@ -5,6 +5,8 @@
   - `safeTransfer`:     transfer(address,uint256)       selector 0xa9059cbb
   - `safeTransferFrom`: transferFrom(address,address,uint256) selector 0x23b872dd
   - `safeApprove`:      approve(address,uint256)        selector 0x095ea7b3
+  - `balanceOf`:        balanceOf(address)              selector 0x70a08231
+  - `allowance`:        allowance(address,address)      selector 0xdd62ed3e
 
   All modules handle the ERC-20 optional-bool-return pattern: if the call
   succeeds but returndatasize == 32 and the returned word is zero, the
@@ -23,6 +25,58 @@ namespace Compiler.Modules.ERC20
 open Compiler.Yul
 open Compiler.ECM
 open Compiler.CompilationModel (Stmt Expr)
+
+/-- Shared implementation for read-only ERC-20 calls that return one
+    ABI-encoded `uint256` word. -/
+private def readUint256Module
+    (moduleName : String)
+    (axiomName : String)
+    (resultVar : String)
+    (selector : Nat)
+    (argNames : List String) : ExternalCallModule where
+  name := moduleName
+  numArgs := 1 + argNames.length
+  resultVars := [resultVar]
+  writesState := false
+  readsState := true
+  axioms := [axiomName]
+  compile := fun _ctx args => do
+    let tokenExpr ← match args.head? with
+      | some token => pure token
+      | none => throw s!"{moduleName} expects at least 1 argument (token)"
+    let argExprs := args.drop 1
+    if argExprs.length = argNames.length then
+      let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.lit 0,
+        YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
+      ])
+      let storeArgs := argExprs.zipIdx.map fun (argExpr, idx) =>
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+      let callExpr := YulExpr.call "staticcall" [
+        YulExpr.call "gas" [],
+        tokenExpr,
+        YulExpr.lit 0, YulExpr.lit (4 + argNames.length * 32),
+        YulExpr.lit 0, YulExpr.lit 32
+      ]
+      let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident s!"__{moduleName}_success"]) [
+        YulStmt.let_ s!"__{moduleName}_rds" (YulExpr.call "returndatasize" []),
+        YulStmt.expr (YulExpr.call "returndatacopy" [
+          YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident s!"__{moduleName}_rds"
+        ]),
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident s!"__{moduleName}_rds"])
+      ]
+      let requireSingleWord := YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ]
+      let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
+      pure [YulStmt.block (
+        [storeSelector] ++ storeArgs ++
+        [YulStmt.let_ s!"__{moduleName}_success" callExpr, revertOnFailure, requireSingleWord]
+      ), bindResult]
+    else
+      throw s!"{moduleName} expects {1 + argNames.length} arguments (token, {String.intercalate ", " argNames})"
 
 /-- ERC-20 safeTransfer module.
     Calls `transfer(address to, uint256 amount)` with optional-bool-return handling.
@@ -126,5 +180,43 @@ def safeApproveModule : ExternalCallModule where
 /-- Convenience: create a `Stmt.ecm` for safeApprove. -/
 def safeApprove (token spender amount : Expr) : Stmt :=
   .ecm safeApproveModule [token, spender, amount]
+
+/-- Read-only ERC-20 `balanceOf(address)` module.
+
+    It ABI-encodes the canonical `balanceOf(address)` selector, performs a
+    `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[token, owner]`. -/
+def balanceOfModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "balanceOf"
+    "erc20_balanceOf_interface"
+    resultVar
+    0x70a08231
+    ["owner"]
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `balanceOf(address)` call. -/
+def balanceOf (resultVar : String) (token owner : Expr) : Stmt :=
+  .ecm (balanceOfModule resultVar) [token, owner]
+
+/-- Read-only ERC-20 `allowance(address,address)` module.
+
+    It ABI-encodes the canonical `allowance(address,address)` selector,
+    performs a `staticcall`, forwards revert returndata on failure, requires
+    exactly one 32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[token, owner, spender]`. -/
+def allowanceModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "allowance"
+    "erc20_allowance_interface"
+    resultVar
+    0xdd62ed3e
+    ["owner", "spender"]
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `allowance(address,address)` call. -/
+def allowance (resultVar : String) (token owner spender : Expr) : Stmt :=
+  .ecm (allowanceModule resultVar) [token, owner, spender]
 
 end Compiler.Modules.ERC20

@@ -2,6 +2,7 @@ import Compiler.CompilationModel
 import Compiler.ABI
 import Compiler.Codegen
 import Compiler.Modules.ERC4626
+import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.Yul.PrettyPrint
@@ -500,6 +501,54 @@ private def oracleReadSmokeSpec : CompilationModel := {
   ]
 }
 
+private def erc20BalanceOfSmokeSpec : CompilationModel := {
+  name := "ERC20BalanceOfSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "balance"
+      params := [
+        { name := "token", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC20.balanceOf
+          "balance"
+          (Expr.param "token")
+          (Expr.param "owner"),
+        Stmt.returnValues [Expr.localVar "balance"]
+      ]
+    }
+  ]
+}
+
+private def erc20AllowanceSmokeSpec : CompilationModel := {
+  name := "ERC20AllowanceSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "allowance"
+      params := [
+        { name := "token", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+        , { name := "spender", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC20.allowance
+          "remaining"
+          (Expr.param "token")
+          (Expr.param "owner")
+          (Expr.param "spender"),
+        Stmt.returnValues [Expr.localVar "remaining"]
+      ]
+    }
+  ]
+}
+
 private def erc4626PreviewDepositSmokeSpec : CompilationModel := {
   name := "ERC4626PreviewDepositSmoke"
   fields := []
@@ -639,6 +688,26 @@ private def erc4626PreviewRedeemSmokeSpec : CompilationModel := {
     (contains oracleReadYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "oracle read ECM ABI-encodes the selector"
     (contains oracleReadYul "mstore(0, shl(224, 0xfeaf968c))")
+  let erc20BalanceOfYul ←
+    expectCompileToYul "erc20 balanceOf smoke spec" erc20BalanceOfSmokeSpec
+  expectTrue "erc20 balanceOf ECM lowers to staticcall"
+    (contains erc20BalanceOfYul "staticcall(gas(), token, 0, 36, 0, 32)")
+  expectTrue "erc20 balanceOf ECM forwards revert returndata"
+    (contains erc20BalanceOfYul "returndatacopy(0, 0, __balanceOf_rds)")
+  expectTrue "erc20 balanceOf ECM rejects non-32-byte returndata"
+    (contains erc20BalanceOfYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc20 balanceOf ECM ABI-encodes the selector"
+    (contains erc20BalanceOfYul "mstore(0, shl(224, 0x70a08231))")
+  let erc20AllowanceYul ←
+    expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec
+  expectTrue "erc20 allowance ECM lowers to staticcall"
+    (contains erc20AllowanceYul "staticcall(gas(), token, 0, 68, 0, 32)")
+  expectTrue "erc20 allowance ECM forwards revert returndata"
+    (contains erc20AllowanceYul "returndatacopy(0, 0, __allowance_rds)")
+  expectTrue "erc20 allowance ECM rejects non-32-byte returndata"
+    (contains erc20AllowanceYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "erc20 allowance ECM ABI-encodes the selector"
+    (contains erc20AllowanceYul "mstore(0, shl(224, 0xdd62ed3e))")
   let erc4626PreviewDepositYul ←
     expectCompileToYul "erc4626 previewDeposit smoke spec" erc4626PreviewDepositSmokeSpec
   expectTrue "erc4626 previewDeposit ECM lowers to staticcall"

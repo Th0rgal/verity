@@ -5,6 +5,7 @@ import Compiler.CompilationModel.TrustSurface
 import Compiler.ECM
 import Compiler.ModuleInput
 import Compiler.Modules.ERC4626
+import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.TestModules
@@ -278,6 +279,54 @@ private def oracleTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc20BalanceOfTrustSurfaceSpec : CompilationModel := {
+  name := "ERC20BalanceOfTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "balance"
+      params := [
+        { name := "token", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC20.balanceOf
+          "balance"
+          (Expr.param "token")
+          (Expr.param "owner"),
+        Stmt.returnValues [Expr.localVar "balance"]
+      ]
+    }
+  ]
+}
+
+private def erc20AllowanceTrustSurfaceSpec : CompilationModel := {
+  name := "ERC20AllowanceTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "allowance"
+      params := [
+        { name := "token", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+        , { name := "spender", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC20.allowance
+          "remaining"
+          (Expr.param "token")
+          (Expr.param "owner")
+          (Expr.param "spender"),
+        Stmt.returnValues [Expr.localVar "remaining"]
+      ]
+    }
+  ]
+}
+
 private def erc4626TrustSurfaceSpec : CompilationModel := {
   name := "ERC4626TrustSurface"
   fields := []
@@ -523,6 +572,26 @@ unsafe def runTests : IO Unit := do
   if !contains oracleTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"oracleReadUint256\"]}" then
     throw (IO.userError "✗ oracle trust report emits assumed ECM proof-status bucket")
   IO.println "✓ oracle trust report emits standard oracle module assumption"
+
+  let erc20BalanceOfTrustReport := emitTrustReportJson [erc20BalanceOfTrustSurfaceSpec]
+  if !contains erc20BalanceOfTrustReport "\"contract\":\"ERC20BalanceOfTrustSurface\"" then
+    throw (IO.userError "✗ erc20 balanceOf trust report emits contract name")
+  if !contains erc20BalanceOfTrustReport "\"module\":\"balanceOf\"" ||
+      !contains erc20BalanceOfTrustReport "\"assumption\":\"erc20_balanceOf_interface\"" then
+    throw (IO.userError "✗ erc20 balanceOf trust report emits module assumption")
+  if !contains erc20BalanceOfTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"balanceOf\"]}" then
+    throw (IO.userError "✗ erc20 balanceOf trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc20 balanceOf trust report emits standard token read module assumption"
+
+  let erc20AllowanceTrustReport := emitTrustReportJson [erc20AllowanceTrustSurfaceSpec]
+  if !contains erc20AllowanceTrustReport "\"contract\":\"ERC20AllowanceTrustSurface\"" then
+    throw (IO.userError "✗ erc20 allowance trust report emits contract name")
+  if !contains erc20AllowanceTrustReport "\"module\":\"allowance\"" ||
+      !contains erc20AllowanceTrustReport "\"assumption\":\"erc20_allowance_interface\"" then
+    throw (IO.userError "✗ erc20 allowance trust report emits module assumption")
+  if !contains erc20AllowanceTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"allowance\"]}" then
+    throw (IO.userError "✗ erc20 allowance trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc20 allowance trust report emits standard token read module assumption"
 
   let erc4626TrustReport := emitTrustReportJson [erc4626TrustSurfaceSpec]
   if !contains erc4626TrustReport "\"contract\":\"ERC4626TrustSurface\"" then
