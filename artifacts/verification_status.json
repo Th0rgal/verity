@@ -10,7 +10,7 @@
   "schema_version": 1,
   "tests": {
     "differential_total": 100000,
-    "foundry_functions": 491,
+    "foundry_functions": 495,
     "property_functions": 237,
     "suites": 40
   },
