@@ -1414,6 +1414,28 @@ private def validateWordLikeExprListLiteral
           (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
   | _ => throwErrorAt args "expected list literal [..]"
 
+private unsafe def evalExternalCallModuleTerm
+    (moduleTerm : Term) : CommandElabM Compiler.ECM.ExternalCallModule := do
+  liftTermElabM do
+    let expectedType := mkConst ``Compiler.ECM.ExternalCallModule
+    let expr ← Lean.Elab.Term.elabTermEnsuringType moduleTerm expectedType
+    Lean.Meta.evalExpr Compiler.ECM.ExternalCallModule expectedType expr .unsafe
+
+private def validateEffectOnlyEcmModuleTerm
+    (moduleTerm : Term) : CommandElabM Unit := do
+  let mod ← unsafe evalExternalCallModuleTerm moduleTerm
+  if !mod.resultVars.isEmpty then
+    throwErrorAt moduleTerm
+      s!"ecmDo requires an effect-only ECM module, but '{mod.name}' binds {mod.resultVars.length} result value(s)"
+
+private def validateSingleResultEcmModuleTerm
+    (moduleTerm : Term)
+    (boundVarName : String) : CommandElabM Unit := do
+  let mod ← unsafe evalExternalCallModuleTerm moduleTerm
+  if mod.resultVars != [boundVarName] then
+    throwErrorAt moduleTerm
+      s!"ecmCall must elaborate to an ECM module binding exactly ['{boundVarName}'], but '{mod.name}' binds {repr mod.resultVars}"
+
 private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -2036,6 +2058,7 @@ private def translateEffectStmt
               Compiler.Modules.ERC20.safeApproveModule
               [$tokenExpr, $spenderExpr, $amountExpr])
   | `(term| ecmDo $module:term $args:term) =>
+      validateEffectOnlyEcmModuleTerm module
       let argExprs ← expectExprList fields constDecls immutableDecls params locals args
       `(Compiler.CompilationModel.Stmt.ecm
           $module
@@ -2364,9 +2387,11 @@ private partial def translateDoElem
           match stripParens rhs with
           | `(term| ecmCall $moduleFactory:term $args:term) =>
               let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+              let moduleTerm ← `(term| (($moduleFactory) $(strTerm varName)))
+              validateSingleResultEcmModuleTerm moduleTerm varName
               pure
                 (#[(← `(Compiler.CompilationModel.Stmt.ecm
-                        (($moduleFactory) $(strTerm varName))
+                        $moduleTerm
                         [ $[$argExprs],* ]))],
                   locals.push varName,
                   mutableLocals)

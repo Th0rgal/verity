@@ -618,6 +618,28 @@ verity_contract ExternalCallUnsupportedMultiReturn where
     pure ()
 
 /--
+error: ecmDo requires an effect-only ECM module, but 'oracleReadUint256' binds 1 result value(s)
+-/
+#guard_msgs in
+verity_contract GenericECMDoRejectsResultModules where
+  storage
+
+  function badEffect (oracle : Address) : Uint256 := do
+    ecmDo (Compiler.Modules.Oracle.oracleReadUint256Module "quote" 0x12345678 0) [oracle]
+    return 0
+
+/--
+error: ecmCall must elaborate to an ECM module binding exactly ['quote'], but 'genericEffectDemo' binds []
+-/
+#guard_msgs in
+verity_contract GenericECMCallRejectsEffectOnlyModules where
+  storage
+
+  function badBind (lhs : Uint256, rhs : Uint256) : Uint256 := do
+    let quote ← ecmCall (fun _ => genericECMEffectDemoModule) [lhs, rhs]
+    return quote
+
+/--
 error: field 'approvals' is a nested struct mapping; use structMember2/setStructMember2
 -/
 #guard_msgs in
