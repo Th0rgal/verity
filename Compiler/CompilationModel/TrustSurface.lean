@@ -370,7 +370,10 @@ private partial def collectUsedEcmModulesInStmt : Stmt → List ECM.ExternalCall
   | _ =>
       []
 
-private def collectUsedEcmModules (spec : CompilationModel) : List ECM.ExternalCallModule :=
+/-- Collect ECM modules that are actually referenced by the spec, including
+    constructor bodies. This shared view keeps machine-readable reports and
+    compiler summaries aligned. -/
+def collectUsedEcmModules (spec : CompilationModel) : List ECM.ExternalCallModule :=
   let stmtsFromFn (fn : FunctionSpec) := fn.body
   let stmtsFromCtor : List Stmt := match spec.constructor with
     | some ctor => ctor.body

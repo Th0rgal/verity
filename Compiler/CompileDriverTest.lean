@@ -197,6 +197,34 @@ private def uncheckedTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def constructorOnlyEcmTrustSurfaceSpec : CompilationModel := {
+  name := "ConstructorOnlyEcmTrustSurface"
+  fields := []
+  «constructor» := some {
+    params := []
+    body := [
+      Stmt.ecm
+        { name := "ctorHook"
+          numArgs := 0
+          resultVars := []
+          writesState := false
+          readsState := true
+          proofStatus := .unchecked
+          axioms := ["ctor_hook_interface"]
+          compile := fun _ _ => pure [] }
+        [],
+      Stmt.stop
+    ]
+  }
+  functions := [
+    { name := "ping"
+      params := []
+      returnType := none
+      body := [Stmt.stop]
+    }
+  ]
+}
+
 private def ecrecoverTrustSurfaceSpec : CompilationModel := {
   name := "EcrecoverTrustSurface"
   fields := []
@@ -396,6 +424,13 @@ unsafe def runTests : IO Unit := do
   if !contains uncheckedTrustReport "\"status\":\"unchecked\"" then
     throw (IO.userError "✗ trust report emits unchecked dependency status")
   IO.println "✓ trust report flags unchecked linked externals and ECM modules"
+
+  let constructorOnlyEcmTrustReport := emitTrustReportJson [constructorOnlyEcmTrustSurfaceSpec]
+  if !contains constructorOnlyEcmTrustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"ctorHook\"]}" then
+    throw (IO.userError "✗ trust report includes constructor-only ECM modules in proof-status buckets")
+  if !contains constructorOnlyEcmTrustReport "\"ecmModules\":[{\"module\":\"ctorHook\",\"status\":\"unchecked\",\"axioms\":[\"ctor_hook_interface\"]}]" then
+    throw (IO.userError "✗ trust report includes constructor-only ECM modules in external assumptions")
+  IO.println "✓ trust report includes constructor-only ECM modules"
 
   let ecrecoverTrustReport := emitTrustReportJson [ecrecoverTrustSurfaceSpec]
   if !contains ecrecoverTrustReport "\"contract\":\"EcrecoverTrustSurface\"" then

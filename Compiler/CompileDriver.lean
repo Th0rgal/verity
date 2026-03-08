@@ -179,21 +179,7 @@ def compileSpecsWithOptions
       let uncheckedExternals :=
         (collectUsedExternalAssumptions spec).foldl
           (fun acc ext => if ext.proofStatus == .unchecked then acc ++ [ext.name] else acc) []
-      let usedModules :=
-        spec.functions.flatMap (·.body)
-          |>.foldl
-            (fun acc stmt =>
-              let mods :=
-                let rec collectFromStmt : Stmt → List ECM.ExternalCallModule
-                  | .ecm mod _ => [mod]
-                  | .ite _ thenBr elseBr =>
-                      thenBr.flatMap collectFromStmt ++ elseBr.flatMap collectFromStmt
-                  | .forEach _ _ body =>
-                      body.flatMap collectFromStmt
-                  | _ => []
-                collectFromStmt stmt
-              mods.foldl (fun inner mod => if inner.contains mod then inner else inner ++ [mod]) acc)
-            []
+      let usedModules := collectUsedEcmModules spec
       let provedModules := usedModules.foldl
         (fun acc mod => if mod.proofStatus == .proved then acc ++ [mod.name] else acc) []
       let assumedModules := usedModules.foldl
