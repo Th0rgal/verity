@@ -101,7 +101,7 @@ unsafe def runTests : IO Unit := do
   expectErrorContains
     "strict low-level gate rejects low-level mechanics"
     ["--module", "Contracts.Counter.Counter", "--deny-low-level-mechanics", "--output", s!"/tmp/verity-main-test-{nonce}-low-level-fail-out"]
-    "Counter [function:previewEnvOps]: mload"
+    "Counter [function:previewLowLevel]: call, staticcall, delegatecall, revertReturndata, returndataCopy, returndataSize"
   let runtimeStrictOutDir := s!"/tmp/verity-main-test-{nonce}-runtime-strict-out"
   IO.FS.createDirAll runtimeStrictOutDir
   main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-runtime-introspection", "--output", runtimeStrictOutDir])

@@ -217,6 +217,25 @@ private def memoryTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def memoryOnlyTrustSurfaceSpec : CompilationModel := {
+  name := "MemoryOnlyTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "exerciseMemoryOnly"
+      params := []
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Stmt.mstore (Expr.literal 0) (Expr.literal 1),
+        Stmt.calldatacopy (Expr.literal 32) (Expr.literal 4) (Expr.literal 32),
+        Stmt.letVar "word" (Expr.mload (Expr.literal 0)),
+        Stmt.returnValues [Expr.localVar "word"]
+      ]
+    }
+  ]
+}
+
 private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
   name := "RuntimeIntrospectionTrustSurface"
   fields := []
@@ -231,6 +250,51 @@ private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
         Stmt.letVar "self" Expr.contractAddress,
         Stmt.letVar "cid" Expr.chainid,
         Stmt.returnValues [Expr.add (Expr.add (Expr.localVar "bn") (Expr.localVar "self")) (Expr.localVar "cid")]
+      ]
+    }
+  ]
+}
+
+private def lowLevelOnlyTrustSurfaceSpec : CompilationModel := {
+  name := "LowLevelOnlyTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "exerciseLowLevel"
+      params := [{ name := "target", ty := ParamType.address }]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Stmt.letVar "ok"
+          (Expr.call
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.letVar "okStatic"
+          (Expr.staticcall
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.letVar "okDelegate"
+          (Expr.delegatecall
+            (Expr.literal 5000)
+            (Expr.param "target")
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 0)
+            (Expr.literal 32)),
+        Stmt.returndataCopy (Expr.literal 0) (Expr.literal 0) (Expr.literal 32),
+        Stmt.letVar "rd" Expr.returndataSize,
+        Stmt.returnValues
+          [Expr.add (Expr.add (Expr.localVar "ok") (Expr.localVar "okStatic"))
+            (Expr.add (Expr.localVar "okDelegate") (Expr.localVar "rd"))]
       ]
     }
   ]
@@ -740,6 +804,7 @@ private def expectOnlySelectedArtifacts
         s!"✗ {label}: unexpected ABI artifact presence for {contractName} (expected={shouldExist}, found={abiExists})")
   IO.println s!"✓ {label}"
 
+set_option maxRecDepth 100000 in
 unsafe def runTests : IO Unit := do
   let nonce ← IO.rand 0 1000000000
   let outDir := s!"/tmp/verity-compile-driver-test-{nonce}-out"
@@ -1146,6 +1211,24 @@ unsafe def runTests : IO Unit := do
 
   let deniedTrustReportPath := s!"{trustReportDir}/trust-report-denied.json"
   expectFailureContains
+    "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
+    (compileSpecsWithOptions
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false true false)
+    "Low-level mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: call, staticcall, delegatecall, returndataCopy, returndataSize"
+  let deniedLowLevelTrustReportWritten ← fileExists deniedTrustReportPath
+  if !deniedLowLevelTrustReportWritten then
+    throw (IO.userError "✗ compileSpecsWithOptions writes trust report before rejecting low-level mechanics")
+  IO.println "✓ compileSpecsWithOptions writes trust report before rejecting low-level mechanics"
+
+  let denyLowLevelMemoryOutDir := s!"/tmp/compile-driver-deny-low-level-memory-ok-{nonce}"
+  compileSpecsWithOptions
+    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false true false
+  let denyLowLevelMemoryArtifactWritten ← fileExists s!"{denyLowLevelMemoryOutDir}/MemoryOnlyTrustSurface.yul"
+  if !denyLowLevelMemoryArtifactWritten then
+    throw (IO.userError "✗ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate")
+  IO.println "✓ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate"
+
+  expectFailureContains
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
       [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false)
@@ -1194,7 +1277,6 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ compileSpecsWithOptions writes patch report file")
   IO.println "✓ compileSpecsWithOptions writes patch report file"
 
-set_option maxRecDepth 100000 in
 #eval! runTests
 
 end Compiler.CompileDriverTest
