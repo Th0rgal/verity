@@ -73,7 +73,7 @@ verity_contract TupleSmoke where
     pure ()
 
   function getPair (key : Uint256) : Tuple [Uint256, Uint256] := do
-    returnValues [key, key]
+    return (key, key)
 
   function processConfig (cfg : Tuple [Address, Address, Uint256]) : Unit := do
     let cfgValue := cfg
