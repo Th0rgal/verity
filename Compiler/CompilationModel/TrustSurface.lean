@@ -922,6 +922,22 @@ def emitRuntimeIntrospectionUsageSiteLines (specs : List CompilationModel) : Lis
       acc ++ siteLines)
     []
 
+/-- Render localized low-level-mechanics lines for fail-closed diagnostics. -/
+def emitLowLevelMechanicsUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.mechanics.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " site.mechanics}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- True when a contract depends on any foreign surface marked `unchecked`. -/
 def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
   !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||

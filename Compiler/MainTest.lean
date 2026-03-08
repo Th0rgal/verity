@@ -6,16 +6,7 @@ import Compiler.TestModules
 namespace Compiler.MainTest
 
 private def contains (haystack needle : String) : Bool :=
-  let h := haystack.toList
-  let n := needle.toList
-  if n.isEmpty then true
-  else
-    let rec go : List Char → Bool
-      | [] => false
-      | c :: cs =>
-        if (c :: cs).take n.length == n then true
-        else go cs
-    go h
+  if needle.isEmpty then true else (haystack.splitOn needle).length > 1
 
 private unsafe def expectErrorContains (label : String) (args : List String) (needle : String) : IO Unit := do
   try
@@ -102,6 +93,15 @@ unsafe def runTests : IO Unit := do
     "strict linear-memory gate rejects partially modeled memory mechanics"
     ["--module", "Contracts.Counter.Counter", "--deny-linear-memory-mechanics", "--output", s!"/tmp/verity-main-test-{nonce}-memory-fail-out"]
     "Counter [function:previewEnvOps]: mload"
+  let lowLevelStrictOutDir := s!"/tmp/verity-main-test-{nonce}-low-level-strict-out"
+  IO.FS.createDirAll lowLevelStrictOutDir
+  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-low-level-mechanics", "--output", lowLevelStrictOutDir])
+  let lowLevelStrictArtifact ← fileExists s!"{lowLevelStrictOutDir}/SimpleStorage.yul"
+  expectTrue "strict low-level gate accepts contracts without low-level mechanics" lowLevelStrictArtifact
+  expectErrorContains
+    "strict low-level gate rejects low-level mechanics"
+    ["--module", "Contracts.Counter.Counter", "--deny-low-level-mechanics", "--output", s!"/tmp/verity-main-test-{nonce}-low-level-fail-out"]
+    "Counter [function:previewEnvOps]: mload"
   let runtimeStrictOutDir := s!"/tmp/verity-main-test-{nonce}-runtime-strict-out"
   IO.FS.createDirAll runtimeStrictOutDir
   main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-runtime-introspection", "--output", runtimeStrictOutDir])
@@ -182,6 +182,7 @@ unsafe def runTests : IO Unit := do
   let firstBody := String.intercalate "\n" ((parsed.getD 0 {name := "", arity := 0, body := []}).body)
   expectTrue "first function body does not swallow next function" (!contains firstBody "function PoseidonT4_hash")
 
+set_option maxRecDepth 100000 in
 #eval! runTests
 
 end Compiler.MainTest
