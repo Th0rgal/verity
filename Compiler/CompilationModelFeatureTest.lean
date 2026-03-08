@@ -365,6 +365,17 @@ open Contracts
 open Verity hiding pure bind
 open Verity.EVM.Uint256
 
+verity_contract MacroNonPayableConstructor where
+  storage
+    owner : Address := slot 0
+
+  constructor (seedOwner : Address) := do
+    setStorageAddr owner seedOwner
+
+  function getOwner () : Address := do
+    let currentOwner ← getStorageAddr owner
+    return currentOwner
+
 verity_contract MacroPayableConstructor where
   storage
     owner : Address := slot 0
@@ -569,6 +580,20 @@ private def contains (haystack needle : String) : Bool :=
       | c :: cs =>
         if (c :: cs).take n.length == n then true
         else go cs
+    go h
+
+private def countOccurrences (haystack needle : String) : Nat :=
+  let h := haystack.toList
+  let n := needle.toList
+  if n.isEmpty then 0
+  else
+    let rec go : List Char → Nat
+      | [] => 0
+      | c :: cs =>
+        if (c :: cs).take n.length == n then
+          1 + go cs
+        else
+          go cs
     go h
 
 private def selectorCount (spec : CompilationModel) : Nat :=
@@ -1365,6 +1390,15 @@ set_option maxRecDepth 4096 in
     MacroPayableConstructorSmoke.MacroPayableConstructor.spec
   expectTrue "macro payable constructor reaches IR with constructorPayable enabled"
     payableCtorContract.constructorPayable
+  let nonPayableCtorYul ← expectCompileToYul
+    "macro non-payable constructor compiles to Yul"
+    MacroPayableConstructorSmoke.MacroNonPayableConstructor.spec
+  let payableCtorYul ← expectCompileToYul
+    "macro payable constructor compiles to Yul"
+    MacroPayableConstructorSmoke.MacroPayableConstructor.spec
+  expectTrue "macro payable constructor removes one deploy-time callvalue guard from rendered Yul"
+    (countOccurrences nonPayableCtorYul "callvalue()" ==
+      countOccurrences payableCtorYul "callvalue()" + 1)
   let envRuntimeYul ← expectCompileToYul "env runtime smoke compiles" envRuntimeSmokeSpec
   expectTrue "env runtime smoke lowers block.number" (contains envRuntimeYul "number()")
   let stringCompiled :=
