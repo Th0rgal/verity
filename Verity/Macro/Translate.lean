@@ -355,7 +355,7 @@ private def expectStringList (stx : Term) : CommandElabM (Array String) := do
 
 private partial def collectTupleElems (stx : Syntax) : Array Syntax :=
   if stx.isAtom then
-    if stx.getAtomVal == "," then #[] else #[]
+    #[]
   else if stx.getKind == `null then
     stx.getArgs.foldl (fun acc child => acc ++ collectTupleElems child) #[]
   else
@@ -608,6 +608,21 @@ private def tupleValueExprs
           | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal or tuple-typed parameter"
       | _ =>
           throwErrorAt rhs "tuple destructuring currently requires a tuple literal or tuple-typed parameter"
+
+private def tupleReturnValueExprs?
+    (fields : Array StorageFieldDecl)
+    (params : Array ParamDecl)
+    (locals : Array String)
+    (rhs : Term) : CommandElabM (Option (Array Term)) := do
+  match tupleElemsFromTerm? rhs with
+  | some elems =>
+      pure (some (← elems.mapM (translatePureExpr fields params locals)))
+  | none =>
+      match stripParens rhs with
+      | `(term| $id:ident) =>
+          tupleParamElemExprs? params (toString id.getId)
+      | _ =>
+          pure none
 
 private def expectExprList
     (fields : Array StorageFieldDecl)
@@ -1110,11 +1125,11 @@ private partial def translateDoElem
           locals,
           mutableLocals)
   | `(doElem| return $value:term) =>
-      try
-        let valueExprs ← tupleValueExprs fields params locals value
-        pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
-      catch _ =>
-        pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExpr fields params locals value)))], locals, mutableLocals)
+      match (← tupleReturnValueExprs? fields params locals value) with
+      | some valueExprs =>
+          pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
+      | none =>
+          pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExpr fields params locals value)))], locals, mutableLocals)
   | `(doElem| pure ()) =>
       pure (#[], locals, mutableLocals)
   | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
