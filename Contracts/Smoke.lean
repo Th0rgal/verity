@@ -98,6 +98,29 @@ verity_contract ConstantSmoke where
   function treasuryAddr () : Address := do
     return treasury
 
+verity_contract ImmutableSmoke where
+  storage
+    owner : Address := slot 0
+
+  constants
+    offset : Uint256 := 2
+
+  immutables
+    seededSupply : Uint256 := (add seed offset)
+    treasury : Address := ownerSeed
+
+  constructor (seed : Uint256, ownerSeed : Address) := do
+    setStorageAddr owner ownerSeed
+
+  function supplyCap () : Uint256 := do
+    return seededSupply
+
+  function treasuryAddr () : Address := do
+    return treasury
+
+  function shadowed (seededSupply : Uint256) : Uint256 := do
+    return seededSupply
+
 verity_contract InitializerSmoke where
   storage
     initializedVersion : Uint256 := slot 0
@@ -146,6 +169,67 @@ verity_contract ConstantRuntimeBuiltinRejected where
   function seeded () : Uint256 := do
     return seededAt
 end ConstantRuntimeBuiltinRejected
+
+/--
+error: contract immutables currently support only Uint256 and Address; 'paused' uses unsupported type
+-/
+#guard_msgs in
+verity_contract ImmutableTypeRejected where
+  storage
+
+  immutables
+    paused : Bool := true
+
+  function isPaused () : Bool := do
+    return paused
+end ImmutableTypeRejected
+
+/--
+error: immutable 'owner' conflicts with a storage field of the same name
+-/
+#guard_msgs in
+verity_contract ImmutableStorageNameConflictRejected where
+  storage
+    owner : Address := slot 0
+
+  immutables
+    owner : Address := zeroAddress
+
+  function getOwner () : Address := do
+    return owner
+end ImmutableStorageNameConflictRejected
+
+/--
+error: immutable 'basisPoints' conflicts with a contract constant of the same name
+-/
+#guard_msgs in
+verity_contract ImmutableConstantNameConflictRejected where
+  storage
+
+  constants
+    basisPoints : Uint256 := 10000
+
+  immutables
+    basisPoints : Uint256 := 9999
+
+  function getBasisPoints () : Uint256 := do
+    return basisPoints
+end ImmutableConstantNameConflictRejected
+
+/--
+error: duplicate immutable declaration 'seededSupply'
+-/
+#guard_msgs in
+verity_contract DuplicateImmutableRejected where
+  storage
+
+  immutables
+    seededSupply : Uint256 := 1
+    seededSupply : Uint256 := 2
+
+  function getSeededSupply () : Uint256 := do
+    return seededSupply
+end DuplicateImmutableRejected
 
 verity_contract TupleSmoke where
   storage

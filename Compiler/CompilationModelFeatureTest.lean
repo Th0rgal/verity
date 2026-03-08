@@ -665,6 +665,98 @@ example : reinitializerExecutableAdvancesVersion = true := by native_decide
 
 end MacroInitializerSmoke
 
+namespace MacroImmutableSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroImmutable where
+  storage
+    owner : Address := slot 0
+
+  constants
+    offset : Uint256 := 2
+
+  immutables
+    seededSupply : Uint256 := (add seed offset)
+    treasury : Address := ownerSeed
+
+  constructor (seed : Uint256, ownerSeed : Address) := do
+    setStorageAddr owner ownerSeed
+
+  function supplyCap () : Uint256 := do
+    return seededSupply
+
+  function treasuryAddr () : Address := do
+    return treasury
+
+  function shadowed (seededSupply : Uint256) : Uint256 := do
+    return seededSupply
+
+verity_contract MacroImplicitImmutable where
+  storage
+
+  immutables
+    feeScale : Uint256 := 10000
+
+  function getFeeScale () : Uint256 := do
+    return feeScale
+
+def specIncludesInternalImmutableFields : Bool :=
+  MacroImmutable.spec.fields.map (·.name) ==
+    ["owner", "__immutable_seededSupply", "__immutable_treasury"]
+
+example : specIncludesInternalImmutableFields = true := by native_decide
+
+def constructorSeedsInternalImmutableSlots : Bool :=
+  match MacroImmutable.spec.constructor with
+  | some ctor =>
+      match ctor.body with
+      | [Stmt.setStorage "__immutable_seededSupply"
+            (Expr.add (Expr.param "seed") (Expr.literal 2)),
+          Stmt.setStorageAddr "__immutable_treasury" (Expr.param "ownerSeed"),
+          Stmt.setStorageAddr "owner" (Expr.param "ownerSeed")] =>
+          true
+      | _ => false
+  | none => false
+
+example : constructorSeedsInternalImmutableSlots = true := by native_decide
+
+def runtimeFunctionsLoadImmutableValuesFromState : Bool :=
+  match MacroImmutable.supplyCap Verity.defaultState, MacroImmutable.treasuryAddr Verity.defaultState with
+  | .success 0 _, .success treasury _ => treasury == zeroAddress
+  | _, _ => false
+
+example : runtimeFunctionsLoadImmutableValuesFromState = true := by native_decide
+
+def functionParamsStillShadowImmutableNames : Bool :=
+  match MacroImmutable.shadowed 91 Verity.defaultState with
+  | .success value _ => value == 91
+  | _ => false
+
+example : functionParamsStillShadowImmutableNames = true := by native_decide
+
+def implicitConstructorCreatedForImmutableInitializers : Bool :=
+  match MacroImplicitImmutable.spec.constructor with
+  | some ctor =>
+      ctor.params.isEmpty &&
+      match ctor.body with
+      | [Stmt.setStorage "__immutable_feeScale" (Expr.literal 10000)] => true
+      | _ => false
+  | none => false
+
+example : implicitConstructorCreatedForImmutableInitializers = true := by native_decide
+
+def implicitImmutableExecutableReadsRuntimeSlot : Bool :=
+  match MacroImplicitImmutable.getFeeScale Verity.defaultState with
+  | .success value _ => value == 0
+  | _ => false
+
+example : implicitImmutableExecutableReadsRuntimeSlot = true := by native_decide
+
+end MacroImmutableSmoke
+
 namespace MacroStructDestructuringSmoke
 
 open Contracts
