@@ -1,6 +1,7 @@
 import Compiler.CompilationModel
 import Compiler.ABI
 import Compiler.Codegen
+import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.Yul.PrettyPrint
 import Contracts.Common
@@ -474,6 +475,30 @@ private def ecrecoverSmokeSpec : CompilationModel := {
   ]
 }
 
+private def oracleReadSmokeSpec : CompilationModel := {
+  name := "OracleReadSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "peek"
+      params := [
+        { name := "oracle", ty := ParamType.address }
+        , { name := "asset", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.Oracle.oracleReadUint256
+          "answer"
+          (Expr.param "oracle")
+          0xfeaf968c
+          [Expr.param "asset"],
+        Stmt.returnValues [Expr.localVar "answer"]
+      ]
+    }
+  ]
+}
+
 #eval! do
   let compiled :=
     match Compiler.CompilationModel.compile selectorSmokeSpec (selectorsFor selectorSmokeSpec) with
@@ -557,6 +582,16 @@ private def ecrecoverSmokeSpec : CompilationModel := {
     (contains ecrecoverYul "if iszero(returndatasize()) {")
   expectTrue "ecrecover ECM masks recovered address to 160 bits"
     (contains ecrecoverYul "let signer := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
+  let oracleReadYul ←
+    expectCompileToYul "oracle read smoke spec" oracleReadSmokeSpec
+  expectTrue "oracle read ECM lowers to staticcall"
+    (contains oracleReadYul "staticcall(gas(), oracle, 0, 36, 0, 32)")
+  expectTrue "oracle read ECM forwards revert returndata"
+    (contains oracleReadYul "returndatacopy(0, 0, __oracle_rds)")
+  expectTrue "oracle read ECM rejects non-32-byte returndata"
+    (contains oracleReadYul "if iszero(eq(returndatasize(), 32)) {")
+  expectTrue "oracle read ECM ABI-encodes the selector"
+    (contains oracleReadYul "mstore(0, shl(224, 0xfeaf968c))")
   let macroEcrecoverYul ←
     expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
   expectTrue "macro ecrecover bind elaborates to the same ECM lowering"
