@@ -20,6 +20,7 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     sender := state.sender
     thisAddress := state.thisAddress
     blockTimestamp := state.blockTimestamp
+    chainId := state.chainId
     events := state.events }
 
 def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
@@ -36,6 +37,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
     sender := tx.sender
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -47,6 +49,7 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
     sender := tx.sender
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
   }

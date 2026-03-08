@@ -175,9 +175,9 @@
       "constructor": "Expr.chainid",
       "SpecInterpreter_basic": "fallback_zero",
       "SpecInterpreter_fuel": "fallback_zero",
-      "IRInterpreter": "n/a",
+      "IRInterpreter": "supported",
       "EVMYulLean_bridge": "n/a",
-      "proof_status": "not_modeled"
+      "proof_status": "partial"
     },
     {
       "feature": "mload",
@@ -684,6 +684,12 @@
     },
     {
       "feature": "mappingSlot",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
+      "feature": "chainid",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
       "agreement_proved": false

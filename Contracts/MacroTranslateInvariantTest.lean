@@ -182,7 +182,13 @@ private def mkYulResultFromExec (rollback : YulState) (r : YulExecResult) : YulR
         events := rollback.events }
 
 private def withTxContext (state : IRState) (tx : IRTransaction) : IRState :=
-  IRState.mk state.vars state.storage state.memory tx.args state.returnValue tx.sender tx.functionSelector state.events
+  { state with
+    calldata := tx.args
+    sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
+    selector := tx.functionSelector }
 
 private def execIRFunctionFuelResult (fn : IRFunction) (args : List Nat) (initialState : IRState)
     (fuel : Nat) : IRResult :=
@@ -203,14 +209,31 @@ private def interpretIRFuelResult (contract : IRContract) (tx : IRTransaction) (
 
 private def interpretYulFromIRFuelResult (contract : IRContract) (tx : IRTransaction) (state : IRState)
     (fuel : Nat) : YulResult :=
-  let yulTx : YulTransaction := { sender := tx.sender, functionSelector := tx.functionSelector, args := tx.args }
+  let yulTx : YulTransaction := {
+    sender := tx.sender
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
+    functionSelector := tx.functionSelector
+    args := tx.args
+  }
   let yulInit := YulState.initial yulTx state.storage state.events
   mkYulResultFromExec yulInit (execYulStmtsFuel fuel yulInit (Compiler.runtimeCode contract))
 
 private def diffCheckTx (spec : CompilationModel) (ir : IRContract)
     (tx : IRTransaction) (seed : Nat) : Bool :=
   let initState : IRState :=
-    IRState.mk [] (seededStorage seed) (fun _ => 0) [] none tx.sender 0 []
+    { vars := []
+      storage := seededStorage seed
+      memory := fun _ => 0
+      calldata := []
+      returnValue := none
+      sender := tx.sender
+      thisAddress := tx.thisAddress
+      blockTimestamp := tx.blockTimestamp
+      chainId := tx.chainId
+      selector := 0
+      events := [] }
   let irResult := interpretIRFuelResult ir tx initState 800
   let yulResult := interpretYulFromIRFuelResult ir tx initState 800
   let slots := observedSlotsForTx spec tx

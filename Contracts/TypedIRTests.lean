@@ -614,15 +614,17 @@ private def mkIRStateFromTyped (state : Verity.Core.Free.TExecState.{0}) (block 
     let u : Nat := state.world.storage i
     let a : Nat := state.world.storageAddr i
     if a != 0 then a else u
-  IRState.mk
-    initVars
-    flatStorage
-    (fun _ => 0)
-    []
-    none
-    state.env.sender
-    0
-    []
+  { vars := initVars
+    storage := flatStorage
+    memory := fun _ => 0
+    calldata := []
+    returnValue := none
+    sender := state.env.sender
+    thisAddress := 0
+    blockTimestamp := 0
+    chainId := 0
+    selector := 0
+    events := [] }
 
 private def execLoweredSlot0 (fuel : Nat) (state : IRState) (block : TBlock) : Option Nat :=
   match execIRStmts fuel state (lowerTBlock block) with

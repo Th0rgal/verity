@@ -25,6 +25,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
         { sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           functionSelector := tx.functionSelector
           args := tx.args }
         state.storage state.events := by
@@ -46,6 +47,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
           { sender := tx.sender
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            chainId := tx.chainId
             functionSelector := tx.functionSelector
             args := tx.args }
           state.storage state.events)
@@ -54,6 +56,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
             { sender := tx.sender
               thisAddress := tx.thisAddress
               blockTimestamp := tx.blockTimestamp
+              chainId := tx.chainId
               functionSelector := tx.functionSelector
               args := tx.args }
             state.storage state.events)
@@ -317,6 +320,7 @@ private def SwitchCaseBodyBridge
         { sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           functionSelector := tx.functionSelector
           args := tx.args }
         irState.storage irState.events) →
@@ -327,6 +331,7 @@ private def SwitchCaseBodyBridge
           { sender := tx.sender
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            chainId := tx.chainId
             functionSelector := tx.functionSelector
             args := tx.args }
           irState.storage irState.events)
@@ -335,6 +340,7 @@ private def SwitchCaseBodyBridge
             { sender := tx.sender
               thisAddress := tx.thisAddress
               blockTimestamp := tx.blockTimestamp
+              chainId := tx.chainId
               functionSelector := tx.functionSelector
               args := tx.args }
             irState.storage irState.events).setVar "__has_selector" 1)
@@ -363,6 +369,7 @@ theorem yulCodegen_preserves_semantics
             sender := tx.sender
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            chainId := tx.chainId
             calldata := tx.args
             selector := tx.functionSelector })
         (interpretYulBody fn tx
@@ -370,6 +377,7 @@ theorem yulCodegen_preserves_semantics
             sender := tx.sender
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            chainId := tx.chainId
             calldata := tx.args
             selector := tx.functionSelector })) :
     resultsMatch
@@ -380,6 +388,7 @@ theorem yulCodegen_preserves_semantics
     sender := tx.sender
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
     calldata := tx.args
     selector := tx.functionSelector
   }
@@ -387,6 +396,7 @@ theorem yulCodegen_preserves_semantics
     sender := tx.sender
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -485,6 +495,7 @@ theorem yulCodegen_preserves_semantics
           sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           calldata := tx.args
           selector := tx.functionSelector }
         (m + 4) hmatch

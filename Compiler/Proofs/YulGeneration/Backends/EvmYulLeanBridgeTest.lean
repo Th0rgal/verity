@@ -27,6 +27,7 @@ private def testStorage : Nat → Nat := fun _ => 0
 private def testSender : Nat := 42
 private def testThisAddress : Nat := 0xC0FFEE
 private def testBlockTimestamp : Nat := 0x123456
+private def testChainId : Nat := 1
 private def testSelector : Nat := 0
 private def testCalldata : List Nat := []
 
@@ -41,6 +42,7 @@ private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat
     testSender
     testThisAddress
     testBlockTimestamp
+    testChainId
     testSelector
     testCalldata
     func
@@ -300,11 +302,17 @@ example : verityEvalWithContext "address" [] = some testThisAddress := by native
 /-- timestamp: context-aware Verity path returns the current block timestamp. -/
 example : verityEvalWithContext "timestamp" [] = some testBlockTimestamp := by native_decide
 
+/-- chainid: context-aware Verity path returns the current chain id. -/
+example : verityEvalWithContext "chainid" [] = some testChainId := by native_decide
+
 /-- address: bridge returns none (state-dependent). -/
 example : bridgeEval "address" [] = none := by native_decide
 
 /-- timestamp: bridge returns none (state-dependent). -/
 example : bridgeEval "timestamp" [] = none := by native_decide
+
+/-- chainid: bridge returns none (state-dependent). -/
+example : bridgeEval "chainid" [] = none := by native_decide
 
 /-- mappingSlot: bridge returns none (Verity-specific helper) -/
 example : bridgeEval "mappingSlot" [0, 1] = none := by native_decide
@@ -338,7 +346,7 @@ def main : IO Unit := do
   IO.println "✓ Comparison builtins: lt, gt, eq, iszero — universally bridged"
   IO.println "✓ Bitwise builtins: and, or, xor, shl, shr — universally bridged"
   IO.println "✓ Bitwise builtin: not — concrete bridge coverage retained"
-  IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp — correctly handled"
+  IO.println "✓ State-dependent builtins: sload, caller, calldataload, address, timestamp, chainid — correctly handled"
   IO.println "✓ Verity-specific helpers: mappingSlot — correctly delegated"
   IO.println "✓ Adapter: all 11 statement types lower without error"
   IO.println "EVMYulLean bridge test: all checks passed"

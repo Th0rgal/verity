@@ -62,6 +62,7 @@ private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRS
     sender := tx.sender
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -91,6 +92,7 @@ theorem yulStateOfIR_eq_initial
     (hsender : state.sender = tx.sender)
     (hthis : state.thisAddress = tx.thisAddress)
     (htimestamp : state.blockTimestamp = tx.blockTimestamp)
+    (hchain : state.chainId = tx.chainId)
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
@@ -100,10 +102,12 @@ theorem yulStateOfIR_eq_initial
         { sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           functionSelector := tx.functionSelector
           args := tx.args }
         state.storage state.events := by
-  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hthis, htimestamp, hselector, hreturn]
+  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hthis, htimestamp,
+    hchain, hselector, hreturn]
 
 /-- Hypothesis-driven param-load erasure. -/
 theorem execYulStmts_paramState_eq_emptyVars
@@ -114,6 +118,7 @@ theorem execYulStmts_paramState_eq_emptyVars
     (_hsender : state.sender = tx.sender)
     (_hthis : state.thisAddress = tx.thisAddress)
     (_htimestamp : state.blockTimestamp = tx.blockTimestamp)
+    (_hchain : state.chainId = tx.chainId)
     (_hselector : state.selector = tx.functionSelector)
     (_hreturn : state.returnValue = none)
     (hparamErase : paramLoadErasure fn tx state) :
@@ -128,6 +133,7 @@ theorem yulBody_from_state_eq_yulBody
     (hsender : state.sender = tx.sender)
     (hthis : state.thisAddress = tx.thisAddress)
     (htimestamp : state.blockTimestamp = tx.blockTimestamp)
+    (hchain : state.chainId = tx.chainId)
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
@@ -142,8 +148,8 @@ theorem yulBody_from_state_eq_yulBody
       state = interpretYulBody fn tx state by
     rwa [h_eq] at h_ir_from
   simp only [interpretYulBodyFromState, interpretYulBody]
-  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hthis htimestamp hselector hreturn hmemory hvars
-  have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hthis htimestamp hselector hreturn hparamErase
+  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hthis htimestamp hchain hselector hreturn hmemory hvars
+  have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hthis htimestamp hchain hselector hreturn hparamErase
   rw [h_rollback]
   simp only at h_exec
   rw [h_exec]
@@ -151,6 +157,7 @@ theorem yulBody_from_state_eq_yulBody
     { sender := tx.sender
       thisAddress := tx.thisAddress
       blockTimestamp := tx.blockTimestamp
+      chainId := tx.chainId
       functionSelector := tx.functionSelector
       args := tx.args }
     state.storage state.events).symm
@@ -171,6 +178,7 @@ theorem layer3_contract_preserves_semantics
           sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           calldata := tx.args
           selector := tx.functionSelector })
     (hWF : ContractWF contract)
@@ -186,9 +194,10 @@ theorem layer3_contract_preserves_semantics
       sender := tx.sender
       thisAddress := tx.thisAddress
       blockTimestamp := tx.blockTimestamp
+      chainId := tx.chainId
       calldata := tx.args
       selector := tx.functionSelector }
-    rfl rfl rfl rfl (by simp [hreturn])
+    rfl rfl rfl rfl rfl (by simp [hreturn])
     (by simp [hmemory])
     (by simp [hvars])
     (hparamErase fn hmem)
@@ -207,6 +216,7 @@ theorem layer3_contract_preserves_semantics_general
             sender := tx.sender
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            chainId := tx.chainId
             calldata := tx.args
             selector := tx.functionSelector })
         (interpretYulBody fn tx
@@ -214,6 +224,7 @@ theorem layer3_contract_preserves_semantics_general
             sender := tx.sender
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            chainId := tx.chainId
             calldata := tx.args
             selector := tx.functionSelector })) :
     Compiler.Proofs.YulGeneration.resultsMatch
@@ -239,6 +250,7 @@ theorem layers2_3_ir_matches_yul
           sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           calldata := tx.args
           selector := tx.functionSelector })
     (hWF : ContractWF irContract)
@@ -264,6 +276,7 @@ theorem simpleStorage_endToEnd
           sender := tx.sender
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          chainId := tx.chainId
           calldata := tx.args
           selector := tx.functionSelector }) :
     Compiler.Proofs.YulGeneration.resultsMatch

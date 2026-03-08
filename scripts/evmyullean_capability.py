@@ -44,6 +44,7 @@ EVMYULLEAN_OVERLAP_BUILTINS = {
     "calldatasize",
     "caller",
     "callvalue",
+    "chainid",
     "div",
     "eq",
     "gt",
