@@ -63,6 +63,7 @@ Then call `onlyOwner` at function start.
 Not first-class yet (see issue `#1161`).
 Use low-level call result checks plus explicit error flow.
 Those low-level call mechanics compile, but they are still outside the current proof-interpreter semantics; treat them as an explicit trust boundary for now (see issue `#1332`).
+Treat `delegatecall` even more strictly: it is also tracked as a dedicated proxy / upgradeability boundary, so archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the verified subset (see issue `#1420`).
 
 ### Manual ABI / memory plumbing
 

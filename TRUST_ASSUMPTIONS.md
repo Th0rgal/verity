@@ -58,6 +58,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 - **Role**: Runtime execution model.
 - **Status**: 15 pure builtins bridged to EVMYulLean `UInt256` operations. Gas is not modeled.
 - **Implication**: Semantic correctness does not imply gas-safety.
+- **Proxy note**: `delegatecall`-based proxy / upgradeability flows still sit outside the current proof-interpreter model. Archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the selected verified subset (issue `#1420`).
 
 ### 6. External Call Modules (ECMs)
 - **Role**: Reusable typed external call patterns (ERC-20 writes/reads including `totalSupply`, ERC-4626 preview/conversion helpers plus `totalAssets`, `asset`, `max*` limit reads, and `deposit`, oracle reads, precompiles, callbacks).

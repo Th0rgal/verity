@@ -294,6 +294,8 @@ The CompilationModel DSL provides a complete expression and statement language f
 | `le a b` | Less or equal | `iszero(gt(a, b))` |
 
 Low-level call expressions compile to the expected Yul builtins, but their runtime semantics are still outside the current proof-interpreter model. Today they are a partial feature: codegen exists, while call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`.
+
+`delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
 | `logicalAnd a b` | Short-circuit logical AND | `and(iszero(iszero(a)), iszero(iszero(b)))` |
 | `logicalOr a b` | Short-circuit logical OR | `or(iszero(iszero(a)), iszero(iszero(b)))` |
 | `logicalNot a` | Logical NOT | `iszero(a)` |

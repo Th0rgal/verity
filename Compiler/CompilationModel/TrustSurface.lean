@@ -247,6 +247,14 @@ private def isLinearMemoryMechanic (mechanic : String) : Bool :=
 private def collectLinearMemoryMechanicsFromMechanics (mechanics : List String) : List String :=
   dedupPreserve (mechanics.filter isLinearMemoryMechanic)
 
+private def isProxyUpgradeabilityMechanic (mechanic : String) : Bool :=
+  match mechanic with
+  | "delegatecall" => true
+  | _ => false
+
+private def collectProxyUpgradeabilityMechanicsFromMechanics (mechanics : List String) : List String :=
+  dedupPreserve (mechanics.filter isProxyUpgradeabilityMechanic)
+
 private def isRuntimeIntrospectionMechanic (mechanic : String) : Bool :=
   match mechanic with
   | "blockNumber" | "contractAddress" | "chainid" => true
@@ -392,6 +400,10 @@ def collectLowLevelMechanics (spec : CompilationModel) : List String :=
 /-- Collect partially modeled linear-memory mechanics used by a spec. -/
 def collectLinearMemoryMechanics (spec : CompilationModel) : List String :=
   collectLinearMemoryMechanicsFromMechanics (collectLowLevelMechanics spec)
+
+/-- Collect not-modeled proxy / upgradeability mechanics used by a spec. -/
+def collectProxyUpgradeabilityMechanics (spec : CompilationModel) : List String :=
+  collectProxyUpgradeabilityMechanicsFromMechanics (collectLowLevelMechanics spec)
 
 private partial def collectRuntimeIntrospectionExprMechanics : Expr → List String
   | .contractAddress => ["contractAddress"]
@@ -815,6 +827,7 @@ private structure UsageSiteSummary where
   name : String
   mechanics : List String
   eventEmission : List String
+  proxyUpgradeability : List String
   runtimeIntrospection : List String
   primitives : List String
   externals : List ExternalFunction
@@ -826,6 +839,7 @@ private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List 
 private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : List Stmt) : Bool :=
   !(collectLowLevelMechanicsFromStmts stmts).isEmpty ||
     !(collectEventEmissionMechanicsFromStmts stmts).isEmpty ||
+    !(collectProxyUpgradeabilityMechanicsFromMechanics (collectLowLevelMechanicsFromStmts stmts)).isEmpty ||
     !(collectRuntimeIntrospectionMechanicsFromStmts stmts).isEmpty ||
     !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
@@ -835,6 +849,7 @@ private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stm
     UsageSiteSummary :=
   let mechanics := collectLowLevelMechanicsFromStmts stmts
   let eventEmission := collectEventEmissionMechanicsFromStmts stmts
+  let proxyUpgradeability := collectProxyUpgradeabilityMechanicsFromMechanics mechanics
   let runtimeIntrospection := collectRuntimeIntrospectionMechanicsFromStmts stmts
   let primitives := collectAxiomatizedPrimitivesFromStmts stmts
   let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
@@ -843,6 +858,7 @@ private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stm
     name := name
     mechanics := mechanics
     eventEmission := eventEmission
+    proxyUpgradeability := proxyUpgradeability
     runtimeIntrospection := runtimeIntrospection
     primitives := primitives
     externals := siteExternals
@@ -875,6 +891,7 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ("name", jsonString site.name),
       ("modeledLowLevelMechanics", jsonArray (site.mechanics.map jsonString)),
       ("notModeledEventEmission", jsonArray (site.eventEmission.map jsonString)),
+      ("notModeledProxyUpgradeability", jsonArray (site.proxyUpgradeability.map jsonString)),
       ("partiallyModeledLinearMemoryMechanics", jsonArray (linearMemoryMechanics.map jsonString)),
       ("partiallyModeledRuntimeIntrospection", jsonArray (site.runtimeIntrospection.map jsonString)),
       ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
@@ -922,6 +939,9 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
             let eventEmissionLines :=
               if site.eventEmission.isEmpty then [] else
                 [s!"    not modeled event emission: {String.intercalate ", " site.eventEmission}"]
+            let proxyUpgradeabilityLines :=
+              if site.proxyUpgradeability.isEmpty then [] else
+                [s!"    not modeled proxy / upgradeability: {String.intercalate ", " site.proxyUpgradeability}"]
             let linearMemoryMechanics := collectLinearMemoryMechanicsFromMechanics site.mechanics
             let linearMemoryLines :=
               if linearMemoryMechanics.isEmpty then [] else
@@ -975,6 +995,7 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
               [heading] ++
               mechanicsLines ++
               eventEmissionLines ++
+              proxyUpgradeabilityLines ++
               linearMemoryLines ++
               runtimeIntrospectionLines ++
               primitiveLines ++
@@ -1072,6 +1093,22 @@ def emitEventEmissionUsageSiteLines (specs : List CompilationModel) : List Strin
       acc ++ siteLines)
     []
 
+/-- Render localized not-modeled proxy / upgradeability lines for proof-strict diagnostics. -/
+def emitProxyUpgradeabilityUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.proxyUpgradeability.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " site.proxyUpgradeability}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- Render localized axiomatized-primitive lines for proof-strict diagnostics. -/
 def emitAxiomatizedPrimitiveUsageSiteLines (specs : List CompilationModel) : List String :=
   specs.foldl
@@ -1127,6 +1164,7 @@ where
       ("contract", jsonString spec.name),
       ("modeledLowLevelMechanics", jsonArray ((collectLowLevelMechanics spec).map jsonString)),
       ("notModeledEventEmission", jsonArray ((collectEventEmissionMechanics spec).map jsonString)),
+      ("notModeledProxyUpgradeability", jsonArray ((collectProxyUpgradeabilityMechanics spec).map jsonString)),
       ("partiallyModeledLinearMemoryMechanics", jsonArray ((collectLinearMemoryMechanics spec).map jsonString)),
       ("partiallyModeledRuntimeIntrospection", jsonArray ((collectRuntimeIntrospectionMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),

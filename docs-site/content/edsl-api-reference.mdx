@@ -652,6 +652,8 @@ First-class low-level forms exist in the compilation model (`Expr.call`, `Expr.s
 
 They are not yet modeled by the current proof interpreters. In the machine-readable interpreter feature matrix, the spec interpreters still treat these forms as fallback-zero / not-modeled constructs, so low-level call plumbing and returndata behavior remain a compiler-and-testing trust boundary rather than a proved semantic feature today.
 
+When the low-level form is `delegatecall`, the trust report now also isolates it as a dedicated proxy / upgradeability boundary; archive `--trust-report` and use `--deny-proxy-upgradeability` for proof-strict runs (see issue `#1420`).
+
 Prefer ECM wrappers when they fit the use case, and see issue `#1332` plus [`docs/INTERPRETER_FEATURE_MATRIX.md`](../../docs/INTERPRETER_FEATURE_MATRIX.md) for the current proof boundary.
 
 Reference: `Compiler/CompilationModel.lean`.

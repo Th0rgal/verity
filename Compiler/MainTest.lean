@@ -130,6 +130,15 @@ unsafe def runTests : IO Unit := do
     "strict runtime-introspection gate rejects partially modeled runtime introspection"
     ["--module", "Contracts.Counter.Counter", "--deny-runtime-introspection", "--output", s!"/tmp/verity-main-test-{nonce}-runtime-fail-out"]
     "Counter [function:previewEnvOps]: blockNumber, contractAddress, chainid"
+  let proxyStrictOutDir := s!"/tmp/verity-main-test-{nonce}-proxy-strict-out"
+  IO.FS.createDirAll proxyStrictOutDir
+  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-proxy-upgradeability", "--output", proxyStrictOutDir])
+  let proxyStrictArtifact ← fileExists s!"{proxyStrictOutDir}/SimpleStorage.yul"
+  expectTrue "strict proxy-upgradeability gate accepts contracts without delegatecall" proxyStrictArtifact
+  expectErrorContains
+    "strict proxy-upgradeability gate rejects delegatecall mechanics"
+    ["--module", "Contracts.Counter.Counter", "--deny-proxy-upgradeability", "--output", s!"/tmp/verity-main-test-{nonce}-proxy-fail-out"]
+    "Counter [function:previewLowLevel]: delegatecall"
   let nonSelectedArtifactFlags ←
     (canonicalModules.filter (· != "Contracts.Counter.Counter")).mapM
       (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))

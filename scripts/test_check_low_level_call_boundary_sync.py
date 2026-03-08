@@ -103,9 +103,12 @@ class LowLevelCallBoundarySyncTests(unittest.TestCase):
             """
             They are not yet modeled by the current proof interpreters.
             low-level call plumbing and returndata behavior remain a compiler-and-testing trust boundary rather than a proved semantic feature today.
+            When the low-level form is `delegatecall`, the trust report now also isolates it as a dedicated proxy / upgradeability boundary; archive `--trust-report` and use `--deny-proxy-upgradeability` for proof-strict runs (see issue `#1420`).
             their runtime semantics are still outside the current proof-interpreter model.
             call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`.
+            `delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
             Those low-level call mechanics compile, but they are still outside the current proof-interpreter semantics; see issue `#1332`.
+            Treat `delegatecall` even more strictly: it is also tracked as a dedicated proxy / upgradeability boundary, so archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the verified subset (see issue `#1420`).
             """
         )
         rc, output = self._run_check(

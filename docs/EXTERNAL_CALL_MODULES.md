@@ -192,6 +192,8 @@ emits per-contract JSON that includes:
   buckets for foreign trust surfaces
 - `usageSites` entries that localize those mechanics and assumptions to the
   constructor or individual function that introduced them
+- `notModeledProxyUpgradeability` entries that isolate `delegatecall` as the
+  current proxy / upgradeability proof gap tracked under issue `#1420`
 - `partiallyModeledLinearMemoryMechanics` entries that isolate the current
   linear-memory proof gap (`mload`, `mstore`, `calldatacopy`,
   `returndataCopy`, `returndataOptionalBoolAt`) at both contract and
@@ -221,7 +223,10 @@ still uses raw `rawLog` event emission, again citing the exact
 constructor/function usage site. For low-level-proof-strict runs,
 `verity-compiler --deny-low-level-mechanics` fails closed when any selected
 contract still uses first-class low-level call / returndata mechanics, again
-citing the exact constructor/function usage site. For runtime-proof-strict runs,
+citing the exact constructor/function usage site. For proxy-proof-strict runs,
+`verity-compiler --deny-proxy-upgradeability` fails closed when any selected
+contract still uses `delegatecall`, again citing the exact constructor/function
+usage site. For runtime-proof-strict runs,
 `verity-compiler --deny-runtime-introspection` fails closed when any selected
 contract still uses partially modeled runtime-introspection primitives, again
 citing the exact constructor/function usage site.

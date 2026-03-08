@@ -34,6 +34,7 @@ private structure CLIArgs where
   denyEventEmission : Bool := false
   denyLowLevelMechanics : Bool := false
   denyRuntimeIntrospection : Bool := false
+  denyProxyUpgradeability : Bool := false
   mappingSlotScratchBase : Nat := 0
   mappingSlotScratchBaseExplicit : Bool := false
 
@@ -95,6 +96,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --deny-event-emission         Fail if any contract uses raw `rawLog` event emission"
         IO.println "  --deny-low-level-mechanics    Fail if any contract uses first-class low-level call / returndata mechanics"
         IO.println "  --deny-runtime-introspection   Fail if any contract uses partially modeled runtime-introspection primitives"
+        IO.println "  --deny-proxy-upgradeability   Fail if any contract uses `delegatecall`-style proxy / upgradeability mechanics"
         IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)"
         IO.println "  --verbose          Enable verbose output"
         IO.println "  -v                 Short form of --verbose"
@@ -196,6 +198,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with denyLowLevelMechanics := true }
     | "--deny-runtime-introspection" :: rest =>
         go rest { cfg with denyRuntimeIntrospection := true }
+    | "--deny-proxy-upgradeability" :: rest =>
+        go rest { cfg with denyProxyUpgradeability := true }
     | "--mapping-slot-scratch-base" :: raw :: rest =>
         match raw.toNat? with
         | some n => go rest { cfg with mappingSlotScratchBase := n, mappingSlotScratchBaseExplicit := true }
@@ -263,6 +267,8 @@ unsafe def main (args : List String) : IO Unit := do
         IO.println "Low-level mechanics: denied"
       if cfg.denyRuntimeIntrospection then
         IO.println "Runtime introspection: denied"
+      if cfg.denyProxyUpgradeability then
+        IO.println "Proxy / upgradeability: denied"
       if cfg.denyAssumedDependencies then
         IO.println "Assumed dependencies: denied"
       if cfg.denyAxiomatizedPrimitives then
@@ -300,7 +306,7 @@ unsafe def main (args : List String) : IO Unit := do
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
       cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
       cfg.denyAxiomatizedPrimitives cfg.denyLinearMemoryMechanics cfg.denyEventEmission
-      cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection
+      cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

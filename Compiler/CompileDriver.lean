@@ -84,6 +84,12 @@ private def ensureNoEventEmission (specs : List CompilationModel) : IO Unit := d
     throw (IO.userError
       s!"Not-modeled event emission remains:\n{String.intercalate "\n" eventEmissionSites}")
 
+private def ensureNoProxyUpgradeability (specs : List CompilationModel) : IO Unit := do
+  let proxySites := emitProxyUpgradeabilityUsageSiteLines specs
+  if !proxySites.isEmpty then
+    throw (IO.userError
+      s!"Not-modeled proxy / upgradeability mechanics remain:\n{String.intercalate "\n" proxySites}")
+
 private def ensureNoRuntimeIntrospection (specs : List CompilationModel) : IO Unit := do
   let runtimeIntrospectionSites := emitRuntimeIntrospectionUsageSiteLines specs
   if !runtimeIntrospectionSites.isEmpty then
@@ -147,7 +153,8 @@ def compileSpecsWithOptions
     (denyLinearMemoryMechanics : Bool := false)
     (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
-    (denyRuntimeIntrospection : Bool := false) : IO Unit := do
+    (denyRuntimeIntrospection : Bool := false)
+    (denyProxyUpgradeability : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -199,6 +206,8 @@ def compileSpecsWithOptions
     ensureNoLowLevelMechanics specs
   if denyRuntimeIntrospection then
     ensureNoRuntimeIntrospection specs
+  if denyProxyUpgradeability then
+    ensureNoProxyUpgradeability specs
   if denyAssumedDependencies then
     ensureNoAssumedDependencies specs
   if denyUncheckedDependencies then
@@ -227,6 +236,17 @@ def compileSpecsWithOptions
     if !anyEventEmission then
       IO.println "  (no raw event-emission primitives used)"
     IO.println "  Proof boundary: raw LOG-style event emission is compiler-supported, but current proof interpreters still treat `rawLog` as a not-modeled feature."
+    IO.println ""
+    IO.println "Proxy / upgradeability report:"
+    let mut anyProxyUpgradeability := false
+    for spec in specs do
+      let mechanics := collectProxyUpgradeabilityMechanics spec
+      if !mechanics.isEmpty then
+        anyProxyUpgradeability := true
+        IO.println s!"  {spec.name}: {String.intercalate ", " mechanics}"
+    if !anyProxyUpgradeability then
+      IO.println "  (no proxy / upgradeability mechanics used)"
+    IO.println "  Proof boundary: `delegatecall` still lacks native proxy / upgradeability semantics in the proof interpreters; treat these sites as explicit trust boundaries tracked under issue #1420."
     IO.println ""
     IO.println "Runtime introspection report:"
     let mut anyRuntimeIntrospection := false
@@ -376,7 +396,8 @@ unsafe def compileModulesWithOptions
     (denyLinearMemoryMechanics : Bool := false)
     (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
-    (denyRuntimeIntrospection : Bool := false) : IO Unit := do
+    (denyRuntimeIntrospection : Bool := false)
+    (denyProxyUpgradeability : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
@@ -384,4 +405,4 @@ unsafe def compileModulesWithOptions
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLinearMemoryMechanics
-    denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection
+    denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability
