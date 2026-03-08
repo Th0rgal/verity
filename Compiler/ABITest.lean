@@ -124,6 +124,23 @@ private def stringAbiSpec : CompilationModel := {
         { name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }
       ]
     }
+    , { name := "TaggedMessageLogged"
+        params := [
+          { name := "tag", ty := ParamType.uint256, kind := EventParamKind.indexed }
+        , { name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }
+        ]
+      }
+    , { name := "IndexedMessageLogged"
+        params := [
+          { name := "message", ty := ParamType.string, kind := EventParamKind.indexed }
+        ]
+      }
+    , { name := "SecondMessageLogged"
+        params := [
+          { name := "prefix", ty := ParamType.string, kind := EventParamKind.unindexed }
+        , { name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }
+        ]
+      }
   ]
   «errors» := [
     { name := "BadMessage"
@@ -169,7 +186,16 @@ private def stringAbiSpec : CompilationModel := {
   assertContains
     "string event ABI"
     stringRendered
-    ["\"type\": \"event\"", "\"name\": \"MessageLogged\"", "\"type\": \"string\"", "\"indexed\": false"]
+    [ "\"type\": \"event\""
+    , "\"name\": \"MessageLogged\""
+    , "\"inputs\": [{\"name\": \"message\", \"type\": \"string\", \"indexed\": false}]"
+    , "\"name\": \"TaggedMessageLogged\""
+    , "\"inputs\": [{\"name\": \"tag\", \"type\": \"uint256\", \"indexed\": true}, {\"name\": \"message\", \"type\": \"string\", \"indexed\": false}]"
+    , "\"name\": \"IndexedMessageLogged\""
+    , "\"inputs\": [{\"name\": \"message\", \"type\": \"string\", \"indexed\": true}]"
+    , "\"name\": \"SecondMessageLogged\""
+    , "\"inputs\": [{\"name\": \"prefix\", \"type\": \"string\", \"indexed\": false}, {\"name\": \"message\", \"type\": \"string\", \"indexed\": false}]"
+    ]
   assertContains
     "string error ABI"
     stringRendered

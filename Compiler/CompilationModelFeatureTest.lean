@@ -1522,6 +1522,21 @@ private def stringAbiSpec : CompilationModel := {
     { name := "MessageLogged"
       params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
     }
+    , { name := "TaggedMessageLogged"
+        params := [
+          { name := "tag", ty := ParamType.uint256, kind := EventParamKind.indexed }
+        , { name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }
+        ]
+      }
+    , { name := "IndexedMessageLogged"
+        params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.indexed }]
+      }
+    , { name := "SecondMessageLogged"
+        params := [
+          { name := "prefix", ty := ParamType.string, kind := EventParamKind.unindexed }
+        , { name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }
+        ]
+      }
   ]
   «errors» := [
     { name := "BadMessage"
@@ -2186,6 +2201,13 @@ set_option maxRecDepth 4096 in
       (contains stringAbi "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string\"}]") &&
       (contains stringAbi "\"name\": \"SecondMessage\"") &&
       (contains stringAbi "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}, {\"name\": \"\", \"type\": \"string\"}]"))
+  expectTrue "string ABI includes indexed and multi-head string events"
+    ((contains stringAbi "\"name\": \"TaggedMessageLogged\"") &&
+      (contains stringAbi "\"inputs\": [{\"name\": \"tag\", \"type\": \"uint256\", \"indexed\": true}, {\"name\": \"message\", \"type\": \"string\", \"indexed\": false}]") &&
+      (contains stringAbi "\"name\": \"IndexedMessageLogged\"") &&
+      (contains stringAbi "\"inputs\": [{\"name\": \"message\", \"type\": \"string\", \"indexed\": true}]") &&
+      (contains stringAbi "\"name\": \"SecondMessageLogged\"") &&
+      (contains stringAbi "\"inputs\": [{\"name\": \"prefix\", \"type\": \"string\", \"indexed\": false}, {\"name\": \"message\", \"type\": \"string\", \"indexed\": false}]"))
   expectCompileErrorContains
     "returnBytes rejects bytes params for string returns"
     stringReturnMismatchSpec
