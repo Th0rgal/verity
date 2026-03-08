@@ -18,7 +18,10 @@ def elabVerityContract : CommandElab := fun stx => do
   elabCommand (← `(namespace $contractName))
 
   validateConstantDeclsPublic constDecls
-  validateImmutableDeclsPublic fields constDecls immutableDecls
+  for constant in constDecls do
+    elabCommand (← mkConstantDefCommandPublic constant)
+
+  validateImmutableDeclsPublic fields constDecls immutableDecls ctor
   validateExternalDeclsPublic externalDecls
 
   for field in fields do
@@ -26,9 +29,6 @@ def elabVerityContract : CommandElab := fun stx => do
 
   for imm in immutableDecls.zipIdx do
     elabCommand (← mkStorageDefCommandPublic (immutableStorageFieldDecl fields imm.1 imm.2))
-
-  for constant in constDecls do
-    elabCommand (← mkConstantDefCommandPublic constant)
 
   for fn in functions do
     let fnCmds ← mkFunctionCommandsPublic fields constDecls immutableDecls fn

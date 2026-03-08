@@ -438,6 +438,17 @@ private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
       throwErrorAt imm.ident
         s!"contract immutables currently support only Uint256, Uint8, Address, Bytes32, and Bool; '{imm.name}' uses unsupported type"
 
+private def validateImmutableBodyType
+    (imm : ImmutableDecl)
+    (ctorParams : Array ParamDecl) : CommandElabM Unit := do
+  let expectedTy ← contractValueTypeTerm imm.ty
+  let mut wrappedBody : Term := imm.body
+  wrappedBody ← `(term| (($wrappedBody : $expectedTy)))
+  for param in ctorParams.reverse do
+    wrappedBody ← `(term| fun ($(param.ident) : $(← contractValueTypeTerm param.ty)) => $wrappedBody)
+  liftTermElabM do
+    discard <| Lean.Elab.Term.elabTerm wrappedBody none
+
 private def externalExecutableWordType? : ValueType → Bool
   | .uint256 | .uint8 | .address | .bytes32 | .bool => true
   | _ => false
@@ -2019,10 +2030,13 @@ def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM
 def validateImmutableDeclsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
-    (immutableDecls : Array ImmutableDecl) : CommandElabM Unit := do
+    (immutableDecls : Array ImmutableDecl)
+    (ctor : Option ConstructorDecl := none) : CommandElabM Unit := do
   let mut seenNames : Array String := #[]
+  let ctorParams := ctor.map (·.params) |>.getD #[]
   for imm in immutableDecls do
     validateImmutableType imm
+    validateImmutableBodyType imm ctorParams
     if fields.any (fun field => field.name == imm.name) then
       throwErrorAt imm.ident
         s!"immutable '{imm.name}' conflicts with a storage field of the same name"

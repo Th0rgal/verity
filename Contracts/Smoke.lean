@@ -202,6 +202,42 @@ verity_contract ImmutableTypeRejected where
 end ImmutableTypeRejected
 
 /--
+error: type mismatch
+  true
+has type
+  Bool : Type
+but is expected to have type
+  Uint256 : Type
+-/
+#guard_msgs in
+verity_contract ImmutableBoolAssignedToWordRejected where
+  storage
+
+  immutables
+    fee : Uint256 := true
+
+  function feeWord () : Uint256 := do
+    return fee
+
+/--
+error: type mismatch
+  true
+has type
+  Bool : Type
+but is expected to have type
+  Address : Type
+-/
+#guard_msgs in
+verity_contract ImmutableBoolAssignedToAddressRejected where
+  storage
+
+  immutables
+    owner : Address := true
+
+  function ownerAddr () : Address := do
+    return owner
+
+/--
 error: immutable 'owner' conflicts with a storage field of the same name
 -/
 #guard_msgs in

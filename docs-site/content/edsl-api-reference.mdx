@@ -435,6 +435,8 @@ In this parity slice, immutables are lowered to internal read-only slots named `
 
 Immutable names must be unique within the `immutables` block and must not reuse a storage-field or contract-constant name. That keeps runtime name resolution unambiguous across the executable fallback and the generated compilation model.
 
+Immutable initializer bodies are also elaborated against the declared executable-facing type before translation. That means obviously ill-typed declarations such as `Uint256 := true` or `Address := true` are rejected up front instead of silently compiling into a mismatched spec.
+
 The current surface supports `Uint256`, `Uint8`, `Address`, `Bytes32`, and `Bool` immutables. Dynamic types still stay out of scope so the executable fallback and the compilation model remain aligned without pretending the repository already has native bytecode-embedded immutable lowering.
 
 ## Linked Externals
