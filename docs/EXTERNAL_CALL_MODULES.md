@@ -184,6 +184,7 @@ low-level mechanics, linked external/module `proofStatus`, and per-site axioms.
 For machine-readable audit trails, `verity-compiler --trust-report <path>` now
 emits per-contract JSON that includes:
 - first-class low-level call / returndata mechanics used by the spec
+- not-modeled raw event-emission mechanics used by the spec (`rawLog`)
 - axiomatized primitives used directly by the spec (for example `keccak256`)
 - linked external assumptions with `status`
 - ECM assumption entries (`module`, `assumption`) plus per-module `status`
@@ -214,7 +215,10 @@ contract still uses axiomatized primitives such as `keccak256`, again citing
 the exact constructor/function usage site. For memory-proof-strict runs,
 `verity-compiler --deny-linear-memory-mechanics` fails closed when any selected
 contract still uses partially modeled linear-memory mechanics, again citing the
-exact constructor/function usage site. For low-level-proof-strict runs,
+exact constructor/function usage site. For event-proof-strict runs,
+`verity-compiler --deny-event-emission` fails closed when any selected contract
+still uses raw `rawLog` event emission, again citing the exact
+constructor/function usage site. For low-level-proof-strict runs,
 `verity-compiler --deny-low-level-mechanics` fails closed when any selected
 contract still uses first-class low-level call / returndata mechanics, again
 citing the exact constructor/function usage site. For runtime-proof-strict runs,

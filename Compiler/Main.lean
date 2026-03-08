@@ -31,6 +31,7 @@ private structure CLIArgs where
   denyAssumedDependencies : Bool := false
   denyAxiomatizedPrimitives : Bool := false
   denyLinearMemoryMechanics : Bool := false
+  denyEventEmission : Bool := false
   denyLowLevelMechanics : Bool := false
   denyRuntimeIntrospection : Bool := false
   mappingSlotScratchBase : Nat := 0
@@ -91,6 +92,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
         IO.println "  --deny-axiomatized-primitives  Fail if any contract uses axiomatized primitives"
         IO.println "  --deny-linear-memory-mechanics  Fail if any contract uses partially modeled linear-memory mechanics"
+        IO.println "  --deny-event-emission         Fail if any contract uses raw `rawLog` event emission"
         IO.println "  --deny-low-level-mechanics    Fail if any contract uses first-class low-level call / returndata mechanics"
         IO.println "  --deny-runtime-introspection   Fail if any contract uses partially modeled runtime-introspection primitives"
         IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)"
@@ -188,6 +190,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with denyAxiomatizedPrimitives := true }
     | "--deny-linear-memory-mechanics" :: rest =>
         go rest { cfg with denyLinearMemoryMechanics := true }
+    | "--deny-event-emission" :: rest =>
+        go rest { cfg with denyEventEmission := true }
     | "--deny-low-level-mechanics" :: rest =>
         go rest { cfg with denyLowLevelMechanics := true }
     | "--deny-runtime-introspection" :: rest =>
@@ -253,6 +257,8 @@ unsafe def main (args : List String) : IO Unit := do
       | none => pure ()
       if cfg.denyLinearMemoryMechanics then
         IO.println "Linear memory mechanics: denied"
+      if cfg.denyEventEmission then
+        IO.println "Event emission: denied"
       if cfg.denyLowLevelMechanics then
         IO.println "Low-level mechanics: denied"
       if cfg.denyRuntimeIntrospection then
@@ -293,7 +299,7 @@ unsafe def main (args : List String) : IO Unit := do
     compileModulesWithOptions
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
       cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
-      cfg.denyAxiomatizedPrimitives cfg.denyLinearMemoryMechanics
+      cfg.denyAxiomatizedPrimitives cfg.denyLinearMemoryMechanics cfg.denyEventEmission
       cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection
   catch e =>
     if e.toString == "help" then

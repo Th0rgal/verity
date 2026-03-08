@@ -78,6 +78,12 @@ private def ensureNoLinearMemoryMechanics (specs : List CompilationModel) : IO U
     throw (IO.userError
       s!"Partially modeled linear-memory mechanics remain:\n{String.intercalate "\n" linearMemorySites}")
 
+private def ensureNoEventEmission (specs : List CompilationModel) : IO Unit := do
+  let eventEmissionSites := emitEventEmissionUsageSiteLines specs
+  if !eventEmissionSites.isEmpty then
+    throw (IO.userError
+      s!"Not-modeled event emission remains:\n{String.intercalate "\n" eventEmissionSites}")
+
 private def ensureNoRuntimeIntrospection (specs : List CompilationModel) : IO Unit := do
   let runtimeIntrospectionSites := emitRuntimeIntrospectionUsageSiteLines specs
   if !runtimeIntrospectionSites.isEmpty then
@@ -139,6 +145,7 @@ def compileSpecsWithOptions
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
+    (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
@@ -186,6 +193,8 @@ def compileSpecsWithOptions
     ensureNoAxiomatizedPrimitives specs
   if denyLinearMemoryMechanics then
     ensureNoLinearMemoryMechanics specs
+  if denyEventEmission then
+    ensureNoEventEmission specs
   if denyLowLevelMechanics then
     ensureNoLowLevelMechanics specs
   if denyRuntimeIntrospection then
@@ -207,6 +216,17 @@ def compileSpecsWithOptions
     if !anyLinearMemory then
       IO.println "  (no partially modeled linear-memory primitives used)"
     IO.println "  Proof boundary: these mechanics rely on linear memory / ABI movement that is still only partially modeled by current proof interpreters."
+    IO.println ""
+    IO.println "Event-emission report:"
+    let mut anyEventEmission := false
+    for spec in specs do
+      let mechanics := collectEventEmissionMechanics spec
+      if !mechanics.isEmpty then
+        anyEventEmission := true
+        IO.println s!"  {spec.name}: {String.intercalate ", " mechanics}"
+    if !anyEventEmission then
+      IO.println "  (no raw event-emission primitives used)"
+    IO.println "  Proof boundary: raw LOG-style event emission is compiler-supported, but current proof interpreters still treat `rawLog` as a not-modeled feature."
     IO.println ""
     IO.println "Runtime introspection report:"
     let mut anyRuntimeIntrospection := false
@@ -354,6 +374,7 @@ unsafe def compileModulesWithOptions
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
+    (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
     (denyRuntimeIntrospection : Bool := false) : IO Unit := do
   let specs ←
@@ -363,4 +384,4 @@ unsafe def compileModulesWithOptions
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLinearMemoryMechanics
-    denyLowLevelMechanics denyRuntimeIntrospection
+    denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection

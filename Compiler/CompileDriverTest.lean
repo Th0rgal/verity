@@ -236,6 +236,22 @@ private def memoryOnlyTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def rawLogTrustSurfaceSpec : CompilationModel := {
+  name := "RawLogTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "emitTrace"
+      params := []
+      returnType := none
+      body := [
+        Stmt.rawLog [Expr.literal 1, Expr.literal 2] (Expr.literal 0) (Expr.literal 64),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
   name := "RuntimeIntrospectionTrustSurface"
   fields := []
@@ -1000,19 +1016,35 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ memory trust report emits linear-memory mechanics")
   if !contains memoryTrustReport "\"partiallyModeledLinearMemoryMechanics\":[\"mstore\",\"calldatacopy\",\"returndataCopy\",\"mload\"]" then
     throw (IO.userError "✗ memory trust report emits partially modeled linear-memory mechanics")
-  if !contains memoryTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exerciseMemory\",\"modeledLowLevelMechanics\":[\"mstore\",\"calldatacopy\",\"returndataCopy\",\"mload\"],\"partiallyModeledLinearMemoryMechanics\":[\"mstore\",\"calldatacopy\",\"returndataCopy\",\"mload\"]" then
+  if !contains memoryTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exerciseMemory\",\"modeledLowLevelMechanics\":[\"mstore\",\"calldatacopy\",\"returndataCopy\",\"mload\"],\"notModeledEventEmission\":[],\"partiallyModeledLinearMemoryMechanics\":[\"mstore\",\"calldatacopy\",\"returndataCopy\",\"mload\"]" then
     throw (IO.userError "✗ memory trust report localizes partially modeled linear-memory mechanics")
   let memoryVerboseUsageSiteReport := String.intercalate "\n" (emitVerboseUsageSiteLines [memoryTrustSurfaceSpec])
   if !contains memoryVerboseUsageSiteReport "partially modeled linear memory: mstore, calldatacopy, returndataCopy, mload" then
     throw (IO.userError "✗ verbose trust report localizes partially modeled linear-memory mechanics")
   IO.println "✓ trust report surfaces partially modeled linear-memory mechanics"
 
+  let rawLogTrustReport := emitTrustReportJson [rawLogTrustSurfaceSpec]
+  if !contains rawLogTrustReport "\"contract\":\"RawLogTrustSurface\"" then
+    throw (IO.userError "✗ rawLog trust report emits contract name")
+  if !contains rawLogTrustReport "\"notModeledEventEmission\":[\"rawLog\"]" then
+    throw (IO.userError "✗ rawLog trust report emits not-modeled event emission")
+  if !contains rawLogTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"emitTrace\",\"modeledLowLevelMechanics\":[],\"notModeledEventEmission\":[\"rawLog\"]" then
+    throw (IO.userError "✗ rawLog trust report localizes not-modeled event emission")
+  let rawLogVerboseUsageSiteReport := String.intercalate "\n" (emitVerboseUsageSiteLines [rawLogTrustSurfaceSpec])
+  if !contains rawLogVerboseUsageSiteReport "not modeled event emission: rawLog" then
+    throw (IO.userError "✗ verbose trust report localizes not-modeled event emission")
+  let rawLogUsageSiteLines := emitEventEmissionUsageSiteLines [rawLogTrustSurfaceSpec]
+  let rawLogUsageSiteReport := String.intercalate "\n" rawLogUsageSiteLines
+  if !contains rawLogUsageSiteReport "- RawLogTrustSurface [function:emitTrace]: rawLog" then
+    throw (IO.userError "✗ event-emission diagnostics localize usage sites")
+  IO.println "✓ trust report surfaces not-modeled raw event emission"
+
   let runtimeIntrospectionTrustReport := emitTrustReportJson [runtimeIntrospectionTrustSurfaceSpec]
   if !contains runtimeIntrospectionTrustReport "\"contract\":\"RuntimeIntrospectionTrustSurface\"" then
     throw (IO.userError "✗ runtime-introspection trust report emits contract name")
   if !contains runtimeIntrospectionTrustReport "\"partiallyModeledRuntimeIntrospection\":[\"blockNumber\",\"contractAddress\",\"chainid\"]" then
     throw (IO.userError "✗ runtime-introspection trust report emits partially modeled runtime-introspection primitives")
-  if !contains runtimeIntrospectionTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exerciseRuntime\",\"modeledLowLevelMechanics\":[],\"partiallyModeledLinearMemoryMechanics\":[],\"partiallyModeledRuntimeIntrospection\":[\"blockNumber\",\"contractAddress\",\"chainid\"]" then
+  if !contains runtimeIntrospectionTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exerciseRuntime\",\"modeledLowLevelMechanics\":[],\"notModeledEventEmission\":[],\"partiallyModeledLinearMemoryMechanics\":[],\"partiallyModeledRuntimeIntrospection\":[\"blockNumber\",\"contractAddress\",\"chainid\"]" then
     throw (IO.userError "✗ runtime-introspection trust report localizes partially modeled runtime-introspection primitives")
   let runtimeIntrospectionVerboseUsageSiteReport := String.intercalate "\n" (emitVerboseUsageSiteLines [runtimeIntrospectionTrustSurfaceSpec])
   if !contains runtimeIntrospectionVerboseUsageSiteReport "partially modeled runtime introspection: blockNumber, contractAddress, chainid" then
@@ -1236,7 +1268,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
     (compileSpecsWithOptions
-      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false false true false)
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false false false true false)
     "Low-level mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: call, staticcall, delegatecall, returndataCopy, returndataSize"
   let deniedLowLevelTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedLowLevelTrustReportWritten then
@@ -1245,7 +1277,7 @@ unsafe def runTests : IO Unit := do
 
   let denyLowLevelMemoryOutDir := s!"/tmp/compile-driver-deny-low-level-memory-ok-{nonce}"
   compileSpecsWithOptions
-    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false false true false
+    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false false false true false
   let denyLowLevelMemoryArtifactWritten ← fileExists s!"{denyLowLevelMemoryOutDir}/MemoryOnlyTrustSurface.yul"
   if !denyLowLevelMemoryArtifactWritten then
     throw (IO.userError "✗ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate")
@@ -1265,7 +1297,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
     (compileSpecsWithOptions
-      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false false)
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false false false)
     "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
   let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
   if !deniedAssumedTrustReportWritten then
@@ -1276,7 +1308,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects axiomatized primitives when deny flag enabled"
     (compileSpecsWithOptions
-      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none false false true false false false)
+      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none false false true false false false false)
     "Axiomatized primitives remain:\n- PrimitiveOnlyTrustSurface [function:exercisePrimitive]: keccak256"
   let deniedPrimitiveTrustReportWritten ← fileExists deniedPrimitiveTrustReportPath
   if !deniedPrimitiveTrustReportWritten then
@@ -1287,18 +1319,29 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled linear memory when deny flag enabled"
     (compileSpecsWithOptions
-      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false false true false false)
+      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false false true false false false)
     "Partially modeled linear-memory mechanics remain:\n- MemoryTrustSurface [function:exerciseMemory]: mstore, calldatacopy, returndataCopy, mload"
   let deniedLinearMemoryTrustReportWritten ← fileExists deniedLinearMemoryTrustReportPath
   if !deniedLinearMemoryTrustReportWritten then
     throw (IO.userError "✗ denied linear-memory compile still writes trust report file")
   IO.println "✓ denied linear-memory compile still writes trust report file"
 
+  let deniedEventEmissionTrustReportPath := s!"{trustReportDir}/trust-report-denied-event-emission.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects raw event emission when deny flag enabled"
+    (compileSpecsWithOptions
+      [rawLogTrustSurfaceSpec] outDir false [] {} none (some deniedEventEmissionTrustReportPath) none false false false false true false false)
+    "Not-modeled event emission remains:\n- RawLogTrustSurface [function:emitTrace]: rawLog"
+  let deniedEventEmissionTrustReportWritten ← fileExists deniedEventEmissionTrustReportPath
+  if !deniedEventEmissionTrustReportWritten then
+    throw (IO.userError "✗ denied event-emission compile still writes trust report file")
+  IO.println "✓ denied event-emission compile still writes trust report file"
+
   let deniedRuntimeIntrospectionTrustReportPath := s!"{trustReportDir}/trust-report-denied-runtime-introspection.json"
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled runtime introspection when deny flag enabled"
     (compileSpecsWithOptions
-      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false false true)
+      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false false false true)
     "Partially modeled runtime-introspection mechanics remain:\n- RuntimeIntrospectionTrustSurface [function:exerciseRuntime]: blockNumber, contractAddress, chainid"
   let deniedRuntimeIntrospectionTrustReportWritten ← fileExists deniedRuntimeIntrospectionTrustReportPath
   if !deniedRuntimeIntrospectionTrustReportWritten then

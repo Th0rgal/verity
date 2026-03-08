@@ -1,4 +1,5 @@
 import Contracts
+import Contracts.RawLogTrustSurface
 import Compiler.Main
 import Compiler.Linker
 import Compiler.TestModules
@@ -102,6 +103,15 @@ unsafe def runTests : IO Unit := do
     "strict linear-memory gate rejects partially modeled memory mechanics"
     ["--module", "Contracts.Counter.Counter", "--deny-linear-memory-mechanics", "--output", s!"/tmp/verity-main-test-{nonce}-memory-fail-out"]
     "Counter [function:previewEnvOps]: mload"
+  let eventStrictOutDir := s!"/tmp/verity-main-test-{nonce}-event-strict-out"
+  IO.FS.createDirAll eventStrictOutDir
+  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-event-emission", "--output", eventStrictOutDir])
+  let eventStrictArtifact ← fileExists s!"{eventStrictOutDir}/SimpleStorage.yul"
+  expectTrue "strict event-emission gate accepts contracts without raw event emission" eventStrictArtifact
+  expectErrorContains
+    "strict event-emission gate rejects raw event emission"
+    ["--module", "Contracts.RawLogTrustSurface", "--deny-event-emission", "--output", s!"/tmp/verity-main-test-{nonce}-event-fail-out"]
+    "RawLogTrustSurface [function:emitTrace]: rawLog"
   let lowLevelStrictOutDir := s!"/tmp/verity-main-test-{nonce}-low-level-strict-out"
   IO.FS.createDirAll lowLevelStrictOutDir
   main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-low-level-mechanics", "--output", lowLevelStrictOutDir])

@@ -255,6 +255,122 @@ private def isRuntimeIntrospectionMechanic (mechanic : String) : Bool :=
 private def collectRuntimeIntrospectionMechanicsFromMechanics (mechanics : List String) : List String :=
   dedupPreserve (mechanics.filter isRuntimeIntrospectionMechanic)
 
+private partial def collectEventEmissionExprMechanics : Expr → List String
+  | .externalCall _ args
+  | .internalCall _ args =>
+      args.flatMap collectEventEmissionExprMechanics
+  | .call gas target value inOffset inSize outOffset outSize =>
+      collectEventEmissionExprMechanics gas ++ collectEventEmissionExprMechanics target ++
+        collectEventEmissionExprMechanics value ++ collectEventEmissionExprMechanics inOffset ++
+        collectEventEmissionExprMechanics inSize ++ collectEventEmissionExprMechanics outOffset ++
+        collectEventEmissionExprMechanics outSize
+  | .staticcall gas target inOffset inSize outOffset outSize
+  | .delegatecall gas target inOffset inSize outOffset outSize =>
+      collectEventEmissionExprMechanics gas ++ collectEventEmissionExprMechanics target ++
+        collectEventEmissionExprMechanics inOffset ++ collectEventEmissionExprMechanics inSize ++
+        collectEventEmissionExprMechanics outOffset ++ collectEventEmissionExprMechanics outSize
+  | .returndataOptionalBoolAt outOffset
+  | .mload outOffset
+  | .tload outOffset
+  | .calldataload outOffset
+  | .extcodesize outOffset =>
+      collectEventEmissionExprMechanics outOffset
+  | .keccak256 offset size =>
+      collectEventEmissionExprMechanics offset ++ collectEventEmissionExprMechanics size
+  | .mapping _ key
+  | .mappingWord _ key _
+  | .mappingPackedWord _ key _ _
+  | .structMember _ key _ =>
+      collectEventEmissionExprMechanics key
+  | .mapping2 _ key1 key2
+  | .mapping2Word _ key1 key2 _
+  | .structMember2 _ key1 key2 _ =>
+      collectEventEmissionExprMechanics key1 ++ collectEventEmissionExprMechanics key2
+  | .mappingUint _ key
+  | .arrayElement _ key =>
+      collectEventEmissionExprMechanics key
+  | .add a b | .sub a b | .mul a b | .div a b | .mod a b
+  | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b
+  | .eq a b | .gt a b | .lt a b | .ge a b | .le a b
+  | .logicalAnd a b | .logicalOr a b
+  | .wMulDown a b | .wDivUp a b | .min a b | .max a b =>
+      collectEventEmissionExprMechanics a ++ collectEventEmissionExprMechanics b
+  | .mulDivDown a b c | .mulDivUp a b c =>
+      collectEventEmissionExprMechanics a ++ collectEventEmissionExprMechanics b ++
+        collectEventEmissionExprMechanics c
+  | .bitNot a | .logicalNot a =>
+      collectEventEmissionExprMechanics a
+  | .ite cond thenVal elseVal =>
+      collectEventEmissionExprMechanics cond ++ collectEventEmissionExprMechanics thenVal ++
+        collectEventEmissionExprMechanics elseVal
+  | _ =>
+      []
+
+private partial def collectEventEmissionStmtMechanics : Stmt → List String
+  | .letVar _ value
+  | .assignVar _ value
+  | .setStorage _ value
+  | .setStorageAddr _ value
+  | .return value
+  | .require value _ =>
+      collectEventEmissionExprMechanics value
+  | .requireError cond _ args =>
+      collectEventEmissionExprMechanics cond ++ args.flatMap collectEventEmissionExprMechanics
+  | .revertError _ args =>
+      args.flatMap collectEventEmissionExprMechanics
+  | .mstore offset value
+  | .tstore offset value =>
+      collectEventEmissionExprMechanics offset ++ collectEventEmissionExprMechanics value
+  | .calldatacopy destOffset sourceOffset size
+  | .returndataCopy destOffset sourceOffset size =>
+      collectEventEmissionExprMechanics destOffset ++ collectEventEmissionExprMechanics sourceOffset ++
+        collectEventEmissionExprMechanics size
+  | .setMapping _ key value
+  | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value
+  | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      collectEventEmissionExprMechanics key ++ collectEventEmissionExprMechanics value
+  | .setMapping2 _ key1 key2 value
+  | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      collectEventEmissionExprMechanics key1 ++ collectEventEmissionExprMechanics key2 ++
+        collectEventEmissionExprMechanics value
+  | .ite cond thenBr elseBr =>
+      collectEventEmissionExprMechanics cond ++
+        thenBr.flatMap collectEventEmissionStmtMechanics ++
+        elseBr.flatMap collectEventEmissionStmtMechanics
+  | .forEach _ count body =>
+      collectEventEmissionExprMechanics count ++ body.flatMap collectEventEmissionStmtMechanics
+  | .emit _ args
+  | .internalCall _ args
+  | .externalCallBind _ _ args
+  | .returnValues args
+  | .ecm _ args
+  | .internalCallAssign _ _ args =>
+      args.flatMap collectEventEmissionExprMechanics
+  | .rawLog topics dataOffset dataSize =>
+      ["rawLog"] ++ topics.flatMap collectEventEmissionExprMechanics ++
+        collectEventEmissionExprMechanics dataOffset ++ collectEventEmissionExprMechanics dataSize
+  | .returnArray _
+  | .returnBytes _
+  | .returnStorageWords _
+  | .revertReturndata
+  | .stop =>
+      []
+
+private def collectEventEmissionMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectEventEmissionStmtMechanics)
+
+/-- Collect not-modeled raw event-emission mechanics used by a spec. -/
+def collectEventEmissionMechanics (spec : CompilationModel) : List String :=
+  let stmtsFromFn (fn : FunctionSpec) := fn.body
+  let stmtsFromCtor : List Stmt := match spec.constructor with
+    | some ctor => ctor.body
+    | none => []
+  let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
+  collectEventEmissionMechanicsFromStmts allStmts
+
 private def isDeniedLowLevelMechanic (mechanic : String) : Bool :=
   match mechanic with
   | "call" | "staticcall" | "delegatecall" | "returndataSize" | "returndataCopy"
@@ -698,6 +814,7 @@ private structure UsageSiteSummary where
   kind : String
   name : String
   mechanics : List String
+  eventEmission : List String
   runtimeIntrospection : List String
   primitives : List String
   externals : List ExternalFunction
@@ -708,6 +825,7 @@ private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List 
 
 private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : List Stmt) : Bool :=
   !(collectLowLevelMechanicsFromStmts stmts).isEmpty ||
+    !(collectEventEmissionMechanicsFromStmts stmts).isEmpty ||
     !(collectRuntimeIntrospectionMechanicsFromStmts stmts).isEmpty ||
     !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
@@ -716,6 +834,7 @@ private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : Lis
 private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stmts : List Stmt) :
     UsageSiteSummary :=
   let mechanics := collectLowLevelMechanicsFromStmts stmts
+  let eventEmission := collectEventEmissionMechanicsFromStmts stmts
   let runtimeIntrospection := collectRuntimeIntrospectionMechanicsFromStmts stmts
   let primitives := collectAxiomatizedPrimitivesFromStmts stmts
   let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
@@ -723,6 +842,7 @@ private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stm
   { kind := kind
     name := name
     mechanics := mechanics
+    eventEmission := eventEmission
     runtimeIntrospection := runtimeIntrospection
     primitives := primitives
     externals := siteExternals
@@ -754,6 +874,7 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ("kind", jsonString site.kind),
       ("name", jsonString site.name),
       ("modeledLowLevelMechanics", jsonArray (site.mechanics.map jsonString)),
+      ("notModeledEventEmission", jsonArray (site.eventEmission.map jsonString)),
       ("partiallyModeledLinearMemoryMechanics", jsonArray (linearMemoryMechanics.map jsonString)),
       ("partiallyModeledRuntimeIntrospection", jsonArray (site.runtimeIntrospection.map jsonString)),
       ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
@@ -798,6 +919,9 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
             let mechanicsLines :=
               if site.mechanics.isEmpty then [] else
                 [s!"    low-level mechanics: {String.intercalate ", " site.mechanics}"]
+            let eventEmissionLines :=
+              if site.eventEmission.isEmpty then [] else
+                [s!"    not modeled event emission: {String.intercalate ", " site.eventEmission}"]
             let linearMemoryMechanics := collectLinearMemoryMechanicsFromMechanics site.mechanics
             let linearMemoryLines :=
               if linearMemoryMechanics.isEmpty then [] else
@@ -850,6 +974,7 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
             siteAcc ++
               [heading] ++
               mechanicsLines ++
+              eventEmissionLines ++
               linearMemoryLines ++
               runtimeIntrospectionLines ++
               primitiveLines ++
@@ -931,6 +1056,22 @@ def emitRuntimeIntrospectionUsageSiteLines (specs : List CompilationModel) : Lis
       acc ++ siteLines)
     []
 
+/-- Render localized not-modeled event-emission lines for proof-strict diagnostics. -/
+def emitEventEmissionUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.eventEmission.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " site.eventEmission}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- Render localized axiomatized-primitive lines for proof-strict diagnostics. -/
 def emitAxiomatizedPrimitiveUsageSiteLines (specs : List CompilationModel) : List String :=
   specs.foldl
@@ -985,6 +1126,7 @@ where
     jsonObject [
       ("contract", jsonString spec.name),
       ("modeledLowLevelMechanics", jsonArray ((collectLowLevelMechanics spec).map jsonString)),
+      ("notModeledEventEmission", jsonArray ((collectEventEmissionMechanics spec).map jsonString)),
       ("partiallyModeledLinearMemoryMechanics", jsonArray ((collectLinearMemoryMechanics spec).map jsonString)),
       ("partiallyModeledRuntimeIntrospection", jsonArray ((collectRuntimeIntrospectionMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),
