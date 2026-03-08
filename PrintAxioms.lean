@@ -548,6 +548,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping2_preserves_events
 
 -- Verity/Proofs/Stdlib/Math.lean
+-- #print axioms Verity.Proofs.Stdlib.Math.modulus_eq_max_succ  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.wDivUp_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_some
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_none
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_zero_left
@@ -573,12 +581,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.safeDiv_self
 #print axioms Verity.Proofs.Stdlib.Math.safeMul_result_bounded
 #print axioms Verity.Proofs.Stdlib.Math.safeDiv_result_le_numerator
-#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
-#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
-#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
-#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
-#print axioms Verity.Proofs.Stdlib.Math.wMulDown_nat_eq
-#print axioms Verity.Proofs.Stdlib.Math.wDivUp_nat_eq
 
 -- Compiler/Proofs/ArithmeticProfile.lean
 #print axioms Compiler.Proofs.ArithmeticProfile.modulus_is_2_pow_256
@@ -725,4 +727,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 609 theorems/lemmas (559 public, 50 private)
+-- Total: 617 theorems/lemmas (565 public, 52 private)
