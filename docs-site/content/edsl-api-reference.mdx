@@ -328,7 +328,7 @@ let first := arrayElement recipients 0
 returnArray amounts
 ```
 
-`arrayLength arr` lowers to `Expr.arrayLength "arr"`, `arrayElement arr idx` lowers to `Expr.arrayElement "arr" idx`, and `returnArray arr` lowers to `Stmt.returnArray "arr"`. The executable fallback in `Contracts/Common.lean` now also preserves the same surface for local smoke tests, so array-parameter contracts can be exercised directly in Lean while still compiling through the dynamic ABI path.
+`arrayLength arr` lowers to `Expr.arrayLength "arr"`, `arrayElement arr idx` lowers to `Expr.arrayElement "arr" idx`, and `returnArray arr` lowers to `Stmt.returnArray "arr"`. `arrayElement` remains bounds-checked on the compiled path, and the executable fallback in `Contracts/Common.lean` now mirrors that by reverting on out-of-range indices instead of silently defaulting, so array-parameter contracts can be exercised directly in Lean while still compiling through the dynamic ABI path.
 
 ## Custom Errors
 

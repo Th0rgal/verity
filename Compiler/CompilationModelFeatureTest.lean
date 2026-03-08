@@ -336,6 +336,14 @@ def firstRecipientExecutableUsesRuntimeHelper : Bool :=
 
 example : firstRecipientExecutableUsesRuntimeHelper = true := by native_decide
 
+def firstRecipientExecutableRevertsOutOfRange : Bool :=
+  match MacroDynamicArray.firstRecipient #[] Verity.defaultState with
+  | .success _ _ => false
+  | .revert msg state =>
+      msg == "Array index out of bounds" && state.sender == Verity.defaultState.sender
+
+example : firstRecipientExecutableRevertsOutOfRange = true := by native_decide
+
 def echoAmountsExecutableRoundTrips : Bool :=
   match MacroDynamicArray.echoAmounts #[3, 5, 8] Verity.defaultState with
   | .success amounts state =>
