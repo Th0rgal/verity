@@ -17,6 +17,7 @@ def elabVerityContract : CommandElab := fun stx => do
 
   elabCommand (← `(namespace $contractName))
 
+  validateGeneratedDefNamesPublic fields constDecls functions
   validateConstantDeclsPublic constDecls
   for constant in constDecls do
     elabCommand (← mkConstantDefCommandPublic constant)

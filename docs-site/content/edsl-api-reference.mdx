@@ -399,6 +399,8 @@ These declarations elaborate to ordinary Lean `def`s inside the generated contra
 
 Constant bodies must stay compile-time-only. Runtime-dependent builtins such as `blockTimestamp`, `blockNumber`, `blobbasefee`, `contractAddress`, `chainid`, calldata/returndata size reads, and low-level memory/call opcodes are rejected in `constants` declarations so the executable and compilation-model paths cannot diverge.
 
+Storage fields, constants, and functions also share the generated Lean namespace for a `verity_contract`. Duplicate declarations or cross-kind name reuse such as `owner` as both a storage field and a constant are rejected during macro elaboration with explicit diagnostics instead of falling through to raw duplicate-definition errors from Lean. Generated declarations are reserved too: `spec` and the per-function helpers `<name>_modelBody`, `<name>_model`, `<name>_bridge`, and `<name>_semantic_preservation` cannot be reused by contract declarations.
+
 ## Contract Immutables
 
 `verity_contract` also supports contract-scoped immutables for deployment-time values that should become read-only at runtime:

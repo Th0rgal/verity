@@ -2027,6 +2027,72 @@ def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM
   for constant in constDecls do
     validateConstantBody constDecls constant.body [constant.name]
 
+def validateGeneratedDefNamesPublic
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (functions : Array FunctionDecl) : CommandElabM Unit := do
+  let reservedGeneratedNames : Array String := #["spec"]
+  let mut generatedHelperNames : Array String := reservedGeneratedNames
+
+  let mut storageNames : Array String := #[]
+  for field in fields do
+    if reservedGeneratedNames.contains field.name then
+      throwErrorAt field.ident
+        s!"storage field '{field.name}' conflicts with reserved generated declaration '{field.name}'"
+    if storageNames.contains field.name then
+      throwErrorAt field.ident s!"duplicate storage field declaration '{field.name}'"
+    storageNames := storageNames.push field.name
+
+  let mut constantNames : Array String := #[]
+  for constant in constDecls do
+    if reservedGeneratedNames.contains constant.name then
+      throwErrorAt constant.ident
+        s!"constant '{constant.name}' conflicts with reserved generated declaration '{constant.name}'"
+    if storageNames.contains constant.name then
+      throwErrorAt constant.ident
+        s!"constant '{constant.name}' conflicts with a storage field of the same name"
+    if constantNames.contains constant.name then
+      throwErrorAt constant.ident
+        s!"duplicate constant declaration '{constant.name}'"
+    constantNames := constantNames.push constant.name
+
+  let mut functionNames : Array String := #[]
+  for fn in functions do
+    if generatedHelperNames.contains fn.name then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' conflicts with reserved generated declaration '{fn.name}'"
+    if storageNames.contains fn.name then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' conflicts with a storage field of the same name"
+    if constantNames.contains fn.name then
+      throwErrorAt fn.ident
+        s!"function '{fn.name}' conflicts with a contract constant of the same name"
+    if functionNames.contains fn.name then
+      throwErrorAt fn.ident
+        s!"duplicate function declaration '{fn.name}'"
+    functionNames := functionNames.push fn.name
+
+    let helperNames :=
+      #[ s!"{fn.name}_modelBody"
+       , s!"{fn.name}_model"
+       , s!"{fn.name}_bridge"
+       , s!"{fn.name}_semantic_preservation"
+       ]
+    for helperName in helperNames do
+      if storageNames.contains helperName then
+        throwErrorAt fn.ident
+          s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a storage field of the same name"
+      if constantNames.contains helperName then
+        throwErrorAt fn.ident
+          s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a contract constant of the same name"
+      if functionNames.contains helperName then
+        throwErrorAt fn.ident
+          s!"function '{fn.name}' generates helper '{helperName}' that conflicts with a function of the same name"
+      if generatedHelperNames.contains helperName then
+        throwErrorAt fn.ident
+          s!"function '{fn.name}' generates duplicate helper declaration '{helperName}'"
+      generatedHelperNames := generatedHelperNames.push helperName
+
 def validateImmutableDeclsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)

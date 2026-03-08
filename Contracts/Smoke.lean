@@ -284,6 +284,129 @@ verity_contract DuplicateImmutableRejected where
     return seededSupply
 end DuplicateImmutableRejected
 
+/--
+error: duplicate storage field declaration 'owner'
+-/
+#guard_msgs in
+verity_contract DuplicateStorageFieldRejected where
+  storage
+    owner : Address := slot 0
+    owner : Address := slot 1
+
+  function getOwner () : Address := do
+    return zeroAddress
+end DuplicateStorageFieldRejected
+
+/--
+error: constant 'owner' conflicts with a storage field of the same name
+-/
+#guard_msgs in
+verity_contract ConstantStorageNameConflictRejected where
+  storage
+    owner : Address := slot 0
+
+  constants
+    owner : Uint256 := 1
+
+  function ownerWord () : Uint256 := do
+    return owner
+end ConstantStorageNameConflictRejected
+
+/--
+error: duplicate constant declaration 'basisPoints'
+-/
+#guard_msgs in
+verity_contract DuplicateConstantRejected where
+  storage
+
+  constants
+    basisPoints : Uint256 := 10000
+    basisPoints : Uint256 := 9999
+
+  function getBasisPoints () : Uint256 := do
+    return basisPoints
+end DuplicateConstantRejected
+
+/--
+error: function 'owner' conflicts with a storage field of the same name
+-/
+#guard_msgs in
+verity_contract FunctionStorageNameConflictRejected where
+  storage
+    owner : Address := slot 0
+
+  function owner () : Address := do
+    return zeroAddress
+end FunctionStorageNameConflictRejected
+
+/--
+error: function 'fee' conflicts with a contract constant of the same name
+-/
+#guard_msgs in
+verity_contract FunctionConstantNameConflictRejected where
+  storage
+
+  constants
+    fee : Uint256 := 7
+
+  function fee () : Uint256 := do
+    return 0
+end FunctionConstantNameConflictRejected
+
+/--
+error: duplicate function declaration 'echo'
+-/
+#guard_msgs in
+verity_contract DuplicateFunctionRejected where
+  storage
+
+  function echo () : Uint256 := do
+    return 1
+
+  function echo () : Uint256 := do
+    return 2
+end DuplicateFunctionRejected
+
+/--
+error: storage field 'spec' conflicts with reserved generated declaration 'spec'
+-/
+#guard_msgs in
+verity_contract ReservedSpecStorageNameRejected where
+  storage
+    spec : Address := slot 0
+
+  function owner () : Address := do
+    return zeroAddress
+end ReservedSpecStorageNameRejected
+
+/--
+error: function 'settle_model' conflicts with reserved generated declaration 'settle_model'
+-/
+#guard_msgs in
+verity_contract FunctionGeneratedHelperNameRejected where
+  storage
+
+  function settle () : Uint256 := do
+    return 1
+
+  function settle_model () : Uint256 := do
+    return 2
+end FunctionGeneratedHelperNameRejected
+
+/--
+error: function 'price' generates helper 'price_model' that conflicts with a contract constant of the same name
+-/
+#guard_msgs in
+verity_contract ConstantFunctionHelperCollisionRejected where
+  storage
+
+  constants
+    price_model : Uint256 := 7
+
+  function price () : Uint256 := do
+    return 3
+end ConstantFunctionHelperCollisionRejected
+
 verity_contract TupleSmoke where
   storage
     values : Uint256 → Uint256 := slot 0
