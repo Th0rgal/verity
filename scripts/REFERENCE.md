@@ -32,6 +32,7 @@ Primary guards:
 - `check_interpreter_feature_summary_sync.py`: keep the interpreter feature summary table aligned with the machine-readable feature matrix artifact.
 - `check_low_level_call_boundary_sync.py`: keep docs aligned with the current low-level call proof boundary.
 - `check_linear_memory_boundary_sync.py`: keep docs aligned with the current linear-memory proof boundary.
+- `check_axiomatized_primitive_boundary_sync.py`: keep docs aligned with the current axiomatized-primitive proof boundary.
 - `check_struct_mapping_surface_sync.py`: keep struct-mapping storage docs aligned with the current compiler surface.
 - `check_storage_layout.py`
 - `check_lean_hygiene.py`

@@ -598,6 +598,8 @@ let digest := keccak256 offset size
 
 This elaborates to `Compiler.CompilationModel.Expr.keccak256` and lowers to the Yul `keccak256(offset, size)` builtin. The machine-readable trust report records the explicit primitive assumption `keccak256_memory_slice_matches_evm`.
 
+`Expr.keccak256` also remains an explicit proof boundary today: the compiler supports it directly, but the current proof stack still treats it as an axiomatized primitive instead of a fully modeled operation. When it appears, archive `--trust-report` and use `--deny-axiomatized-primitives` for proof-strict runs (see issue `#1411`).
+
 ### `ecrecover` precompile
 
 `verity_contract` can bind the standard `ecrecover` precompile directly:

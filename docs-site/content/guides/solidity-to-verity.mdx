@@ -68,6 +68,8 @@ Those low-level call mechanics compile, but they are still outside the current p
 
 Manual ABI or memory plumbing (`mload` / `mstore` / copy-based payload handling) compiles, but it is still outside the fully proved interpreter semantics today. Treat that path as an explicit trust boundary, prefer higher-level helpers when available, and use `--deny-linear-memory-mechanics` if the translated contract must stay inside the proved subset (see issue `#1411`).
 
+Raw `keccak256` hashing also compiles through the typed intrinsic surface, but it still relies on an explicit axiom in the current proof stack. Treat it as a separate trust boundary, archive `--trust-report`, and use `--deny-axiomatized-primitives` when the translated contract must stay inside the proved subset (see issue `#1411`).
+
 ### Reentrancy guard primitive
 
 Not first-class yet (see issue `#1160`).
