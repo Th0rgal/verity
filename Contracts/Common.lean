@@ -12,6 +12,16 @@ open Verity.EVM.Uint256
 open Verity.Stdlib.Math
 
 macro_rules
+  | `(term| ecmCall $_moduleFactory:term $_args:term) =>
+      `(term| do
+          let _ := $_moduleFactory
+          let _ := $_args
+          pure (0 : Uint256))
+  | `(term| ecmDo $_module:term $_args:term) =>
+      `(term| do
+          let _ := $_module
+          let _ := $_args
+          pure ())
   | `(doElem| revert $errorName:ident($_args,*)) =>
       `(doElem| require false $(Lean.quote (toString errorName.getId)))
   | `(doElem| revertError $errorName:ident($_args,*)) =>
