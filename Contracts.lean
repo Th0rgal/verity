@@ -1,4 +1,5 @@
 import Contracts.Common
+import Contracts.StringErrorSmoke
 import Contracts.StringSmoke
 import Contracts.Smoke
 import Contracts.Counter

@@ -5,6 +5,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.StringErrorSmoke
 import Contracts.StringSmoke
 
 namespace Compiler.MacroTranslateInvariantTest
@@ -283,6 +284,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
   , Contracts.Smoke.TypedImmutableSmoke.spec
+  , Contracts.StringErrorSmoke.spec
   , Contracts.StringSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
   , Contracts.Smoke.Uint8Smoke.spec
@@ -326,6 +328,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
   , ("TypedImmutableSmoke", ["isPaused()", "feeScale()", "domainSeparator()"])
+  , ("StringErrorSmoke", ["checkMessage(bool,string)", "checkTaggedMessage(uint256,string)",
+      "checkSecondMessage(bool,string,string)"])
   , ("StringSmoke", ["echoString(string)", "echoStringAfterUint(uint256,string)", "echoStringBeforeUint(string,uint256)",
       "echoSecondString(string,string)"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
@@ -365,6 +369,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
   , ("TypedImmutableSmoke", ["0xb187bd26", "0x95f39ba4", "0xf698da25"])
+  , ("StringErrorSmoke", ["0x0d3e6791", "0x4be30205", "0xc1956e8d"])
   , ("StringSmoke", ["0x0d7e2fce", "0x8f4a7b60", "0xa7b21512", "0x29ec7e1a"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])

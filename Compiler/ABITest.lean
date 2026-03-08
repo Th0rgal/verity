@@ -129,6 +129,12 @@ private def stringAbiSpec : CompilationModel := {
     { name := "BadMessage"
       params := [ParamType.string]
     }
+    , { name := "TaggedMessage"
+        params := [ParamType.uint256, ParamType.string]
+      }
+    , { name := "SecondMessage"
+        params := [ParamType.string, ParamType.string]
+      }
   ]
 }
 
@@ -167,6 +173,13 @@ private def stringAbiSpec : CompilationModel := {
   assertContains
     "string error ABI"
     stringRendered
-    ["\"type\": \"error\"", "\"name\": \"BadMessage\"", "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}]"]
+    [ "\"type\": \"error\""
+    , "\"name\": \"BadMessage\""
+    , "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}]"
+    , "\"name\": \"TaggedMessage\""
+    , "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string\"}]"
+    , "\"name\": \"SecondMessage\""
+    , "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}, {\"name\": \"\", \"type\": \"string\"}]"
+    ]
 
 end Compiler.ABITest

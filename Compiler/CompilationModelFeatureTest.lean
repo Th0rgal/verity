@@ -1527,6 +1527,12 @@ private def stringAbiSpec : CompilationModel := {
     { name := "BadMessage"
       params := [ParamType.string]
     }
+    , { name := "TaggedMessage"
+        params := [ParamType.uint256, ParamType.string]
+      }
+    , { name := "SecondMessage"
+        params := [ParamType.string, ParamType.string]
+      }
   ]
 }
 
@@ -2175,6 +2181,11 @@ set_option maxRecDepth 4096 in
     ((contains stringAbi "\"name\": \"echoAfterUint\"") &&
       (contains stringAbi "\"name\": \"echoBeforeUint\"") &&
       (contains stringAbi "\"name\": \"echoSecondString\""))
+  expectTrue "string ABI includes mixed and multi-dynamic custom errors"
+    ((contains stringAbi "\"name\": \"TaggedMessage\"") &&
+      (contains stringAbi "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string\"}]") &&
+      (contains stringAbi "\"name\": \"SecondMessage\"") &&
+      (contains stringAbi "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}, {\"name\": \"\", \"type\": \"string\"}]"))
   expectCompileErrorContains
     "returnBytes rejects bytes params for string returns"
     stringReturnMismatchSpec

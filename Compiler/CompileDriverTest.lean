@@ -113,6 +113,12 @@ private def stringAbiSmokeSpec : CompilationModel := {
     { name := "BadMessage"
       params := [ParamType.string]
     }
+    , { name := "TaggedMessage"
+        params := [ParamType.uint256, ParamType.string]
+      }
+    , { name := "SecondMessage"
+        params := [ParamType.string, ParamType.string]
+      }
   ]
 }
 
@@ -746,6 +752,10 @@ unsafe def runTests : IO Unit := do
     , "\"outputs\": [{\"name\": \"\", \"type\": \"string\"}]"
     , "\"name\": \"MessageLogged\""
     , "\"name\": \"BadMessage\""
+    , "\"name\": \"TaggedMessage\""
+    , "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string\"}]"
+    , "\"name\": \"SecondMessage\""
+    , "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}, {\"name\": \"\", \"type\": \"string\"}]"
     ]
 
   compileModulesWithOptions outDir canonicalModules false [] {} none none (some abiDir)
