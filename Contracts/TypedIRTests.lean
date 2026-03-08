@@ -533,6 +533,7 @@ def counterIncrementIR : List YulStmt :=
 
 def counterTypedInitWorld : Verity.ContractState :=
   { «storage» := fun i => if i = 0 then 41 else 0
+    transientStorage := fun _ => 0
     storageAddr := fun _ => 0
     storageMap := fun _ _ => 0
     storageMapUint := fun _ _ => 0
@@ -554,7 +555,14 @@ def counterIRInit : IRState :=
     calldata := []
     returnValue := none
     sender := 0
-    selector := 0 }
+    msgValue := 0
+    thisAddress := 0
+    blockTimestamp := 0
+    blockNumber := 0
+    chainId := 0
+    blobBaseFee := 0
+    selector := 0
+    events := [] }
 
 def counterTypedFinalSlot : Option Nat :=
   match evalTBlock counterTypedInit counterIncrementTBlock with
@@ -584,6 +592,7 @@ def simpleStorageStoreIR : List YulStmt :=
 
 def simpleStorageTypedInitWorld : Verity.ContractState :=
   { «storage» := fun i => if i = 0 then 5 else 0
+    transientStorage := fun _ => 0
     storageAddr := fun _ => 0
     storageMap := fun _ _ => 0
     storageMapUint := fun _ _ => 0
@@ -614,8 +623,11 @@ def simpleStorageIRInitWithStorage : IRState :=
     msgValue := simpleStorageIRInit.msgValue
     thisAddress := simpleStorageIRInit.thisAddress
     blockTimestamp := simpleStorageIRInit.blockTimestamp
+    blockNumber := simpleStorageIRInit.blockNumber
     chainId := simpleStorageIRInit.chainId
-    selector := simpleStorageIRInit.selector }
+    blobBaseFee := simpleStorageIRInit.blobBaseFee
+    selector := simpleStorageIRInit.selector
+    events := simpleStorageIRInit.events }
 
 def simpleStorageTypedFinalSlot : Option Nat :=
   match evalTBlock simpleStorageTypedInit simpleStorageStoreTBlock with
@@ -648,20 +660,70 @@ private def mkIRStateFromTyped (state : Verity.Core.Free.TExecState.{0}) (block 
     let u : Nat := state.world.storage i
     let a : Nat := state.world.storageAddr i
     if a != 0 then a else u
-  exact IRState.mk
-    initVars
-    flatStorage
-    (fun _ => 0)
-    []
-    none
-    state.env.sender
-    state.env.msgValue
-    state.env.thisAddress
-    state.env.blockTimestamp
-    state.env.blockNumber
-    state.env.chainId
-    0
-    []
+  exact
+    { vars := initVars
+      «storage» := flatStorage
+      memory := fun _ => 0
+      calldata := []
+      returnValue := none
+      sender := state.env.sender
+      msgValue := state.env.msgValue
+      thisAddress := state.env.thisAddress
+      blockTimestamp := state.env.blockTimestamp
+      blockNumber := state.env.blockNumber
+      chainId := state.env.chainId
+      blobBaseFee := 0
+      selector := 0
+      events := [] }
+
+private def abiHeadRoundtripSpec : Compiler.CompilationModel.CompilationModel := {
+  name := "AbiHeadRoundtrip"
+  fields := []
+  «constructor» := none
+  functions := [{
+    name := "roundtripHeads"
+    params := [
+      { name := "cfg", ty := Compiler.CompilationModel.ParamType.tuple [Compiler.CompilationModel.ParamType.address, Compiler.CompilationModel.ParamType.uint256] },
+      { name := "payload", ty := Compiler.CompilationModel.ParamType.bytes },
+      { name := "fixedRecipients", ty := Compiler.CompilationModel.ParamType.fixedArray Compiler.CompilationModel.ParamType.address 2 },
+      { name := "recipients", ty := Compiler.CompilationModel.ParamType.array Compiler.CompilationModel.ParamType.address },
+      { name := "note", ty := Compiler.CompilationModel.ParamType.string }
+    ]
+    returnType := some Compiler.CompilationModel.FieldType.uint256
+    body := [
+      Compiler.CompilationModel.Stmt.return
+        (Compiler.CompilationModel.Expr.add
+          (Compiler.CompilationModel.Expr.add
+            (Compiler.CompilationModel.Expr.add
+              (Compiler.CompilationModel.Expr.add
+                (Compiler.CompilationModel.Expr.param "cfg")
+                (Compiler.CompilationModel.Expr.param "payload"))
+              (Compiler.CompilationModel.Expr.param "fixedRecipients"))
+            (Compiler.CompilationModel.Expr.param "recipients"))
+          (Compiler.CompilationModel.Expr.param "note"))
+    ]
+  }]
+}
+
+private def abiHeadRoundtripExpectedParamTys : List Ty :=
+  [Ty.uint256, Ty.uint256, Ty.uint256, Ty.uint256, Ty.uint256]
+
+private def abiHeadRoundtripInit (block : TBlock) : Option Verity.Core.Free.TExecState.{0} :=
+  match block.params with
+  | [cfgParam, payloadParam, fixedRecipientsParam, recipientsParam, noteParam] =>
+      some ({
+        world := Verity.defaultState
+        vars := ({
+          uint256 := fun i =>
+            if i = cfgParam.id then 11
+            else if i = payloadParam.id then 22
+            else if i = fixedRecipientsParam.id then 33
+            else if i = recipientsParam.id then 44
+            else if i = noteParam.id then 55
+            else 0
+        } : TVars)
+      } : Verity.Core.Free.TExecState.{0})
+  | _ => none
 
 private def execLoweredSlot0 (fuel : Nat) (state : IRState) (block : TBlock) : Option Nat :=
   match execIRStmts fuel state (lowerTBlock block) with
@@ -686,6 +748,37 @@ private def execLoweredState (fuel : Nat) (state : IRState) (block : TBlock) : O
 example :
     execLoweredSlot0 64 (mkIRStateFromTyped counterTypedInit counterIncrementTBlock) counterIncrementTBlock =
       counterTypedFinalSlot := by
+  native_decide
+
+/-- Smoke test: complex ABI-head params compile through the typed-IR pipeline. -/
+def compiledAbiHeadRoundtripBlock : Option TBlock :=
+  match compileFunctionNamed abiHeadRoundtripSpec "roundtripHeads" with
+  | .ok block => some block
+  | .error _ => none
+
+example : compiledAbiHeadRoundtripBlock.isSome = true := by
+  native_decide
+
+/-- Complex ABI-head params normalize to word-typed typed-IR params end to end. -/
+def compiledAbiHeadRoundtripParamTypes : Bool :=
+  match compileFunctionNamed abiHeadRoundtripSpec "roundtripHeads" with
+  | .error _ => false
+  | .ok block => decide (block.params.map TVar.ty = abiHeadRoundtripExpectedParamTys)
+
+example : compiledAbiHeadRoundtripParamTypes = true := by
+  native_decide
+
+/-- End-to-end typed-IR lowering preserves the selected ABI-head words. -/
+def compiledAbiHeadRoundtripReturn : Option Nat :=
+  match compileFunctionNamed abiHeadRoundtripSpec "roundtripHeads" with
+  | .error _ => none
+  | .ok block =>
+      match abiHeadRoundtripInit block with
+      | none => none
+      | some init =>
+          execLoweredReturn 256 (mkIRStateFromTyped init block) block
+
+example : compiledAbiHeadRoundtripReturn = some 165 := by
   native_decide
 
 /-- Golden test: lowering typed SimpleStorage block to Yul preserves storage-slot result. -/
