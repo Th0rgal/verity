@@ -30,7 +30,7 @@ This section is a dated historical snapshot. Use [docs/VERIFICATION_STATUS.md](h
 
 - **Semantic bridge**: `Compiler/Proofs/SemanticBridge.lean` (EDSL ≡ CompilationModel for all supported contracts)
 - **End-to-end proofs**: `Compiler/Proofs/EndToEnd.lean` (full pipeline correctness)
-- **Typed IR correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic compilation-correctness theorem with 36 supported statement fragments)
+- **Typed IR correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic compilation-correctness theorem with 36 supported statement fragments, including ABI-head tuple/bytes/fixed-array/dynamic-array/string params as word-typed inputs)
 - **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + concrete IR proofs in `Expr.lean`)
 - **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/` (complete — PR #42)
 
