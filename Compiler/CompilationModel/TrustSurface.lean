@@ -23,6 +23,8 @@ private partial def collectLowLevelExprMechanics : Expr → List String
         collectLowLevelExprMechanics outOffset ++ collectLowLevelExprMechanics outSize
   | .returndataSize =>
       ["returndataSize"]
+  | .blobbasefee =>
+      ["blobbasefee"]
   | .tload offset =>
       ["tload"] ++ collectLowLevelExprMechanics offset
   | .returndataOptionalBoolAt outOffset =>

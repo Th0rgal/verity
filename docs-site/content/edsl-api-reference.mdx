@@ -395,7 +395,7 @@ verity_contract FeeConfig where
 
 These declarations elaborate to ordinary Lean `def`s inside the generated contract namespace, so the executable path can reference them directly. On the compilation-model side, constant identifiers are inlined into `Expr` trees transitively, while ordinary parameter/local shadowing still wins if a function binds the same name later.
 
-Constant bodies must stay compile-time-only. Runtime-dependent builtins such as `blockTimestamp`, `blockNumber`, `contractAddress`, `chainid`, calldata/returndata size reads, and low-level memory/call opcodes are rejected in `constants` declarations so the executable and compilation-model paths cannot diverge.
+Constant bodies must stay compile-time-only. Runtime-dependent builtins such as `blockTimestamp`, `blockNumber`, `blobbasefee`, `contractAddress`, `chainid`, calldata/returndata size reads, and low-level memory/call opcodes are rejected in `constants` declarations so the executable and compilation-model paths cannot diverge.
 
 ## Low-Level Log Surface
 
@@ -578,6 +578,8 @@ def msgSender : Contract Address
 def contractAddress : Contract Address
 def msgValue : Contract Uint256
 def blockTimestamp : Contract Uint256
+def blockNumber : Contract Uint256
+def blobbasefee : Contract Uint256
 ```
 
 **Example**

@@ -82,7 +82,7 @@ def exprUsesArrayElement : Expr → Bool
   -- Leaf expressions: no sub-expressions that could contain arrayElement.
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
-  | Expr.blockNumber
+  | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
       false
 termination_by e => sizeOf e

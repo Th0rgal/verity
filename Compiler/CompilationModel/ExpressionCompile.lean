@@ -172,6 +172,7 @@ def compileExpr (fields : List Field)
   | Expr.msgValue => pure (YulExpr.call "callvalue" [])
   | Expr.blockTimestamp => pure (YulExpr.call "timestamp" [])
   | Expr.blockNumber => pure (YulExpr.call "number" [])
+  | Expr.blobbasefee => pure (YulExpr.call "blobbasefee" [])
   | Expr.mload offset => do
       pure (YulExpr.call "mload" [← compileExpr fields dynamicSource offset])
   | Expr.tload offset => do

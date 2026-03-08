@@ -40,6 +40,7 @@ EVMYULLEAN_OVERLAP_BUILTINS = {
     "add",
     "and",
     "address",
+    "blobbasefee",
     "calldataload",
     "calldatasize",
     "caller",

@@ -124,6 +124,7 @@ def setStructMember2 {κ₁ κ₂ α : Type}
 def forEach (_name : String) (_count : Uint256) (body : Contract Unit) : Contract Unit := body
 def blockTimestamp : Uint256 := 0
 def blockNumber : Uint256 := 0
+def blobbasefee : Uint256 := 0
 def contractAddress : Uint256 := 0
 def chainid : Uint256 := 0
 

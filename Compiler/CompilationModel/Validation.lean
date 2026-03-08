@@ -194,6 +194,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.msgValue => true
   | Expr.blockTimestamp => true
   | Expr.blockNumber => true
+  | Expr.blobbasefee => true
   | Expr.calldatasize => true
   | Expr.calldataload _ => true
   | Expr.mload offset => exprReadsStateOrEnv offset

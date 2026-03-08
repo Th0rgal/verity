@@ -254,6 +254,7 @@ inductive Expr
   | msgValue
   | blockTimestamp
   | blockNumber
+  | blobbasefee
   | mload (offset : Expr)
   | tload (offset : Expr)
   | keccak256 (offset size : Expr)

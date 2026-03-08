@@ -54,6 +54,7 @@ def collectExprNames : Expr → List String
   | Expr.msgValue => []
   | Expr.blockTimestamp => []
   | Expr.blockNumber => []
+  | Expr.blobbasefee => []
   | Expr.mload offset => collectExprNames offset
   | Expr.tload offset => collectExprNames offset
   | Expr.keccak256 offset size => collectExprNames offset ++ collectExprNames size

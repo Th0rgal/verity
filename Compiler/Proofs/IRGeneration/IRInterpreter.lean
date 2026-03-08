@@ -65,6 +65,8 @@ structure IRState where
   blockNumber : Nat := 0
   /-- Chain id seen by `chainid()`. -/
   chainId : Nat := 0
+  /-- Blob base fee seen by `blobbasefee()`. -/
+  blobBaseFee : Nat := 0
   /-- Function selector (4-byte value used by calldataload(0)) -/
   selector : Nat
   /-- Emitted log records for this execution. -/
@@ -84,6 +86,7 @@ def IRState.initial (sender : Nat) : IRState :=
     blockTimestamp := 0
     blockNumber := 0
     chainId := 0
+    blobBaseFee := 0
     selector := 0
     events := [] }
 
@@ -141,7 +144,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
       Compiler.Proofs.YulGeneration.defaultBuiltinBackend
       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-      state.blockNumber state.chainId state.selector state.calldata func argVals
+      state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   omega
@@ -349,6 +352,7 @@ structure IRTransaction where
   blockTimestamp : Nat := 0
   blockNumber : Nat := 0
   chainId : Nat := 0
+  blobBaseFee : Nat := 0
   functionSelector : Nat
   args : List Nat
   deriving Repr
@@ -407,6 +411,7 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     calldata := tx.args
     selector := tx.functionSelector
   }

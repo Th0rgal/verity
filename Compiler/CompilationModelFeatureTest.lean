@@ -142,6 +142,35 @@ example : transientStoragePersistsAcrossExecutableCalls = true := by native_deci
 
 end MacroTransientStorageSmoke
 
+namespace MacroBlobbasefeeSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroBlobbasefee where
+  storage
+
+  function currentBlobBaseFee () : Uint256 := do
+    return blobbasefee
+
+def modelReturnsBlobbasefeeBuiltin : Bool :=
+  match MacroBlobbasefee.currentBlobBaseFee_modelBody with
+  | [Stmt.return Expr.blobbasefee] => true
+  | _ => false
+
+example : modelReturnsBlobbasefeeBuiltin = true := by native_decide
+
+def executableUsesRuntimeStub : Bool :=
+  match MacroBlobbasefee.currentBlobBaseFee Verity.defaultState with
+  | .success fee state =>
+      fee == 0 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : executableUsesRuntimeStub = true := by native_decide
+
+end MacroBlobbasefeeSmoke
+
 namespace MacroConstantSmoke
 
 open Contracts
@@ -961,9 +990,9 @@ private def envRuntimeSmokeSpec : CompilationModel := {
     { name := "selfValueTimestampNumberAndChainId"
       params := []
       returnType := none
-      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256]
+      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256]
       body := [
-        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.blockTimestamp, Expr.blockNumber, Expr.chainid]
+        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.blockTimestamp, Expr.blockNumber, Expr.chainid, Expr.blobbasefee]
       ]
     }
   ]
@@ -1803,6 +1832,8 @@ set_option maxRecDepth 4096 in
     (contains envYul "timestamp()")
   expectTrue "chainid lowers to the Yul chainid builtin"
     (contains envYul "chainid()")
+  expectTrue "blobbasefee lowers to the Yul blobbasefee builtin"
+    (contains envYul "blobbasefee()")
   let ecrecoverYul ←
     expectCompileToYul "ecrecover smoke spec" ecrecoverSmokeSpec
   expectTrue "ecrecover ECM lowers to precompile staticcall"
@@ -2015,6 +2046,16 @@ set_option maxRecDepth 4096 in
     (contains macroTransientTrustReport "\"modeledLowLevelMechanics\"" &&
       contains macroTransientTrustReport "\"tstore\"" &&
       contains macroTransientTrustReport "\"tload\"")
+  let macroBlobbasefeeYul ←
+    expectCompileToYul "macro blobbasefee smoke spec" MacroBlobbasefeeSmoke.MacroBlobbasefee.spec
+  expectTrue "macro blobbasefee lowers to the Yul blobbasefee builtin"
+    (contains macroBlobbasefeeYul "blobbasefee()")
+  expectTrue "macro blobbasefee executable path uses the runtime stub"
+    MacroBlobbasefeeSmoke.executableUsesRuntimeStub
+  let macroBlobbasefeeTrustReport := emitTrustReportJson [MacroBlobbasefeeSmoke.MacroBlobbasefee.spec]
+  expectTrue "macro blobbasefee trust report surfaces the post-core builtin"
+    (contains macroBlobbasefeeTrustReport "\"modeledLowLevelMechanics\"" &&
+      contains macroBlobbasefeeTrustReport "\"blobbasefee\"")
   expectTrue "macro constant expressions inline into model bodies"
     MacroConstantSmoke.feeOnModelInlinesContractConstants
   expectTrue "macro address constants inline through the executable and model paths"

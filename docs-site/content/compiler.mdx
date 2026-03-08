@@ -161,7 +161,7 @@ forge create SimpleStorage --from 0x... --private-key ...
 
 **`Compiler/CompilationModel.lean`**
 - Declarative contract DSL
-- Expression language: `literal`, `param`, `storage`, `mapping`, `mappingWord`, `mappingPackedWord`, `structMember`, `structMember2`, `mapping2`, `mappingUint`, `caller`, `msgValue`, `blockTimestamp`, `localVar`, `externalCall`, `internalCall`, `arrayLength`, `arrayElement`, arithmetic, bitwise, comparisons, logical operators
+- Expression language: `literal`, `param`, `storage`, `mapping`, `mappingWord`, `mappingPackedWord`, `structMember`, `structMember2`, `mapping2`, `mappingUint`, `caller`, `msgValue`, `blockTimestamp`, `blockNumber`, `blobbasefee`, `localVar`, `externalCall`, `internalCall`, `arrayLength`, `arrayElement`, arithmetic, bitwise, comparisons, logical operators
 - Statement language: `letVar`, `assignVar`, `setStorage`, `setMapping`, `setMappingWord`, `setMappingPackedWord`, `setStructMember`, `setStructMember2`, `setMapping2`, `setMappingUint`, `require`, `return`, `stop`, `ite`, `forEach`, `emit`, `internalCall`
 - Automatic IR generation from specs
 - Constructor parameter handling (bytecode argument loading)
@@ -262,6 +262,8 @@ The CompilationModel DSL provides a complete expression and statement language f
 | `chainid` | Current chain ID | `chainid()` |
 | `msgValue` | Sent ETH value | `callvalue()` |
 | `blockTimestamp` | Current block timestamp | `timestamp()` |
+| `blockNumber` | Current block number | `number()` |
+| `blobbasefee` | Current blob base fee (EIP-7516) | `blobbasefee()` |
 | `mload offset` | Read word from memory | `mload(offset)` |
 | `keccak256 offset size` | Hash memory slice | `keccak256(offset, size)` |
 | `call ...` | Low-level call primitive | `call(...)` |

@@ -608,6 +608,7 @@ private partial def validateConstantBody
   | `(term| constructorArg $idx:num) => throwNonCompileTimeConstantError idx "constructorArg"
   | `(term| blockTimestamp) => throwNonCompileTimeConstantError stx "blockTimestamp"
   | `(term| blockNumber) => throwNonCompileTimeConstantError stx "blockNumber"
+  | `(term| blobbasefee) => throwNonCompileTimeConstantError stx "blobbasefee"
   | `(term| contractAddress) => throwNonCompileTimeConstantError stx "contractAddress"
   | `(term| chainid) => throwNonCompileTimeConstantError stx "chainid"
   | `(term| calldatasize) => throwNonCompileTimeConstantError stx "calldatasize"
@@ -701,6 +702,7 @@ partial def translatePureExpr
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
   | `(term| blockTimestamp) => `(Compiler.CompilationModel.Expr.blockTimestamp)
   | `(term| blockNumber) => `(Compiler.CompilationModel.Expr.blockNumber)
+  | `(term| blobbasefee) => `(Compiler.CompilationModel.Expr.blobbasefee)
   | `(term| contractAddress) => `(Compiler.CompilationModel.Expr.contractAddress)
   | `(term| chainid) => `(Compiler.CompilationModel.Expr.chainid)
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)

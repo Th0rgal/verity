@@ -134,14 +134,14 @@ verity_contract InitializerZeroVersionRejected where
     pure ()
 
 /--
-error: contract constants must be compile-time expressions; 'blockTimestamp' is runtime-dependent
+error: contract constants must be compile-time expressions; 'blobbasefee' is runtime-dependent
 -/
 #guard_msgs in
 verity_contract ConstantRuntimeBuiltinRejected where
   storage
 
   constants
-    seededAt : Uint256 := blockTimestamp
+    seededAt : Uint256 := blobbasefee
 
   function seeded () : Uint256 := do
     return seededAt

@@ -50,6 +50,7 @@ def builtinBaseCost (cfg : GasConfig) (name : String) : Nat :=
   else if name = "chainid" then 2
   else if name = "timestamp" then 2
   else if name = "number" then 2
+  else if name = "blobbasefee" then 2
   else if name = "gas" then 2
   else if name = "returndatasize" then 2
   else if name = "extcodesize" then 2600

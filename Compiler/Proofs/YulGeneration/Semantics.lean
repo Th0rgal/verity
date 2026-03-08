@@ -46,6 +46,7 @@ structure YulState where
   blockTimestamp : Nat := 0
   blockNumber : Nat := 0
   chainId : Nat := 0
+  blobBaseFee : Nat := 0
   events : List (List Nat) := []
   deriving Nonempty
 
@@ -56,6 +57,7 @@ structure YulTransaction where
   blockTimestamp : Nat := 0
   blockNumber : Nat := 0
   chainId : Nat := 0
+  blobBaseFee : Nat := 0
   functionSelector : Nat
   args : List Nat
   deriving Repr
@@ -75,6 +77,7 @@ def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     events := events }
 
 /-- Lookup variable in state -/
@@ -119,7 +122,7 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
       Compiler.Proofs.YulGeneration.defaultBuiltinBackend
       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-      state.blockNumber state.chainId state.selector state.calldata func argVals
+      state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   omega
