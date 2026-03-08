@@ -26,17 +26,18 @@ Threat assumptions:
 Access control and checks:
 1. Solidity runtime access control is contract-specific and tested in Foundry suites under `test/`.
 2. Build/verification gate is deny-by-default: CI fails on invariant drift (selectors, storage layout, docs/proof counts, property coverage, warning regressions).
-3. `scripts/workflow_jobs.py` centralizes top-level `jobs:` parsing (quoted and unquoted keys) for workflow-sync checkers, so cross-job boundary extraction is explicit and shared.
-4. `scripts/check_lean_warning_regression.py` validates baseline schema/invariants and fails on mismatch. Uses `type(value) is not int` to reject booleans, raises `ValueError` on malformed UTF-8 log input, and validates `by_file`/`by_message` counter fields strictly.
-5. `scripts/verification_metrics.py` uses `_expect_int` with `type(value) is not int` to reject booleans in integer metric fields.
-6. `scripts/check_verify_sync.py` is the unified table-driven validator for all workflow invariants (job order, commands, path filters, foundry settings, artifact producers), driven by `scripts/verify_sync_spec.json`.
-7. `scripts/check_compiler_boundaries.py` includes builtin-list sync checks that strip Lean comments before `def` extraction, preventing comment-decoy bypass.
-8. `scripts/check_solc_pin.py` collects all `SOLC_*` matches via `finditer` and fails on conflicting values across occurrences.
-9. `scripts/check_yul.py` uses `scrub_lean_code` to strip comments and string literals before builtin-boundary checks.
-10. `scripts/check_compiler_boundaries.py` uses `scrub_lean_code` to strip comments and string literals before mapping-slot boundary checks.
-11. `scripts/check_compiler_boundaries.py` detects non-literal builtin dispatch patterns and reports them as fail-closed diagnostics.
-12. `Compiler/CompilationModel.lean` recursive validation walkers for unsafe logical call-like detection, array-element usage detection, return/revert reachability, and bind-name collection are totalized (`def` + explicit `termination_by`), reducing reliance on `partial def` in the active compilation path.
-13. `Compiler/CompilationModel.lean` additionally totalizes dynamic-parameter scope checks, statement read/write analysis, and statement-list validator walkers (`validateStmtParamReferences`, `validateReturnShapesInStmt`, `validateNoRuntimeReturnsInConstructorStmt`, `validateCustomErrorArgShapesInStmt`) with explicit structural recursion.
+3. Verification-oriented compiler runs can fail closed on foreign trust drift via `verity-compiler --deny-unchecked-dependencies`, preventing `unchecked` linked externals / ECM modules from being presented as fully verified.
+4. `scripts/workflow_jobs.py` centralizes top-level `jobs:` parsing (quoted and unquoted keys) for workflow-sync checkers, so cross-job boundary extraction is explicit and shared.
+5. `scripts/check_lean_warning_regression.py` validates baseline schema/invariants and fails on mismatch. Uses `type(value) is not int` to reject booleans, raises `ValueError` on malformed UTF-8 log input, and validates `by_file`/`by_message` counter fields strictly.
+6. `scripts/verification_metrics.py` uses `_expect_int` with `type(value) is not int` to reject booleans in integer metric fields.
+7. `scripts/check_verify_sync.py` is the unified table-driven validator for all workflow invariants (job order, commands, path filters, foundry settings, artifact producers), driven by `scripts/verify_sync_spec.json`.
+8. `scripts/check_compiler_boundaries.py` includes builtin-list sync checks that strip Lean comments before `def` extraction, preventing comment-decoy bypass.
+9. `scripts/check_solc_pin.py` collects all `SOLC_*` matches via `finditer` and fails on conflicting values across occurrences.
+10. `scripts/check_yul.py` uses `scrub_lean_code` to strip comments and string literals before builtin-boundary checks.
+11. `scripts/check_compiler_boundaries.py` uses `scrub_lean_code` to strip comments and string literals before mapping-slot boundary checks.
+12. `scripts/check_compiler_boundaries.py` detects non-literal builtin dispatch patterns and reports them as fail-closed diagnostics.
+13. `Compiler/CompilationModel.lean` recursive validation walkers for unsafe logical call-like detection, array-element usage detection, return/revert reachability, and bind-name collection are totalized (`def` + explicit `termination_by`), reducing reliance on `partial def` in the active compilation path.
+14. `Compiler/CompilationModel.lean` additionally totalizes dynamic-parameter scope checks, statement read/write analysis, and statement-list validator walkers (`validateStmtParamReferences`, `validateReturnShapesInStmt`, `validateNoRuntimeReturnsInConstructorStmt`, `validateCustomErrorArgShapesInStmt`) with explicit structural recursion.
 15. `Compiler/CompilationModel.lean` further totalizes all Expr/Stmt validation walkers: scoped-identifier validation (`validateScopedExprIdentifiers`, `validateScopedStmtIdentifiers`, `validateScopedStmtListIdentifiers`), interop validation (`validateInteropExpr`, `validateInteropStmt`), internal-call-shape validation (`validateInternalCallShapesInExpr`, `validateInternalCallShapesInStmt`), external-call-target validation (`validateExternalCallTargetsInExpr`, `validateExternalCallTargetsInStmt`), and event-argument-shape validation (`validateEventArgShapesInStmt`) with explicit structural recursion in mutual blocks.
 16. `Verity/Macro/Translate.lean` supports explicit `getMappingUint`/`setMappingUint` forms for `Uint256 -> Uint256` storage fields with fail-closed typed diagnostics (`Address` mappings must use `getMapping`/`setMapping`).
 17. `Verity/Macro/Bridge.lean` emits per-function `_semantic_preservation` theorem skeletons for macro-generated contracts.

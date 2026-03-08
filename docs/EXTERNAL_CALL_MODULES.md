@@ -189,6 +189,10 @@ emits per-contract JSON that includes:
 - `hasUncheckedDependencies` so CI/reporting layers can fail or warn on
   contracts that are not eligible for full-verification claims
 
+For verification-oriented compiles, `verity-compiler --deny-unchecked-dependencies`
+turns that report into a hard gate: compilation exits nonzero if any selected
+contract still depends on an `unchecked` linked external or ECM module.
+
 ## Trust Model
 
 - The compiler trusts that `mod.compile` produces Yul that correctly implements

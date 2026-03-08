@@ -83,6 +83,11 @@ unsafe def runTests : IO Unit := do
   main (["--module", "Contracts.Counter.Counter", "--output", singleOutDir])
   let selectedCounterArtifact ← fileExists s!"{singleOutDir}/Counter.yul"
   expectTrue "module input mode compiles explicitly selected contract" selectedCounterArtifact
+  let strictOutDir := s!"/tmp/verity-main-test-{nonce}-strict-out"
+  IO.FS.createDirAll strictOutDir
+  main (["--module", "Contracts.Counter.Counter", "--deny-unchecked-dependencies", "--output", strictOutDir])
+  let strictCounterArtifact ← fileExists s!"{strictOutDir}/Counter.yul"
+  expectTrue "strict unchecked-dependency gate accepts proved local modules" strictCounterArtifact
   let nonSelectedArtifactFlags ←
     (canonicalModules.filter (· != "Contracts.Counter.Counter")).mapM
       (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))

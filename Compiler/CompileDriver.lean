@@ -54,6 +54,15 @@ private def writeTrustReport (path : String) (specs : List CompilationModel) : I
   ensureParentDirExists path
   IO.FS.writeFile path (emitTrustReportJson specs ++ "\n")
 
+private def ensureNoUncheckedDependencies (specs : List CompilationModel) : IO Unit := do
+  let uncheckedContracts :=
+    specs.foldl
+      (fun acc spec => if hasUncheckedDependencies spec then acc ++ [spec.name] else acc)
+      []
+  if !uncheckedContracts.isEmpty then
+    throw (IO.userError
+      s!"Unchecked foreign dependencies remain in: {String.intercalate ", " uncheckedContracts}")
+
 private def writeContract
     (outDir : String)
     (contract : IRContract)
@@ -98,7 +107,8 @@ def compileSpecsWithOptions
     (options : YulEmitOptions)
     (patchReportPath : Option String)
     (trustReportPath : Option String)
-    (abiOutDir : Option String) : IO Unit := do
+    (abiOutDir : Option String)
+    (denyUncheckedDependencies : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -140,6 +150,8 @@ def compileSpecsWithOptions
       if verbose then
         IO.println s!"✓ Wrote trust report: {path}"
   | none => pure ()
+  if denyUncheckedDependencies then
+    ensureNoUncheckedDependencies specs
   -- Axiom aggregation report (verbose mode)
   if verbose then
     IO.println ""
@@ -265,9 +277,12 @@ unsafe def compileModulesWithOptions
     (options : YulEmitOptions := {})
     (patchReportPath : Option String := none)
     (trustReportPath : Option String := none)
-    (abiOutDir : Option String := none) : IO Unit := do
+    (abiOutDir : Option String := none)
+    (denyUncheckedDependencies : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
     | .error err => throw (IO.userError err)
-  compileSpecsWithOptions specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
+  compileSpecsWithOptions
+    specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
+    denyUncheckedDependencies
