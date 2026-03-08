@@ -4,6 +4,7 @@ import Compiler.CompilationModel
 import Compiler.CompilationModel.TrustSurface
 import Compiler.ECM
 import Compiler.ModuleInput
+import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.TestModules
 
@@ -252,6 +253,30 @@ private def ecrecoverTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def oracleTrustSurfaceSpec : CompilationModel := {
+  name := "OracleTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "peek"
+      params := [
+        { name := "oracle", ty := ParamType.address }
+        , { name := "asset", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.Oracle.oracleReadUint256
+          "answer"
+          (Expr.param "oracle")
+          0xfeaf968c
+          [Expr.param "asset"],
+        Stmt.returnValues [Expr.localVar "answer"]
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -441,6 +466,16 @@ unsafe def runTests : IO Unit := do
       !contains ecrecoverTrustReport "\"assumption\":\"evm_ecrecover_precompile\"" then
     throw (IO.userError "✗ ecrecover trust report emits precompile assumption")
   IO.println "✓ ecrecover trust report emits precompile assumption"
+
+  let oracleTrustReport := emitTrustReportJson [oracleTrustSurfaceSpec]
+  if !contains oracleTrustReport "\"contract\":\"OracleTrustSurface\"" then
+    throw (IO.userError "✗ oracle trust report emits contract name")
+  if !contains oracleTrustReport "\"module\":\"oracleReadUint256\"" ||
+      !contains oracleTrustReport "\"assumption\":\"oracle_read_uint256_interface\"" then
+    throw (IO.userError "✗ oracle trust report emits oracle module assumption")
+  if !contains oracleTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"oracleReadUint256\"]}" then
+    throw (IO.userError "✗ oracle trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ oracle trust report emits standard oracle module assumption"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
   let writtenTrustReport ← fileExists trustReportPath

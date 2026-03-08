@@ -158,6 +158,7 @@ in `--verbose` output.
 | `ERC20.safeTransfer` | `erc20_transfer_interface` | Target implements ERC-20 `transfer(address,uint256)` |
 | `ERC20.safeTransferFrom` | `erc20_transferFrom_interface` | Target implements ERC-20 `transferFrom(address,address,uint256)` |
 | `ERC20.safeApprove` | `erc20_approve_interface` | Target implements ERC-20 `approve(address,uint256)` |
+| `Oracle.oracleReadUint256` | `oracle_read_uint256_interface` | Target implements the selected read-only oracle interface and returns one ABI-encoded `uint256` |
 | `Precompiles.ecrecover` | `evm_ecrecover_precompile` | EVM precompile at address 0x01 behaves per Yellow Paper |
 | `Callbacks.callback` | `callback_target_interface` | Callback target processes ABI-encoded arguments correctly |
 | `Calls.withReturn` | `external_call_abi_interface` | Target contract function matches declared selector and ABI |
