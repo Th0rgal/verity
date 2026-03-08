@@ -27,6 +27,7 @@ private structure CLIArgs where
   patchMaxIterationsExplicit : Bool := false
   patchReportPath : Option String := none
   trustReportPath : Option String := none
+  denyUncheckedDependencies : Bool := false
   mappingSlotScratchBase : Nat := 0
   mappingSlotScratchBaseExplicit : Bool := false
 
@@ -81,6 +82,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
         IO.println "  --patch-report <path>       Write TSV patch coverage report"
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
+        IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
         IO.println "  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)"
         IO.println "  --verbose          Enable verbose output"
         IO.println "  -v                 Short form of --verbose"
@@ -168,6 +170,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with trustReportPath := some path }
     | ["--trust-report"] =>
         throw (IO.userError "Missing value for --trust-report")
+    | "--deny-unchecked-dependencies" :: rest =>
+        go rest { cfg with denyUncheckedDependencies := true }
     | "--mapping-slot-scratch-base" :: raw :: rest =>
         match raw.toNat? with
         | some n => go rest { cfg with mappingSlotScratchBase := n, mappingSlotScratchBaseExplicit := true }
@@ -227,6 +231,8 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.trustReportPath with
       | some path => IO.println s!"Trust report: {path}"
       | none => pure ()
+      if cfg.denyUncheckedDependencies then
+        IO.println "Unchecked dependencies: denied"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       IO.println ""
     let packRequiredProofRefs :=
@@ -254,7 +260,9 @@ unsafe def main (args : List String) : IO Unit := do
       }
       mappingSlotScratchBase := cfg.mappingSlotScratchBase
     }
-    compileModulesWithOptions cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath cfg.abiOutDir
+    compileModulesWithOptions
+      cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
+      cfg.abiOutDir cfg.denyUncheckedDependencies
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly

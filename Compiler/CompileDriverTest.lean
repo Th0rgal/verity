@@ -1005,6 +1005,17 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ compileSpecsWithOptions writes trust report file")
   IO.println "✓ compileSpecsWithOptions writes trust report file"
 
+  let deniedTrustReportPath := s!"{trustReportDir}/trust-report-denied.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
+    (compileSpecsWithOptions
+      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true)
+    "Unchecked foreign dependencies remain in: ConstructorOnlyEcmTrustSurface"
+  let deniedTrustReportWritten ← fileExists deniedTrustReportPath
+  if !deniedTrustReportWritten then
+    throw (IO.userError "✗ denied unchecked-dependency compile still writes trust report file")
+  IO.println "✓ denied unchecked-dependency compile still writes trust report file"
+
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none
   let writtenPatchReport ← fileExists patchReportPath
   if !writtenPatchReport then

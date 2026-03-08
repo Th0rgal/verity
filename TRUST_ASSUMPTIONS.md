@@ -62,7 +62,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 ### 6. External Call Modules (ECMs)
 - **Role**: Reusable typed external call patterns (ERC-20 writes/reads including `totalSupply`, ERC-4626 preview/conversion helpers plus `totalAssets`, `asset`, `max*` limit reads, and `deposit`, oracle reads, precompiles, callbacks).
 - **Trust**: Each module's `compile` produces correct Yul. Bug in one module doesn't affect others.
-- **Mitigation**: Axiom aggregation at compile time (`--verbose`) and machine-readable trust-surface emission via `--trust-report <path>`. See [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md).
+- **Mitigation**: Axiom aggregation at compile time (`--verbose`), machine-readable trust-surface emission via `--trust-report <path>`, and a fail-closed verification gate via `--deny-unchecked-dependencies` when unchecked foreign surfaces must be excluded. See [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md).
 
 ### 7. Lean Kernel
 - **Role**: Proof checker soundness. Foundational assumption for all Lean-based verification.
@@ -88,7 +88,7 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 3. If linked libraries are used, audit each linked Yul file as trusted code.
 4. Validate selector, Yul compile, and storage-layout CI checks.
 5. Confirm arithmetic and revert assumptions are acceptable for the target contract.
-6. Review the low-level mechanics / external assumption report (`--verbose`) and archive `--trust-report <path>` for audit evidence when external calls or linked externals are used.
+6. Review the low-level mechanics / external assumption report (`--verbose`) and archive `--trust-report <path>` for audit evidence when external calls or linked externals are used. For verification-oriented builds, also pass `--deny-unchecked-dependencies` so any remaining unchecked foreign surface fails closed.
 
 ## Planned Hardening
 

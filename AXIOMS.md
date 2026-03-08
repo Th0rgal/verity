@@ -148,8 +148,9 @@ This remains the last contract-level proof gap between body-level Yul equivalenc
 
 ECMs introduce trust assumptions via their `axioms` field. These are not Lean
 kernel axioms — they are documented interface assumptions about external contracts
-and precompiles. The compiler aggregates them at compile time and surfaces them
-in `--verbose` output.
+and precompiles. The compiler aggregates them at compile time, surfaces them
+in `--verbose` output, and can fail closed for `unchecked` surfaces via
+`--deny-unchecked-dependencies`.
 
 ### Standard Module Axioms
 

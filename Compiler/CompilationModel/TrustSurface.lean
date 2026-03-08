@@ -470,7 +470,8 @@ private def proofStatusJson (spec : CompilationModel) : String :=
       (collectUsedEcmModuleNamesByStatus spec .unchecked))
   ]
 
-private def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
+/-- True when a contract depends on any foreign surface marked `unchecked`. -/
+def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
   !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||
     !(collectUsedEcmModuleNamesByStatus spec .unchecked).isEmpty
 
