@@ -166,27 +166,69 @@ def compileSpecsWithOptions
     IO.println "  Proof boundary: these primitives compile through explicit trusted boundaries (for example, keccak-backed hashing) and should be audited alongside AXIOMS.md/TRUST_ASSUMPTIONS.md."
     IO.println ""
     IO.println "Proof-status summary:"
-    let mut anyAssumedStatus := false
+    let mut anyForeignStatus := false
+    let mut anyUncheckedStatus := false
     for spec in specs do
       let primitives := collectAxiomatizedPrimitives spec
-      let externals := (collectUsedExternalAssumptions spec).map Prod.fst
-      let ecmModules := (collectEcmAxioms spec).map Prod.fst
-      if !primitives.isEmpty || !externals.isEmpty || !ecmModules.isEmpty then
-        anyAssumedStatus := true
+      let provedExternals :=
+        (collectUsedExternalAssumptions spec).foldl
+          (fun acc ext => if ext.proofStatus == .proved then acc ++ [ext.name] else acc) []
+      let assumedExternals :=
+        (collectUsedExternalAssumptions spec).foldl
+          (fun acc ext => if ext.proofStatus == .assumed then acc ++ [ext.name] else acc) []
+      let uncheckedExternals :=
+        (collectUsedExternalAssumptions spec).foldl
+          (fun acc ext => if ext.proofStatus == .unchecked then acc ++ [ext.name] else acc) []
+      let usedModules :=
+        spec.functions.flatMap (·.body)
+          |>.foldl
+            (fun acc stmt =>
+              let mods :=
+                let rec collectFromStmt : Stmt → List ECM.ExternalCallModule
+                  | .ecm mod _ => [mod]
+                  | .ite _ thenBr elseBr =>
+                      thenBr.flatMap collectFromStmt ++ elseBr.flatMap collectFromStmt
+                  | .forEach _ _ body =>
+                      body.flatMap collectFromStmt
+                  | _ => []
+                collectFromStmt stmt
+              mods.foldl (fun inner mod => if inner.contains mod then inner else inner ++ [mod]) acc)
+            []
+      let provedModules := usedModules.foldl
+        (fun acc mod => if mod.proofStatus == .proved then acc ++ [mod.name] else acc) []
+      let assumedModules := usedModules.foldl
+        (fun acc mod => if mod.proofStatus == .assumed then acc ++ [mod.name] else acc) []
+      let uncheckedModules := usedModules.foldl
+        (fun acc mod => if mod.proofStatus == .unchecked then acc ++ [mod.name] else acc) []
+      if !primitives.isEmpty || !provedExternals.isEmpty || !assumedExternals.isEmpty ||
+          !uncheckedExternals.isEmpty || !provedModules.isEmpty || !assumedModules.isEmpty ||
+          !uncheckedModules.isEmpty then
+        anyForeignStatus := true
         IO.println s!"  {spec.name}:"
         if !primitives.isEmpty then
           IO.println s!"    assumed primitives: {String.intercalate ", " primitives}"
-        if !externals.isEmpty then
-          IO.println s!"    assumed linked externals: {String.intercalate ", " externals}"
-        if !ecmModules.isEmpty then
-          IO.println s!"    assumed ECM modules: {String.intercalate ", " ecmModules}"
-    if !anyAssumedStatus then
+        if !provedExternals.isEmpty then
+          IO.println s!"    proved linked externals: {String.intercalate ", " provedExternals}"
+        if !assumedExternals.isEmpty then
+          IO.println s!"    assumed linked externals: {String.intercalate ", " assumedExternals}"
+        if !uncheckedExternals.isEmpty then
+          anyUncheckedStatus := true
+          IO.println s!"    unchecked linked externals: {String.intercalate ", " uncheckedExternals}"
+        if !provedModules.isEmpty then
+          IO.println s!"    proved ECM modules: {String.intercalate ", " provedModules}"
+        if !assumedModules.isEmpty then
+          IO.println s!"    assumed ECM modules: {String.intercalate ", " assumedModules}"
+        if !uncheckedModules.isEmpty then
+          anyUncheckedStatus := true
+          IO.println s!"    unchecked ECM modules: {String.intercalate ", " uncheckedModules}"
+    if !anyForeignStatus then
       IO.println "  proved: none"
       IO.println "  assumed: none"
       IO.println "  unchecked: none"
-    else
-      IO.println "  proved: none reported yet for foreign surfaces"
+    else if !anyUncheckedStatus then
       IO.println "  unchecked: none reported"
+    else
+      IO.println "  warning: unchecked foreign dependencies are present; exclude these contracts from full-verification claims"
     IO.println ""
     IO.println "External assumption report:"
     let mut anyExternalAssumptions := false
@@ -197,11 +239,11 @@ def compileSpecsWithOptions
         anyExternalAssumptions := true
         IO.println s!"  {spec.name}:"
         if !externals.isEmpty then
-          for (name, axioms) in externals do
+          for ext in externals do
             let renderedAxioms :=
-              if axioms.isEmpty then "(no declared axioms)"
-              else String.intercalate ", " axioms
-            IO.println s!"    [linked:{name}] {renderedAxioms}"
+              if ext.axiomNames.isEmpty then "(no declared axioms)"
+              else String.intercalate ", " ext.axiomNames
+            IO.println s!"    [linked:{ext.name}][{ext.proofStatus.toJsonString}] {renderedAxioms}"
         if !ecmAxioms.isEmpty then
           for (modName, assumption) in ecmAxioms do
             IO.println s!"    [ecm:{modName}] {assumption}"

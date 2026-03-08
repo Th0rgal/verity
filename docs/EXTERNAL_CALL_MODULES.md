@@ -26,7 +26,8 @@ ExternalCallModule (Compiler/ECM.lean)
   ├── writesState : Bool
   ├── readsState : Bool
   ├── compile : CompilationContext → List YulExpr → Except String (List YulStmt)
-  └── axioms : List String
+  ├── axioms : List String
+  └── proofStatus : proved | assumed | unchecked
 
 Stmt.ecm (mod : ExternalCallModule) (args : List Expr)
 ```
@@ -98,6 +99,7 @@ def myCallModule : ExternalCallModule where
   writesState := true
   readsState := false
   axioms := ["my_protocol_interface"]
+  proofStatus := .assumed
   compile := fun _ctx args => do
     let [token, amount] := args | throw "myCall expects 2 arguments"
     -- Your Yul generation logic here
@@ -159,8 +161,9 @@ Import path: `import MyProtocol.Swap`.
 
 ## Axiom Aggregation
 
-Every ECM declares its trust assumptions in the `axioms` field. When compiling
-with `--verbose`, the compiler aggregates and reports all ECM axioms:
+Every ECM declares its trust assumptions in the `axioms` field and tags the
+surface with `proofStatus`. When compiling with `--verbose`, the compiler
+aggregates both the assumptions and the status buckets:
 
 ```
 ECM axiom report:
@@ -172,17 +175,19 @@ ECM axiom report:
 ```
 
 This makes the trust boundary explicit and auditable. A team choosing which
-modules to use is choosing which trust assumptions to accept.
+modules to use is choosing which trust assumptions to accept, and whether the
+surface is merely `assumed` or fully `unchecked`.
 
 For machine-readable audit trails, `verity-compiler --trust-report <path>` now
 emits per-contract JSON that includes:
 - first-class low-level call / returndata mechanics used by the spec
 - axiomatized primitives used directly by the spec (for example `keccak256`)
-- linked external assumptions (`spec.externals`)
-- ECM assumption entries (`module`, `assumption`)
+- linked external assumptions with `status`
+- ECM assumption entries (`module`, `assumption`) plus per-module `status`
 - explicit `proofStatus.proved` / `proofStatus.assumed` / `proofStatus.unchecked`
-  buckets for foreign trust surfaces; current linked externals, ECM modules, and
-  axiomatized primitives are reported under `assumed`
+  buckets for foreign trust surfaces
+- `hasUncheckedDependencies` so CI/reporting layers can fail or warn on
+  contracts that are not eligible for full-verification claims
 
 ## Trust Model
 

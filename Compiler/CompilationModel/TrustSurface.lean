@@ -1,5 +1,6 @@
 import Compiler.CompilationModel.Types
 import Compiler.CompilationModel.EcmAxiomCollection
+import Compiler.ProofStatus
 
 namespace Compiler.CompilationModel
 
@@ -229,6 +230,14 @@ def collectAxiomatizedPrimitives (spec : CompilationModel) : List String :=
   let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
   dedupPreserve (allStmts.flatMap collectAxiomatizedStmtPrimitives)
 
+private def collectAxiomatizedPrimitivesByStatus
+    (spec : CompilationModel)
+    (status : Compiler.ProofStatus) : List String :=
+  match status with
+  | .proved => []
+  | .assumed => collectAxiomatizedPrimitives spec
+  | .unchecked => []
+
 private partial def collectExternalExprNames : Expr → List String
   | .externalCall name args =>
       name :: args.flatMap collectExternalExprNames
@@ -333,17 +342,49 @@ private def collectUsedExternalNames (spec : CompilationModel) : List String :=
   dedupPreserve (allStmts.flatMap collectExternalStmtNames)
 
 /-- Collect linked external declarations that are actually referenced by the spec. -/
-def collectUsedExternalAssumptions (spec : CompilationModel) : List (String × List String) :=
+def collectUsedExternalAssumptions (spec : CompilationModel) : List ExternalFunction :=
   let usedNames := collectUsedExternalNames spec
-  let rec gather : List ExternalFunction → List (String × List String)
+  let rec gather : List ExternalFunction → List ExternalFunction
     | [] => []
     | ext :: rest =>
         let tail := gather rest
         if usedNames.contains ext.name then
-          (ext.name, ext.axiomNames) :: tail
+          ext :: tail
         else
           tail
   gather spec.externals
+
+private def collectUsedExternalNamesByStatus
+    (spec : CompilationModel)
+    (status : Compiler.ProofStatus) : List String :=
+  (collectUsedExternalAssumptions spec).foldl
+    (fun acc ext => if ext.proofStatus == status then acc ++ [ext.name] else acc)
+    []
+
+private partial def collectUsedEcmModulesInStmt : Stmt → List ECM.ExternalCallModule
+  | .ecm mod _ => [mod]
+  | .ite _ thenBr elseBr =>
+      thenBr.flatMap collectUsedEcmModulesInStmt ++ elseBr.flatMap collectUsedEcmModulesInStmt
+  | .forEach _ _ body =>
+      body.flatMap collectUsedEcmModulesInStmt
+  | _ =>
+      []
+
+private def collectUsedEcmModules (spec : CompilationModel) : List ECM.ExternalCallModule :=
+  let stmtsFromFn (fn : FunctionSpec) := fn.body
+  let stmtsFromCtor : List Stmt := match spec.constructor with
+    | some ctor => ctor.body
+    | none => []
+  let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
+  allStmts.flatMap collectUsedEcmModulesInStmt
+    |>.foldl (fun acc mod => if acc.contains mod then acc else acc ++ [mod]) []
+
+private def collectUsedEcmModuleNamesByStatus
+    (spec : CompilationModel)
+    (status : Compiler.ProofStatus) : List String :=
+  (collectUsedEcmModules spec).foldl
+    (fun acc mod => if mod.proofStatus == status then acc ++ [mod.name] else acc)
+    []
 
 private def escapeJsonChar (c : Char) : String :=
   match c with
@@ -366,16 +407,27 @@ private def jsonArray (items : List String) : String :=
 private def jsonObject (fields : List (String × String)) : String :=
   "{" ++ String.intercalate "," (fields.map fun (name, value) => jsonString name ++ ":" ++ value) ++ "}"
 
-private def assumptionJson (entry : String × List String) : String :=
+private def proofStatusString (status : Compiler.ProofStatus) : String :=
+  jsonString status.toJsonString
+
+private def assumptionJson (entry : ExternalFunction) : String :=
   jsonObject [
-    ("name", jsonString entry.1),
-    ("axioms", jsonArray (entry.2.map jsonString))
+    ("name", jsonString entry.name),
+    ("status", proofStatusString entry.proofStatus),
+    ("axioms", jsonArray (entry.axiomNames.map jsonString))
   ]
 
 private def ecmJson (entry : String × String) : String :=
   jsonObject [
     ("module", jsonString entry.1),
     ("assumption", jsonString entry.2)
+  ]
+
+private def ecmModuleJson (entry : ECM.ExternalCallModule) : String :=
+  jsonObject [
+    ("module", jsonString entry.name),
+    ("status", proofStatusString entry.proofStatus),
+    ("axioms", jsonArray (entry.axioms.map jsonString))
   ]
 
 private def proofStatusBucketJson
@@ -387,14 +439,24 @@ private def proofStatusBucketJson
   ]
 
 private def proofStatusJson (spec : CompilationModel) : String :=
-  let axiomatizedPrimitives := collectAxiomatizedPrimitives spec
-  let linkedExternals := (collectUsedExternalAssumptions spec).map Prod.fst
-  let ecmModules := (collectEcmAxioms spec).map Prod.fst
   jsonObject [
-    ("proved", proofStatusBucketJson [] [] []),
-    ("assumed", proofStatusBucketJson axiomatizedPrimitives linkedExternals ecmModules),
-    ("unchecked", proofStatusBucketJson [] [] [])
+    ("proved", proofStatusBucketJson
+      (collectAxiomatizedPrimitivesByStatus spec .proved)
+      (collectUsedExternalNamesByStatus spec .proved)
+      (collectUsedEcmModuleNamesByStatus spec .proved)),
+    ("assumed", proofStatusBucketJson
+      (collectAxiomatizedPrimitivesByStatus spec .assumed)
+      (collectUsedExternalNamesByStatus spec .assumed)
+      (collectUsedEcmModuleNamesByStatus spec .assumed)),
+    ("unchecked", proofStatusBucketJson
+      (collectAxiomatizedPrimitivesByStatus spec .unchecked)
+      (collectUsedExternalNamesByStatus spec .unchecked)
+      (collectUsedEcmModuleNamesByStatus spec .unchecked))
   ]
+
+private def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
+  !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||
+    !(collectUsedEcmModuleNamesByStatus spec .unchecked).isEmpty
 
 /-- Render the machine-readable trust report consumed by CLI/tests. -/
 def emitTrustReportJson (specs : List CompilationModel) : String :=
@@ -408,6 +470,7 @@ where
       ("modeledLowLevelMechanics", jsonArray ((collectLowLevelMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),
       ("proofStatus", proofStatusJson spec),
+      ("hasUncheckedDependencies", if hasUncheckedDependencies spec then "true" else "false"),
       ("proofBoundary", jsonObject [
         ("compilerModelsMechanics", "true"),
         ("proofInterpretersModelMechanics", "false"),
@@ -415,7 +478,8 @@ where
       ]),
       ("externalAssumptions", jsonObject [
         ("linkedExternals", jsonArray ((collectUsedExternalAssumptions spec).map assumptionJson)),
-        ("ecmAxioms", jsonArray ((collectEcmAxioms spec).map ecmJson))
+        ("ecmAxioms", jsonArray ((collectEcmAxioms spec).map ecmJson)),
+        ("ecmModules", jsonArray ((collectUsedEcmModules spec).map ecmModuleJson))
       ])
     ]
 

@@ -24,6 +24,7 @@
 import Compiler.Constants
 import Compiler.ECM
 import Compiler.IR
+import Compiler.ProofStatus
 import Compiler.Yul.Ast
 import Compiler.Identifier
 
@@ -207,6 +208,11 @@ structure ExternalFunction where
   params : List ParamType
   returnType : Option ParamType := none  -- backward compatibility
   returns : List ParamType := []  -- empty for void functions
+  /-- Proof-accounting status for this foreign surface.
+      `proved` means there is an end-to-end refinement theorem,
+      `assumed` means downstream proofs must quantify over the spec explicitly,
+      and `unchecked` means the function is available for compilation/testing only. -/
+  proofStatus : Compiler.ProofStatus := .assumed
   /-- Names of axioms assumed about this function.
       The actual Lean propositions are stated separately;
       these names are for documentation and audit purposes. -/

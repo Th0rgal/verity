@@ -12,6 +12,7 @@
 -/
 
 import Compiler.Constants
+import Compiler.ProofStatus
 import Compiler.Yul.Ast
 
 namespace Compiler.ECM
@@ -58,10 +59,14 @@ structure ExternalCallModule where
       across all modules used by a contract. -/
   axioms : List String := []
 
+  /-- Proof-accounting status for this module's behavior. -/
+  proofStatus : Compiler.ProofStatus := .assumed
+
 instance : BEq ExternalCallModule where
   beq a b := a.name == b.name && a.numArgs == b.numArgs &&
     a.resultVars == b.resultVars && a.writesState == b.writesState &&
-    a.readsState == b.readsState && a.axioms == b.axioms
+    a.readsState == b.readsState && a.axioms == b.axioms &&
+    a.proofStatus == b.proofStatus
 
 instance : Repr ExternalCallModule where
   reprPrec m _ := s!"ECM[{m.name}]"

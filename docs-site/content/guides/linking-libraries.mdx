@@ -28,6 +28,7 @@ externals := [
   { name := "myHash"
     params := [ParamType.uint256, ParamType.uint256]
     returnType := some ParamType.uint256
+    proofStatus := .assumed
     axiomNames := [] }
 ]
 -- In a function body:
@@ -88,6 +89,7 @@ def myCompilationModel : CompilationModel := {
     { name := "myHash"
       params := [ParamType.uint256, ParamType.uint256]
       returnType := some ParamType.uint256
+      proofStatus := .assumed
       axiomNames := [] }  -- Add axiom names if modeling trust assumptions
   ]
   functions := [

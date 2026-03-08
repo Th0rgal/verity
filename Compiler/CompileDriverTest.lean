@@ -164,6 +164,39 @@ private def trustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def uncheckedTrustSurfaceSpec : CompilationModel := {
+  name := "UncheckedTrustSurface"
+  fields := []
+  «constructor» := none
+  externals := [
+    { name := "DebugOracle_peek"
+      params := []
+      returnType := some ParamType.uint256
+      proofStatus := .unchecked
+      axiomNames := [] }
+  ]
+  functions := [
+    { name := "exercise"
+      params := []
+      returnType := none
+      body := [
+        Stmt.letVar "peek" (Expr.externalCall "DebugOracle_peek" []),
+        Stmt.ecm
+          { name := "debugHook"
+            numArgs := 1
+            resultVars := []
+            writesState := false
+            readsState := true
+            proofStatus := .unchecked
+            axioms := []
+            compile := fun _ _ => pure [] }
+          [Expr.localVar "peek"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def ecrecoverTrustSurfaceSpec : CompilationModel := {
   name := "EcrecoverTrustSurface"
   fields := []
@@ -345,11 +378,24 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report emits unchecked proof-status bucket")
   if !contains trustReport "\"name\":\"PoseidonT3_hash\"" then
     throw (IO.userError "✗ trust report emits linked external name")
+  if !contains trustReport "\"status\":\"assumed\"" then
+    throw (IO.userError "✗ trust report emits linked external status")
   if !contains trustReport "\"axioms\":[\"poseidon_t3_deterministic\"]" then
     throw (IO.userError "✗ trust report emits linked external axioms")
   if !contains trustReport "\"module\":\"testCall\"" || !contains trustReport "\"assumption\":\"test_call_interface\"" then
     throw (IO.userError "✗ trust report emits ECM axioms")
+  if !contains trustReport "\"ecmModules\":[{\"module\":\"testCall\",\"status\":\"assumed\",\"axioms\":[\"test_call_interface\"]}]" then
+    throw (IO.userError "✗ trust report emits ECM module status")
   IO.println "✓ trust report emits low-level mechanics, proof-status buckets, axiomatized primitives, and external assumptions"
+
+  let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
+  if !contains uncheckedTrustReport "\"hasUncheckedDependencies\":true" then
+    throw (IO.userError "✗ trust report flags unchecked dependencies")
+  if !contains uncheckedTrustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[\"DebugOracle_peek\"],\"ecmModules\":[\"debugHook\"]}" then
+    throw (IO.userError "✗ trust report emits unchecked proof-status bucket")
+  if !contains uncheckedTrustReport "\"status\":\"unchecked\"" then
+    throw (IO.userError "✗ trust report emits unchecked dependency status")
+  IO.println "✓ trust report flags unchecked linked externals and ECM modules"
 
   let ecrecoverTrustReport := emitTrustReportJson [ecrecoverTrustSurfaceSpec]
   if !contains ecrecoverTrustReport "\"contract\":\"EcrecoverTrustSurface\"" then
