@@ -141,8 +141,8 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 
 | Category | Proved | Assumed | Partial | Not Modeled |
 |---|---|---|---|---|
-| Expression features | 25 | 1 (`externalCall`) | 3 (`chainid`, `mload`, `returndataOptionalBoolAt`) | 5 |
-| Statement features | 24 | 0 | 1 (`mstore`) | 7 |
+| Expression features | 24 | 1 (`externalCall`) | 5 (`blockNumber`, `contractAddress`, `chainid`, `mload`, `returndataOptionalBoolAt`) | 4 (`keccak256`, `call`, `staticcall`, `delegatecall`) |
+| Statement features | 25 | 0 | 1 (`mstore`) | 6 (`calldatacopy`, `returndataCopy`, `revertReturndata`, `rawLog`, `externalCallBind`, `ecm`) |
 | Builtins (agreement) | 15 | 0 | 0 | 7 (delegated) |
 
 **Not-modeled features** are handled correctly by the compiler but are outside the current proof scope. They include low-level calls, returndata handling, linear memory, contract introspection, and external call modules. These features are validated by differential testing (70,000+ test vectors against actual EVM execution).
