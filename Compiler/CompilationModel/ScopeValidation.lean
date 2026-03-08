@@ -193,7 +193,7 @@ def validateScopedExprIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount thenVal
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount elseVal
   | Expr.literal _ | Expr.storage _ | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid
-  | Expr.msgValue | Expr.blockTimestamp | Expr.calldatasize | Expr.returndataSize =>
+  | Expr.msgValue | Expr.blockTimestamp | Expr.blockNumber | Expr.calldatasize | Expr.returndataSize =>
       pure ()
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega

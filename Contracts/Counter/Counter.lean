@@ -47,12 +47,13 @@ verity_contract Counter where
 
   function previewEnvOps (x : Uint256, y : Uint256) : Uint256 := do
     let ts := blockTimestamp
+    let bn := blockNumber
     let self := contractAddress
     let cid := chainid
     let flagAnd := logicalAnd x y
     let flagOr := logicalOr x y
     let flagNot := logicalNot x
-    let hashInput := add (add ts self) cid
+    let hashInput := add (add (add ts bn) self) cid
     let memWord := mload hashInput
     let digest := keccak256 memWord 64
     return (add (add digest flagAnd) (add flagOr flagNot))

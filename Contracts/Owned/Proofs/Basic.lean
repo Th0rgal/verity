@@ -131,6 +131,7 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
+      blockNumber := s.blockNumber,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
   verity_unfold transferOwnership with h_owner

@@ -159,6 +159,7 @@ private def compileExpr (fields : List Field) : Expr → CompileM SomeTExpr
   | .contractAddress => return ⟨Ty.address, TExpr.this⟩
   | .msgValue => return ⟨Ty.uint256, TExpr.msgValue⟩
   | .blockTimestamp => return ⟨Ty.uint256, TExpr.blockTimestamp⟩
+  | .blockNumber => return ⟨Ty.uint256, TExpr.blockNumber⟩
   | .add a b => do
       let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
       let b' ← liftExcept <| asUInt256 (← compileExpr fields b)

@@ -29,6 +29,7 @@ def evalBuiltinCallWithContext
     (msgValue : Nat)
     (thisAddress : Nat)
     (blockTimestamp : Nat)
+    (blockNumber : Nat)
     (chainId : Nat)
     (selector : Nat)
     (calldata : List Nat)
@@ -135,6 +136,10 @@ def evalBuiltinCallWithContext
     match argVals with
     | [] => some (toWord blockTimestamp)
     | _ => none
+  else if func = "number" then
+    match argVals with
+    | [] => some (toWord blockNumber)
+    | _ => none
   else if func = "chainid" then
     match argVals with
     | [] => some (toWord chainId)
@@ -168,6 +173,7 @@ def evalBuiltinCallWithBackendContext
     (msgValue : Nat)
     (thisAddress : Nat)
     (blockTimestamp : Nat)
+    (blockNumber : Nat)
     (chainId : Nat)
     (selector : Nat)
     (calldata : List Nat)
@@ -175,7 +181,7 @@ def evalBuiltinCallWithBackendContext
     (argVals : List Nat) : Option Nat :=
   match backend with
   | .verity =>
-      evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp chainId selector calldata func argVals
+      evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId selector calldata func argVals
   | .evmYulLean =>
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean
         storage sender selector calldata func argVals
@@ -188,7 +194,7 @@ def evalBuiltinCallWithBackend
     (calldata : List Nat)
     (func : String)
     (argVals : List Nat) : Option Nat :=
-  evalBuiltinCallWithBackendContext backend storage sender 0 0 0 0 selector calldata func argVals
+  evalBuiltinCallWithBackendContext backend storage sender 0 0 0 0 0 selector calldata func argVals
 
 def evalBuiltinCall
     (storage : Nat → Nat)
@@ -197,19 +203,19 @@ def evalBuiltinCall
     (calldata : List Nat)
     (func : String)
     (argVals : List Nat) : Option Nat :=
-  evalBuiltinCallWithContext storage sender 0 0 0 0 selector calldata func argVals
+  evalBuiltinCallWithContext storage sender 0 0 0 0 0 selector calldata func argVals
 
 @[simp] theorem evalBuiltinCall_callvalue_nil
-    (storage : Nat → Nat) (sender thisAddress blockTimestamp chainId selector : Nat)
+    (storage : Nat → Nat) (sender thisAddress blockTimestamp blockNumber chainId selector : Nat)
     (calldata : List Nat) :
-    evalBuiltinCallWithContext storage sender 0 thisAddress blockTimestamp chainId selector calldata "callvalue" [] =
+    evalBuiltinCallWithContext storage sender 0 thisAddress blockTimestamp blockNumber chainId selector calldata "callvalue" [] =
       some 0 := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_callvalue_context
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp chainId selector : Nat)
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId selector : Nat)
     (calldata : List Nat) :
-    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp chainId selector calldata "callvalue" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId selector calldata "callvalue" [] =
       some (msgValue % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
@@ -225,23 +231,30 @@ def evalBuiltinCall
   simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_address_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp chainId selector : Nat)
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId selector : Nat)
     (calldata : List Nat) :
-    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp chainId selector calldata "address" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId selector calldata "address" [] =
       some (thisAddress % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCall_timestamp_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp chainId selector : Nat)
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId selector : Nat)
     (calldata : List Nat) :
-    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp chainId selector calldata "timestamp" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId selector calldata "timestamp" [] =
       some (blockTimestamp % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 
-@[simp] theorem evalBuiltinCall_chainid_nil
-    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp chainId selector : Nat)
+@[simp] theorem evalBuiltinCall_number_nil
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId selector : Nat)
     (calldata : List Nat) :
-    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp chainId selector calldata "chainid" [] =
+    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId selector calldata "number" [] =
+      some (blockNumber % evmModulus) := by
+  simp [evalBuiltinCallWithContext]
+
+@[simp] theorem evalBuiltinCall_chainid_nil
+    (storage : Nat → Nat) (sender msgValue thisAddress blockTimestamp blockNumber chainId selector : Nat)
+    (calldata : List Nat) :
+    evalBuiltinCallWithContext storage sender msgValue thisAddress blockTimestamp blockNumber chainId selector calldata "chainid" [] =
       some (chainId % evmModulus) := by
   simp [evalBuiltinCallWithContext]
 

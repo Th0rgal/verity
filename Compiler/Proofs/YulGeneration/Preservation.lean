@@ -26,6 +26,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
           msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          blockNumber := tx.blockNumber
           chainId := tx.chainId
           functionSelector := tx.functionSelector
           args := tx.args }
@@ -49,6 +50,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
             msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            blockNumber := tx.blockNumber
             chainId := tx.chainId
             functionSelector := tx.functionSelector
             args := tx.args }
@@ -59,6 +61,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
               msgValue := tx.msgValue
               thisAddress := tx.thisAddress
               blockTimestamp := tx.blockTimestamp
+              blockNumber := tx.blockNumber
               chainId := tx.chainId
               functionSelector := tx.functionSelector
               args := tx.args }
@@ -326,6 +329,7 @@ private def SwitchCaseBodyBridge
           msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          blockNumber := tx.blockNumber
           chainId := tx.chainId
           functionSelector := tx.functionSelector
           args := tx.args }
@@ -338,6 +342,7 @@ private def SwitchCaseBodyBridge
             msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            blockNumber := tx.blockNumber
             chainId := tx.chainId
             functionSelector := tx.functionSelector
             args := tx.args }
@@ -348,6 +353,7 @@ private def SwitchCaseBodyBridge
               msgValue := tx.msgValue
               thisAddress := tx.thisAddress
               blockTimestamp := tx.blockTimestamp
+              blockNumber := tx.blockNumber
               chainId := tx.chainId
               functionSelector := tx.functionSelector
               args := tx.args }
@@ -378,6 +384,7 @@ theorem yulCodegen_preserves_semantics
             msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            blockNumber := tx.blockNumber
             chainId := tx.chainId
             calldata := tx.args
             selector := tx.functionSelector })
@@ -387,6 +394,7 @@ theorem yulCodegen_preserves_semantics
             msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
+            blockNumber := tx.blockNumber
             chainId := tx.chainId
             calldata := tx.args
             selector := tx.functionSelector })) :
@@ -399,6 +407,7 @@ theorem yulCodegen_preserves_semantics
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     calldata := tx.args
     selector := tx.functionSelector
@@ -408,6 +417,7 @@ theorem yulCodegen_preserves_semantics
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
@@ -508,6 +518,7 @@ theorem yulCodegen_preserves_semantics
           msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
+          blockNumber := tx.blockNumber
           chainId := tx.chainId
           calldata := tx.args
           selector := tx.functionSelector }

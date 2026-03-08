@@ -38,6 +38,7 @@ def lowerTExpr : {ty : Ty} → TExpr ty → YulExpr
   | _, .this => .call "address" []
   | _, .msgValue => .call "callvalue" []
   | _, .blockTimestamp => .call "timestamp" []
+  | _, .blockNumber => .call "number" []
   | _, .getStorage slot => .call "sload" [.lit slot]
   | _, .getStorageAddr slot => .call "sload" [.lit slot]
   | _, .getMapping slot key =>

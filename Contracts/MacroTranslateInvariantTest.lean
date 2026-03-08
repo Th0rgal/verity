@@ -188,6 +188,7 @@ private def withTxContext (state : IRState) (tx : IRTransaction) : IRState :=
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     selector := tx.functionSelector }
 
@@ -215,6 +216,7 @@ private def interpretYulFromIRFuelResult (contract : IRContract) (tx : IRTransac
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
@@ -234,6 +236,7 @@ private def diffCheckTx (spec : CompilationModel) (ir : IRContract)
       msgValue := tx.msgValue,
       thisAddress := tx.thisAddress,
       blockTimestamp := tx.blockTimestamp,
+      blockNumber := tx.blockNumber,
       chainId := tx.chainId,
       selector := 0,
       events := [] }

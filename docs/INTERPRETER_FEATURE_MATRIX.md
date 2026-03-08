@@ -38,6 +38,7 @@ The `SpecInterpreter` has been removed. EDSL semantics are now defined directly 
 | `caller` | `Expr.caller` | ok | ok | ok | del | proved |
 | `msg.value` | `Expr.msgValue` | ok | ok | ok | -- | proved |
 | `block.timestamp` | `Expr.blockTimestamp` | ok | ok | ok | -- | proved |
+| `block.number` | `Expr.blockNumber` | **0** | **0** | ok | -- | partial |
 | `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | -- | partial |
 | `chainid` | `Expr.chainid` | **0** | **0** | ok | -- | partial |
 | `mload` | `Expr.mload` | **0** | **0** | ok | -- | partial |

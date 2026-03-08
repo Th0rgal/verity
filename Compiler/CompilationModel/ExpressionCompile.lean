@@ -171,6 +171,7 @@ def compileExpr (fields : List Field)
       pure (YulExpr.call "extcodesize" [← compileExpr fields dynamicSource addr])
   | Expr.msgValue => pure (YulExpr.call "callvalue" [])
   | Expr.blockTimestamp => pure (YulExpr.call "timestamp" [])
+  | Expr.blockNumber => pure (YulExpr.call "number" [])
   | Expr.mload offset => do
       pure (YulExpr.call "mload" [← compileExpr fields dynamicSource offset])
   | Expr.keccak256 offset size => do

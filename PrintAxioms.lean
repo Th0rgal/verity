@@ -452,6 +452,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Automation.setStorage_preserves_blockTimestamp
 #print axioms Verity.Proofs.Stdlib.Automation.setStorageAddr_preserves_blockTimestamp
 #print axioms Verity.Proofs.Stdlib.Automation.setMapping_preserves_blockTimestamp
+#print axioms Verity.Proofs.Stdlib.Automation.setStorage_preserves_blockNumber
+#print axioms Verity.Proofs.Stdlib.Automation.setStorageAddr_preserves_blockNumber
+#print axioms Verity.Proofs.Stdlib.Automation.setMapping_preserves_blockNumber
 #print axioms Verity.Proofs.Stdlib.Automation.setStorage_preserves_knownAddresses
 #print axioms Verity.Proofs.Stdlib.Automation.setStorageAddr_preserves_knownAddresses
 #print axioms Verity.Proofs.Stdlib.Automation.setStorage_preserves_events
@@ -522,6 +525,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMappingUint_preserves_blockTimestamp
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping2_preserves_msgValue
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping2_preserves_blockTimestamp
+#print axioms Verity.Proofs.Stdlib.MappingAutomation.setMappingUint_preserves_blockNumber
+#print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping2_preserves_blockNumber
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping_preserves_storageMapUint
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping_preserves_storageMap2
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setStorage_preserves_storageMapUint
@@ -674,6 +679,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil
+#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil
 #print axioms Compiler.Proofs.YulGeneration.calldataloadWord_offset4
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single
@@ -698,4 +704,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 597 theorems/lemmas (547 public, 50 private)
+-- Total: 603 theorems/lemmas (553 public, 50 private)

@@ -247,6 +247,7 @@ inductive Expr
   | chainid
   | msgValue
   | blockTimestamp
+  | blockNumber
   | mload (offset : Expr)
   | keccak256 (offset size : Expr)
   /-- First-class low-level `call(gas, target, value, inOffset, inSize, outOffset, outSize)`.

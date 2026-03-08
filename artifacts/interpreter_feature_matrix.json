@@ -162,6 +162,15 @@
       "proof_status": "proved"
     },
     {
+      "feature": "blockNumber",
+      "constructor": "Expr.blockNumber",
+      "SpecInterpreter_basic": "fallback_zero",
+      "SpecInterpreter_fuel": "fallback_zero",
+      "IRInterpreter": "supported",
+      "EVMYulLean_bridge": "n/a",
+      "proof_status": "partial"
+    },
+    {
       "feature": "contractAddress",
       "constructor": "Expr.contractAddress",
       "SpecInterpreter_basic": "fallback_zero",

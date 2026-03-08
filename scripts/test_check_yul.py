@@ -83,6 +83,7 @@ def evalExpr :=
     def test_inline_dispatch_regex_covers_env_builtins(self) -> None:
         self.assertIsNotNone(check_yul.INLINE_DISPATCH_RE.search('func = "address"'))
         self.assertIsNotNone(check_yul.INLINE_DISPATCH_RE.search('func = "timestamp"'))
+        self.assertIsNotNone(check_yul.INLINE_DISPATCH_RE.search('func = "number"'))
 
     def test_run_compilation_checks_reports_same_file_pair_mismatch(self) -> None:
         with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:

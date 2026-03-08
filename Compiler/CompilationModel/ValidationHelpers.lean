@@ -53,6 +53,7 @@ def collectExprNames : Expr → List String
   | Expr.extcodesize addr => collectExprNames addr
   | Expr.msgValue => []
   | Expr.blockTimestamp => []
+  | Expr.blockNumber => []
   | Expr.mload offset => collectExprNames offset
   | Expr.keccak256 offset size => collectExprNames offset ++ collectExprNames size
   | Expr.call gas target value inOffset inSize outOffset outSize =>

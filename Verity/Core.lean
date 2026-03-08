@@ -51,6 +51,7 @@ structure ContractState where
   thisAddress : Address
   msgValue : Uint256
   blockTimestamp : Uint256
+  blockNumber : Uint256 := 0
   knownAddresses : Nat → FiniteAddressSet  -- Tracked addresses per storage slot (for sum properties)
   events : List Event := []  -- Emitted events, append-only log (#153)
 
@@ -66,6 +67,7 @@ def defaultState : ContractState where
   thisAddress := 0
   msgValue := 0
   blockTimestamp := 0
+  blockNumber := 0
   knownAddresses := fun _ => Core.FiniteAddressSet.empty
 
 -- Repr instance for ContractState (simplified for readability)
@@ -348,6 +350,9 @@ def msgValue : Contract Uint256 :=
 def blockTimestamp : Contract Uint256 :=
   fun state => ContractResult.success state.blockTimestamp state
 
+def blockNumber : Contract Uint256 :=
+  fun state => ContractResult.success state.blockNumber state
+
 @[simp] theorem msgSender_run (state : ContractState) :
   msgSender.run state = ContractResult.success state.sender state := rfl
 
@@ -359,6 +364,9 @@ def blockTimestamp : Contract Uint256 :=
 
 @[simp] theorem blockTimestamp_run (state : ContractState) :
   blockTimestamp.run state = ContractResult.success state.blockTimestamp state := rfl
+
+@[simp] theorem blockNumber_run (state : ContractState) :
+  blockNumber.run state = ContractResult.success state.blockNumber state := rfl
 
 -- Require guard (explicit failure on condition = false)
 def require (condition : Bool) (message : String) : Contract Unit :=

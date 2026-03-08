@@ -376,6 +376,7 @@ partial def translatePureExpr
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
   | `(term| blockTimestamp) => `(Compiler.CompilationModel.Expr.blockTimestamp)
+  | `(term| blockNumber) => `(Compiler.CompilationModel.Expr.blockNumber)
   | `(term| contractAddress) => `(Compiler.CompilationModel.Expr.contractAddress)
   | `(term| chainid) => `(Compiler.CompilationModel.Expr.chainid)
   | `(term| calldatasize) => `(Compiler.CompilationModel.Expr.calldatasize)

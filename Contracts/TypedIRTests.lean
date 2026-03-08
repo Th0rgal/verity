@@ -75,6 +75,7 @@ def baseWorld : Verity.ContractState :=
     thisAddress := 9
     msgValue := 11
     blockTimestamp := 13
+    blockNumber := 17
   }
 
 def baseState : TExecState :=
@@ -383,9 +384,13 @@ example :
     evalTExpr baseState TExpr.sender = (7 : Verity.Core.Address) := by
   simp [baseState, evalTExpr, baseWorld, Verity.Env.ofWorld]
 
+example :
+    evalTExpr baseState TExpr.blockNumber = (17 : Verity.Core.Uint256) := by
+  simp [baseState, evalTExpr, baseWorld, Verity.Env.ofWorld]
+
 def envOverrideState : TExecState :=
   { world := baseWorld
-    env := { sender := 99, thisAddress := 100, msgValue := 101, blockTimestamp := 102 }
+    env := { sender := 99, thisAddress := 100, msgValue := 101, blockTimestamp := 102, blockNumber := 103 }
     vars := baseState.vars }
 
 /-- Context expressions read from explicit `TExecState.env`, not from world fields. -/

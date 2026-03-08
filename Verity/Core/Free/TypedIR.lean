@@ -41,6 +41,7 @@ inductive TExpr : Ty → Type where
   | this : TExpr .address
   | msgValue : TExpr .uint256
   | blockTimestamp : TExpr .uint256
+  | blockNumber : TExpr .uint256
   | getStorage (slot : Nat) : TExpr .uint256
   | getStorageAddr (slot : Nat) : TExpr .address
   | getMapping (slot : Nat) (key : TExpr .address) : TExpr .uint256
@@ -181,6 +182,7 @@ def evalTExpr (s : TExecState) : TExpr ty → Ty.denote ty
   | .this => s.env.thisAddress
   | .msgValue => s.env.msgValue
   | .blockTimestamp => s.env.blockTimestamp
+  | .blockNumber => s.env.blockNumber
   | .getStorage slot => s.world.storage slot
   | .getStorageAddr slot => s.world.storageAddr slot
   | .getMapping slot key => s.world.storageMap slot (evalTExpr s key)

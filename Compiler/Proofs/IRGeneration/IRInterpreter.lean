@@ -61,6 +61,8 @@ structure IRState where
   thisAddress : Nat := 0
   /-- Block timestamp seen by `timestamp()`. -/
   blockTimestamp : Nat := 0
+  /-- Block number seen by `number()`. -/
+  blockNumber : Nat := 0
   /-- Chain id seen by `chainid()`. -/
   chainId : Nat := 0
   /-- Function selector (4-byte value used by calldataload(0)) -/
@@ -80,6 +82,7 @@ def IRState.initial (sender : Nat) : IRState :=
     msgValue := 0
     thisAddress := 0
     blockTimestamp := 0
+    blockNumber := 0
     chainId := 0
     selector := 0
     events := [] }
@@ -138,7 +141,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
       Compiler.Proofs.YulGeneration.defaultBuiltinBackend
       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
-      state.chainId state.selector state.calldata func argVals
+      state.blockNumber state.chainId state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
   omega
@@ -344,6 +347,7 @@ structure IRTransaction where
   msgValue : Nat := 0
   thisAddress : Nat := 0
   blockTimestamp : Nat := 0
+  blockNumber : Nat := 0
   chainId : Nat := 0
   functionSelector : Nat
   args : List Nat
@@ -401,6 +405,7 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     calldata := tx.args
     selector := tx.functionSelector

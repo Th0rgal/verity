@@ -61,6 +61,7 @@ def setStructMember2 {κ₁ κ₂ α : Type}
     (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_member : String) (_value : α) : Contract Unit := pure ()
 def forEach (_name : String) (_count : Uint256) (body : Contract Unit) : Contract Unit := body
 def blockTimestamp : Uint256 := 0
+def blockNumber : Uint256 := 0
 def contractAddress : Uint256 := 0
 def chainid : Uint256 := 0
 

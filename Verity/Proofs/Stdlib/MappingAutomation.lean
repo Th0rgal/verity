@@ -267,7 +267,7 @@ theorem setMapping2_preserves_knownAddresses (slot : StorageSlot (Address → Ad
   simp
 
 /-!
-## msgValue / blockTimestamp / knownAddresses Preservation for Extended Mapping Types
+## msgValue / blockTimestamp / blockNumber / knownAddresses Preservation for Extended Mapping Types
 -/
 
 /-- setMappingUint preserves msgValue. -/
@@ -292,6 +292,18 @@ theorem setMapping2_preserves_msgValue (slot : StorageSlot (Address → Address 
 theorem setMapping2_preserves_blockTimestamp (slot : StorageSlot (Address → Address → Uint256))
     (key1 key2 : Address) (value : Uint256) (state : ContractState) :
     ((setMapping2 slot key1 key2 value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp
+
+/-- setMappingUint preserves blockNumber. -/
+theorem setMappingUint_preserves_blockNumber (slot : StorageSlot (Uint256 → Uint256))
+    (key : Uint256) (value : Uint256) (state : ContractState) :
+    ((setMappingUint slot key value).run state).snd.blockNumber = state.blockNumber := by
+  simp
+
+/-- setMapping2 preserves blockNumber. -/
+theorem setMapping2_preserves_blockNumber (slot : StorageSlot (Address → Address → Uint256))
+    (key1 key2 : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping2 slot key1 key2 value).run state).snd.blockNumber = state.blockNumber := by
   simp
 
 /-!

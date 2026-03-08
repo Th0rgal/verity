@@ -52,6 +52,7 @@ EVMYULLEAN_OVERLAP_BUILTINS = {
     "lt",
     "mod",
     "mul",
+    "number",
     "not",
     "or",
     "shl",

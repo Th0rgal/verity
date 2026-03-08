@@ -120,6 +120,7 @@ theorem increment_unfold (s : ContractState)
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
+      blockNumber := s.blockNumber,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
   verity_unfold increment
@@ -164,6 +165,7 @@ theorem decrement_unfold (s : ContractState)
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
+      blockNumber := s.blockNumber,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
   verity_unfold decrement
@@ -207,6 +209,7 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
+      blockNumber := s.blockNumber,
       knownAddresses := s.knownAddresses,
       events := s.events } := by
   verity_unfold transferOwnership

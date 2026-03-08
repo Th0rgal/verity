@@ -21,6 +21,7 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     msgValue := state.msgValue
     thisAddress := state.thisAddress
     blockTimestamp := state.blockTimestamp
+    blockNumber := state.blockNumber
     chainId := state.chainId
     events := state.events }
 
@@ -39,6 +40,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args
@@ -52,6 +54,7 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
     msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
     chainId := tx.chainId
     functionSelector := tx.functionSelector
     args := tx.args

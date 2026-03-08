@@ -35,7 +35,7 @@ BUILTIN_CALL_RE = re.compile(
     r")\b"
 )
 INLINE_DISPATCH_RE = re.compile(
-    r'func\s*=\s*"(?:mappingSlot|sload|add|sub|mul|div|mod|lt|gt|eq|iszero|and|or|xor|not|shl|shr|caller|calldataload|address|timestamp)"'
+    r'func\s*=\s*"(?:mappingSlot|sload|add|sub|mul|div|mod|lt|gt|eq|iszero|and|or|xor|not|shl|shr|caller|calldataload|address|timestamp|number)"'
 )
 
 

@@ -902,7 +902,7 @@ theorem setMapping_preserves_thisAddress (slot : StorageSlot (Address → Uint25
   simp
 
 /-!
-## Generic msgValue / blockTimestamp / knownAddresses Preservation
+## Generic msgValue / blockTimestamp / blockNumber / knownAddresses Preservation
 
 Storage mutations never touch context fields or (for non-mapping ops) knownAddresses.
 -/
@@ -941,6 +941,24 @@ theorem setStorageAddr_preserves_blockTimestamp (slot : StorageSlot Address) (va
 theorem setMapping_preserves_blockTimestamp (slot : StorageSlot (Address → Uint256))
     (key : Address) (value : Uint256) (state : ContractState) :
     ((setMapping slot key value).run state).snd.blockTimestamp = state.blockTimestamp := by
+  simp
+
+/-- setStorage preserves blockNumber. -/
+theorem setStorage_preserves_blockNumber (slot : StorageSlot Uint256) (value : Uint256)
+    (state : ContractState) :
+    ((setStorage slot value).run state).snd.blockNumber = state.blockNumber := by
+  simp
+
+/-- setStorageAddr preserves blockNumber. -/
+theorem setStorageAddr_preserves_blockNumber (slot : StorageSlot Address) (value : Address)
+    (state : ContractState) :
+    ((setStorageAddr slot value).run state).snd.blockNumber = state.blockNumber := by
+  simp
+
+/-- setMapping preserves blockNumber. -/
+theorem setMapping_preserves_blockNumber (slot : StorageSlot (Address → Uint256))
+    (key : Address) (value : Uint256) (state : ContractState) :
+    ((setMapping slot key value).run state).snd.blockNumber = state.blockNumber := by
   simp
 
 /-- setStorage preserves knownAddresses. -/

@@ -75,12 +75,12 @@ private def envRuntimeSmokeSpec : CompilationModel := {
   fields := []
   «constructor» := none
   functions := [
-    { name := "selfValueTimestampAndChainId"
+    { name := "selfValueTimestampNumberAndChainId"
       params := []
       returnType := none
-      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256]
+      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256, ParamType.uint256]
       body := [
-        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.blockTimestamp, Expr.chainid]
+        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.blockTimestamp, Expr.blockNumber, Expr.chainid]
       ]
     }
   ]
@@ -377,6 +377,8 @@ private def ecrecoverSmokeSpec : CompilationModel := {
     "reserved compiler prefix is rejected in ECM result binders"
     reservedEcmResultVarSpec
     "local binder '__ecm_result' uses reserved compiler prefix '__'"
+  let envRuntimeYul ← expectCompileToYul "env runtime smoke compiles" envRuntimeSmokeSpec
+  expectTrue "env runtime smoke lowers block.number" (contains envRuntimeYul "number()")
   let stringCompiled :=
     match Compiler.CompilationModel.compile stringAbiSpec (selectorsFor stringAbiSpec) with
     | .ok _ => true
