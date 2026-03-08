@@ -414,8 +414,20 @@ private def ensureFreshLocalNames
     if locals.contains name then
       throwErrorAt stx s!"duplicate local variable '{name}'"
 
-private def freshDiscardName (_params : Array ParamDecl) (_locals : Array String) (idx : Nat) : String :=
-  s!"__tuple_discard_{idx}"
+private def freshDiscardName (usedNames : List String) (idx : Nat) : String :=
+  let base := s!"__tuple_discard_{idx}"
+  if !usedNames.contains base then
+    base
+  else
+    let rec go (suffix : Nat) (remaining : Nat) : String :=
+      let candidate := s!"{base}_{suffix}"
+      if !usedNames.contains candidate then
+        candidate
+      else
+        match remaining with
+        | 0 => s!"{base}_fresh"
+        | n + 1 => go (suffix + 1) n
+    go 1 usedNames.length
 
 private def tupleParamElemExprs?
     (params : Array ParamDecl)
@@ -684,8 +696,16 @@ private def tupleInternalCallAssignStmt?
     (rhs : Term)
     (names : Array (Option String)) : CommandElabM (Option Term) := do
   let rhs := stripParens rhs
-  let targetNames := names.toList.zipIdx.map fun (name?, idx) =>
-    name?.getD (freshDiscardName params locals idx)
+  let initialUsedNames := (params.toList.map (fun p => p.name)) ++ locals.toList ++ (names.filterMap id).toList
+  let (_, targetNamesRev) := names.toList.zipIdx.foldl
+    (fun (acc : List String × List String) (name?, idx) =>
+      let (usedNames, targetNamesRev) := acc
+      let targetName := match name? with
+        | some name => name
+        | none => freshDiscardName usedNames idx
+      (targetName :: usedNames, targetName :: targetNamesRev))
+    (initialUsedNames, [])
+  let targetNames := targetNamesRev.reverse
   let resultNameTerms := targetNames.toArray.map strTerm
   match rhs.raw with
   | .node _ `Lean.Parser.Term.app args =>
