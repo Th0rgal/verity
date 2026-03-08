@@ -58,7 +58,7 @@ Checked operations are **EDSL-level constructs**. They are not compiler-enforced
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 
-`Stdlib.Math` also exposes fixed-point helpers `mulDivDown`, `mulDivUp`, `wMulDown`, and `wDivUp`. Their proof surface is intentionally preconditioned rather than total: the lemmas in `Verity/Proofs/Stdlib/Math.lean` prove exact floor/ceil behavior only when the relevant widened numerator stays within `MAX_UINT256`, and now also include numerator-monotonicity facts (`mulDivDown_monotone_left/right`, `mulDivUp_monotone_left/right`) that are useful for AMM reserve/share proofs.
+`Stdlib.Math` also exposes fixed-point helpers `mulDivDown`, `mulDivUp`, `wMulDown`, and `wDivUp`. Their proof surface is intentionally preconditioned rather than total: the lemmas in `Verity/Proofs/Stdlib/Math.lean` prove exact floor/ceil behavior only when the relevant widened numerator stays within `MAX_UINT256`. That surface now includes numerator-monotonicity facts for both the generic helpers (`mulDivDown_monotone_left/right`, `mulDivUp_monotone_left/right`) and the wad-specialized helpers (`wMulDown_monotone_left/right`, `wDivUp_monotone_left`), plus concrete rounding-gap bounds (`mulDivUp_mul_lt_add`, `wDivUp_mul_lt_add`) that are useful for AMM reserve/share proofs.
 
 **Example**: See `Contracts/SafeCounter/SafeCounter.lean` and `Contracts/SafeCounter/Proofs/Basic.lean` for a contract using checked arithmetic with proven overflow/underflow behavior.
 

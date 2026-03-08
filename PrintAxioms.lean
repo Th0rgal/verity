@@ -558,8 +558,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_monotone_left
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_monotone_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_mul_lt_add
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_monotone_left
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_monotone_right
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.wDivUp_monotone_left
+#print axioms Verity.Proofs.Stdlib.Math.wDivUp_mul_lt_add
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_some
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_none
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_zero_left

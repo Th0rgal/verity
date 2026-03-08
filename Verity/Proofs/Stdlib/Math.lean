@@ -165,6 +165,22 @@ theorem mulDivUp_monotone_right (a b₁ b₂ c : Uint256)
   rw [mulDivUp_nat_eq a b₁ c hC hNum₁, mulDivUp_nat_eq a b₂ c hC hNum]
   exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_left _ hB) _)
 
+/-- Ceil rounding overshoots the exact numerator by less than one divisor-width. -/
+theorem mulDivUp_mul_lt_add (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    (mulDivUp a b c : Nat) * (c : Nat) < (a : Nat) * (b : Nat) + (c : Nat) := by
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  rw [mulDivUp_nat_eq a b c hC hNum]
+  calc
+    ((((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat)) * (c : Nat)
+        ≤ ((a : Nat) * (b : Nat)) + ((c : Nat) - 1) := Nat.div_mul_le_self _ _
+    _ < (a : Nat) * (b : Nat) + (c : Nat) := by
+      exact Nat.add_lt_add_left (Nat.sub_lt (Nat.pos_of_ne_zero hCVal) (by decide)) _
+
 /-- `wMulDown` is `mulDivDown` specialized to the canonical wad scale. -/
 theorem wMulDown_nat_eq (a b : Uint256)
     (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
@@ -172,12 +188,47 @@ theorem wMulDown_nat_eq (a b : Uint256)
   rw [wMulDown_def, mulDivDown_nat_eq a b WAD hMul]
   simp [WAD_val]
 
+/-- Wad multiplication inherits the generic floor bound. -/
+theorem wMulDown_mul_le (a b : Uint256)
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (wMulDown a b : Nat) * (WAD : Nat) ≤ (a : Nat) * (b : Nat) := by
+  simpa [WAD_val] using mulDivDown_mul_le a b WAD hMul
+
+/-- `wMulDown` is monotone in its left operand when the product stays exact. -/
+theorem wMulDown_monotone_left (a₁ a₂ b : Uint256)
+    (hA : (a₁ : Nat) ≤ (a₂ : Nat))
+    (hMul : (a₂ : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (wMulDown a₁ b : Nat) ≤ (wMulDown a₂ b : Nat) := by
+  simpa [WAD_val] using mulDivDown_monotone_left a₁ a₂ b WAD hA hMul
+
+/-- `wMulDown` is monotone in its right operand when the product stays exact. -/
+theorem wMulDown_monotone_right (a b₁ b₂ : Uint256)
+    (hB : (b₁ : Nat) ≤ (b₂ : Nat))
+    (hMul : (a : Nat) * (b₂ : Nat) ≤ MAX_UINT256) :
+    (wMulDown a b₁ : Nat) ≤ (wMulDown a b₂ : Nat) := by
+  simpa [WAD_val] using mulDivDown_monotone_right a b₁ b₂ WAD hB hMul
+
 /-- `wDivUp` is `mulDivUp` specialized to the canonical wad scale. -/
 theorem wDivUp_nat_eq (a b : Uint256)
     (hB : b ≠ 0)
     (hNum : (a : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
     (wDivUp a b : Nat) = (((a : Nat) * (WAD : Nat)) + ((b : Nat) - 1)) / (b : Nat) := by
   rw [wDivUp_def, mulDivUp_nat_eq a WAD b hB hNum]
+
+/-- `wDivUp` is monotone in its numerator when the widened numerator stays exact. -/
+theorem wDivUp_monotone_left (a₁ a₂ b : Uint256)
+    (hA : (a₁ : Nat) ≤ (a₂ : Nat))
+    (hB : b ≠ 0)
+    (hNum : (a₂ : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
+    (wDivUp a₁ b : Nat) ≤ (wDivUp a₂ b : Nat) := by
+  simpa [WAD_val] using mulDivUp_monotone_left a₁ a₂ WAD b hA hB hNum
+
+/-- Wad ceil-division overshoots the scaled numerator by less than one divisor-width. -/
+theorem wDivUp_mul_lt_add (a b : Uint256)
+    (hB : b ≠ 0)
+    (hNum : (a : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
+    (wDivUp a b : Nat) * (b : Nat) < (a : Nat) * (WAD : Nat) + (b : Nat) := by
+  simpa [WAD_val] using mulDivUp_mul_lt_add a WAD b hB hNum
 
 /-! ## safeAdd Correctness -/
 
