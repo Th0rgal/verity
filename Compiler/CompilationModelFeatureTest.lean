@@ -92,6 +92,9 @@ verity_contract MacroTupleDestructuring where
     firstSlot : Uint256 := slot 0
     secondSlot : Uint256 := slot 1
 
+  function helperPair (seed : Uint256) : Tuple [Uint256, Uint256] := do
+    return (seed, add seed 1)
+
   function storePair (pair : Tuple [Uint256, Uint256]) : Unit := do
     let (first, second) := pair
     setStorage firstSlot first
@@ -106,6 +109,11 @@ verity_contract MacroTupleDestructuring where
     let (first, second) := pair
     return (first, second)
 
+  function storeHelperPair (seed : Uint256) : Unit := do
+    let (first, second) ← helperPair seed
+    setStorage firstSlot first
+    setStorage secondSlot second
+
 def storePairModelDestructuresTupleParam : Bool :=
   match MacroTupleDestructuring.storePair_modelBody with
   | [Stmt.letVar "first" (Expr.param "pair_0"),
@@ -117,6 +125,14 @@ def storePairModelDestructuresTupleParam : Bool :=
   | _ => false
 
 example : storePairModelDestructuresTupleParam = true := by native_decide
+
+def helperPairModelReturnsMultipleWords : Bool :=
+  match MacroTupleDestructuring.helperPair_modelBody with
+  | [Stmt.returnValues [Expr.param "seed", Expr.add (Expr.param "seed") (Expr.literal 1)]] =>
+      true
+  | _ => false
+
+example : helperPairModelReturnsMultipleWords = true := by native_decide
 
 def storeLiteralPairModelDestructuresTupleExpr : Bool :=
   match MacroTupleDestructuring.storeLiteralPair_modelBody with
@@ -140,6 +156,17 @@ def echoPairModelReturnsMultipleWords : Bool :=
 
 example : echoPairModelReturnsMultipleWords = true := by native_decide
 
+def storeHelperPairModelUsesInternalCallAssign : Bool :=
+  match MacroTupleDestructuring.storeHelperPair_modelBody with
+  | [Stmt.internalCallAssign ["first", "second"] "helperPair" [Expr.param "seed"],
+      Stmt.setStorage "firstSlot" (Expr.localVar "first"),
+      Stmt.setStorage "secondSlot" (Expr.localVar "second"),
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : storeHelperPairModelUsesInternalCallAssign = true := by native_decide
+
 def echoPairExecutableKeepsTupleShape : Bool :=
   match MacroTupleDestructuring.echoPair (11, 17) Verity.defaultState with
   | .success (first, second) state =>
@@ -147,6 +174,14 @@ def echoPairExecutableKeepsTupleShape : Bool :=
   | .revert _ _ => false
 
 example : echoPairExecutableKeepsTupleShape = true := by native_decide
+
+def storeHelperPairExecutableStoresHelperResults : Bool :=
+  match MacroTupleDestructuring.storeHelperPair 11 Verity.defaultState with
+  | .success () state =>
+      state.storage 0 == 11 && state.storage 1 == 12
+  | .revert _ _ => false
+
+example : storeHelperPairExecutableStoresHelperResults = true := by native_decide
 
 end MacroTupleDestructuringSmoke
 
