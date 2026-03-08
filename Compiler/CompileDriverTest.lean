@@ -858,6 +858,10 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report emits ECM axioms")
   if !contains trustReport "\"ecmModules\":[{\"module\":\"testCall\",\"status\":\"assumed\",\"axioms\":[\"test_call_interface\"]}]" then
     throw (IO.userError "✗ trust report emits ECM module status")
+  if !contains trustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exercise\"" then
+    throw (IO.userError "✗ trust report localizes function-level trust usage sites")
+  if !contains trustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exercise\",\"modeledLowLevelMechanics\":[\"staticcall\",\"returndataSize\",\"returndataCopy\"]" then
+    throw (IO.userError "✗ trust report preserves per-function low-level mechanics")
   IO.println "✓ trust report emits low-level mechanics, proof-status buckets, structured primitive assumptions, and external assumptions"
 
   let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
@@ -874,6 +878,8 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report includes constructor-only ECM modules in proof-status buckets")
   if !contains constructorOnlyEcmTrustReport "\"ecmModules\":[{\"module\":\"ctorHook\",\"status\":\"unchecked\",\"axioms\":[\"ctor_hook_interface\"]}]" then
     throw (IO.userError "✗ trust report includes constructor-only ECM modules in external assumptions")
+  if !contains constructorOnlyEcmTrustReport "\"usageSites\":[{\"kind\":\"constructor\",\"name\":\"constructor\"" then
+    throw (IO.userError "✗ trust report localizes constructor-only trust usage sites")
   IO.println "✓ trust report includes constructor-only ECM modules"
 
   let ecrecoverTrustReport := emitTrustReportJson [ecrecoverTrustSurfaceSpec]

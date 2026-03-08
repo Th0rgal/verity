@@ -7,6 +7,14 @@ namespace Compiler.CompilationModel
 private def dedupPreserve (items : List String) : List String :=
   items.foldl (fun acc item => if acc.contains item then acc else acc ++ [item]) []
 
+private def dedupExternalFunctions (items : List ExternalFunction) : List ExternalFunction :=
+  items.foldl
+    (fun acc item => if acc.any (fun prev => prev.name = item.name) then acc else acc ++ [item])
+    []
+
+private def dedupEcmModules (items : List ECM.ExternalCallModule) : List ECM.ExternalCallModule :=
+  items.foldl (fun acc item => if acc.contains item then acc else acc ++ [item]) []
+
 private partial def collectLowLevelExprMechanics : Expr → List String
   | .call gas target value inOffset inSize outOffset outSize =>
       ["call"] ++ collectLowLevelExprMechanics gas ++ collectLowLevelExprMechanics target ++
@@ -221,6 +229,12 @@ private partial def collectAxiomatizedStmtPrimitives : Stmt → List String
   | .stop =>
       []
 
+private def collectLowLevelMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectLowLevelStmtMechanics)
+
+private def collectAxiomatizedPrimitivesFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectAxiomatizedStmtPrimitives)
+
 /-- Collect unique low-level call and returndata mechanics used by a spec. -/
 def collectLowLevelMechanics (spec : CompilationModel) : List String :=
   let stmtsFromFn (fn : FunctionSpec) := fn.body
@@ -228,7 +242,7 @@ def collectLowLevelMechanics (spec : CompilationModel) : List String :=
     | some ctor => ctor.body
     | none => []
   let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
-  dedupPreserve (allStmts.flatMap collectLowLevelStmtMechanics)
+  collectLowLevelMechanicsFromStmts allStmts
 
 /-- Collect unique axiomatized primitives used directly by a spec. -/
 def collectAxiomatizedPrimitives (spec : CompilationModel) : List String :=
@@ -237,7 +251,7 @@ def collectAxiomatizedPrimitives (spec : CompilationModel) : List String :=
     | some ctor => ctor.body
     | none => []
   let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
-  dedupPreserve (allStmts.flatMap collectAxiomatizedStmtPrimitives)
+  collectAxiomatizedPrimitivesFromStmts allStmts
 
 private def collectAxiomatizedPrimitivesByStatus
     (spec : CompilationModel)
@@ -345,26 +359,31 @@ private partial def collectExternalStmtNames : Stmt → List String
   | .stop =>
       []
 
+private def collectUsedExternalNamesFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectExternalStmtNames)
+
+private def collectUsedExternalAssumptionsFromStmts
+    (externals : List ExternalFunction)
+    (stmts : List Stmt) : List ExternalFunction :=
+  let usedNames := collectUsedExternalNamesFromStmts stmts
+  dedupExternalFunctions (externals.filter (fun ext => usedNames.contains ext.name))
+
 private def collectUsedExternalNames (spec : CompilationModel) : List String :=
   let stmtsFromFn (fn : FunctionSpec) := fn.body
   let stmtsFromCtor : List Stmt := match spec.constructor with
     | some ctor => ctor.body
     | none => []
   let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
-  dedupPreserve (allStmts.flatMap collectExternalStmtNames)
+  collectUsedExternalNamesFromStmts allStmts
 
 /-- Collect linked external declarations that are actually referenced by the spec. -/
 def collectUsedExternalAssumptions (spec : CompilationModel) : List ExternalFunction :=
-  let usedNames := collectUsedExternalNames spec
-  let rec gather : List ExternalFunction → List ExternalFunction
-    | [] => []
-    | ext :: rest =>
-        let tail := gather rest
-        if usedNames.contains ext.name then
-          ext :: tail
-        else
-          tail
-  gather spec.externals
+  let stmtsFromFn (fn : FunctionSpec) := fn.body
+  let stmtsFromCtor : List Stmt := match spec.constructor with
+    | some ctor => ctor.body
+    | none => []
+  let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
+  collectUsedExternalAssumptionsFromStmts spec.externals allStmts
 
 private def collectUsedExternalNamesByStatus
     (spec : CompilationModel)
@@ -382,6 +401,9 @@ private partial def collectUsedEcmModulesInStmt : Stmt → List ECM.ExternalCall
   | _ =>
       []
 
+private def collectUsedEcmModulesFromStmts (stmts : List Stmt) : List ECM.ExternalCallModule :=
+  dedupEcmModules (stmts.flatMap collectUsedEcmModulesInStmt)
+
 /-- Collect ECM modules that are actually referenced by the spec, including
     constructor bodies. This shared view keeps machine-readable reports and
     compiler summaries aligned. -/
@@ -391,8 +413,7 @@ def collectUsedEcmModules (spec : CompilationModel) : List ECM.ExternalCallModul
     | some ctor => ctor.body
     | none => []
   let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
-  allStmts.flatMap collectUsedEcmModulesInStmt
-    |>.foldl (fun acc mod => if acc.contains mod then acc else acc ++ [mod]) []
+  collectUsedEcmModulesFromStmts allStmts
 
 private def collectUsedEcmModuleNamesByStatus
     (spec : CompilationModel)
@@ -482,6 +503,83 @@ private def proofStatusJson (spec : CompilationModel) : String :=
       (collectUsedEcmModuleNamesByStatus spec .unchecked))
   ]
 
+private def proofStatusBucketJsonForSite
+    (primitives : List String)
+    (externals : List ExternalFunction)
+    (modules : List ECM.ExternalCallModule)
+    (status : Compiler.ProofStatus) : String :=
+  let primitiveBucket :=
+    if status == .assumed then primitives.map jsonString else []
+  let externalBucket :=
+    (externals.filter (fun ext => ext.proofStatus == status)).map (fun ext => jsonString ext.name)
+  let moduleBucket :=
+    (modules.filter (fun mod => mod.proofStatus == status)).map (fun mod => jsonString mod.name)
+  proofStatusBucketJson primitiveBucket externalBucket moduleBucket
+
+private def proofStatusJsonForSite
+    (primitives : List String)
+    (externals : List ExternalFunction)
+    (modules : List ECM.ExternalCallModule) : String :=
+  jsonObject [
+    ("proved", proofStatusBucketJsonForSite primitives externals modules .proved),
+    ("assumed", proofStatusBucketJsonForSite primitives externals modules .assumed),
+    ("unchecked", proofStatusBucketJsonForSite primitives externals modules .unchecked)
+  ]
+
+private def hasUncheckedDependenciesForSite
+    (externals : List ExternalFunction)
+    (modules : List ECM.ExternalCallModule) : Bool :=
+  externals.any (fun ext => ext.proofStatus == .unchecked) ||
+    modules.any (fun mod => mod.proofStatus == .unchecked)
+
+private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List (String × String) :=
+  modules.flatMap (fun mod => mod.axioms.map (fun assumption => (mod.name, assumption)))
+
+private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : List Stmt) : Bool :=
+  !(collectLowLevelMechanicsFromStmts stmts).isEmpty ||
+    !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
+    !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
+    !(collectUsedEcmModulesFromStmts stmts).isEmpty
+
+private def usageSitesJson (spec : CompilationModel) : String :=
+  let siteJson (kind name : String) (stmts : List Stmt) : String :=
+    let mechanics := collectLowLevelMechanicsFromStmts stmts
+    let primitives := collectAxiomatizedPrimitivesFromStmts stmts
+    let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
+    let siteModules := collectUsedEcmModulesFromStmts stmts
+    jsonObject [
+      ("kind", jsonString kind),
+      ("name", jsonString name),
+      ("modeledLowLevelMechanics", jsonArray (mechanics.map jsonString)),
+      ("axiomatizedPrimitives", jsonArray (primitives.map jsonString)),
+      ("proofStatus", proofStatusJsonForSite primitives siteExternals siteModules),
+      ("hasUncheckedDependencies",
+        if hasUncheckedDependenciesForSite siteExternals siteModules then "true" else "false"),
+      ("externalAssumptions", jsonObject [
+        ("axiomatizedPrimitives", jsonArray (primitives.map primitiveAssumptionJson)),
+        ("linkedExternals", jsonArray (siteExternals.map assumptionJson)),
+        ("ecmAxioms", jsonArray ((ecmAxiomsFromModules siteModules).map ecmJson)),
+        ("ecmModules", jsonArray (siteModules.map ecmModuleJson))
+      ])
+    ]
+  let constructorSites :=
+    match spec.constructor with
+    | some ctor =>
+        if siteHasTrustSurface spec.externals ctor.body then
+          [siteJson "constructor" "constructor" ctor.body]
+        else
+          []
+    | none => []
+  let functionSites :=
+    spec.functions.foldl
+      (fun acc fn =>
+        if siteHasTrustSurface spec.externals fn.body then
+          acc ++ [siteJson "function" fn.name fn.body]
+        else
+          acc)
+      []
+  jsonArray (constructorSites ++ functionSites)
+
 /-- True when a contract depends on any foreign surface marked `unchecked`. -/
 def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
   !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||
@@ -505,6 +603,7 @@ where
         ("proofInterpretersModelMechanics", "false"),
         ("calleeBehaviorRequiresAssumptions", "true")
       ]),
+      ("usageSites", usageSitesJson spec),
       ("externalAssumptions", jsonObject [
         ("axiomatizedPrimitives",
           jsonArray ((collectAxiomatizedPrimitives spec).map primitiveAssumptionJson)),
