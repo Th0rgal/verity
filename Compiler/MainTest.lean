@@ -1,4 +1,5 @@
 import Contracts
+import Contracts.LocalObligationTrustSurface
 import Contracts.RawLogTrustSurface
 import Compiler.Main
 import Compiler.Linker
@@ -94,6 +95,15 @@ unsafe def runTests : IO Unit := do
     "strict axiomatized-primitive gate rejects axiomatized primitives"
     ["--module", "Contracts.Counter.Counter", "--deny-axiomatized-primitives", "--output", s!"/tmp/verity-main-test-{nonce}-primitive-fail-out"]
     "Counter [function:previewEnvOps]: keccak256"
+  let localObligationStrictOutDir := s!"/tmp/verity-main-test-{nonce}-local-obligation-strict-out"
+  IO.FS.createDirAll localObligationStrictOutDir
+  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-local-obligations", "--output", localObligationStrictOutDir])
+  let localObligationStrictArtifact ← fileExists s!"{localObligationStrictOutDir}/SimpleStorage.yul"
+  expectTrue "strict local-obligation gate accepts contracts without local obligations" localObligationStrictArtifact
+  expectErrorContains
+    "strict local-obligation gate rejects undischarged local obligations"
+    ["--module", "Contracts.LocalObligationTrustSurface", "--deny-local-obligations", "--output", s!"/tmp/verity-main-test-{nonce}-local-obligation-fail-out"]
+    "LocalObligationTrustSurface [function:unsafeEdge]: assumed local obligations: manual_delegatecall_refinement"
   let memoryStrictOutDir := s!"/tmp/verity-main-test-{nonce}-memory-strict-out"
   IO.FS.createDirAll memoryStrictOutDir
   main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-linear-memory-mechanics", "--output", memoryStrictOutDir])

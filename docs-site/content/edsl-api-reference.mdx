@@ -658,6 +658,8 @@ Prefer ECM wrappers when they fit the use case, and see issue `#1332` plus [`doc
 
 Reference: `Compiler/CompilationModel.lean`.
 
+For the remaining migration cases where a tiny unsafe/assembly-shaped escape hatch is unavoidable, `FunctionSpec.localObligations` / `ConstructorSpec.localObligations` let the contract author attach a named local refinement obligation to that exact usage site. The trust report records these under `localObligations` and `proofStatus.*.localObligations`, and `--deny-local-obligations` fails closed unless every such obligation has been discharged to `proved`.
+
 First-class linear-memory forms (`Expr.mload`, `Stmt.mstore`, `Stmt.calldatacopy`, `Stmt.returndataCopy`, `Expr.returndataOptionalBoolAt`) also compile today, but they are still only partially modeled by the current proof interpreters. When these forms appear, treat them as an explicit memory/ABI trust boundary, archive `--trust-report`, and use `--deny-linear-memory-mechanics` for proof-strict runs (see issue `#1411`).
 
 ## Context Accessors

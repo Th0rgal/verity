@@ -12,6 +12,11 @@ private def dedupExternalFunctions (items : List ExternalFunction) : List Extern
     (fun acc item => if acc.any (fun prev => prev.name = item.name) then acc else acc ++ [item])
     []
 
+private def dedupLocalObligations (items : List LocalObligation) : List LocalObligation :=
+  items.foldl
+    (fun acc item => if acc.any (fun prev => prev.name = item.name) then acc else acc ++ [item])
+    []
+
 private def dedupEcmModules (items : List ECM.ExternalCallModule) : List ECM.ExternalCallModule :=
   items.foldl (fun acc item => if acc.contains item then acc else acc ++ [item]) []
 
@@ -705,6 +710,29 @@ private def collectUsedEcmModuleNamesByStatus
     (fun acc mod => if mod.proofStatus == status then acc ++ [mod.name] else acc)
     []
 
+private def collectLocalObligationsFromStmts
+    (obligations : List LocalObligation)
+    (_stmts : List Stmt) : List LocalObligation :=
+  obligations
+
+private def collectConstructorLocalObligations (spec : CompilationModel) : List LocalObligation :=
+  match spec.constructor with
+  | some ctor => ctor.localObligations
+  | none => []
+
+/-- Collect local proof obligations attached to functions/constructors. -/
+def collectLocalObligations (spec : CompilationModel) : List LocalObligation :=
+  let functionObligations := spec.functions.flatMap (·.localObligations)
+  dedupLocalObligations (collectConstructorLocalObligations spec ++ functionObligations)
+
+private def collectLocalObligationNamesByStatus
+    (spec : CompilationModel)
+    (status : Compiler.ProofStatus) : List String :=
+  (collectLocalObligations spec).foldl
+    (fun acc obligation =>
+      if obligation.proofStatus == status then acc ++ [obligation.name] else acc)
+    []
+
 private def escapeJsonChar (c : Char) : String :=
   match c with
   | '"' => "\\\""
@@ -762,12 +790,20 @@ private def ecmModuleJson (entry : ECM.ExternalCallModule) : String :=
     ("axioms", jsonArray (entry.axioms.map jsonString))
   ]
 
+private def localObligationJson (entry : LocalObligation) : String :=
+  jsonObject [
+    ("name", jsonString entry.name),
+    ("status", proofStatusString entry.proofStatus),
+    ("obligation", jsonString entry.obligation)
+  ]
+
 private def proofStatusBucketJson
-    (primitives externals modules : List String) : String :=
+    (primitives externals modules localObligations : List String) : String :=
   jsonObject [
     ("axiomatizedPrimitives", jsonArray (primitives.map jsonString)),
     ("linkedExternals", jsonArray (externals.map jsonString)),
-    ("ecmModules", jsonArray (modules.map jsonString))
+    ("ecmModules", jsonArray (modules.map jsonString)),
+    ("localObligations", jsonArray (localObligations.map jsonString))
   ]
 
 private def proofStatusJson (spec : CompilationModel) : String :=
@@ -775,21 +811,25 @@ private def proofStatusJson (spec : CompilationModel) : String :=
     ("proved", proofStatusBucketJson
       (collectAxiomatizedPrimitivesByStatus spec .proved)
       (collectUsedExternalNamesByStatus spec .proved)
-      (collectUsedEcmModuleNamesByStatus spec .proved)),
+      (collectUsedEcmModuleNamesByStatus spec .proved)
+      (collectLocalObligationNamesByStatus spec .proved)),
     ("assumed", proofStatusBucketJson
       (collectAxiomatizedPrimitivesByStatus spec .assumed)
       (collectUsedExternalNamesByStatus spec .assumed)
-      (collectUsedEcmModuleNamesByStatus spec .assumed)),
+      (collectUsedEcmModuleNamesByStatus spec .assumed)
+      (collectLocalObligationNamesByStatus spec .assumed)),
     ("unchecked", proofStatusBucketJson
       (collectAxiomatizedPrimitivesByStatus spec .unchecked)
       (collectUsedExternalNamesByStatus spec .unchecked)
-      (collectUsedEcmModuleNamesByStatus spec .unchecked))
+      (collectUsedEcmModuleNamesByStatus spec .unchecked)
+      (collectLocalObligationNamesByStatus spec .unchecked))
   ]
 
 private def proofStatusBucketJsonForSite
     (primitives : List String)
     (externals : List ExternalFunction)
     (modules : List ECM.ExternalCallModule)
+    (localObligations : List LocalObligation)
     (status : Compiler.ProofStatus) : String :=
   let primitiveBucket :=
     if status == .assumed then primitives.map jsonString else []
@@ -797,16 +837,20 @@ private def proofStatusBucketJsonForSite
     (externals.filter (fun ext => ext.proofStatus == status)).map (fun ext => jsonString ext.name)
   let moduleBucket :=
     (modules.filter (fun mod => mod.proofStatus == status)).map (fun mod => jsonString mod.name)
-  proofStatusBucketJson primitiveBucket externalBucket moduleBucket
+  let localObligationBucket :=
+    (localObligations.filter (fun obligation => obligation.proofStatus == status)).map
+      (fun obligation => jsonString obligation.name)
+  proofStatusBucketJson primitiveBucket externalBucket moduleBucket localObligationBucket
 
 private def proofStatusJsonForSite
     (primitives : List String)
     (externals : List ExternalFunction)
-    (modules : List ECM.ExternalCallModule) : String :=
+    (modules : List ECM.ExternalCallModule)
+    (localObligations : List LocalObligation) : String :=
   jsonObject [
-    ("proved", proofStatusBucketJsonForSite primitives externals modules .proved),
-    ("assumed", proofStatusBucketJsonForSite primitives externals modules .assumed),
-    ("unchecked", proofStatusBucketJsonForSite primitives externals modules .unchecked)
+    ("proved", proofStatusBucketJsonForSite primitives externals modules localObligations .proved),
+    ("assumed", proofStatusBucketJsonForSite primitives externals modules localObligations .assumed),
+    ("unchecked", proofStatusBucketJsonForSite primitives externals modules localObligations .unchecked)
   ]
 
 private def hasUncheckedDependenciesForSite
@@ -832,20 +876,29 @@ private structure UsageSiteSummary where
   primitives : List String
   externals : List ExternalFunction
   modules : List ECM.ExternalCallModule
+  localObligations : List LocalObligation
 
 private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List (String × String) :=
   modules.flatMap (fun mod => mod.axioms.map (fun assumption => (mod.name, assumption)))
 
-private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : List Stmt) : Bool :=
+private def siteHasTrustSurface
+    (externals : List ExternalFunction)
+    (localObligations : List LocalObligation)
+    (stmts : List Stmt) : Bool :=
   !(collectLowLevelMechanicsFromStmts stmts).isEmpty ||
     !(collectEventEmissionMechanicsFromStmts stmts).isEmpty ||
     !(collectProxyUpgradeabilityMechanicsFromMechanics (collectLowLevelMechanicsFromStmts stmts)).isEmpty ||
     !(collectRuntimeIntrospectionMechanicsFromStmts stmts).isEmpty ||
     !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
-    !(collectUsedEcmModulesFromStmts stmts).isEmpty
+    !(collectUsedEcmModulesFromStmts stmts).isEmpty ||
+    !(collectLocalObligationsFromStmts localObligations stmts).isEmpty
 
-private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stmts : List Stmt) :
+private def usageSiteSummary
+    (spec : CompilationModel)
+    (kind name : String)
+    (localObligations : List LocalObligation)
+    (stmts : List Stmt) :
     UsageSiteSummary :=
   let mechanics := collectLowLevelMechanicsFromStmts stmts
   let eventEmission := collectEventEmissionMechanicsFromStmts stmts
@@ -854,6 +907,7 @@ private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stm
   let primitives := collectAxiomatizedPrimitivesFromStmts stmts
   let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
   let siteModules := collectUsedEcmModulesFromStmts stmts
+  let siteLocalObligations := collectLocalObligationsFromStmts localObligations stmts
   { kind := kind
     name := name
     mechanics := mechanics
@@ -862,22 +916,23 @@ private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stm
     runtimeIntrospection := runtimeIntrospection
     primitives := primitives
     externals := siteExternals
-    modules := siteModules }
+    modules := siteModules
+    localObligations := siteLocalObligations }
 
 private def collectUsageSiteSummaries (spec : CompilationModel) : List UsageSiteSummary :=
   let constructorSites :=
     match spec.constructor with
     | some ctor =>
-        if siteHasTrustSurface spec.externals ctor.body then
-          [usageSiteSummary spec "constructor" "constructor" ctor.body]
+        if siteHasTrustSurface spec.externals ctor.localObligations ctor.body then
+          [usageSiteSummary spec "constructor" "constructor" ctor.localObligations ctor.body]
         else
           []
     | none => []
   let functionSites :=
     spec.functions.foldl
       (fun acc fn =>
-        if siteHasTrustSurface spec.externals fn.body then
-          acc ++ [usageSiteSummary spec "function" fn.name fn.body]
+        if siteHasTrustSurface spec.externals fn.localObligations fn.body then
+          acc ++ [usageSiteSummary spec "function" fn.name fn.localObligations fn.body]
         else
           acc)
       []
@@ -895,7 +950,8 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ("partiallyModeledLinearMemoryMechanics", jsonArray (linearMemoryMechanics.map jsonString)),
       ("partiallyModeledRuntimeIntrospection", jsonArray (site.runtimeIntrospection.map jsonString)),
       ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
-      ("proofStatus", proofStatusJsonForSite site.primitives site.externals site.modules),
+      ("proofStatus", proofStatusJsonForSite site.primitives site.externals site.modules site.localObligations),
+      ("localObligations", jsonArray (site.localObligations.map localObligationJson)),
       ("hasUncheckedDependencies",
         if hasUncheckedDependenciesForSite site.externals site.modules then "true" else "false"),
       ("externalAssumptions", jsonObject [
@@ -932,6 +988,21 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
               namesByProofStatus .assumed site.externals site.modules
             let (uncheckedExternals, uncheckedModules) :=
               namesByProofStatus .unchecked site.externals site.modules
+            let provedLocalObligations :=
+              site.localObligations.foldl
+                (fun acc obligation =>
+                  if obligation.proofStatus == .proved then acc ++ [obligation.name] else acc)
+                []
+            let assumedLocalObligations :=
+              site.localObligations.foldl
+                (fun acc obligation =>
+                  if obligation.proofStatus == .assumed then acc ++ [obligation.name] else acc)
+                []
+            let uncheckedLocalObligations :=
+              site.localObligations.foldl
+                (fun acc obligation =>
+                  if obligation.proofStatus == .unchecked then acc ++ [obligation.name] else acc)
+                []
             let heading := s!"  {spec.name} [{site.kind}:{site.name}]"
             let mechanicsLines :=
               if site.mechanics.isEmpty then [] else
@@ -955,6 +1026,15 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
                 site.primitives.map
                   (fun primitive =>
                     s!"    [primitive:{primitive}][assumed] {primitiveAssumptionName primitive}")
+            let provedLocalObligationLines :=
+              if provedLocalObligations.isEmpty then [] else
+                [s!"    proved local obligations: {String.intercalate ", " provedLocalObligations}"]
+            let assumedLocalObligationLines :=
+              if assumedLocalObligations.isEmpty then [] else
+                [s!"    assumed local obligations: {String.intercalate ", " assumedLocalObligations}"]
+            let uncheckedLocalObligationLines :=
+              if uncheckedLocalObligations.isEmpty then [] else
+                [s!"    unchecked local obligations: {String.intercalate ", " uncheckedLocalObligations}"]
             let provedLines :=
               (if provedExternals.isEmpty then [] else
                 [s!"    proved linked externals: {String.intercalate ", " provedExternals}"]) ++
@@ -991,6 +1071,10 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
                   else
                     modAcc ++ assumptionLines)
                 []
+            let localObligationLines :=
+              site.localObligations.map
+                (fun obligation =>
+                  s!"    [local:{obligation.name}][{obligation.proofStatus.toJsonString}] {obligation.obligation}")
             siteAcc ++
               [heading] ++
               mechanicsLines ++
@@ -999,11 +1083,15 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
               linearMemoryLines ++
               runtimeIntrospectionLines ++
               primitiveLines ++
+              provedLocalObligationLines ++
               provedLines ++
+              assumedLocalObligationLines ++
               assumedLines ++
+              uncheckedLocalObligationLines ++
               uncheckedLines ++
               externalAssumptionLines ++
-              ecmAxiomLines)
+              ecmAxiomLines ++
+              localObligationLines)
           []
       acc ++ siteLines)
     []
@@ -1125,6 +1213,28 @@ def emitAxiomatizedPrimitiveUsageSiteLines (specs : List CompilationModel) : Lis
       acc ++ siteLines)
     []
 
+/-- Render localized undischarged local-obligation lines for proof-strict diagnostics. -/
+def emitLocalObligationUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            let undischarged :=
+              site.localObligations.filter (fun obligation => obligation.proofStatus != .proved)
+            if undischarged.isEmpty then
+              siteAcc
+            else
+              let rendered :=
+                undischarged.map
+                  (fun obligation =>
+                    s!"{obligation.proofStatus.toJsonString} local obligations: {obligation.name}")
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate "; " rendered}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- Render localized low-level-mechanics lines for fail-closed diagnostics. -/
 def emitLowLevelMechanicsUsageSiteLines (specs : List CompilationModel) : List String :=
   specs.foldl
@@ -1168,6 +1278,7 @@ where
       ("partiallyModeledLinearMemoryMechanics", jsonArray ((collectLinearMemoryMechanics spec).map jsonString)),
       ("partiallyModeledRuntimeIntrospection", jsonArray ((collectRuntimeIntrospectionMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),
+      ("localObligations", jsonArray ((collectLocalObligations spec).map localObligationJson)),
       ("proofStatus", proofStatusJson spec),
       ("hasUncheckedDependencies", if hasUncheckedDependencies spec then "true" else "false"),
       ("proofBoundary", jsonObject [

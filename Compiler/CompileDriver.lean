@@ -72,6 +72,12 @@ private def ensureNoAxiomatizedPrimitives (specs : List CompilationModel) : IO U
     throw (IO.userError
       s!"Axiomatized primitives remain:\n{String.intercalate "\n" primitiveSites}")
 
+private def ensureNoLocalObligations (specs : List CompilationModel) : IO Unit := do
+  let localObligationSites := emitLocalObligationUsageSiteLines specs
+  if !localObligationSites.isEmpty then
+    throw (IO.userError
+      s!"Undischarged local obligations remain:\n{String.intercalate "\n" localObligationSites}")
+
 private def ensureNoLinearMemoryMechanics (specs : List CompilationModel) : IO Unit := do
   let linearMemorySites := emitLinearMemoryUsageSiteLines specs
   if !linearMemorySites.isEmpty then
@@ -150,6 +156,7 @@ def compileSpecsWithOptions
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
+    (denyLocalObligations : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
     (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
@@ -196,6 +203,8 @@ def compileSpecsWithOptions
       if verbose then
         IO.println s!"✓ Wrote trust report: {path}"
   | none => pure ()
+  if denyLocalObligations then
+    ensureNoLocalObligations specs
   if denyAxiomatizedPrimitives then
     ensureNoAxiomatizedPrimitives specs
   if denyLinearMemoryMechanics then
@@ -281,11 +290,33 @@ def compileSpecsWithOptions
       IO.println "  (no axiomatized primitives used)"
     IO.println "  Proof boundary: these primitives compile through explicit trusted boundaries (for example, keccak-backed hashing) and should be audited alongside AXIOMS.md/TRUST_ASSUMPTIONS.md."
     IO.println ""
+    IO.println "Local obligation report:"
+    let mut anyLocalObligations := false
+    for spec in specs do
+      let obligations := collectLocalObligations spec
+      if !obligations.isEmpty then
+        anyLocalObligations := true
+        IO.println s!"  {spec.name}:"
+        for obligation in obligations do
+          IO.println s!"    [{obligation.proofStatus.toJsonString}] {obligation.name}: {obligation.obligation}"
+    if !anyLocalObligations then
+      IO.println "  (no local unsafe/refinement obligations declared)"
+    IO.println "  Proof boundary: local obligations isolate unsafe/assembly-shaped trust boundaries to one usage site and can later be discharged from `assumed`/`unchecked` to `proved`."
+    IO.println ""
     IO.println "Proof-status summary:"
     let mut anyForeignStatus := false
     let mut anyUncheckedStatus := false
     for spec in specs do
       let primitives := collectAxiomatizedPrimitives spec
+      let provedLocalObligations :=
+        (collectLocalObligations spec).foldl
+          (fun acc obligation => if obligation.proofStatus == .proved then acc ++ [obligation.name] else acc) []
+      let assumedLocalObligations :=
+        (collectLocalObligations spec).foldl
+          (fun acc obligation => if obligation.proofStatus == .assumed then acc ++ [obligation.name] else acc) []
+      let uncheckedLocalObligations :=
+        (collectLocalObligations spec).foldl
+          (fun acc obligation => if obligation.proofStatus == .unchecked then acc ++ [obligation.name] else acc) []
       let provedExternals :=
         (collectUsedExternalAssumptions spec).foldl
           (fun acc ext => if ext.proofStatus == .proved then acc ++ [ext.name] else acc) []
@@ -302,13 +333,21 @@ def compileSpecsWithOptions
         (fun acc mod => if mod.proofStatus == .assumed then acc ++ [mod.name] else acc) []
       let uncheckedModules := usedModules.foldl
         (fun acc mod => if mod.proofStatus == .unchecked then acc ++ [mod.name] else acc) []
-      if !primitives.isEmpty || !provedExternals.isEmpty || !assumedExternals.isEmpty ||
+      if !primitives.isEmpty || !provedLocalObligations.isEmpty || !assumedLocalObligations.isEmpty ||
+          !uncheckedLocalObligations.isEmpty || !provedExternals.isEmpty || !assumedExternals.isEmpty ||
           !uncheckedExternals.isEmpty || !provedModules.isEmpty || !assumedModules.isEmpty ||
           !uncheckedModules.isEmpty then
         anyForeignStatus := true
         IO.println s!"  {spec.name}:"
         if !primitives.isEmpty then
           IO.println s!"    assumed primitives: {String.intercalate ", " primitives}"
+        if !provedLocalObligations.isEmpty then
+          IO.println s!"    proved local obligations: {String.intercalate ", " provedLocalObligations}"
+        if !assumedLocalObligations.isEmpty then
+          IO.println s!"    assumed local obligations: {String.intercalate ", " assumedLocalObligations}"
+        if !uncheckedLocalObligations.isEmpty then
+          anyUncheckedStatus := true
+          IO.println s!"    unchecked local obligations: {String.intercalate ", " uncheckedLocalObligations}"
         if !provedExternals.isEmpty then
           IO.println s!"    proved linked externals: {String.intercalate ", " provedExternals}"
         if !assumedExternals.isEmpty then
@@ -393,6 +432,7 @@ unsafe def compileModulesWithOptions
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
     (denyAxiomatizedPrimitives : Bool := false)
+    (denyLocalObligations : Bool := false)
     (denyLinearMemoryMechanics : Bool := false)
     (denyEventEmission : Bool := false)
     (denyLowLevelMechanics : Bool := false)
@@ -404,5 +444,5 @@ unsafe def compileModulesWithOptions
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
-    denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLinearMemoryMechanics
+    denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability

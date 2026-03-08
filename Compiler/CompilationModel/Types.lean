@@ -219,6 +219,15 @@ structure ExternalFunction where
   axiomNames : List String
   deriving Repr
 
+structure LocalObligation where
+  name : String
+  /-- User-supplied summary of the local refinement contract that must hold
+      for this localized unsafe/assembly boundary. -/
+  obligation : String
+  /-- Proof-accounting status for this local boundary. -/
+  proofStatus : Compiler.ProofStatus := .assumed
+  deriving Repr
+
 /-!
 ## Function Body DSL
 
@@ -399,6 +408,9 @@ structure FunctionSpec where
   body : List Stmt
   /-- Whether this is an internal-only function (not exposed via selector dispatch) -/
   isInternal : Bool := false
+  /-- Local proof obligations that isolate unsafe/assembly-shaped trust
+      boundaries to this function rather than the entire contract. -/
+  localObligations : List LocalObligation := []
   deriving Repr
 
 structure ConstructorSpec where
@@ -406,6 +418,9 @@ structure ConstructorSpec where
   /-- Whether deployment is allowed with non-zero msg.value. -/
   isPayable : Bool := false
   body : List Stmt     -- Initialization code
+  /-- Local proof obligations that isolate unsafe/assembly-shaped trust
+      boundaries to this constructor rather than the entire contract. -/
+  localObligations : List LocalObligation := []
   deriving Repr
 
 structure CompilationModel where

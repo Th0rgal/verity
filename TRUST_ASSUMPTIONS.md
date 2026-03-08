@@ -74,6 +74,11 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 - **Risk**: A translation bug would silently cause EDSL and CompilationModel to diverge.
 - **Mitigation**: EDSL ≡ IR bridge theorems in `Compiler/Proofs/SemanticBridge.lean` cross-check independently.
 
+### 9. Local Unsafe / Refinement Obligations
+- **Role**: Let a function or constructor declare a localized proof obligation for an unsafe/assembly-shaped boundary without marking the whole contract as opaque.
+- **Status**: Surfaced explicitly in `--trust-report`, `--verbose`, and `proofStatus.*.localObligations`.
+- **Mitigation**: `verity-compiler --deny-local-obligations` fails closed on any obligation that remains `assumed` or `unchecked`.
+
 ## Semantic Caveats
 
 ### Wrapping Arithmetic

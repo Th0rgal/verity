@@ -424,6 +424,24 @@ private def constructorOnlyEcmTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def localObligationTrustSurfaceSpec : CompilationModel := {
+  name := "LocalObligationTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "unsafeEdge"
+      params := []
+      returnType := none
+      localObligations := [
+        { name := "manual_delegatecall_refinement"
+          obligation := "Caller must separately prove the handwritten assembly path refines the intended state transition."
+          proofStatus := .assumed }
+      ]
+      body := [Stmt.stop]
+    }
+  ]
+}
+
 private def ecrecoverTrustSurfaceSpec : CompilationModel := {
   name := "EcrecoverTrustSurface"
   fields := []
@@ -1021,11 +1039,11 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report emits axiomatized primitives")
   if !contains trustReport "\"axiomatizedPrimitives\":[{\"primitive\":\"keccak256\",\"status\":\"assumed\",\"assumption\":\"keccak256_memory_slice_matches_evm\"}]" then
     throw (IO.userError "✗ trust report emits structured primitive assumptions")
-  if !contains trustReport "\"proofStatus\":{\"proved\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[]}" then
+  if !contains trustReport "\"proofStatus\":{\"proved\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[],\"localObligations\":[]}" then
     throw (IO.userError "✗ trust report emits proved proof-status bucket")
-  if !contains trustReport "\"assumed\":{\"axiomatizedPrimitives\":[\"keccak256\"],\"linkedExternals\":[\"PoseidonT3_hash\"],\"ecmModules\":[\"testCall\"]}" then
+  if !contains trustReport "\"assumed\":{\"axiomatizedPrimitives\":[\"keccak256\"],\"linkedExternals\":[\"PoseidonT3_hash\"],\"ecmModules\":[\"testCall\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ trust report emits assumed proof-status bucket")
-  if !contains trustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[]}" then
+  if !contains trustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[],\"localObligations\":[]}" then
     throw (IO.userError "✗ trust report emits unchecked proof-status bucket")
   if !contains trustReport "\"name\":\"PoseidonT3_hash\"" then
     throw (IO.userError "✗ trust report emits linked external name")
@@ -1124,17 +1142,37 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ axiomatized-primitive diagnostics localize usage sites")
   IO.println "✓ axiomatized-primitive diagnostics localize usage sites"
 
+  let localObligationTrustReport := emitTrustReportJson [localObligationTrustSurfaceSpec]
+  if !contains localObligationTrustReport "\"contract\":\"LocalObligationTrustSurface\"" then
+    throw (IO.userError "✗ local-obligation trust report emits contract name")
+  if !contains localObligationTrustReport "\"localObligations\":[{\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\",\"obligation\":\"Caller must separately prove the handwritten assembly path refines the intended state transition.\"}]" then
+    throw (IO.userError "✗ local-obligation trust report emits structured local obligations")
+  if !contains localObligationTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[],\"localObligations\":[\"manual_delegatecall_refinement\"]}" then
+    throw (IO.userError "✗ local-obligation trust report emits assumed proof-status bucket")
+  if !contains localObligationTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"unsafeEdge\"" ||
+      !contains localObligationTrustReport "\"localObligations\":[{\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\",\"obligation\":\"Caller must separately prove the handwritten assembly path refines the intended state transition.\"}]" then
+    throw (IO.userError "✗ local-obligation trust report localizes usage sites")
+  let localObligationVerboseUsageSiteReport := String.intercalate "\n" (emitVerboseUsageSiteLines [localObligationTrustSurfaceSpec])
+  if !contains localObligationVerboseUsageSiteReport "assumed local obligations: manual_delegatecall_refinement" then
+    throw (IO.userError "✗ verbose trust report localizes local obligations")
+  if !contains localObligationVerboseUsageSiteReport "[local:manual_delegatecall_refinement][assumed] Caller must separately prove the handwritten assembly path refines the intended state transition." then
+    throw (IO.userError "✗ verbose trust report emits local obligation detail")
+  let localObligationUsageSiteReport := String.intercalate "\n" (emitLocalObligationUsageSiteLines [localObligationTrustSurfaceSpec])
+  if !contains localObligationUsageSiteReport "- LocalObligationTrustSurface [function:unsafeEdge]: assumed local obligations: manual_delegatecall_refinement" then
+    throw (IO.userError "✗ local-obligation diagnostics localize usage sites")
+  IO.println "✓ trust report surfaces local unsafe/refinement obligations"
+
   let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
   if !contains uncheckedTrustReport "\"hasUncheckedDependencies\":true" then
     throw (IO.userError "✗ trust report flags unchecked dependencies")
-  if !contains uncheckedTrustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[\"DebugOracle_peek\"],\"ecmModules\":[\"debugHook\"]}" then
+  if !contains uncheckedTrustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[\"DebugOracle_peek\"],\"ecmModules\":[\"debugHook\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ trust report emits unchecked proof-status bucket")
   if !contains uncheckedTrustReport "\"status\":\"unchecked\"" then
     throw (IO.userError "✗ trust report emits unchecked dependency status")
   IO.println "✓ trust report flags unchecked linked externals and ECM modules"
 
   let constructorOnlyEcmTrustReport := emitTrustReportJson [constructorOnlyEcmTrustSurfaceSpec]
-  if !contains constructorOnlyEcmTrustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"ctorHook\"]}" then
+  if !contains constructorOnlyEcmTrustReport "\"unchecked\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"ctorHook\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ trust report includes constructor-only ECM modules in proof-status buckets")
   if !contains constructorOnlyEcmTrustReport "\"ecmModules\":[{\"module\":\"ctorHook\",\"status\":\"unchecked\",\"axioms\":[\"ctor_hook_interface\"]}]" then
     throw (IO.userError "✗ trust report includes constructor-only ECM modules in external assumptions")
@@ -1161,7 +1199,7 @@ unsafe def runTests : IO Unit := do
   if !contains oracleTrustReport "\"module\":\"oracleReadUint256\"" ||
       !contains oracleTrustReport "\"assumption\":\"oracle_read_uint256_interface\"" then
     throw (IO.userError "✗ oracle trust report emits oracle module assumption")
-  if !contains oracleTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"oracleReadUint256\"]}" then
+  if !contains oracleTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"oracleReadUint256\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ oracle trust report emits assumed ECM proof-status bucket")
   IO.println "✓ oracle trust report emits standard oracle module assumption"
 
@@ -1171,7 +1209,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc20BalanceOfTrustReport "\"module\":\"balanceOf\"" ||
       !contains erc20BalanceOfTrustReport "\"assumption\":\"erc20_balanceOf_interface\"" then
     throw (IO.userError "✗ erc20 balanceOf trust report emits module assumption")
-  if !contains erc20BalanceOfTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"balanceOf\"]}" then
+  if !contains erc20BalanceOfTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"balanceOf\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc20 balanceOf trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc20 balanceOf trust report emits standard token read module assumption"
 
@@ -1181,7 +1219,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc20AllowanceTrustReport "\"module\":\"allowance\"" ||
       !contains erc20AllowanceTrustReport "\"assumption\":\"erc20_allowance_interface\"" then
     throw (IO.userError "✗ erc20 allowance trust report emits module assumption")
-  if !contains erc20AllowanceTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"allowance\"]}" then
+  if !contains erc20AllowanceTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"allowance\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc20 allowance trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc20 allowance trust report emits standard token read module assumption"
 
@@ -1191,7 +1229,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc20TotalSupplyTrustReport "\"module\":\"totalSupply\"" ||
       !contains erc20TotalSupplyTrustReport "\"assumption\":\"erc20_totalSupply_interface\"" then
     throw (IO.userError "✗ erc20 totalSupply trust report emits module assumption")
-  if !contains erc20TotalSupplyTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"totalSupply\"]}" then
+  if !contains erc20TotalSupplyTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"totalSupply\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc20 totalSupply trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc20 totalSupply trust report emits standard token read module assumption"
 
@@ -1201,7 +1239,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626TrustReport "\"module\":\"previewDeposit\"" ||
       !contains erc4626TrustReport "\"assumption\":\"erc4626_previewDeposit_interface\"" then
     throw (IO.userError "✗ erc4626 trust report emits previewDeposit module assumption")
-  if !contains erc4626TrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewDeposit\"]}" then
+  if !contains erc4626TrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewDeposit\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 trust report emits standard vault module assumption"
 
@@ -1211,7 +1249,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626PreviewMintTrustReport "\"module\":\"previewMint\"" ||
       !contains erc4626PreviewMintTrustReport "\"assumption\":\"erc4626_previewMint_interface\"" then
     throw (IO.userError "✗ erc4626 previewMint trust report emits module assumption")
-  if !contains erc4626PreviewMintTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewMint\"]}" then
+  if !contains erc4626PreviewMintTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewMint\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 previewMint trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 previewMint trust report emits standard vault module assumption"
 
@@ -1221,7 +1259,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626PreviewWithdrawTrustReport "\"module\":\"previewWithdraw\"" ||
       !contains erc4626PreviewWithdrawTrustReport "\"assumption\":\"erc4626_previewWithdraw_interface\"" then
     throw (IO.userError "✗ erc4626 previewWithdraw trust report emits module assumption")
-  if !contains erc4626PreviewWithdrawTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewWithdraw\"]}" then
+  if !contains erc4626PreviewWithdrawTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewWithdraw\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 previewWithdraw trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 previewWithdraw trust report emits standard vault module assumption"
 
@@ -1231,7 +1269,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626PreviewRedeemTrustReport "\"module\":\"previewRedeem\"" ||
       !contains erc4626PreviewRedeemTrustReport "\"assumption\":\"erc4626_previewRedeem_interface\"" then
     throw (IO.userError "✗ erc4626 previewRedeem trust report emits module assumption")
-  if !contains erc4626PreviewRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewRedeem\"]}" then
+  if !contains erc4626PreviewRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewRedeem\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 previewRedeem trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 previewRedeem trust report emits standard vault module assumption"
 
@@ -1241,7 +1279,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626ConvertToAssetsTrustReport "\"module\":\"convertToAssets\"" ||
       !contains erc4626ConvertToAssetsTrustReport "\"assumption\":\"erc4626_convertToAssets_interface\"" then
     throw (IO.userError "✗ erc4626 convertToAssets trust report emits module assumption")
-  if !contains erc4626ConvertToAssetsTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"convertToAssets\"]}" then
+  if !contains erc4626ConvertToAssetsTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"convertToAssets\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 convertToAssets trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 convertToAssets trust report emits standard vault module assumption"
 
@@ -1251,7 +1289,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626ConvertToSharesTrustReport "\"module\":\"convertToShares\"" ||
       !contains erc4626ConvertToSharesTrustReport "\"assumption\":\"erc4626_convertToShares_interface\"" then
     throw (IO.userError "✗ erc4626 convertToShares trust report emits module assumption")
-  if !contains erc4626ConvertToSharesTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"convertToShares\"]}" then
+  if !contains erc4626ConvertToSharesTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"convertToShares\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 convertToShares trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 convertToShares trust report emits standard vault module assumption"
 
@@ -1261,7 +1299,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626TotalAssetsTrustReport "\"module\":\"totalAssets\"" ||
       !contains erc4626TotalAssetsTrustReport "\"assumption\":\"erc4626_totalAssets_interface\"" then
     throw (IO.userError "✗ erc4626 totalAssets trust report emits module assumption")
-  if !contains erc4626TotalAssetsTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"totalAssets\"]}" then
+  if !contains erc4626TotalAssetsTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"totalAssets\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 totalAssets trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 totalAssets trust report emits standard vault module assumption"
 
@@ -1271,7 +1309,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626AssetTrustReport "\"module\":\"asset\"" ||
       !contains erc4626AssetTrustReport "\"assumption\":\"erc4626_asset_interface\"" then
     throw (IO.userError "✗ erc4626 asset trust report emits module assumption")
-  if !contains erc4626AssetTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"asset\"]}" then
+  if !contains erc4626AssetTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"asset\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 asset trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 asset trust report emits standard vault module assumption"
 
@@ -1281,7 +1319,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626MaxDepositTrustReport "\"module\":\"maxDeposit\"" ||
       !contains erc4626MaxDepositTrustReport "\"assumption\":\"erc4626_maxDeposit_interface\"" then
     throw (IO.userError "✗ erc4626 maxDeposit trust report emits module assumption")
-  if !contains erc4626MaxDepositTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxDeposit\"]}" then
+  if !contains erc4626MaxDepositTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxDeposit\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 maxDeposit trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 maxDeposit trust report emits standard vault module assumption"
 
@@ -1291,7 +1329,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626MaxMintTrustReport "\"module\":\"maxMint\"" ||
       !contains erc4626MaxMintTrustReport "\"assumption\":\"erc4626_maxMint_interface\"" then
     throw (IO.userError "✗ erc4626 maxMint trust report emits module assumption")
-  if !contains erc4626MaxMintTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxMint\"]}" then
+  if !contains erc4626MaxMintTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxMint\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 maxMint trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 maxMint trust report emits standard vault module assumption"
 
@@ -1301,7 +1339,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626MaxWithdrawTrustReport "\"module\":\"maxWithdraw\"" ||
       !contains erc4626MaxWithdrawTrustReport "\"assumption\":\"erc4626_maxWithdraw_interface\"" then
     throw (IO.userError "✗ erc4626 maxWithdraw trust report emits module assumption")
-  if !contains erc4626MaxWithdrawTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxWithdraw\"]}" then
+  if !contains erc4626MaxWithdrawTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxWithdraw\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 maxWithdraw trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 maxWithdraw trust report emits standard vault module assumption"
 
@@ -1311,7 +1349,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626MaxRedeemTrustReport "\"module\":\"maxRedeem\"" ||
       !contains erc4626MaxRedeemTrustReport "\"assumption\":\"erc4626_maxRedeem_interface\"" then
     throw (IO.userError "✗ erc4626 maxRedeem trust report emits module assumption")
-  if !contains erc4626MaxRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxRedeem\"]}" then
+  if !contains erc4626MaxRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"maxRedeem\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 maxRedeem trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 maxRedeem trust report emits standard vault module assumption"
 
@@ -1321,7 +1359,7 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626DepositTrustReport "\"module\":\"deposit\"" ||
       !contains erc4626DepositTrustReport "\"assumption\":\"erc4626_deposit_interface\"" then
     throw (IO.userError "✗ erc4626 deposit trust report emits module assumption")
-  if !contains erc4626DepositTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"deposit\"]}" then
+  if !contains erc4626DepositTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"deposit\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ erc4626 deposit trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 deposit trust report emits standard vault module assumption"
 
@@ -1335,7 +1373,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
     (compileSpecsWithOptions
-      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false false false true false false)
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false false false false true false false)
     "Low-level mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: call, staticcall, delegatecall, returndataCopy, returndataSize"
   let deniedLowLevelTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedLowLevelTrustReportWritten then
@@ -1344,7 +1382,7 @@ unsafe def runTests : IO Unit := do
 
   let denyLowLevelMemoryOutDir := s!"/tmp/compile-driver-deny-low-level-memory-ok-{nonce}"
   compileSpecsWithOptions
-    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false false false true false false
+    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false false false false true false false
   let denyLowLevelMemoryArtifactWritten ← fileExists s!"{denyLowLevelMemoryOutDir}/MemoryOnlyTrustSurface.yul"
   if !denyLowLevelMemoryArtifactWritten then
     throw (IO.userError "✗ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate")
@@ -1352,16 +1390,26 @@ unsafe def runTests : IO Unit := do
 
   let denyProxyUpgradeabilityOutDir := s!"/tmp/compile-driver-deny-proxy-upgradeability-ok-{nonce}"
   compileSpecsWithOptions
-    [abiSmokeSpec] denyProxyUpgradeabilityOutDir false [] {} none none none false false false false false false false true
+    [abiSmokeSpec] denyProxyUpgradeabilityOutDir false [] {} none none none false false false false false false false false true
   let denyProxyUpgradeabilityArtifactWritten ← fileExists s!"{denyProxyUpgradeabilityOutDir}/AbiSmoke.yul"
   if !denyProxyUpgradeabilityArtifactWritten then
     throw (IO.userError "✗ compileSpecsWithOptions allows contracts without proxy mechanics under deny-proxy gate")
   IO.println "✓ compileSpecsWithOptions allows contracts without proxy mechanics under deny-proxy gate"
 
   expectFailureContains
+    "compileSpecsWithOptions rejects undischarged local obligations when deny flag enabled"
+    (compileSpecsWithOptions
+      [localObligationTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false true false false false false false)
+    "Undischarged local obligations remain:\n- LocalObligationTrustSurface [function:unsafeEdge]: assumed local obligations: manual_delegatecall_refinement"
+  let deniedLocalObligationTrustReportWritten ← fileExists deniedTrustReportPath
+  if !deniedLocalObligationTrustReportWritten then
+    throw (IO.userError "✗ denied local-obligation compile still writes trust report file")
+  IO.println "✓ denied local-obligation compile still writes trust report file"
+
+  expectFailureContains
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
-      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false false false false false)
+      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false false false false false false)
     "Unchecked foreign dependencies remain:\n- ConstructorOnlyEcmTrustSurface [constructor:constructor]: unchecked ECM modules: ctorHook"
   let deniedTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedTrustReportWritten then
@@ -1372,7 +1420,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
     (compileSpecsWithOptions
-      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false false false false)
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false false false false false)
     "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
   let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
   if !deniedAssumedTrustReportWritten then
@@ -1383,7 +1431,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects axiomatized primitives when deny flag enabled"
     (compileSpecsWithOptions
-      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none false false true false false false false false)
+      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none false false true false false false false false false)
     "Axiomatized primitives remain:\n- PrimitiveOnlyTrustSurface [function:exercisePrimitive]: keccak256"
   let deniedPrimitiveTrustReportWritten ← fileExists deniedPrimitiveTrustReportPath
   if !deniedPrimitiveTrustReportWritten then
@@ -1394,7 +1442,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled linear memory when deny flag enabled"
     (compileSpecsWithOptions
-      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false false true false false false false)
+      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false false false true false false false false)
     "Partially modeled linear-memory mechanics remain:\n- MemoryTrustSurface [function:exerciseMemory]: mstore, calldatacopy, returndataCopy, mload"
   let deniedLinearMemoryTrustReportWritten ← fileExists deniedLinearMemoryTrustReportPath
   if !deniedLinearMemoryTrustReportWritten then
@@ -1405,7 +1453,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects raw event emission when deny flag enabled"
     (compileSpecsWithOptions
-      [rawLogTrustSurfaceSpec] outDir false [] {} none (some deniedEventEmissionTrustReportPath) none false false false false true false false false)
+      [rawLogTrustSurfaceSpec] outDir false [] {} none (some deniedEventEmissionTrustReportPath) none false false false false false true false false false)
     "Not-modeled event emission remains:\n- RawLogTrustSurface [function:emitTrace]: rawLog"
   let deniedEventEmissionTrustReportWritten ← fileExists deniedEventEmissionTrustReportPath
   if !deniedEventEmissionTrustReportWritten then
@@ -1416,7 +1464,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled runtime introspection when deny flag enabled"
     (compileSpecsWithOptions
-      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false false false true false)
+      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false false false false true false)
     "Partially modeled runtime-introspection mechanics remain:\n- RuntimeIntrospectionTrustSurface [function:exerciseRuntime]: blockNumber, contractAddress, chainid"
   let deniedRuntimeIntrospectionTrustReportWritten ← fileExists deniedRuntimeIntrospectionTrustReportPath
   if !deniedRuntimeIntrospectionTrustReportWritten then
@@ -1427,7 +1475,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects proxy / upgradeability mechanics when deny flag enabled"
     (compileSpecsWithOptions
-      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedProxyUpgradeabilityTrustReportPath) none false false false false false false false true)
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedProxyUpgradeabilityTrustReportPath) none false false false false false false false false true)
     "Not-modeled proxy / upgradeability mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: delegatecall"
   let deniedProxyUpgradeabilityTrustReportWritten ← fileExists deniedProxyUpgradeabilityTrustReportPath
   if !deniedProxyUpgradeabilityTrustReportWritten then

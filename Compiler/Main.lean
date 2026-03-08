@@ -30,6 +30,7 @@ private structure CLIArgs where
   denyUncheckedDependencies : Bool := false
   denyAssumedDependencies : Bool := false
   denyAxiomatizedPrimitives : Bool := false
+  denyLocalObligations : Bool := false
   denyLinearMemoryMechanics : Bool := false
   denyEventEmission : Bool := false
   denyLowLevelMechanics : Bool := false
@@ -92,6 +93,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
         IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
         IO.println "  --deny-axiomatized-primitives  Fail if any contract uses axiomatized primitives"
+        IO.println "  --deny-local-obligations      Fail if any contract keeps undischarged local unsafe/refinement obligations"
         IO.println "  --deny-linear-memory-mechanics  Fail if any contract uses partially modeled linear-memory mechanics"
         IO.println "  --deny-event-emission         Fail if any contract uses raw `rawLog` event emission"
         IO.println "  --deny-low-level-mechanics    Fail if any contract uses first-class low-level call / returndata mechanics"
@@ -190,6 +192,8 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with denyAssumedDependencies := true }
     | "--deny-axiomatized-primitives" :: rest =>
         go rest { cfg with denyAxiomatizedPrimitives := true }
+    | "--deny-local-obligations" :: rest =>
+        go rest { cfg with denyLocalObligations := true }
     | "--deny-linear-memory-mechanics" :: rest =>
         go rest { cfg with denyLinearMemoryMechanics := true }
     | "--deny-event-emission" :: rest =>
@@ -305,7 +309,7 @@ unsafe def main (args : List String) : IO Unit := do
     compileModulesWithOptions
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
       cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
-      cfg.denyAxiomatizedPrimitives cfg.denyLinearMemoryMechanics cfg.denyEventEmission
+      cfg.denyAxiomatizedPrimitives cfg.denyLocalObligations cfg.denyLinearMemoryMechanics cfg.denyEventEmission
       cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability
   catch e =>
     if e.toString == "help" then
