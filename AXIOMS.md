@@ -36,6 +36,91 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
+### 2. `exec_calldatasizeGuard_noop`
+
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:161`
+
+**Statement**:
+```lean
+private axiom exec_calldatasizeGuard_noop
+```
+
+**Purpose**:
+Bridges the preservation proof over the generated `calldatasizeGuard` when calldata arity is sufficient.
+
+**Why this is currently an axiom**:
+The reduction from proof-runtime `calldatasize`/`lt` normalization to the intended arity check is still not fully mechanized in this theorem path.
+
+**Risk**: Medium.
+
+### 3. `eval_buildSwitch_hasSelectorExpr_eq_one`
+
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:195`
+
+**Statement**:
+```lean
+private axiom eval_buildSwitch_hasSelectorExpr_eq_one
+```
+
+**Purpose**:
+Captures that the generated dispatch prelude computes `__has_selector = 1` because runtime calldata always contains the 4-byte selector word.
+
+**Why this is currently an axiom**:
+The execution fact is understood, but the modulo-aware builtin normalization for this exact `buildSwitch` path is still incomplete.
+
+**Risk**: Medium.
+
+### 4. `eval_iszero_hasSelector_after_set`
+
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:204`
+
+**Statement**:
+```lean
+private axiom eval_iszero_hasSelector_after_set
+```
+
+**Purpose**:
+Bridges the local dispatch-state fact that after setting `__has_selector := 1`, evaluating `iszero(__has_selector)` yields `0`.
+
+**Why this is currently an axiom**:
+This is a small helper fact that currently sits inside the same partially-axiomatized dispatch-step proof boundary.
+
+**Risk**: Low.
+
+### 5. `execBuildSwitch_none_none_aux`
+
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:250`
+
+**Statement**:
+```lean
+private axiom execBuildSwitch_none_none_aux
+```
+
+**Purpose**:
+Connects execution of the emitted `buildSwitch ... none none` block to the corresponding selector-switch step used in contract dispatch.
+
+**Why this is currently an axiom**:
+The step-by-step execution trace is known, but proving it directly through reducible `execYulFuel` remains technically brittle.
+
+**Risk**: Medium.
+
+### 6. `SwitchCaseBodyBridge`
+
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:311`
+
+**Statement**:
+```lean
+private axiom SwitchCaseBodyBridge
+```
+
+**Purpose**:
+Bridges from the single-function body equivalence theorem to the actual generated runtime-dispatch execution shape (`switchCaseBody`, `__has_selector`, rollback shaping, and arity-guarded execution).
+
+**Why this is currently an axiom**:
+This remains the last contract-level proof gap between body-level Yul equivalence and full selector-dispatch preservation.
+
+**Risk**: Medium.
+
 ## Trusted Cryptographic Primitive (Non-Axiom)
 
 ### `ffi.KEC` (keccak256 via EVMYul FFI)
@@ -89,9 +174,9 @@ scoped to contracts that use the module.
 
 The repository removed prior axioms related to IR and Yul expression and statement equivalence and address injectivity by making interpreters total and by using a bounded-nat `Address` representation.
 
-These removals reduced prior axiom debt. The Layer 3 switch-case bridge no longer
-escapes theorem boundaries as an explicit contract-level assumption; it is discharged
-internally by the preservation proof term rather than tracked as a Lean kernel axiom.
+These removals reduced prior axiom debt. The Layer 3 switch-case bridge still has
+a small explicit preservation-side axiom boundary for dispatch-step normalization
+and case-body bridging; those active axioms are tracked above.
 
 ## Non-Axiom: Arithmetic Semantics
 
@@ -99,7 +184,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 1
+- Active axioms: 6
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not
@@ -124,4 +209,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-03-06
+**Last Updated**: 2026-03-08

@@ -203,20 +203,21 @@ theorem layer3_contract_preserves_semantics
       (interpretYulFromIR contract tx initialState) := by
   apply yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive
   · intro fn hmem
-    exact yulBody_from_state_eq_yulBody fn tx
-    { initialState with
-      sender := tx.sender
-      msgValue := tx.msgValue
-      thisAddress := tx.thisAddress
-      blockTimestamp := tx.blockTimestamp
-      blockNumber := tx.blockNumber
-      chainId := tx.chainId
-      calldata := tx.args
-      selector := tx.functionSelector }
-    rfl rfl rfl rfl rfl rfl (by simp [hreturn])
-    (by simp [hmemory])
-    (by simp [hvars])
-    (hparamErase fn hmem)
+    exact (yulBody_from_state_eq_yulBody fn tx
+      { initialState with
+        sender := tx.sender
+        msgValue := tx.msgValue
+        thisAddress := tx.thisAddress
+        blockTimestamp := tx.blockTimestamp
+        blockNumber := tx.blockNumber
+        chainId := tx.chainId
+        calldata := tx.args
+        selector := tx.functionSelector }
+      rfl rfl rfl rfl rfl rfl rfl rfl
+      (by simpa using hreturn)
+      (by simpa using hmemory)
+      (by simpa using hvars)
+      (hparamErase fn hmem))
 
 /-- Unconditioned version: delegates directly to `yulCodegen_preserves_semantics`. -/
 theorem layer3_contract_preserves_semantics_general

@@ -84,6 +84,10 @@ ALLOWLIST: set[str] = {
     # Guard no-op bridge for switch-case execution (Issue #1094 follow-up):
     # long due explicit Yul expression reduction over reducible exec semantics.
     "exec_calldatasizeGuard_noop",
+    # Execution-context dispatch helpers in Preservation.lean; both are long due
+    # transport-heavy local normalization over reducible Yul/IR state updates.
+    "exec_callvalueGuard_noop",
+    "evalSelectorExpr_setVar_has_selector",
 }
 
 # Directories containing proof files to scan.
