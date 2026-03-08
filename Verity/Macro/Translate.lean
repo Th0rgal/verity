@@ -76,6 +76,12 @@ structure ImmutableDecl where
   ty : ValueType
   body : Term
 
+structure ExternalDecl where
+  ident : Ident
+  name : String
+  params : Array ValueType
+  returnTys : Array ValueType
+
 inductive InitGuardDecl where
   | initializer (fieldIdent : Ident) (fieldName : String)
   | reinitializer (fieldIdent : Ident) (fieldName : String) (version : Nat)
@@ -335,6 +341,24 @@ private def parseImmutable (stx : Syntax) : CommandElabM ImmutableDecl := do
       }
   | _ => throwErrorAt stx "invalid immutable declaration"
 
+private def parseExternal (stx : Syntax) : CommandElabM ExternalDecl := do
+  match stx with
+  | `(verityExternal| external $name:ident ($[$params:term],*) -> ($[$returnTys:term],*)) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        params := ← params.mapM valueTypeFromSyntax
+        returnTys := ← returnTys.mapM valueTypeFromSyntax
+      }
+  | `(verityExternal| external $name:ident ($[$params:term],*)) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        params := ← params.mapM valueTypeFromSyntax
+        returnTys := #[]
+      }
+  | _ => throwErrorAt stx "invalid external declaration"
+
 private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
   | `(verityFunction| function $name:ident ($[$params:verityParam],*) initializer($field:ident) : $retTy:term := $body:term) =>
@@ -413,6 +437,19 @@ private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
   | _ =>
       throwErrorAt imm.ident
         s!"contract immutables currently support only Uint256 and Address; '{imm.name}' uses unsupported type"
+
+private def externalExecutableWordType? : ValueType → Bool
+  | .uint256 | .uint8 | .address | .bytes32 | .bool => true
+  | _ => false
+
+private def validateExternalExecutableType
+    (extIdent : Ident)
+    (extName : String)
+    (ty : ValueType)
+    (role : String) : CommandElabM Unit := do
+  if !externalExecutableWordType? ty then
+    throwErrorAt extIdent
+      s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Uint8, Address, Bytes32, and Bool"
 
 private partial def stripParens (stx : Term) : Term :=
   match stx with
@@ -1779,18 +1816,36 @@ private def mkModelErrorTerm (err : ErrorDecl) : CommandElabM Term := do
       $(strTerm err.name)
       [ $[$paramTerms],* ])
 
+private def mkModelExternalTerm (ext : ExternalDecl) : CommandElabM Term := do
+  let paramTerms ← ext.params.mapM modelParamTypeTerm
+  let returnTerms ← ext.returnTys.mapM modelParamTypeTerm
+  let returnTypeTerm ←
+    match ext.returnTys.toList with
+    | [] => `(none)
+    | [retTy] => `(some $(← modelParamTypeTerm retTy))
+    | _ => `(none)
+  `(Compiler.CompilationModel.ExternalFunction.mk
+      $(strTerm ext.name)
+      [ $[$paramTerms],* ]
+      $returnTypeTerm
+      [ $[$returnTerms],* ]
+      Compiler.ProofStatus.assumed
+      [])
+
 private def mkSpecCommand
     (contractName : String)
     (fields : Array StorageFieldDecl)
     (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl) : CommandElabM Cmd := do
   let immutableFields := immutableDecls.zipIdx.map (fun (imm, idx) => immutableStorageFieldDecl fields imm idx)
   let allFields := fields ++ immutableFields
   let fieldTerms ← allFields.mapM mkModelFieldTerm
   let errorTerms ← errorDecls.mapM mkModelErrorTerm
+  let externalTerms ← externalDecls.mapM mkModelExternalTerm
   let constructorTerm ←
     match ctor, immutableDecls.isEmpty with
     | none, true => `(none)
@@ -1819,6 +1874,7 @@ private def mkSpecCommand
     «errors» := [ $[$errorTerms],* ]
     «constructor» := $constructorTerm
     functions := [ $[$functionModelIds],* ]
+    «externals» := [ $[$externalTerms],* ]
   })
 
 private def mkFindIdxFieldSimpCommands
@@ -1902,9 +1958,9 @@ private def mkFindIdxParamSimpCommands
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Option ConstructorDecl × Array FunctionDecl) := do
+        (Ident × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[$ctor:verityConstructor]? $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$functions:verityFunction]*) =>
       let parsedErrors ←
         match errorDecls with
         | some decls => decls.mapM parseError
@@ -1917,12 +1973,17 @@ def parseContractSyntax
         match immutableDecls with
         | some decls => decls.mapM parseImmutable
         | none => pure #[]
+      let parsedExternals ←
+        match externalDecls with
+        | some decls => decls.mapM parseExternal
+        | none => pure #[]
       pure
         ( contractName
         , (← storageFields.mapM parseStorageField)
         , parsedErrors
         , parsedConstants
         , parsedImmutables
+        , parsedExternals
         , (← ctor.mapM parseConstructor)
         , (← functions.mapM parseFunction)
         )
@@ -1959,6 +2020,22 @@ def validateImmutableDeclsPublic
         s!"duplicate immutable declaration '{imm.name}'"
     seenNames := seenNames.push imm.name
 
+def validateExternalDeclsPublic
+    (externalDecls : Array ExternalDecl) : CommandElabM Unit := do
+  let mut seenNames : Array String := #[]
+  for ext in externalDecls do
+    if seenNames.contains ext.name then
+      throwErrorAt ext.ident
+        s!"duplicate external declaration '{ext.name}'"
+    if ext.returnTys.size > 1 then
+      throwErrorAt ext.ident
+        s!"linked external '{ext.name}' currently supports at most one return value; statement-style external bindings are not exposed from verity_contract yet"
+    for paramTy in ext.params do
+      validateExternalExecutableType ext.ident ext.name paramTy "parameter"
+    for returnTy in ext.returnTys do
+      validateExternalExecutableType ext.ident ext.name returnTy "return"
+    seenNames := seenNames.push ext.name
+
 def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -1979,7 +2056,7 @@ def mkFunctionCommandsPublic
     name := $(strTerm fn.name)
     params := $modelParams
     returnType := $(← modelReturnTypeTerm fn.returnTy)
-    returns := $(← modelReturnsTerm fn.returnTy)
+    «returns» := $(← modelReturnsTerm fn.returnTy)
     body := $modelBodyName
   })
   pure #[fnCmd, bodyCmd, modelCmd]
@@ -1990,9 +2067,10 @@ def mkSpecCommandPublic
     (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl) : CommandElabM Cmd :=
-  mkSpecCommand contractName fields errorDecls constDecls immutableDecls ctor functions
+  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions
 
 def mkFindIdxFieldSimpCommandsPublic
     (contractIdent : Ident)
