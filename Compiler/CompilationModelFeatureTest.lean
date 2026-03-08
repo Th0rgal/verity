@@ -75,12 +75,12 @@ private def envRuntimeSmokeSpec : CompilationModel := {
   fields := []
   «constructor» := none
   functions := [
-    { name := "selfTimestampAndChainId"
+    { name := "selfValueTimestampAndChainId"
       params := []
       returnType := none
-      returns := [ParamType.address, ParamType.uint256, ParamType.uint256]
+      returns := [ParamType.address, ParamType.uint256, ParamType.uint256, ParamType.uint256]
       body := [
-        Stmt.returnValues [Expr.contractAddress, Expr.blockTimestamp, Expr.chainid]
+        Stmt.returnValues [Expr.contractAddress, Expr.msgValue, Expr.blockTimestamp, Expr.chainid]
       ]
     }
   ]
@@ -401,6 +401,8 @@ private def ecrecoverSmokeSpec : CompilationModel := {
   let envYul ← expectCompileToYul "env runtime smoke spec" envRuntimeSmokeSpec
   expectTrue "address(this) lowers to the Yul address builtin"
     (contains envYul "address()")
+  expectTrue "msg.value lowers to the Yul callvalue builtin"
+    (contains envYul "callvalue()")
   expectTrue "block.timestamp lowers to the Yul timestamp builtin"
     (contains envYul "timestamp()")
   expectTrue "chainid lowers to the Yul chainid builtin"

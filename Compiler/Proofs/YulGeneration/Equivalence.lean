@@ -18,6 +18,7 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     selector := state.selector
     returnValue := state.returnValue
     sender := state.sender
+    msgValue := state.msgValue
     thisAddress := state.thisAddress
     blockTimestamp := state.blockTimestamp
     chainId := state.chainId
@@ -35,6 +36,7 @@ compare results directly in smoke tests.
 noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -47,6 +49,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
 noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId

@@ -60,6 +60,7 @@ private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRS
     (fun s (p, v) => s.setVar p.name v) state
   let yulTx : YulTransaction := {
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -90,6 +91,7 @@ theorem yulStateOfIR_eq_initial
     (sel : Nat) (state : IRState) (tx : IRTransaction)
     (hcalldata : state.calldata = tx.args)
     (hsender : state.sender = tx.sender)
+    (hmsgValue : state.msgValue = tx.msgValue)
     (hthis : state.thisAddress = tx.thisAddress)
     (htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (hchain : state.chainId = tx.chainId)
@@ -100,14 +102,15 @@ theorem yulStateOfIR_eq_initial
     yulStateOfIR sel state =
       YulState.initial
         { sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId
           functionSelector := tx.functionSelector
           args := tx.args }
         state.storage state.events := by
-  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hthis, htimestamp,
-    hchain, hselector, hreturn]
+  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hmsgValue, hthis,
+    htimestamp, hchain, hselector, hreturn]
 
 /-- Hypothesis-driven param-load erasure. -/
 theorem execYulStmts_paramState_eq_emptyVars
@@ -116,6 +119,7 @@ theorem execYulStmts_paramState_eq_emptyVars
     (_hmemory : state.memory = fun _ => 0)
     (_hcalldata : state.calldata = tx.args)
     (_hsender : state.sender = tx.sender)
+    (_hmsgValue : state.msgValue = tx.msgValue)
     (_hthis : state.thisAddress = tx.thisAddress)
     (_htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (_hchain : state.chainId = tx.chainId)
@@ -131,6 +135,7 @@ theorem yulBody_from_state_eq_yulBody
     (fn : IRFunction) (tx : IRTransaction) (state : IRState)
     (hcalldata : state.calldata = tx.args)
     (hsender : state.sender = tx.sender)
+    (hmsgValue : state.msgValue = tx.msgValue)
     (hthis : state.thisAddress = tx.thisAddress)
     (htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (hchain : state.chainId = tx.chainId)
@@ -148,13 +153,14 @@ theorem yulBody_from_state_eq_yulBody
       state = interpretYulBody fn tx state by
     rwa [h_eq] at h_ir_from
   simp only [interpretYulBodyFromState, interpretYulBody]
-  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hthis htimestamp hchain hselector hreturn hmemory hvars
-  have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hthis htimestamp hchain hselector hreturn hparamErase
+  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hmsgValue hthis htimestamp hchain hselector hreturn hmemory hvars
+  have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hmsgValue hthis htimestamp hchain hselector hreturn hparamErase
   rw [h_rollback]
   simp only at h_exec
   rw [h_exec]
   exact (interpretYulRuntime_eq_yulResultOfExec fn.body
     { sender := tx.sender
+      msgValue := tx.msgValue
       thisAddress := tx.thisAddress
       blockTimestamp := tx.blockTimestamp
       chainId := tx.chainId
@@ -176,6 +182,7 @@ theorem layer3_contract_preserves_semantics
       paramLoadErasure fn tx
         { initialState with
           sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId
@@ -192,12 +199,13 @@ theorem layer3_contract_preserves_semantics
     exact yulBody_from_state_eq_yulBody fn tx
     { initialState with
       sender := tx.sender
+      msgValue := tx.msgValue
       thisAddress := tx.thisAddress
       blockTimestamp := tx.blockTimestamp
       chainId := tx.chainId
       calldata := tx.args
       selector := tx.functionSelector }
-    rfl rfl rfl rfl rfl (by simp [hreturn])
+    rfl rfl rfl rfl rfl rfl (by simp [hreturn])
     (by simp [hmemory])
     (by simp [hvars])
     (hparamErase fn hmem)
@@ -214,6 +222,7 @@ theorem layer3_contract_preserves_semantics_general
         (execIRFunction fn tx.args
           { initialState with
             sender := tx.sender
+            msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
             chainId := tx.chainId
@@ -222,6 +231,7 @@ theorem layer3_contract_preserves_semantics_general
         (interpretYulBody fn tx
           { initialState with
             sender := tx.sender
+            msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
             chainId := tx.chainId
@@ -248,6 +258,7 @@ theorem layers2_3_ir_matches_yul
       paramLoadErasure fn tx
         { initialState with
           sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId
@@ -274,6 +285,7 @@ theorem simpleStorage_endToEnd
       paramLoadErasure fn tx
         { initialState with
           sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId

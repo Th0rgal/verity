@@ -41,6 +41,7 @@ structure YulState where
   selector : Nat
   returnValue : Option Nat
   sender : Nat
+  msgValue : Nat := 0
   thisAddress : Nat := 0
   blockTimestamp : Nat := 0
   chainId : Nat := 0
@@ -49,6 +50,7 @@ structure YulState where
 
 structure YulTransaction where
   sender : Nat
+  msgValue : Nat := 0
   thisAddress : Nat := 0
   blockTimestamp : Nat := 0
   chainId : Nat := 0
@@ -66,6 +68,7 @@ def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
     selector := tx.functionSelector
     returnValue := none
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -112,7 +115,7 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
     let argVals ← evalYulExprs state args
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
       Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-      state.storage state.sender state.thisAddress state.blockTimestamp
+      state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
       state.chainId state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by

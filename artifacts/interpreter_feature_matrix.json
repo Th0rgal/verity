@@ -40,7 +40,7 @@
       "constructor": "Expr.param",
       "SpecInterpreter_basic": "supported",
       "SpecInterpreter_fuel": "supported",
-      "IRInterpreter": "n/a",
+      "IRInterpreter": "supported",
       "EVMYulLean_bridge": "n/a",
       "proof_status": "proved"
     },

@@ -185,6 +185,7 @@ private def withTxContext (state : IRState) (tx : IRTransaction) : IRState :=
   { state with
     calldata := tx.args
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -211,6 +212,7 @@ private def interpretYulFromIRFuelResult (contract : IRContract) (tx : IRTransac
     (fuel : Nat) : YulResult :=
   let yulTx : YulTransaction := {
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -223,16 +225,17 @@ private def interpretYulFromIRFuelResult (contract : IRContract) (tx : IRTransac
 private def diffCheckTx (spec : CompilationModel) (ir : IRContract)
     (tx : IRTransaction) (seed : Nat) : Bool :=
   let initState : IRState :=
-    { vars := []
-      storage := seededStorage seed
-      memory := fun _ => 0
-      calldata := []
-      returnValue := none
-      sender := tx.sender
-      thisAddress := tx.thisAddress
-      blockTimestamp := tx.blockTimestamp
-      chainId := tx.chainId
-      selector := 0
+    { vars := [],
+      «storage» := seededStorage seed,
+      memory := fun _ => 0,
+      calldata := [],
+      returnValue := none,
+      sender := tx.sender,
+      msgValue := tx.msgValue,
+      thisAddress := tx.thisAddress,
+      blockTimestamp := tx.blockTimestamp,
+      chainId := tx.chainId,
+      selector := 0,
       events := [] }
   let irResult := interpretIRFuelResult ir tx initState 800
   let yulResult := interpretYulFromIRFuelResult ir tx initState 800

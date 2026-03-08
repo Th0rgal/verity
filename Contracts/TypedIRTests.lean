@@ -580,6 +580,10 @@ def simpleStorageIRInitWithStorage : IRState :=
     calldata := simpleStorageIRInit.calldata
     returnValue := simpleStorageIRInit.returnValue
     sender := simpleStorageIRInit.sender
+    msgValue := simpleStorageIRInit.msgValue
+    thisAddress := simpleStorageIRInit.thisAddress
+    blockTimestamp := simpleStorageIRInit.blockTimestamp
+    chainId := simpleStorageIRInit.chainId
     selector := simpleStorageIRInit.selector }
 
 def simpleStorageTypedFinalSlot : Option Nat :=
@@ -620,6 +624,7 @@ private def mkIRStateFromTyped (state : Verity.Core.Free.TExecState.{0}) (block 
     calldata := []
     returnValue := none
     sender := state.env.sender
+    msgValue := state.env.msgValue
     thisAddress := 0
     blockTimestamp := 0
     chainId := 0

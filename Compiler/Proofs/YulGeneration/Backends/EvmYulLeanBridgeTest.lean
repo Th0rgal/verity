@@ -25,6 +25,7 @@ open Compiler.Proofs.YulGeneration.Backends
 -- Shared test parameters (state-independent for pure builtins)
 private def testStorage : Nat → Nat := fun _ => 0
 private def testSender : Nat := 42
+private def testMsgValue : Nat := 99
 private def testThisAddress : Nat := 0xC0FFEE
 private def testBlockTimestamp : Nat := 0x123456
 private def testChainId : Nat := 1
@@ -40,6 +41,7 @@ private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat
   evalBuiltinCallWithContext
     testStorage
     testSender
+    testMsgValue
     testThisAddress
     testBlockTimestamp
     testChainId
@@ -56,6 +58,9 @@ private def bridgeEval (func : String) (args : List Nat) : Option Nat :=
 
 /-- add: 3 + 5 = 8 -/
 example : verityEval "add" [3, 5] = bridgeEval "add" [3, 5] := by native_decide
+
+/-- callvalue reflects the execution context in the context-aware Verity path. -/
+example : verityEvalWithContext "callvalue" [] = some testMsgValue := by native_decide
 
 /-- add: wrapping at 2^256 boundary -/
 example : verityEval "add" [Compiler.Constants.evmModulus - 1, 1] =

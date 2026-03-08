@@ -55,6 +55,8 @@ structure IRState where
   returnValue : Option Nat
   /-- Sender address -/
   sender : Nat
+  /-- Msg.value seen by `callvalue()`. -/
+  msgValue : Nat := 0
   /-- Contract address seen by `address()`. -/
   thisAddress : Nat := 0
   /-- Block timestamp seen by `timestamp()`. -/
@@ -75,6 +77,7 @@ def IRState.initial (sender : Nat) : IRState :=
     calldata := []
     returnValue := none
     sender := sender
+    msgValue := 0
     thisAddress := 0
     blockTimestamp := 0
     chainId := 0
@@ -134,7 +137,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
     let argVals ← evalIRExprs state args
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
       Compiler.Proofs.YulGeneration.defaultBuiltinBackend
-      state.storage state.sender state.thisAddress state.blockTimestamp
+      state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
       state.chainId state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
 decreasing_by
@@ -338,6 +341,7 @@ theorem execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
 
 structure IRTransaction where
   sender : Nat
+  msgValue : Nat := 0
   thisAddress : Nat := 0
   blockTimestamp : Nat := 0
   chainId : Nat := 0
@@ -394,6 +398,7 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
   let initialState := {
     initialState with
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId

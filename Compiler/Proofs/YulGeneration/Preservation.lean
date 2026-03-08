@@ -23,6 +23,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body
         { sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId
@@ -45,6 +46,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
       yulResultOfExecWithRollback
         (YulState.initial
           { sender := tx.sender
+            msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
             chainId := tx.chainId
@@ -54,6 +56,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
         (execYulStmts
           (YulState.initial
             { sender := tx.sender
+              msgValue := tx.msgValue
               thisAddress := tx.thisAddress
               blockTimestamp := tx.blockTimestamp
               chainId := tx.chainId
@@ -135,15 +138,17 @@ private theorem sizeOf_append_ge_length_add (l₁ l₂ : List YulStmt) :
     | .revert s => .revert s) = r := by
   cases r <;> rfl
 
-/-- `callvalueGuard` never reverts in the proof semantics because `callvalue() = 0`. -/
-private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState) :
+/-- `callvalueGuard` is a no-op when the execution context has `msg.value = 0`. -/
+private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState)
+    (hMsgValue : state.msgValue = 0) :
     execYulStmtsFuel (fuel + 2) state [Compiler.callvalueGuard] =
       YulExecResult.continue state := by
   have hs : fuel + 2 = Nat.succ (Nat.succ fuel) := by omega
   rw [hs]
   have hCallvalue : evalYulExpr state (YulExpr.call "callvalue" []) = some 0 := by
-    simp [evalYulExpr, evalYulCall, evalYulExprs,
-      evalBuiltinCallWithBackend, evalBuiltinCall]
+    simp [hMsgValue, evalYulExpr, evalYulCall, evalYulExprs,
+      evalBuiltinCallWithBackend, evalBuiltinCall, evalBuiltinCallWithBackendContext,
+      evalBuiltinCallWithContext]
   simp [Compiler.callvalueGuard, execYulStmtsFuel, execYulFuel, hCallvalue]
 
 /-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op. -/
@@ -318,6 +323,7 @@ private def SwitchCaseBodyBridge
       (execIRFunction fn tx.args irState)
       (interpretYulRuntime fn.body
         { sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId
@@ -329,6 +335,7 @@ private def SwitchCaseBodyBridge
       (yulResultOfExecWithRollback
         (YulState.initial
           { sender := tx.sender
+            msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
             chainId := tx.chainId
@@ -338,6 +345,7 @@ private def SwitchCaseBodyBridge
         (execYulStmtsFuel fuel
           ((YulState.initial
             { sender := tx.sender
+              msgValue := tx.msgValue
               thisAddress := tx.thisAddress
               blockTimestamp := tx.blockTimestamp
               chainId := tx.chainId
@@ -367,6 +375,7 @@ theorem yulCodegen_preserves_semantics
         (execIRFunction fn tx.args
           { initialState with
             sender := tx.sender
+            msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
             chainId := tx.chainId
@@ -375,6 +384,7 @@ theorem yulCodegen_preserves_semantics
         (interpretYulBody fn tx
           { initialState with
             sender := tx.sender
+            msgValue := tx.msgValue
             thisAddress := tx.thisAddress
             blockTimestamp := tx.blockTimestamp
             chainId := tx.chainId
@@ -386,6 +396,7 @@ theorem yulCodegen_preserves_semantics
   let irState := {
     initialState with
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -394,6 +405,7 @@ theorem yulCodegen_preserves_semantics
   }
   let yulTx : YulTransaction := {
     sender := tx.sender
+    msgValue := tx.msgValue
     thisAddress := tx.thisAddress
     blockTimestamp := tx.blockTimestamp
     chainId := tx.chainId
@@ -493,6 +505,7 @@ theorem yulCodegen_preserves_semantics
       exact SwitchCaseBodyBridge fn tx
         { initialState with
           sender := tx.sender
+          msgValue := tx.msgValue
           thisAddress := tx.thisAddress
           blockTimestamp := tx.blockTimestamp
           chainId := tx.chainId

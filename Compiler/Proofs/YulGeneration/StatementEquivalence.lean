@@ -256,6 +256,8 @@ private theorem stmt_and_stmts_equiv :
                       { vars := irState.vars, storage := irState.storage, memory := irState.memory,
                         calldata := irState.calldata, selector := irState.selector,
                         returnValue := irState.returnValue, sender := irState.sender,
+                        msgValue := irState.msgValue, thisAddress := irState.thisAddress,
+                        blockTimestamp := irState.blockTimestamp, chainId := irState.chainId,
                         events := irState.events } expr = none := by
                   simpa [yulStateOfIR] using hEval
                 simp [hEval', execResultsAligned, statesAligned, yulStateOfIR]
@@ -265,6 +267,8 @@ private theorem stmt_and_stmts_equiv :
                       { vars := irState.vars, storage := irState.storage, memory := irState.memory,
                         calldata := irState.calldata, selector := irState.selector,
                         returnValue := irState.returnValue, sender := irState.sender,
+                        msgValue := irState.msgValue, thisAddress := irState.thisAddress,
+                        blockTimestamp := irState.blockTimestamp, chainId := irState.chainId,
                         events := irState.events } expr = some v := by
                   simpa [yulStateOfIR] using hEval
                 simp [hEval']

@@ -14,7 +14,7 @@ private theorem verity_eval_add_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "add" [a, b] =
       some ((a + b) % evmModulus) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_add_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "add" [a, b] =
@@ -27,7 +27,7 @@ private theorem verity_eval_sub_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "sub" [a, b] =
       some ((evmModulus + a % evmModulus - b % evmModulus) % evmModulus) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_sub_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "sub" [a, b] =
@@ -42,7 +42,7 @@ private theorem verity_eval_mul_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "mul" [a, b] =
       some ((a * b) % evmModulus) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_mul_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "mul" [a, b] =
@@ -55,7 +55,7 @@ private theorem verity_eval_div_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "div" [a, b] =
       (if b % evmModulus = 0 then some 0 else some ((a % evmModulus) / (b % evmModulus))) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_div_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "div" [a, b] =
@@ -72,7 +72,7 @@ private theorem verity_eval_mod_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "mod" [a, b] =
       (if b % evmModulus = 0 then some 0 else some ((a % evmModulus) % (b % evmModulus))) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_mod_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "mod" [a, b] =
@@ -103,7 +103,7 @@ private theorem verity_eval_eq_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "eq" [a, b] =
       some (if a % evmModulus = b % evmModulus then 1 else 0) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_eq_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "eq" [a, b] =
@@ -114,7 +114,7 @@ private theorem verity_eval_iszero_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
     evalBuiltinCall storage sender selector calldata "iszero" [a] =
       some (if a % evmModulus = 0 then 1 else 0) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_iszero_normalized (a : Nat) :
     evalPureBuiltinViaEvmYulLean "iszero" [a] =
@@ -126,7 +126,7 @@ private theorem verity_eval_lt_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "lt" [a, b] =
       some (if a % evmModulus < b % evmModulus then 1 else 0) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_lt_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "lt" [a, b] =
@@ -138,7 +138,7 @@ private theorem verity_eval_gt_normalized
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCall storage sender selector calldata "gt" [a, b] =
       some (if a % evmModulus > b % evmModulus then 1 else 0) := by
-  simp [evalBuiltinCall]
+  simp [evalBuiltinCall, evalBuiltinCallWithContext]
 
 private theorem bridge_eval_gt_normalized (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "gt" [a, b] =
@@ -364,7 +364,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCall storage sender selector calldata "and" [a, b] =
       evalPureBuiltinViaEvmYulLean "and" [a, b] := by
   rw [show evalBuiltinCall storage sender selector calldata "and" [a, b] =
-      some (a % evmModulus &&& b % evmModulus) by simp [evalBuiltinCall]]
+      some (a % evmModulus &&& b % evmModulus) by simp [evalBuiltinCall, evalBuiltinCallWithContext]]
   rw [bridge_eval_and_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
@@ -375,7 +375,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     evalBuiltinCall storage sender selector calldata "or" [a, b] =
       evalPureBuiltinViaEvmYulLean "or" [a, b] := by
   rw [show evalBuiltinCall storage sender selector calldata "or" [a, b] =
-      some (a % evmModulus ||| b % evmModulus) by simp [evalBuiltinCall]]
+      some (a % evmModulus ||| b % evmModulus) by simp [evalBuiltinCall, evalBuiltinCallWithContext]]
   rw [bridge_eval_or_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
@@ -412,7 +412,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
       (if shift % evmModulus < 256 then
         some (((value % evmModulus) * 2 ^ (shift % evmModulus)) % evmModulus)
       else
-        some 0) by simp [evalBuiltinCall]]
+        some 0) by simp [evalBuiltinCall, evalBuiltinCallWithContext]]
   rw [bridge_eval_shl_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
@@ -426,7 +426,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
       (if shift % evmModulus < 256 then
         some ((value % evmModulus) / 2 ^ (shift % evmModulus))
       else
-        some 0) by simp [evalBuiltinCall]]
+        some 0) by simp [evalBuiltinCall, evalBuiltinCallWithContext]]
   rw [bridge_eval_shr_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
@@ -434,90 +434,105 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "add" [a, b] =
       evalBuiltinCall storage sender selector calldata "add" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_add_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_add_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sub_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sub" [a, b] =
       evalBuiltinCall storage sender selector calldata "sub" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_sub_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_sub_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mul_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mul" [a, b] =
       evalBuiltinCall storage sender selector calldata "mul" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_mul_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_mul_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_div_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "div" [a, b] =
       evalBuiltinCall storage sender selector calldata "div" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_div_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_div_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mod_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mod" [a, b] =
       evalBuiltinCall storage sender selector calldata "mod" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_mod_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_mod_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_eq_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "eq" [a, b] =
       evalBuiltinCall storage sender selector calldata "eq" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_eq_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_eq_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_iszero_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "iszero" [a] =
       evalBuiltinCall storage sender selector calldata "iszero" [a] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_iszero_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_iszero_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_lt_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "lt" [a, b] =
       evalBuiltinCall storage sender selector calldata "lt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_lt_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_lt_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_gt_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "gt" [a, b] =
       evalBuiltinCall storage sender selector calldata "gt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_gt_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_gt_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_and_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "and" [a, b] =
       evalBuiltinCall storage sender selector calldata "and" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_and_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_and_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_or_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "or" [a, b] =
       evalBuiltinCall storage sender selector calldata "or" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_or_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_or_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_xor_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "xor" [a, b] =
       evalBuiltinCall storage sender selector calldata "xor" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_xor_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_xor_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_not_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "not" [a] =
       evalBuiltinCall storage sender selector calldata "not" [a] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_not_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_not_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shl_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "shl" [shift, value] =
       evalBuiltinCall storage sender selector calldata "shl" [shift, value] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_shl_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_shl_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shr_bridge
     (storage : Nat → Nat) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "shr" [shift, value] =
       evalBuiltinCall storage sender selector calldata "shr" [shift, value] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallViaEvmYulLean, evalBuiltinCall_shr_bridge]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCall_shr_bridge]
 
 end Compiler.Proofs.YulGeneration.Backends
