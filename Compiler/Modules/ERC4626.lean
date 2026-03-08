@@ -16,6 +16,14 @@
     exactly one 32-byte return word.
   - `totalAssets`: staticcall `totalAssets()` and require exactly one 32-byte
     return word.
+  - `maxDeposit`: staticcall `maxDeposit(address)` and require exactly one
+    32-byte return word.
+  - `maxMint`: staticcall `maxMint(address)` and require exactly one 32-byte
+    return word.
+  - `maxWithdraw`: staticcall `maxWithdraw(address)` and require exactly one
+    32-byte return word.
+  - `maxRedeem`: staticcall `maxRedeem(address)` and require exactly one
+    32-byte return word.
 
   Trust assumption: the target address implements the selected ERC-4626 read
   interface and returns one ABI-encoded `uint256` word.
@@ -219,5 +227,85 @@ def totalAssetsModule (resultVar : String) : ExternalCallModule :=
 /-- Convenience: create a `Stmt.ecm` for a read-only `totalAssets()` call. -/
 def totalAssets (resultVar : String) (vault : Expr) : Stmt :=
   .ecm (totalAssetsModule resultVar) [vault]
+
+/-- Read-only ERC-4626 `maxDeposit(address)` module.
+
+    It ABI-encodes the canonical `maxDeposit(address)` selector, performs a
+    `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, receiver]`. -/
+def maxDepositModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "maxDeposit"
+    "erc4626_maxDeposit_interface"
+    resultVar
+    0x402d267d
+    ["receiver"]
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `maxDeposit(address)`
+    call. -/
+def maxDeposit (resultVar : String) (vault receiver : Expr) : Stmt :=
+  .ecm (maxDepositModule resultVar) [vault, receiver]
+
+/-- Read-only ERC-4626 `maxMint(address)` module.
+
+    It ABI-encodes the canonical `maxMint(address)` selector, performs a
+    `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, receiver]`. -/
+def maxMintModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "maxMint"
+    "erc4626_maxMint_interface"
+    resultVar
+    0xc63d75b6
+    ["receiver"]
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `maxMint(address)` call.
+    -/
+def maxMint (resultVar : String) (vault receiver : Expr) : Stmt :=
+  .ecm (maxMintModule resultVar) [vault, receiver]
+
+/-- Read-only ERC-4626 `maxWithdraw(address)` module.
+
+    It ABI-encodes the canonical `maxWithdraw(address)` selector, performs a
+    `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, owner]`. -/
+def maxWithdrawModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "maxWithdraw"
+    "erc4626_maxWithdraw_interface"
+    resultVar
+    0xce96cb77
+    ["owner"]
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `maxWithdraw(address)`
+    call. -/
+def maxWithdraw (resultVar : String) (vault owner : Expr) : Stmt :=
+  .ecm (maxWithdrawModule resultVar) [vault, owner]
+
+/-- Read-only ERC-4626 `maxRedeem(address)` module.
+
+    It ABI-encodes the canonical `maxRedeem(address)` selector, performs a
+    `staticcall`, forwards revert returndata on failure, requires exactly one
+    32-byte return word, and binds that word to `resultVar`.
+
+    Arguments passed to the module are `[vault, owner]`. -/
+def maxRedeemModule (resultVar : String) : ExternalCallModule :=
+  readUint256Module
+    "maxRedeem"
+    "erc4626_maxRedeem_interface"
+    resultVar
+    0xd905777e
+    ["owner"]
+
+/-- Convenience: create a `Stmt.ecm` for a read-only `maxRedeem(address)`
+    call. -/
+def maxRedeem (resultVar : String) (vault owner : Expr) : Stmt :=
+  .ecm (maxRedeemModule resultVar) [vault, owner]
 
 end Compiler.Modules.ERC4626
