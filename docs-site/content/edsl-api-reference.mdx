@@ -397,6 +397,36 @@ These declarations elaborate to ordinary Lean `def`s inside the generated contra
 
 Constant bodies must stay compile-time-only. Runtime-dependent builtins such as `blockTimestamp`, `blockNumber`, `blobbasefee`, `contractAddress`, `chainid`, calldata/returndata size reads, and low-level memory/call opcodes are rejected in `constants` declarations so the executable and compilation-model paths cannot diverge.
 
+## Contract Immutables
+
+`verity_contract` also supports contract-scoped immutables for deployment-time values that should become read-only at runtime:
+
+```lean
+verity_contract ImmutableConfig where
+  storage
+    owner : Address := slot 0
+
+  constants
+    offset : Uint256 := 2
+
+  immutables
+    seededSupply : Uint256 := add seed offset
+    treasury : Address := ownerSeed
+
+  constructor (seed : Uint256, ownerSeed : Address) := do
+    setStorageAddr owner ownerSeed
+
+  function supplyCap () : Uint256 := do
+    return seededSupply
+
+  function treasuryAddr () : Address := do
+    return treasury
+```
+
+In this initial parity slice, immutables are lowered to internal read-only slots named `__immutable_<name>`. Constructor initialization is prepended automatically in the generated compilation-model constructor, and runtime functions load those slots into local bindings before the user body runs. Function parameters still shadow immutable names normally, and contracts with `immutables` but no explicit `constructor` receive a synthetic zero-argument constructor that seeds the immutable slots.
+
+The current surface supports `Uint256` and `Address` immutables only. That keeps the executable fallback and the compilation model aligned without pretending the repository already has native bytecode-embedded immutable lowering.
+
 ## Low-Level Log Surface
 
 `verity_contract` bodies can emit low-level runtime-dependent logs directly:

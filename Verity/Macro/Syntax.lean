@@ -9,6 +9,7 @@ declare_syntax_cat verityStructMember
 declare_syntax_cat verityParam
 declare_syntax_cat verityError
 declare_syntax_cat verityConstant
+declare_syntax_cat verityImmutable
 declare_syntax_cat verityConstructor
 declare_syntax_cat verityFunction
 
@@ -20,6 +21,7 @@ syntax "MappingStruct2(" term "," term "," "[" sepBy(verityStructMember, ",") "]
 syntax ident " : " term : verityParam
 syntax "error " ident "(" sepBy(term, ",") ")" : verityError
 syntax ident " : " term:max " := " term:max : verityConstant
+syntax ident " : " term:max " := " term:max : verityImmutable
 syntax "revert " ident "(" sepBy(term, ",") ")" : doElem
 syntax "revertError " ident "(" sepBy(term, ",") ")" : doElem
 syntax "requireError " term:max ppSpace ident "(" sepBy(term, ",") ")" : doElem
@@ -34,6 +36,7 @@ syntax (name := verityContractCmd)
   "storage " verityStorageField*
   ("errors " verityError+)?
   ("constants " verityConstant+)?
+  ("immutables " verityImmutable+)?
   (verityConstructor)?
   verityFunction+ : command
 

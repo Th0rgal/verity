@@ -98,6 +98,29 @@ verity_contract ConstantSmoke where
   function treasuryAddr () : Address := do
     return treasury
 
+verity_contract ImmutableSmoke where
+  storage
+    owner : Address := slot 0
+
+  constants
+    offset : Uint256 := 2
+
+  immutables
+    seededSupply : Uint256 := (add seed offset)
+    treasury : Address := ownerSeed
+
+  constructor (seed : Uint256, ownerSeed : Address) := do
+    setStorageAddr owner ownerSeed
+
+  function supplyCap () : Uint256 := do
+    return seededSupply
+
+  function treasuryAddr () : Address := do
+    return treasury
+
+  function shadowed (seededSupply : Uint256) : Uint256 := do
+    return seededSupply
+
 verity_contract InitializerSmoke where
   storage
     initializedVersion : Uint256 := slot 0
@@ -146,6 +169,20 @@ verity_contract ConstantRuntimeBuiltinRejected where
   function seeded () : Uint256 := do
     return seededAt
 end ConstantRuntimeBuiltinRejected
+
+/--
+error: contract immutables currently support only Uint256 and Address; 'paused' uses unsupported type
+-/
+#guard_msgs in
+verity_contract ImmutableTypeRejected where
+  storage
+
+  immutables
+    paused : Bool := true
+
+  function isPaused () : Bool := do
+    return paused
+end ImmutableTypeRejected
 
 verity_contract TupleSmoke where
   storage

@@ -70,6 +70,12 @@ structure ConstantDecl where
   ty : ValueType
   body : Term
 
+structure ImmutableDecl where
+  ident : Ident
+  name : String
+  ty : ValueType
+  body : Term
+
 inductive InitGuardDecl where
   | initializer (fieldIdent : Ident) (fieldName : String)
   | reinitializer (fieldIdent : Ident) (fieldName : String) (version : Nat)
@@ -318,6 +324,17 @@ private def parseConstant (stx : Syntax) : CommandElabM ConstantDecl := do
       }
   | _ => throwErrorAt stx "invalid constant declaration"
 
+private def parseImmutable (stx : Syntax) : CommandElabM ImmutableDecl := do
+  match stx with
+  | `(verityImmutable| $name:ident : $ty:term := $body:term) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        ty := ← valueTypeFromSyntax ty
+        body := body
+      }
+  | _ => throwErrorAt stx "invalid immutable declaration"
+
 private def parseFunction (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
   | `(verityFunction| function $name:ident ($[$params:verityParam],*) initializer($field:ident) : $retTy:term := $body:term) =>
@@ -365,6 +382,37 @@ private def parseConstructor (stx : Syntax) : CommandElabM ConstructorDecl := do
         body := body
       }
   | _ => throwErrorAt stx "invalid constructor declaration"
+
+private def immutableHiddenName (imm : ImmutableDecl) : String :=
+  s!"__immutable_{imm.name}"
+
+private def immutableSlotIndex (fields : Array StorageFieldDecl) (idx : Nat) : Nat :=
+  let nextUserSlot := fields.foldl (fun maxSlot field => max maxSlot (field.slotNum + 1)) 0
+  nextUserSlot + idx
+
+private def immutableSlotIdent (imm : ImmutableDecl) : Ident :=
+  mkIdent (Name.mkSimple s!"__verity_immutable_slot_{imm.name}")
+
+def immutableStorageFieldDecl
+    (fields : Array StorageFieldDecl)
+    (imm : ImmutableDecl)
+    (idx : Nat) : StorageFieldDecl :=
+  {
+    ident := immutableSlotIdent imm
+    name := immutableHiddenName imm
+    ty := match imm.ty with
+      | .uint256 => .scalar .uint256
+      | .address => .scalar .address
+      | _ => .scalar imm.ty
+    slotNum := immutableSlotIndex fields idx
+  }
+
+private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
+  match imm.ty with
+  | .uint256 | .address => pure ()
+  | _ =>
+      throwErrorAt imm.ident
+        s!"contract immutables currently support only Uint256 and Address; '{imm.name}' uses unsupported type"
 
 private partial def stripParens (stx : Term) : Term :=
   match stx with
@@ -483,6 +531,24 @@ private def mkInitGuardedBody
                   setStorage $field.ident $(initGuardVersionTerm version)
                   $[$elems:doElem]*)
       | _ => throwErrorAt fn.body "function body must be a do block"
+
+private def mkImmutableBoundBody
+    (fields : Array StorageFieldDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (fn : FunctionDecl)
+    (body : Term) : CommandElabM Term := do
+  let visibleImmutables := immutableDecls.filter fun imm =>
+    !fn.params.any (fun p => p.name == imm.name)
+  match body with
+  | `(term| do $[$elems:doElem]*) =>
+      let preludeElems ← visibleImmutables.zipIdx.mapM fun (imm, idx) => do
+        let slotField := immutableStorageFieldDecl fields imm idx
+        match imm.ty with
+        | .uint256 => `(doElem| let $(imm.ident) ← getStorage $(slotField.ident))
+        | .address => `(doElem| let $(imm.ident) ← getStorageAddr $(slotField.ident))
+        | _ => throwErrorAt imm.ident s!"immutable '{imm.name}' uses unsupported type"
+      `(do $[$preludeElems:doElem]* $[$elems:doElem]*)
+  | _ => throwErrorAt body "function body must be a do block"
 
 private def expectStringLiteral (stx : Term) : CommandElabM String :=
   match (stripParens stx).raw.isStrLit? with
@@ -680,6 +746,7 @@ private partial def validateConstantBody
 private partial def translateConstantExpr
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (visiting : List String)
     (name : String) : CommandElabM Term := do
   match constDecls.find? (fun c => c.name == name) with
@@ -687,11 +754,12 @@ private partial def translateConstantExpr
   | some constant =>
       if visiting.contains name then
         throwError s!"constant '{name}' depends on itself recursively"
-      translatePureExpr fields constDecls #[] #[] constant.body (name :: visiting)
+      translatePureExpr fields constDecls immutableDecls #[] #[] constant.body (name :: visiting)
 
 partial def translatePureExpr
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (stx : Term)
@@ -714,129 +782,134 @@ partial def translatePureExpr
         `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| isZeroAddress $a:term) =>
       `(Compiler.CompilationModel.Expr.eq
-          $(← translatePureExpr fields constDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
           (Compiler.CompilationModel.Expr.literal 0))
-  | `(term| wordToAddress $a:term) => translatePureExpr fields constDecls params locals a visitingConstants
-  | `(term| addressToWord $a:term) => translatePureExpr fields constDecls params locals a visitingConstants
+  | `(term| wordToAddress $a:term) => translatePureExpr fields constDecls immutableDecls params locals a visitingConstants
+  | `(term| addressToWord $a:term) => translatePureExpr fields constDecls immutableDecls params locals a visitingConstants
   | `(term| boolToWord $a:term) =>
       `(Compiler.CompilationModel.Expr.ite
-          $(← translatePureExpr fields constDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
           (Compiler.CompilationModel.Expr.literal 1)
           (Compiler.CompilationModel.Expr.literal 0))
   | `(term| $id:ident) =>
       let name := toString id.getId
       if params.any (fun p => p.name == name) || isTupleComponentRef params name || locals.contains name then
         lookupVarExpr params locals name
+      else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
+        match imm.ty with
+        | .uint256 => `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
+        | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
+        | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
       else
-        translateConstantExpr fields constDecls visitingConstants name
+        translateConstantExpr fields constDecls immutableDecls visitingConstants name
   | `(term| $n:num) => `(Compiler.CompilationModel.Expr.literal $n)
-  | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| mul $a $b) => `(Compiler.CompilationModel.Expr.mul $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| div $a $b) => `(Compiler.CompilationModel.Expr.div $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| mod $a $b) => `(Compiler.CompilationModel.Expr.mod $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| bitAnd $a $b) => `(Compiler.CompilationModel.Expr.bitAnd $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| bitOr $a $b) => `(Compiler.CompilationModel.Expr.bitOr $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| bitXor $a $b) => `(Compiler.CompilationModel.Expr.bitXor $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| bitNot $a) => `(Compiler.CompilationModel.Expr.bitNot $(← translatePureExpr fields constDecls params locals a visitingConstants))
-  | `(term| shl $shift $value) => `(Compiler.CompilationModel.Expr.shl $(← translatePureExpr fields constDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls params locals value visitingConstants))
-  | `(term| shr $shift $value) => `(Compiler.CompilationModel.Expr.shr $(← translatePureExpr fields constDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls params locals value visitingConstants))
-  | `(term| $a == $b) => `(Compiler.CompilationModel.Expr.eq $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
+  | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| mul $a $b) => `(Compiler.CompilationModel.Expr.mul $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| div $a $b) => `(Compiler.CompilationModel.Expr.div $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| mod $a $b) => `(Compiler.CompilationModel.Expr.mod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| bitAnd $a $b) => `(Compiler.CompilationModel.Expr.bitAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| bitOr $a $b) => `(Compiler.CompilationModel.Expr.bitOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| bitXor $a $b) => `(Compiler.CompilationModel.Expr.bitXor $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| bitNot $a) => `(Compiler.CompilationModel.Expr.bitNot $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants))
+  | `(term| shl $shift $value) => `(Compiler.CompilationModel.Expr.shl $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
+  | `(term| shr $shift $value) => `(Compiler.CompilationModel.Expr.shr $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
+  | `(term| $a == $b) => `(Compiler.CompilationModel.Expr.eq $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a != $b) =>
       `(Compiler.CompilationModel.Expr.logicalNot
           (Compiler.CompilationModel.Expr.eq
-            $(← translatePureExpr fields constDecls params locals a visitingConstants)
-            $(← translatePureExpr fields constDecls params locals b visitingConstants)))
-  | `(term| $a >= $b) => `(Compiler.CompilationModel.Expr.ge $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| $a > $b) => `(Compiler.CompilationModel.Expr.gt $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| $a < $b) => `(Compiler.CompilationModel.Expr.lt $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| $a <= $b) => `(Compiler.CompilationModel.Expr.le $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| $a && $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| $a || $b) => `(Compiler.CompilationModel.Expr.logicalOr $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| logicalAnd $a $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| logicalOr $a $b) => `(Compiler.CompilationModel.Expr.logicalOr $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| logicalNot $a) => `(Compiler.CompilationModel.Expr.logicalNot $(← translatePureExpr fields constDecls params locals a visitingConstants))
-  | `(term| and $a $b) => `(Compiler.CompilationModel.Expr.bitAnd $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| or $a $b) => `(Compiler.CompilationModel.Expr.bitOr $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| xor $a $b) => `(Compiler.CompilationModel.Expr.bitXor $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| not $a) => `(Compiler.CompilationModel.Expr.bitNot $(← translatePureExpr fields constDecls params locals a visitingConstants))
+            $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+            $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
+  | `(term| $a >= $b) => `(Compiler.CompilationModel.Expr.ge $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a > $b) => `(Compiler.CompilationModel.Expr.gt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a < $b) => `(Compiler.CompilationModel.Expr.lt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a <= $b) => `(Compiler.CompilationModel.Expr.le $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a && $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a || $b) => `(Compiler.CompilationModel.Expr.logicalOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| logicalAnd $a $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| logicalOr $a $b) => `(Compiler.CompilationModel.Expr.logicalOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| logicalNot $a) => `(Compiler.CompilationModel.Expr.logicalNot $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants))
+  | `(term| and $a $b) => `(Compiler.CompilationModel.Expr.bitAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| or $a $b) => `(Compiler.CompilationModel.Expr.bitOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| xor $a $b) => `(Compiler.CompilationModel.Expr.bitXor $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| not $a) => `(Compiler.CompilationModel.Expr.bitNot $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants))
   | `(term| mload $offset) =>
       `(Compiler.CompilationModel.Expr.mload
-          $(← translatePureExpr fields constDecls params locals offset visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset visitingConstants))
   | `(term| tload $offset) =>
       `(Compiler.CompilationModel.Expr.tload
-          $(← translatePureExpr fields constDecls params locals offset visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset visitingConstants))
   | `(term| calldataload $offset) =>
       `(Compiler.CompilationModel.Expr.calldataload
-          $(← translatePureExpr fields constDecls params locals offset visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset visitingConstants))
   | `(term| extcodesize $addr) =>
       `(Compiler.CompilationModel.Expr.extcodesize
-          $(← translatePureExpr fields constDecls params locals addr visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals addr visitingConstants))
   | `(term| keccak256 $offset $size) =>
       `(Compiler.CompilationModel.Expr.keccak256
-          $(← translatePureExpr fields constDecls params locals offset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals size visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals size visitingConstants))
   | `(term| call $gas $target $value $inOffset $inSize $outOffset $outSize) =>
       `(Compiler.CompilationModel.Expr.call
-          $(← translatePureExpr fields constDecls params locals gas visitingConstants)
-          $(← translatePureExpr fields constDecls params locals target visitingConstants)
-          $(← translatePureExpr fields constDecls params locals value visitingConstants)
-          $(← translatePureExpr fields constDecls params locals inOffset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals inSize visitingConstants)
-          $(← translatePureExpr fields constDecls params locals outOffset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals outSize visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals gas visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals target visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals inOffset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals inSize visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals outOffset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals outSize visitingConstants))
   | `(term| staticcall $gas $target $inOffset $inSize $outOffset $outSize) =>
       `(Compiler.CompilationModel.Expr.staticcall
-          $(← translatePureExpr fields constDecls params locals gas visitingConstants)
-          $(← translatePureExpr fields constDecls params locals target visitingConstants)
-          $(← translatePureExpr fields constDecls params locals inOffset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals inSize visitingConstants)
-          $(← translatePureExpr fields constDecls params locals outOffset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals outSize visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals gas visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals target visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals inOffset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals inSize visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals outOffset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals outSize visitingConstants))
   | `(term| delegatecall $gas $target $inOffset $inSize $outOffset $outSize) =>
       `(Compiler.CompilationModel.Expr.delegatecall
-          $(← translatePureExpr fields constDecls params locals gas visitingConstants)
-          $(← translatePureExpr fields constDecls params locals target visitingConstants)
-          $(← translatePureExpr fields constDecls params locals inOffset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals inSize visitingConstants)
-          $(← translatePureExpr fields constDecls params locals outOffset visitingConstants)
-          $(← translatePureExpr fields constDecls params locals outSize visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals gas visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals target visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals inOffset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals inSize visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals outOffset visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals outSize visitingConstants))
   | `(term| arrayLength $name:term) =>
       `(Compiler.CompilationModel.Expr.arrayLength $(strTerm (← expectStringOrIdent name)))
   | `(term| arrayElement $name:term $index:term) =>
       `(Compiler.CompilationModel.Expr.arrayElement
           $(strTerm (← expectStringOrIdent name))
-          $(← translatePureExpr fields constDecls params locals index visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals index visitingConstants))
   | `(term| mulDivDown $a $b $c) =>
       `(Compiler.CompilationModel.Expr.mulDivDown
-          $(← translatePureExpr fields constDecls params locals a visitingConstants)
-          $(← translatePureExpr fields constDecls params locals b visitingConstants)
-          $(← translatePureExpr fields constDecls params locals c visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals c visitingConstants))
   | `(term| mulDivUp $a $b $c) =>
       `(Compiler.CompilationModel.Expr.mulDivUp
-          $(← translatePureExpr fields constDecls params locals a visitingConstants)
-          $(← translatePureExpr fields constDecls params locals b visitingConstants)
-          $(← translatePureExpr fields constDecls params locals c visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals c visitingConstants))
   | `(term| wMulDown $a $b) =>
       `(Compiler.CompilationModel.Expr.wMulDown
-          $(← translatePureExpr fields constDecls params locals a visitingConstants)
-          $(← translatePureExpr fields constDecls params locals b visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| wDivUp $a $b) =>
       `(Compiler.CompilationModel.Expr.wDivUp
-          $(← translatePureExpr fields constDecls params locals a visitingConstants)
-          $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| min $a $b) => `(Compiler.CompilationModel.Expr.min $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
-  | `(term| max $a $b) => `(Compiler.CompilationModel.Expr.max $(← translatePureExpr fields constDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls params locals b visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| min $a $b) => `(Compiler.CompilationModel.Expr.min $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| max $a $b) => `(Compiler.CompilationModel.Expr.max $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| ite $cond $thenVal $elseVal) =>
       `(Compiler.CompilationModel.Expr.ite
-          $(← translatePureExpr fields constDecls params locals cond visitingConstants)
-          $(← translatePureExpr fields constDecls params locals thenVal visitingConstants)
-          $(← translatePureExpr fields constDecls params locals elseVal visitingConstants))
+          $(← translatePureExpr fields constDecls immutableDecls params locals cond visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals thenVal visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals elseVal visitingConstants))
   | `(term| externalCall $name:term $args:term) =>
       let extName := ← expectStringOrIdent name
       let argsExprs ←
         match stripParens args with
-        | `(term| [ $[$xs],* ]) => xs.mapM (fun x => translatePureExpr fields constDecls params locals x visitingConstants)
+        | `(term| [ $[$xs],* ]) => xs.mapM (fun x => translatePureExpr fields constDecls immutableDecls params locals x visitingConstants)
         | _ => throwErrorAt args "expected list literal [..]"
       `(Compiler.CompilationModel.Expr.externalCall $(strTerm extName) [ $[$argsExprs],* ])
   | `(term| structMember $field:term $key:term $member:term) =>
@@ -845,7 +918,7 @@ partial def translatePureExpr
       let _ ← lookupStructMemberDecl fields fieldName memberName false
       `(Compiler.CompilationModel.Expr.structMember
           $(strTerm fieldName)
-          $(← translatePureExpr fields constDecls params locals key visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key visitingConstants)
           $(strTerm memberName))
   | `(term| structMember2 $field:term $key1:term $key2:term $member:term) =>
       let fieldName := ← expectStringOrIdent field
@@ -853,8 +926,8 @@ partial def translatePureExpr
       let _ ← lookupStructMemberDecl fields fieldName memberName true
       `(Compiler.CompilationModel.Expr.structMember2
           $(strTerm fieldName)
-          $(← translatePureExpr fields constDecls params locals key1 visitingConstants)
-          $(← translatePureExpr fields constDecls params locals key2 visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key1 visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key2 visitingConstants)
           $(strTerm memberName))
   | _ => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 end
@@ -862,6 +935,7 @@ end
 private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term) : CommandElabM (Option (Array Term)) := do
@@ -874,7 +948,7 @@ private def tupleLiteralOrStructValueExprs?
           let _ ← lookupStructMemberDecl fields fieldName memberName false
           `(Compiler.CompilationModel.Expr.structMember
               $(strTerm fieldName)
-              $(← translatePureExpr fields constDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
               $(strTerm memberName))
         pure (some exprs)
     | `(term| structMembers2 $field:term $key1:term $key2:term $members:term) => do
@@ -884,24 +958,25 @@ private def tupleLiteralOrStructValueExprs?
           let _ ← lookupStructMemberDecl fields fieldName memberName true
           `(Compiler.CompilationModel.Expr.structMember2
               $(strTerm fieldName)
-              $(← translatePureExpr fields constDecls params locals key1)
-              $(← translatePureExpr fields constDecls params locals key2)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key1)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key2)
               $(strTerm memberName))
         pure (some exprs)
     | _ => pure none
   match tupleElemsFromTerm? rhs with
   | some elems =>
-      pure (some (← elems.mapM (translatePureExpr fields constDecls params locals)))
+      pure (some (← elems.mapM (translatePureExpr fields constDecls immutableDecls params locals)))
   | none =>
       structValueExprs?
 
 private def tupleValueExprs
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term) : CommandElabM (Array Term) := do
-  match (← tupleLiteralOrStructValueExprs? fields constDecls params locals rhs) with
+  match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
   | some exprs => pure exprs
   | none =>
       match stripParens rhs with
@@ -915,10 +990,11 @@ private def tupleValueExprs
 private def tupleReturnValueExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term) : CommandElabM (Option (Array Term)) := do
-  match (← tupleLiteralOrStructValueExprs? fields constDecls params locals rhs) with
+  match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
   | some exprs => pure (some exprs)
   | none =>
       match stripParens rhs with
@@ -930,6 +1006,7 @@ private def tupleReturnValueExprs?
 private def tupleInternalCallAssignStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term)
@@ -951,7 +1028,7 @@ private def tupleInternalCallAssignStmt?
       match args.getD 0 Syntax.missing with
       | .ident _ raw _ _ =>
           let argExprs ← (args.getD 1 Syntax.missing).getArgs.mapM
-            (translatePureExpr fields constDecls params locals ∘ fun syn => ⟨syn⟩)
+            (translatePureExpr fields constDecls immutableDecls params locals ∘ fun syn => ⟨syn⟩)
           pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
             [ $[$resultNameTerms],* ]
             $(strTerm raw.toString)
@@ -969,17 +1046,19 @@ private def tupleInternalCallAssignStmt?
 private def expectExprList
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (stx : Term) : CommandElabM (Array Term) := do
   match stripParens stx with
   | `(term| [ $[$xs],* ]) =>
-      xs.mapM (translatePureExpr fields constDecls params locals)
+      xs.mapM (translatePureExpr fields constDecls immutableDecls params locals)
   | _ => throwErrorAt stx "expected list literal [..]"
 
 private def translateBindSource
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term) : CommandElabM Term := do
@@ -1009,9 +1088,9 @@ private def translateBindSource
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .mappingAddressToUint256 =>
-          `(Compiler.CompilationModel.Expr.mapping $(strTerm f.name) $(← translatePureExpr fields constDecls params locals key))
+          `(Compiler.CompilationModel.Expr.mapping $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals key))
       | .mappingUintToUint256 =>
-          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr fields constDecls params locals key))
+          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals key))
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
@@ -1021,7 +1100,7 @@ private def translateBindSource
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .mappingAddressToUint256 =>
-          `(Compiler.CompilationModel.Expr.mapping $(strTerm f.name) $(← translatePureExpr fields constDecls params locals key))
+          `(Compiler.CompilationModel.Expr.mapping $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals key))
       | .mappingUintToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is Uint256-keyed; use getMappingUintAddr"
       | .mapping2AddressToAddressToUint256 =>
@@ -1033,7 +1112,7 @@ private def translateBindSource
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .mappingUintToUint256 =>
-          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr fields constDecls params locals key))
+          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals key))
       | .mappingAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is Address-keyed; use getMapping"
       | .mapping2AddressToAddressToUint256 =>
@@ -1045,7 +1124,7 @@ private def translateBindSource
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .mappingUintToUint256 =>
-          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr fields constDecls params locals key))
+          `(Compiler.CompilationModel.Expr.mappingUint $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals key))
       | .mappingAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is Address-keyed; use getMappingAddr"
       | .mapping2AddressToAddressToUint256 =>
@@ -1059,7 +1138,7 @@ private def translateBindSource
       | .mappingAddressToUint256 | .mappingUintToUint256 =>
           `(Compiler.CompilationModel.Expr.mappingWord
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
               $wordOffset)
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2Word"
@@ -1074,8 +1153,8 @@ private def translateBindSource
       | .mapping2AddressToAddressToUint256 =>
           `(Compiler.CompilationModel.Expr.mapping2
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key1)
-              $(← translatePureExpr fields constDecls params locals key2))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key1)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key2))
       | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a nested struct mapping; use structMember2"
       | .mappingStruct _ _ =>
@@ -1087,7 +1166,7 @@ private def translateBindSource
       let _ ← lookupStructMemberDecl fields fieldName memberName false
       `(Compiler.CompilationModel.Expr.structMember
           $(strTerm fieldName)
-          $(← translatePureExpr fields constDecls params locals key)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key)
           $(strTerm memberName))
   | `(term| structMember2 $field:term $key1:term $key2:term $member:term) =>
       let fieldName := ← expectStringOrIdent field
@@ -1095,13 +1174,13 @@ private def translateBindSource
       let _ ← lookupStructMemberDecl fields fieldName memberName true
       `(Compiler.CompilationModel.Expr.structMember2
           $(strTerm fieldName)
-          $(← translatePureExpr fields constDecls params locals key1)
-          $(← translatePureExpr fields constDecls params locals key2)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key1)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key2)
           $(strTerm memberName))
   | `(term| msgSender) => `(Compiler.CompilationModel.Expr.caller)
   | `(term| tload $offset:term) =>
       `(Compiler.CompilationModel.Expr.tload
-          $(← translatePureExpr fields constDecls params locals offset))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset))
   | _ =>
       throwErrorAt rhs
         "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/structMember/structMember2/msgSender/tload/ecrecover"
@@ -1109,6 +1188,7 @@ private def translateBindSource
 private def translateSafeRequireBind
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (varName : String)
@@ -1120,8 +1200,8 @@ private def translateSafeRequireBind
       let optExpr := stripParens optExpr
       match optExpr with
       | `(term| safeAdd $a:term $b:term) =>
-          let aExpr ← translatePureExpr fields constDecls params locals a
-          let bExpr ← translatePureExpr fields constDecls params locals b
+          let aExpr ← translatePureExpr fields constDecls immutableDecls params locals a
+          let bExpr ← translatePureExpr fields constDecls immutableDecls params locals b
           let valueExpr : Term ← `(Compiler.CompilationModel.Expr.add $aExpr $bExpr)
           let guardExpr : Term ← `(Compiler.CompilationModel.Expr.ge $valueExpr $aExpr)
           pure (some #[
@@ -1129,8 +1209,8 @@ private def translateSafeRequireBind
             (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $valueExpr))
           ])
       | `(term| safeSub $a:term $b:term) =>
-          let aExpr ← translatePureExpr fields constDecls params locals a
-          let bExpr ← translatePureExpr fields constDecls params locals b
+          let aExpr ← translatePureExpr fields constDecls immutableDecls params locals a
+          let bExpr ← translatePureExpr fields constDecls immutableDecls params locals b
           let valueExpr : Term ← `(Compiler.CompilationModel.Expr.sub $aExpr $bExpr)
           let guardExpr : Term ← `(Compiler.CompilationModel.Expr.ge $aExpr $bExpr)
           pure (some #[
@@ -1144,6 +1224,7 @@ private def translateSafeRequireBind
 private def translateEffectStmt
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (stx : Term) : CommandElabM Term := do
@@ -1153,25 +1234,25 @@ private def translateEffectStmt
       let f ← lookupStorageField fields (toString field.getId)
       if f.ty != .scalar .uint256 then
         throwErrorAt stx s!"field '{f.name}' is not Uint256; use setStorageAddr"
-      `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExpr fields constDecls params locals value))
+      `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals value))
   | `(term| setStorageAddr $field:ident $value) =>
       let f ← lookupStorageField fields (toString field.getId)
       if f.ty != .scalar .address then
         throwErrorAt stx s!"field '{f.name}' is not Address; use setStorage"
-      `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm f.name) $(← translatePureExpr fields constDecls params locals value))
+      `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm f.name) $(← translatePureExpr fields constDecls immutableDecls params locals value))
   | `(term| setMapping $field:ident $key:term $value:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .mappingAddressToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMapping
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mappingUintToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMappingUint
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
@@ -1183,8 +1264,8 @@ private def translateEffectStmt
       | .mappingAddressToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMapping
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mappingUintToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is Uint256-keyed; use setMappingUintAddr"
       | .mapping2AddressToAddressToUint256 =>
@@ -1198,8 +1279,8 @@ private def translateEffectStmt
       | .mappingUintToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMappingUint
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mappingAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is Address-keyed; use setMapping"
       | .mapping2AddressToAddressToUint256 =>
@@ -1213,8 +1294,8 @@ private def translateEffectStmt
       | .mappingUintToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMappingUint
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mappingAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is Address-keyed; use setMappingAddr"
       | .mapping2AddressToAddressToUint256 =>
@@ -1228,9 +1309,9 @@ private def translateEffectStmt
       | .mappingAddressToUint256 | .mappingUintToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMappingWord
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key)
               $wordOffset
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mapping2AddressToAddressToUint256 =>
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2Word"
       | .mappingStruct _ _ =>
@@ -1244,9 +1325,9 @@ private def translateEffectStmt
       | .mapping2AddressToAddressToUint256 =>
           `(Compiler.CompilationModel.Stmt.setMapping2
               $(strTerm f.name)
-              $(← translatePureExpr fields constDecls params locals key1)
-              $(← translatePureExpr fields constDecls params locals key2)
-              $(← translatePureExpr fields constDecls params locals value))
+              $(← translatePureExpr fields constDecls immutableDecls params locals key1)
+              $(← translatePureExpr fields constDecls immutableDecls params locals key2)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
       | .mappingStruct2 _ _ _ =>
           throwErrorAt stx s!"field '{f.name}' is a nested struct mapping; use setStructMember2"
       | .mappingStruct _ _ =>
@@ -1254,30 +1335,30 @@ private def translateEffectStmt
       | _ => throwErrorAt stx s!"field '{f.name}' is not a double mapping"
   | `(term| require $cond $msg) =>
       `(Compiler.CompilationModel.Stmt.require
-          $(← translatePureExpr fields constDecls params locals cond)
+          $(← translatePureExpr fields constDecls immutableDecls params locals cond)
           $(strTerm (← expectStringLiteral msg)))
   | `(term| mstore $offset:term $value:term) =>
       `(Compiler.CompilationModel.Stmt.mstore
-          $(← translatePureExpr fields constDecls params locals offset)
-          $(← translatePureExpr fields constDecls params locals value))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals value))
   | `(term| tstore $offset:term $value:term) =>
       `(Compiler.CompilationModel.Stmt.tstore
-          $(← translatePureExpr fields constDecls params locals offset)
-          $(← translatePureExpr fields constDecls params locals value))
+          $(← translatePureExpr fields constDecls immutableDecls params locals offset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals value))
   | `(term| calldatacopy $destOffset:term $sourceOffset:term $size:term) =>
       `(Compiler.CompilationModel.Stmt.calldatacopy
-          $(← translatePureExpr fields constDecls params locals destOffset)
-          $(← translatePureExpr fields constDecls params locals sourceOffset)
-          $(← translatePureExpr fields constDecls params locals size))
+          $(← translatePureExpr fields constDecls immutableDecls params locals destOffset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals sourceOffset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals size))
   | `(term| returndataCopy $destOffset:term $sourceOffset:term $size:term) =>
       `(Compiler.CompilationModel.Stmt.returndataCopy
-          $(← translatePureExpr fields constDecls params locals destOffset)
-          $(← translatePureExpr fields constDecls params locals sourceOffset)
-          $(← translatePureExpr fields constDecls params locals size))
+          $(← translatePureExpr fields constDecls immutableDecls params locals destOffset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals sourceOffset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals size))
   | `(term| revertReturndata) =>
       `(Compiler.CompilationModel.Stmt.revertReturndata)
   | `(term| returnValues $values:term) =>
-      let valueExprs ← expectExprList fields constDecls params locals values
+      let valueExprs ← expectExprList fields constDecls immutableDecls params locals values
       `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ])
   | `(term| returnArray $name:term) =>
       `(Compiler.CompilationModel.Stmt.returnArray $(strTerm (← expectStringOrIdent name)))
@@ -1287,23 +1368,23 @@ private def translateEffectStmt
       `(Compiler.CompilationModel.Stmt.returnStorageWords $(strTerm (← expectStringOrIdent name)))
   | `(term| emit $eventName:term $args:term) =>
       let evName := ← expectStringOrIdent eventName
-      let argExprs ← expectExprList fields constDecls params locals args
+      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
       `(Compiler.CompilationModel.Stmt.emit $(strTerm evName) [ $[$argExprs],* ])
   | `(term| rawLog $topics:term $dataOffset:term $dataSize:term) =>
-      let topicExprs ← expectExprList fields constDecls params locals topics
+      let topicExprs ← expectExprList fields constDecls immutableDecls params locals topics
       `(Compiler.CompilationModel.Stmt.rawLog
           [ $[$topicExprs],* ]
-          $(← translatePureExpr fields constDecls params locals dataOffset)
-          $(← translatePureExpr fields constDecls params locals dataSize))
+          $(← translatePureExpr fields constDecls immutableDecls params locals dataOffset)
+          $(← translatePureExpr fields constDecls immutableDecls params locals dataSize))
   | `(term| internalCall $fnName:term $args:term) =>
       let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls params locals args
+      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
       `(Compiler.CompilationModel.Stmt.internalCall $(strTerm targetFn) [ $[$argExprs],* ])
   | `(term| internalCallAssign $names:term $fnName:term $args:term) =>
       let resultNames := ← expectStringList names
       let resultNameTerms := resultNames.map strTerm
       let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls params locals args
+      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
       `(Compiler.CompilationModel.Stmt.internalCallAssign
           [ $[$resultNameTerms],* ]
           $(strTerm targetFn)
@@ -1312,7 +1393,7 @@ private def translateEffectStmt
       let resultNames := ← expectStringList names
       let resultNameTerms := resultNames.map strTerm
       let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls params locals args
+      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
       `(Compiler.CompilationModel.Stmt.externalCallBind
           [ $[$resultNameTerms],* ]
           $(strTerm targetFn)
@@ -1323,25 +1404,26 @@ private def translateEffectStmt
       let _ ← lookupStructMemberDecl fields fieldName memberName false
       `(Compiler.CompilationModel.Stmt.setStructMember
           $(strTerm fieldName)
-          $(← translatePureExpr fields constDecls params locals key)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key)
           $(strTerm memberName)
-          $(← translatePureExpr fields constDecls params locals value))
+          $(← translatePureExpr fields constDecls immutableDecls params locals value))
   | `(term| setStructMember2 $field:term $key1:term $key2:term $member:term $value:term) =>
       let fieldName := ← expectStringOrIdent field
       let memberName := ← expectStringOrIdent member
       let _ ← lookupStructMemberDecl fields fieldName memberName true
       `(Compiler.CompilationModel.Stmt.setStructMember2
           $(strTerm fieldName)
-          $(← translatePureExpr fields constDecls params locals key1)
-          $(← translatePureExpr fields constDecls params locals key2)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key1)
+          $(← translatePureExpr fields constDecls immutableDecls params locals key2)
           $(strTerm memberName)
-          $(← translatePureExpr fields constDecls params locals value))
+          $(← translatePureExpr fields constDecls immutableDecls params locals value))
   | _ => throwErrorAt stx "unsupported statement in do block"
 
 mutual
 private partial def translateDoElems
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (mutableLocals : Array String)
@@ -1351,7 +1433,7 @@ private partial def translateDoElems
   let mut stmts : Array Term := #[]
   for elem in elems do
     let (newStmts, newLocals, newMutableLocals) ←
-      translateDoElem fields constDecls params branchLocals branchMutableLocals elem
+      translateDoElem fields constDecls immutableDecls params branchLocals branchMutableLocals elem
     stmts := stmts ++ newStmts
     branchLocals := newLocals
     branchMutableLocals := newMutableLocals
@@ -1360,18 +1442,20 @@ private partial def translateDoElems
 private partial def translateDoSeqToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (mutableLocals : Array String)
     (doSeq : DoSeq) : CommandElabM (Array Term) := do
   match doSeq with
   | `(doSeq| $[$elems:doElem]*) =>
-      pure (← (translateDoElems fields constDecls params locals mutableLocals elems)).1
+      pure (← (translateDoElems fields constDecls immutableDecls params locals mutableLocals elems)).1
   | _ => throwErrorAt doSeq "unsupported branch body; expected do-sequence"
 
 private partial def translateDoElem
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (mutableLocals : Array String)
@@ -1398,12 +1482,12 @@ private partial def translateDoElem
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
                   pure (some (stmts, locals ++ (boundPairs.map (·.1)), mutableLocals))
               | none =>
-                      match (← tupleInternalCallAssignStmt? fields constDecls params locals rhs names) with
+                      match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls params locals rhs names) with
                   | some stmt =>
                       pure (some (#[(stmt)], locals ++ (names.filterMap (fun x => x)), mutableLocals))
                   | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, or internal helper call"
           | _ =>
-              match (← tupleLiteralOrStructValueExprs? fields constDecls params locals rhs) with
+              match (← tupleLiteralOrStructValueExprs? fields constDecls immutableDecls params locals rhs) with
               | some valueExprs =>
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
@@ -1413,11 +1497,11 @@ private partial def translateDoElem
                     `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
                   pure (some (stmts, locals ++ (boundPairs.map (·.1)), mutableLocals))
               | none =>
-                match (← tupleInternalCallAssignStmt? fields constDecls params locals rhs names) with
+                match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls params locals rhs names) with
                 | some stmt =>
                     pure (some (#[(stmt)], locals ++ (names.filterMap (fun x => x)), mutableLocals))
                 | none =>
-                  let valueExprs ← tupleValueExprs fields constDecls params locals rhs
+                  let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
                   if names.size != valueExprs.size then
                     throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
                   let boundPairs := (names.zip valueExprs).filterMap fun (name?, valueExpr) =>
@@ -1432,7 +1516,7 @@ private partial def translateDoElem
       | some names =>
           ensureFreshLocalNames locals names stx
           let rhs : Term := ⟨patDecl[2][0]⟩
-          match (← tupleInternalCallAssignStmt? fields constDecls params locals rhs names) with
+          match (← tupleInternalCallAssignStmt? fields constDecls immutableDecls params locals rhs names) with
           | some stmt =>
               pure (some (#[(stmt)], locals ++ (names.filterMap (fun x => x)), mutableLocals))
           | none => throwErrorAt rhs "tuple bind sources must be internal helper calls"
@@ -1446,7 +1530,7 @@ private partial def translateDoElem
           let varName := toString name.getId
           if locals.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
-          let rhsExpr ← translatePureExpr fields constDecls params locals rhs
+          let rhsExpr ← translatePureExpr fields constDecls immutableDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
               locals.push varName,
@@ -1455,7 +1539,7 @@ private partial def translateDoElem
           let varName := toString name.getId
           if locals.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
-          let rhsExpr ← translatePureExpr fields constDecls params locals rhs
+          let rhsExpr ← translatePureExpr fields constDecls immutableDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
               locals.push varName,
@@ -1466,10 +1550,10 @@ private partial def translateDoElem
             throwErrorAt name s!"duplicate local variable '{varName}'"
           match stripParens rhs with
           | `(term| ecrecover $hash:term $v:term $r:term $s:term) =>
-              let hashExpr ← translatePureExpr fields constDecls params locals hash
-              let vExpr ← translatePureExpr fields constDecls params locals v
-              let rExpr ← translatePureExpr fields constDecls params locals r
-              let sExpr ← translatePureExpr fields constDecls params locals s
+              let hashExpr ← translatePureExpr fields constDecls immutableDecls params locals hash
+              let vExpr ← translatePureExpr fields constDecls immutableDecls params locals v
+              let rExpr ← translatePureExpr fields constDecls immutableDecls params locals r
+              let sExpr ← translatePureExpr fields constDecls immutableDecls params locals s
               pure
                 (#[(← `(Compiler.CompilationModel.Stmt.ecm
                         (Compiler.Modules.Precompiles.ecrecoverModule $(strTerm varName))
@@ -1477,11 +1561,11 @@ private partial def translateDoElem
                   locals.push varName,
                   mutableLocals)
           | _ =>
-              let safeBind? ← translateSafeRequireBind fields constDecls params locals varName rhs
+              let safeBind? ← translateSafeRequireBind fields constDecls immutableDecls params locals varName rhs
               match safeBind? with
               | some safeStmts => pure (safeStmts, locals.push varName, mutableLocals)
               | none =>
-                  let rhsExpr ← translateBindSource fields constDecls params locals rhs
+                  let rhsExpr ← translateBindSource fields constDecls immutableDecls params locals rhs
                   pure
                     (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
                       locals.push varName,
@@ -1492,23 +1576,23 @@ private partial def translateDoElem
             throwErrorAt name s!"cannot assign unknown variable '{varName}'"
           if !mutableLocals.contains varName then
             throwErrorAt name s!"cannot assign immutable variable '{varName}'; declare it with 'let mut'"
-          let rhsExpr ← translatePureExpr fields constDecls params locals rhs
+          let rhsExpr ← translatePureExpr fields constDecls immutableDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.assignVar $(strTerm varName) $rhsExpr))],
               locals,
               mutableLocals)
       | `(doElem| return $value:term) =>
-          match (← tupleReturnValueExprs? fields constDecls params locals value) with
+          match (← tupleReturnValueExprs? fields constDecls immutableDecls params locals value) with
           | some valueExprs =>
               pure (#[(← `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ]))], locals, mutableLocals)
           | none =>
-              pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExpr fields constDecls params locals value)))], locals, mutableLocals)
+              pure (#[(← `(Compiler.CompilationModel.Stmt.return $(← translatePureExpr fields constDecls immutableDecls params locals value)))], locals, mutableLocals)
       | `(doElem| pure ()) =>
           pure (#[], locals, mutableLocals)
       | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
-          let condExpr ← translatePureExpr fields constDecls params locals cond
-          let thenStmts ← translateDoSeqToStmtTerms fields constDecls params locals mutableLocals thenBranch
-          let elseStmts ← translateDoSeqToStmtTerms fields constDecls params locals mutableLocals elseBranch
+          let condExpr ← translatePureExpr fields constDecls immutableDecls params locals cond
+          let thenStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls params locals mutableLocals thenBranch
+          let elseStmts ← translateDoSeqToStmtTerms fields constDecls immutableDecls params locals mutableLocals elseBranch
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.ite
               $condExpr
@@ -1518,11 +1602,11 @@ private partial def translateDoElem
               mutableLocals)
       | `(doElem| forEach $name:term $count:term $body:term) =>
           let loopVar := ← expectStringOrIdent name
-          let countExpr ← translatePureExpr fields constDecls params locals count
+          let countExpr ← translatePureExpr fields constDecls immutableDecls params locals count
           let bodyStmts ←
             match stripParens body with
             | `(term| do $[$inner:doElem]*) =>
-                pure (← (translateDoElems fields constDecls params (locals.push loopVar) mutableLocals inner)).1
+                pure (← (translateDoElems fields constDecls immutableDecls params (locals.push loopVar) mutableLocals inner)).1
             | _ => throwErrorAt body "forEach body must be a do block"
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.forEach
@@ -1532,16 +1616,16 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| requireError $cond:term $errorName:ident($args,*)) =>
-          let argExprs ← args.getElems.mapM (translatePureExpr fields constDecls params locals)
+          let argExprs ← args.getElems.mapM (translatePureExpr fields constDecls immutableDecls params locals)
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.requireError
-                    $(← translatePureExpr fields constDecls params locals cond)
+                    $(← translatePureExpr fields constDecls immutableDecls params locals cond)
                     $(strTerm (toString errorName.getId))
                     [ $[$argExprs],* ]))],
               locals,
               mutableLocals)
       | `(doElem| revert $errorName:ident($args,*)) =>
-          let argExprs ← args.getElems.mapM (translatePureExpr fields constDecls params locals)
+          let argExprs ← args.getElems.mapM (translatePureExpr fields constDecls immutableDecls params locals)
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.revertError
                     $(strTerm (toString errorName.getId))
@@ -1549,7 +1633,7 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| revertError $errorName:ident($args,*)) =>
-          let argExprs ← args.getElems.mapM (translatePureExpr fields constDecls params locals)
+          let argExprs ← args.getElems.mapM (translatePureExpr fields constDecls immutableDecls params locals)
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.revertError
                     $(strTerm (toString errorName.getId))
@@ -1557,18 +1641,19 @@ private partial def translateDoElem
               locals,
               mutableLocals)
       | `(doElem| $stmt:term) =>
-          pure (#[(← translateEffectStmt fields constDecls params locals stmt)], locals, mutableLocals)
+          pure (#[(← translateEffectStmt fields constDecls immutableDecls params locals stmt)], locals, mutableLocals)
       | _ => throwErrorAt elem "unsupported do element"
 end
 
 private def translateBodyToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (fn : FunctionDecl) : CommandElabM (Array Term) := do
   match fn.body with
   | `(term| do $[$elems:doElem]*) =>
       let guardPrelude ← initGuardPreludeStmtTerms fields fn
-      let stmts := guardPrelude ++ (← translateDoElems fields constDecls fn.params #[] #[] elems).1
+      let stmts := guardPrelude ++ (← translateDoElems fields constDecls immutableDecls fn.params #[] #[] elems).1
       let mut stmts := stmts
       if fn.returnTy == .unit then
         stmts := stmts.push (← `(Compiler.CompilationModel.Stmt.stop))
@@ -1578,11 +1663,28 @@ private def translateBodyToStmtTerms
 private def translateConstructorBodyToStmtTerms
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (ctor : ConstructorDecl) : CommandElabM (Array Term) := do
   match ctor.body with
   | `(term| do $[$elems:doElem]*) =>
-      pure (← (translateDoElems fields constDecls ctor.params #[] #[] elems)).1
+      pure (← (translateDoElems fields constDecls immutableDecls ctor.params #[] #[] elems)).1
   | _ => throwErrorAt ctor.body "constructor body must be a do block"
+
+private def immutableInitStmtTerms
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (ctorParams : Array ParamDecl) : CommandElabM (Array Term) := do
+  immutableDecls.zipIdx.mapM fun (imm, idx) => do
+    let slotField := immutableStorageFieldDecl fields imm idx
+    let valueExpr ← translatePureExpr fields constDecls #[] ctorParams #[] imm.body
+    match imm.ty with
+    | .uint256 =>
+        `(Compiler.CompilationModel.Stmt.setStorage $(strTerm slotField.name) $valueExpr)
+    | .address =>
+        `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm slotField.name) $valueExpr)
+    | _ =>
+        throwErrorAt imm.ident s!"immutable '{imm.name}' uses unsupported type"
 
 def mkSuffixedIdent (base : Ident) (suffix : String) : CommandElabM Ident :=
   let rec appendSuffix : Name → Name
@@ -1642,13 +1744,18 @@ private def mkModelFieldTerm (field : StorageFieldDecl) : CommandElabM Term := d
       none
       [])
 
-private def mkFunctionCommands (fields : Array StorageFieldDecl) (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
+private def mkFunctionCommands
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
   let fnType ← mkContractFnType fn.params fn.returnTy
-  let fnBody ← mkInitGuardedBody fields fn
+  let fnGuardedBody ← mkInitGuardedBody fields fn
+  let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
   let fnValue ← mkContractFnValue fn.params fnBody
   let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
   let modelName ← mkSuffixedIdent fn.ident "_model"
-  let stmtTerms ← translateBodyToStmtTerms fields #[] fn
+  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls fn
   let modelParams ← mkModelParamsTerm fn.params
 
   let fnCmd : Cmd ← `(command| def $fn.ident : $fnType := $fnValue)
@@ -1673,21 +1780,33 @@ private def mkSpecCommand
     (fields : Array StorageFieldDecl)
     (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl) : CommandElabM Cmd := do
-  let fieldTerms ← fields.mapM mkModelFieldTerm
+  let immutableFields := immutableDecls.zipIdx.map (fun (imm, idx) => immutableStorageFieldDecl fields imm idx)
+  let allFields := fields ++ immutableFields
+  let fieldTerms ← allFields.mapM mkModelFieldTerm
   let errorTerms ← errorDecls.mapM mkModelErrorTerm
   let constructorTerm ←
-    match ctor with
-    | none => `(none)
-    | some ctor =>
+    match ctor, immutableDecls.isEmpty with
+    | none, true => `(none)
+    | some ctor, _ =>
         let ctorParams ← mkModelParamsTerm ctor.params
         let ctorPayable ← if ctor.isPayable then `(true) else `(false)
-        let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields constDecls ctor
+        let immutableInitTerms ← immutableInitStmtTerms fields constDecls immutableDecls ctor.params
+        let ctorBodyTerms ← translateConstructorBodyToStmtTerms fields constDecls immutableDecls ctor
+        let ctorAllTerms := immutableInitTerms ++ ctorBodyTerms
         `(some {
           params := $ctorParams
           isPayable := $ctorPayable
-          body := [ $[$ctorBodyTerms],* ]
+          body := [ $[$ctorAllTerms],* ]
+        })
+    | none, false =>
+        let immutableInitTerms ← immutableInitStmtTerms fields constDecls immutableDecls #[]
+        `(some {
+          params := []
+          isPayable := false
+          body := [ $[$immutableInitTerms],* ]
         })
   let functionModelIds ← functions.mapM fun fn => mkSuffixedIdent fn.ident "_model"
   `(command| def spec : Compiler.CompilationModel.CompilationModel := {
@@ -1779,9 +1898,9 @@ private def mkFindIdxParamSimpCommands
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Option ConstructorDecl × Array FunctionDecl) := do
+        (Ident × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Option ConstructorDecl × Array FunctionDecl) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[$ctor:verityConstructor]? $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where storage $[$storageFields:verityStorageField]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[$ctor:verityConstructor]? $[$functions:verityFunction]*) =>
       let parsedErrors ←
         match errorDecls with
         | some decls => decls.mapM parseError
@@ -1790,11 +1909,16 @@ def parseContractSyntax
         match constantDecls with
         | some decls => decls.mapM parseConstant
         | none => pure #[]
+      let parsedImmutables ←
+        match immutableDecls with
+        | some decls => decls.mapM parseImmutable
+        | none => pure #[]
       pure
         ( contractName
         , (← storageFields.mapM parseStorageField)
         , parsedErrors
         , parsedConstants
+        , parsedImmutables
         , (← ctor.mapM parseConstructor)
         , (← functions.mapM parseFunction)
         )
@@ -1813,17 +1937,23 @@ def validateConstantDeclsPublic (constDecls : Array ConstantDecl) : CommandElabM
   for constant in constDecls do
     validateConstantBody constDecls constant.body [constant.name]
 
+def validateImmutableDeclsPublic (immutableDecls : Array ImmutableDecl) : CommandElabM Unit := do
+  for imm in immutableDecls do
+    validateImmutableType imm
+
 def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (fn : FunctionDecl) : CommandElabM (Array Cmd) :=
   do
     let fnType ← mkContractFnType fn.params fn.returnTy
-    let fnBody ← mkInitGuardedBody fields fn
+    let fnGuardedBody ← mkInitGuardedBody fields fn
+    let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
     let fnValue ← mkContractFnValue fn.params fnBody
     let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
     let modelName ← mkSuffixedIdent fn.ident "_model"
-    let stmtTerms ← translateBodyToStmtTerms fields constDecls fn
+    let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls fn
     let modelParams ← mkModelParamsTerm fn.params
 
     let fnCmd : Cmd ← `(command| def $fn.ident : $fnType := $fnValue)
@@ -1842,9 +1972,10 @@ def mkSpecCommandPublic
     (fields : Array StorageFieldDecl)
     (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
     (ctor : Option ConstructorDecl)
     (functions : Array FunctionDecl) : CommandElabM Cmd :=
-  mkSpecCommand contractName fields errorDecls constDecls ctor functions
+  mkSpecCommand contractName fields errorDecls constDecls immutableDecls ctor functions
 
 def mkFindIdxFieldSimpCommandsPublic
     (contractIdent : Ident)
