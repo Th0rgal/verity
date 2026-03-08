@@ -1,4 +1,5 @@
 import Lean
+import Compiler.Modules.Precompiles
 import Verity.Macro.Syntax
 
 namespace Verity.Macro
@@ -657,7 +658,7 @@ private def translateBindSource
   | `(term| msgSender) => `(Compiler.CompilationModel.Expr.caller)
   | _ =>
       throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/structMember/structMember2/msgSender"
+        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/structMember/structMember2/msgSender/ecrecover"
 
 private def translateSafeRequireBind
     (fields : Array StorageFieldDecl)
@@ -932,15 +933,28 @@ private partial def translateDoElem
       let varName := toString name.getId
       if locals.contains varName then
         throwErrorAt name s!"duplicate local variable '{varName}'"
-      let safeBind? ← translateSafeRequireBind fields params locals varName rhs
-      match safeBind? with
-      | some safeStmts => pure (safeStmts, locals.push varName, mutableLocals)
-      | none =>
-          let rhsExpr ← translateBindSource fields params locals rhs
+      match stripParens rhs with
+      | `(term| ecrecover $hash:term $v:term $r:term $s:term) =>
+          let hashExpr ← translatePureExpr fields params locals hash
+          let vExpr ← translatePureExpr fields params locals v
+          let rExpr ← translatePureExpr fields params locals r
+          let sExpr ← translatePureExpr fields params locals s
           pure
-            (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
+            (#[(← `(Compiler.CompilationModel.Stmt.ecm
+                    (Compiler.Modules.Precompiles.ecrecoverModule $(strTerm varName))
+                    [$hashExpr, $vExpr, $rExpr, $sExpr]))],
               locals.push varName,
               mutableLocals)
+      | _ =>
+          let safeBind? ← translateSafeRequireBind fields params locals varName rhs
+          match safeBind? with
+          | some safeStmts => pure (safeStmts, locals.push varName, mutableLocals)
+          | none =>
+              let rhsExpr ← translateBindSource fields params locals rhs
+              pure
+                (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
+                  locals.push varName,
+                  mutableLocals)
   | `(doElem| let $name:ident := $rhs:term) =>
       let varName := toString name.getId
       if locals.contains varName then

@@ -1,5 +1,6 @@
 import Compiler.CompilationModel
 import Verity.Core
+import Verity.Core.Semantics
 import Verity.EVM.Uint256
 import Verity.Macro
 import Verity.Stdlib.Math
@@ -40,6 +41,10 @@ def staticcall (gas target inOffset inSize outOffset outSize : Uint256) : Uint25
   add gas (add target (add inOffset (add inSize (add outOffset outSize))))
 def delegatecall (gas target inOffset inSize outOffset outSize : Uint256) : Uint256 :=
   add gas (add target (add inOffset (add inSize (add outOffset outSize))))
+def ecrecover (hash v r sigS : Uint256) : Contract Address := fun state =>
+  ContractResult.success
+    (wordToAddress ((Verity.Env.ofWorld state).callOracle "ecrecover" [hash, v, r, sigS]))
+    state
 def calldatacopy (_destOffset _sourceOffset _size : Uint256) : Contract Unit := pure ()
 def returndataCopy (_destOffset _sourceOffset _size : Uint256) : Contract Unit := pure ()
 def revertReturndata : Contract Unit := pure ()

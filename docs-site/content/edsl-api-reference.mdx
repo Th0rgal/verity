@@ -323,6 +323,16 @@ def Compiler.Modules.Calls.withReturn
   (args : List Expr) (isStatic : Bool := false) : Stmt
 ```
 
+### `ecrecover` precompile
+
+`verity_contract` can bind the standard `ecrecover` precompile directly:
+
+```lean
+let signer <- ecrecover digest v r s
+```
+
+This elaborates to `Compiler.Modules.Precompiles.ecrecoverModule` and the trust report records the explicit assumption `evm_ecrecover_precompile`.
+
 ### Low-level `call` / `staticcall` / `delegatecall`
 
 First-class low-level forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`).

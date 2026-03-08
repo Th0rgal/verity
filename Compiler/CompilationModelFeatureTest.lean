@@ -3,11 +3,47 @@ import Compiler.ABI
 import Compiler.Codegen
 import Compiler.Modules.Precompiles
 import Compiler.Yul.PrettyPrint
+import Contracts.Common
 
 namespace Compiler.CompilationModelFeatureTest
 
 open Compiler
 open Compiler.CompilationModel
+
+namespace MacroEcrecoverSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroEcrecover where
+  storage
+    lastSigner : Address := slot 0
+
+  function recoverSigner (digest : Bytes32, v : Uint256, r : Bytes32, s : Bytes32) : Address := do
+    let signer ← ecrecover digest v r s
+    return signer
+
+def recoverSignerModelUsesEcrecoverEcm : Bool :=
+  match MacroEcrecover.recoverSigner_modelBody with
+  | [Stmt.ecm mod [Expr.param "digest", Expr.param "v", Expr.param "r", Expr.param "s"],
+      Stmt.return (Expr.localVar "signer")] =>
+      mod.name == "ecrecover" &&
+      mod.resultVars == ["signer"] &&
+      mod.axioms == ["evm_ecrecover_precompile"]
+  | _ => false
+
+example : recoverSignerModelUsesEcrecoverEcm = true := by native_decide
+
+def recoverSignerExecutableUsesOracle : Bool :=
+  match MacroEcrecover.recoverSigner 10 27 30 40 Verity.defaultState with
+  | .success signer state =>
+      signer == Verity.wordToAddress 107 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : recoverSignerExecutableUsesOracle = true := by native_decide
+
+end MacroEcrecoverSmoke
 
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
   if !ok then
@@ -419,5 +455,13 @@ private def ecrecoverSmokeSpec : CompilationModel := {
     (contains ecrecoverYul "if iszero(returndatasize()) {")
   expectTrue "ecrecover ECM masks recovered address to 160 bits"
     (contains ecrecoverYul "let signer := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
+  let macroEcrecoverYul ←
+    expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
+  expectTrue "macro ecrecover bind elaborates to the same ECM lowering"
+    (contains macroEcrecoverYul "staticcall(gas(), 1, 0, 128, 0, 32)")
+  let macroTrustReport := emitTrustReportJson [MacroEcrecoverSmoke.MacroEcrecover.spec]
+  expectTrue "macro ecrecover trust report surfaces the precompile assumption"
+    (contains macroTrustReport "\"module\":\"ecrecover\"" &&
+      contains macroTrustReport "\"assumption\":\"evm_ecrecover_precompile\"")
 
 end Compiler.CompilationModelFeatureTest
