@@ -163,7 +163,8 @@ Import path: `import MyProtocol.Swap`.
 
 Every ECM declares its trust assumptions in the `axioms` field and tags the
 surface with `proofStatus`. When compiling with `--verbose`, the compiler
-aggregates both the assumptions and the status buckets:
+aggregates both the assumptions and the status buckets, and now emits a
+localized `Usage-site trust report` section before the contract-level reports:
 
 ```
 ECM axiom report:
@@ -176,7 +177,9 @@ ECM axiom report:
 
 This makes the trust boundary explicit and auditable. A team choosing which
 modules to use is choosing which trust assumptions to accept, and whether the
-surface is merely `assumed` or fully `unchecked`.
+surface is merely `assumed` or fully `unchecked`. The localized usage-site
+section mirrors the same boundary at the constructor/function level, including
+low-level mechanics, linked external/module `proofStatus`, and per-site axioms.
 
 For machine-readable audit trails, `verity-compiler --trust-report <path>` now
 emits per-contract JSON that includes:

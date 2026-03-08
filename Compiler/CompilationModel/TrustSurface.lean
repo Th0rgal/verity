@@ -532,6 +532,14 @@ private def hasUncheckedDependenciesForSite
   externals.any (fun ext => ext.proofStatus == .unchecked) ||
     modules.any (fun mod => mod.proofStatus == .unchecked)
 
+private structure UsageSiteSummary where
+  kind : String
+  name : String
+  mechanics : List String
+  primitives : List String
+  externals : List ExternalFunction
+  modules : List ECM.ExternalCallModule
+
 private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List (String × String) :=
   modules.flatMap (fun mod => mod.axioms.map (fun assumption => (mod.name, assumption)))
 
@@ -541,32 +549,25 @@ private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : Lis
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
     !(collectUsedEcmModulesFromStmts stmts).isEmpty
 
-private def usageSitesJson (spec : CompilationModel) : String :=
-  let siteJson (kind name : String) (stmts : List Stmt) : String :=
-    let mechanics := collectLowLevelMechanicsFromStmts stmts
-    let primitives := collectAxiomatizedPrimitivesFromStmts stmts
-    let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
-    let siteModules := collectUsedEcmModulesFromStmts stmts
-    jsonObject [
-      ("kind", jsonString kind),
-      ("name", jsonString name),
-      ("modeledLowLevelMechanics", jsonArray (mechanics.map jsonString)),
-      ("axiomatizedPrimitives", jsonArray (primitives.map jsonString)),
-      ("proofStatus", proofStatusJsonForSite primitives siteExternals siteModules),
-      ("hasUncheckedDependencies",
-        if hasUncheckedDependenciesForSite siteExternals siteModules then "true" else "false"),
-      ("externalAssumptions", jsonObject [
-        ("axiomatizedPrimitives", jsonArray (primitives.map primitiveAssumptionJson)),
-        ("linkedExternals", jsonArray (siteExternals.map assumptionJson)),
-        ("ecmAxioms", jsonArray ((ecmAxiomsFromModules siteModules).map ecmJson)),
-        ("ecmModules", jsonArray (siteModules.map ecmModuleJson))
-      ])
-    ]
+private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stmts : List Stmt) :
+    UsageSiteSummary :=
+  let mechanics := collectLowLevelMechanicsFromStmts stmts
+  let primitives := collectAxiomatizedPrimitivesFromStmts stmts
+  let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
+  let siteModules := collectUsedEcmModulesFromStmts stmts
+  { kind := kind
+    name := name
+    mechanics := mechanics
+    primitives := primitives
+    externals := siteExternals
+    modules := siteModules }
+
+private def collectUsageSiteSummaries (spec : CompilationModel) : List UsageSiteSummary :=
   let constructorSites :=
     match spec.constructor with
     | some ctor =>
         if siteHasTrustSurface spec.externals ctor.body then
-          [siteJson "constructor" "constructor" ctor.body]
+          [usageSiteSummary spec "constructor" "constructor" ctor.body]
         else
           []
     | none => []
@@ -574,11 +575,114 @@ private def usageSitesJson (spec : CompilationModel) : String :=
     spec.functions.foldl
       (fun acc fn =>
         if siteHasTrustSurface spec.externals fn.body then
-          acc ++ [siteJson "function" fn.name fn.body]
+          acc ++ [usageSiteSummary spec "function" fn.name fn.body]
         else
           acc)
       []
-  jsonArray (constructorSites ++ functionSites)
+  constructorSites ++ functionSites
+
+private def usageSitesJson (spec : CompilationModel) : String :=
+  let siteJson (site : UsageSiteSummary) : String :=
+    jsonObject [
+      ("kind", jsonString site.kind),
+      ("name", jsonString site.name),
+      ("modeledLowLevelMechanics", jsonArray (site.mechanics.map jsonString)),
+      ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
+      ("proofStatus", proofStatusJsonForSite site.primitives site.externals site.modules),
+      ("hasUncheckedDependencies",
+        if hasUncheckedDependenciesForSite site.externals site.modules then "true" else "false"),
+      ("externalAssumptions", jsonObject [
+        ("axiomatizedPrimitives", jsonArray (site.primitives.map primitiveAssumptionJson)),
+        ("linkedExternals", jsonArray (site.externals.map assumptionJson)),
+        ("ecmAxioms", jsonArray ((ecmAxiomsFromModules site.modules).map ecmJson)),
+        ("ecmModules", jsonArray (site.modules.map ecmModuleJson))
+      ])
+    ]
+  jsonArray ((collectUsageSiteSummaries spec).map siteJson)
+
+private def namesByProofStatus
+    (status : ProofStatus)
+    (externals : List ExternalFunction)
+    (modules : List ECM.ExternalCallModule) : (List String × List String) :=
+  let externalNames := externals.foldl
+    (fun acc ext => if ext.proofStatus == status then acc ++ [ext.name] else acc)
+    []
+  let moduleNames := modules.foldl
+    (fun acc mod => if mod.proofStatus == status then acc ++ [mod.name] else acc)
+    []
+  (externalNames, moduleNames)
+
+/-- Render localized trust-surface lines for verbose compiler output. -/
+def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            let (provedExternals, provedModules) :=
+              namesByProofStatus .proved site.externals site.modules
+            let (assumedExternals, assumedModules) :=
+              namesByProofStatus .assumed site.externals site.modules
+            let (uncheckedExternals, uncheckedModules) :=
+              namesByProofStatus .unchecked site.externals site.modules
+            let heading := s!"  {spec.name} [{site.kind}:{site.name}]"
+            let mechanicsLines :=
+              if site.mechanics.isEmpty then [] else
+                [s!"    low-level mechanics: {String.intercalate ", " site.mechanics}"]
+            let primitiveLines :=
+              if site.primitives.isEmpty then [] else
+                [s!"    axiomatized primitives: {String.intercalate ", " site.primitives}"] ++
+                site.primitives.map
+                  (fun primitive =>
+                    s!"    [primitive:{primitive}][assumed] {primitiveAssumptionName primitive}")
+            let provedLines :=
+              (if provedExternals.isEmpty then [] else
+                [s!"    proved linked externals: {String.intercalate ", " provedExternals}"]) ++
+              (if provedModules.isEmpty then [] else
+                [s!"    proved ECM modules: {String.intercalate ", " provedModules}"])
+            let assumedLines :=
+              (if assumedExternals.isEmpty then [] else
+                [s!"    assumed linked externals: {String.intercalate ", " assumedExternals}"]) ++
+              (if assumedModules.isEmpty then [] else
+                [s!"    assumed ECM modules: {String.intercalate ", " assumedModules}"])
+            let uncheckedLines :=
+              (if uncheckedExternals.isEmpty then [] else
+                [s!"    unchecked linked externals: {String.intercalate ", " uncheckedExternals}"]) ++
+              (if uncheckedModules.isEmpty then [] else
+                [s!"    unchecked ECM modules: {String.intercalate ", " uncheckedModules}"])
+            let externalAssumptionLines :=
+              site.externals.foldl
+                (fun extAcc ext =>
+                  let renderedAxioms :=
+                    if ext.axiomNames.isEmpty then "(no declared axioms)"
+                    else String.intercalate ", " ext.axiomNames
+                  extAcc ++
+                    [s!"    [linked:{ext.name}][{ext.proofStatus.toJsonString}] {renderedAxioms}"])
+                []
+            let ecmAxiomLines :=
+              site.modules.foldl
+                (fun modAcc mod =>
+                  let assumptionLines :=
+                    mod.axioms.map
+                      (fun assumption =>
+                        s!"    [ecm:{mod.name}][{mod.proofStatus.toJsonString}] {assumption}")
+                  if assumptionLines.isEmpty then
+                    modAcc ++ [s!"    [ecm:{mod.name}][{mod.proofStatus.toJsonString}] (no declared axioms)"]
+                  else
+                    modAcc ++ assumptionLines)
+                []
+            siteAcc ++
+              [heading] ++
+              mechanicsLines ++
+              primitiveLines ++
+              provedLines ++
+              assumedLines ++
+              uncheckedLines ++
+              externalAssumptionLines ++
+              ecmAxiomLines)
+          []
+      acc ++ siteLines)
+    []
 
 /-- True when a contract depends on any foreign surface marked `unchecked`. -/
 def hasUncheckedDependencies (spec : CompilationModel) : Bool :=

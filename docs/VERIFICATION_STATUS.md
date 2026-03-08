@@ -135,7 +135,7 @@ Diagnostics policy for unsupported constructs:
 1. Report the exact unsupported construct at compile time.
 2. Suggest the nearest supported migration pattern.
 3. Link to the owning tracking issue.
-4. When low-level mechanics, axiomatized primitives (for example `keccak256`), or external assumptions are in play, emit a machine-readable trust report via `verity-compiler --trust-report <path>`. The report groups foreign trust surfaces into explicit `proofStatus.proved`, `proofStatus.assumed`, and `proofStatus.unchecked` buckets, and now localizes them to constructor/function `usageSites`. For fail-closed verification runs, add `--deny-unchecked-dependencies`.
+4. When low-level mechanics, axiomatized primitives (for example `keccak256`), or external assumptions are in play, emit a machine-readable trust report via `verity-compiler --trust-report <path>`. The report groups foreign trust surfaces into explicit `proofStatus.proved`, `proofStatus.assumed`, and `proofStatus.unchecked` buckets, and localizes them to constructor/function `usageSites`. In human-readable mode, `--verbose` now emits a matching `Usage-site trust report` section before the contract-level summaries. For fail-closed verification runs, add `--deny-unchecked-dependencies`.
 
 ## Trust Assumptions
 

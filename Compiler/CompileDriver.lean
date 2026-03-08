@@ -228,6 +228,14 @@ def compileSpecsWithOptions
     else
       IO.println "  warning: unchecked foreign dependencies are present; exclude these contracts from full-verification claims"
     IO.println ""
+    IO.println "Usage-site trust report:"
+    let usageSiteLines := emitVerboseUsageSiteLines specs
+    if usageSiteLines.isEmpty then
+      IO.println "  (no localized trust surfaces)"
+    else
+      for line in usageSiteLines do
+        IO.println line
+    IO.println ""
     IO.println "External assumption report:"
     let mut anyExternalAssumptions := false
     for spec in specs do

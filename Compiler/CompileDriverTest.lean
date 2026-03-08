@@ -864,6 +864,18 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report preserves per-function low-level mechanics")
   IO.println "✓ trust report emits low-level mechanics, proof-status buckets, structured primitive assumptions, and external assumptions"
 
+  let verboseUsageSites := emitVerboseUsageSiteLines [trustSurfaceSpec]
+  let verboseUsageSiteReport := String.intercalate "\n" verboseUsageSites
+  if !contains verboseUsageSiteReport "TrustSurfaceSmoke [function:exercise]" then
+    throw (IO.userError "✗ verbose trust report localizes function usage sites")
+  if !contains verboseUsageSiteReport "low-level mechanics: staticcall, returndataSize, returndataCopy" then
+    throw (IO.userError "✗ verbose trust report preserves per-function low-level mechanics")
+  if !contains verboseUsageSiteReport "[linked:PoseidonT3_hash][assumed] poseidon_t3_deterministic" then
+    throw (IO.userError "✗ verbose trust report localizes linked external assumptions")
+  if !contains verboseUsageSiteReport "[ecm:testCall][assumed] test_call_interface" then
+    throw (IO.userError "✗ verbose trust report localizes ECM assumptions")
+  IO.println "✓ verbose trust report localizes per-site trust surfaces"
+
   let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
   if !contains uncheckedTrustReport "\"hasUncheckedDependencies\":true" then
     throw (IO.userError "✗ trust report flags unchecked dependencies")
@@ -880,6 +892,11 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report includes constructor-only ECM modules in external assumptions")
   if !contains constructorOnlyEcmTrustReport "\"usageSites\":[{\"kind\":\"constructor\",\"name\":\"constructor\"" then
     throw (IO.userError "✗ trust report localizes constructor-only trust usage sites")
+  let constructorVerboseUsageSites := String.intercalate "\n" (emitVerboseUsageSiteLines [constructorOnlyEcmTrustSurfaceSpec])
+  if !contains constructorVerboseUsageSites "ConstructorOnlyEcmTrustSurface [constructor:constructor]" then
+    throw (IO.userError "✗ verbose trust report localizes constructor usage sites")
+  if !contains constructorVerboseUsageSites "unchecked ECM modules: ctorHook" then
+    throw (IO.userError "✗ verbose trust report flags constructor unchecked ECM modules")
   IO.println "✓ trust report includes constructor-only ECM modules"
 
   let ecrecoverTrustReport := emitTrustReportJson [ecrecoverTrustSurfaceSpec]
