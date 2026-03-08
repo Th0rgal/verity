@@ -354,6 +354,16 @@ verity_contract PayableInit where
 
 This sets `spec.constructor.isPayable := true`, emits constructor ABI `stateMutability: "payable"`, and removes the deploy-time `callvalue` guard from generated Yul.
 
+## Low-Level Log Surface
+
+`verity_contract` bodies can emit low-level runtime-dependent logs directly:
+
+```lean
+rawLog [topic0, add topic1 1] dataOffset dataSize
+```
+
+`rawLog topics dataOffset dataSize` lowers to `Stmt.rawLog topics dataOffset dataSize`. The executable fallback in `Contracts/Common.lean` now mirrors that surface by appending a low-level trace entry shaped like `{ name := "logN", args := [dataOffset, dataSize], indexedArgs := topics }`, so macro-authored contracts can round-trip observable log behavior instead of only compiling it.
+
 ## Dynamic Array Surface
 
 Dynamic array parameters can be consumed directly from `verity_contract` bodies using the same helper names that lower into the compilation model:

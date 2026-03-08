@@ -565,6 +565,67 @@ example : echoRecipientsExecutableRoundTrips = true := by native_decide
 
 end MacroDynamicArraySmoke
 
+namespace MacroEventTraceSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroEventTrace where
+  storage
+
+  function emitNamed (amount : Uint256, bonus : Uint256) : Unit := do
+    emit "Transfer" [amount, add amount bonus]
+
+  function emitDynamicLog
+      (topic0 : Uint256, topic1 : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
+    rawLog [topic0, add topic1 1] dataOffset dataSize
+
+def emitNamedModelUsesStmtEmit : Bool :=
+  match MacroEventTrace.emitNamed_modelBody with
+  | [Stmt.emit "Transfer" [Expr.param "amount", Expr.add (Expr.param "amount") (Expr.param "bonus")],
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : emitNamedModelUsesStmtEmit = true := by native_decide
+
+def emitDynamicLogModelUsesStmtRawLog : Bool :=
+  match MacroEventTrace.emitDynamicLog_modelBody with
+  | [Stmt.rawLog
+        [Expr.param "topic0", Expr.add (Expr.param "topic1") (Expr.literal 1)]
+        (Expr.param "dataOffset")
+        (Expr.param "dataSize"),
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : emitDynamicLogModelUsesStmtRawLog = true := by native_decide
+
+def emitNamedExecutableAppendsNamedEvent : Bool :=
+  match MacroEventTrace.emitNamed 7 5 Verity.defaultState with
+  | .success () state =>
+      match state.events with
+      | [{ name := "Transfer", args := [7, 12], indexedArgs := [] }] =>
+          state.sender == Verity.defaultState.sender
+      | _ => false
+  | .revert _ _ => false
+
+example : emitNamedExecutableAppendsNamedEvent = true := by native_decide
+
+def emitDynamicLogExecutableAppendsLowLevelTrace : Bool :=
+  match MacroEventTrace.emitDynamicLog 3 4 64 96 Verity.defaultState with
+  | .success () state =>
+      match state.events with
+      | [{ name := "log2", args := [64, 96], indexedArgs := [3, 5] }] =>
+          state.sender == Verity.defaultState.sender
+      | _ => false
+  | .revert _ _ => false
+
+example : emitDynamicLogExecutableAppendsLowLevelTrace = true := by native_decide
+
+end MacroEventTraceSmoke
+
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
   if !ok then
     throw (IO.userError s!"✗ {label}")
@@ -775,6 +836,24 @@ private def reservedExternalBindSpec : CompilationModel := {
       returnType := some ParamType.uint256
       returns := [ParamType.uint256]
       axiomNames := ["echo_matches_identity"]
+    }
+  ]
+}
+
+private def rawLogTraceSmokeSpec : CompilationModel := {
+  name := "RawLogTraceSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "emitDynamicLog"
+      params := [
+        { name := "topic0", ty := ParamType.uint256 },
+        { name := "topic1", ty := ParamType.uint256 },
+        { name := "dataOffset", ty := ParamType.uint256 },
+        { name := "dataSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := MacroEventTraceSmoke.MacroEventTrace.emitDynamicLog_modelBody
     }
   ]
 }
@@ -1399,6 +1478,19 @@ set_option maxRecDepth 4096 in
   expectTrue "macro payable constructor removes one deploy-time callvalue guard from rendered Yul"
     (countOccurrences nonPayableCtorYul "callvalue()" ==
       countOccurrences payableCtorYul "callvalue()" + 1)
+  expectTrue "macro emit lowers to Stmt.emit"
+    MacroEventTraceSmoke.emitNamedModelUsesStmtEmit
+  expectTrue "macro rawLog lowers to Stmt.rawLog with dynamic topic expressions"
+    MacroEventTraceSmoke.emitDynamicLogModelUsesStmtRawLog
+  expectTrue "macro emit executable path appends the named event trace"
+    MacroEventTraceSmoke.emitNamedExecutableAppendsNamedEvent
+  expectTrue "macro rawLog executable path appends the low-level event trace"
+    MacroEventTraceSmoke.emitDynamicLogExecutableAppendsLowLevelTrace
+  let rawLogTraceYul ← expectCompileToYul
+    "rawLog trace smoke spec"
+    rawLogTraceSmokeSpec
+  expectTrue "rawLog with dynamic topic expressions lowers to log2 in rendered Yul"
+    (contains rawLogTraceYul "log2(")
   let envRuntimeYul ← expectCompileToYul "env runtime smoke compiles" envRuntimeSmokeSpec
   expectTrue "env runtime smoke lowers block.number" (contains envRuntimeYul "number()")
   let stringCompiled :=

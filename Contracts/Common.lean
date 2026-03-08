@@ -86,6 +86,12 @@ def returnArray {α : Type} (values : Array α) : Contract (Array α) := pure va
 def returnValues (_values : List Uint256) : Contract Unit := pure ()
 def returnBytes {α : Type} (value : α) : Contract α := pure value
 def returnStorageWords (_slots : Array Uint256) : Contract (Array Uint256) := pure #[]
+def emit (name : String) (args : List Uint256) : Contract Unit := emitEvent name args
+def rawLog (topics : List Uint256) (dataOffset dataSize : Uint256) : Contract Unit := fun state =>
+  ContractResult.success () { state with
+    events := state.events ++
+      [{ name := s!"log{topics.length}", args := [dataOffset, dataSize], indexedArgs := topics }]
+  }
 def mstore (_offset _value : Uint256) : Contract Unit := pure ()
 def getMappingWord (_slot : StorageSlot (Uint256 → Uint256)) (_key _wordOffset : Uint256) :
     Contract Uint256 := pure 0
