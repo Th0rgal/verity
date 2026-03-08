@@ -607,51 +607,7 @@ partial def translatePureExpr
           $(strTerm memberName))
   | _ => throwErrorAt stx "unsupported expression in verity_contract body (see #1003 for planned macro support expansions)"
 
-private def tupleValueExprs
-    (fields : Array StorageFieldDecl)
-    (params : Array ParamDecl)
-    (locals : Array String)
-    (rhs : Term) : CommandElabM (Array Term) := do
-  let structValueExprs? : CommandElabM (Option (Array Term)) := do
-    match stripParens rhs with
-    | `(term| structMembers $field:term $key:term $members:term) => do
-        let fieldName := ← expectStringOrIdent field
-        let memberNames := ← expectStringList members
-        let exprs ← memberNames.mapM fun memberName => do
-          let _ ← lookupStructMemberDecl fields fieldName memberName false
-          `(Compiler.CompilationModel.Expr.structMember
-              $(strTerm fieldName)
-              $(← translatePureExpr fields params locals key)
-              $(strTerm memberName))
-        pure (some exprs)
-    | `(term| structMembers2 $field:term $key1:term $key2:term $members:term) => do
-        let fieldName := ← expectStringOrIdent field
-        let memberNames := ← expectStringList members
-        let exprs ← memberNames.mapM fun memberName => do
-          let _ ← lookupStructMemberDecl fields fieldName memberName true
-          `(Compiler.CompilationModel.Expr.structMember2
-              $(strTerm fieldName)
-              $(← translatePureExpr fields params locals key1)
-              $(← translatePureExpr fields params locals key2)
-              $(strTerm memberName))
-        pure (some exprs)
-    | _ => pure none
-  match tupleElemsFromTerm? rhs with
-  | some elems =>
-      elems.mapM (translatePureExpr fields params locals)
-  | none =>
-      match (← structValueExprs?) with
-      | some exprs => pure exprs
-      | none =>
-          match stripParens rhs with
-          | `(term| $id:ident) =>
-              match (← tupleParamElemExprs? params (toString id.getId)) with
-              | some exprs => pure exprs
-              | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, or structMembers/structMembers2 source"
-          | _ =>
-              throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, or structMembers/structMembers2 source"
-
-private def tupleReturnValueExprs?
+private def tupleLiteralOrStructValueExprs?
     (fields : Array StorageFieldDecl)
     (params : Array ParamDecl)
     (locals : Array String)
@@ -684,14 +640,66 @@ private def tupleReturnValueExprs?
   | some elems =>
       pure (some (← elems.mapM (translatePureExpr fields params locals)))
   | none =>
-      match (← structValueExprs?) with
-      | some exprs => pure (some exprs)
-      | none =>
-          match stripParens rhs with
-          | `(term| $id:ident) =>
-              tupleParamElemExprs? params (toString id.getId)
-          | _ =>
-              pure none
+      structValueExprs?
+
+private def tupleValueExprs
+    (fields : Array StorageFieldDecl)
+    (params : Array ParamDecl)
+    (locals : Array String)
+    (rhs : Term) : CommandElabM (Array Term) := do
+  match (← tupleLiteralOrStructValueExprs? fields params locals rhs) with
+  | some exprs => pure exprs
+  | none =>
+      match stripParens rhs with
+      | `(term| $id:ident) =>
+          match (← tupleParamElemExprs? params (toString id.getId)) with
+          | some exprs => pure exprs
+          | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, or structMembers/structMembers2 source"
+      | _ =>
+          throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, or structMembers/structMembers2 source"
+
+private def tupleReturnValueExprs?
+    (fields : Array StorageFieldDecl)
+    (params : Array ParamDecl)
+    (locals : Array String)
+    (rhs : Term) : CommandElabM (Option (Array Term)) := do
+  match (← tupleLiteralOrStructValueExprs? fields params locals rhs) with
+  | some exprs => pure (some exprs)
+  | none =>
+      match stripParens rhs with
+      | `(term| $id:ident) =>
+          tupleParamElemExprs? params (toString id.getId)
+      | _ =>
+          pure none
+
+private def tupleInternalCallAssignStmt?
+    (fields : Array StorageFieldDecl)
+    (params : Array ParamDecl)
+    (locals : Array String)
+    (rhs : Term)
+    (names : Array String) : CommandElabM (Option Term) := do
+  let rhs := stripParens rhs
+  match rhs.raw with
+  | .node _ `Lean.Parser.Term.app args =>
+      match args.getD 0 Syntax.missing with
+      | .ident _ raw _ _ =>
+          let argExprs ← (args.getD 1 Syntax.missing).getArgs.mapM
+            (translatePureExpr fields params locals ∘ fun syn => ⟨syn⟩)
+          let resultNameTerms := names.map strTerm
+          pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
+            [ $[$resultNameTerms],* ]
+            $(strTerm raw.toString)
+            [ $[$argExprs],* ])))
+      | _ =>
+          pure none
+  | .ident _ raw _ _ =>
+      let resultNameTerms := names.map strTerm
+      pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
+        [ $[$resultNameTerms],* ]
+        $(strTerm raw.toString)
+        [])))
+  | _ =>
+      pure none
 
 private def expectExprList
     (fields : Array StorageFieldDecl)
@@ -1097,12 +1105,40 @@ private partial def translateDoElem
       match tupleBinderNames? patDecl[0] with
       | some names =>
           ensureFreshLocalNames locals names stx
-          let valueExprs ← tupleValueExprs fields params locals ⟨patDecl[4]⟩
-          if names.size != valueExprs.size then
-            throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
-          let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
-            `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-          pure (some (stmts, locals ++ names, mutableLocals))
+          let rhs : Term := ⟨patDecl[4]⟩
+          let rhs := stripParens rhs
+          match rhs with
+          | `(term| $id:ident) =>
+              match (← tupleParamElemExprs? params (toString id.getId)) with
+              | some valueExprs =>
+                  if names.size != valueExprs.size then
+                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                  let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                  pure (some (stmts, locals ++ names, mutableLocals))
+              | none =>
+                  match (← tupleInternalCallAssignStmt? fields params locals rhs names) with
+                  | some stmt => pure (some (#[(stmt)], locals ++ names, mutableLocals))
+                  | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, or internal helper call"
+          | _ =>
+              match (← tupleLiteralOrStructValueExprs? fields params locals rhs) with
+              | some valueExprs =>
+                  if names.size != valueExprs.size then
+                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                  let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                  pure (some (stmts, locals ++ names, mutableLocals))
+              | none =>
+                match (← tupleInternalCallAssignStmt? fields params locals rhs names) with
+                | some stmt =>
+                    pure (some (#[(stmt)], locals ++ names, mutableLocals))
+                | none =>
+                  let valueExprs ← tupleValueExprs fields params locals rhs
+                  if names.size != valueExprs.size then
+                    throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueExprs.size} values"
+                  let stmts ← (names.zip valueExprs).mapM fun (name, valueExpr) =>
+                    `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
+                  pure (some (stmts, locals ++ names, mutableLocals))
       | none => pure none
     else if stx.getKind == `Lean.Parser.Term.doLetArrow then
       let patDecl := stx[2]
@@ -1110,30 +1146,9 @@ private partial def translateDoElem
       | some names =>
           ensureFreshLocalNames locals names stx
           let rhs : Term := ⟨patDecl[2][0]⟩
-          let rhs := stripParens rhs
-          match rhs.raw with
-          | .node _ `Lean.Parser.Term.app args =>
-              match args.getD 0 Syntax.missing with
-              | .ident _ raw _ _ =>
-                  let argExprs ← (args.getD 1 Syntax.missing).getArgs.mapM
-                    (translatePureExpr fields params locals ∘ fun syn => ⟨syn⟩)
-                  let resultNameTerms := names.map strTerm
-                  let stmt ← `(Compiler.CompilationModel.Stmt.internalCallAssign
-                    [ $[$resultNameTerms],* ]
-                    $(strTerm raw.toString)
-                    [ $[$argExprs],* ])
-                  pure (some (#[(stmt)], locals ++ names, mutableLocals))
-              | _ =>
-                  throwErrorAt rhs "tuple bind sources must be internal helper calls"
-          | .ident _ raw _ _ =>
-              let resultNameTerms := names.map strTerm
-              let stmt ← `(Compiler.CompilationModel.Stmt.internalCallAssign
-                [ $[$resultNameTerms],* ]
-                $(strTerm raw.toString)
-                [])
-              pure (some (#[(stmt)], locals ++ names, mutableLocals))
-          | _ =>
-              throwErrorAt rhs "tuple bind sources must be internal helper calls"
+          match (← tupleInternalCallAssignStmt? fields params locals rhs names) with
+          | some stmt => pure (some (#[(stmt)], locals ++ names, mutableLocals))
+          | none => throwErrorAt rhs "tuple bind sources must be internal helper calls"
       | none => pure none
     else
       pure none
