@@ -83,6 +83,21 @@ verity_contract StatelessSmoke where
     let sender ← msgSender
     return sender
 
+verity_contract ConstantSmoke where
+  storage
+
+  constants
+    basisPoints : Uint256 := 10000
+    mintFeeBps : Uint256 := 30
+    treasury : Address := (wordToAddress 42)
+
+  function feeOn (amount : Uint256) : Uint256 := do
+    let fee := div (mul amount mintFeeBps) basisPoints
+    return fee
+
+  function treasuryAddr () : Address := do
+    return treasury
+
 verity_contract TupleSmoke where
   storage
     values : Uint256 → Uint256 := slot 0

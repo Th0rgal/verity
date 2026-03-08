@@ -13,20 +13,23 @@ set_option hygiene false
 
 @[command_elab verityContractCmd]
 def elabVerityContract : CommandElab := fun stx => do
-  let (contractName, fields, errorDecls, ctor, functions) ← parseContractSyntax stx
+  let (contractName, fields, errorDecls, constDecls, ctor, functions) ← parseContractSyntax stx
 
   elabCommand (← `(namespace $contractName))
 
   for field in fields do
     elabCommand (← mkStorageDefCommandPublic field)
 
+  for constant in constDecls do
+    elabCommand (← mkConstantDefCommandPublic constant)
+
   for fn in functions do
-    let fnCmds ← mkFunctionCommandsPublic fields fn
+    let fnCmds ← mkFunctionCommandsPublic fields constDecls fn
     for cmd in fnCmds do
       elabCommand cmd
     elabCommand (← mkBridgeCommand fn.ident)
 
-  elabCommand (← mkSpecCommandPublic (toString contractName.getId) fields errorDecls ctor functions)
+  elabCommand (← mkSpecCommandPublic (toString contractName.getId) fields errorDecls constDecls ctor functions)
 
   let findIdxSimpCmds ← mkFindIdxFieldSimpCommandsPublic contractName fields
   for cmd in findIdxSimpCmds do

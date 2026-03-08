@@ -142,6 +142,84 @@ example : transientStoragePersistsAcrossExecutableCalls = true := by native_deci
 
 end MacroTransientStorageSmoke
 
+namespace MacroConstantSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroConstant where
+  storage
+    storedFee : Uint256 := slot 0
+
+  constants
+    basisPoints : Uint256 := 10000
+    mintFeeBps : Uint256 := 30
+    treasury : Address := (wordToAddress 42)
+    treasuryWord : Uint256 := (addressToWord treasury)
+
+  function feeOn (amount : Uint256) : Uint256 := do
+    let fee := div (mul amount mintFeeBps) basisPoints
+    return fee
+
+  function treasuryAddr () : Address := do
+    return treasury
+
+  function treasuryAsWord () : Uint256 := do
+    return treasuryWord
+
+  function shadowedConstant (mintFeeBps : Uint256) : Uint256 := do
+    let treasuryWord := 9
+    return (add mintFeeBps treasuryWord)
+
+def feeOnModelInlinesContractConstants : Bool :=
+  match MacroConstant.feeOn_modelBody with
+  | [Stmt.letVar "fee"
+        (Expr.div
+          (Expr.mul (Expr.param "amount") (Expr.literal 30))
+          (Expr.literal 10000)),
+      Stmt.return (Expr.localVar "fee")] =>
+      true
+  | _ => false
+
+example : feeOnModelInlinesContractConstants = true := by native_decide
+
+def treasuryAddrModelInlinesAddressConstant : Bool :=
+  match MacroConstant.treasuryAddr_modelBody with
+  | [Stmt.return (Expr.literal 42)] =>
+      true
+  | _ => false
+
+example : treasuryAddrModelInlinesAddressConstant = true := by native_decide
+
+def treasuryAsWordModelInlinesNestedConstants : Bool :=
+  match MacroConstant.treasuryAsWord_modelBody with
+  | [Stmt.return (Expr.literal 42)] =>
+      true
+  | _ => false
+
+example : treasuryAsWordModelInlinesNestedConstants = true := by native_decide
+
+def shadowedConstantModelPrefersLocalAndParamBindings : Bool :=
+  match MacroConstant.shadowedConstant_modelBody with
+  | [Stmt.letVar "treasuryWord" (Expr.literal 9),
+      Stmt.return (Expr.add (Expr.param "mintFeeBps") (Expr.localVar "treasuryWord"))] =>
+      true
+  | _ => false
+
+example : shadowedConstantModelPrefersLocalAndParamBindings = true := by native_decide
+
+def treasuryExecutableUsesGeneratedConstantDef : Bool :=
+  match MacroConstant.treasuryAddr Verity.defaultState with
+  | .success treasury state =>
+      treasury == Verity.wordToAddress 42 &&
+      state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : treasuryExecutableUsesGeneratedConstantDef = true := by native_decide
+
+end MacroConstantSmoke
+
 namespace MacroTupleDestructuringSmoke
 
 open Contracts
@@ -1822,5 +1900,14 @@ set_option maxRecDepth 4096 in
     (contains macroTransientTrustReport "\"modeledLowLevelMechanics\"" &&
       contains macroTransientTrustReport "\"tstore\"" &&
       contains macroTransientTrustReport "\"tload\"")
+  expectTrue "macro constant expressions inline into model bodies"
+    MacroConstantSmoke.feeOnModelInlinesContractConstants
+  expectTrue "macro address constants inline through the executable and model paths"
+    (MacroConstantSmoke.treasuryAddrModelInlinesAddressConstant &&
+      MacroConstantSmoke.treasuryExecutableUsesGeneratedConstantDef)
+  expectTrue "macro nested constants inline transitively"
+    MacroConstantSmoke.treasuryAsWordModelInlinesNestedConstants
+  expectTrue "macro locals and params shadow contract constants"
+    MacroConstantSmoke.shadowedConstantModelPrefersLocalAndParamBindings
 
 end Compiler.CompilationModelFeatureTest
