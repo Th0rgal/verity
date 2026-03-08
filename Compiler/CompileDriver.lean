@@ -55,13 +55,10 @@ private def writeTrustReport (path : String) (specs : List CompilationModel) : I
   IO.FS.writeFile path (emitTrustReportJson specs ++ "\n")
 
 private def ensureNoUncheckedDependencies (specs : List CompilationModel) : IO Unit := do
-  let uncheckedContracts :=
-    specs.foldl
-      (fun acc spec => if hasUncheckedDependencies spec then acc ++ [spec.name] else acc)
-      []
-  if !uncheckedContracts.isEmpty then
+  let uncheckedSites := emitUncheckedUsageSiteLines specs
+  if !uncheckedSites.isEmpty then
     throw (IO.userError
-      s!"Unchecked foreign dependencies remain in: {String.intercalate ", " uncheckedContracts}")
+      s!"Unchecked foreign dependencies remain:\n{String.intercalate "\n" uncheckedSites}")
 
 private def writeContract
     (outDir : String)

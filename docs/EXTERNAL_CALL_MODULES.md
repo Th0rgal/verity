@@ -196,7 +196,9 @@ emits per-contract JSON that includes:
 
 For verification-oriented compiles, `verity-compiler --deny-unchecked-dependencies`
 turns that report into a hard gate: compilation exits nonzero if any selected
-contract still depends on an `unchecked` linked external or ECM module.
+contract still depends on an `unchecked` linked external or ECM module, and the
+failure now cites the exact constructor/function usage site that introduced the
+unchecked dependency.
 
 ## Trust Model
 

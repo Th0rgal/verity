@@ -684,6 +684,29 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
       acc ++ siteLines)
     []
 
+/-- Render localized unchecked-foreign-dependency lines for fail-closed diagnostics. -/
+def emitUncheckedUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            let uncheckedExternals := (namesByProofStatus .unchecked site.externals site.modules).fst
+            let uncheckedModules := (namesByProofStatus .unchecked site.externals site.modules).snd
+            let uncheckedCategories :=
+              (if uncheckedExternals.isEmpty then [] else
+                [s!"unchecked linked externals: {String.intercalate ", " uncheckedExternals}"]) ++
+              (if uncheckedModules.isEmpty then [] else
+                [s!"unchecked ECM modules: {String.intercalate ", " uncheckedModules}"])
+            if uncheckedCategories.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate "; " uncheckedCategories}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- True when a contract depends on any foreign surface marked `unchecked`. -/
 def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
   !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||

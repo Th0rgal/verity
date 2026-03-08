@@ -1088,7 +1088,7 @@ unsafe def runTests : IO Unit := do
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
       [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true)
-    "Unchecked foreign dependencies remain in: ConstructorOnlyEcmTrustSurface"
+    "Unchecked foreign dependencies remain:\n- ConstructorOnlyEcmTrustSurface [constructor:constructor]: unchecked ECM modules: ctorHook"
   let deniedTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedTrustReportWritten then
     throw (IO.userError "✗ denied unchecked-dependency compile still writes trust report file")
