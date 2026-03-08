@@ -59,6 +59,34 @@ theorem mulDivDown_mul_le (a b c : Uint256) (hMul : (a : Nat) * (b : Nat) ≤ MA
     simp [hZero]
     exact Nat.div_mul_le_self _ _
 
+/-- `mulDivDown` is monotone in its left numerator operand when the product stays exact. -/
+theorem mulDivDown_monotone_left (a₁ a₂ b c : Uint256)
+    (hA : (a₁ : Nat) ≤ (a₂ : Nat))
+    (hMul : (a₂ : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (mulDivDown a₁ b c : Nat) ≤ (mulDivDown a₂ b c : Nat) := by
+  have hMul₁ : (a₁ : Nat) * (b : Nat) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.mul_le_mul_right _ hA) hMul
+  by_cases hZero : (c : Nat) = 0
+  · rw [mulDivDown_nat_eq a₁ b c hMul₁, mulDivDown_nat_eq a₂ b c hMul]
+    simp [hZero]
+  · rw [mulDivDown_nat_eq a₁ b c hMul₁, mulDivDown_nat_eq a₂ b c hMul]
+    simp [hZero]
+    exact Nat.div_le_div_right (Nat.mul_le_mul_right _ hA)
+
+/-- `mulDivDown` is monotone in its right numerator operand when the product stays exact. -/
+theorem mulDivDown_monotone_right (a b₁ b₂ c : Uint256)
+    (hB : (b₁ : Nat) ≤ (b₂ : Nat))
+    (hMul : (a : Nat) * (b₂ : Nat) ≤ MAX_UINT256) :
+    (mulDivDown a b₁ c : Nat) ≤ (mulDivDown a b₂ c : Nat) := by
+  have hMul₁ : (a : Nat) * (b₁ : Nat) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.mul_le_mul_left _ hB) hMul
+  by_cases hZero : (c : Nat) = 0
+  · rw [mulDivDown_nat_eq a b₁ c hMul₁, mulDivDown_nat_eq a b₂ c hMul]
+    simp [hZero]
+  · rw [mulDivDown_nat_eq a b₁ c hMul₁, mulDivDown_nat_eq a b₂ c hMul]
+    simp [hZero]
+    exact Nat.div_le_div_right (Nat.mul_le_mul_left _ hB)
+
 /-- `mulDivUp` agrees with exact ceil-division when the widened numerator does not wrap. -/
 theorem mulDivUp_nat_eq (a b c : Uint256)
     (hC : c ≠ 0)
@@ -114,6 +142,28 @@ theorem mulDivDown_le_mulDivUp (a b c : Uint256)
   simp [hCVal]
   apply Nat.div_le_div_right
   exact Nat.le_add_right _ _
+
+/-- `mulDivUp` is monotone in its left numerator operand when the widened numerator stays exact. -/
+theorem mulDivUp_monotone_left (a₁ a₂ b c : Uint256)
+    (hA : (a₁ : Nat) ≤ (a₂ : Nat))
+    (hC : c ≠ 0)
+    (hNum : (a₂ : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    (mulDivUp a₁ b c : Nat) ≤ (mulDivUp a₂ b c : Nat) := by
+  have hNum₁ : (a₁ : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.add_le_add_right (Nat.mul_le_mul_right _ hA) _) hNum
+  rw [mulDivUp_nat_eq a₁ b c hC hNum₁, mulDivUp_nat_eq a₂ b c hC hNum]
+  exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_right _ hA) _)
+
+/-- `mulDivUp` is monotone in its right numerator operand when the widened numerator stays exact. -/
+theorem mulDivUp_monotone_right (a b₁ b₂ c : Uint256)
+    (hB : (b₁ : Nat) ≤ (b₂ : Nat))
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b₂ : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    (mulDivUp a b₁ c : Nat) ≤ (mulDivUp a b₂ c : Nat) := by
+  have hNum₁ : (a : Nat) * (b₁ : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.add_le_add_right (Nat.mul_le_mul_left _ hB) _) hNum
+  rw [mulDivUp_nat_eq a b₁ c hC hNum₁, mulDivUp_nat_eq a b₂ c hC hNum]
+  exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_left _ hB) _)
 
 /-- `wMulDown` is `mulDivDown` specialized to the canonical wad scale. -/
 theorem wMulDown_nat_eq (a b : Uint256)
