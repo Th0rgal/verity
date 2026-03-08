@@ -13,6 +13,10 @@ The Verity compiler transforms `CompilationModel` models into deployable EVM byt
 
 **Pipeline**: EDSL Contract → CompilationModel → IR → Yul → EVM Bytecode
 
+The CLI can also emit machine-readable audit artifacts alongside Yul/ABI output:
+- `--trust-report <path>` writes proof-boundary and assumption data.
+- `--layout-report <path>` writes resolved storage-slot metadata, including effective alias writes and reserved-slot policies for upgrade/layout reviews.
+
 Important: Verity has two different "spec" concepts.
 
 1. Logical specs in `Verity/Specs/<Name>/Spec.lean` are `Prop` statements used for proofs.

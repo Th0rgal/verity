@@ -27,6 +27,7 @@ private structure CLIArgs where
   patchMaxIterationsExplicit : Bool := false
   patchReportPath : Option String := none
   trustReportPath : Option String := none
+  layoutReportPath : Option String := none
   denyUncheckedDependencies : Bool := false
   denyAssumedDependencies : Bool := false
   denyAxiomatizedPrimitives : Bool := false
@@ -90,6 +91,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
         IO.println "  --patch-report <path>       Write TSV patch coverage report"
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
+        IO.println "  --layout-report <path>      Write JSON storage-layout report"
         IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
         IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
         IO.println "  --deny-axiomatized-primitives  Fail if any contract uses axiomatized primitives"
@@ -186,6 +188,10 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with trustReportPath := some path }
     | ["--trust-report"] =>
         throw (IO.userError "Missing value for --trust-report")
+    | "--layout-report" :: path :: rest =>
+        go rest { cfg with layoutReportPath := some path }
+    | ["--layout-report"] =>
+        throw (IO.userError "Missing value for --layout-report")
     | "--deny-unchecked-dependencies" :: rest =>
         go rest { cfg with denyUncheckedDependencies := true }
     | "--deny-assumed-dependencies" :: rest =>
@@ -263,6 +269,9 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.trustReportPath with
       | some path => IO.println s!"Trust report: {path}"
       | none => pure ()
+      match cfg.layoutReportPath with
+      | some path => IO.println s!"Layout report: {path}"
+      | none => pure ()
       if cfg.denyLinearMemoryMechanics then
         IO.println "Linear memory mechanics: denied"
       if cfg.denyEventEmission then
@@ -310,7 +319,7 @@ unsafe def main (args : List String) : IO Unit := do
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
       cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
       cfg.denyAxiomatizedPrimitives cfg.denyLocalObligations cfg.denyLinearMemoryMechanics cfg.denyEventEmission
-      cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability
+      cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability cfg.layoutReportPath
   catch e =>
     if e.toString == "help" then
       -- Help was shown, exit cleanly
