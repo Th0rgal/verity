@@ -49,6 +49,25 @@ def safeDiv (a b : Uint256) : Option Uint256 :=
   else
     some (a / b)
 
+/-- Fixed-point scaling factor used by `wMulDown` and `wDivUp`. -/
+def WAD : Uint256 := 1000000000000000000
+
+/-- `mulDivDown(a, b, c)` = `floor(a * b / c)` under the EVM's `div` semantics. -/
+def mulDivDown (a b c : Uint256) : Uint256 :=
+  (a * b) / c
+
+/-- `mulDivUp(a, b, c)` = `ceil(a * b / c)` when the numerator fits without wrapping. -/
+def mulDivUp (a b c : Uint256) : Uint256 :=
+  ((a * b) + (c - 1)) / c
+
+/-- Multiply two wad-scaled values and round down. -/
+def wMulDown (a b : Uint256) : Uint256 :=
+  mulDivDown a b WAD
+
+/-- Divide two wad-scaled values and round up. -/
+def wDivUp (a b : Uint256) : Uint256 :=
+  mulDivUp a WAD b
+
 -- Helper: Require with Option - fails if None
 -- For Uint256 specifically (can be generalized later if needed)
 def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256 := do
@@ -66,5 +85,28 @@ def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
 
 @[simp] theorem requireSomeUint_none (msg : String) (s : ContractState) :
   (requireSomeUint none msg).run s = ContractResult.revert msg s := rfl
+
+@[simp] theorem WAD_val : (WAD : Nat) = 1000000000000000000 := by
+  rfl
+
+theorem WAD_ne_zero : WAD ≠ 0 := by
+  intro h
+  have : ((WAD : Uint256) : Nat) = 0 := by
+    simpa using congrArg (fun x : Uint256 => (x : Nat)) h
+  have hPos : 0 < (1000000000000000000 : Nat) := by decide
+  simp [WAD] at this
+  exact (Nat.ne_of_gt hPos) this
+
+@[simp] theorem mulDivDown_def (a b c : Uint256) :
+  mulDivDown a b c = (a * b) / c := rfl
+
+@[simp] theorem mulDivUp_def (a b c : Uint256) :
+  mulDivUp a b c = ((a * b) + (c - 1)) / c := rfl
+
+@[simp] theorem wMulDown_def (a b : Uint256) :
+  wMulDown a b = mulDivDown a b WAD := rfl
+
+@[simp] theorem wDivUp_def (a b : Uint256) :
+  wDivUp a b = mulDivUp a WAD b := rfl
 
 end Verity.Stdlib.Math

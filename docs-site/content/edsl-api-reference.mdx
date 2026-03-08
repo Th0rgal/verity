@@ -303,17 +303,23 @@ let sum <- requireSomeUint (safeAdd a b) "overflow"
 - `safeAdd_some`, `safeAdd_none`, `safeSub_some`, `safeSub_none`, `safeMul_some`, `safeMul_none`, `safeDiv_some`, `safeDiv_none` (`Verity/Proofs/Stdlib/Math.lean`)
 - `requireSomeUint_some`, `requireSomeUint_none` (`Verity/Stdlib/Math.lean`)
 
-### `mulDivDown` / `mulDivUp`
+### `mulDivDown` / `mulDivUp` / `wMulDown` / `wDivUp`
 
-Helpers exist in macro-contract support code:
+Fixed-point helpers live in `Stdlib.Math`:
 
 ```lean
 def mulDivDown (a b c : Uint256) : Uint256
 
 def mulDivUp (a b c : Uint256) : Uint256
+
+def wMulDown (a b : Uint256) : Uint256
+
+def wDivUp (a b : Uint256) : Uint256
 ```
 
-Location: `Contracts/Common.lean`
+**Proof lemmas**
+
+- `mulDivDown_nat_eq`, `mulDivUp_nat_eq`, `mulDivDown_le_mulDivUp`, `wMulDown_nat_eq`, `wDivUp_nat_eq` (`Verity/Proofs/Stdlib/Math.lean`)
 
 ## Tuple Surface
 

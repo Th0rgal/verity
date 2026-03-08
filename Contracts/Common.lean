@@ -55,11 +55,11 @@ def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def bitOr (a b : Uint256) : Uint256 := Verity.Core.Uint256.or a b
 def bitXor (a b : Uint256) : Uint256 := Verity.Core.Uint256.xor a b
 
-def mulDivDown (a b c : Uint256) : Uint256 := div (mul a b) c
-def mulDivUp (a b c : Uint256) : Uint256 := div (add (mul a b) (sub c 1)) c
+abbrev mulDivDown := Verity.Stdlib.Math.mulDivDown
+abbrev mulDivUp := Verity.Stdlib.Math.mulDivUp
 
-def wMulDown (a b : Uint256) : Uint256 := mulDivDown a b 1000000000000000000
-def wDivUp (a b : Uint256) : Uint256 := mulDivUp a 1000000000000000000 b
+abbrev wMulDown := Verity.Stdlib.Math.wMulDown
+abbrev wDivUp := Verity.Stdlib.Math.wDivUp
 
 def min (a b : Uint256) : Uint256 := if a <= b then a else b
 def max (a b : Uint256) : Uint256 := if a >= b then a else b

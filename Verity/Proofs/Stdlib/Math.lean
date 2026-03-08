@@ -13,6 +13,122 @@ namespace Verity.Proofs.Stdlib.Math
 open Verity
 open Verity.Stdlib.Math
 
+/-! ## mulDiv / wad Helpers -/
+
+private theorem modulus_eq_max_succ :
+    Verity.Core.Uint256.modulus = MAX_UINT256 + 1 := by
+  symm
+  exact Verity.Core.Uint256.max_uint256_succ_eq_modulus
+
+private theorem lt_modulus_of_le_max {n : Nat} (h : n ≤ MAX_UINT256) :
+    n < Verity.Core.Uint256.modulus := by
+  calc
+    n < MAX_UINT256 + 1 := Nat.lt_succ_of_le h
+    _ = Verity.Core.Uint256.modulus := by simp [modulus_eq_max_succ]
+
+/-- `mulDivDown` agrees with exact natural-number division when the numerator does not wrap. -/
+theorem mulDivDown_nat_eq (a b c : Uint256) (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (mulDivDown a b c : Nat) =
+      if (c : Nat) = 0 then 0 else ((a : Nat) * (b : Nat)) / (c : Nat) := by
+  have hMulLt : (a : Nat) * (b : Nat) < Verity.Core.Uint256.modulus :=
+    lt_modulus_of_le_max hMul
+  have hProd : ((a * b : Uint256) : Nat) = (a : Nat) * (b : Nat) :=
+    Verity.Core.Uint256.mul_eq_of_lt hMulLt
+  by_cases hZero : (c : Nat) = 0
+  · simp [mulDivDown, HDiv.hDiv, Verity.Core.Uint256.div, hZero]
+  · have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hZero
+    have hDivLt : ((a : Nat) * (b : Nat)) / (c : Nat) < Verity.Core.Uint256.modulus := by
+      exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) hMulLt
+    calc
+      (mulDivDown a b c : Nat)
+          = (((a * b : Uint256) : Nat) / (c : Nat)) % Verity.Core.Uint256.modulus := by
+              simp [mulDivDown, HDiv.hDiv, Verity.Core.Uint256.div, hZero]
+      _ = (((a : Nat) * (b : Nat)) / (c : Nat)) % Verity.Core.Uint256.modulus := by
+              simp [hProd]
+      _ = ((a : Nat) * (b : Nat)) / (c : Nat) := Nat.mod_eq_of_lt hDivLt
+      _ = dite ((c : Nat) = 0) (fun _ => 0) (fun _ => ((a : Nat) * (b : Nat)) / (c : Nat)) := by
+              simp [hZero]
+
+/-- Rounding down never overshoots the exact numerator product. -/
+theorem mulDivDown_mul_le (a b c : Uint256) (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (mulDivDown a b c : Nat) * (c : Nat) ≤ (a : Nat) * (b : Nat) := by
+  by_cases hZero : (c : Nat) = 0
+  · rw [mulDivDown_nat_eq a b c hMul]
+    simp [hZero]
+  · rw [mulDivDown_nat_eq a b c hMul]
+    simp [hZero]
+    exact Nat.div_mul_le_self _ _
+
+/-- `mulDivUp` agrees with exact ceil-division when the widened numerator does not wrap. -/
+theorem mulDivUp_nat_eq (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    (mulDivUp a b c : Nat) = (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) := by
+  have hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.le_add_right _ _) hNum
+  have hMulLt : (a : Nat) * (b : Nat) < Verity.Core.Uint256.modulus :=
+    lt_modulus_of_le_max hMul
+  have hProd : ((a * b : Uint256) : Nat) = (a : Nat) * (b : Nat) :=
+    Verity.Core.Uint256.mul_eq_of_lt hMulLt
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hOneLe : (1 : Nat) ≤ (c : Nat) := Nat.succ_le_of_lt (Nat.pos_of_ne_zero hCVal)
+  have hSub : ((c - 1 : Uint256) : Nat) = (c : Nat) - 1 :=
+    Verity.Core.Uint256.sub_eq_of_le hOneLe
+  have hNumLt : (a : Nat) * (b : Nat) + ((c : Nat) - 1) < Verity.Core.Uint256.modulus :=
+    lt_modulus_of_le_max hNum
+  have hNumerator :
+      (((a * b : Uint256) + (c - 1 : Uint256) : Uint256) : Nat) =
+        (a : Nat) * (b : Nat) + ((c : Nat) - 1) := by
+    have hAdd :
+        (((a * b : Uint256) + (c - 1 : Uint256) : Uint256) : Nat) =
+          ((a * b : Uint256) : Nat) + ((c - 1 : Uint256) : Nat) :=
+      Verity.Core.Uint256.add_eq_of_lt (by simpa [hProd, hSub] using hNumLt)
+    simpa [hProd, hSub] using hAdd
+  have hDivLt :
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) < Verity.Core.Uint256.modulus := by
+    exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) hNumLt
+  calc
+    (mulDivUp a b c : Nat)
+        = ((((a * b : Uint256) + (c - 1 : Uint256) : Uint256) : Nat) / (c : Nat)) %
+            Verity.Core.Uint256.modulus := by
+              simp [mulDivUp, HDiv.hDiv, Verity.Core.Uint256.div, hCVal]
+    _ = (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) % Verity.Core.Uint256.modulus := by
+            simp [hNumerator]
+    _ = (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) := Nat.mod_eq_of_lt hDivLt
+
+/-- The ceil helper never rounds below the floor helper when both are exact. -/
+theorem mulDivDown_le_mulDivUp (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    (mulDivDown a b c : Nat) ≤ (mulDivUp a b c : Nat) := by
+  have hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.le_add_right _ _) hNum
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  rw [mulDivDown_nat_eq a b c hMul, mulDivUp_nat_eq a b c hC hNum]
+  simp [hCVal]
+  apply Nat.div_le_div_right
+  exact Nat.le_add_right _ _
+
+/-- `wMulDown` is `mulDivDown` specialized to the canonical wad scale. -/
+theorem wMulDown_nat_eq (a b : Uint256)
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (wMulDown a b : Nat) = ((a : Nat) * (b : Nat)) / (WAD : Nat) := by
+  rw [wMulDown_def, mulDivDown_nat_eq a b WAD hMul]
+  simp [WAD_val]
+
+/-- `wDivUp` is `mulDivUp` specialized to the canonical wad scale. -/
+theorem wDivUp_nat_eq (a b : Uint256)
+    (hB : b ≠ 0)
+    (hNum : (a : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
+    (wDivUp a b : Nat) = (((a : Nat) * (WAD : Nat)) + ((b : Nat) - 1)) / (b : Nat) := by
+  rw [wDivUp_def, mulDivUp_nat_eq a WAD b hB hNum]
+
 /-! ## safeAdd Correctness -/
 
 /-- safeAdd returns the sum when no overflow occurs. -/
@@ -215,6 +331,16 @@ safeDiv:
 23. safeDiv_by_one — a / 1 = a
 24. safeDiv_self — a / a = 1
 25. safeDiv_result_le_numerator — result never exceeds numerator
+-/
+
+/-! ## Fixed-point Helper Summary
+
+26. mulDivDown_nat_eq — exact floor division when the numerator fits
+27. mulDivDown_mul_le — floor result never overshoots the numerator
+28. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
+29. mulDivDown_le_mulDivUp — ceil result never rounds below floor
+30. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
+31. wDivUp_nat_eq — wad-divide specialization of mulDivUp
 -/
 
 end Verity.Proofs.Stdlib.Math

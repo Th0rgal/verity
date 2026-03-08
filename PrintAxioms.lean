@@ -573,6 +573,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.safeDiv_self
 #print axioms Verity.Proofs.Stdlib.Math.safeMul_result_bounded
 #print axioms Verity.Proofs.Stdlib.Math.safeDiv_result_le_numerator
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.wDivUp_nat_eq
 
 -- Compiler/Proofs/ArithmeticProfile.lean
 #print axioms Compiler.Proofs.ArithmeticProfile.modulus_is_2_pow_256
