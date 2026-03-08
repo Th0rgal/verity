@@ -18,6 +18,21 @@ macro_rules
       `(doElem| require false $(Lean.quote (toString errorName.getId)))
   | `(doElem| requireError $cond:term $errorName:ident($_args,*)) =>
       `(doElem| if $cond then pure () else require false $(Lean.quote (toString errorName.getId)))
+  | `(doElem| let $pat:term := $rhs:term) => do
+      if pat.raw.getKind != `Lean.Parser.Term.tuple then
+        Lean.Macro.throwUnsupported
+      match rhs.raw with
+      | .node _ `Lean.Parser.Term.app args =>
+          match args.getD 0 Lean.Syntax.missing with
+          | .ident _ raw _ _ =>
+              if raw.toString == "structMembers" || raw.toString == "structMembers2" then
+                Lean.Macro.throwUnsupported
+              else
+                `(doElem| let $pat:term ← $rhs:term)
+          | _ =>
+              Lean.Macro.throwUnsupported
+      | _ =>
+          Lean.Macro.throwUnsupported
 
 
 def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b

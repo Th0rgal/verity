@@ -114,6 +114,11 @@ verity_contract MacroTupleDestructuring where
     setStorage firstSlot first
     setStorage secondSlot second
 
+  function storeHelperPairEq (seed : Uint256) : Unit := do
+    let (first, second) := helperPair seed
+    setStorage firstSlot first
+    setStorage secondSlot second
+
 def storePairModelDestructuresTupleParam : Bool :=
   match MacroTupleDestructuring.storePair_modelBody with
   | [Stmt.letVar "first" (Expr.param "pair_0"),
@@ -167,6 +172,17 @@ def storeHelperPairModelUsesInternalCallAssign : Bool :=
 
 example : storeHelperPairModelUsesInternalCallAssign = true := by native_decide
 
+def storeHelperPairEqModelUsesInternalCallAssign : Bool :=
+  match MacroTupleDestructuring.storeHelperPairEq_modelBody with
+  | [Stmt.internalCallAssign ["first", "second"] "helperPair" [Expr.param "seed"],
+      Stmt.setStorage "firstSlot" (Expr.localVar "first"),
+      Stmt.setStorage "secondSlot" (Expr.localVar "second"),
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : storeHelperPairEqModelUsesInternalCallAssign = true := by native_decide
+
 def echoPairExecutableKeepsTupleShape : Bool :=
   match MacroTupleDestructuring.echoPair (11, 17) Verity.defaultState with
   | .success (first, second) state =>
@@ -182,6 +198,14 @@ def storeHelperPairExecutableStoresHelperResults : Bool :=
   | .revert _ _ => false
 
 example : storeHelperPairExecutableStoresHelperResults = true := by native_decide
+
+def storeHelperPairEqExecutableStoresHelperResults : Bool :=
+  match MacroTupleDestructuring.storeHelperPairEq 11 Verity.defaultState with
+  | .success () state =>
+      state.storage 0 == 11 && state.storage 1 == 12
+  | .revert _ _ => false
+
+example : storeHelperPairEqExecutableStoresHelperResults = true := by native_decide
 
 end MacroTupleDestructuringSmoke
 
