@@ -695,6 +695,24 @@
       "agreement_proved": false
     },
     {
+      "feature": "address",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
+      "feature": "timestamp",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
+      "feature": "chainid",
+      "verity_path": "supported",
+      "evmyullean_bridge": "delegated",
+      "agreement_proved": false
+    },
+    {
       "feature": "calldataload",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
@@ -702,12 +720,6 @@
     },
     {
       "feature": "mappingSlot",
-      "verity_path": "supported",
-      "evmyullean_bridge": "delegated",
-      "agreement_proved": false
-    },
-    {
-      "feature": "chainid",
       "verity_path": "supported",
       "evmyullean_bridge": "delegated",
       "agreement_proved": false

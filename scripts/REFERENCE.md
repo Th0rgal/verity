@@ -27,6 +27,7 @@ Primary guards:
 - `check_property_manifest.py`
 - `check_property_coverage.py`
 - `check_property_manifest_sync.py`
+- `check_builtin_bridge_matrix_sync.py`: keep the builtin bridge matrix artifact and docs in sync, including delegated env builtins.
 - `check_low_level_call_boundary_sync.py`: keep docs aligned with the current low-level call proof boundary.
 - `check_linear_memory_boundary_sync.py`: keep docs aligned with the current linear-memory proof boundary.
 - `check_struct_mapping_surface_sync.py`: keep struct-mapping storage docs aligned with the current compiler surface.
