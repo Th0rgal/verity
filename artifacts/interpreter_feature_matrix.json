@@ -198,6 +198,15 @@
       "proof_status": "partial"
     },
     {
+      "feature": "returndataOptionalBoolAt",
+      "constructor": "Expr.returndataOptionalBoolAt",
+      "SpecInterpreter_basic": "fallback_zero",
+      "SpecInterpreter_fuel": "fallback_zero",
+      "IRInterpreter": "n/a",
+      "EVMYulLean_bridge": "n/a",
+      "proof_status": "partial"
+    },
+    {
       "feature": "keccak256",
       "constructor": "Expr.keccak256",
       "SpecInterpreter_basic": "fallback_zero",

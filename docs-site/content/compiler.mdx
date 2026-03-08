@@ -300,6 +300,8 @@ Low-level call expressions compile to the expected Yul builtins, but their runti
 
 Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `Expr.chainid`, `Stmt.mstore`) instead of `Expr.externalCall` for these opcodes. Builtin names routed through `externalCall` remain rejected by interop validation.
 
+Memory-oriented intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) compile, but the current proof interpreters still model them only partially. For audit-oriented or proof-strict builds, surface that boundary with `--trust-report` / `--deny-linear-memory-mechanics`; the remaining gap is tracked under issue `#1411`.
+
 For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. The `verity_contract` surface now exposes matching storage forms:
 
 ```lean

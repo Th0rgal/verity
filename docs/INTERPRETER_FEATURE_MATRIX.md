@@ -42,6 +42,7 @@ The `SpecInterpreter` has been removed. EDSL semantics are now defined directly 
 | `address(this)` | `Expr.contractAddress` | **0** | **0** | ok | -- | partial |
 | `chainid` | `Expr.chainid` | **0** | **0** | ok | -- | partial |
 | `mload` | `Expr.mload` | **0** | **0** | ok | -- | partial |
+| `returndataOptionalBoolAt` | `Expr.returndataOptionalBoolAt` | **0** | **0** | -- | -- | partial |
 | `keccak256` | `Expr.keccak256` | **0** | **0** | -- | -- | n/m |
 | `call` | `Expr.call` | **0** | **0** | -- | -- | n/m |
 | `staticcall` | `Expr.staticcall` | **0** | **0** | -- | -- | n/m |
@@ -140,7 +141,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 
 | Category | Proved | Assumed | Partial | Not Modeled |
 |---|---|---|---|---|
-| Expression features | 25 | 1 (`externalCall`) | 2 (`chainid`, `mload`) | 5 |
+| Expression features | 25 | 1 (`externalCall`) | 3 (`chainid`, `mload`, `returndataOptionalBoolAt`) | 5 |
 | Statement features | 24 | 0 | 1 (`mstore`) | 7 |
 | Builtins (agreement) | 15 | 0 | 0 | 7 (delegated) |
 
@@ -150,7 +151,7 @@ Legend: **ok** = native evaluation, **del** = delegated to Verity path (bridge r
 
 ## Known Limitations
 
-1. **Linear memory**: The IRInterpreter has single-word memory support. Full linear memory coverage requires EVMYulLean semantic integration.
+1. **Linear memory**: The IRInterpreter has single-word memory support. `mload`, `mstore`, `calldatacopy`, `returndataCopy`, and `returndataOptionalBoolAt` therefore remain only partially modeled or not modeled in the proof interpreters today. Full linear memory coverage requires EVMYulLean semantic integration.
 
 2. **Low-level calls**: `call`/`staticcall`/`delegatecall` and `externalCallBind`/`ecm` are compiler-only features validated by Foundry testing, not modeled in proof interpreters.
 

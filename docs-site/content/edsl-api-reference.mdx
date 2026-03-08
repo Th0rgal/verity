@@ -652,6 +652,8 @@ Prefer ECM wrappers when they fit the use case, and see issue `#1332` plus [`doc
 
 Reference: `Compiler/CompilationModel.lean`.
 
+First-class linear-memory forms (`Expr.mload`, `Stmt.mstore`, `Stmt.calldatacopy`, `Stmt.returndataCopy`, `Expr.returndataOptionalBoolAt`) also compile today, but they are still only partially modeled by the current proof interpreters. When these forms appear, treat them as an explicit memory/ABI trust boundary, archive `--trust-report`, and use `--deny-linear-memory-mechanics` for proof-strict runs (see issue `#1411`).
+
 ## Context Accessors
 
 **Signatures**
