@@ -27,6 +27,7 @@ private structure CLIArgs where
   patchMaxIterationsExplicit : Bool := false
   patchReportPath : Option String := none
   trustReportPath : Option String := none
+  assumptionReportPath : Option String := none
   layoutReportPath : Option String := none
   denyUncheckedDependencies : Bool := false
   denyAssumedDependencies : Bool := false
@@ -91,6 +92,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
         IO.println "  --patch-report <path>       Write TSV patch coverage report"
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
+        IO.println "  --assumption-report <path>  Write JSON assumption inventory report"
         IO.println "  --layout-report <path>      Write JSON storage-layout report"
         IO.println "  --deny-unchecked-dependencies  Fail if any contract depends on `unchecked` foreign surfaces"
         IO.println "  --deny-assumed-dependencies    Fail if any contract depends on `assumed` or `unchecked` foreign surfaces"
@@ -188,6 +190,10 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with trustReportPath := some path }
     | ["--trust-report"] =>
         throw (IO.userError "Missing value for --trust-report")
+    | "--assumption-report" :: path :: rest =>
+        go rest { cfg with assumptionReportPath := some path }
+    | ["--assumption-report"] =>
+        throw (IO.userError "Missing value for --assumption-report")
     | "--layout-report" :: path :: rest =>
         go rest { cfg with layoutReportPath := some path }
     | ["--layout-report"] =>
@@ -269,6 +275,9 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.trustReportPath with
       | some path => IO.println s!"Trust report: {path}"
       | none => pure ()
+      match cfg.assumptionReportPath with
+      | some path => IO.println s!"Assumption report: {path}"
+      | none => pure ()
       match cfg.layoutReportPath with
       | some path => IO.println s!"Layout report: {path}"
       | none => pure ()
@@ -317,7 +326,7 @@ unsafe def main (args : List String) : IO Unit := do
     }
     compileModulesWithOptions
       cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
-      cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
+      cfg.assumptionReportPath cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
       cfg.denyAxiomatizedPrimitives cfg.denyLocalObligations cfg.denyLinearMemoryMechanics cfg.denyEventEmission
       cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability cfg.layoutReportPath
   catch e =>

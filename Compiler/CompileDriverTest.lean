@@ -969,7 +969,7 @@ unsafe def runTests : IO Unit := do
 
   expectFailureContains
     "compileSpecsWithOptions reports missing linked library"
-    (compileSpecsWithOptions [abiSmokeSpec, linkedLibrarySpec] outDir false [missingLib] {} none none (some abiDir))
+    (compileSpecsWithOptions [abiSmokeSpec, linkedLibrarySpec] outDir false [missingLib] {} none none none (some abiDir))
     missingLib
 
   let hasEarlySuccessfulAbi ← fileExists earlySuccessfulAbi
@@ -977,7 +977,7 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {earlySuccessfulAbi}")
   IO.println "✓ ABI artifacts still emitted for contracts compiled before failure"
 
-  compileSpecsWithOptions [stringAbiSmokeSpec] stringOutDir false [] {} none none (some stringAbiDir)
+  compileSpecsWithOptions [stringAbiSmokeSpec] stringOutDir false [] {} none none none (some stringAbiDir)
   expectFileContains
     "compileSpecsWithOptions emits string ABI artifacts"
     s!"{stringAbiDir}/StringAbiSmoke.abi.json"
@@ -1004,7 +1004,7 @@ unsafe def runTests : IO Unit := do
     , "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}, {\"name\": \"\", \"type\": \"string\"}]"
     ]
 
-  compileSpecsWithOptions [abiHeadCompileDriverSpec] abiHeadOutDir false [] {} none none (some abiHeadAbiDir)
+  compileSpecsWithOptions [abiHeadCompileDriverSpec] abiHeadOutDir false [] {} none none none (some abiHeadAbiDir)
   let abiHeadYulExists ← fileExists s!"{abiHeadOutDir}/AbiHeadCompileDriverSmoke.yul"
   if !abiHeadYulExists then
     throw (IO.userError "✗ compileSpecsWithOptions emits Yul for ABI-head parameter smoke contract")
@@ -1021,14 +1021,14 @@ unsafe def runTests : IO Unit := do
     , "\"outputs\": [{\"name\": \"\", \"type\": \"uint256\"}]"
     ]
 
-  compileModulesWithOptions outDir canonicalModules false [] {} none none (some abiDir)
+  compileModulesWithOptions outDir canonicalModules false [] {} none none none (some abiDir)
   expectModuleArtifacts "explicit module list emits Yul/ABI for all requested contracts" canonicalModules outDir abiDir
 
   let manifestModules ←
     match ← Compiler.ModuleInput.resolveRawModules (some "packages/verity-examples/contracts.manifest") [] with
     | .ok modules => pure modules
     | .error err => throw (IO.userError err)
-  compileModulesWithOptions manifestOutDir manifestModules false [] {} none none (some manifestAbiDir)
+  compileModulesWithOptions manifestOutDir manifestModules false [] {} none none none (some manifestAbiDir)
   expectModuleArtifacts "manifest module list emits Yul/ABI for all requested contracts" manifestModules manifestOutDir manifestAbiDir
 
   for moduleName in canonicalModules do
@@ -1043,7 +1043,7 @@ unsafe def runTests : IO Unit := do
       s!"{manifestAbiDir}/{contractName}.abi.json"
 
   let selectedModules := ["Contracts.SimpleStorage.SimpleStorage", "Contracts.Counter.Counter"]
-  compileModulesWithOptions selectedOutDir selectedModules false [] {} none none (some selectedAbiDir)
+  compileModulesWithOptions selectedOutDir selectedModules false [] {} none none none (some selectedAbiDir)
   expectOnlySelectedArtifacts
     "selected module compilation emits only requested artifacts"
     selectedModules
@@ -1051,7 +1051,7 @@ unsafe def runTests : IO Unit := do
     selectedOutDir
     selectedAbiDir
 
-  compileModulesWithOptions reversedOutDir selectedModules.reverse false [] {} none none (some reversedAbiDir)
+  compileModulesWithOptions reversedOutDir selectedModules.reverse false [] {} none none none (some reversedAbiDir)
   expectOnlySelectedArtifacts
     "selected module compilation is order-invariant for artifact set"
     selectedModules
@@ -1072,7 +1072,7 @@ unsafe def runTests : IO Unit := do
 
   expectFailureContains
     "duplicate selected modules fail closed"
-    (compileModulesWithOptions outDir ["Contracts.Counter.Counter", "Contracts.Counter.Counter"] false [] {} none none (some abiDir))
+    (compileModulesWithOptions outDir ["Contracts.Counter.Counter", "Contracts.Counter.Counter"] false [] {} none none none (some abiDir))
     "Duplicate module input: Contracts.Counter.Counter"
 
   let trustReport := emitTrustReportJson [trustSurfaceSpec]
@@ -1223,6 +1223,23 @@ unsafe def runTests : IO Unit := do
   if !contains localObligationUsageSiteReport "- LocalObligationTrustSurface [function:unsafeEdge]: assumed local obligations: manual_delegatecall_refinement" then
     throw (IO.userError "✗ local-obligation diagnostics localize usage sites")
   IO.println "✓ trust report surfaces local unsafe/refinement obligations"
+
+  let assumptionReport := emitAssumptionReportJson [trustSurfaceSpec, localObligationTrustSurfaceSpec]
+  if !contains assumptionReport "\"contract\":\"TrustSurfaceSmoke\"" then
+    throw (IO.userError "✗ assumption report emits contract name")
+  if !contains assumptionReport "\"category\":\"axiomatizedPrimitive\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"keccak256\",\"status\":\"assumed\",\"detail\":\"\",\"assumption\":\"keccak256_memory_slice_matches_evm\"" then
+    throw (IO.userError "✗ assumption report emits primitive assumption entries")
+  if !contains assumptionReport "\"category\":\"linkedExternal\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"PoseidonT3_hash\",\"status\":\"assumed\"" then
+    throw (IO.userError "✗ assumption report emits linked external entries")
+  if !contains assumptionReport "\"category\":\"ecmModule\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"testCall\",\"status\":\"assumed\"" then
+    throw (IO.userError "✗ assumption report emits ECM module entries")
+  if !contains assumptionReport "\"category\":\"ecmAxiom\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"test_call_interface\",\"status\":\"assumed\",\"detail\":\"\",\"assumption\":\"\",\"module\":\"testCall\"" then
+    throw (IO.userError "✗ assumption report emits ECM axiom entries")
+  if !contains assumptionReport "\"category\":\"localObligation\",\"siteKind\":\"function\",\"siteName\":\"unsafeEdge\",\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\",\"detail\":\"Caller must separately prove the handwritten assembly path refines the intended state transition.\"" then
+    throw (IO.userError "✗ assumption report emits localized local-obligation entries")
+  if !contains assumptionReport "\"undischarged\":[{\"category\":\"localObligation\",\"siteKind\":\"function\",\"siteName\":\"unsafeEdge\",\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\"" then
+    throw (IO.userError "✗ assumption report tracks undischarged entries separately")
+  IO.println "✓ assumption report flattens assumption-backed boundaries by usage site"
 
   let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
   if !contains uncheckedTrustReport "\"hasUncheckedDependencies\":true" then
@@ -1425,13 +1442,23 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ erc4626 deposit trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 deposit trust report emits standard vault module assumption"
 
-  compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
+  compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none none
   let writtenTrustReport ← fileExists trustReportPath
   if !writtenTrustReport then
     throw (IO.userError "✗ compileSpecsWithOptions writes trust report file")
   IO.println "✓ compileSpecsWithOptions writes trust report file"
 
-  compileSpecsWithOptions [layoutReportSpec] outDir false [] {} none none none false false false false false false false false false (some layoutReportPath)
+  let assumptionReportPath := s!"{trustReportDir}/assumption-report.json"
+  compileSpecsWithOptions [localObligationTrustSurfaceSpec] outDir false [] {} none none (some assumptionReportPath) none
+  let writtenAssumptionReport ← fileExists assumptionReportPath
+  if !writtenAssumptionReport then
+    throw (IO.userError "✗ compileSpecsWithOptions writes assumption report file")
+  expectFileContains
+    "compileSpecsWithOptions assumption report includes local obligation entries"
+    assumptionReportPath
+    ["\"contract\":\"LocalObligationTrustSurface\"", "\"category\":\"localObligation\"", "\"name\":\"manual_delegatecall_refinement\""]
+
+  compileSpecsWithOptions [layoutReportSpec] outDir false [] {} none none none none false false false false false false false false false (some layoutReportPath)
   let writtenLayoutReport ← fileExists layoutReportPath
   if !writtenLayoutReport then
     throw (IO.userError "✗ compileSpecsWithOptions writes layout report file")
@@ -1444,7 +1471,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects low-level call/returndata mechanics when deny flag enabled"
     (compileSpecsWithOptions
-      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false false false false true false false)
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none none false false false false false false true false false)
     "Low-level mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: call, staticcall, delegatecall, returndataCopy, returndataSize"
   let deniedLowLevelTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedLowLevelTrustReportWritten then
@@ -1453,7 +1480,7 @@ unsafe def runTests : IO Unit := do
 
   let denyLowLevelMemoryOutDir := s!"/tmp/compile-driver-deny-low-level-memory-ok-{nonce}"
   compileSpecsWithOptions
-    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none false false false false false false true false false
+    [memoryOnlyTrustSurfaceSpec] denyLowLevelMemoryOutDir false [] {} none none none none false false false false false false true false false
   let denyLowLevelMemoryArtifactWritten ← fileExists s!"{denyLowLevelMemoryOutDir}/MemoryOnlyTrustSurface.yul"
   if !denyLowLevelMemoryArtifactWritten then
     throw (IO.userError "✗ compileSpecsWithOptions allows memory-only mechanics under deny-low-level gate")
@@ -1461,7 +1488,7 @@ unsafe def runTests : IO Unit := do
 
   let denyProxyUpgradeabilityOutDir := s!"/tmp/compile-driver-deny-proxy-upgradeability-ok-{nonce}"
   compileSpecsWithOptions
-    [abiSmokeSpec] denyProxyUpgradeabilityOutDir false [] {} none none none false false false false false false false false true
+    [abiSmokeSpec] denyProxyUpgradeabilityOutDir false [] {} none none none none false false false false false false false false true
   let denyProxyUpgradeabilityArtifactWritten ← fileExists s!"{denyProxyUpgradeabilityOutDir}/AbiSmoke.yul"
   if !denyProxyUpgradeabilityArtifactWritten then
     throw (IO.userError "✗ compileSpecsWithOptions allows contracts without proxy mechanics under deny-proxy gate")
@@ -1470,7 +1497,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects undischarged local obligations when deny flag enabled"
     (compileSpecsWithOptions
-      [localObligationTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none false false false true false false false false false)
+      [localObligationTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none none false false false true false false false false false)
     "Undischarged local obligations remain:\n- LocalObligationTrustSurface [function:unsafeEdge]: assumed local obligations: manual_delegatecall_refinement"
   let deniedLocalObligationTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedLocalObligationTrustReportWritten then
@@ -1480,7 +1507,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
-      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false false false false false false false)
+      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none none true false false false false false false false false)
     "Unchecked foreign dependencies remain:\n- ConstructorOnlyEcmTrustSurface [constructor:constructor]: unchecked ECM modules: ctorHook"
   let deniedTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedTrustReportWritten then
@@ -1491,7 +1518,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
     (compileSpecsWithOptions
-      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false false false false false false)
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none none false true false false false false false false false)
     "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
   let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
   if !deniedAssumedTrustReportWritten then
@@ -1502,7 +1529,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects axiomatized primitives when deny flag enabled"
     (compileSpecsWithOptions
-      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none false false true false false false false false false)
+      [primitiveOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedPrimitiveTrustReportPath) none none false false true false false false false false false)
     "Axiomatized primitives remain:\n- PrimitiveOnlyTrustSurface [function:exercisePrimitive]: keccak256"
   let deniedPrimitiveTrustReportWritten ← fileExists deniedPrimitiveTrustReportPath
   if !deniedPrimitiveTrustReportWritten then
@@ -1513,7 +1540,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled linear memory when deny flag enabled"
     (compileSpecsWithOptions
-      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false false false true false false false false)
+      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none none false false false false true false false false false)
     "Partially modeled linear-memory mechanics remain:\n- MemoryTrustSurface [function:exerciseMemory]: mstore, calldatacopy, returndataCopy, mload"
   let deniedLinearMemoryTrustReportWritten ← fileExists deniedLinearMemoryTrustReportPath
   if !deniedLinearMemoryTrustReportWritten then
@@ -1524,7 +1551,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects raw event emission when deny flag enabled"
     (compileSpecsWithOptions
-      [rawLogTrustSurfaceSpec] outDir false [] {} none (some deniedEventEmissionTrustReportPath) none false false false false false true false false false)
+      [rawLogTrustSurfaceSpec] outDir false [] {} none (some deniedEventEmissionTrustReportPath) none none false false false false false true false false false)
     "Not-modeled event emission remains:\n- RawLogTrustSurface [function:emitTrace]: rawLog"
   let deniedEventEmissionTrustReportWritten ← fileExists deniedEventEmissionTrustReportPath
   if !deniedEventEmissionTrustReportWritten then
@@ -1535,7 +1562,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled runtime introspection when deny flag enabled"
     (compileSpecsWithOptions
-      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false false false false false true false)
+      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none none false false false false false false false true false)
     "Partially modeled runtime-introspection mechanics remain:\n- RuntimeIntrospectionTrustSurface [function:exerciseRuntime]: blockNumber, contractAddress, chainid"
   let deniedRuntimeIntrospectionTrustReportWritten ← fileExists deniedRuntimeIntrospectionTrustReportPath
   if !deniedRuntimeIntrospectionTrustReportWritten then
@@ -1546,14 +1573,14 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects proxy / upgradeability mechanics when deny flag enabled"
     (compileSpecsWithOptions
-      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedProxyUpgradeabilityTrustReportPath) none false false false false false false false false true)
+      [lowLevelOnlyTrustSurfaceSpec] outDir false [] {} none (some deniedProxyUpgradeabilityTrustReportPath) none none false false false false false false false false true)
     "Not-modeled proxy / upgradeability mechanics remain:\n- LowLevelOnlyTrustSurface [function:exerciseLowLevel]: delegatecall"
   let deniedProxyUpgradeabilityTrustReportWritten ← fileExists deniedProxyUpgradeabilityTrustReportPath
   if !deniedProxyUpgradeabilityTrustReportWritten then
     throw (IO.userError "✗ denied proxy-upgradeability compile still writes trust report file")
   IO.println "✓ denied proxy-upgradeability compile still writes trust report file"
 
-  compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none
+  compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none none
   let writtenPatchReport ← fileExists patchReportPath
   if !writtenPatchReport then
     throw (IO.userError "✗ compileSpecsWithOptions writes patch report file")

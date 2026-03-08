@@ -15,6 +15,7 @@ The Verity compiler transforms `CompilationModel` models into deployable EVM byt
 
 The CLI can also emit machine-readable audit artifacts alongside Yul/ABI output:
 - `--trust-report <path>` writes proof-boundary and assumption data.
+- `--assumption-report <path>` writes a flattened assumption inventory grouped by contract and usage site.
 - `--layout-report <path>` writes resolved storage-slot metadata, including effective alias writes and reserved-slot policies for upgrade/layout reviews.
 
 Important: Verity has two different "spec" concepts.
@@ -312,7 +313,7 @@ Raw `rawLog` event emission also compiles, but the current proof interpreters st
 
 The `keccak256` intrinsic also compiles, but it remains axiomatized in the current proof stack rather than fully modeled end to end. For audit-oriented or proof-strict builds, archive `--trust-report` and add `--deny-axiomatized-primitives` if the selected contracts must stay inside the proved subset (see issue `#1411`).
 
-The trust-report surface also supports localized `localObligations` on a function or constructor. Use these when a small unsafe/assembly-shaped boundary still needs a user-supplied refinement contract without turning the whole compilation unit into an opaque trust blob. For proof-strict builds, add `--deny-local-obligations` so any undischarged local obligation fails closed.
+The trust-report surface also supports localized `localObligations` on a function or constructor. Use these when a small unsafe/assembly-shaped boundary still needs a user-supplied refinement contract without turning the whole compilation unit into an opaque trust blob. For proof-strict builds, add `--deny-local-obligations` so any undischarged local obligation fails closed. When audit tooling needs a flat machine-readable list instead of the full nested trust report, archive `--assumption-report` alongside `--trust-report`.
 
 For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. The `verity_contract` surface now exposes matching storage forms:
 

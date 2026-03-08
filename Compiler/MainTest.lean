@@ -107,14 +107,17 @@ unsafe def runTests : IO Unit := do
     ["--module", "Contracts.LocalObligationTrustSurface", "--deny-local-obligations", "--output", s!"/tmp/verity-main-test-{nonce}-local-obligation-fail-out"]
     "LocalObligationTrustSurface [function:unsafeEdge]: assumed local obligations: manual_delegatecall_refinement"
   let macroLocalObligationTrustReportPath := s!"/tmp/verity-main-test-{nonce}-macro-local-obligation-trust-report.json"
+  let macroLocalObligationAssumptionReportPath := s!"/tmp/verity-main-test-{nonce}-macro-local-obligation-assumption-report.json"
   let macroLocalObligationOutDir := s!"/tmp/verity-main-test-{nonce}-macro-local-obligation-out"
   IO.FS.createDirAll macroLocalObligationOutDir
   main
     [ "--module", "Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke"
     , "--trust-report", macroLocalObligationTrustReportPath
+    , "--assumption-report", macroLocalObligationAssumptionReportPath
     , "--output", macroLocalObligationOutDir
     ]
   let macroLocalObligationTrustReport ← IO.FS.readFile macroLocalObligationTrustReportPath
+  let macroLocalObligationAssumptionReport ← IO.FS.readFile macroLocalObligationAssumptionReportPath
   expectTrue "macro local-obligation trust report includes constructor obligation"
     (contains macroLocalObligationTrustReport "\"name\":\"constructor_storage_layout\",\"status\":\"unchecked\"")
   expectTrue "macro local-obligation trust report includes assumed function obligation"
@@ -123,6 +126,14 @@ unsafe def runTests : IO Unit := do
     (contains macroLocalObligationTrustReport "\"name\":\"checked_patch_pack\",\"status\":\"proved\"")
   expectTrue "macro local-obligation trust report localizes constructor usage"
     (contains macroLocalObligationTrustReport "\"kind\":\"constructor\",\"name\":\"constructor\"")
+  expectTrue "macro local-obligation assumption report flattens constructor and function obligations"
+    ((contains macroLocalObligationAssumptionReport "\"category\":\"localObligation\",\"siteKind\":\"constructor\",\"siteName\":\"constructor\",\"name\":\"constructor_storage_layout\",\"status\":\"unchecked\"") &&
+      (contains macroLocalObligationAssumptionReport "\"category\":\"localObligation\",\"siteKind\":\"function\",\"siteName\":\"unsafeEdge\",\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\"") &&
+      (contains macroLocalObligationAssumptionReport "\"category\":\"localObligation\",\"siteKind\":\"function\",\"siteName\":\"dischargedEdge\",\"name\":\"checked_patch_pack\",\"status\":\"proved\""))
+  expectTrue "macro local-obligation assumption report keeps undischarged entries separate"
+    ((contains macroLocalObligationAssumptionReport "\"undischarged\":[") &&
+      (contains macroLocalObligationAssumptionReport "\"name\":\"constructor_storage_layout\",\"status\":\"unchecked\"") &&
+      (contains macroLocalObligationAssumptionReport "\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\""))
   expectErrorContains
     "strict local-obligation gate rejects macro-declared undischarged obligations"
     ["--module", "Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke", "--deny-local-obligations", "--output", s!"/tmp/verity-main-test-{nonce}-macro-local-obligation-fail-out"]
@@ -221,6 +232,7 @@ unsafe def runTests : IO Unit := do
   expectTrue "selected module mode does not emit non-selected artifacts" nonSelectedArtifactsAbsent
 
   expectErrorContains "missing --patch-report value" ["--patch-report"] "Missing value for --patch-report"
+  expectErrorContains "missing --assumption-report value" ["--assumption-report"] "Missing value for --assumption-report"
   expectErrorContains "missing --layout-report value" ["--layout-report"] "Missing value for --layout-report"
   expectErrorContains "missing --patch-max-iterations value" ["--patch-max-iterations"] "Missing value for --patch-max-iterations"
   expectErrorContains "missing --backend-profile value" ["--backend-profile"] "Missing value for --backend-profile"

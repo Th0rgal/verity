@@ -55,6 +55,10 @@ private def writeTrustReport (path : String) (specs : List CompilationModel) : I
   ensureParentDirExists path
   IO.FS.writeFile path (emitTrustReportJson specs ++ "\n")
 
+private def writeAssumptionReport (path : String) (specs : List CompilationModel) : IO Unit := do
+  ensureParentDirExists path
+  IO.FS.writeFile path (emitAssumptionReportJson specs ++ "\n")
+
 private def writeLayoutReport (path : String) (specs : List CompilationModel) : IO Unit := do
   ensureParentDirExists path
   IO.FS.writeFile path (emitLayoutReportJson specs ++ "\n")
@@ -157,6 +161,7 @@ def compileSpecsWithOptions
     (options : YulEmitOptions)
     (patchReportPath : Option String)
     (trustReportPath : Option String)
+    (assumptionReportPath : Option String)
     (abiOutDir : Option String)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
@@ -208,6 +213,12 @@ def compileSpecsWithOptions
       writeTrustReport path specs
       if verbose then
         IO.println s!"✓ Wrote trust report: {path}"
+  | none => pure ()
+  match assumptionReportPath with
+  | some path =>
+      writeAssumptionReport path specs
+      if verbose then
+        IO.println s!"✓ Wrote assumption report: {path}"
   | none => pure ()
   match layoutReportPath with
   | some path =>
@@ -440,6 +451,7 @@ unsafe def compileModulesWithOptions
     (options : YulEmitOptions := {})
     (patchReportPath : Option String := none)
     (trustReportPath : Option String := none)
+    (assumptionReportPath : Option String := none)
     (abiOutDir : Option String := none)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
@@ -456,6 +468,6 @@ unsafe def compileModulesWithOptions
     | .ok specs => pure specs
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
-    specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
+    specs outDir verbose libraryPaths options patchReportPath trustReportPath assumptionReportPath abiOutDir
     denyUncheckedDependencies denyAssumedDependencies denyAxiomatizedPrimitives denyLocalObligations denyLinearMemoryMechanics
     denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection denyProxyUpgradeability layoutReportPath

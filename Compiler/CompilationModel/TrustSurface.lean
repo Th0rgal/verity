@@ -779,6 +779,30 @@ private def localObligationJson (entry : LocalObligation) : String :=
     ("obligation", jsonString entry.obligation)
   ]
 
+private structure AssumptionReportEntry where
+  category : String
+  siteKind : String
+  siteName : String
+  name : String
+  status : ProofStatus
+  detail : String := ""
+  assumption : String := ""
+  moduleName : String := ""
+  axioms : List String := []
+
+private def assumptionReportEntryJson (entry : AssumptionReportEntry) : String :=
+  jsonObject [
+    ("category", jsonString entry.category),
+    ("siteKind", jsonString entry.siteKind),
+    ("siteName", jsonString entry.siteName),
+    ("name", jsonString entry.name),
+    ("status", proofStatusString entry.status),
+    ("detail", jsonString entry.detail),
+    ("assumption", jsonString entry.assumption),
+    ("module", jsonString entry.moduleName),
+    ("axioms", jsonArray (entry.axioms.map jsonString))
+  ]
+
 private def proofStatusBucketJson
     (primitives externals modules localObligations : List String) : String :=
   jsonObject [
@@ -944,6 +968,56 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ])
     ]
   jsonArray ((collectUsageSiteSummaries spec).map siteJson)
+
+private def assumptionReportEntriesForSite (site : UsageSiteSummary) : List AssumptionReportEntry :=
+  let primitiveEntries :=
+    site.primitives.map (fun primitive =>
+      { category := "axiomatizedPrimitive"
+        siteKind := site.kind
+        siteName := site.name
+        name := primitive
+        status := .assumed
+        assumption := primitiveAssumptionName primitive })
+  let externalEntries :=
+    site.externals.map (fun ext =>
+      { category := "linkedExternal"
+        siteKind := site.kind
+        siteName := site.name
+        name := ext.name
+        status := ext.proofStatus
+        axioms := ext.axiomNames })
+  let moduleEntries :=
+    site.modules.map (fun mod =>
+      { category := "ecmModule"
+        siteKind := site.kind
+        siteName := site.name
+        name := mod.name
+        status := mod.proofStatus
+        axioms := mod.axioms })
+  let axiomEntries :=
+    site.modules.flatMap (fun mod =>
+      mod.axioms.map (fun assumptionName =>
+        { category := "ecmAxiom"
+          siteKind := site.kind
+          siteName := site.name
+          name := assumptionName
+          status := mod.proofStatus
+          moduleName := mod.name }))
+  let localObligationEntries :=
+    site.localObligations.map (fun obligation =>
+      { category := "localObligation"
+        siteKind := site.kind
+        siteName := site.name
+        name := obligation.name
+        status := obligation.proofStatus
+        detail := obligation.obligation })
+  primitiveEntries ++ externalEntries ++ moduleEntries ++ axiomEntries ++ localObligationEntries
+
+private def assumptionReportEntries (spec : CompilationModel) : List AssumptionReportEntry :=
+  (collectUsageSiteSummaries spec).flatMap assumptionReportEntriesForSite
+
+private def undischargedAssumptionReportEntries (spec : CompilationModel) : List AssumptionReportEntry :=
+  (assumptionReportEntries spec).filter (fun entry => entry.status != .proved)
 
 private def namesByProofStatus
     (status : ProofStatus)
@@ -1276,6 +1350,19 @@ where
         ("ecmAxioms", jsonArray ((collectEcmAxioms spec).map ecmJson)),
         ("ecmModules", jsonArray ((collectUsedEcmModules spec).map ecmModuleJson))
       ])
+    ]
+
+/-- Render a flat machine-readable assumption inventory for audit workflows. -/
+def emitAssumptionReportJson (specs : List CompilationModel) : String :=
+  jsonObject [
+    ("contracts", jsonArray (specs.map contractJson))
+  ]
+where
+  contractJson (spec : CompilationModel) : String :=
+    jsonObject [
+      ("contract", jsonString spec.name),
+      ("entries", jsonArray ((assumptionReportEntries spec).map assumptionReportEntryJson)),
+      ("undischarged", jsonArray ((undischargedAssumptionReportEntries spec).map assumptionReportEntryJson))
     ]
 
 end Compiler.CompilationModel
