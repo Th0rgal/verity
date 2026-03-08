@@ -91,7 +91,7 @@ private def stringAbiSmokeSpec : CompilationModel := {
       params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
     }
   ]
-  errors := [
+  «errors» := [
     { name := "BadMessage"
       params := [ParamType.string]
     }

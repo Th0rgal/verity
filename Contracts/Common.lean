@@ -68,6 +68,10 @@ def structMember {κ α : Type} [Inhabited α] (_field : String) (_key : κ) (_m
     Contract α := pure default
 def structMember2 {κ₁ κ₂ α : Type} [Inhabited α]
     (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_member : String) : Contract α := pure default
+def structMembers {κ α : Type} [Inhabited α]
+    (_field : String) (_key : κ) (_members : List String) : α := default
+def structMembers2 {κ₁ κ₂ α : Type} [Inhabited α]
+    (_field : String) (_key1 : κ₁) (_key2 : κ₂) (_members : List String) : α := default
 def setStructMember {κ α : Type} (_field : String) (_key : κ) (_member : String) (_value : α) :
     Contract Unit := pure ()
 def setStructMember2 {κ₁ κ₂ α : Type}

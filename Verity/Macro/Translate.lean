@@ -612,32 +612,86 @@ private def tupleValueExprs
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term) : CommandElabM (Array Term) := do
+  let structValueExprs? : CommandElabM (Option (Array Term)) := do
+    match stripParens rhs with
+    | `(term| structMembers $field:term $key:term $members:term) => do
+        let fieldName := ← expectStringOrIdent field
+        let memberNames := ← expectStringList members
+        let exprs ← memberNames.mapM fun memberName => do
+          let _ ← lookupStructMemberDecl fields fieldName memberName false
+          `(Compiler.CompilationModel.Expr.structMember
+              $(strTerm fieldName)
+              $(← translatePureExpr fields params locals key)
+              $(strTerm memberName))
+        pure (some exprs)
+    | `(term| structMembers2 $field:term $key1:term $key2:term $members:term) => do
+        let fieldName := ← expectStringOrIdent field
+        let memberNames := ← expectStringList members
+        let exprs ← memberNames.mapM fun memberName => do
+          let _ ← lookupStructMemberDecl fields fieldName memberName true
+          `(Compiler.CompilationModel.Expr.structMember2
+              $(strTerm fieldName)
+              $(← translatePureExpr fields params locals key1)
+              $(← translatePureExpr fields params locals key2)
+              $(strTerm memberName))
+        pure (some exprs)
+    | _ => pure none
   match tupleElemsFromTerm? rhs with
   | some elems =>
       elems.mapM (translatePureExpr fields params locals)
   | none =>
-      match stripParens rhs with
-      | `(term| $id:ident) =>
-          match (← tupleParamElemExprs? params (toString id.getId)) with
-          | some exprs => pure exprs
-          | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal or tuple-typed parameter"
-      | _ =>
-          throwErrorAt rhs "tuple destructuring currently requires a tuple literal or tuple-typed parameter"
+      match (← structValueExprs?) with
+      | some exprs => pure exprs
+      | none =>
+          match stripParens rhs with
+          | `(term| $id:ident) =>
+              match (← tupleParamElemExprs? params (toString id.getId)) with
+              | some exprs => pure exprs
+              | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, or structMembers/structMembers2 source"
+          | _ =>
+              throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, or structMembers/structMembers2 source"
 
 private def tupleReturnValueExprs?
     (fields : Array StorageFieldDecl)
     (params : Array ParamDecl)
     (locals : Array String)
     (rhs : Term) : CommandElabM (Option (Array Term)) := do
+  let structValueExprs? : CommandElabM (Option (Array Term)) := do
+    match stripParens rhs with
+    | `(term| structMembers $field:term $key:term $members:term) => do
+        let fieldName := ← expectStringOrIdent field
+        let memberNames := ← expectStringList members
+        let exprs ← memberNames.mapM fun memberName => do
+          let _ ← lookupStructMemberDecl fields fieldName memberName false
+          `(Compiler.CompilationModel.Expr.structMember
+              $(strTerm fieldName)
+              $(← translatePureExpr fields params locals key)
+              $(strTerm memberName))
+        pure (some exprs)
+    | `(term| structMembers2 $field:term $key1:term $key2:term $members:term) => do
+        let fieldName := ← expectStringOrIdent field
+        let memberNames := ← expectStringList members
+        let exprs ← memberNames.mapM fun memberName => do
+          let _ ← lookupStructMemberDecl fields fieldName memberName true
+          `(Compiler.CompilationModel.Expr.structMember2
+              $(strTerm fieldName)
+              $(← translatePureExpr fields params locals key1)
+              $(← translatePureExpr fields params locals key2)
+              $(strTerm memberName))
+        pure (some exprs)
+    | _ => pure none
   match tupleElemsFromTerm? rhs with
   | some elems =>
       pure (some (← elems.mapM (translatePureExpr fields params locals)))
   | none =>
-      match stripParens rhs with
-      | `(term| $id:ident) =>
-          tupleParamElemExprs? params (toString id.getId)
-      | _ =>
-          pure none
+      match (← structValueExprs?) with
+      | some exprs => pure (some exprs)
+      | none =>
+          match stripParens rhs with
+          | `(term| $id:ident) =>
+              tupleParamElemExprs? params (toString id.getId)
+          | _ =>
+              pure none
 
 private def expectExprList
     (fields : Array StorageFieldDecl)

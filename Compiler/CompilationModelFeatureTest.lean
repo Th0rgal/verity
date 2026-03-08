@@ -150,6 +150,70 @@ example : echoPairExecutableKeepsTupleShape = true := by native_decide
 
 end MacroTupleDestructuringSmoke
 
+namespace MacroStructDestructuringSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroStructDestructuring where
+  storage
+    positions : MappingStruct(Address,[
+      supplyShares @word 0 packed(0,128),
+      borrowShares @word 0 packed(128,128),
+      delegate @word 1
+    ]) := slot 0
+    approvals : MappingStruct2(Address,Address,[
+      allowance @word 0 packed(0,128),
+      nonce @word 1
+    ]) := slot 1
+
+  function loadPosition (user : Address) : Tuple [Uint256, Uint256, Address] := do
+    let (supply, borrow, delegate_) := structMembers "positions" user ["supplyShares", "borrowShares", "delegate"]
+    return (supply, borrow, delegate_)
+
+  function loadApproval (owner : Address, spender : Address) : Tuple [Uint256, Uint256] := do
+    return structMembers2 "approvals" owner spender ["allowance", "nonce"]
+
+def loadPositionModelDestructuresStructMembers : Bool :=
+  match MacroStructDestructuring.loadPosition_modelBody with
+  | [Stmt.letVar "supply" (Expr.structMember "positions" (Expr.param "user") "supplyShares"),
+      Stmt.letVar "borrow" (Expr.structMember "positions" (Expr.param "user") "borrowShares"),
+      Stmt.letVar "delegate_" (Expr.structMember "positions" (Expr.param "user") "delegate"),
+      Stmt.returnValues [Expr.localVar "supply", Expr.localVar "borrow", Expr.localVar "delegate_"]] =>
+      true
+  | _ => false
+
+example : loadPositionModelDestructuresStructMembers = true := by native_decide
+
+def loadApprovalModelReturnsStructMembers2 : Bool :=
+  match MacroStructDestructuring.loadApproval_modelBody with
+  | [Stmt.returnValues
+      [Expr.structMember2 "approvals" (Expr.param "owner") (Expr.param "spender") "allowance",
+       Expr.structMember2 "approvals" (Expr.param "owner") (Expr.param "spender") "nonce"]] =>
+      true
+  | _ => false
+
+example : loadApprovalModelReturnsStructMembers2 = true := by native_decide
+
+def loadPositionExecutableKeepsTupleShape : Bool :=
+  match MacroStructDestructuring.loadPosition Verity.defaultState.sender Verity.defaultState with
+  | .success (supply, (borrow, delegate_)) state =>
+      supply == 0 && borrow == 0 && delegate_ == zeroAddress && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : loadPositionExecutableKeepsTupleShape = true := by native_decide
+
+def loadApprovalExecutableKeepsTupleShape : Bool :=
+  match MacroStructDestructuring.loadApproval Verity.defaultState.sender Verity.defaultState.sender Verity.defaultState with
+  | .success (allowance, nonce) state =>
+      allowance == 0 && nonce == 0 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : loadApprovalExecutableKeepsTupleShape = true := by native_decide
+
+end MacroStructDestructuringSmoke
+
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
   if !ok then
     throw (IO.userError s!"✗ {label}")
@@ -387,7 +451,7 @@ private def stringAbiSpec : CompilationModel := {
       params := [{ name := "message", ty := ParamType.string, kind := EventParamKind.unindexed }]
     }
   ]
-  errors := [
+  «errors» := [
     { name := "BadMessage"
       params := [ParamType.string]
     }

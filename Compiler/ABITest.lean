@@ -81,7 +81,7 @@ private def abiSpec : CompilationModel := {
       ]
     }
   ]
-  errors := [
+  «errors» := [
     { name := "BadThing"
       params := [ParamType.address, ParamType.bytes]
     }
@@ -107,7 +107,7 @@ private def stringAbiSpec : CompilationModel := {
       ]
     }
   ]
-  errors := [
+  «errors» := [
     { name := "BadMessage"
       params := [ParamType.string]
     }

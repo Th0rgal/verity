@@ -309,10 +309,12 @@ Location: `Contracts/Common.lean`
 ```lean
 let (first, second) := pair
 let (lhs, rhs) := (seed, add seed 1)
+let (supply, borrow, delegate_) := structMembers positions user [supplyShares, borrowShares, delegate]
 return (first, second)
+return structMembers2 approvals owner spender [allowance, nonce]
 ```
 
-Today this elaborates cleanly for tuple literals and tuple-typed parameters. `return (..)` lowers to `Stmt.returnValues [...]`, and tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), so the generated model stays explicit for debugging and proofs.
+Today this elaborates cleanly for tuple literals, tuple-typed parameters, and storage-backed mapping-struct reads via `structMembers` / `structMembers2`. `return (..)` lowers to `Stmt.returnValues [...]`, tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), and struct-backed destructuring lowers to explicit `Expr.structMember` / `Expr.structMember2` reads, so the generated model stays explicit for debugging and proofs.
 
 ## Custom Errors
 
