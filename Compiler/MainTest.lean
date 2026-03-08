@@ -102,6 +102,15 @@ unsafe def runTests : IO Unit := do
     "strict linear-memory gate rejects partially modeled memory mechanics"
     ["--module", "Contracts.Counter.Counter", "--deny-linear-memory-mechanics", "--output", s!"/tmp/verity-main-test-{nonce}-memory-fail-out"]
     "Counter [function:previewEnvOps]: mload"
+  let runtimeStrictOutDir := s!"/tmp/verity-main-test-{nonce}-runtime-strict-out"
+  IO.FS.createDirAll runtimeStrictOutDir
+  main (["--module", "Contracts.SimpleStorage.SimpleStorage", "--deny-runtime-introspection", "--output", runtimeStrictOutDir])
+  let runtimeStrictArtifact ← fileExists s!"{runtimeStrictOutDir}/SimpleStorage.yul"
+  expectTrue "strict runtime-introspection gate accepts contracts without partially modeled runtime introspection" runtimeStrictArtifact
+  expectErrorContains
+    "strict runtime-introspection gate rejects partially modeled runtime introspection"
+    ["--module", "Contracts.Counter.Counter", "--deny-runtime-introspection", "--output", s!"/tmp/verity-main-test-{nonce}-runtime-fail-out"]
+    "Counter [function:previewEnvOps]: blockNumber, contractAddress, chainid"
   let nonSelectedArtifactFlags ←
     (canonicalModules.filter (· != "Contracts.Counter.Counter")).mapM
       (fun moduleName => fileExists (contractArtifactPath singleOutDir moduleName))

@@ -195,6 +195,9 @@ emits per-contract JSON that includes:
   linear-memory proof gap (`mload`, `mstore`, `calldatacopy`,
   `returndataCopy`, `returndataOptionalBoolAt`) at both contract and
   usage-site granularity
+- `partiallyModeledRuntimeIntrospection` entries that isolate the current
+  runtime-introspection proof gap (`blockNumber`, `contractAddress`,
+  `chainid`) at both contract and usage-site granularity
 - `hasUncheckedDependencies` so CI/reporting layers can fail or warn on
   contracts that are not eligible for full-verification claims
 
@@ -208,7 +211,10 @@ surfaces, `verity-compiler --deny-assumed-dependencies` fails closed on both
 diagnostic to the exact usage site. For memory-proof-strict runs,
 `verity-compiler --deny-linear-memory-mechanics` fails closed when any selected
 contract still uses partially modeled linear-memory mechanics, again citing the
-exact constructor/function usage site.
+exact constructor/function usage site. For runtime-proof-strict runs,
+`verity-compiler --deny-runtime-introspection` fails closed when any selected
+contract still uses partially modeled runtime-introspection primitives, again
+citing the exact constructor/function usage site.
 
 ## Trust Model
 

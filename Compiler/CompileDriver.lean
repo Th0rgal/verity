@@ -72,6 +72,12 @@ private def ensureNoLinearMemoryMechanics (specs : List CompilationModel) : IO U
     throw (IO.userError
       s!"Partially modeled linear-memory mechanics remain:\n{String.intercalate "\n" linearMemorySites}")
 
+private def ensureNoRuntimeIntrospection (specs : List CompilationModel) : IO Unit := do
+  let runtimeIntrospectionSites := emitRuntimeIntrospectionUsageSiteLines specs
+  if !runtimeIntrospectionSites.isEmpty then
+    throw (IO.userError
+      s!"Partially modeled runtime-introspection mechanics remain:\n{String.intercalate "\n" runtimeIntrospectionSites}")
+
 private def writeContract
     (outDir : String)
     (contract : IRContract)
@@ -119,7 +125,8 @@ def compileSpecsWithOptions
     (abiOutDir : Option String)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
-    (denyLinearMemoryMechanics : Bool := false) : IO Unit := do
+    (denyLinearMemoryMechanics : Bool := false)
+    (denyRuntimeIntrospection : Bool := false) : IO Unit := do
   IO.FS.createDirAll outDir
   match abiOutDir with
   | some dir => IO.FS.createDirAll dir
@@ -163,6 +170,8 @@ def compileSpecsWithOptions
   | none => pure ()
   if denyLinearMemoryMechanics then
     ensureNoLinearMemoryMechanics specs
+  if denyRuntimeIntrospection then
+    ensureNoRuntimeIntrospection specs
   if denyAssumedDependencies then
     ensureNoAssumedDependencies specs
   if denyUncheckedDependencies then
@@ -180,6 +189,17 @@ def compileSpecsWithOptions
     if !anyLinearMemory then
       IO.println "  (no partially modeled linear-memory primitives used)"
     IO.println "  Proof boundary: these mechanics rely on linear memory / ABI movement that is still only partially modeled by current proof interpreters."
+    IO.println ""
+    IO.println "Runtime introspection report:"
+    let mut anyRuntimeIntrospection := false
+    for spec in specs do
+      let mechanics := collectRuntimeIntrospectionMechanics spec
+      if !mechanics.isEmpty then
+        anyRuntimeIntrospection := true
+        IO.println s!"  {spec.name}: {String.intercalate ", " mechanics}"
+    if !anyRuntimeIntrospection then
+      IO.println "  (no partially modeled runtime-introspection primitives used)"
+    IO.println "  Proof boundary: these context-sensitive primitives are compiler-supported, but current proof interpreters still model them only partially."
     IO.println ""
     IO.println "Low-level mechanics report:"
     let mut anyMechanics := false
@@ -314,11 +334,12 @@ unsafe def compileModulesWithOptions
     (abiOutDir : Option String := none)
     (denyUncheckedDependencies : Bool := false)
     (denyAssumedDependencies : Bool := false)
-    (denyLinearMemoryMechanics : Bool := false) : IO Unit := do
+    (denyLinearMemoryMechanics : Bool := false)
+    (denyRuntimeIntrospection : Bool := false) : IO Unit := do
   let specs ←
     match ← Compiler.ModuleInput.loadSpecsFromRawModules modules with
     | .ok specs => pure specs
     | .error err => throw (IO.userError err)
   compileSpecsWithOptions
     specs outDir verbose libraryPaths options patchReportPath trustReportPath abiOutDir
-    denyUncheckedDependencies denyAssumedDependencies denyLinearMemoryMechanics
+    denyUncheckedDependencies denyAssumedDependencies denyLinearMemoryMechanics denyRuntimeIntrospection

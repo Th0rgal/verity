@@ -226,6 +226,25 @@ private def memoryTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
+  name := "RuntimeIntrospectionTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "exerciseRuntime"
+      params := []
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Stmt.letVar "bn" Expr.blockNumber,
+        Stmt.letVar "self" Expr.contractAddress,
+        Stmt.letVar "cid" Expr.chainid,
+        Stmt.returnValues [Expr.add (Expr.add (Expr.localVar "bn") (Expr.localVar "self")) (Expr.localVar "cid")]
+      ]
+    }
+  ]
+}
+
 private def uncheckedTrustSurfaceSpec : CompilationModel := {
   name := "UncheckedTrustSurface"
   fields := []
@@ -910,6 +929,18 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ verbose trust report localizes partially modeled linear-memory mechanics")
   IO.println "✓ trust report surfaces partially modeled linear-memory mechanics"
 
+  let runtimeIntrospectionTrustReport := emitTrustReportJson [runtimeIntrospectionTrustSurfaceSpec]
+  if !contains runtimeIntrospectionTrustReport "\"contract\":\"RuntimeIntrospectionTrustSurface\"" then
+    throw (IO.userError "✗ runtime-introspection trust report emits contract name")
+  if !contains runtimeIntrospectionTrustReport "\"partiallyModeledRuntimeIntrospection\":[\"blockNumber\",\"contractAddress\",\"chainid\"]" then
+    throw (IO.userError "✗ runtime-introspection trust report emits partially modeled runtime-introspection primitives")
+  if !contains runtimeIntrospectionTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"exerciseRuntime\",\"modeledLowLevelMechanics\":[],\"partiallyModeledLinearMemoryMechanics\":[],\"partiallyModeledRuntimeIntrospection\":[\"blockNumber\",\"contractAddress\",\"chainid\"]" then
+    throw (IO.userError "✗ runtime-introspection trust report localizes partially modeled runtime-introspection primitives")
+  let runtimeIntrospectionVerboseUsageSiteReport := String.intercalate "\n" (emitVerboseUsageSiteLines [runtimeIntrospectionTrustSurfaceSpec])
+  if !contains runtimeIntrospectionVerboseUsageSiteReport "partially modeled runtime introspection: blockNumber, contractAddress, chainid" then
+    throw (IO.userError "✗ verbose trust report localizes partially modeled runtime-introspection primitives")
+  IO.println "✓ trust report surfaces partially modeled runtime-introspection primitives"
+
   let uncheckedTrustReport := emitTrustReportJson [uncheckedTrustSurfaceSpec]
   if !contains uncheckedTrustReport "\"hasUncheckedDependencies\":true" then
     throw (IO.userError "✗ trust report flags unchecked dependencies")
@@ -1121,7 +1152,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects unchecked dependencies when deny flag enabled"
     (compileSpecsWithOptions
-      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true)
+      [constructorOnlyEcmTrustSurfaceSpec] outDir false [] {} none (some deniedTrustReportPath) none true false false)
     "Unchecked foreign dependencies remain:\n- ConstructorOnlyEcmTrustSurface [constructor:constructor]: unchecked ECM modules: ctorHook"
   let deniedTrustReportWritten ← fileExists deniedTrustReportPath
   if !deniedTrustReportWritten then
@@ -1132,7 +1163,7 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects assumed dependencies when proof-strict deny flag enabled"
     (compileSpecsWithOptions
-      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true)
+      [oracleTrustSurfaceSpec] outDir false [] {} none (some deniedAssumedTrustReportPath) none false true false false)
     "Assumed or unchecked foreign dependencies remain:\n- OracleTrustSurface [function:peek]: assumed ECM modules: oracleReadUint256"
   let deniedAssumedTrustReportWritten ← fileExists deniedAssumedTrustReportPath
   if !deniedAssumedTrustReportWritten then
@@ -1143,12 +1174,23 @@ unsafe def runTests : IO Unit := do
   expectFailureContains
     "compileSpecsWithOptions rejects partially modeled linear memory when deny flag enabled"
     (compileSpecsWithOptions
-      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false true)
+      [memoryTrustSurfaceSpec] outDir false [] {} none (some deniedLinearMemoryTrustReportPath) none false false true false)
     "Partially modeled linear-memory mechanics remain:\n- MemoryTrustSurface [function:exerciseMemory]: mstore, calldatacopy, returndataCopy, mload"
   let deniedLinearMemoryTrustReportWritten ← fileExists deniedLinearMemoryTrustReportPath
   if !deniedLinearMemoryTrustReportWritten then
     throw (IO.userError "✗ denied linear-memory compile still writes trust report file")
   IO.println "✓ denied linear-memory compile still writes trust report file"
+
+  let deniedRuntimeIntrospectionTrustReportPath := s!"{trustReportDir}/trust-report-denied-runtime-introspection.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects partially modeled runtime introspection when deny flag enabled"
+    (compileSpecsWithOptions
+      [runtimeIntrospectionTrustSurfaceSpec] outDir false [] {} none (some deniedRuntimeIntrospectionTrustReportPath) none false false false true)
+    "Partially modeled runtime-introspection mechanics remain:\n- RuntimeIntrospectionTrustSurface [function:exerciseRuntime]: blockNumber, contractAddress, chainid"
+  let deniedRuntimeIntrospectionTrustReportWritten ← fileExists deniedRuntimeIntrospectionTrustReportPath
+  if !deniedRuntimeIntrospectionTrustReportWritten then
+    throw (IO.userError "✗ denied runtime-introspection compile still writes trust report file")
+  IO.println "✓ denied runtime-introspection compile still writes trust report file"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] { patchConfig := { enabled := true } } (some patchReportPath) none none
   let writtenPatchReport ← fileExists patchReportPath

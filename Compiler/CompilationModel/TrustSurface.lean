@@ -247,6 +247,14 @@ private def isLinearMemoryMechanic (mechanic : String) : Bool :=
 private def collectLinearMemoryMechanicsFromMechanics (mechanics : List String) : List String :=
   dedupPreserve (mechanics.filter isLinearMemoryMechanic)
 
+private def isRuntimeIntrospectionMechanic (mechanic : String) : Bool :=
+  match mechanic with
+  | "blockNumber" | "contractAddress" | "chainid" => true
+  | _ => false
+
+private def collectRuntimeIntrospectionMechanicsFromMechanics (mechanics : List String) : List String :=
+  dedupPreserve (mechanics.filter isRuntimeIntrospectionMechanic)
+
 /-- Collect unique low-level call and returndata mechanics used by a spec. -/
 def collectLowLevelMechanics (spec : CompilationModel) : List String :=
   let stmtsFromFn (fn : FunctionSpec) := fn.body
@@ -259,6 +267,128 @@ def collectLowLevelMechanics (spec : CompilationModel) : List String :=
 /-- Collect partially modeled linear-memory mechanics used by a spec. -/
 def collectLinearMemoryMechanics (spec : CompilationModel) : List String :=
   collectLinearMemoryMechanicsFromMechanics (collectLowLevelMechanics spec)
+
+private partial def collectRuntimeIntrospectionExprMechanics : Expr → List String
+  | .contractAddress => ["contractAddress"]
+  | .chainid => ["chainid"]
+  | .blockNumber => ["blockNumber"]
+  | .externalCall _ args
+  | .internalCall _ args =>
+      args.flatMap collectRuntimeIntrospectionExprMechanics
+  | .call gas target value inOffset inSize outOffset outSize =>
+      collectRuntimeIntrospectionExprMechanics gas ++ collectRuntimeIntrospectionExprMechanics target ++
+        collectRuntimeIntrospectionExprMechanics value ++ collectRuntimeIntrospectionExprMechanics inOffset ++
+        collectRuntimeIntrospectionExprMechanics inSize ++ collectRuntimeIntrospectionExprMechanics outOffset ++
+        collectRuntimeIntrospectionExprMechanics outSize
+  | .staticcall gas target inOffset inSize outOffset outSize
+  | .delegatecall gas target inOffset inSize outOffset outSize =>
+      collectRuntimeIntrospectionExprMechanics gas ++ collectRuntimeIntrospectionExprMechanics target ++
+        collectRuntimeIntrospectionExprMechanics inOffset ++ collectRuntimeIntrospectionExprMechanics inSize ++
+        collectRuntimeIntrospectionExprMechanics outOffset ++ collectRuntimeIntrospectionExprMechanics outSize
+  | .returndataOptionalBoolAt outOffset
+  | .mload outOffset
+  | .tload outOffset
+  | .calldataload outOffset
+  | .extcodesize outOffset =>
+      collectRuntimeIntrospectionExprMechanics outOffset
+  | .keccak256 offset size =>
+      collectRuntimeIntrospectionExprMechanics offset ++ collectRuntimeIntrospectionExprMechanics size
+  | .mapping _ key
+  | .mappingWord _ key _
+  | .mappingPackedWord _ key _ _
+  | .structMember _ key _ =>
+      collectRuntimeIntrospectionExprMechanics key
+  | .mapping2 _ key1 key2
+  | .mapping2Word _ key1 key2 _
+  | .structMember2 _ key1 key2 _ =>
+      collectRuntimeIntrospectionExprMechanics key1 ++ collectRuntimeIntrospectionExprMechanics key2
+  | .mappingUint _ key
+  | .arrayElement _ key =>
+      collectRuntimeIntrospectionExprMechanics key
+  | .add a b | .sub a b | .mul a b | .div a b | .mod a b
+  | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b
+  | .eq a b | .gt a b | .lt a b | .ge a b | .le a b
+  | .logicalAnd a b | .logicalOr a b
+  | .wMulDown a b | .wDivUp a b | .min a b | .max a b =>
+      collectRuntimeIntrospectionExprMechanics a ++ collectRuntimeIntrospectionExprMechanics b
+  | .mulDivDown a b c | .mulDivUp a b c =>
+      collectRuntimeIntrospectionExprMechanics a ++ collectRuntimeIntrospectionExprMechanics b ++
+        collectRuntimeIntrospectionExprMechanics c
+  | .bitNot a | .logicalNot a =>
+      collectRuntimeIntrospectionExprMechanics a
+  | .ite cond thenVal elseVal =>
+      collectRuntimeIntrospectionExprMechanics cond ++ collectRuntimeIntrospectionExprMechanics thenVal ++
+        collectRuntimeIntrospectionExprMechanics elseVal
+  | _ =>
+      []
+
+private partial def collectRuntimeIntrospectionStmtMechanics : Stmt → List String
+  | .letVar _ value
+  | .assignVar _ value
+  | .setStorage _ value
+  | .setStorageAddr _ value
+  | .return value
+  | .require value _ =>
+      collectRuntimeIntrospectionExprMechanics value
+  | .requireError cond _ args =>
+      collectRuntimeIntrospectionExprMechanics cond ++ args.flatMap collectRuntimeIntrospectionExprMechanics
+  | .revertError _ args =>
+      args.flatMap collectRuntimeIntrospectionExprMechanics
+  | .mstore offset value
+  | .tstore offset value =>
+      collectRuntimeIntrospectionExprMechanics offset ++ collectRuntimeIntrospectionExprMechanics value
+  | .calldatacopy destOffset sourceOffset size
+  | .returndataCopy destOffset sourceOffset size =>
+      collectRuntimeIntrospectionExprMechanics destOffset ++
+        collectRuntimeIntrospectionExprMechanics sourceOffset ++
+        collectRuntimeIntrospectionExprMechanics size
+  | .setMapping _ key value
+  | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value
+  | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      collectRuntimeIntrospectionExprMechanics key ++ collectRuntimeIntrospectionExprMechanics value
+  | .setMapping2 _ key1 key2 value
+  | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      collectRuntimeIntrospectionExprMechanics key1 ++ collectRuntimeIntrospectionExprMechanics key2 ++
+        collectRuntimeIntrospectionExprMechanics value
+  | .ite cond thenBr elseBr =>
+      collectRuntimeIntrospectionExprMechanics cond ++
+        thenBr.flatMap collectRuntimeIntrospectionStmtMechanics ++
+        elseBr.flatMap collectRuntimeIntrospectionStmtMechanics
+  | .forEach _ count body =>
+      collectRuntimeIntrospectionExprMechanics count ++ body.flatMap collectRuntimeIntrospectionStmtMechanics
+  | .emit _ args
+  | .internalCall _ args
+  | .returnValues args
+  | .ecm _ args
+  | .internalCallAssign _ _ args =>
+      args.flatMap collectRuntimeIntrospectionExprMechanics
+  | .externalCallBind _ _ args =>
+      args.flatMap collectRuntimeIntrospectionExprMechanics
+  | .rawLog topics dataOffset dataSize =>
+      topics.flatMap collectRuntimeIntrospectionExprMechanics ++
+        collectRuntimeIntrospectionExprMechanics dataOffset ++
+        collectRuntimeIntrospectionExprMechanics dataSize
+  | .returnArray _
+  | .returnBytes _
+  | .returnStorageWords _
+  | .revertReturndata
+  | .stop =>
+      []
+
+private def collectRuntimeIntrospectionMechanicsFromStmts (stmts : List Stmt) : List String :=
+  dedupPreserve (stmts.flatMap collectRuntimeIntrospectionStmtMechanics)
+
+/-- Collect partially modeled runtime-introspection mechanics used by a spec. -/
+def collectRuntimeIntrospectionMechanics (spec : CompilationModel) : List String :=
+  let stmtsFromFn (fn : FunctionSpec) := fn.body
+  let stmtsFromCtor : List Stmt := match spec.constructor with
+    | some ctor => ctor.body
+    | none => []
+  let allStmts := stmtsFromCtor ++ spec.functions.flatMap stmtsFromFn
+  collectRuntimeIntrospectionMechanicsFromStmts allStmts
 
 /-- Collect unique axiomatized primitives used directly by a spec. -/
 def collectAxiomatizedPrimitives (spec : CompilationModel) : List String :=
@@ -559,6 +689,7 @@ private structure UsageSiteSummary where
   kind : String
   name : String
   mechanics : List String
+  runtimeIntrospection : List String
   primitives : List String
   externals : List ExternalFunction
   modules : List ECM.ExternalCallModule
@@ -568,6 +699,7 @@ private def ecmAxiomsFromModules (modules : List ECM.ExternalCallModule) : List 
 
 private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : List Stmt) : Bool :=
   !(collectLowLevelMechanicsFromStmts stmts).isEmpty ||
+    !(collectRuntimeIntrospectionMechanicsFromStmts stmts).isEmpty ||
     !(collectAxiomatizedPrimitivesFromStmts stmts).isEmpty ||
     !(collectUsedExternalAssumptionsFromStmts externals stmts).isEmpty ||
     !(collectUsedEcmModulesFromStmts stmts).isEmpty
@@ -575,12 +707,14 @@ private def siteHasTrustSurface (externals : List ExternalFunction) (stmts : Lis
 private def usageSiteSummary (spec : CompilationModel) (kind name : String) (stmts : List Stmt) :
     UsageSiteSummary :=
   let mechanics := collectLowLevelMechanicsFromStmts stmts
+  let runtimeIntrospection := collectRuntimeIntrospectionMechanicsFromStmts stmts
   let primitives := collectAxiomatizedPrimitivesFromStmts stmts
   let siteExternals := collectUsedExternalAssumptionsFromStmts spec.externals stmts
   let siteModules := collectUsedEcmModulesFromStmts stmts
   { kind := kind
     name := name
     mechanics := mechanics
+    runtimeIntrospection := runtimeIntrospection
     primitives := primitives
     externals := siteExternals
     modules := siteModules }
@@ -612,6 +746,7 @@ private def usageSitesJson (spec : CompilationModel) : String :=
       ("name", jsonString site.name),
       ("modeledLowLevelMechanics", jsonArray (site.mechanics.map jsonString)),
       ("partiallyModeledLinearMemoryMechanics", jsonArray (linearMemoryMechanics.map jsonString)),
+      ("partiallyModeledRuntimeIntrospection", jsonArray (site.runtimeIntrospection.map jsonString)),
       ("axiomatizedPrimitives", jsonArray (site.primitives.map jsonString)),
       ("proofStatus", proofStatusJsonForSite site.primitives site.externals site.modules),
       ("hasUncheckedDependencies",
@@ -658,6 +793,9 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
             let linearMemoryLines :=
               if linearMemoryMechanics.isEmpty then [] else
                 [s!"    partially modeled linear memory: {String.intercalate ", " linearMemoryMechanics}"]
+            let runtimeIntrospectionLines :=
+              if site.runtimeIntrospection.isEmpty then [] else
+                [s!"    partially modeled runtime introspection: {String.intercalate ", " site.runtimeIntrospection}"]
             let primitiveLines :=
               if site.primitives.isEmpty then [] else
                 [s!"    axiomatized primitives: {String.intercalate ", " site.primitives}"] ++
@@ -704,6 +842,7 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
               [heading] ++
               mechanicsLines ++
               linearMemoryLines ++
+              runtimeIntrospectionLines ++
               primitiveLines ++
               provedLines ++
               assumedLines ++
@@ -767,6 +906,22 @@ def emitLinearMemoryUsageSiteLines (specs : List CompilationModel) : List String
       acc ++ siteLines)
     []
 
+/-- Render localized partially modeled runtime-introspection lines for proof-strict diagnostics. -/
+def emitRuntimeIntrospectionUsageSiteLines (specs : List CompilationModel) : List String :=
+  specs.foldl
+    (fun acc spec =>
+      let siteLines :=
+        (collectUsageSiteSummaries spec).foldl
+          (fun siteAcc site =>
+            if site.runtimeIntrospection.isEmpty then
+              siteAcc
+            else
+              siteAcc ++
+                [s!"- {spec.name} [{site.kind}:{site.name}]: {String.intercalate ", " site.runtimeIntrospection}"])
+          []
+      acc ++ siteLines)
+    []
+
 /-- True when a contract depends on any foreign surface marked `unchecked`. -/
 def hasUncheckedDependencies (spec : CompilationModel) : Bool :=
   !(collectUsedExternalNamesByStatus spec .unchecked).isEmpty ||
@@ -789,6 +944,7 @@ where
       ("contract", jsonString spec.name),
       ("modeledLowLevelMechanics", jsonArray ((collectLowLevelMechanics spec).map jsonString)),
       ("partiallyModeledLinearMemoryMechanics", jsonArray ((collectLinearMemoryMechanics spec).map jsonString)),
+      ("partiallyModeledRuntimeIntrospection", jsonArray ((collectRuntimeIntrospectionMechanics spec).map jsonString)),
       ("axiomatizedPrimitives", jsonArray ((collectAxiomatizedPrimitives spec).map jsonString)),
       ("proofStatus", proofStatusJson spec),
       ("hasUncheckedDependencies", if hasUncheckedDependencies spec then "true" else "false"),
