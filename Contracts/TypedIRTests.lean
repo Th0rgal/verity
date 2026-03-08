@@ -638,29 +638,30 @@ private def tVarValueNat (state : Verity.Core.Free.TExecState.{0}) (v : TVar) : 
   | ⟨id, .bool⟩ => if state.vars.bool id then 1 else 0
   | ⟨_, .unit⟩ => 0
 
-private def mkIRStateFromTyped (state : Verity.Core.Free.TExecState.{0}) (block : TBlock) : IRState :=
+private def mkIRStateFromTyped (state : Verity.Core.Free.TExecState.{0}) (block : TBlock) : IRState := by
   let initVars : List (String × Nat) :=
     (block.params ++ block.locals).map (fun v => (tVarName v, tVarValueNat state v))
-  -- Merge typed storage fields into flat EVM storage.  In the EVM there is a
+  -- Merge typed storage fields into flat EVM storage. In the EVM there is a
   -- single `sload`/`sstore` namespace; the typed IR model splits it into
-  -- `storage` (uint256) and `storageAddr` (address) for type safety.  Each
-  -- slot is used by at most one field type, so we overlay the non-default value.
+  -- `storage` (uint256) and `storageAddr` (address) for type safety.
   let flatStorage : Nat → Nat := fun i =>
     let u : Nat := state.world.storage i
     let a : Nat := state.world.storageAddr i
     if a != 0 then a else u
-  { vars := initVars
-    storage := flatStorage
-    memory := fun _ => 0
-    calldata := []
-    returnValue := none
-    sender := state.env.sender
-    msgValue := state.env.msgValue
-    thisAddress := 0
-    blockTimestamp := 0
-    chainId := 0
-    selector := 0
-    events := [] }
+  exact IRState.mk
+    initVars
+    flatStorage
+    (fun _ => 0)
+    []
+    none
+    state.env.sender
+    state.env.msgValue
+    0
+    0
+    0
+    0
+    0
+    []
 
 private def execLoweredSlot0 (fuel : Nat) (state : IRState) (block : TBlock) : Option Nat :=
   match execIRStmts fuel state (lowerTBlock block) with

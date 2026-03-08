@@ -159,6 +159,7 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
+      chainId := s.chainId,
       knownAddresses := fun slotIdx =>
         if slotIdx == 1 then (s.knownAddresses slotIdx).insert to
         else s.knownAddresses slotIdx,
@@ -292,6 +293,7 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
       msgValue := s.msgValue,
       blockTimestamp := s.blockTimestamp,
       blockNumber := s.blockNumber,
+      chainId := s.chainId,
       knownAddresses := fun slotIdx =>
         if slotIdx == 1 then ((s.knownAddresses slotIdx).insert s.sender).insert to
         else s.knownAddresses slotIdx,

@@ -119,6 +119,7 @@ theorem vulnerable_attack_exists :
     , msgValue := s.msgValue
     , blockTimestamp := s.blockTimestamp
     , blockNumber := s.blockNumber
+    , chainId := s.chainId
     , callOracle := fun _ _ => 1 }
   refine ⟨s, env, ?_⟩
   constructor
