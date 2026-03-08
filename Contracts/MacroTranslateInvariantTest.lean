@@ -326,7 +326,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
   , ("TypedImmutableSmoke", ["isPaused()", "feeScale()", "domainSeparator()"])
-  , ("StringSmoke", ["echoString(string)"])
+  , ("StringSmoke", ["echoString(string)", "echoStringAfterUint(uint256,string)", "echoStringBeforeUint(string,uint256)",
+      "echoSecondString(string,string)"])
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
   , ("Uint8Smoke", ["acceptSig((uint8,bytes32,bytes32))", "sigV()"])
   , ("AddressHelpersSmoke", ["setDelegate(address,address)", "getDelegate(address)", "clearDelegate(address)",
@@ -364,7 +365,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
   , ("TypedImmutableSmoke", ["0xb187bd26", "0x95f39ba4", "0xf698da25"])
-  , ("StringSmoke", ["0x0d7e2fce"])
+  , ("StringSmoke", ["0x0d7e2fce", "0x8f4a7b60", "0xa7b21512", "0x29ec7e1a"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
   , ("Uint8Smoke", ["0xc233eaa7", "0x62fc458b"])
   , ("AddressHelpersSmoke", ["0x5c873849", "0x544d8564", "0xcc21cc2a", "0x480005cd", "0x67129177",
