@@ -273,6 +273,79 @@ example : loadApprovalExecutableKeepsTupleShape = true := by native_decide
 
 end MacroStructDestructuringSmoke
 
+namespace MacroDynamicArraySmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroDynamicArray where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function countRecipients (recipients : Array Address) : Uint256 := do
+    let count := arrayLength recipients
+    return count
+
+  function firstRecipient (recipients : Array Address) : Address := do
+    let first := arrayElement recipients 0
+    return first
+
+  function echoAmounts (amounts : Array Uint256) : Array Uint256 := do
+    returnArray amounts
+
+def countRecipientsModelUsesArrayLength : Bool :=
+  match MacroDynamicArray.countRecipients_modelBody with
+  | [Stmt.letVar "count" (Expr.arrayLength "recipients"),
+      Stmt.return (Expr.localVar "count")] =>
+      true
+  | _ => false
+
+example : countRecipientsModelUsesArrayLength = true := by native_decide
+
+def firstRecipientModelUsesArrayElement : Bool :=
+  match MacroDynamicArray.firstRecipient_modelBody with
+  | [Stmt.letVar "first" (Expr.arrayElement "recipients" (Expr.literal 0)),
+      Stmt.return (Expr.localVar "first")] =>
+      true
+  | _ => false
+
+example : firstRecipientModelUsesArrayElement = true := by native_decide
+
+def echoAmountsModelUsesReturnArray : Bool :=
+  match MacroDynamicArray.echoAmounts_modelBody with
+  | [Stmt.returnArray "amounts"] =>
+      true
+  | _ => false
+
+example : echoAmountsModelUsesReturnArray = true := by native_decide
+
+def countRecipientsExecutableUsesRuntimeHelper : Bool :=
+  match MacroDynamicArray.countRecipients #[(11 : Address), (17 : Address)] Verity.defaultState with
+  | .success count state =>
+      count == 2 && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : countRecipientsExecutableUsesRuntimeHelper = true := by native_decide
+
+def firstRecipientExecutableUsesRuntimeHelper : Bool :=
+  match MacroDynamicArray.firstRecipient #[(11 : Address), (17 : Address)] Verity.defaultState with
+  | .success first state =>
+      first == (11 : Address) && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : firstRecipientExecutableUsesRuntimeHelper = true := by native_decide
+
+def echoAmountsExecutableRoundTrips : Bool :=
+  match MacroDynamicArray.echoAmounts #[3, 5, 8] Verity.defaultState with
+  | .success amounts state =>
+      amounts == #[3, 5, 8] && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : echoAmountsExecutableRoundTrips = true := by native_decide
+
+end MacroDynamicArraySmoke
+
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
   if !ok then
     throw (IO.userError s!"✗ {label}")

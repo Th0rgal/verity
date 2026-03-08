@@ -14,6 +14,14 @@ verity_contract StringSmoke where
   function echoString (message : String) : String := do
     returnBytes message
 
+def echoStringExecutableRoundTrips : Bool :=
+  match StringSmoke.echoString "hello" Verity.defaultState with
+  | .success message state =>
+      message = "hello" && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : echoStringExecutableRoundTrips = true := by decide
+
 /--
 error: storage field cannot be String; use Uint256 encoding
 -/

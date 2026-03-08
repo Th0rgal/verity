@@ -318,6 +318,18 @@ return structMembers2 approvals owner spender [allowance, nonce]
 
 Today this elaborates cleanly for tuple literals, tuple-typed parameters, internal helper multi-returns via either `let (...) := helper ...` or `let (...) ← helper ...`, and storage-backed mapping-struct reads via `structMembers` / `structMembers2`. `return (..)` lowers to `Stmt.returnValues [...]`, tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), helper-call destructuring lowers to `Stmt.internalCallAssign [...]`, and struct-backed destructuring lowers to explicit `Expr.structMember` / `Expr.structMember2` reads, so the generated model stays explicit for debugging and proofs.
 
+## Dynamic Array Surface
+
+Dynamic array parameters can be consumed directly from `verity_contract` bodies using the same helper names that lower into the compilation model:
+
+```lean
+let count := arrayLength recipients
+let first := arrayElement recipients 0
+returnArray amounts
+```
+
+`arrayLength arr` lowers to `Expr.arrayLength "arr"`, `arrayElement arr idx` lowers to `Expr.arrayElement "arr" idx`, and `returnArray arr` lowers to `Stmt.returnArray "arr"`. The executable fallback in `Contracts/Common.lean` now also preserves the same surface for local smoke tests, so array-parameter contracts can be exercised directly in Lean while still compiling through the dynamic ABI path.
+
 ## Custom Errors
 
 `verity_contract` now accepts custom error declarations and threads them into the generated `CompilationModel`/ABI surface:
