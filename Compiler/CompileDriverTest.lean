@@ -128,6 +128,36 @@ private def stringAbiSmokeSpec : CompilationModel := {
   ]
 }
 
+private def abiHeadCompileDriverSpec : CompilationModel := {
+  name := "AbiHeadCompileDriverSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "roundtripHeads"
+      params := [
+        { name := "cfg", ty := ParamType.tuple [ParamType.address, ParamType.uint256] }
+      , { name := "payload", ty := ParamType.bytes }
+      , { name := "fixedRecipients", ty := ParamType.fixedArray ParamType.address 2 }
+      , { name := "recipients", ty := ParamType.array ParamType.address }
+      , { name := "note", ty := ParamType.string }
+      ]
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.return
+          (Expr.add
+            (Expr.add
+              (Expr.add
+                (Expr.add
+                  (Expr.param "cfg")
+                  (Expr.param "payload"))
+                (Expr.param "fixedRecipients"))
+              (Expr.param "recipients"))
+            (Expr.param "note"))
+      ]
+    }
+  ]
+}
+
 private def linkedLibrarySpec : CompilationModel := {
   name := "LinkedLibrarySmoke"
   fields := [{ name := "lastHash", ty := FieldType.uint256 }]
@@ -850,6 +880,8 @@ unsafe def runTests : IO Unit := do
   let reversedAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-reversed-abi"
   let stringOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-string-out"
   let stringAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-string-abi"
+  let abiHeadOutDir := s!"/tmp/verity-compile-driver-test-{nonce}-abi-head-out"
+  let abiHeadAbiDir := s!"/tmp/verity-compile-driver-test-{nonce}-abi-head-abi"
   let trustReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/trust"
   let trustReportPath := s!"{trustReportDir}/trust-report.json"
   let patchReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/patch"
@@ -867,6 +899,8 @@ unsafe def runTests : IO Unit := do
   IO.FS.createDirAll reversedAbiDir
   IO.FS.createDirAll stringOutDir
   IO.FS.createDirAll stringAbiDir
+  IO.FS.createDirAll abiHeadOutDir
+  IO.FS.createDirAll abiHeadAbiDir
 
   try IO.FS.removeFile earlySuccessfulAbi catch _ => pure ()
 
@@ -905,6 +939,23 @@ unsafe def runTests : IO Unit := do
     , "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string\"}]"
     , "\"name\": \"SecondMessage\""
     , "\"inputs\": [{\"name\": \"\", \"type\": \"string\"}, {\"name\": \"\", \"type\": \"string\"}]"
+    ]
+
+  compileSpecsWithOptions [abiHeadCompileDriverSpec] abiHeadOutDir false [] {} none none (some abiHeadAbiDir)
+  let abiHeadYulExists ← fileExists s!"{abiHeadOutDir}/AbiHeadCompileDriverSmoke.yul"
+  if !abiHeadYulExists then
+    throw (IO.userError "✗ compileSpecsWithOptions emits Yul for ABI-head parameter smoke contract")
+  IO.println "✓ compileSpecsWithOptions emits Yul for ABI-head parameter smoke contract"
+  expectFileContains
+    "compileSpecsWithOptions emits tuple/bytes/array/string ABI artifacts"
+    s!"{abiHeadAbiDir}/AbiHeadCompileDriverSmoke.abi.json"
+    [ "\"name\": \"roundtripHeads\""
+    , "\"name\": \"cfg\", \"type\": \"tuple\", \"components\": [{\"name\": \"\", \"type\": \"address\"}, {\"name\": \"\", \"type\": \"uint256\"}]"
+    , "\"name\": \"payload\", \"type\": \"bytes\""
+    , "\"name\": \"fixedRecipients\", \"type\": \"address[2]\""
+    , "\"name\": \"recipients\", \"type\": \"address[]\""
+    , "\"name\": \"note\", \"type\": \"string\""
+    , "\"outputs\": [{\"name\": \"\", \"type\": \"uint256\"}]"
     ]
 
   compileModulesWithOptions outDir canonicalModules false [] {} none none (some abiDir)
