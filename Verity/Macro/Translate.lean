@@ -1744,31 +1744,6 @@ private def mkModelFieldTerm (field : StorageFieldDecl) : CommandElabM Term := d
       none
       [])
 
-private def mkFunctionCommands
-    (fields : Array StorageFieldDecl)
-    (constDecls : Array ConstantDecl)
-    (immutableDecls : Array ImmutableDecl)
-    (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
-  let fnType ← mkContractFnType fn.params fn.returnTy
-  let fnGuardedBody ← mkInitGuardedBody fields fn
-  let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
-  let fnValue ← mkContractFnValue fn.params fnBody
-  let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
-  let modelName ← mkSuffixedIdent fn.ident "_model"
-  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls fn
-  let modelParams ← mkModelParamsTerm fn.params
-
-  let fnCmd : Cmd ← `(command| def $fn.ident : $fnType := $fnValue)
-  let bodyCmd : Cmd ← `(command| def $modelBodyName : List Compiler.CompilationModel.Stmt := [ $[$stmtTerms],* ])
-  let modelCmd : Cmd ← `(command| def $modelName : Compiler.CompilationModel.FunctionSpec := {
-    name := $(strTerm fn.name)
-    params := $modelParams
-    returnType := $(← modelReturnTypeTerm fn.returnTy)
-    returns := $(← modelReturnsTerm fn.returnTy)
-    body := $modelBodyName
-  })
-  pure #[fnCmd, bodyCmd, modelCmd]
-
 private def mkModelErrorTerm (err : ErrorDecl) : CommandElabM Term := do
   let paramTerms ← err.params.mapM modelParamTypeTerm
   `(Compiler.CompilationModel.ErrorDef.mk
@@ -1959,27 +1934,26 @@ def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
-    (fn : FunctionDecl) : CommandElabM (Array Cmd) :=
-  do
-    let fnType ← mkContractFnType fn.params fn.returnTy
-    let fnGuardedBody ← mkInitGuardedBody fields fn
-    let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
-    let fnValue ← mkContractFnValue fn.params fnBody
-    let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
-    let modelName ← mkSuffixedIdent fn.ident "_model"
-    let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls fn
-    let modelParams ← mkModelParamsTerm fn.params
+    (fn : FunctionDecl) : CommandElabM (Array Cmd) := do
+  let fnType ← mkContractFnType fn.params fn.returnTy
+  let fnGuardedBody ← mkInitGuardedBody fields fn
+  let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
+  let fnValue ← mkContractFnValue fn.params fnBody
+  let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
+  let modelName ← mkSuffixedIdent fn.ident "_model"
+  let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls fn
+  let modelParams ← mkModelParamsTerm fn.params
 
-    let fnCmd : Cmd ← `(command| def $fn.ident : $fnType := $fnValue)
-    let bodyCmd : Cmd ← `(command| def $modelBodyName : List Compiler.CompilationModel.Stmt := [ $[$stmtTerms],* ])
-    let modelCmd : Cmd ← `(command| def $modelName : Compiler.CompilationModel.FunctionSpec := {
-      name := $(strTerm fn.name)
-      params := $modelParams
-      returnType := $(← modelReturnTypeTerm fn.returnTy)
-      returns := $(← modelReturnsTerm fn.returnTy)
-      body := $modelBodyName
-    })
-    pure #[fnCmd, bodyCmd, modelCmd]
+  let fnCmd : Cmd ← `(command| def $fn.ident : $fnType := $fnValue)
+  let bodyCmd : Cmd ← `(command| def $modelBodyName : List Compiler.CompilationModel.Stmt := [ $[$stmtTerms],* ])
+  let modelCmd : Cmd ← `(command| def $modelName : Compiler.CompilationModel.FunctionSpec := {
+    name := $(strTerm fn.name)
+    params := $modelParams
+    returnType := $(← modelReturnTypeTerm fn.returnTy)
+    returns := $(← modelReturnsTerm fn.returnTy)
+    body := $modelBodyName
+  })
+  pure #[fnCmd, bodyCmd, modelCmd]
 
 def mkSpecCommandPublic
     (contractName : String)
