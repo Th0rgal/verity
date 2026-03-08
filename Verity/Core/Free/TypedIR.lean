@@ -39,6 +39,7 @@ inductive TExpr : Ty → Type where
   | ite {ty : Ty} (cond : TExpr .bool) (thenExpr elseExpr : TExpr ty) : TExpr ty
   | sender : TExpr .address
   | this : TExpr .address
+  | chainid : TExpr .uint256
   | msgValue : TExpr .uint256
   | blockTimestamp : TExpr .uint256
   | blockNumber : TExpr .uint256
@@ -180,6 +181,7 @@ def evalTExpr (s : TExecState) : TExpr ty → Ty.denote ty
       | false => evalTExpr s elseExpr
   | .sender => s.env.sender
   | .this => s.env.thisAddress
+  | .chainid => s.env.chainId
   | .msgValue => s.env.msgValue
   | .blockTimestamp => s.env.blockTimestamp
   | .blockNumber => s.env.blockNumber

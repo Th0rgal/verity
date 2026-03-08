@@ -14,11 +14,12 @@ structure Env where
   msgValue : Uint256
   blockTimestamp : Uint256
   blockNumber : Uint256 := 0
+  chainId : Uint256 := 0
   callOracle : String → List Uint256 → Uint256 := Env.defaultCallOracle
 
 instance : Repr Env where
   reprPrec env _ :=
-    s!"Env(sender={repr env.sender}, thisAddress={repr env.thisAddress}, msgValue={repr env.msgValue}, blockTimestamp={repr env.blockTimestamp}, blockNumber={repr env.blockNumber}, callOracle=<fn>)"
+    s!"Env(sender={repr env.sender}, thisAddress={repr env.thisAddress}, msgValue={repr env.msgValue}, blockTimestamp={repr env.blockTimestamp}, blockNumber={repr env.blockNumber}, chainId={repr env.chainId}, callOracle=<fn>)"
 
 def Env.ofWorld (w : World) : Env where
   sender := w.sender
@@ -26,6 +27,7 @@ def Env.ofWorld (w : World) : Env where
   msgValue := w.msgValue
   blockTimestamp := w.blockTimestamp
   blockNumber := w.blockNumber
+  chainId := w.chainId
 
 def World.withEnv (w : World) (env : Env) : World :=
   { w with
@@ -34,6 +36,7 @@ def World.withEnv (w : World) (env : Env) : World :=
     msgValue := env.msgValue
     blockTimestamp := env.blockTimestamp
     blockNumber := env.blockNumber
+    chainId := env.chainId
   }
 
 end Verity

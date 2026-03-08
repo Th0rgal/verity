@@ -36,6 +36,7 @@ def lowerTExpr : {ty : Ty} → TExpr ty → YulExpr
         ]
   | _, .sender => .call "caller" []
   | _, .this => .call "address" []
+  | _, .chainid => .call "chainid" []
   | _, .msgValue => .call "callvalue" []
   | _, .blockTimestamp => .call "timestamp" []
   | _, .blockNumber => .call "number" []

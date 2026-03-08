@@ -157,6 +157,7 @@ private def compileExpr (fields : List Field) : Expr → CompileM SomeTExpr
           throw s!"Typed IR compile error: unknown mapping field '{field}'"
   | .caller => return ⟨Ty.address, TExpr.sender⟩
   | .contractAddress => return ⟨Ty.address, TExpr.this⟩
+  | .chainid => return ⟨Ty.uint256, TExpr.chainid⟩
   | .msgValue => return ⟨Ty.uint256, TExpr.msgValue⟩
   | .blockTimestamp => return ⟨Ty.uint256, TExpr.blockTimestamp⟩
   | .blockNumber => return ⟨Ty.uint256, TExpr.blockNumber⟩
