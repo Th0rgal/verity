@@ -9,7 +9,8 @@ structure that the compiler can plug in without modification.
 | File | Modules | Replaces |
 |------|---------|----------|
 | `ERC20.lean` | `safeTransfer`, `safeTransferFrom`, `safeApprove` | `Stmt.safeTransfer`, `Stmt.safeTransferFrom` |
-| `ERC4626.lean` | `previewDeposit` | canonical vault preview wrappers |
+| `ERC4626.lean` | `previewDeposit`, `previewRedeem` | canonical vault preview wrappers |
+| `Oracle.lean` | `oracleReadUint256` | canonical oracle read wrappers |
 | `Precompiles.lean` | `ecrecover` | `Stmt.ecrecover` |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |
 | `Calls.lean` | `withReturn` | `Stmt.externalCallWithReturn` |
@@ -55,7 +56,8 @@ body := [
 ## Standard vs. Third-Party
 
 Standard modules live here and ship with Verity. They cover widely-used patterns
-(ERC-20, EVM precompiles, flash-loan callbacks, generic ABI calls).
+(ERC-20, ERC-4626 preview/redeem calls, oracle reads, EVM precompiles,
+flash-loan callbacks, generic ABI calls).
 
 Protocol-specific modules (Uniswap, Chainlink, Aave) should live in external Lean
 packages that depend on `Compiler.ECM`. See `docs/EXTERNAL_CALL_MODULES.md` for

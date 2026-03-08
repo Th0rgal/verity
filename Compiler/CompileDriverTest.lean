@@ -301,6 +301,29 @@ private def erc4626TrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def erc4626PreviewRedeemTrustSurfaceSpec : CompilationModel := {
+  name := "ERC4626PreviewRedeemTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "preview"
+      params := [
+        { name := "vault", ty := ParamType.address }
+        , { name := "shares", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.ERC4626.previewRedeem
+          "assets"
+          (Expr.param "vault")
+          (Expr.param "shares"),
+        Stmt.returnValues [Expr.localVar "assets"]
+      ]
+    }
+  ]
+}
+
 private def expectModuleArtifacts
     (labelPrefix : String)
     (modules : List String)
@@ -510,6 +533,16 @@ unsafe def runTests : IO Unit := do
   if !contains erc4626TrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewDeposit\"]}" then
     throw (IO.userError "✗ erc4626 trust report emits assumed ECM proof-status bucket")
   IO.println "✓ erc4626 trust report emits standard vault module assumption"
+
+  let erc4626PreviewRedeemTrustReport := emitTrustReportJson [erc4626PreviewRedeemTrustSurfaceSpec]
+  if !contains erc4626PreviewRedeemTrustReport "\"contract\":\"ERC4626PreviewRedeemTrustSurface\"" then
+    throw (IO.userError "✗ erc4626 previewRedeem trust report emits contract name")
+  if !contains erc4626PreviewRedeemTrustReport "\"module\":\"previewRedeem\"" ||
+      !contains erc4626PreviewRedeemTrustReport "\"assumption\":\"erc4626_previewRedeem_interface\"" then
+    throw (IO.userError "✗ erc4626 previewRedeem trust report emits module assumption")
+  if !contains erc4626PreviewRedeemTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"previewRedeem\"]}" then
+    throw (IO.userError "✗ erc4626 previewRedeem trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ erc4626 previewRedeem trust report emits standard vault module assumption"
 
   compileSpecsWithOptions [abiSmokeSpec] outDir false [] {} none (some trustReportPath) none
   let writtenTrustReport ← fileExists trustReportPath

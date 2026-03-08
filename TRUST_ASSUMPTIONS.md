@@ -60,7 +60,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 - **Implication**: Semantic correctness does not imply gas-safety.
 
 ### 6. External Call Modules (ECMs)
-- **Role**: Reusable typed external call patterns (ERC-20, ERC-4626 previews, oracle reads, precompiles, callbacks).
+- **Role**: Reusable typed external call patterns (ERC-20, ERC-4626 previews/redeems, oracle reads, precompiles, callbacks).
 - **Trust**: Each module's `compile` produces correct Yul. Bug in one module doesn't affect others.
 - **Mitigation**: Axiom aggregation at compile time (`--verbose`) and machine-readable trust-surface emission via `--trust-report <path>`. See [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md).
 
