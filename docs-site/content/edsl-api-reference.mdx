@@ -354,6 +354,31 @@ verity_contract PayableInit where
 
 This sets `spec.constructor.isPayable := true`, emits constructor ABI `stateMutability: "payable"`, and removes the deploy-time `callvalue` guard from generated Yul.
 
+## Contract Constants
+
+`verity_contract` also supports contract-scoped compile-time constants that are shared between the executable fallback and the generated compilation model:
+
+```lean
+verity_contract FeeConfig where
+  storage
+
+  constants
+    basisPoints : Uint256 := 10000
+    mintFeeBps : Uint256 := 30
+    treasury : Address := (wordToAddress 42)
+
+  function feeOn (amount : Uint256) : Uint256 := do
+    let fee := div (mul amount mintFeeBps) basisPoints
+    return fee
+
+  function treasuryAddr () : Address := do
+    return treasury
+```
+
+These declarations elaborate to ordinary Lean `def`s inside the generated contract namespace, so the executable path can reference them directly. On the compilation-model side, constant identifiers are inlined into `Expr` trees transitively, while ordinary parameter/local shadowing still wins if a function binds the same name later.
+
+Constant bodies must stay compile-time-only. Runtime-dependent builtins such as `blockTimestamp`, `blockNumber`, `contractAddress`, `chainid`, calldata/returndata size reads, and low-level memory/call opcodes are rejected in `constants` declarations so the executable and compilation-model paths cannot diverge.
+
 ## Low-Level Log Surface
 
 `verity_contract` bodies can emit low-level runtime-dependent logs directly:
