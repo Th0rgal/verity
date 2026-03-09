@@ -49,6 +49,7 @@ class VerifySyncTests(unittest.TestCase):
         *,
         check_only_paths: list[str],
         compiler_paths: list[str],
+        expected_trigger_keys: list[str] | None = None,
         expected_push_branches: list[str] | None = None,
         require_workflow_dispatch: bool = False,
     ) -> tuple[int, str, str]:
@@ -62,6 +63,7 @@ class VerifySyncTests(unittest.TestCase):
                     {
                         "check_only_paths": check_only_paths,
                         "compiler_paths": compiler_paths,
+                        "expected_trigger_keys": expected_trigger_keys or [],
                         "expected_push_branches": expected_push_branches or [],
                         "require_workflow_dispatch": require_workflow_dispatch,
                     }
@@ -375,13 +377,57 @@ class VerifySyncTests(unittest.TestCase):
             workflow,
             check_only_paths=[],
             compiler_paths=["src/**"],
+            expected_trigger_keys=["push", "pull_request", "workflow_dispatch"],
             expected_push_branches=["main"],
             require_workflow_dispatch=True,
         )
         self.assertEqual(rc, 1)
         self.assertIn("[FAIL] paths", err)
+        self.assertIn("workflow triggers does not match spec workflow triggers.", err)
         self.assertIn("on.push.branches does not match spec push branches.", err)
         self.assertIn("workflow_dispatch trigger is missing from verify.yml", err)
+
+    def test_paths_check_fails_when_extra_trigger_is_added(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            on:
+              push:
+                branches: [main]
+                paths:
+                  - 'src/**'
+              pull_request:
+                paths:
+                  - 'src/**'
+              workflow_dispatch:
+              schedule:
+                - cron: '0 0 * * *'
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v4
+                  - id: filter
+                    uses: dorny/paths-filter@v3
+                    with:
+                      filters: |
+                        code:
+                          - 'src/**'
+                        compiler:
+                          - 'src/**'
+            """
+        )
+        rc, _, err = self._run_paths_check(
+            workflow,
+            check_only_paths=[],
+            compiler_paths=["src/**"],
+            expected_trigger_keys=["push", "pull_request", "workflow_dispatch"],
+            expected_push_branches=["main"],
+            require_workflow_dispatch=True,
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("workflow triggers does not match spec workflow triggers.", err)
+        self.assertIn("idx 3: workflow triggers='schedule', spec workflow triggers='<missing>'", err)
 
     def test_paths_check_passes_when_trigger_contracts_match_spec(self) -> None:
         workflow = textwrap.dedent(
@@ -415,6 +461,7 @@ class VerifySyncTests(unittest.TestCase):
             workflow,
             check_only_paths=[],
             compiler_paths=["src/**"],
+            expected_trigger_keys=["push", "pull_request", "workflow_dispatch"],
             expected_push_branches=["main"],
             require_workflow_dispatch=True,
         )

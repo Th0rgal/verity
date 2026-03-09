@@ -122,6 +122,25 @@ def _extract_push_branches(text: str) -> list[str]:
     )
 
 
+def _extract_trigger_keys(text: str) -> list[str]:
+    on_match = re.search(r"^on:\n(?P<body>(?:^  .*\n)*)", text, re.MULTILINE)
+    if not on_match:
+        raise ValueError(f"Could not locate on in {VERIFY_YML}")
+
+    trigger_keys: list[str] = []
+    for line in on_match.group("body").splitlines():
+        if not line.strip():
+            continue
+        if len(line) - len(line.lstrip(" ")) != 2:
+            continue
+        match = re.match(r"^\s{2}(?P<key>[A-Za-z0-9_-]+):(?:\s|$)", line)
+        if match:
+            trigger_keys.append(match.group("key"))
+    if not trigger_keys:
+        raise ValueError(f"No workflow triggers found under on in {VERIFY_YML}")
+    return trigger_keys
+
+
 def _extract_pr_paths(text: str) -> list[str]:
     return _extract_list_block(
         text,
@@ -693,10 +712,12 @@ def _load_spec() -> dict:
 
 def check_paths(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors: list[str] = []
+    trigger_keys = _extract_trigger_keys(snapshot.workflow_text)
     push_paths = _extract_push_paths(snapshot.workflow_text)
     pr_paths = _extract_pr_paths(snapshot.workflow_text)
     changes_paths = _extract_changes_filter_paths(snapshot.workflow_text, "code")
     compiler_changes_paths = _extract_changes_filter_paths(snapshot.workflow_text, "compiler")
+    expected_trigger_keys = spec.get("expected_trigger_keys", [])
     expected_push_branches = spec.get("expected_push_branches", [])
     require_workflow_dispatch = spec.get("require_workflow_dispatch", False)
 
@@ -715,6 +736,16 @@ def check_paths(snapshot: Snapshot, spec: dict) -> CheckResult:
         dup = _duplicates(values)
         if dup:
             errors.append(f"{label} has duplicates: {', '.join(dup)}")
+
+    if expected_trigger_keys:
+        errors.extend(
+            _compare_lists(
+                "workflow triggers",
+                trigger_keys,
+                "spec workflow triggers",
+                expected_trigger_keys,
+            )
+        )
 
     if expected_push_branches:
         errors.extend(

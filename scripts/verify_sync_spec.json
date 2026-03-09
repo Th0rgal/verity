@@ -31,6 +31,11 @@
   "expected_push_branches": [
     "main"
   ],
+  "expected_trigger_keys": [
+    "push",
+    "pull_request",
+    "workflow_dispatch"
+  ],
   "require_workflow_dispatch": true,
   "expected_jobs": [
     "changes",
