@@ -20,7 +20,7 @@ All three layers are proven in Lean, with 1 documented axiom (the selector axiom
 
 ## What's Verified
 
-- **Layer 1**: EDSL behavior matches its CompilationModel. For supported contracts, a generic typed-IR compilation-correctness theorem eliminates per-contract manual proofs.
+- **Layer 1**: EDSL behavior matches its `CompilationModel`. This names the frontend semantic bridge only; it does not refer to the contract-specific specification theorems in `Contracts/<Name>/Proofs/`. For supported contracts, macro-generated bridge theorems and the typed-IR correctness path discharge this boundary.
 - **Layer 2**: CompilationModel → IR preserves behavior.
 - **Layer 3**: IR → Yul preserves behavior, with 1 documented axiom (keccak256 selector).
 - **Cross-layer**: `Compiler/Proofs/SemanticBridge.lean` has zero `sorry`; `Compiler/Proofs/EndToEnd.lean` composes Layers 2+3.

@@ -19,7 +19,7 @@ The project evolved in two phases:
 
 This is the single source of truth for progress, roadmap, and milestone updates.
 
-- **Layer 1 (Spec Correctness)**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
+- **Contract-specific specification proofs**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
 - **Layer 2 (CompilationModel → IR)**: Complete for all 7 contracts (per‑function preservation theorems compiled in Lean).
 - **Layer 3 (IR → Yul)**: Complete — all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
 
@@ -102,8 +102,8 @@ Each contract has:
 - `Verity/Examples/X.lean` — Implementation (EDSL)
 - `Verity/Specs/X/Spec.lean` — Pre/postconditions for each operation
 - `Verity/Specs/X/Invariants.lean` — State properties that should hold
-- `Verity/Proofs/X/Basic.lean` — Layer 1: Spec conformance, basic properties
-- `Verity/Proofs/X/Correctness.lean` — Layer 1: Revert proofs, composition, end-to-end
+- `Verity/Proofs/X/Basic.lean` — Contract-specific spec conformance and basic properties
+- `Verity/Proofs/X/Correctness.lean` — Contract-specific revert proofs, composition, and end-to-end properties
 - `Compiler/TypedIRCompilerCorrectness.lean` — Compilation correctness (generic theorem, 36 supported fragments)
 
 Some contracts have additional proof files:

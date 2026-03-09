@@ -26,7 +26,8 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 ## Architecture
 
 ```
-Layer 1: EDSL Proofs      — Lean theorems about contract behavior
+Layer 1: EDSL -> CompilationModel bridge
+Contract proofs: human-readable spec theorems for each contract
 Layer 2: Compiler Proofs  — CompilationModel -> IR preservation
 Layer 3: IR -> Yul        — Statement/expression equivalence proofs
 Trust:   Yul -> Bytecode  — Via solc (validated by differential testing)

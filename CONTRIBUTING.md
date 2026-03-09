@@ -283,7 +283,7 @@ See [AXIOMS.md](AXIOMS.md) for current axioms and detailed guidelines.
 
 ## Key Files
 
-- `Verity/` - EDSL, specs, Layer 1 proofs
+- `Verity/` - EDSL, user-facing specs, and contract-specific specification proofs
 - `Compiler/` - IR, Yul, codegen
 - `Compiler/Proofs/` - Layer 2 & 3 proofs
 - `docs/ROADMAP.md` - Progress tracking

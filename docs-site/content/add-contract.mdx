@@ -44,7 +44,7 @@ This creates 7 scaffold files (EDSL, Spec, Invariants, Proofs re-export shim, Ba
    - Implement contract logic in `Verity/Examples/<Name>.lean`
    - Reuse helper lemmas for storage updates and mapping reads
 
-3. **Layer 1 Proofs**
+3. **Contract Specification Proofs**
    - Prove correctness in `Verity/Proofs/<Name>/Basic.lean` and `Correctness.lean`
    - Each theorem states observable behavior (return values + storage deltas)
 
@@ -74,7 +74,7 @@ Verity/Specs/<Name>/
 
 Verity/Examples/<Name>.lean     # EDSL implementation
 Verity/Proofs/<Name>/
-  ├── Basic.lean       # Basic correctness proofs (Layer 1)
+  ├── Basic.lean       # Basic contract-spec correctness proofs
   └── Correctness.lean # Advanced correctness proofs
 Compiler/TypedIRCompilerCorrectness.lean  # Generic compilation correctness (shared)
 test/Differential<Name>.t.sol          # Differential tests

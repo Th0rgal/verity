@@ -91,7 +91,7 @@ class VerificationStatusDocTests(unittest.TestCase):
             | CryptoHash | 0 | No specs | `Contracts/CryptoHash/Contract.lean` |
             | **Total** | **7** | **✅ 100%** | — |
 
-            > **Note**: Stdlib (0 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (7 total properties).
+            > **Note**: Stdlib (0 internal proof-automation properties) is excluded from the contract-spec theorem table above but included in overall coverage statistics (7 total properties).
 
             | Contract | Coverage | Exclusions |
             |----------|----------|------------|
@@ -146,7 +146,7 @@ class VerificationStatusDocTests(unittest.TestCase):
             | CryptoHash | 0 | No specs | `Contracts/CryptoHash/Contract.lean` |
             | **Total** | **7** | **✅ 100%** | — |
 
-            > **Note**: Stdlib (0 internal proof-automation properties) is excluded from the Layer 1 contracts table above but included in overall coverage statistics (7 total properties).
+            > **Note**: Stdlib (0 internal proof-automation properties) is excluded from the contract-spec theorem table above but included in overall coverage statistics (7 total properties).
 
             | Contract | Coverage | Exclusions |
             |----------|----------|------------|

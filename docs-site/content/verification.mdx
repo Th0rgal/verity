@@ -29,7 +29,7 @@ This section is a dated historical snapshot. Use [docs/VERIFICATION_STATUS.md](h
 
 ## Compiler Proofs (IR + Yul)
 
-- **Semantic bridge**: `Compiler/Proofs/SemanticBridge.lean` (EDSL ≡ CompilationModel for all supported contracts)
+- **Semantic bridge**: `Compiler/Proofs/SemanticBridge.lean` (active contract-level bridge surface used to connect EDSL/CompilationModel executions to compiled IR/Yul executions)
 - **End-to-end proofs**: `Compiler/Proofs/EndToEnd.lean` (full pipeline correctness)
 - **Typed IR correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic compilation-correctness theorem with 36 supported statement fragments, including ABI-head tuple/bytes/fixed-array/dynamic-array/string params as word-typed inputs)
 - **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + concrete IR proofs in `Expr.lean`)
@@ -45,11 +45,11 @@ Verity/
 ├── Specs/{Contract}/
 │   ├── Spec.lean                 # What each operation should do
 │   └── Invariants.lean           # Properties that should always hold
-│   └── Proofs.lean               # User-facing proofs (spec → impl)
+│   └── Proofs.lean               # User-facing spec statements and re-exports
 ├── Proofs/Stdlib/                # Reusable proof infrastructure
 └── Proofs/{Contract}/            # Deeper contract proof suites
-    ├── Basic.lean                # Core properties and lemmas
-    ├── Correctness.lean          # Composition and revert behavior
+    ├── Basic.lean                # Contract-specific spec conformance and lemmas
+    ├── Correctness.lean          # Contract-specific composition and revert behavior
     ├── Conservation.lean         # Sum conservation laws (Ledger)
     ├── Supply.lean               # Supply conservation (SimpleToken)
     └── Isolation.lean            # Storage isolation (SimpleToken)
