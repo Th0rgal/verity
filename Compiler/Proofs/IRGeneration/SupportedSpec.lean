@@ -91,6 +91,7 @@ makes the whole-contract scope auditable without proof-internal inspection. -/
 structure SupportedFunction (fields : List Field) (fn : FunctionSpec) : Prop where
   nonInternal : fn.isInternal = false
   nonSpecialEntrypoint : isInteropEntrypointName fn.name = false
+  paramNamesNodup : (fn.params.map (·.name)).Nodup
   params : ∀ param ∈ fn.params, SupportedExternalParamType param.ty
   returns :
     ∃ resolvedReturns,
@@ -140,6 +141,14 @@ theorem SupportedSpec.selectorFunctionParamsSupported
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
   (hSupported.supportedFunctionOfSelectorDispatched hfn).params
+
+theorem SupportedSpec.selectorFunctionParamNamesNodup
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    (fn.params.map (·.name)).Nodup :=
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).paramNamesNodup
 
 theorem SupportedSpec.selectorFunctionBodySupported
     {spec : CompilationModel} {selectors : List Nat}
@@ -221,6 +230,7 @@ private theorem counter_supported_function :
   · refine
       { nonInternal := rfl
         nonSpecialEntrypoint := rfl
+        paramNamesNodup := by decide
         params := by intro param hparam; cases hparam
         returns := ⟨[], rfl, trivial⟩
         body := Verity.Core.Free.counter_increment_supported
@@ -229,6 +239,7 @@ private theorem counter_supported_function :
   · refine
       { nonInternal := rfl
         nonSpecialEntrypoint := rfl
+        paramNamesNodup := by decide
         params := by intro param hparam; cases hparam
         returns := ⟨[], rfl, trivial⟩
         body := Verity.Core.Free.counter_decrement_supported
@@ -237,6 +248,7 @@ private theorem counter_supported_function :
   · refine
       { nonInternal := rfl
         nonSpecialEntrypoint := rfl
+        paramNamesNodup := by decide
         params := by intro param hparam; cases hparam
         returns := ⟨[.uint256], rfl, trivial⟩
         body := Verity.Core.Free.counter_getCount_supported
@@ -304,6 +316,7 @@ theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecM
   refine
     { nonInternal := rfl
       nonSpecialEntrypoint := rfl
+      paramNamesNodup := by decide
       params := by intro param hparam; cases hparam
       returns := ⟨[.uint256], rfl, trivial⟩
       body := Verity.Core.Free.simpleStorage_retrieve_supported

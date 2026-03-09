@@ -105,6 +105,30 @@ theorem nodup_of_firstDuplicateName_eq_none
   simpa [firstDuplicateName] using
     (nodup_of_firstDuplicateName_go_eq_none [] names List.nodup_nil (by simpa [firstDuplicateName] using hnone)).1
 
+theorem functionParamNames_nodup_of_firstDuplicateFunctionParamName_eq_none
+    {fns : List FunctionSpec}
+    {fn : FunctionSpec}
+    (hnone : firstDuplicateFunctionParamName fns = none)
+    (hfn : fn ∈ fns) :
+    (fn.params.map (·.name)).Nodup := by
+  unfold firstDuplicateFunctionParamName at hnone
+  induction fns generalizing fn with
+  | nil =>
+      cases hfn
+  | cons head tail ih =>
+      simp only [firstDuplicateFunctionParamName.goFns] at hnone
+      have hmem : fn = head ∨ fn ∈ tail := by
+        simpa using hfn
+      cases hdup : firstDuplicateName (head.params.map (·.name)) with
+      | some dup =>
+          simp [hdup] at hnone
+      | none =>
+          have htailNone : firstDuplicateFunctionParamName.goFns tail = none := by
+            simpa [hdup] using hnone
+          rcases hmem with rfl | htail
+          · exact nodup_of_firstDuplicateName_eq_none _ hdup
+          · exact ih htailNone htail
+
 def dedupNatPreserve (xs : List Nat) : List Nat :=
   let rec go (seen : List Nat) : List Nat → List Nat
     | [] => []

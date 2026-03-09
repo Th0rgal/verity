@@ -69,6 +69,39 @@ theorem prebindRawArgs_exact_rawArgBindings
         ih (bindings0 := SourceSemantics.bindValue bindings0 entry.1.name entry.2)
           (state := state.setVar entry.1.name entry.2) hstep
 
+theorem rawArgBindings_names_of_length_le
+    (params : List Param)
+    (args : List Nat)
+    (hlen : params.length ≤ args.length) :
+    (rawArgBindings params args).map Prod.fst = params.map Param.name := by
+  induction params generalizing args with
+  | nil =>
+      simp [rawArgBindings]
+  | cons param rest ih =>
+      cases args with
+      | nil =>
+          cases Nat.not_succ_le_zero _ hlen
+      | cons arg restArgs =>
+          have htail :
+              (rawArgBindings rest restArgs).map Prod.fst = rest.map Param.name :=
+            ih restArgs (Nat.le_of_succ_le_succ hlen)
+          have hcons :
+              param.toIRParam.name = param.name ∧
+                (rawArgBindings rest restArgs).map Prod.fst = rest.map Param.name :=
+            ⟨rfl, htail⟩
+          simpa [rawArgBindings] using hcons
+
+theorem rawArgBindings_names_of_bindSupportedParams
+    {params : List Param}
+    {args : List Nat}
+    {bindings : List (String × Nat)}
+    (hbind : SourceSemantics.bindSupportedParams params args = some bindings) :
+    (rawArgBindings params args).map Prod.fst = bindings.map Prod.fst := by
+  rw [rawArgBindings_names_of_length_le params args
+    (ParamLoading.bindSupportedParams_some_length hbind)]
+  symm
+  exact ParamLoading.bindSupportedParams_names hbind
+
 def execResultToIRResult (initialState : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
