@@ -59,6 +59,20 @@ theorem mulDivDown_mul_le (a b c : Uint256) (hMul : (a : Nat) * (b : Nat) ≤ MA
     simp [hZero]
     exact Nat.div_mul_le_self _ _
 
+/-- Floor division is positive once the exact numerator reaches at least one divisor-width. -/
+theorem mulDivDown_pos (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hLower : (c : Nat) ≤ (a : Nat) * (b : Nat))
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    0 < (mulDivDown a b c : Nat) := by
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hCVal
+  rw [mulDivDown_nat_eq a b c hMul]
+  simpa [hCVal, Nat.div_pos_iff, hCPos] using hLower
+
 /-- A zero left numerator collapses `mulDivDown` to zero. -/
 theorem mulDivDown_zero_left (b c : Uint256) :
     (mulDivDown 0 b c : Nat) = 0 := by
@@ -253,6 +267,25 @@ theorem mulDivDown_le_mulDivUp (a b c : Uint256)
   apply Nat.div_le_div_right
   exact Nat.le_add_right _ _
 
+/-- Ceil division is positive whenever both numerator factors are positive. -/
+theorem mulDivUp_pos (a b c : Uint256)
+    (hA : 0 < (a : Nat))
+    (hB : 0 < (b : Nat))
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    0 < (mulDivUp a b c : Nat) := by
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hCVal
+  have hProdPos : 0 < (a : Nat) * (b : Nat) := Nat.mul_pos hA hB
+  rw [mulDivUp_nat_eq a b c hC hNum]
+  have hDivisorLe :
+      (c : Nat) ≤ (a : Nat) * (b : Nat) + ((c : Nat) - 1) := by
+    omega
+  simpa [Nat.div_pos_iff, hCPos] using hDivisorLe
+
 /-- A zero left numerator collapses `mulDivUp` to zero. -/
 theorem mulDivUp_zero_left (b c : Uint256)
     (hC : c ≠ 0) :
@@ -424,6 +457,13 @@ theorem wMulDown_mul_le (a b : Uint256)
     (wMulDown a b : Nat) * (WAD : Nat) ≤ (a : Nat) * (b : Nat) := by
   simpa [WAD_val] using mulDivDown_mul_le a b WAD hMul
 
+/-- Wad multiplication is positive once the product reaches one full wad. -/
+theorem wMulDown_pos (a b : Uint256)
+    (hLower : (WAD : Nat) ≤ (a : Nat) * (b : Nat))
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    0 < (wMulDown a b : Nat) := by
+  simpa [WAD_val] using mulDivDown_pos a b WAD WAD_ne_zero hLower hMul
+
 /-- A zero left operand collapses `wMulDown` to zero. -/
 theorem wMulDown_zero_left (b : Uint256) :
     (wMulDown 0 b : Nat) = 0 := by
@@ -508,6 +548,15 @@ theorem wDivUp_mul_ge (a b : Uint256)
     (hNum : (a : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
     (a : Nat) * (WAD : Nat) ≤ (wDivUp a b : Nat) * (b : Nat) := by
   simpa [WAD_val] using mulDivUp_mul_ge a WAD b hB hNum
+
+/-- Positive wad numerators yield a positive ceil-division result. -/
+theorem wDivUp_pos (a b : Uint256)
+    (hA : 0 < (a : Nat))
+    (hB : b ≠ 0)
+    (hNum : (a : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
+    0 < (wDivUp a b : Nat) := by
+  have hWadPos : 0 < (WAD : Nat) := by simp [WAD_val]
+  simpa [WAD_val] using mulDivUp_pos a WAD b hA hWadPos hB hNum
 
 /-- A zero wad numerator collapses `wDivUp` to zero. -/
 theorem wDivUp_zero (b : Uint256)
@@ -729,26 +778,30 @@ safeDiv:
 
 26. mulDivDown_nat_eq — exact floor division when the numerator fits
 27. mulDivDown_mul_le — floor result never overshoots the numerator
-28. mulDivDown_zero_left/right — zero numerators collapse floor helpers
-29. mulDivDown_comm — numerator multiplication order does not matter
-30. mulDivDown_cancel_right/left — exact factor cancellation for floor helpers
-31. mulDivDown_mul_lt_add — floor undershoot is less than one divisor-width
-32. mulDivDown_antitone_divisor — larger divisors can only shrink floor helpers
-33. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
-34. mulDivDown_le_mulDivUp — ceil result never rounds below floor
-35. mulDivUp_zero_left/right — zero numerators collapse ceil helpers
-36. mulDivUp_comm — widened numerator multiplication order does not matter
-37. mulDivUp_cancel_right/left — exact factor cancellation for ceil helpers
-38. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
-39. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
-40. wMulDown_zero_left/right — zero operands collapse wad multiplication
-41. wMulDown_one_left/right — wad-multiply identity lemmas
-42. wMulDown_comm — wad multiplication order does not matter
-43. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
-44. wDivUp_nat_eq — wad-divide specialization of mulDivUp
-45. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
-46. wDivUp_zero — zero wad numerators collapse ceil helpers
-47. wDivUp_by_wad — wad ceil-division identity lemma
+28. mulDivDown_pos — floor division is positive once the numerator reaches one divisor-width
+29. mulDivDown_zero_left/right — zero numerators collapse floor helpers
+30. mulDivDown_comm — numerator multiplication order does not matter
+31. mulDivDown_cancel_right/left — exact factor cancellation for floor helpers
+32. mulDivDown_mul_lt_add — floor undershoot is less than one divisor-width
+33. mulDivDown_antitone_divisor — larger divisors can only shrink floor helpers
+34. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
+35. mulDivDown_le_mulDivUp — ceil result never rounds below floor
+36. mulDivUp_pos — ceil division is positive for positive numerator factors
+37. mulDivUp_zero_left/right — zero numerators collapse ceil helpers
+38. mulDivUp_comm — widened numerator multiplication order does not matter
+39. mulDivUp_cancel_right/left — exact factor cancellation for ceil helpers
+40. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
+41. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
+42. wMulDown_pos — wad multiplication is positive once the product reaches one full wad
+43. wMulDown_zero_left/right — zero operands collapse wad multiplication
+44. wMulDown_one_left/right — wad-multiply identity lemmas
+45. wMulDown_comm — wad multiplication order does not matter
+46. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
+47. wDivUp_nat_eq — wad-divide specialization of mulDivUp
+48. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
+49. wDivUp_pos — positive wad numerators yield a positive ceil-division result
+50. wDivUp_zero — zero wad numerators collapse ceil helpers
+51. wDivUp_by_wad — wad ceil-division identity lemma
 -/
 
 end Verity.Proofs.Stdlib.Math
