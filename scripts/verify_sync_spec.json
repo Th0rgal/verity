@@ -132,6 +132,126 @@
     "group": "${{ github.workflow }}-${{ github.ref }}",
     "cancel-in-progress": "true"
   },
+  "expected_step_contracts": {
+    "build": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake"
+        }
+      },
+      {
+        "name": "Save Lake packages cache",
+        "uses": "actions/cache/save@v4",
+        "if": "success() && needs.changes.outputs.code == 'true'",
+        "with": {
+          "path": ".lake",
+          "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
+        }
+      }
+    ],
+    "build-compiler": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler"
+        }
+      },
+      {
+        "name": "Setup solc",
+        "uses": "./.github/actions/setup-solc"
+      },
+      {
+        "name": "Save Lake compiler cache",
+        "uses": "actions/cache/save@v4",
+        "if": "success()",
+        "with": {
+          "path": ".lake",
+          "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
+        }
+      }
+    ],
+    "lean-profile": [
+      {
+        "uses": "actions/checkout@v4"
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean"
+      }
+    ],
+    "foundry-gas-calibration": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Foundry environment",
+        "uses": "./.github/actions/setup-foundry"
+      }
+    ],
+    "foundry": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Foundry environment",
+        "uses": "./.github/actions/setup-foundry"
+      }
+    ],
+    "foundry-patched": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Foundry environment",
+        "uses": "./.github/actions/setup-foundry"
+      }
+    ],
+    "foundry-multi-seed": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Foundry environment",
+        "uses": "./.github/actions/setup-foundry"
+      }
+    ],
+    "failure-hints": [
+      {
+        "name": "Post CI failure hints",
+        "uses": "actions/github-script@v7",
+        "env": {
+          "NEEDS_JSON": "${{ toJson(needs) }}"
+        }
+      }
+    ]
+  },
   "expected_checks_commands": [
     "make check"
   ],
