@@ -32,7 +32,12 @@ import Verity.Proofs.Stdlib.MappingAutomation
 import Verity.Proofs.Stdlib.Math
 import Compiler.Proofs.ArithmeticProfile
 import Compiler.Proofs.EndToEnd
+import Compiler.Proofs.IRGeneration.Contract
+import Compiler.Proofs.IRGeneration.Dispatch
+import Compiler.Proofs.IRGeneration.Function
+import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SupportedFragment
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.MappingSlot
@@ -658,6 +663,37 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
 
+-- Compiler/Proofs/IRGeneration/Contract.lean
+#print axioms Compiler.Proofs.IRGeneration.Contract.supported_params_of_supportedSpec
+#print axioms Compiler.Proofs.IRGeneration.Contract.interpretIR_eq_runtimeContractOfFunctions
+#print axioms Compiler.Proofs.IRGeneration.Contract.interpretContract_correct_of_ir_functions
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_of_compiled_functions
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+#print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
+
+-- Compiler/Proofs/IRGeneration/Dispatch.lean
+-- #print axioms Compiler.Proofs.IRGeneration.Dispatch.decodeSupportedParamWord_some_of_supported  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Dispatch.bindSupportedParams_some_of_supported  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Dispatch.find_compiledFunction_some_of_forall₂  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Dispatch.find_compiledFunction_none_of_forall₂  -- private
+#print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions
+
+-- Compiler/Proofs/IRGeneration/Function.lean
+#print axioms Compiler.Proofs.IRGeneration.Function.prebindRawArgs_calldata
+#print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_of_components
+#print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_params
+#print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_selector
+#print axioms Compiler.Proofs.IRGeneration.Function.exec_compiledFunctionIR_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.interpretFunction_eq_execResultToIRResult_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body
+#print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_supported
+
+-- Compiler/Proofs/IRGeneration/FunctionBody.lean
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeEvents_withTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeStorage_withTransactionContext
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultToSourceResult_matches_irExecResult
+
 -- Compiler/Proofs/IRGeneration/IRInterpreter.lean
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_succ
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_one_add
@@ -667,12 +703,42 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_stop_succ_succ
 
+-- Compiler/Proofs/IRGeneration/ParamLoading.lean
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.uint256_modulus_eq_evm
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.wordNormalize_eq_mod
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.foldl_add_eq  -- private
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_some_length
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.supportedParamHeadSize_eq_32
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.supportedScalarHeadSize_eq
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.calldataloadWord_aligned
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.getD_eq_of_drop_eq_cons  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.drop_succ_eq_of_drop_eq_cons  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.genScalarLoad_length_supported  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.supportedExternalParamType_cases  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.execIRStmts_cons_of_execIRStmt_continue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_uint256  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_uint8  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_address  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_bytes32  -- private
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_names
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_names_nodup
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_minInputSizeCheck_supported_noop  -- private
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoadBodyFrom_supported_then
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported
+#print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported_then
+
 -- Compiler/Proofs/IRGeneration/SupportedFragment.lean
 #print axioms Compiler.Proofs.IRGeneration.supported_stmt_list_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/SupportedSpec.lean
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_nil
 #print axioms Compiler.Proofs.IRGeneration.selectorDispatchedFunctions_nil
+-- #print axioms Compiler.Proofs.IRGeneration.counter_noPackedFields  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.counter_noFallback  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.counter_noReceive  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.counter_supported_function  -- private
 #print axioms Compiler.Proofs.IRGeneration.counter_supported_spec
 #print axioms Compiler.Proofs.IRGeneration.simpleStorage_supported_spec
 
@@ -779,4 +845,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 666 theorems/lemmas (611 public, 55 private)
+-- Total: 717 theorems/lemmas (643 public, 74 private)

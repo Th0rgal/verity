@@ -88,6 +88,31 @@ ALLOWLIST: set[str] = {
     # transport-heavy local normalization over reducible Yul/IR state updates.
     "exec_callvalueGuard_noop",
     "evalSelectorExpr_setVar_has_selector",
+    # Generic Layer 2 param-loading list theorem (Issue #1510 / PR #1554):
+    # centralizes the scalar-head induction for `genParamLoadBodyFrom`; further
+    # decomposition is possible later, but keeping the recursion in one place
+    # is currently the least duplicated proof boundary for compileFunctionSpec.
+    "exec_genParamLoadBodyFrom_supported_then",
+    # Generic Layer 2 function assembly theorem (Issue #1510 / PR #1554):
+    # packages raw-arg prebinding, param-load normalization, and IR result
+    # construction into one reusable compiler-facing boundary ahead of the
+    # remaining body-correctness proof.
+    "exec_compiledFunctionIR_of_body",
+    # Generic Layer 2 compileFunctionSpec assembly theorem (Issue #1510 / PR #1554):
+    # centralizes the successful compiler-output shape plus source/IR function
+    # packaging so the remaining work stays focused on one generic body theorem
+    # instead of repeating function-level composition in later dispatch/contract proofs.
+    "compileFunctionSpec_correct_of_body",
+    # Generic Layer 2 supported-field normalization wrapper (Issue #1510 / PR #1554):
+    # isolates the `CompilationModel.compile` field-normalization boundary so later
+    # compile-facing theorems can reuse the existing function correctness theorem
+    # without re-proving slot-alias normalization at each call site.
+    "compileFunctionSpec_correct_of_body_supported",
+    # Generic Layer 2 dispatch assembly theorem (Issue #1510 / PR #1554):
+    # intentionally keeps selector lookup, arity shortfall, and revert packaging
+    # in one compiler-facing theorem so later whole-contract correctness can
+    # consume a single dispatch boundary instead of reassembling these cases.
+    "interpretContract_correct_of_compiled_functions",
 }
 
 # Directories containing proof files to scan.

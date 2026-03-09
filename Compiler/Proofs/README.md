@@ -38,9 +38,12 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   layout invariants and arithmetic/backend alignment.
 
 The current compiler path consumes `CompilationModel` values directly. There is
-no separate verified EDSL-lowering boundary module in the active pipeline, and
-there is not yet a single generic theorem saying `CompilationModel.compile`
-preserves semantics for every supported full contract.
+no separate verified EDSL-lowering boundary module in the active pipeline.
+This branch now includes the target compiler-level theorem shape,
+`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at
+successful `CompilationModel.compile` for an explicit supported whole-contract
+fragment. Its proof is not fully closed yet: two compiler-level TODO lemmas
+still need to be discharged generically.
 
 ## Current Layer 2 Boundary
 
@@ -54,11 +57,12 @@ What exists today:
 - Generic Layer 3 preservation from IR to Yul
 
 What does not exist yet:
-- A compiler-level theorem quantified over an arbitrary supported
-  `CompilationModel` and the successful result of `CompilationModel.compile`
+- A fully closed proof of the compiler-level theorem quantified over an
+  arbitrary supported `CompilationModel` and successful
+  `CompilationModel.compile`
 - A generic dispatch/function-body/whole-contract Layer 2 preservation proof
-  that removes the contract-specific `hpost` premise used by
-  `spec_to_ir_preserves_semantics`
+  with no remaining TODO lemmas on compiled-function extraction or function-body
+  correctness
 
 Current supported-fragment scope for the generic theorem:
 - Included: statement lists that can be witnessed by `SupportedStmtList`
@@ -86,7 +90,9 @@ lake build                                      # Build everything
 lake build Contracts.SimpleStorage.Proofs    # Build one contract's proofs
 ```
 
-All proofs complete — no `sorry` warnings expected.
+This branch currently contains temporary `sorry` placeholders on the new
+generic whole-contract Layer 2 path while the remaining compiler-level proof
+obligations are being closed.
 
 ## Infrastructure
 

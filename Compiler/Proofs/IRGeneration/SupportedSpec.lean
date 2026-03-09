@@ -11,7 +11,7 @@ open Compiler.CompilationModel
 /-- ABI parameter types admitted by the first whole-contract Layer 2 fragment.
 Only single-head-word scalars are included for the initial generic theorem. -/
 def SupportedExternalParamType : ParamType → Prop
-  | .uint256 | .uint8 | .address | .bool | .bytes32 => True
+  | .uint256 | .uint8 | .address | .bytes32 => True
   | _ => False
 
 /-- Return profiles admitted by the first whole-contract Layer 2 fragment.
@@ -105,10 +105,18 @@ The initial scope is deliberately narrow: selector-dispatched external entrypoin
 no constructor, no fallback/receive, no foreign/linking surface, and every function body
 must already live inside the explicit supported statement fragment. -/
 structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop where
+  normalizedFields :
+    applySlotAliasRanges spec.fields spec.slotAliasRanges = spec.fields
+  noPackedFields :
+    ∀ field ∈ spec.fields, field.packedBits = none
   noConstructor : spec.constructor = none
   noEvents : spec.events = []
   noErrors : spec.errors = []
   noExternals : spec.externals = []
+  noFallback :
+    ∀ fn ∈ spec.functions, fn.name != "fallback"
+  noReceive :
+    ∀ fn ∈ spec.functions, fn.name != "receive"
   selectorCount : selectors.length = (selectorDispatchedFunctions spec).length
   selectorsDistinct : firstDuplicateSelector selectors = none
   functions :
@@ -148,18 +156,28 @@ def counterSupportedSpecModel : CompilationModel :=
             [ Stmt.letVar "current" (Expr.storage "count")
             , Stmt.return (Expr.localVar "current") ] } ] }
 
-theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
-    [0xd09de08a, 0x2baeceb7, 0xa87d942c] := by
-  refine
-    { noConstructor := rfl
-      noEvents := rfl
-      noErrors := rfl
-      noExternals := rfl
-      selectorCount := by
-        decide
-      selectorsDistinct := by
-        decide
-      functions := ?_ }
+private theorem counter_noPackedFields :
+    ∀ field ∈ counterSupportedSpecModel.fields, field.packedBits = none := by
+  intro field hfield
+  simp [counterSupportedSpecModel, Verity.Core.Free.counterFields] at hfield
+  cases hfield
+  rfl
+
+private theorem counter_noFallback :
+    ∀ fn ∈ counterSupportedSpecModel.functions, fn.name != "fallback" := by
+  intro fn hfn
+  simp [counterSupportedSpecModel] at hfn
+  rcases hfn with rfl | rfl | rfl <;> decide
+
+private theorem counter_noReceive :
+    ∀ fn ∈ counterSupportedSpecModel.functions, fn.name != "receive" := by
+  intro fn hfn
+  simp [counterSupportedSpecModel] at hfn
+  rcases hfn with rfl | rfl | rfl <;> decide
+
+private theorem counter_supported_function :
+    ∀ fn, fn ∈ counterSupportedSpecModel.functions →
+      SupportedFunction counterSupportedSpecModel.fields fn := by
   intro fn hfn
   simp [counterSupportedSpecModel] at hfn
   rcases hfn with rfl | rfl | rfl
@@ -188,6 +206,24 @@ theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
         bodySurface := by decide
         noLocalObligations := rfl }
 
+theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
+    [0xd09de08a, 0x2baeceb7, 0xa87d942c] := by
+  refine
+    { normalizedFields := by
+        rfl
+      noPackedFields := counter_noPackedFields
+      noConstructor := rfl
+      noEvents := rfl
+      noErrors := rfl
+      noExternals := rfl
+      noFallback := counter_noFallback
+      noReceive := counter_noReceive
+      selectorCount := by
+        decide
+      selectorsDistinct := by
+        decide
+      functions := counter_supported_function }
+
 def simpleStorageSupportedSpecModel : CompilationModel :=
   { name := "SimpleStorage"
     fields := Verity.Core.Free.simpleStorageFields
@@ -201,10 +237,25 @@ def simpleStorageSupportedSpecModel : CompilationModel :=
 theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
     [0x2e64cec1] := by
   refine
-    { noConstructor := rfl
+    { normalizedFields := by
+        rfl
+      noPackedFields := by
+        intro field hfield
+        simp [simpleStorageSupportedSpecModel, Verity.Core.Free.simpleStorageFields] at hfield
+        cases hfield
+        rfl
+      noConstructor := rfl
       noEvents := rfl
       noErrors := rfl
       noExternals := rfl
+      noFallback := by
+        intro fn hfn
+        simp [simpleStorageSupportedSpecModel] at hfn
+        rcases hfn with rfl <;> decide
+      noReceive := by
+        intro fn hfn
+        simp [simpleStorageSupportedSpecModel] at hfn
+        rcases hfn with rfl <;> decide
       selectorCount := by
         decide
       selectorsDistinct := by

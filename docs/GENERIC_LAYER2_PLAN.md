@@ -191,13 +191,52 @@ The work is only done if all checks below pass:
 Use this checklist in the PR description and keep it current:
 
 - [x] Define `SupportedFunction` / `SupportedSpec`
-- [ ] Define source whole-contract semantics for the supported fragment
-- [ ] Prove param-loading correctness
+- [x] Define source whole-contract semantics for the supported fragment
+- [x] Prove param-loading correctness
 - [ ] Prove `compileFunctionSpec` correctness
 - [ ] Prove selector-dispatch correctness
 - [ ] Prove generic whole-contract `CompilationModel.compile` correctness
 - [ ] Refactor one existing contract proof into theorem instantiation
 - [ ] Update Layer 2 documentation boundaries
+
+## Current Proof Status
+
+The branch now has compiler-proof modules for the function, dispatch, and contract
+layers:
+
+- `Compiler/Proofs/IRGeneration/Function.lean` packages the current
+  `compileFunctionSpec` correctness boundary.
+- `Compiler/Proofs/IRGeneration/Dispatch.lean` proves selector-dispatch
+  preservation assuming per-function correctness.
+- `Compiler/Proofs/IRGeneration/Contract.lean` now exposes a theorem whose
+  statement is explicitly rooted at successful `CompilationModel.compile`.
+
+The branch now also has the target theorem shape in place:
+
+- `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`
+
+This theorem is already quantified over a whole `CompilationModel`, selectors, a
+`SupportedSpec` witness, and successful `CompilationModel.compile`, with no
+contract-specific semantic bridge premise. At the moment it is still backed by
+two explicit compiler-level TODO lemmas:
+
+- deriving the compiled function table directly from `CompilationModel.compile`
+- closing per-function correctness generically from `SupportedSpec` and
+  `compileFunctionSpec`, without residual body-level premises
+
+This is progress, but the main objective is still not met. Two blockers remain:
+
+- The function theorem is not yet fully generic: it still depends on body-level
+  premises (`hsource`, `hbodyExec`, `hmatch`) instead of deriving them
+  structurally from the supported statement fragment.
+- The contract theorem still requires an explicit `List.Forall₂` witness tying
+  `ir.functions` back to `compileFunctionSpec`; that witness is not yet derived
+  directly from `CompilationModel.compile = Except.ok ir`.
+
+The next high-leverage implementation step should therefore remove one of those
+two residual premises, preferably by discharging the function-body layer
+structurally so the final contract theorem no longer depends on per-function
+semantic assumptions.
 
 ## Non-Goals For The First Generic Theorem
 
