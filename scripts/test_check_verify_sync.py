@@ -561,6 +561,111 @@ class VerifySyncTests(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] python-commands", out)
 
+    def test_python_commands_check_fails_when_required_build_compiler_run_commands_are_missing(self) -> None:
+        workflow = """
+        name: verify
+        jobs:
+          checks:
+            runs-on: ubuntu-latest
+            steps:
+              - run: make check
+          build:
+            runs-on: ubuntu-latest
+            steps:
+              - run: python3 scripts/check_split_package_builds.py
+          build-compiler:
+            runs-on: ubuntu-latest
+            steps:
+              - run: lake build difftest-interpreter
+              - run: |
+                  ./.lake/build/bin/verity-compiler \
+                    --manifest packages/verity-examples/contracts.manifest \
+                    --output compiler/yul
+              - run: python3 scripts/check_gas.py report
+        """
+        rc, _, err = self._run_python_commands_check(
+            workflow,
+            expected_checks_commands=["make check"],
+            expected_build_commands=["check_split_package_builds.py"],
+            expected_build_compiler_commands=["check_gas.py report"],
+            required_build_compiler_run_commands=[
+                "lake build difftest-interpreter",
+                "--output compiler/yul",
+                "--output compiler/yul-patched",
+                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
+                "--backend-profile solidity-parity",
+                "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
+                "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            ],
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "build-compiler job is missing required run commands: "
+            "--output compiler/yul-patched, "
+            "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai, "
+            "--backend-profile solidity-parity, "
+            "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv, "
+            "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            err,
+        )
+
+    def test_python_commands_check_passes_when_required_build_compiler_run_commands_are_present(self) -> None:
+        workflow = """
+        name: verify
+        jobs:
+          checks:
+            runs-on: ubuntu-latest
+            steps:
+              - run: make check
+          build:
+            runs-on: ubuntu-latest
+            steps:
+              - run: python3 scripts/check_split_package_builds.py
+          build-compiler:
+            runs-on: ubuntu-latest
+            steps:
+              - run: lake build difftest-interpreter
+              - run: |
+                  ./.lake/build/bin/verity-compiler \
+                    --manifest packages/verity-examples/contracts.manifest \
+                    --output compiler/yul
+              - run: |
+                  ./.lake/build/bin/verity-compiler \
+                    --manifest packages/verity-examples/contracts.manifest \
+                    --enable-patches \
+                    --output compiler/yul-patched
+              - run: |
+                  ./.lake/build/bin/verity-compiler \
+                    --manifest packages/verity-examples/contracts.manifest \
+                    --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai \
+                    --output compiler/yul-parity-pack
+              - run: |
+                  ./.lake/build/bin/verity-compiler \
+                    --manifest packages/verity-examples/contracts.manifest \
+                    --backend-profile solidity-parity \
+                    --output compiler/yul-parity-reference
+              - run: python3 scripts/check_gas.py report
+              - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+              - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+        """
+        rc, out, err = self._run_python_commands_check(
+            workflow,
+            expected_checks_commands=["make check"],
+            expected_build_commands=["check_split_package_builds.py"],
+            expected_build_compiler_commands=["check_gas.py report"],
+            required_build_compiler_run_commands=[
+                "lake build difftest-interpreter",
+                "--output compiler/yul",
+                "--output compiler/yul-patched",
+                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
+                "--backend-profile solidity-parity",
+                "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
+                "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            ],
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] python-commands", out)
+
     def test_makefile_check_fails_when_required_unit_test_command_is_missing(self) -> None:
         rc, _, err = self._run_makefile_check(
             """
