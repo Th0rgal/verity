@@ -173,7 +173,12 @@ of `supported_function_correct` now already takes that non-axiomatic route:
 `compileFunctionSpec_correct_of_body_supported_extraFuel` bridge thread a
 structural `extraFuel` all the way to `sizeOf`. The remaining axiom usage is
 therefore outside the proven core fragment, where the generic body proof still
-falls back to the old `length + 1` spine.
+falls back to the old `length + 1` spine. The terminal-`ite` preparation now
+also includes explicit branch-size lower bounds
+(`compiled_terminal_ite_body_size_ge_branchSizeOf` in
+`Compiler/Proofs/IRGeneration/FunctionBody.lean`), which is the arithmetic
+layer needed for the next recursive `StmtListTerminalCore` proof over nested
+compiled blocks.
 
 **Risk**: Medium.
 
