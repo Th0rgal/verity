@@ -260,6 +260,19 @@ theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hchain, Nat.mod_eq_of_lt hchainLt]
 
+theorem eval_compileExpr_literal
+    (fields : List Field)
+    (runtime : SourceSemantics.RuntimeState)
+    (state : IRState)
+    (value : Nat) :
+    evalIRExpr state (YulExpr.lit (value % CompilationModel.uint256Modulus)) =
+      some (SourceSemantics.evalExpr fields runtime (.literal value)) := by
+  simp [evalIRExpr]
+  change value % CompilationModel.uint256Modulus =
+    SourceSemantics.wordNormalize value
+  rw [ParamLoading.wordNormalize_eq_mod]
+  rfl
+
 @[simp] theorem boolWord_eq_if (p : Prop) [Decidable p] :
     SourceSemantics.boolWord (decide p) = (if p then 1 else 0) := by
   by_cases hp : p <;> simp [SourceSemantics.boolWord, hp]
@@ -908,6 +921,42 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
   simp [evalIRExpr, evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hstorage]
+
+theorem eval_compileExpr_param_of_exact_bindings
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (name : String)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hpresent : exprBoundNamesPresent (.param name) runtime.bindings) :
+    evalIRExpr state (YulExpr.ident name) =
+      some (SourceSemantics.evalExpr fields runtime (.param name)) := by
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := evalIRExpr_ident_of_exact_bindings hexact name
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.param name) = value := by
+    change SourceSemantics.lookupValue runtime.bindings name = value
+    exact lookupValue_eq_of_lookupBinding?_some hlookup
+  rw [hsource]
+  exact hident
+
+theorem eval_compileExpr_localVar_of_exact_bindings
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (name : String)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hpresent : exprBoundNamesPresent (.localVar name) runtime.bindings) :
+    evalIRExpr state (YulExpr.ident name) =
+      some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := evalIRExpr_ident_of_exact_bindings hexact name
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) = value := by
+    change SourceSemantics.lookupValue runtime.bindings name = value
+    exact lookupValue_eq_of_lookupBinding?_some hlookup
+  rw [hsource]
+  exact hident
 
 @[simp] theorem boolWord_lt_evmModulus (b : Bool) :
     SourceSemantics.boolWord b < Compiler.Constants.evmModulus := by
