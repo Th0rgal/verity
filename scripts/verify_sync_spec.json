@@ -5,6 +5,7 @@
     "artifacts/**",
     "docs/**",
     "docs-site/**",
+    "Makefile",
     "AUDIT.md",
     "AXIOMS.md",
     "README.md",

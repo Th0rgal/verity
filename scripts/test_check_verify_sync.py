@@ -356,6 +356,75 @@ class VerifySyncTests(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] paths", out)
 
+    def test_paths_check_accepts_makefile_as_check_only_trigger(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            on:
+              push:
+                paths:
+                  - 'scripts/**'
+                  - 'Makefile'
+              pull_request:
+                paths:
+                  - 'scripts/**'
+                  - 'Makefile'
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: dorny/paths-filter@v3
+                    with:
+                      filters: |
+                        code:
+                          - 'scripts/**'
+                        compiler:
+                          - 'scripts/**'
+            """
+        )
+        rc, out, err = self._run_paths_check(
+            workflow,
+            check_only_paths=["Makefile"],
+            compiler_paths=["scripts/**"],
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] paths", out)
+
+    def test_paths_check_fails_when_makefile_is_missing_from_triggers(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            on:
+              push:
+                paths:
+                  - 'scripts/**'
+              pull_request:
+                paths:
+                  - 'scripts/**'
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: dorny/paths-filter@v3
+                    with:
+                      filters: |
+                        code:
+                          - 'scripts/**'
+                        compiler:
+                          - 'scripts/**'
+            """
+        )
+        rc, _, err = self._run_paths_check(
+            workflow,
+            check_only_paths=["Makefile"],
+            compiler_paths=["scripts/**"],
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "check_only_paths includes entries missing from on.push.paths: Makefile",
+            err,
+        )
+
     def test_makefile_check_fails_when_required_unit_test_command_is_missing(self) -> None:
         rc, _, err = self._run_makefile_check(
             """
