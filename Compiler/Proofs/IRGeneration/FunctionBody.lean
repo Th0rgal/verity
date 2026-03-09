@@ -13,6 +13,72 @@ namespace FunctionBody
 def lookupBinding? (bindings : List (String × Nat)) (name : String) : Option Nat :=
   bindings.find? (fun entry => entry.1 == name) |>.map Prod.snd
 
+mutual
+def exprBoundNames : Expr → List String
+  | .param name => [name]
+  | .localVar name => [name]
+  | .mapping _ key | .mappingWord _ key _ | .mappingPackedWord _ key _ _ | .mappingUint _ key
+  | .structMember _ key _ | .extcodesize key | .mload key | .tload key
+  | .calldataload key | .returndataOptionalBoolAt key => exprBoundNames key
+  | .mapping2 _ key1 key2 | .mapping2Word _ key1 key2 _ | .structMember2 _ key1 key2 _ =>
+      exprBoundNames key1 ++ exprBoundNames key2
+  | .keccak256 offset size =>
+      exprBoundNames offset ++ exprBoundNames size
+  | .call gas target value inOffset inSize outOffset outSize =>
+      exprBoundNames gas ++ exprBoundNames target ++ exprBoundNames value ++
+        exprBoundNames inOffset ++ exprBoundNames inSize ++
+        exprBoundNames outOffset ++ exprBoundNames outSize
+  | .staticcall gas target inOffset inSize outOffset outSize =>
+      exprBoundNames gas ++ exprBoundNames target ++ exprBoundNames inOffset ++
+        exprBoundNames inSize ++ exprBoundNames outOffset ++ exprBoundNames outSize
+  | .delegatecall gas target inOffset inSize outOffset outSize =>
+      exprBoundNames gas ++ exprBoundNames target ++ exprBoundNames inOffset ++
+        exprBoundNames inSize ++ exprBoundNames outOffset ++ exprBoundNames outSize
+  | .externalCall _ args | .internalCall _ args => exprListBoundNames args
+  | .arrayElement name index => name :: exprBoundNames index
+  | .arrayLength name => [name]
+  | .add a b | .sub a b | .mul a b | .div a b | .mod a b
+  | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
+  | .ge a b | .gt a b | .lt a b | .le a b
+  | .logicalAnd a b | .logicalOr a b | .wMulDown a b
+  | .wDivUp a b | .min a b | .max a b
+  | .shl a b | .shr a b =>
+      exprBoundNames a ++ exprBoundNames b
+  | .mulDivDown a b c | .mulDivUp a b c =>
+      exprBoundNames a ++ exprBoundNames b ++ exprBoundNames c
+  | .bitNot a | .logicalNot a => exprBoundNames a
+  | .ite cond thenVal elseVal =>
+      exprBoundNames cond ++ exprBoundNames thenVal ++ exprBoundNames elseVal
+  | .literal _ | .constructorArg _ | .storage _ | .storageAddr _ | .caller
+  | .contractAddress | .chainid | .msgValue | .blockTimestamp | .blockNumber
+  | .blobbasefee | .calldatasize | .returndataSize => []
+termination_by expr => sizeOf expr
+decreasing_by
+  all_goals simp_wf
+  all_goals omega
+
+def exprListBoundNames : List Expr → List String
+  | [] => []
+  | expr :: rest => exprBoundNames expr ++ exprListBoundNames rest
+termination_by exprs => sizeOf exprs
+decreasing_by
+  all_goals simp_wf
+  all_goals omega
+end
+
+def exprBoundNamesPresent (expr : Expr) (bindings : List (String × Nat)) : Prop :=
+  ∀ name, name ∈ exprBoundNames expr → ∃ value, lookupBinding? bindings name = some value
+
+theorem lookupValue_eq_of_lookupBinding?_some
+    {bindings : List (String × Nat)}
+    {name : String}
+    {value : Nat}
+    (hlookup : lookupBinding? bindings name = some value) :
+    SourceSemantics.lookupValue bindings name = value := by
+  unfold lookupBinding? at hlookup
+  unfold SourceSemantics.lookupValue
+  simp [hlookup]
+
 def bindingsExactlyMatchIRVars
     (bindings : List (String × Nat))
     (state : IRState) : Prop :=
@@ -328,6 +394,20 @@ theorem lookupBinding?_bindValue_ne
               rw [findEntry_filter_ne_eq_findEntry bindings boundName queryName hNe]
     _ = lookupBinding? bindings queryName := by
           rfl
+
+theorem exprBoundNamesPresent_bindValue
+    (expr : Expr)
+    (bindings : List (String × Nat))
+    (boundName : String)
+    (value : Nat)
+    (hpresent : exprBoundNamesPresent expr bindings) :
+    exprBoundNamesPresent expr (SourceSemantics.bindValue bindings boundName value) := by
+  intro queryName hmem
+  by_cases hEq : queryName = boundName
+  · subst hEq
+    exact ⟨value, lookupBinding?_bindValue_eq bindings queryName value⟩
+  · rcases hpresent queryName hmem with ⟨found, hfound⟩
+    exact ⟨found, by rw [lookupBinding?_bindValue_ne bindings boundName queryName value hEq, hfound]⟩
 
 theorem bindingsExactlyMatchIRVars_setVar_bindValue
     {bindings : List (String × Nat)}
