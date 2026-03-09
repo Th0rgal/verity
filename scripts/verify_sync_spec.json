@@ -3,6 +3,7 @@
     ".github/ISSUE_TEMPLATE/**",
     "docs/**",
     "docs-site/**",
+    "AUDIT.md",
     "AXIOMS.md",
     "README.md",
     "TRUST_ASSUMPTIONS.md"
