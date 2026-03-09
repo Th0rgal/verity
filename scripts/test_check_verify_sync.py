@@ -488,6 +488,74 @@ class VerifySyncTests(unittest.TestCase):
             err,
         )
 
+    def test_makefile_check_fails_when_boundary_and_hygiene_commands_are_missing(self) -> None:
+        makefile = """
+        check:
+        \tpython3 scripts/check_property_manifest.py
+        \tpython3 scripts/check_property_coverage.py
+        \tpython3 scripts/check_contract_structure.py
+        \tpython3 scripts/check_paths.py
+        \tpython3 scripts/check_compilationmodel_split.py
+        \tpython3 scripts/check_axioms.py
+        \tpython3 scripts/generate_verification_status.py --check
+        \tpython3 scripts/check_verification_status_doc.py
+        \tpython3 scripts/check_verify_sync.py
+        \tpython3 scripts/check_issue_templates.py
+        \tpython3 scripts/check_docs_workflow_sync.py
+        \tpython3 scripts/check_solc_pin.py
+        \tpython3 scripts/check_rewrite_proof_metadata.py
+        \tpython3 scripts/generate_evmyullean_capability_report.py --check
+        \tpython3 scripts/generate_evmyullean_adapter_report.py --check
+        \tpython3 scripts/generate_print_axioms.py --check
+        \tpython3 scripts/check_issue_1060_integrity.py
+        \tpython3 -m unittest discover -s scripts -p 'test_*.py' -v
+        """
+        rc, _, err = self._run_makefile_check(
+            makefile,
+            expected_checks_commands=["make check"],
+            required_makefile_check_commands=[
+                "python3 scripts/check_property_manifest.py",
+                "python3 scripts/check_property_coverage.py",
+                "python3 scripts/check_contract_structure.py",
+                "python3 scripts/check_paths.py",
+                "python3 scripts/check_compilationmodel_split.py",
+                "python3 scripts/check_axioms.py",
+                "python3 scripts/generate_verification_status.py --check",
+                "python3 scripts/check_verification_status_doc.py",
+                "python3 scripts/check_verify_sync.py",
+                "python3 scripts/check_bridge_coverage_sync.py",
+                "python3 scripts/check_builtin_bridge_matrix_sync.py",
+                "python3 scripts/check_interpreter_feature_boundary_catalog_sync.py",
+                "python3 scripts/check_interpreter_feature_summary_sync.py",
+                "python3 scripts/check_low_level_call_boundary_sync.py",
+                "python3 scripts/check_linear_memory_boundary_sync.py",
+                "python3 scripts/check_axiomatized_primitive_boundary_sync.py",
+                "python3 scripts/check_struct_mapping_surface_sync.py",
+                "python3 scripts/check_issue_templates.py",
+                "python3 scripts/check_docs_workflow_sync.py",
+                "python3 scripts/check_solc_pin.py",
+                "python3 scripts/check_property_manifest_sync.py",
+                "python3 scripts/check_macro_health.py",
+                "python3 scripts/check_storage_layout.py",
+                "python3 scripts/check_lean_hygiene.py",
+                "python3 scripts/check_gas.py coverage",
+                "python3 scripts/check_compiler_boundaries.py",
+                "python3 scripts/check_split_compiler_test_artifacts.py",
+                "python3 scripts/check_yul.py --builtin-boundary-only",
+                "python3 scripts/check_rewrite_proof_metadata.py",
+                "python3 scripts/generate_evmyullean_capability_report.py --check",
+                "python3 scripts/generate_evmyullean_adapter_report.py --check",
+                "python3 scripts/generate_print_axioms.py --check",
+                "python3 scripts/check_proof_length.py",
+                "python3 scripts/check_issue_1060_integrity.py",
+                "python3 -m unittest discover -s scripts -p 'test_*.py' -v",
+            ],
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("python3 scripts/check_bridge_coverage_sync.py", err)
+        self.assertIn("python3 scripts/check_storage_layout.py", err)
+        self.assertIn("python3 scripts/check_proof_length.py", err)
+
 
 if __name__ == "__main__":
     unittest.main()
