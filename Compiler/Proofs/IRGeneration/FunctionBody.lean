@@ -3518,6 +3518,13 @@ inductive StmtListTerminalCore : List String → List Stmt → Prop where
       StmtListCompileCore scope rest →
       StmtListTerminalCore scope (.ite cond thenBranch elseBranch :: rest)
 
+theorem stmtListTerminalCore_ne_nil
+    {scope : List String}
+    {stmts : List Stmt}
+    (hterminal : StmtListTerminalCore scope stmts) :
+    stmts ≠ [] := by
+  cases hterminal <;> simp
+
 theorem compileStmt_core_ok_any_scope
     {fields : List Field}
     {inScopeNames : List String}
@@ -3616,6 +3623,116 @@ theorem compileStmtList_core_ok
       rw [CompilationModel.compileStmtList, hheadIR]
       dsimp
       rw [htailIR]
+      rfl
+
+theorem compileStmtList_terminal_core_ok
+    {fields : List Field}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (hterminal : StmtListTerminalCore scope stmts) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hterminal generalizing inScopeNames
+  case letVar scope name value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .letVar name value) (.letVar hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case assignVar scope name value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .assignVar name value) (.assignVar hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case require_ scope cond message rest hcond _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .require cond message) (.require_ hcond) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case return_ scope value rest hvalue _ hrest =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .return value) (.return_ hvalue) with ⟨headIR, hheadIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
+          (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case stop scope rest hrest =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .stop) StmtCompileCore.stop with ⟨headIR, hheadIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
+          (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case ite scope cond thenBranch elseBranch rest hcond _ hthen helse hrest ihThen ihElse =>
+      rcases compileExpr_core_ok (fields := fields) hcond with ⟨condIR, hcondIR⟩
+      rcases ihThen (inScopeNames := inScopeNames) with ⟨thenIR, hthenIR⟩
+      rcases ihElse (inScopeNames := inScopeNames) with ⟨elseIR, helseIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames)
+          (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      have helseNonempty : elseBranch.isEmpty = false := by
+        cases elseBranch with
+        | nil =>
+            exfalso
+            exact stmtListTerminalCore_ne_nil helse rfl
+        | cons =>
+            simp
+      refine
+        ⟨[YulStmt.block [
+            YulStmt.let_
+              (CompilationModel.pickFreshName "__ite_cond"
+                (inScopeNames ++ collectExprNames cond ++
+                  collectStmtListNames thenBranch ++ collectStmtListNames elseBranch))
+              condIR,
+            YulStmt.if_
+              (YulExpr.ident
+                (CompilationModel.pickFreshName "__ite_cond"
+                  (inScopeNames ++ collectExprNames cond ++
+                    collectStmtListNames thenBranch ++ collectStmtListNames elseBranch)))
+              thenIR,
+            YulStmt.if_
+              (YulExpr.call "iszero"
+                [YulExpr.ident
+                  (CompilationModel.pickFreshName "__ite_cond"
+                    (inScopeNames ++ collectExprNames cond ++
+                      collectStmtListNames thenBranch ++ collectStmtListNames elseBranch))])
+              elseIR
+          ]] ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList]
+      unfold CompilationModel.compileStmt
+      rw [hcondIR, hthenIR, helseIR]
+      dsimp
+      rw [htailIR]
+      simp [helseNonempty]
       rfl
 
 private theorem execIRStmts_cons_of_execIRStmt_continue
