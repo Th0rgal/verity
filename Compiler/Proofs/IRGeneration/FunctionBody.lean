@@ -2517,6 +2517,261 @@ theorem compileRequireFailCond_core_ok
             intro a b hEq
             cases hEq⟩
 
+theorem eval_compileRequireFailCond_core
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {cond : Expr}
+    (hcore : ExprCompileCore cond)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent cond runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ failCond,
+      CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond ∧
+      evalIRExpr state failCond =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime cond = 0)) := by
+  let finishIszeroEval {expr : Expr} (h : ExprCompileCore expr)
+      (hpresentExpr : exprBoundNamesPresent expr runtime.bindings)
+      {exprIR : YulExpr}
+      (hexpr : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+      evalIRExpr state (YulExpr.call "iszero" [exprIR]) =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime expr = 0)) := by
+    have heval := eval_compileExpr_core h hexact hbounded hpresentExpr hruntime
+    rw [hexpr] at heval
+    have hlt := evalExpr_lt_evmModulus_core h hexact hbounded hpresentExpr hruntime
+    simpa [hexpr] using evalIRExpr_iszero_of_lt heval hlt
+  cases hcore with
+  | literal value =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.literal value) from ExprCompileCore.literal value) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .literal value)
+          (show ExprCompileCore (.literal value) from ExprCompileCore.literal value) hpresent hexpr
+  | param name =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.param name) from ExprCompileCore.param name) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .param name)
+          (show ExprCompileCore (.param name) from ExprCompileCore.param name) hpresent hexpr
+  | localVar name =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.localVar name) from ExprCompileCore.localVar name) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .localVar name)
+          (show ExprCompileCore (.localVar name) from ExprCompileCore.localVar name) hpresent hexpr
+  | caller =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.caller) from ExprCompileCore.caller) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .caller)
+          (show ExprCompileCore (.caller) from ExprCompileCore.caller) hpresent hexpr
+  | contractAddress =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.contractAddress) from ExprCompileCore.contractAddress) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .contractAddress)
+          (show ExprCompileCore (.contractAddress) from ExprCompileCore.contractAddress) hpresent hexpr
+  | msgValue =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.msgValue) from ExprCompileCore.msgValue) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .msgValue)
+          (show ExprCompileCore (.msgValue) from ExprCompileCore.msgValue) hpresent hexpr
+  | blockTimestamp =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.blockTimestamp) from ExprCompileCore.blockTimestamp) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .blockTimestamp)
+          (show ExprCompileCore (.blockTimestamp) from ExprCompileCore.blockTimestamp) hpresent hexpr
+  | blockNumber =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.blockNumber) from ExprCompileCore.blockNumber) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .blockNumber)
+          (show ExprCompileCore (.blockNumber) from ExprCompileCore.blockNumber) hpresent hexpr
+  | chainid =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.chainid) from ExprCompileCore.chainid) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .chainid)
+          (show ExprCompileCore (.chainid) from ExprCompileCore.chainid) hpresent hexpr
+  | add hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.add lhs rhs) from ExprCompileCore.add hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .add lhs rhs)
+          (show ExprCompileCore (.add lhs rhs) from ExprCompileCore.add hL hR) hpresent hexpr
+  | sub hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.sub lhs rhs) from ExprCompileCore.sub hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .sub lhs rhs)
+          (show ExprCompileCore (.sub lhs rhs) from ExprCompileCore.sub hL hR) hpresent hexpr
+  | mul hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.mul lhs rhs) from ExprCompileCore.mul hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .mul lhs rhs)
+          (show ExprCompileCore (.mul lhs rhs) from ExprCompileCore.mul hL hR) hpresent hexpr
+  | div hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.div lhs rhs) from ExprCompileCore.div hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .div lhs rhs)
+          (show ExprCompileCore (.div lhs rhs) from ExprCompileCore.div hL hR) hpresent hexpr
+  | mod hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.mod lhs rhs) from ExprCompileCore.mod hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .mod lhs rhs)
+          (show ExprCompileCore (.mod lhs rhs) from ExprCompileCore.mod hL hR) hpresent hexpr
+  | eq hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.eq lhs rhs) from ExprCompileCore.eq hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .eq lhs rhs)
+          (show ExprCompileCore (.eq lhs rhs) from ExprCompileCore.eq hL hR) hpresent hexpr
+  | lt hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.lt lhs rhs) from ExprCompileCore.lt hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .lt lhs rhs)
+          (show ExprCompileCore (.lt lhs rhs) from ExprCompileCore.lt hL hR) hpresent hexpr
+  | gt hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.gt lhs rhs) from ExprCompileCore.gt hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .gt lhs rhs)
+          (show ExprCompileCore (.gt lhs rhs) from ExprCompileCore.gt hL hR) hpresent hexpr
+  | ge hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
+      have hpresentL : exprBoundNamesPresent lhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
+      have hpresentR : exprBoundNamesPresent rhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
+      have hlhsEval := eval_compileExpr_core hL hexact hbounded hpresentL hruntime
+      have hrhsEval := eval_compileExpr_core hR hexact hbounded hpresentR hruntime
+      rw [hlhs] at hlhsEval
+      rw [hrhs] at hrhsEval
+      have hlhsLt := evalExpr_lt_evmModulus_core hL hexact hbounded hpresentL hruntime
+      have hrhsLt := evalExpr_lt_evmModulus_core hR hexact hbounded hpresentR hruntime
+      refine ⟨YulExpr.call "lt" [lhsIR, rhsIR], ?_, ?_⟩
+      · rw [CompilationModel.compileRequireFailCond, hlhs, hrhs]
+        rfl
+      · have hltEval :
+            evalIRExpr state (YulExpr.call "lt" [lhsIR, rhsIR]) =
+              some (SourceSemantics.boolWord
+                (SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus <
+                  SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus)) := by
+          simpa using evalIRExpr_lt_of_eval hlhsEval hrhsEval
+        rw [show SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
+            SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs ≤
+              SourceSemantics.evalExpr fields runtime lhs)) by rfl]
+        by_cases hlt : SourceSemantics.evalExpr fields runtime lhs < SourceSemantics.evalExpr fields runtime rhs
+        · have hnotge : ¬ (SourceSemantics.evalExpr fields runtime rhs ≤
+            SourceSemantics.evalExpr fields runtime lhs) := Nat.not_le_of_gt hlt
+          simp [hltEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hlt, hnotge,
+            SourceSemantics.boolWord]
+        · have hge : SourceSemantics.evalExpr fields runtime rhs ≤
+            SourceSemantics.evalExpr fields runtime lhs := Nat.le_of_not_gt hlt
+          simp [hltEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hlt, hge,
+            SourceSemantics.boolWord]
+  | le hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
+      have hpresentL : exprBoundNamesPresent lhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
+      have hpresentR : exprBoundNamesPresent rhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
+      have hlhsEval := eval_compileExpr_core hL hexact hbounded hpresentL hruntime
+      have hrhsEval := eval_compileExpr_core hR hexact hbounded hpresentR hruntime
+      rw [hlhs] at hlhsEval
+      rw [hrhs] at hrhsEval
+      have hlhsLt := evalExpr_lt_evmModulus_core hL hexact hbounded hpresentL hruntime
+      have hrhsLt := evalExpr_lt_evmModulus_core hR hexact hbounded hpresentR hruntime
+      refine ⟨YulExpr.call "gt" [lhsIR, rhsIR], ?_, ?_⟩
+      · rw [CompilationModel.compileRequireFailCond, hlhs, hrhs]
+        rfl
+      · have hgtEval :
+            evalIRExpr state (YulExpr.call "gt" [lhsIR, rhsIR]) =
+              some (SourceSemantics.boolWord
+                (SourceSemantics.evalExpr fields runtime rhs % Compiler.Constants.evmModulus <
+                  SourceSemantics.evalExpr fields runtime lhs % Compiler.Constants.evmModulus)) := by
+          simpa using evalIRExpr_gt_of_eval hlhsEval hrhsEval
+        rw [show SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
+            SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs ≤
+              SourceSemantics.evalExpr fields runtime rhs)) by rfl]
+        by_cases hgt : SourceSemantics.evalExpr fields runtime rhs < SourceSemantics.evalExpr fields runtime lhs
+        · have hnotle : ¬ (SourceSemantics.evalExpr fields runtime lhs ≤
+            SourceSemantics.evalExpr fields runtime rhs) := Nat.not_le_of_gt hgt
+          simp [hgtEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hgt, hnotle,
+            SourceSemantics.boolWord]
+        · have hle : SourceSemantics.evalExpr fields runtime lhs ≤
+            SourceSemantics.evalExpr fields runtime rhs := Nat.le_of_not_gt hgt
+          simp [hgtEval, Nat.mod_eq_of_lt hlhsLt, Nat.mod_eq_of_lt hrhsLt, hgt, hle,
+            SourceSemantics.boolWord]
+  | logicalNot h =>
+      rename_i expr
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.logicalNot expr) from ExprCompileCore.logicalNot h) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .logicalNot expr)
+          (show ExprCompileCore (.logicalNot expr) from ExprCompileCore.logicalNot h) hpresent hexpr
+  | logicalAnd hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.logicalAnd lhs rhs) from ExprCompileCore.logicalAnd hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .logicalAnd lhs rhs)
+          (show ExprCompileCore (.logicalAnd lhs rhs) from ExprCompileCore.logicalAnd hL hR) hpresent hexpr
+  | logicalOr hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.logicalOr lhs rhs) from ExprCompileCore.logicalOr hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · simpa using finishIszeroEval (expr := .logicalOr lhs rhs)
+          (show ExprCompileCore (.logicalOr lhs rhs) from ExprCompileCore.logicalOr hL hR) hpresent hexpr
+
 theorem runtimeStateMatchesIR_setVar_bindValue
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -2902,6 +3157,11 @@ inductive StmtListCompileCore : List String → List Stmt → Prop where
       exprBoundNamesInScope value scope →
       StmtListCompileCore (name :: scope) rest →
       StmtListCompileCore scope (.assignVar name value :: rest)
+  | require_ {scope : List String} {cond : Expr} {message : String} {rest : List Stmt} :
+      ExprCompileCore cond →
+      exprBoundNamesInScope cond scope →
+      StmtListCompileCore scope rest →
+      StmtListCompileCore scope (.require cond message :: rest)
   | return_ {scope : List String} {value : Expr} {rest : List Stmt} :
       ExprCompileCore value →
       exprBoundNamesInScope value scope →
@@ -2980,6 +3240,16 @@ theorem compileStmtList_core_ok
       dsimp
       rw [htailIR]
       rfl
+  case require_ scope cond message rest hcond _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .require cond message) (.require_ hcond) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
   case return_ scope value rest hvalue _ hrest ih =>
       rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
         (stmt := .return value) (.return_ hvalue) with ⟨headIR, hheadIR⟩
@@ -3044,6 +3314,97 @@ private theorem execIRStmts_two_of_continue_then_return
       .return value next := by
   rw [execIRStmts_two_of_execIRStmt_continue state mid stmt1 stmt2 rest hstmt1]
   exact execIRStmts_cons_of_execIRStmt_return mid next stmt2 rest value hstmt2
+
+private inductive RevertPrefixStmt : YulStmt → Prop where
+  | mstore_lit {offset value : Nat} :
+      RevertPrefixStmt (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.lit value]))
+  | mstore_hex {offset value : Nat} :
+      RevertPrefixStmt (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex value]))
+
+private theorem execIRStmt_revertPrefix_continue
+    (fuel : Nat) (state : IRState) {stmt : YulStmt}
+    (hstmt : RevertPrefixStmt stmt) :
+    ∃ next, execIRStmt (Nat.succ fuel) state stmt = .continue next := by
+  cases hstmt with
+  | mstore_lit =>
+      rename_i offset value
+      let next :=
+        { state with
+          memory := fun o => if o = offset then value else state.memory o }
+      refine ⟨next, ?_⟩
+      simp [execIRStmt, evalIRExpr, next]
+  | mstore_hex =>
+      rename_i offset value
+      let next :=
+        { state with
+          memory := fun o => if o = offset then value else state.memory o }
+      refine ⟨next, ?_⟩
+      simp [execIRStmt, evalIRExpr, next]
+
+private theorem execIRStmts_revertPrefix_then_revert
+    (fuel : Nat) (state : IRState)
+    (prefixStmts : List YulStmt)
+    (offset size : Nat)
+    (hprefix : ∀ stmt ∈ prefixStmts, RevertPrefixStmt stmt) :
+    ∃ next,
+      execIRStmts fuel state
+        (prefixStmts ++ [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit offset, YulExpr.lit size])]) =
+          .revert next := by
+  induction fuel generalizing state prefixStmts with
+  | zero =>
+      cases prefixStmts <;> refine ⟨state, ?_⟩ <;> simp [execIRStmts]
+  | succ fuel ih =>
+      cases prefixStmts with
+      | nil =>
+          refine ⟨state, ?_⟩
+          cases fuel <;> simp [execIRStmts, execIRStmt]
+      | cons stmt rest =>
+          have hstmtPred : RevertPrefixStmt stmt := hprefix stmt (by simp)
+          cases fuel with
+          | zero =>
+              cases hstmtPred <;> refine ⟨state, ?_⟩ <;> simp [execIRStmts, execIRStmt]
+          | succ fuel =>
+              rcases execIRStmt_revertPrefix_continue fuel state hstmtPred with ⟨mid, hstmt⟩
+              have hrestPred : ∀ stmt' ∈ rest, RevertPrefixStmt stmt' := by
+                intro stmt' hmem
+                exact hprefix stmt' (by simp [hmem])
+              rcases ih mid rest hrestPred with ⟨next, hrestExec⟩
+              refine ⟨next, ?_⟩
+              simp [execIRStmts, hstmt, hrestExec]
+
+private theorem execIRStmts_revertWithMessage_revert
+    (fuel : Nat) (state : IRState) (message : String) :
+    ∃ next,
+      execIRStmts fuel state (CompilationModel.revertWithMessage message) = .revert next := by
+  let bytes := CompilationModel.bytesFromString message
+  let len := bytes.length
+  let paddedLen := ((len + 31) / 32) * 32
+  let header := [
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex errorStringSelectorWord]),
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]),
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 36, YulExpr.lit len])
+  ]
+  let dataStmts :=
+    (CompilationModel.chunkBytes32 bytes).zipIdx.map fun (chunk, idx) =>
+      let offset := 68 + idx * 32
+      let word := CompilationModel.wordFromBytes chunk
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex word])
+  have hprefix : ∀ stmt ∈ header ++ dataStmts, RevertPrefixStmt stmt := by
+    intro stmt hmem
+    rcases List.mem_append.mp hmem with hhead | hdata
+    · simp [header] at hhead
+      rcases hhead with rfl | rfl | rfl
+      · exact RevertPrefixStmt.mstore_hex
+      · exact RevertPrefixStmt.mstore_lit
+      · exact RevertPrefixStmt.mstore_lit
+    · unfold dataStmts at hdata
+      simp only [List.mem_map] at hdata
+      rcases hdata with ⟨pair, _, rfl⟩
+      exact RevertPrefixStmt.mstore_hex
+  simpa [CompilationModel.revertWithMessage, bytes, len, paddedLen, header, dataStmts,
+    List.append_assoc] using
+    execIRStmts_revertPrefix_then_revert (fuel := fuel) (state := state)
+      (prefixStmts := header ++ dataStmts) (offset := 0) (size := 68 + paddedLen) hprefix
 
 theorem exec_compileStmtList_core
     {fields : List Field}
@@ -3164,6 +3525,59 @@ theorem exec_compileStmtList_core
         constructor
         · simpa [hirExec, runtime', valueNat] using htailSem
         · simpa [hirExec, runtime', valueNat] using htailExact
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases eval_compileRequireFailCond_core hcond hexact hbounded hpresent hruntime with
+        ⟨failCond, hfailCompile, hfailEval⟩
+      rcases ih (runtime := runtime) (state := state)
+          (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
+          hscope hexact hbounded hruntime with
+        ⟨tailIR, htailCompile, htailSem, htailExact⟩
+      refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hfailCompile]
+        simp [htailCompile]
+        exact rfl
+      · by_cases hcondZero : SourceSemantics.evalExpr fields runtime cond = 0
+        · rcases execIRStmts_revertWithMessage_revert (fuel := tailIR.length) (state := state) message with
+            ⟨revState, hrev⟩
+          have hfailEval' : evalIRExpr state failCond = some 1 := by
+            simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
+          have hstmt :
+              execIRStmt (tailIR.length + 1) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                  .revert revState := by
+            simp [execIRStmt, hfailEval', hrev]
+          have hirExec :
+              execIRStmts (tailIR.length + 2) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
+                  .revert revState := by
+            simpa using
+              (execIRStmts_cons_of_execIRStmt_revert state revState
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
+          rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+          simp [hcondZero, hirExec, stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
+        · have hfailEval' : evalIRExpr state failCond = some 0 := by
+            simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
+          have hstmt :
+              execIRStmt (tailIR.length + 1) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                  .continue state := by
+            simp [execIRStmt, hfailEval']
+          have hirExec :
+              execIRStmts (tailIR.length + 2) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
+                  execIRStmts (tailIR.length + 1) state tailIR := by
+            simpa using
+              (execIRStmts_cons_of_execIRStmt_continue state state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
+          rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+          simp [hcondZero, hirExec]
+          constructor
+          · simpa [hirExec] using htailSem
+          · simpa [hirExec] using htailExact
   | return_ hvalue hinScope hrest ih =>
       rename_i scope value rest
       have hpresent : exprBoundNamesPresent value runtime.bindings :=
