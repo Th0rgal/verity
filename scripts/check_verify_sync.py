@@ -179,6 +179,45 @@ def _extract_top_level_job_value(job_body: str, key: str) -> str | None:
     return None
 
 
+def _extract_literal_top_level_mapping(body: str, key: str) -> dict[str, str]:
+    block_lines = _extract_top_level_job_block_lines(body, key)
+    if not block_lines:
+        return {}
+
+    min_child_indent: int | None = None
+    for line in block_lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if min_child_indent is None or child_indent < min_child_indent:
+            min_child_indent = child_indent
+    if min_child_indent is None:
+        return {}
+
+    values: dict[str, str] = {}
+    for line in block_lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent != min_child_indent:
+            continue
+        m = re.match(r"^\s*(?P<entry_key>[A-Za-z0-9_-]+):\s*(?P<value>.+?)\s*$", line)
+        if not m:
+            raise ValueError(f"Unsupported literal mapping entry in {key} block in {VERIFY_YML}")
+        entry_key = m.group("entry_key")
+        raw_value = strip_yaml_inline_comment(m.group("value"))
+        if not raw_value:
+            raise ValueError(f"Empty {key}.{entry_key} value in {VERIFY_YML}")
+        value = unquote_yaml_scalar(raw_value)
+        previous = values.get(entry_key)
+        if previous is not None and previous != value:
+            raise ValueError(
+                f"Conflicting {key}.{entry_key} values in {VERIFY_YML}: {previous!r} vs {value!r}"
+            )
+        values[entry_key] = value
+    return values
+
+
 def _extract_top_level_job_block_lines(job_body: str, key: str) -> list[str]:
     lines = job_body.splitlines()
     min_child_indent: int | None = None
@@ -241,6 +280,20 @@ def _extract_job_needs(job_body: str) -> list[str]:
             entries.append(value)
         return entries
     return [raw]
+
+
+def _compare_mappings(
+    name_a: str, a: dict[str, str], name_b: str, b: dict[str, str]
+) -> list[str]:
+    if a == b:
+        return []
+    errors = [f"{name_a} does not match {name_b}."]
+    for key in sorted(set(a) | set(b)):
+        va = a.get(key, "<missing>")
+        vb = b.get(key, "<missing>")
+        if va != vb:
+            errors.append(f"  {key}: {name_a}={va!r}, {name_b}={vb!r}")
+    return errors
 
 
 def _extract_verify_shard_indices(foundry_body: str) -> list[int]:
@@ -516,6 +569,45 @@ def check_job_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors: list[str] = []
     expected_needs: dict[str, list[str]] = spec.get("expected_job_needs", {})
     expected_conditions: dict[str, str] = spec.get("expected_job_if_conditions", {})
+    expected_runs_on: dict[str, str] = spec.get("expected_job_runs_on", {})
+    expected_timeouts: dict[str, int] = spec.get("expected_job_timeouts", {})
+    expected_outputs: dict[str, dict[str, str]] = spec.get("expected_job_outputs", {})
+    expected_job_permissions: dict[str, dict[str, str]] = spec.get(
+        "expected_job_permissions", {}
+    )
+    expected_workflow_permissions: dict[str, str] = spec.get(
+        "expected_workflow_permissions", {}
+    )
+    expected_workflow_concurrency: dict[str, str] = spec.get(
+        "expected_workflow_concurrency", {}
+    )
+
+    actual_workflow_permissions = _extract_literal_top_level_mapping(
+        snapshot.workflow_text, "permissions"
+    )
+    errors.extend(
+        _compare_mappings(
+            "workflow permissions",
+            actual_workflow_permissions,
+            "spec workflow permissions",
+            expected_workflow_permissions,
+        )
+    )
+
+    actual_workflow_concurrency = _extract_literal_top_level_mapping(
+        snapshot.workflow_text, "concurrency"
+    )
+    errors.extend(
+        _compare_mappings(
+            "workflow concurrency",
+            actual_workflow_concurrency,
+            "spec workflow concurrency",
+            expected_workflow_concurrency,
+        )
+    )
+
+    actual_output_jobs: dict[str, dict[str, str]] = {}
+    actual_permission_jobs: dict[str, dict[str, str]] = {}
 
     for job in snapshot.jobs:
         job_body = snapshot.job_body(job)
@@ -536,6 +628,65 @@ def check_job_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
             errors.append(
                 f"{job} if does not match spec: workflow={actual_condition!r}, spec={expected_condition!r}"
             )
+
+        actual_runs_on = _extract_top_level_job_value(job_body, "runs-on")
+        expected_job_runs_on = expected_runs_on.get(job)
+        if actual_runs_on != expected_job_runs_on:
+            errors.append(
+                f"{job} runs-on does not match spec: workflow={actual_runs_on!r}, spec={expected_job_runs_on!r}"
+            )
+
+        actual_timeout = _extract_top_level_job_value(job_body, "timeout-minutes")
+        expected_job_timeout = expected_timeouts.get(job)
+        expected_timeout_value = None if expected_job_timeout is None else str(expected_job_timeout)
+        if actual_timeout != expected_timeout_value:
+            errors.append(
+                f"{job} timeout-minutes does not match spec: workflow={actual_timeout!r}, spec={expected_timeout_value!r}"
+            )
+
+        outputs = _extract_literal_top_level_mapping(job_body, "outputs")
+        if outputs:
+            actual_output_jobs[job] = outputs
+
+        permissions = _extract_literal_top_level_mapping(job_body, "permissions")
+        if permissions:
+            actual_permission_jobs[job] = permissions
+
+    errors.extend(
+        _compare_lists(
+            "jobs with outputs",
+            [job for job in snapshot.jobs if job in actual_output_jobs],
+            "spec jobs with outputs",
+            list(expected_outputs),
+        )
+    )
+    for job, expected_mapping in expected_outputs.items():
+        errors.extend(
+            _compare_mappings(
+                f"{job} outputs",
+                actual_output_jobs.get(job, {}),
+                f"spec {job} outputs",
+                expected_mapping,
+            )
+        )
+
+    errors.extend(
+        _compare_lists(
+            "jobs with permissions",
+            [job for job in snapshot.jobs if job in actual_permission_jobs],
+            "spec jobs with permissions",
+            list(expected_job_permissions),
+        )
+    )
+    for job, expected_mapping in expected_job_permissions.items():
+        errors.extend(
+            _compare_mappings(
+                f"{job} permissions",
+                actual_permission_jobs.get(job, {}),
+                f"spec {job} permissions",
+                expected_mapping,
+            )
+        )
 
     return CheckResult("job-contracts", errors)
 
