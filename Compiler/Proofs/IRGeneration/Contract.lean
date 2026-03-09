@@ -250,6 +250,7 @@ theorem compileFunctionSpec_correct_generic
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
     (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
@@ -257,7 +258,30 @@ theorem compileFunctionSpec_correct_generic
     FunctionBody.sourceResultMatchesIRResult
       (SourceSemantics.interpretFunction model fn tx initialWorld)
       (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  sorry
+  have hfnModel : fn ∈ model.functions := List.mem_of_mem_filter hfn
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, hvalidate, hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  exact Function.supported_function_correct
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (fn := fn)
+    (selector := sel)
+    (returns := returns)
+    (bodyStmts := bodyStmts)
+    (irFn := Function.compiledFunctionIR sel fn returns bodyStmts)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (bindings := bindings)
+    (hfn := hfn)
+    (hvalidate := hvalidate)
+    (hreturns := hreturns)
+    (hbodyCompile := hbodyCompile)
+    (hcompile := by simpa using hcompileFn)
+    (hbind := hbind)
+    (hcalldataSizeFits := hcalldataSizeFits)
 
 /-- Primary whole-contract Layer 2 theorem shape for the supported generic
 fragment. The remaining proof obligations are isolated in the two TODO lemmas
@@ -270,6 +294,7 @@ theorem compile_preserves_semantics
     (ir : IRContract)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (SourceSemantics.interpretContract model selectors tx initialWorld)
@@ -309,6 +334,7 @@ theorem compile_preserves_semantics
       (tx := tx)
       (initialWorld := initialWorld)
       (bindings := bindings)
+      (hcalldataSizeFits := hcalldataSizeFits)
       (hfn := hfn)
       (hcompileFn := hcompileFn)
       (hbind := hbind)

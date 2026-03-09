@@ -122,6 +122,43 @@ structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop 
   functions :
     ∀ fn, fn ∈ spec.functions → SupportedFunction spec.fields fn
 
+theorem SupportedSpec.supportedFunctionOfSelectorDispatched
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    SupportedFunction spec.fields fn := by
+  have hfiltered : fn ∈ spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name) := by
+    simpa [selectorDispatchedFunctions] using hfn
+  have hmem : fn ∈ spec.functions := (List.mem_filter.mp hfiltered).1
+  exact hSupported.functions fn hmem
+
+theorem SupportedSpec.selectorFunctionParamsSupported
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).params
+
+theorem SupportedSpec.selectorFunctionBodySupported
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    SupportedStmtList spec.fields fn.body :=
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).body
+
+theorem SupportedSpec.selectorFunctionReturnsSupported
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    ∃ resolvedReturns,
+      functionReturns fn = Except.ok resolvedReturns ∧
+        SupportedExternalReturnProfile resolvedReturns :=
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).returns
+
 @[simp] theorem stmtListTouchesUnsupportedContractSurface_nil :
     stmtListTouchesUnsupportedContractSurface [] = false := rfl
 

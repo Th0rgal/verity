@@ -12,6 +12,11 @@ open Compiler.Yul
 
 namespace Function
 
+/-- Generic transaction well-formedness needed by the current param-loading proof:
+the ABI-style calldata byte size must not wrap modulo the EVM word modulus. -/
+def TxCalldataSizeFitsEvm (tx : IRTransaction) : Prop :=
+  4 + tx.args.length * 32 < Compiler.Constants.evmModulus
+
 def compiledFunctionIR
     (selector : Nat) (spec : FunctionSpec) (returns : List ParamType) (bodyStmts : List YulStmt) :
     IRFunction :=
@@ -127,6 +132,37 @@ theorem compileFunctionSpec_ok_selector
         injection hcompile with hEq
         simpa using congrArg IRFunction.selector hEq.symm
 
+theorem compileFunctionSpec_ok_components
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (selector : Nat) (spec : FunctionSpec) (irFn : IRFunction)
+    (hcompile : compileFunctionSpec fields events errors selector spec = Except.ok irFn) :
+    ∃ returns bodyStmts,
+      validateFunctionSpec spec = Except.ok () ∧
+      functionReturns spec = Except.ok returns ∧
+      compileStmtList fields events errors .calldata [] false
+        (spec.params.map (·.name)) spec.body = Except.ok bodyStmts ∧
+      irFn = compiledFunctionIR selector spec returns bodyStmts := by
+  unfold CompilationModel.compileFunctionSpec at hcompile
+  cases hvalidate : validateFunctionSpec spec
+  · rw [hvalidate] at hcompile
+    cases hcompile
+  case ok _ =>
+    cases hreturns : functionReturns spec
+    · rw [hvalidate, hreturns] at hcompile
+      cases hcompile
+    case ok returns =>
+      cases hbody :
+          compileStmtList fields events errors .calldata [] false
+            (spec.params.map (·.name)) spec.body
+      · rw [hvalidate, hreturns, hbody] at hcompile
+        cases hcompile
+      case ok bodyStmts =>
+        rw [hvalidate, hreturns, hbody] at hcompile
+        injection hcompile with hEq
+        refine ⟨returns, bodyStmts, ?_⟩
+        exact ⟨by simpa using hvalidate, by simpa using hreturns,
+          by simpa using hbody, hEq.symm⟩
+
 theorem exec_compiledFunctionIR_of_body
     (state : IRState) (selector : Nat) (spec : FunctionSpec)
     (returns : List ParamType) (bodyStmts : List YulStmt)
@@ -221,6 +257,42 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
     FunctionBody.stmtResultToSourceResult, FunctionBody.sourceResultMatchesIRResult,
     FunctionBody.irResultOfExecResult, execResultToIRResult] using hpack
 
+/-- TODO(#1510): prove the generic function-level simulation for the supported
+fragment. This must derive whole-function semantic preservation directly from:
+- a whole-contract `SupportedSpec` witness
+- successful `compileFunctionSpec` decomposition
+- successful supported parameter binding
+- generic transaction well-formedness
+
+This theorem must remain fully generic: no contract-specific bridge premise and
+no intermediate hypothesis pre-aligning compiled functions to source functions. -/
+theorem supported_function_correct
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretFunction model fn tx initialWorld)
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  sorry
+
 theorem compileFunctionSpec_correct_of_body
     (model : CompilationModel)
     (selector : Nat) (fn : FunctionSpec) (irFn : IRFunction)
@@ -235,7 +307,7 @@ theorem compileFunctionSpec_correct_of_body
         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
     (hcompile : compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcalldataSizeFits : 4 + tx.args.length * 32 < Compiler.Constants.evmModulus)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
@@ -313,7 +385,7 @@ theorem compileFunctionSpec_correct_of_body_supported
         (applySlotAliasRanges model.fields model.slotAliasRanges)
         model.events model.errors selector fn = Except.ok irFn)
     (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcalldataSizeFits : 4 + tx.args.length * 32 < Compiler.Constants.evmModulus)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (hsource :
       SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
