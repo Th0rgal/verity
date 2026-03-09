@@ -552,6 +552,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_zero_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_zero_right
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_monotone_left
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_monotone_right
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_cancel_right
@@ -560,6 +562,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_antitone_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_zero_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_zero_right
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_monotone_left
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_monotone_right
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_cancel_right
@@ -569,6 +573,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_antitone_divisor
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_zero_left
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_zero_right
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_one_right
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_one_left
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_monotone_left
@@ -579,6 +585,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_antitone_right
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_mul_lt_add
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_mul_ge
+#print axioms Verity.Proofs.Stdlib.Math.wDivUp_zero
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_by_wad
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_some
 #print axioms Verity.Proofs.Stdlib.Math.safeAdd_none
@@ -751,4 +758,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 641 theorems/lemmas (589 public, 52 private)
+-- Total: 648 theorems/lemmas (596 public, 52 private)
