@@ -4,9 +4,11 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/docs.yml'
       - 'docs-site/**'
   pull_request:
     paths:
+      - '.github/workflows/docs.yml'
       - 'docs-site/**'
   workflow_dispatch:
 
