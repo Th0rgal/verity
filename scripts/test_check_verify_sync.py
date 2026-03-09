@@ -356,6 +356,29 @@ class VerifySyncTests(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] paths", out)
 
+    def test_makefile_check_fails_when_required_unit_test_command_is_missing(self) -> None:
+        rc, _, err = self._run_makefile_check(
+            """
+            check:
+            	python3 scripts/check_verify_sync.py
+            	python3 scripts/check_issue_templates.py
+            	python3 scripts/check_docs_workflow_sync.py
+            """,
+            expected_checks_commands=["make check"],
+            required_makefile_check_commands=[
+                "python3 scripts/check_verify_sync.py",
+                "python3 scripts/check_issue_templates.py",
+                "python3 scripts/check_docs_workflow_sync.py",
+                "python3 -m unittest discover -s scripts -p 'test_*.py' -v",
+            ],
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "Makefile check target is missing required commands: "
+            "python3 -m unittest discover -s scripts -p 'test_*.py' -v",
+            err,
+        )
+
     def test_makefile_check_passes_when_required_commands_are_present(self) -> None:
         makefile = """
         check:
