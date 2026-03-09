@@ -343,6 +343,21 @@ theorem execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
       .stop state := by
   simp [execIRStmts, execIRStmt]
 
+/-- A top-level `length + 1` fuel budget is not sufficient once a single list
+is wrapped in a `block`: entering the block consumes one step and leaves only
+`1` fuel for the nested body, which immediately reverts on its first
+statement. This is the minimal counterexample showing that body-level proofs
+cannot be extended to `Stmt.ite`-compiled blocks while still using `length + 1`
+as the sole fuel metric. -/
+theorem execIRStmts_single_block_stop_length_insufficient
+    (state : IRState) :
+    execIRStmts
+      ([YulStmt.block [YulStmt.expr (YulExpr.call "stop" [])]].length + 1)
+      state
+      [YulStmt.block [YulStmt.expr (YulExpr.call "stop" [])]] =
+        .revert state := by
+  simp [execIRStmts, execIRStmt]
+
 /-! ## IR Function Execution -/
 
 structure IRTransaction where

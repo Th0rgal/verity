@@ -701,9 +701,12 @@ axiom supported_function_body_correct_from_exact_state
       FunctionBody.stmtResultMatchesIRExec
         (SourceSemantics.effectiveFields model) sourceResult irExec
 
-/-- TODO(#1510): replace this fuel-bridging axiom with a proof that the public
-`execIRFunction` entrypoint is equivalent to the explicit fuel used by the
-current body-level theorem for compiled supported functions. -/
+/-- TODO(#1510): replace this axiom by refactoring the supported-function proof
+spine onto a structurally sufficient fuel. The current `length + 1` body fuel
+is not strong enough once compilation introduces nested `block`s
+(`IRInterpreter.execIRStmts_single_block_stop_length_insufficient`), so the
+right elimination path is to move these theorems to a `sizeOf`-style budget and
+then discharge the remaining bridge with `execIRFunctionFuel_adequate`. -/
 axiom supported_function_execIRFunction_eq_fuel
     (model : CompilationModel)
     (selector : Nat)

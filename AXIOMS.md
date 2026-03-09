@@ -146,7 +146,7 @@ supported body shapes.
 
 ### 8. `supported_function_execIRFunction_eq_fuel`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:707`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:710`
 
 **Statement**:
 ```lean
@@ -159,9 +159,14 @@ Bridges the current body-level theorem, stated with an explicit
 whole-contract theorem surface.
 
 **Why this is currently an axiom**:
-The current proof surface still lacks a generic lemma connecting the explicit
-fuel chosen by the supported-function proof spine to the execution API used by
-`Contract.compile_preserves_semantics`.
+The current proof spine still uses `length + 1` for `bodyStmts`, but this fuel
+is actually too weak once compilation introduces nested `block`s. A minimal
+checked counterexample now lives at
+`Compiler/Proofs/IRGeneration/IRInterpreter.lean`
+(`execIRStmts_single_block_stop_length_insufficient`). So this is no longer
+just a missing bridge lemma: the supported-function path needs a structural
+fuel refactor (`sizeOf`-style) before it can reuse
+`execIRFunctionFuel_adequate` and eliminate this axiom cleanly.
 
 **Risk**: Medium.
 
