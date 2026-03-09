@@ -4759,6 +4759,66 @@ theorem exec_compileStmtList_core_extraFuel
               stmtResultMatchesIRExecExact (SourceSemantics.StmtResult.stop runtime) (.stop state) from
             ⟨hruntime, ⟨hexact, hbounded⟩⟩)
 
+theorem execStmtList_terminal_core_not_continue
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hterminal : StmtListTerminalCore scope stmts) :
+    ∀ next, SourceSemantics.execStmtList fields runtime stmts ≠ .continue next := by
+  induction hterminal generalizing runtime with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      let runtime' :=
+        { runtime with
+          bindings := SourceSemantics.bindValue runtime.bindings name
+            (SourceSemantics.evalExpr fields runtime value) }
+      simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, runtime'] using
+        ih (runtime := runtime')
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      let runtime' :=
+        { runtime with
+          bindings := SourceSemantics.bindValue runtime.bindings name
+            (SourceSemantics.evalExpr fields runtime value) }
+      simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, runtime'] using
+        ih (runtime := runtime')
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      by_cases hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true
+      · simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue] using
+          ih (runtime := runtime)
+      · have hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false := by
+          cases hbool : (SourceSemantics.evalExpr fields runtime cond != 0) <;> simp_all
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      intro next
+      simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | stop hrest =>
+      rename_i scope rest
+      intro next
+      simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rename_i scope cond thenBranch elseBranch rest
+      by_cases hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true
+      · intro next
+        have hthenNoContinue := ihThen (runtime := runtime)
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue]
+        intro hEq
+        cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec] at hEq
+        · rename_i next'
+          exact hthenNoContinue next' hthenExec
+      · intro next
+        have helseNoContinue := ihElse (runtime := runtime)
+        have hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false := by
+          cases hbool : (SourceSemantics.evalExpr fields runtime cond != 0) <;> simp_all
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
+        intro hEq
+        cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp [helseExec] at hEq
+        · rename_i next'
+          exact helseNoContinue next' helseExec
+
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
