@@ -1,6 +1,7 @@
 import Compiler.CompilationModel.ExpressionCompile
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SourceSemantics
+import Compiler.Proofs.IRGeneration.SupportedSpec
 
 namespace Compiler.Proofs.IRGeneration
 
@@ -88,6 +89,9 @@ def bindingsMatchIRVars
     (bindings : List (String × Nat))
     (state : IRState) : Prop :=
   ∀ name, (state.getVar name).getD 0 = SourceSemantics.lookupValue bindings name
+
+def bindingsBounded (bindings : List (String × Nat)) : Prop :=
+  ∀ name, SourceSemantics.lookupValue bindings name < Compiler.Constants.evmModulus
 
 theorem bindingsExactlyMatchIRVars_implies_bindingsMatchIRVars
     {bindings : List (String × Nat)}
@@ -398,6 +402,25 @@ theorem lookupValue_bindValue_ne
     _ = SourceSemantics.lookupValue bindings queryName := by
           rfl
 
+@[simp] theorem bindingsBounded_nil :
+    bindingsBounded [] := by
+  intro name
+  simp [SourceSemantics.lookupValue, Compiler.Constants.evmModulus]
+
+theorem bindingsBounded_bindValue
+    {bindings : List (String × Nat)}
+    (hbounded : bindingsBounded bindings)
+    (boundName : String)
+    (value : Nat)
+    (hvalueLt : value < Compiler.Constants.evmModulus) :
+    bindingsBounded (SourceSemantics.bindValue bindings boundName value) := by
+  intro queryName
+  by_cases hEq : queryName = boundName
+  · subst hEq
+    simp [lookupValue_bindValue_eq, hvalueLt]
+  · rw [lookupValue_bindValue_ne bindings boundName queryName value hEq]
+    exact hbounded queryName
+
 @[simp] theorem lookupBinding?_bindValue_eq
     (bindings : List (String × Nat))
     (name : String)
@@ -519,6 +542,10 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
   simp [evalIRExpr, evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hstorage]
+
+@[simp] theorem boolWord_lt_evmModulus (b : Bool) :
+    SourceSemantics.boolWord b < Compiler.Constants.evmModulus := by
+  cases b <;> norm_num [SourceSemantics.boolWord, Compiler.Constants.evmModulus]
 
 @[simp] theorem encodeEvents_withTransactionContext
     (world : Verity.ContractState) (tx : IRTransaction) :
