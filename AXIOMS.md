@@ -123,7 +123,7 @@ This remains the last contract-level proof gap between body-level Yul equivalenc
 
 ### 7. `supported_function_body_correct_from_exact_state`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:569`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:670`
 
 **Statement**:
 ```lean
@@ -137,14 +137,16 @@ and variable bindings are exact, executing `compileStmtList ... fn.body` simulat
 
 **Why this is currently an axiom**:
 This is the remaining generic body-simulation proof over the supported fragment.
-The exact parameter-state reconstruction step is now proved, but the repo still
-needs the future expression/statement induction library under that invariant.
+The exact parameter-state reconstruction step is now proved, and `Function.lean`
+now bypasses this axiom for `StmtListCompileCore` bodies, but the repo still
+needs the broader expression/statement induction library for the remaining
+supported body shapes.
 
 **Risk**: Medium.
 
 ### 8. `supported_function_execIRFunction_eq_fuel`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:606`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:707`
 
 **Statement**:
 ```lean
