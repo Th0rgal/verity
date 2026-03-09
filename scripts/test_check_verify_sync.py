@@ -133,6 +133,39 @@ class VerifySyncTests(unittest.TestCase):
                 check.SPEC_PATH = old_spec
                 sys.argv = old_argv
 
+    def _run_step_contracts_check(
+        self,
+        workflow_text: str,
+        *,
+        expected_step_contracts: dict[str, list[dict]],
+    ) -> tuple[int, str, str]:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
+            root = Path(td)
+            verify = root / "verify.yml"
+            spec = root / "verify_sync_spec.json"
+            verify.write_text(workflow_text, encoding="utf-8")
+            spec.write_text(
+                json.dumps({"expected_step_contracts": expected_step_contracts}),
+                encoding="utf-8",
+            )
+
+            old_verify = check.VERIFY_YML
+            old_spec = check.SPEC_PATH
+            check.VERIFY_YML = verify
+            check.SPEC_PATH = spec
+            old_argv = sys.argv
+            sys.argv = ["check_verify_sync.py", "--only", "step-contracts"]
+            try:
+                stderr = io.StringIO()
+                stdout = io.StringIO()
+                with redirect_stderr(stderr), redirect_stdout(stdout):
+                    rc = check.main()
+                return rc, stdout.getvalue(), stderr.getvalue()
+            finally:
+                check.VERIFY_YML = old_verify
+                check.SPEC_PATH = old_spec
+                sys.argv = old_argv
+
     def _run_makefile_check(
         self,
         makefile_text: str,
@@ -558,6 +591,142 @@ class VerifySyncTests(unittest.TestCase):
         job_body = check.extract_job_body(workflow, "build", Path("verify.yml"))
         with self.assertRaisesRegex(ValueError, "Empty needs entry"):
             check._extract_job_needs(job_body)
+
+    def test_step_contracts_check_fails_when_action_config_drifts(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              build:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v4
+                    with:
+                      submodules: false
+                  - name: Setup Lean
+                    uses: ./.github/actions/setup-lean
+                    with:
+                      cache-key-prefix: stale
+                  - name: Save Lake packages cache
+                    if: success()
+                    uses: actions/cache/save@v4
+                    with:
+                      path: build-cache
+                      key: bad-key
+              failure-hints:
+                runs-on: ubuntu-latest
+                steps:
+                  - name: Post CI failure hints
+                    uses: actions/github-script@v7
+                    env:
+                      NEEDS_JSON: stale
+            """
+        )
+        rc, _, err = self._run_step_contracts_check(
+            workflow,
+            expected_step_contracts={
+                "build": [
+                    {
+                        "uses": "actions/checkout@v4",
+                        "with": {"submodules": "recursive"},
+                    },
+                    {
+                        "name": "Setup Lean",
+                        "uses": "./.github/actions/setup-lean",
+                        "with": {"cache-key-prefix": "lake"},
+                    },
+                    {
+                        "name": "Save Lake packages cache",
+                        "uses": "actions/cache/save@v4",
+                        "if": "success() && needs.changes.outputs.code == 'true'",
+                        "with": {"path": ".lake", "key": "good-key"},
+                    },
+                ],
+                "failure-hints": [
+                    {
+                        "name": "Post CI failure hints",
+                        "uses": "actions/github-script@v7",
+                        "env": {"NEEDS_JSON": "${{ toJson(needs) }}"},
+                    }
+                ],
+            },
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("[FAIL] step-contracts", err)
+        self.assertIn(
+            "build step name='Setup Lean', uses='./.github/actions/setup-lean' has with.cache-key-prefix='stale', expected 'lake'",
+            err,
+        )
+        self.assertIn(
+            "build step name='Save Lake packages cache', uses='actions/cache/save@v4' has if='success()', expected \"success() && needs.changes.outputs.code == 'true'\"",
+            err,
+        )
+        self.assertIn(
+            "failure-hints step name='Post CI failure hints', uses='actions/github-script@v7' has env.NEEDS_JSON='stale', expected '${{ toJson(needs) }}'",
+            err,
+        )
+
+    def test_step_contracts_check_passes_when_critical_steps_match_spec(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              build:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v4
+                    with:
+                      submodules: recursive
+                  - name: Setup Lean
+                    uses: ./.github/actions/setup-lean
+                    with:
+                      cache-key-prefix: lake
+                  - name: Save Lake packages cache
+                    if: success() && needs.changes.outputs.code == 'true'
+                    uses: actions/cache/save@v4
+                    with:
+                      path: .lake
+                      key: good-key
+              failure-hints:
+                runs-on: ubuntu-latest
+                steps:
+                  - name: Post CI failure hints
+                    uses: actions/github-script@v7
+                    env:
+                      NEEDS_JSON: ${{ toJson(needs) }}
+            """
+        )
+        rc, out, err = self._run_step_contracts_check(
+            workflow,
+            expected_step_contracts={
+                "build": [
+                    {
+                        "uses": "actions/checkout@v4",
+                        "with": {"submodules": "recursive"},
+                    },
+                    {
+                        "name": "Setup Lean",
+                        "uses": "./.github/actions/setup-lean",
+                        "with": {"cache-key-prefix": "lake"},
+                    },
+                    {
+                        "name": "Save Lake packages cache",
+                        "uses": "actions/cache/save@v4",
+                        "if": "success() && needs.changes.outputs.code == 'true'",
+                        "with": {"path": ".lake", "key": "good-key"},
+                    },
+                ],
+                "failure-hints": [
+                    {
+                        "name": "Post CI failure hints",
+                        "uses": "actions/github-script@v7",
+                        "env": {"NEEDS_JSON": "${{ toJson(needs) }}"},
+                    }
+                ],
+            },
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] step-contracts", out)
 
     def test_paths_check_fails_when_check_only_path_is_missing_from_triggers(self) -> None:
         workflow = textwrap.dedent(

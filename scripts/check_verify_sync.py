@@ -179,6 +179,85 @@ def _extract_top_level_job_value(job_body: str, key: str) -> str | None:
     return None
 
 
+def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
+    lines = step_block.splitlines()
+    if not lines:
+        return None
+
+    first = re.match(rf"^\s*-\s*{re.escape(key)}:\s*(?P<value>.*?)\s*$", lines[0])
+    if first:
+        raw = strip_yaml_inline_comment(first.group("value"))
+        return unquote_yaml_scalar(raw) if raw else ""
+
+    step_indent = len(lines[0]) - len(lines[0].lstrip(" "))
+    min_child_indent: int | None = None
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent <= step_indent:
+            continue
+        if min_child_indent is None or child_indent < min_child_indent:
+            min_child_indent = child_indent
+    if min_child_indent is None:
+        return None
+
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent != min_child_indent:
+            continue
+        m = re.match(rf"^\s*{re.escape(key)}:\s*(?P<value>.*?)\s*$", line)
+        if not m:
+            continue
+        raw = strip_yaml_inline_comment(m.group("value"))
+        return unquote_yaml_scalar(raw) if raw else ""
+    return None
+
+
+def _extract_top_level_step_block_lines(step_block: str, key: str) -> list[str]:
+    lines = step_block.splitlines()
+    if not lines:
+        return []
+
+    step_indent = len(lines[0]) - len(lines[0].lstrip(" "))
+    min_child_indent: int | None = None
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent <= step_indent:
+            continue
+        if min_child_indent is None or child_indent < min_child_indent:
+            min_child_indent = child_indent
+    if min_child_indent is None:
+        return []
+
+    for idx, line in enumerate(lines[1:], start=1):
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent != min_child_indent:
+            continue
+        m = re.match(rf"^\s*{re.escape(key)}:\s*(?P<value>.*?)\s*$", line)
+        if not m or strip_yaml_inline_comment(m.group("value")):
+            continue
+
+        block_lines: list[str] = []
+        for nested in lines[idx + 1 :]:
+            if not nested.strip():
+                block_lines.append("")
+                continue
+            nested_indent = len(nested) - len(nested.lstrip(" "))
+            if nested_indent <= child_indent:
+                break
+            block_lines.append(nested)
+        return block_lines
+
+    return []
+
+
 def _extract_literal_top_level_mapping(body: str, key: str) -> dict[str, str]:
     block_lines = _extract_top_level_job_block_lines(body, key)
     if not block_lines:
@@ -213,6 +292,45 @@ def _extract_literal_top_level_mapping(body: str, key: str) -> dict[str, str]:
         if previous is not None and previous != value:
             raise ValueError(
                 f"Conflicting {key}.{entry_key} values in {VERIFY_YML}: {previous!r} vs {value!r}"
+            )
+        values[entry_key] = value
+    return values
+
+
+def _extract_literal_step_mapping(step_block: str, key: str) -> dict[str, str]:
+    block_lines = _extract_top_level_step_block_lines(step_block, key)
+    if not block_lines:
+        return {}
+
+    min_child_indent: int | None = None
+    for line in block_lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if min_child_indent is None or child_indent < min_child_indent:
+            min_child_indent = child_indent
+    if min_child_indent is None:
+        return {}
+
+    values: dict[str, str] = {}
+    for line in block_lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent != min_child_indent:
+            continue
+        m = re.match(r"^\s*(?P<entry_key>[A-Za-z0-9_-]+):\s*(?P<value>.+?)\s*$", line)
+        if not m:
+            raise ValueError(f"Unsupported literal mapping entry in step {key} block in {VERIFY_YML}")
+        entry_key = m.group("entry_key")
+        raw_value = strip_yaml_inline_comment(m.group("value"))
+        if not raw_value:
+            raise ValueError(f"Empty step {key}.{entry_key} value in {VERIFY_YML}")
+        value = unquote_yaml_scalar(raw_value)
+        previous = values.get(entry_key)
+        if previous is not None and previous != value:
+            raise ValueError(
+                f"Conflicting step {key}.{entry_key} values in {VERIFY_YML}: {previous!r} vs {value!r}"
             )
         values[entry_key] = value
     return values
@@ -691,6 +809,73 @@ def check_job_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
     return CheckResult("job-contracts", errors)
 
 
+def _describe_step_locator(step_spec: dict) -> str:
+    parts: list[str] = []
+    if "name" in step_spec:
+        parts.append(f"name={step_spec['name']!r}")
+    if "uses" in step_spec:
+        parts.append(f"uses={step_spec['uses']!r}")
+    return ", ".join(parts) if parts else "<unidentified step>"
+
+
+def _find_matching_step(job_body: str, step_spec: dict) -> str | None:
+    matches: list[str] = []
+    for step_block in _iter_step_blocks(job_body):
+        actual_name = _extract_top_level_step_value(step_block, "name")
+        actual_uses = _extract_top_level_step_value(step_block, "uses")
+        if "name" in step_spec and actual_name != step_spec["name"]:
+            continue
+        if "uses" in step_spec and actual_uses != step_spec["uses"]:
+            continue
+        matches.append(step_block)
+    if not matches:
+        return None
+    if len(matches) > 1:
+        raise ValueError(
+            f"Multiple workflow steps matched locator {_describe_step_locator(step_spec)} in {VERIFY_YML}"
+        )
+    return matches[0]
+
+
+def check_step_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
+    errors: list[str] = []
+    expected_step_contracts: dict[str, list[dict]] = spec.get("expected_step_contracts", {})
+
+    for job, step_specs in expected_step_contracts.items():
+        job_body = snapshot.job_body(job)
+        for step_spec in step_specs:
+            step_block = _find_matching_step(job_body, step_spec)
+            locator = _describe_step_locator(step_spec)
+            if step_block is None:
+                errors.append(f"{job} is missing expected step {locator}")
+                continue
+
+            for key in ("name", "uses", "if"):
+                if key not in step_spec:
+                    continue
+                actual_value = _extract_top_level_step_value(step_block, key)
+                expected_value = step_spec[key]
+                if actual_value != expected_value:
+                    errors.append(
+                        f"{job} step {locator} has {key}={actual_value!r}, expected {expected_value!r}"
+                    )
+
+            for mapping_key in ("with", "env"):
+                expected_mapping = step_spec.get(mapping_key)
+                if not expected_mapping:
+                    continue
+                actual_mapping = _extract_literal_step_mapping(step_block, mapping_key)
+                for entry_key, expected_value in expected_mapping.items():
+                    actual_value = actual_mapping.get(entry_key)
+                    if actual_value != expected_value:
+                        errors.append(
+                            f"{job} step {locator} has {mapping_key}.{entry_key}={actual_value!r}, "
+                            f"expected {expected_value!r}"
+                        )
+
+    return CheckResult("step-contracts", errors)
+
+
 def _extract_non_script_python_commands(run_commands: list[str]) -> list[str]:
     """Extract python3 commands that are NOT 'python3 scripts/...' from run commands."""
     result: list[str] = []
@@ -1058,6 +1243,7 @@ def _checks() -> dict[str, callable]:
         "paths": check_paths,
         "jobs": check_jobs,
         "job-contracts": check_job_contracts,
+        "step-contracts": check_step_contracts,
         "python-commands": check_python_commands,
         "multiseed": check_multiseed,
         "foundry": check_foundry,
