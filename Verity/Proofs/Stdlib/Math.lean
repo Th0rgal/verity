@@ -107,6 +107,11 @@ theorem mulDivDown_monotone_right (a b₁ b₂ c : Uint256)
     simp [hZero]
     exact Nat.div_le_div_right (Nat.mul_le_mul_left _ hB)
 
+/-- `mulDivDown` is commutative in its numerator operands. -/
+theorem mulDivDown_comm (a b c : Uint256) :
+    mulDivDown a b c = mulDivDown b a c := by
+  simp [mulDivDown, Verity.Core.Uint256.mul_comm]
+
 /-- Dividing an exact numerator product by its right factor recovers the left factor. -/
 theorem mulDivDown_cancel_right (a c : Uint256)
     (hC : c ≠ 0)
@@ -304,6 +309,11 @@ theorem mulDivUp_monotone_right (a b₁ b₂ c : Uint256)
   rw [mulDivUp_nat_eq a b₁ c hC hNum₁, mulDivUp_nat_eq a b₂ c hC hNum]
   exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_left _ hB) _)
 
+/-- `mulDivUp` is commutative in its numerator operands. -/
+theorem mulDivUp_comm (a b c : Uint256) :
+    mulDivUp a b c = mulDivUp b a c := by
+  simp [mulDivUp, Verity.Core.Uint256.mul_comm]
+
 /-- Ceil-division of an exact numerator product by its right factor recovers the left factor. -/
 theorem mulDivUp_cancel_right (a c : Uint256)
     (hC : c ≠ 0)
@@ -449,6 +459,11 @@ theorem wMulDown_monotone_right (a b₁ b₂ : Uint256)
     (hMul : (a : Nat) * (b₂ : Nat) ≤ MAX_UINT256) :
     (wMulDown a b₁ : Nat) ≤ (wMulDown a b₂ : Nat) := by
   simpa [WAD_val] using mulDivDown_monotone_right a b₁ b₂ WAD hB hMul
+
+/-- `wMulDown` is commutative in its operands. -/
+theorem wMulDown_comm (a b : Uint256) :
+    wMulDown a b = wMulDown b a := by
+  simp [wMulDown_def]
 
 /-- Wad multiplication undershoots the numerator by less than one wad-width. -/
 theorem wMulDown_mul_lt_add (a b : Uint256)
@@ -715,22 +730,25 @@ safeDiv:
 26. mulDivDown_nat_eq — exact floor division when the numerator fits
 27. mulDivDown_mul_le — floor result never overshoots the numerator
 28. mulDivDown_zero_left/right — zero numerators collapse floor helpers
-29. mulDivDown_cancel_right/left — exact factor cancellation for floor helpers
-30. mulDivDown_mul_lt_add — floor undershoot is less than one divisor-width
-31. mulDivDown_antitone_divisor — larger divisors can only shrink floor helpers
-32. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
-33. mulDivDown_le_mulDivUp — ceil result never rounds below floor
-34. mulDivUp_zero_left/right — zero numerators collapse ceil helpers
-35. mulDivUp_cancel_right/left — exact factor cancellation for ceil helpers
-36. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
-37. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
-38. wMulDown_zero_left/right — zero operands collapse wad multiplication
-39. wMulDown_one_left/right — wad-multiply identity lemmas
-40. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
-41. wDivUp_nat_eq — wad-divide specialization of mulDivUp
-42. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
-43. wDivUp_zero — zero wad numerators collapse ceil helpers
-44. wDivUp_by_wad — wad ceil-division identity lemma
+29. mulDivDown_comm — numerator multiplication order does not matter
+30. mulDivDown_cancel_right/left — exact factor cancellation for floor helpers
+31. mulDivDown_mul_lt_add — floor undershoot is less than one divisor-width
+32. mulDivDown_antitone_divisor — larger divisors can only shrink floor helpers
+33. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
+34. mulDivDown_le_mulDivUp — ceil result never rounds below floor
+35. mulDivUp_zero_left/right — zero numerators collapse ceil helpers
+36. mulDivUp_comm — widened numerator multiplication order does not matter
+37. mulDivUp_cancel_right/left — exact factor cancellation for ceil helpers
+38. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
+39. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
+40. wMulDown_zero_left/right — zero operands collapse wad multiplication
+41. wMulDown_one_left/right — wad-multiply identity lemmas
+42. wMulDown_comm — wad multiplication order does not matter
+43. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
+44. wDivUp_nat_eq — wad-divide specialization of mulDivUp
+45. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
+46. wDivUp_zero — zero wad numerators collapse ceil helpers
+47. wDivUp_by_wad — wad ceil-division identity lemma
 -/
 
 end Verity.Proofs.Stdlib.Math
