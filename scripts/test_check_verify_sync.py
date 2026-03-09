@@ -43,6 +43,45 @@ class VerifySyncTests(unittest.TestCase):
                 check.SPEC_PATH = old_spec
                 sys.argv = old_argv
 
+    def _run_paths_check(
+        self,
+        workflow_text: str,
+        *,
+        check_only_paths: list[str],
+        compiler_paths: list[str],
+    ) -> tuple[int, str, str]:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
+            root = Path(td)
+            verify = root / "verify.yml"
+            spec = root / "verify_sync_spec.json"
+            verify.write_text(workflow_text, encoding="utf-8")
+            spec.write_text(
+                json.dumps(
+                    {
+                        "check_only_paths": check_only_paths,
+                        "compiler_paths": compiler_paths,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            old_verify = check.VERIFY_YML
+            old_spec = check.SPEC_PATH
+            check.VERIFY_YML = verify
+            check.SPEC_PATH = spec
+            old_argv = sys.argv
+            sys.argv = ["check_verify_sync.py", "--only", "paths"]
+            try:
+                stderr = io.StringIO()
+                stdout = io.StringIO()
+                with redirect_stderr(stderr), redirect_stdout(stdout):
+                    rc = check.main()
+                return rc, stdout.getvalue(), stderr.getvalue()
+            finally:
+                check.VERIFY_YML = old_verify
+                check.SPEC_PATH = old_spec
+                sys.argv = old_argv
+
     def test_jobs_check_passes_when_order_matches(self) -> None:
         workflow = textwrap.dedent(
             """
@@ -76,6 +115,45 @@ class VerifySyncTests(unittest.TestCase):
         rc, _, err = self._run_jobs_check(workflow, ["changes", "checks"])
         self.assertEqual(rc, 1)
         self.assertIn("[FAIL] jobs", err)
+
+    def test_paths_check_fails_when_check_only_path_is_missing_from_triggers(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            on:
+              push:
+                paths:
+                  - 'docs/**'
+                  - 'README.md'
+                  - 'Compiler/**'
+              pull_request:
+                paths:
+                  - 'docs/**'
+                  - 'README.md'
+                  - 'Compiler/**'
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: dorny/paths-filter@v3
+                    with:
+                      filters: |
+                        code:
+                          - 'Compiler/**'
+                        compiler:
+                          - 'Compiler/**'
+            """
+        )
+        rc, _, err = self._run_paths_check(
+            workflow,
+            check_only_paths=["docs/**", "README.md", "AUDIT.md"],
+            compiler_paths=["Compiler/**"],
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "check_only_paths includes entries missing from on.push.paths: AUDIT.md",
+            err,
+        )
 
 
 if __name__ == "__main__":
