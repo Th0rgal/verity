@@ -3262,6 +3262,43 @@ inductive StmtListCompileCore : List String → List Stmt → Prop where
       StmtListCompileCore scope rest →
       StmtListCompileCore scope (.stop :: rest)
 
+/-- Core statement lists whose execution is guaranteed to terminate before
+reaching the end of the list. This is the smallest useful extension needed
+to simulate `Stmt.ite` without threading an exact-global bindings invariant
+through the compiler-generated `__ite_cond` temporary. -/
+inductive StmtListTerminalCore : List String → List Stmt → Prop where
+  | letVar {scope : List String} {name : String} {value : Expr} {rest : List Stmt} :
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListTerminalCore (name :: scope) rest →
+      StmtListTerminalCore scope (.letVar name value :: rest)
+  | assignVar {scope : List String} {name : String} {value : Expr} {rest : List Stmt} :
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListTerminalCore (name :: scope) rest →
+      StmtListTerminalCore scope (.assignVar name value :: rest)
+  | require_ {scope : List String} {cond : Expr} {message : String} {rest : List Stmt} :
+      ExprCompileCore cond →
+      exprBoundNamesInScope cond scope →
+      StmtListTerminalCore scope rest →
+      StmtListTerminalCore scope (.require cond message :: rest)
+  | return_ {scope : List String} {value : Expr} {rest : List Stmt} :
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListCompileCore scope rest →
+      StmtListTerminalCore scope (.return value :: rest)
+  | stop {scope : List String} {rest : List Stmt} :
+      StmtListCompileCore scope rest →
+      StmtListTerminalCore scope (.stop :: rest)
+  | ite {scope : List String} {cond : Expr}
+      {thenBranch elseBranch rest : List Stmt} :
+      ExprCompileCore cond →
+      exprBoundNamesInScope cond scope →
+      StmtListTerminalCore scope thenBranch →
+      StmtListTerminalCore scope elseBranch →
+      StmtListCompileCore scope rest →
+      StmtListTerminalCore scope (.ite cond thenBranch elseBranch :: rest)
+
 theorem compileStmt_core_ok_any_scope
     {fields : List Field}
     {inScopeNames : List String}
