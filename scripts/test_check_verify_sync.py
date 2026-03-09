@@ -271,6 +271,44 @@ class VerifySyncTests(unittest.TestCase):
             err,
         )
 
+    def test_paths_check_passes_with_workflow_wildcard_and_explicit_verify_filters(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            on:
+              push:
+                paths:
+                  - '.github/workflows/**'
+                  - '.github/workflows/verify.yml'
+                  - 'scripts/**'
+              pull_request:
+                paths:
+                  - '.github/workflows/**'
+                  - '.github/workflows/verify.yml'
+                  - 'scripts/**'
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: dorny/paths-filter@v3
+                    with:
+                      filters: |
+                        code:
+                          - '.github/workflows/verify.yml'
+                          - 'scripts/**'
+                        compiler:
+                          - '.github/workflows/verify.yml'
+                          - 'scripts/**'
+            """
+        )
+        rc, out, err = self._run_paths_check(
+            workflow,
+            check_only_paths=[".github/workflows/**"],
+            compiler_paths=[".github/workflows/verify.yml", "scripts/**"],
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] paths", out)
+
 
 if __name__ == "__main__":
     unittest.main()
