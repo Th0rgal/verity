@@ -304,6 +304,226 @@ theorem evalIRExpr_yulToBool_of_lt
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
       SourceSemantics.boolWord]
 
+theorem evalIRExpr_add_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "add" [lhs, rhs]) =
+      some ((a + b) % Compiler.Constants.evmModulus) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_sub_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "sub" [lhs, rhs]) =
+      some ((Compiler.Constants.evmModulus + (a % Compiler.Constants.evmModulus) -
+        (b % Compiler.Constants.evmModulus)) % Compiler.Constants.evmModulus) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_mul_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "mul" [lhs, rhs]) =
+      some ((a * b) % Compiler.Constants.evmModulus) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_div_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "div" [lhs, rhs]) =
+      some (if b % Compiler.Constants.evmModulus = 0 then 0 else
+        (a % Compiler.Constants.evmModulus) / (b % Compiler.Constants.evmModulus)) := by
+  by_cases hzero : b % Compiler.Constants.evmModulus = 0
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_mod_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "mod" [lhs, rhs]) =
+      some (if b % Compiler.Constants.evmModulus = 0 then 0 else
+        (a % Compiler.Constants.evmModulus) % (b % Compiler.Constants.evmModulus)) := by
+  by_cases hzero : b % Compiler.Constants.evmModulus = 0
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_eq_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "eq" [lhs, rhs]) =
+      some (SourceSemantics.boolWord (a % Compiler.Constants.evmModulus =
+        b % Compiler.Constants.evmModulus)) := by
+  by_cases heq : a % Compiler.Constants.evmModulus = b % Compiler.Constants.evmModulus
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, heq,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      SourceSemantics.boolWord]
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, heq,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      SourceSemantics.boolWord]
+
+theorem evalIRExpr_lt_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "lt" [lhs, rhs]) =
+      some (SourceSemantics.boolWord (a % Compiler.Constants.evmModulus <
+        b % Compiler.Constants.evmModulus)) := by
+  by_cases hlt : a % Compiler.Constants.evmModulus < b % Compiler.Constants.evmModulus
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hlt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      SourceSemantics.boolWord]
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hlt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      SourceSemantics.boolWord]
+
+theorem evalIRExpr_gt_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "gt" [lhs, rhs]) =
+      some (SourceSemantics.boolWord (b % Compiler.Constants.evmModulus <
+        a % Compiler.Constants.evmModulus)) := by
+  by_cases hgt : b % Compiler.Constants.evmModulus < a % Compiler.Constants.evmModulus
+  · have hcmp : ¬ a % Compiler.Constants.evmModulus ≤ b % Compiler.Constants.evmModulus := by
+      exact Nat.not_le_of_gt hgt
+    simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hgt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      SourceSemantics.boolWord]
+  · have hcmp : a % Compiler.Constants.evmModulus ≤ b % Compiler.Constants.evmModulus := by
+      exact Nat.le_of_not_gt hgt
+    simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hgt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      SourceSemantics.boolWord]
+
+theorem evalIRExpr_and_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "and" [lhs, rhs]) =
+      some ((a % Compiler.Constants.evmModulus) &&& (b % Compiler.Constants.evmModulus)) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_or_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "or" [lhs, rhs]) =
+      some ((a % Compiler.Constants.evmModulus) ||| (b % Compiler.Constants.evmModulus)) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_xor_of_eval
+    {state : IRState}
+    {lhs rhs : YulExpr}
+    {a b : Nat}
+    (hlhs : evalIRExpr state lhs = some a)
+    (hrhs : evalIRExpr state rhs = some b) :
+    evalIRExpr state (YulExpr.call "xor" [lhs, rhs]) =
+      some (Nat.xor (a % Compiler.Constants.evmModulus) (b % Compiler.Constants.evmModulus)) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_not_of_eval
+    {state : IRState}
+    {expr : YulExpr}
+    {value : Nat}
+    (heval : evalIRExpr state expr = some value) :
+    evalIRExpr state (YulExpr.call "not" [expr]) =
+      some (Nat.xor (value % Compiler.Constants.evmModulus)
+        (Compiler.Constants.evmModulus - 1)) := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, heval,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_shl_of_eval
+    {state : IRState}
+    {shiftExpr valueExpr : YulExpr}
+    {shift value : Nat}
+    (hshift : evalIRExpr state shiftExpr = some shift)
+    (hvalue : evalIRExpr state valueExpr = some value) :
+    evalIRExpr state (YulExpr.call "shl" [shiftExpr, valueExpr]) =
+      some (if shift % Compiler.Constants.evmModulus < 256 then
+        ((value % Compiler.Constants.evmModulus) *
+          2 ^ (shift % Compiler.Constants.evmModulus)) % Compiler.Constants.evmModulus
+      else
+        0) := by
+  by_cases hlt : shift % Compiler.Constants.evmModulus < 256
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
+theorem evalIRExpr_shr_of_eval
+    {state : IRState}
+    {shiftExpr valueExpr : YulExpr}
+    {shift value : Nat}
+    (hshift : evalIRExpr state shiftExpr = some shift)
+    (hvalue : evalIRExpr state valueExpr = some value) :
+    evalIRExpr state (YulExpr.call "shr" [shiftExpr, valueExpr]) =
+      some (if shift % Compiler.Constants.evmModulus < 256 then
+        (value % Compiler.Constants.evmModulus) /
+          2 ^ (shift % Compiler.Constants.evmModulus)
+      else
+        0) := by
+  by_cases hlt : shift % Compiler.Constants.evmModulus < 256
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+
 private theorem findEntry_filter_ne_eq_findEntry
     (entries : List (String × Nat))
     (blockedName queryName : String)
