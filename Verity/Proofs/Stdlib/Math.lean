@@ -108,6 +108,42 @@ theorem mulDivDown_mul_lt_add (a b c : Uint256)
     _ = (((a : Nat) * (b : Nat)) / (c : Nat)) * (c : Nat) + (c : Nat) := by
           simp [Nat.mul_comm]
 
+/-- Increasing the divisor can only decrease `mulDivDown` when both quotients are exact. -/
+theorem mulDivDown_antitone_divisor (a b c₁ c₂ : Uint256)
+    (hC : (c₁ : Nat) ≤ (c₂ : Nat))
+    (hC₁ : c₁ ≠ 0)
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (mulDivDown a b c₂ : Nat) ≤ (mulDivDown a b c₁ : Nat) := by
+  have hC₁Val : (c₁ : Nat) ≠ 0 := by
+    intro h
+    apply hC₁
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  by_cases hC₂Val : (c₂ : Nat) = 0
+  · have hC₁Zero : (c₁ : Nat) = 0 := Nat.eq_zero_of_le_zero (by simpa [hC₂Val] using hC)
+    exact (hC₁Val hC₁Zero).elim
+  · have hLeft :
+        (mulDivDown a b c₂ : Nat) * (c₁ : Nat) ≤ (a : Nat) * (b : Nat) := by
+      exact Nat.le_trans
+        (Nat.mul_le_mul_left _ hC)
+        (mulDivDown_mul_le a b c₂ hMul)
+    have hRight :
+        (a : Nat) * (b : Nat) <
+          (mulDivDown a b c₁ : Nat) * (c₁ : Nat) + (c₁ : Nat) :=
+      mulDivDown_mul_lt_add a b c₁ hC₁ hMul
+    have hLt :
+        (mulDivDown a b c₂ : Nat) * (c₁ : Nat) <
+          ((mulDivDown a b c₁ : Nat) + 1) * (c₁ : Nat) := by
+      calc
+        (mulDivDown a b c₂ : Nat) * (c₁ : Nat) ≤ (a : Nat) * (b : Nat) := hLeft
+        _ < (mulDivDown a b c₁ : Nat) * (c₁ : Nat) + (c₁ : Nat) := hRight
+        _ = ((mulDivDown a b c₁ : Nat) + 1) * (c₁ : Nat) := by
+              simp [Nat.right_distrib]
+    have hLt' :
+        (c₁ : Nat) * (mulDivDown a b c₂ : Nat) <
+          (c₁ : Nat) * ((mulDivDown a b c₁ : Nat) + 1) := by
+      simpa [Nat.mul_comm] using hLt
+    exact Nat.lt_succ_iff.mp (Nat.lt_of_mul_lt_mul_left hLt')
+
 /-- `mulDivUp` agrees with exact ceil-division when the widened numerator does not wrap. -/
 theorem mulDivUp_nat_eq (a b c : Uint256)
     (hC : c ≠ 0)
@@ -219,6 +255,37 @@ theorem mulDivUp_mul_ge (a b c : Uint256)
     exact (Nat.div_le_iff_le_mul hCPos).mp (Nat.le_refl _)
   omega
 
+/-- Increasing the divisor can only decrease `mulDivUp` when both widened numerators are exact. -/
+theorem mulDivUp_antitone_divisor (a b c₁ c₂ : Uint256)
+    (hC : (c₁ : Nat) ≤ (c₂ : Nat))
+    (hC₁ : c₁ ≠ 0)
+    (hC₂ : c₂ ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c₂ : Nat) - 1) ≤ MAX_UINT256) :
+    (mulDivUp a b c₂ : Nat) ≤ (mulDivUp a b c₁ : Nat) := by
+  have hNum₁ : (a : Nat) * (b : Nat) + ((c₁ : Nat) - 1) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.add_le_add_left (Nat.sub_le_sub_right hC 1) _) hNum
+  have hUpper :
+      (mulDivUp a b c₂ : Nat) * (c₂ : Nat) < (a : Nat) * (b : Nat) + (c₂ : Nat) :=
+    mulDivUp_mul_lt_add a b c₂ hC₂ hNum
+  have hLower :
+      (a : Nat) * (b : Nat) ≤ (mulDivUp a b c₁ : Nat) * (c₂ : Nat) := by
+    exact Nat.le_trans
+      (mulDivUp_mul_ge a b c₁ hC₁ hNum₁)
+      (Nat.mul_le_mul_left _ hC)
+  have hLt :
+      (mulDivUp a b c₂ : Nat) * (c₂ : Nat) <
+        ((mulDivUp a b c₁ : Nat) + 1) * (c₂ : Nat) := by
+    calc
+      (mulDivUp a b c₂ : Nat) * (c₂ : Nat) < (a : Nat) * (b : Nat) + (c₂ : Nat) := hUpper
+      _ ≤ (mulDivUp a b c₁ : Nat) * (c₂ : Nat) + (c₂ : Nat) := Nat.add_le_add_right hLower _
+      _ = ((mulDivUp a b c₁ : Nat) + 1) * (c₂ : Nat) := by
+            simp [Nat.right_distrib]
+  have hLt' :
+      (c₂ : Nat) * (mulDivUp a b c₂ : Nat) <
+        (c₂ : Nat) * ((mulDivUp a b c₁ : Nat) + 1) := by
+    simpa [Nat.mul_comm] using hLt
+  exact Nat.lt_succ_iff.mp (Nat.lt_of_mul_lt_mul_left hLt')
+
 /-- `wMulDown` is `mulDivDown` specialized to the canonical wad scale. -/
 theorem wMulDown_nat_eq (a b : Uint256)
     (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
@@ -266,6 +333,15 @@ theorem wDivUp_monotone_left (a₁ a₂ b : Uint256)
     (hNum : (a₂ : Nat) * (WAD : Nat) + ((b : Nat) - 1) ≤ MAX_UINT256) :
     (wDivUp a₁ b : Nat) ≤ (wDivUp a₂ b : Nat) := by
   simpa [WAD_val] using mulDivUp_monotone_left a₁ a₂ WAD b hA hB hNum
+
+/-- `wDivUp` is antitone in its divisor when the widened numerator stays exact. -/
+theorem wDivUp_antitone_right (a b₁ b₂ : Uint256)
+    (hB : (b₁ : Nat) ≤ (b₂ : Nat))
+    (hB₁ : b₁ ≠ 0)
+    (hB₂ : b₂ ≠ 0)
+    (hNum : (a : Nat) * (WAD : Nat) + ((b₂ : Nat) - 1) ≤ MAX_UINT256) :
+    (wDivUp a b₂ : Nat) ≤ (wDivUp a b₁ : Nat) := by
+  simpa [WAD_val] using mulDivUp_antitone_divisor a WAD b₁ b₂ hB hB₁ hB₂ hNum
 
 /-- Wad ceil-division overshoots the scaled numerator by less than one divisor-width. -/
 theorem wDivUp_mul_lt_add (a b : Uint256)
@@ -490,11 +566,14 @@ safeDiv:
 26. mulDivDown_nat_eq — exact floor division when the numerator fits
 27. mulDivDown_mul_le — floor result never overshoots the numerator
 28. mulDivDown_mul_lt_add — floor undershoot is less than one divisor-width
-29. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
-30. mulDivDown_le_mulDivUp — ceil result never rounds below floor
-31. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
-32. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
-33. wDivUp_nat_eq — wad-divide specialization of mulDivUp
+29. mulDivDown_antitone_divisor — larger divisors can only shrink floor helpers
+30. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
+31. mulDivDown_le_mulDivUp — ceil result never rounds below floor
+32. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
+33. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
+34. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
+35. wDivUp_nat_eq — wad-divide specialization of mulDivUp
+36. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
 -/
 
 end Verity.Proofs.Stdlib.Math
