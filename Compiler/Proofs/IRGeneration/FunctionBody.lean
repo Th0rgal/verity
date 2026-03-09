@@ -693,6 +693,32 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
     SourceSemantics.boolWord b < Compiler.Constants.evmModulus := by
   cases b <;> norm_num [SourceSemantics.boolWord, Compiler.Constants.evmModulus]
 
+theorem evalExpr_literal_lt_evmModulus
+    (fields : List Field)
+    (state : SourceSemantics.RuntimeState)
+    (value : Nat) :
+    SourceSemantics.evalExpr fields state (.literal value) < Compiler.Constants.evmModulus := by
+  change SourceSemantics.wordNormalize value < Compiler.Constants.evmModulus
+  exact wordNormalize_lt_evmModulus value
+
+theorem evalExpr_param_lt_evmModulus_of_bindingsBounded
+    (fields : List Field)
+    (state : SourceSemantics.RuntimeState)
+    (name : String)
+    (hbounded : bindingsBounded state.bindings) :
+    SourceSemantics.evalExpr fields state (.param name) < Compiler.Constants.evmModulus := by
+  change SourceSemantics.lookupValue state.bindings name < Compiler.Constants.evmModulus
+  exact hbounded name
+
+theorem evalExpr_localVar_lt_evmModulus_of_bindingsBounded
+    (fields : List Field)
+    (state : SourceSemantics.RuntimeState)
+    (name : String)
+    (hbounded : bindingsBounded state.bindings) :
+    SourceSemantics.evalExpr fields state (.localVar name) < Compiler.Constants.evmModulus := by
+  change SourceSemantics.lookupValue state.bindings name < Compiler.Constants.evmModulus
+  exact hbounded name
+
 @[simp] theorem encodeEvents_withTransactionContext
     (world : Verity.ContractState) (tx : IRTransaction) :
     SourceSemantics.encodeEvents (SourceSemantics.withTransactionContext world tx).events =
