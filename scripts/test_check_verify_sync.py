@@ -357,6 +357,64 @@ class VerifySyncTests(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] job-contracts", out)
 
+    def test_job_contracts_check_passes_when_needs_uses_multiline_yaml_list(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps: []
+              build:
+                runs-on: ubuntu-latest
+                needs:
+                  - changes
+                if: needs.changes.outputs.code == 'true'
+                steps: []
+              foundry:
+                runs-on: ubuntu-latest
+                needs:
+                  - changes
+                  - build
+                if: always() && github.event_name == 'pull_request'
+                steps: []
+            """
+        )
+        rc, out, err = self._run_job_contracts_check(
+            workflow,
+            expected_job_needs={
+                "changes": [],
+                "build": ["changes"],
+                "foundry": ["changes", "build"],
+            },
+            expected_job_if_conditions={
+                "changes": None,
+                "build": "needs.changes.outputs.code == 'true'",
+                "foundry": "always() && github.event_name == 'pull_request'",
+            },
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] job-contracts", out)
+
+    def test_job_contracts_check_fails_when_multiline_needs_contains_empty_item(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps: []
+              build:
+                runs-on: ubuntu-latest
+                needs:
+                  -
+                steps: []
+            """
+        )
+        job_body = check.extract_job_body(workflow, "build", Path("verify.yml"))
+        with self.assertRaisesRegex(ValueError, "Empty needs entry"):
+            check._extract_job_needs(job_body)
+
     def test_paths_check_fails_when_check_only_path_is_missing_from_triggers(self) -> None:
         workflow = textwrap.dedent(
             """

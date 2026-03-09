@@ -179,6 +179,42 @@ def _extract_top_level_job_value(job_body: str, key: str) -> str | None:
     return None
 
 
+def _extract_top_level_job_block_lines(job_body: str, key: str) -> list[str]:
+    lines = job_body.splitlines()
+    min_child_indent: int | None = None
+    for line in lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if min_child_indent is None or child_indent < min_child_indent:
+            min_child_indent = child_indent
+    if min_child_indent is None:
+        return []
+
+    for idx, line in enumerate(lines):
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent != min_child_indent:
+            continue
+        m = re.match(rf"^\s*{re.escape(key)}:\s*(?P<value>.*?)\s*$", line)
+        if not m or strip_yaml_inline_comment(m.group("value")):
+            continue
+
+        block_lines: list[str] = []
+        for nested in lines[idx + 1 :]:
+            if not nested.strip():
+                block_lines.append("")
+                continue
+            nested_indent = len(nested) - len(nested.lstrip(" "))
+            if nested_indent <= child_indent:
+                break
+            block_lines.append(nested)
+        return block_lines
+
+    return []
+
+
 def _extract_job_needs(job_body: str) -> list[str]:
     raw = _extract_top_level_job_value(job_body, "needs")
     if raw is None:
@@ -189,7 +225,21 @@ def _extract_job_needs(job_body: str) -> list[str]:
             return []
         return [unquote_yaml_scalar(part.strip()) for part in inner.split(",")]
     if not raw:
-        return []
+        block_lines = _extract_top_level_job_block_lines(job_body, "needs")
+        if not block_lines:
+            return []
+        entries: list[str] = []
+        for line in block_lines:
+            if not line.strip():
+                continue
+            m = re.match(r"^\s*-\s*(?P<value>.*?)\s*$", line)
+            if not m:
+                raise ValueError(f"Unsupported non-list needs entry in {VERIFY_YML}")
+            value = unquote_yaml_scalar(strip_yaml_inline_comment(m.group("value")))
+            if not value:
+                raise ValueError(f"Empty needs entry in {VERIFY_YML}")
+            entries.append(value)
+        return entries
     return [raw]
 
 
