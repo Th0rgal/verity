@@ -141,6 +141,58 @@ def _duplicates(values: list[str]) -> list[str]:
     return dup
 
 
+def _iter_top_level_job_entries(job_body: str) -> list[tuple[str, str]]:
+    lines = job_body.splitlines()
+    min_child_indent: int | None = None
+    for line in lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if min_child_indent is None or child_indent < min_child_indent:
+            min_child_indent = child_indent
+    if min_child_indent is None:
+        return []
+
+    entries: list[tuple[str, str]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        child_indent = len(line) - len(line.lstrip(" "))
+        if child_indent != min_child_indent:
+            continue
+        m = re.match(r"^\s*(?P<key>[A-Za-z0-9_-]+):\s*(?P<value>.*?)\s*$", line)
+        if not m:
+            continue
+        entries.append(
+            (
+                m.group("key"),
+                unquote_yaml_scalar(strip_yaml_inline_comment(m.group("value"))),
+            )
+        )
+    return entries
+
+
+def _extract_top_level_job_value(job_body: str, key: str) -> str | None:
+    for entry_key, value in _iter_top_level_job_entries(job_body):
+        if entry_key == key:
+            return value
+    return None
+
+
+def _extract_job_needs(job_body: str) -> list[str]:
+    raw = _extract_top_level_job_value(job_body, "needs")
+    if raw is None:
+        return []
+    if raw.startswith("[") and raw.endswith("]"):
+        inner = raw[1:-1].strip()
+        if not inner:
+            return []
+        return [unquote_yaml_scalar(part.strip()) for part in inner.split(",")]
+    if not raw:
+        return []
+    return [raw]
+
+
 def _extract_verify_shard_indices(foundry_body: str) -> list[int]:
     m = re.search(r"^\s*shard_index:\s*\[(?P<csv>[^\]]+)\]\s*$", foundry_body, flags=re.MULTILINE)
     if not m:
@@ -408,6 +460,34 @@ def check_jobs(snapshot: Snapshot, spec: dict) -> CheckResult:
         "jobs",
         _compare_lists("workflow jobs", snapshot.jobs, "spec jobs", spec["expected_jobs"]),
     )
+
+
+def check_job_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
+    errors: list[str] = []
+    expected_needs: dict[str, list[str]] = spec.get("expected_job_needs", {})
+    expected_conditions: dict[str, str] = spec.get("expected_job_if_conditions", {})
+
+    for job in snapshot.jobs:
+        job_body = snapshot.job_body(job)
+        actual_needs = _extract_job_needs(job_body)
+        expected_job_needs = expected_needs.get(job, [])
+        errors.extend(
+            _compare_lists(
+                f"{job} needs",
+                actual_needs,
+                f"spec {job} needs",
+                expected_job_needs,
+            )
+        )
+
+        actual_condition = _extract_top_level_job_value(job_body, "if")
+        expected_condition = expected_conditions.get(job)
+        if actual_condition != expected_condition:
+            errors.append(
+                f"{job} if does not match spec: workflow={actual_condition!r}, spec={expected_condition!r}"
+            )
+
+    return CheckResult("job-contracts", errors)
 
 
 def _extract_non_script_python_commands(run_commands: list[str]) -> list[str]:
@@ -776,6 +856,7 @@ def _checks() -> dict[str, callable]:
     return {
         "paths": check_paths,
         "jobs": check_jobs,
+        "job-contracts": check_job_contracts,
         "python-commands": check_python_commands,
         "multiseed": check_multiseed,
         "foundry": check_foundry,

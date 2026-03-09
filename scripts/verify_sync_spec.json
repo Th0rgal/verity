@@ -40,6 +40,56 @@
     "foundry-multi-seed",
     "failure-hints"
   ],
+  "expected_job_needs": {
+    "changes": [],
+    "checks": [],
+    "build": [
+      "changes"
+    ],
+    "build-compiler": [
+      "changes"
+    ],
+    "lean-profile": [
+      "changes"
+    ],
+    "foundry-gas-calibration": [
+      "changes",
+      "build-compiler"
+    ],
+    "foundry": [
+      "changes",
+      "build-compiler"
+    ],
+    "foundry-patched": [
+      "changes",
+      "build-compiler"
+    ],
+    "foundry-multi-seed": [
+      "changes",
+      "build-compiler"
+    ],
+    "failure-hints": [
+      "checks",
+      "build",
+      "build-compiler",
+      "foundry-gas-calibration",
+      "foundry",
+      "foundry-patched",
+      "foundry-multi-seed"
+    ]
+  },
+  "expected_job_if_conditions": {
+    "changes": null,
+    "checks": null,
+    "build": "needs.changes.outputs.code == 'true'",
+    "build-compiler": "needs.changes.outputs.compiler == 'true'",
+    "lean-profile": "github.event_name == 'workflow_dispatch' && needs.changes.outputs.code == 'true'",
+    "foundry-gas-calibration": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
+    "foundry": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
+    "foundry-patched": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
+    "foundry-multi-seed": "needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'",
+    "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')"
+  },
   "expected_checks_commands": [
     "make check"
   ],

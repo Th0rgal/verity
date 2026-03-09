@@ -82,6 +82,45 @@ class VerifySyncTests(unittest.TestCase):
                 check.SPEC_PATH = old_spec
                 sys.argv = old_argv
 
+    def _run_job_contracts_check(
+        self,
+        workflow_text: str,
+        *,
+        expected_job_needs: dict[str, list[str]],
+        expected_job_if_conditions: dict[str, str | None],
+    ) -> tuple[int, str, str]:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
+            root = Path(td)
+            verify = root / "verify.yml"
+            spec = root / "verify_sync_spec.json"
+            verify.write_text(workflow_text, encoding="utf-8")
+            spec.write_text(
+                json.dumps(
+                    {
+                        "expected_job_needs": expected_job_needs,
+                        "expected_job_if_conditions": expected_job_if_conditions,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            old_verify = check.VERIFY_YML
+            old_spec = check.SPEC_PATH
+            check.VERIFY_YML = verify
+            check.SPEC_PATH = spec
+            old_argv = sys.argv
+            sys.argv = ["check_verify_sync.py", "--only", "job-contracts"]
+            try:
+                stderr = io.StringIO()
+                stdout = io.StringIO()
+                with redirect_stderr(stderr), redirect_stdout(stdout):
+                    rc = check.main()
+                return rc, stdout.getvalue(), stderr.getvalue()
+            finally:
+                check.VERIFY_YML = old_verify
+                check.SPEC_PATH = old_spec
+                sys.argv = old_argv
+
     def _run_makefile_check(
         self,
         makefile_text: str,
@@ -250,6 +289,73 @@ class VerifySyncTests(unittest.TestCase):
         rc, _, err = self._run_jobs_check(workflow, ["changes", "checks"])
         self.assertEqual(rc, 1)
         self.assertIn("[FAIL] jobs", err)
+
+    def test_job_contracts_check_fails_when_needs_and_if_drift(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps: []
+              build:
+                runs-on: ubuntu-latest
+                needs: checks
+                if: github.event_name == 'push'
+                steps: []
+            """
+        )
+        rc, _, err = self._run_job_contracts_check(
+            workflow,
+            expected_job_needs={"changes": [], "build": ["changes"]},
+            expected_job_if_conditions={
+                "changes": None,
+                "build": "needs.changes.outputs.code == 'true'",
+            },
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("[FAIL] job-contracts", err)
+        self.assertIn("build needs does not match spec build needs.", err)
+        self.assertIn(
+            "build if does not match spec: workflow=\"github.event_name == 'push'\", spec=\"needs.changes.outputs.code == 'true'\"",
+            err,
+        )
+
+    def test_job_contracts_check_passes_when_needs_and_if_match_spec(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                steps: []
+              build:
+                runs-on: ubuntu-latest
+                needs: changes
+                if: needs.changes.outputs.code == 'true'
+                steps: []
+              foundry:
+                runs-on: ubuntu-latest
+                needs: [changes, build]
+                if: always() && github.event_name == 'pull_request'
+                steps: []
+            """
+        )
+        rc, out, err = self._run_job_contracts_check(
+            workflow,
+            expected_job_needs={
+                "changes": [],
+                "build": ["changes"],
+                "foundry": ["changes", "build"],
+            },
+            expected_job_if_conditions={
+                "changes": None,
+                "build": "needs.changes.outputs.code == 'true'",
+                "foundry": "always() && github.event_name == 'pull_request'",
+            },
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] job-contracts", out)
 
     def test_paths_check_fails_when_check_only_path_is_missing_from_triggers(self) -> None:
         workflow = textwrap.dedent(
