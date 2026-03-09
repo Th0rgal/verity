@@ -17,6 +17,17 @@ the ABI-style calldata byte size must not wrap modulo the EVM word modulus. -/
 def TxCalldataSizeFitsEvm (tx : IRTransaction) : Prop :=
   4 + tx.args.length * 32 < Compiler.Constants.evmModulus
 
+/-- Source-side transaction context stores addresses as 160-bit values and the
+remaining observed environment fields as `Uint256`s. The generic Layer-2 proof
+therefore needs the IR transaction payload to already fit those bounds. -/
+def TxContextNormalized (tx : IRTransaction) : Prop :=
+  tx.sender < Compiler.Constants.addressModulus ∧
+  tx.thisAddress < Compiler.Constants.addressModulus ∧
+  tx.msgValue < Compiler.Constants.evmModulus ∧
+  tx.blockTimestamp < Compiler.Constants.evmModulus ∧
+  tx.blockNumber < Compiler.Constants.evmModulus ∧
+  tx.chainId < Compiler.Constants.evmModulus
+
 def compiledFunctionIR
     (selector : Nat) (spec : FunctionSpec) (returns : List ParamType) (bodyStmts : List YulStmt) :
     IRFunction :=
@@ -454,18 +465,63 @@ private theorem lookupBinding?_eq_none_of_not_mem
         simp [hqueryNe']
       simp [List.find?, hbeq, ih hrestNotMem]
 
-/-- TODO(#1510): discharge the remaining initial-state normalization gap between
-source `withTransactionContext` values and the raw `IRTransaction` payload stored
-in `initialIRStateForTx`. -/
-axiom initialIRStateForTx_matches_runtime
+/-- The initial IR state matches the source runtime once the transaction
+context already fits the bounded source-level numeric domains. -/
+theorem initialIRStateForTx_matches_runtime
     (model : CompilationModel)
     (tx : IRTransaction)
-    (initialWorld : Verity.ContractState) :
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : TxContextNormalized tx) :
     FunctionBody.runtimeStateMatchesIR
       (SourceSemantics.effectiveFields model)
       { world := SourceSemantics.withTransactionContext initialWorld tx
         bindings := [] }
-      (FunctionBody.initialIRStateForTx model tx initialWorld)
+      (FunctionBody.initialIRStateForTx model tx initialWorld) := by
+  rcases htxNormalized with
+    ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain⟩
+  have hsenderEvm : tx.sender < Compiler.Constants.evmModulus := by
+    dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hsender ⊢
+    omega
+  have hthisEvm : tx.thisAddress < Compiler.Constants.evmModulus := by
+    dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hthis ⊢
+    omega
+  have hsenderAddr : tx.sender < Verity.Core.Address.modulus := by
+    simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
+  have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
+    simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, rfl, ?_⟩
+  · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
+      SourceSemantics.encodeStorage] using
+      (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
+      Verity.wordToAddress]
+    symm
+    calc
+      tx.sender % Compiler.Constants.evmModulus % Verity.Core.Address.modulus
+          = tx.sender % Verity.Core.Address.modulus := by
+              rw [Nat.mod_eq_of_lt hsenderEvm]
+      _ = tx.sender := Nat.mod_eq_of_lt hsenderAddr
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hmsgValue
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
+      Verity.wordToAddress]
+    symm
+    calc
+      tx.thisAddress % Compiler.Constants.evmModulus % Verity.Core.Address.modulus
+          = tx.thisAddress % Verity.Core.Address.modulus := by
+              rw [Nat.mod_eq_of_lt hthisEvm]
+      _ = tx.thisAddress := Nat.mod_eq_of_lt hthisAddr
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt htimestamp
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hnumber
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hchain
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
 
 /-- The ABI parameter-loading prefix reconstructs exactly the decoded source
 bindings for any supported function with pairwise-distinct parameter names. -/
@@ -728,6 +784,7 @@ theorem supported_function_correct
     (hcompile :
       compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (htxNormalized : TxContextNormalized tx)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
     FunctionBody.sourceResultMatchesIRResult
       (SourceSemantics.interpretFunction model fn tx initialWorld)
@@ -758,7 +815,7 @@ theorem supported_function_correct
         (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
         (fields := SourceSemantics.effectiveFields model)
         (params := fn.params)
-        (initialIRStateForTx_matches_runtime model tx initialWorld)
+        (initialIRStateForTx_matches_runtime model tx initialWorld htxNormalized)
   have hstateRuntime :
       FunctionBody.runtimeStateMatchesIR
         (SourceSemantics.effectiveFields model)

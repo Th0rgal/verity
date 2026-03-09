@@ -121,30 +121,9 @@ This remains the last contract-level proof gap between body-level Yul equivalenc
 
 **Risk**: Medium.
 
-### 7. `initialIRStateForTx_matches_runtime`
+### 7. `supported_function_body_correct_from_exact_state`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:460`
-
-**Statement**:
-```lean
-axiom initialIRStateForTx_matches_runtime
-```
-
-**Purpose**:
-Bridges the remaining initial-state normalization mismatch between source semantics
-(`withTransactionContext`, which normalizes `Address`/`Uint256` fields) and the raw
-`IRTransaction` payload copied into `initialIRStateForTx`.
-
-**Why this is currently an axiom**:
-The current generic Layer-2 proof spine still needs an explicit normalization lemma
-showing that the source-side transaction context and the IR initial state agree on
-all observable fields used by the supported fragment.
-
-**Risk**: Low-to-medium.
-
-### 8. `supported_function_body_correct_from_exact_state`
-
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:513`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:569`
 
 **Statement**:
 ```lean
@@ -163,9 +142,9 @@ needs the future expression/statement induction library under that invariant.
 
 **Risk**: Medium.
 
-### 9. `supported_function_execIRFunction_eq_fuel`
+### 8. `supported_function_execIRFunction_eq_fuel`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:550`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:606`
 
 **Statement**:
 ```lean
@@ -266,7 +245,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 9
+- Active axioms: 8
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not

@@ -250,6 +250,7 @@ theorem compileFunctionSpec_correct_generic
     (irFn : IRFunction)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
     (bindings : List (String × Nat))
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hfn : fn ∈ selectorDispatchedFunctions model)
@@ -276,6 +277,7 @@ theorem compileFunctionSpec_correct_generic
     (irFn := Function.compiledFunctionIR sel fn returns bodyStmts)
     (tx := tx)
     (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
     (bindings := bindings)
     (hfn := hfn)
     (hvalidate := hvalidate)
@@ -296,6 +298,7 @@ theorem compile_preserves_semantics
     (ir : IRContract)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
@@ -342,6 +345,7 @@ theorem compile_preserves_semantics
       (irFn := irFn)
       (tx := tx)
       (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
       (bindings := bindings)
       (hcalldataSizeFits := hcalldataSizeFits)
       (hfn := hfn)

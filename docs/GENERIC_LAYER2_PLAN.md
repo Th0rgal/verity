@@ -13,6 +13,7 @@ theorem compile_preserves_semantics
     (spec : CompilationModel.CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec spec selectors)
+    (hTxNormalized : Function.TxContextNormalized tx)
     (hcompile : CompilationModel.compile spec selectors = Except.ok ir) :
     SourceContractSemantics spec tx state =
       IRContractSemantics ir tx (lowerState state)
