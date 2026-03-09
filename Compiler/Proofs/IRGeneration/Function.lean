@@ -316,20 +316,66 @@ theorem interpretFunction_eq_execResultToIRResult_of_body
     FunctionBody.stmtResultToSourceResult, FunctionBody.sourceResultMatchesIRResult,
     FunctionBody.irResultOfExecResult, execResultToIRResult] using hpack
 
-/-- TODO(#1510): discharge this axiomatized generic function-level simulation.
-This must be proved from compiler structure alone, directly from:
-- a whole-contract `SupportedSpec` witness
-- successful whole-contract validation
-- successful `compileFunctionSpec` decomposition
-- successful supported parameter binding
-- generic transaction well-formedness
+theorem runtimeStateMatchesIR_applyBindingsToIRState
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    (bindings : List (String × Nat)) :
+    FunctionBody.runtimeStateMatchesIR fields runtime
+      (ParamLoading.applyBindingsToIRState state bindings) := by
+  induction bindings generalizing state with
+  | nil =>
+      simpa [ParamLoading.applyBindingsToIRState]
+  | cons entry rest ih =>
+      simpa [ParamLoading.applyBindingsToIRState, IRState.setVar] using
+        ih (state := state.setVar entry.1 entry.2) hmatch
 
-The final proof must remain fully generic:
-- no contract-specific bridge premise
-- no intermediate hypothesis pre-aligning compiled functions to source functions
-- no relocation of the whole-function proof burden back into contract proofs
-See `AXIOMS.md` for the current trust-boundary entry. -/
-axiom supported_function_correct
+theorem runtimeStateMatchesIR_prebindRawArgs
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    (params : List Param) :
+    FunctionBody.runtimeStateMatchesIR fields runtime (prebindRawArgs state params) := by
+  unfold prebindRawArgs
+  induction (List.zip (List.map Param.toIRParam params) state.calldata) generalizing state with
+  | nil =>
+      simpa
+  | cons entry rest ih =>
+      simpa [List.foldl, IRState.setVar] using
+        ih (state := state.setVar entry.1.name entry.2) hmatch
+
+/-- TODO(#1510): discharge the remaining initial-state normalization gap between
+source `withTransactionContext` values and the raw `IRTransaction` payload stored
+in `initialIRStateForTx`. -/
+axiom initialIRStateForTx_matches_runtime
+    (model : CompilationModel)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState) :
+    FunctionBody.runtimeStateMatchesIR
+      (SourceSemantics.effectiveFields model)
+      { world := SourceSemantics.withTransactionContext initialWorld tx
+        bindings := [] }
+      (FunctionBody.initialIRStateForTx model tx initialWorld)
+
+/-- TODO(#1510): replace this temporary bridge with a proof that the ABI
+parameter-loading prefix produces an IR variable environment exactly matching
+the decoded source bindings. This is the first strategy-3 subgoal. -/
+axiom supported_function_param_state_exact
+    (state : IRState)
+    (params : List Param)
+    (bindings : List (String × Nat))
+    (hinit : FunctionBody.bindingsExactlyMatchIRVars [] state)
+    (hparamNamesNodup : (params.map (·.name)).Nodup)
+    (hbind : SourceSemantics.bindSupportedParams params state.calldata = some bindings) :
+    FunctionBody.bindingsExactlyMatchIRVars bindings
+      (ParamLoading.applyBindingsToIRState (prebindRawArgs state params) bindings)
+
+/-- TODO(#1510): replace this temporary bridge with the generic body simulation
+proof under the exact-state invariant produced by parameter loading. This is
+the second strategy-3 subgoal after `supported_function_param_state_exact`. -/
+axiom supported_function_body_correct_from_exact_state
     (model : CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
@@ -338,23 +384,53 @@ axiom supported_function_correct
     (selector : Nat)
     (returns : List ParamType)
     (bodyStmts : List YulStmt)
-    (irFn : IRFunction)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
+    (state : IRState)
     (bindings : List (String × Nat))
     (hfn : fn ∈ selectorDispatchedFunctions model)
-    (hvalidate : validateFunctionSpec fn = Except.ok ())
-    (hreturns : functionReturns fn = Except.ok returns)
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    ∃ sourceResult irExec,
+      SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body = sourceResult ∧
+      execIRStmts (bodyStmts.length + 1) state bodyStmts = irExec ∧
+      FunctionBody.stmtResultMatchesIRExec
+        (SourceSemantics.effectiveFields model) sourceResult irExec
+
+/-- TODO(#1510): replace this fuel-bridging axiom with a proof that the public
+`execIRFunction` entrypoint is equivalent to the explicit fuel used by the
+current body-level theorem for compiled supported functions. -/
+axiom supported_function_execIRFunction_eq_fuel
+    (model : CompilationModel)
+    (selector : Nat)
+    (fn : FunctionSpec)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
     (hcompile :
       compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
-    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
-    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
-    FunctionBody.sourceResultMatchesIRResult
-      (SourceSemantics.interpretFunction model fn tx initialWorld)
-      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld))
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hreturns : functionReturns fn = Except.ok returns) :
+    execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld) =
+      Compiler.Proofs.YulGeneration.execIRFunctionFuel
+        ((genParamLoads fn.params ++ bodyStmts).length + 1)
+        irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)
 
 theorem compileFunctionSpec_correct_of_body
     (model : CompilationModel)
@@ -494,6 +570,110 @@ theorem compileFunctionSpec_correct_of_body_supported
       (bindings := bindings)
       hvalidate hreturns hbodyCompile' hcompile' hparamsSupported hcalldataSizeFits
       hbind hsource hbodyExec hmatch
+
+theorem supported_function_correct
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretFunction model fn tx initialWorld)
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  have hinitBindings :
+      FunctionBody.bindingsExactlyMatchIRVars [] initialState := by
+    simpa [initialState] using
+      FunctionBody.bindingsExactlyMatchIRVars_nil_initialIRStateForTx model tx initialWorld
+  have hparamNamesNodup :
+      (fn.params.map (·.name)).Nodup :=
+    hSupported.selectorFunctionParamNamesNodup hfn
+  have hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings
+        (ParamLoading.applyBindingsToIRState
+          (prebindRawArgs initialState fn.params) bindings) :=
+    supported_function_param_state_exact
+      initialState fn.params bindings hinitBindings hparamNamesNodup hbind
+  have hpreboundRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        (prebindRawArgs initialState fn.params) := by
+    simpa [initialState] using
+      runtimeStateMatchesIR_prebindRawArgs
+        (state := initialState)
+        (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+        (fields := SourceSemantics.effectiveFields model)
+        (params := fn.params)
+        (initialIRStateForTx_matches_runtime model tx initialWorld)
+  have hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        (ParamLoading.applyBindingsToIRState
+          (prebindRawArgs initialState fn.params) bindings) :=
+    runtimeStateMatchesIR_applyBindingsToIRState
+      (state := prebindRawArgs initialState fn.params)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx, bindings := [] })
+      (fields := SourceSemantics.effectiveFields model)
+      (bindings := bindings)
+      hpreboundRuntime
+  rcases supported_function_body_correct_from_exact_state
+      model selectors hSupported hvalidateInputs fn selector returns bodyStmts tx initialWorld
+      (ParamLoading.applyBindingsToIRState
+        (prebindRawArgs initialState fn.params) bindings)
+      bindings hfn hbodyCompile hstateRuntime hstateBindings with
+    ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  have hfuel :=
+    compileFunctionSpec_correct_of_body_supported
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (selector := selector)
+    (fn := fn)
+    (irFn := irFn)
+    (returns := returns)
+    (bodyStmts := bodyStmts)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (sourceResult := sourceResult)
+    (irExec := irExec)
+    (bindings := bindings)
+    hvalidate hreturns
+    (by simpa [hSupported.normalizedFields] using hbodyCompile)
+    (by simpa [hSupported.normalizedFields] using hcompile)
+    (hSupported.selectorFunctionParamsSupported hfn)
+    hcalldataSizeFits hbind hsource hbodyExec hmatch
+  rw [supported_function_execIRFunction_eq_fuel
+    (model := model)
+    (selector := selector)
+    (fn := fn)
+    (returns := returns)
+    (bodyStmts := bodyStmts)
+    (irFn := irFn)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    hcompile hbodyCompile hreturns]
+  exact hfuel
 
 end Function
 

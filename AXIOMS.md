@@ -121,26 +121,88 @@ This remains the last contract-level proof gap between body-level Yul equivalenc
 
 **Risk**: Medium.
 
-### 7. `supported_function_correct`
+### 7. `initialIRStateForTx_matches_runtime`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:332`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:352`
 
 **Statement**:
 ```lean
-axiom supported_function_correct
+axiom initialIRStateForTx_matches_runtime
 ```
 
 **Purpose**:
-Closes the remaining whole-function Layer 2 gap for the generic compiler theorem surface. It is the function-level bridge used by the whole-contract theorem `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, and it is quantified over arbitrary supported `CompilationModel` functions rather than any contract-specific semantic bridge.
+Bridges the remaining initial-state normalization mismatch between source semantics
+(`withTransactionContext`, which normalizes `Address`/`Uint256` fields) and the raw
+`IRTransaction` payload copied into `initialIRStateForTx`.
 
 **Why this is currently an axiom**:
-The repository still lacks the final generic proof that composes:
-- source whole-function semantics for `SupportedSpec`
-- the supported statement-fragment compilation theorem
-- parameter-loading correctness
-- the exact `compileStmtList` / IR execution path used by `CompilationModel.compile`
+The current generic Layer-2 proof spine still needs an explicit normalization lemma
+showing that the source-side transaction context and the IR initial state agree on
+all observable fields used by the supported fragment.
 
-That proof is now isolated to this one function-level theorem instead of being spread across contract-specific bridge theorems.
+**Risk**: Low-to-medium.
+
+### 8. `supported_function_param_state_exact`
+
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:365`
+
+**Statement**:
+```lean
+axiom supported_function_param_state_exact
+```
+
+**Purpose**:
+Captures the first strategy-3 Layer-2 subgoal: after raw prebinding and
+`applyBindingsToIRState`, the IR variable environment exactly matches the decoded
+source parameter bindings.
+
+**Why this is currently an axiom**:
+The repository now carries the needed structural invariants (`Nodup` parameter
+names, raw prebinding helpers, binding-name alignment), but the final proof that
+the resulting IR variable map is extensionally equal to the source binding map has
+not yet been discharged.
+
+**Risk**: Medium.
+
+### 9. `supported_function_body_correct_from_exact_state`
+
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:378`
+
+**Statement**:
+```lean
+axiom supported_function_body_correct_from_exact_state
+```
+
+**Purpose**:
+Captures the second strategy-3 Layer-2 subgoal: once runtime/storage fields match
+and variable bindings are exact, executing `compileStmtList ... fn.body` simulates
+`SourceSemantics.execStmtList` for any supported function body.
+
+**Why this is currently an axiom**:
+This is the remaining generic body-simulation proof over the supported fragment.
+It needs the future expression/statement induction library under the exact-state
+invariant introduced by `supported_function_param_state_exact`.
+
+**Risk**: Medium.
+
+### 10. `supported_function_execIRFunction_eq_fuel`
+
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:415`
+
+**Statement**:
+```lean
+axiom supported_function_execIRFunction_eq_fuel
+```
+
+**Purpose**:
+Bridges the current body-level theorem, stated with an explicit
+`execIRFunctionFuel`, back to the public `execIRFunction` entrypoint used by the
+whole-contract theorem surface.
+
+**Why this is currently an axiom**:
+The current proof surface still lacks a generic lemma connecting the explicit
+fuel chosen by the supported-function proof spine to the execution API used by
+`Contract.compile_preserves_semantics`.
 
 **Risk**: Medium.
 
@@ -226,7 +288,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 7
+- Active axioms: 10
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not

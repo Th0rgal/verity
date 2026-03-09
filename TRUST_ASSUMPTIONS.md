@@ -8,7 +8,7 @@ This document states what Verity proves and what it still trusts.
 EDSL (Lean)
   ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS — generic core, contract bridges]
 CompilationModel
-  ↓ [Layer 2: PARTIAL GENERIC — generic theorem surface, 1 axiom]
+  ↓ [Layer 2: PARTIAL GENERIC — generic theorem surface, 4 axioms]
 IR
   ↓ [Layer 3: GENERIC, 5 axioms — IR → Yul]
 Yul
@@ -16,12 +16,12 @@ Yul
 EVM Bytecode
 ```
 
-The repository has no `sorry`, but it still has 7 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
+The repository has no `sorry`, but it still has 10 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
 
 ## What's Verified
 
 - **Layer 1**: A generic typed-IR compilation-correctness core exists, but the active contract-level bridges are still instantiated per contract and internal-helper proof reuse is not yet a first-class generic interface.
-- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, but it still depends on the documented axiom `supported_function_correct`, and active end-to-end examples still rely on contract-specific bridge theorems.
+- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem, but it still depends on 4 documented sub-axioms for initial-state normalization, parameter-state exactness, body simulation, and the `execIRFunctionFuel`/`execIRFunction` bridge.
 - **Layer 3**: IR → Yul preservation is generic at the proof surface, but the current full dispatch-preservation path still depends on 5 documented axioms.
 - **Cross-layer**: [`Contracts/Proofs/SemanticBridge.lean`](Contracts/Proofs/SemanticBridge.lean) has zero `sorry`, but it is a manual bridge layer for a subset of contracts rather than a fully generic replacement for Layers 1-3.
 
@@ -36,7 +36,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 7 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom, 1 generic Layer 2 function-body axiom, and 5 Layer 3 dispatch/preservation axioms.
+- **Status**: 10 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom, 4 generic Layer 2 axioms, and 5 Layer 3 dispatch/preservation axioms.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation

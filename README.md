@@ -95,7 +95,7 @@ EVM Bytecode
 | 2 | A generic whole-contract theorem shape exists, but its function-body step still depends on 1 documented axiom and active end-to-end examples still use contract-specific bridge theorems | [Contract.lean](Compiler/Proofs/IRGeneration/Contract.lean) |
 | 3 | IR → Yul codegen is proved generically at the statement/function level, but the current full dispatch-preservation path still uses 5 documented axioms | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
-There are currently 7 documented Lean axioms in total: 1 selector axiom, 1 generic Layer 2 function-body axiom, and 5 Layer 3 dispatch/preservation axioms. See [AXIOMS.md](AXIOMS.md).
+There are currently 10 documented Lean axioms in total: 1 selector axiom, 4 generic Layer 2 axioms, and 5 Layer 3 dispatch/preservation axioms. See [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 
