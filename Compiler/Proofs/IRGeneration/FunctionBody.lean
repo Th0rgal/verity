@@ -91,6 +91,12 @@ def bindingsExactlyMatchIRVarsOnScope
     (state : IRState) : Prop :=
   ∀ name, name ∈ scope → state.getVar name = lookupBinding? bindings name
 
+def bindingsExactlyMatchIRVarsOnExpr
+    (expr : Expr)
+    (bindings : List (String × Nat))
+    (state : IRState) : Prop :=
+  ∀ name, name ∈ exprBoundNames expr → state.getVar name = lookupBinding? bindings name
+
 def bindingsMatchIRVars
     (bindings : List (String × Nat))
     (state : IRState) : Prop :=
@@ -116,6 +122,7 @@ theorem bindingsExactlyMatchIRVars_implies_onScope
     bindingsExactlyMatchIRVarsOnScope scope bindings state := by
   intro name _
   exact hexact name
+
 
 def runtimeStateMatchesIR
     (fields : List Field)
@@ -3177,6 +3184,17 @@ def scopeNamesPresent (scope : List String) (bindings : List (String × Nat)) : 
 def exprBoundNamesInScope (expr : Expr) (scope : List String) : Prop :=
   ∀ name, name ∈ exprBoundNames expr → name ∈ scope
 
+theorem bindingsExactlyMatchIRVarsOnScope_implies_onExpr
+    {scope : List String}
+    {expr : Expr}
+    {bindings : List (String × Nat)}
+    {state : IRState}
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope bindings state)
+    (hinScope : exprBoundNamesInScope expr scope) :
+    bindingsExactlyMatchIRVarsOnExpr expr bindings state := by
+  intro name hname
+  exact hexact name (hinScope name hname)
+
 theorem exprBoundNamesPresent_of_scope
     {expr : Expr}
     {scope : List String}
@@ -3387,6 +3405,44 @@ private theorem execIRStmts_two_of_continue_then_return
       .return value next := by
   rw [execIRStmts_two_of_execIRStmt_continue state mid stmt1 stmt2 rest hstmt1]
   exact execIRStmts_cons_of_execIRStmt_return mid next stmt2 rest value hstmt2
+
+private theorem execIRStmt_block_of_execIRStmts_continue
+    (fuel : Nat) (state next : IRState) (body : List YulStmt)
+    (hbody : execIRStmts fuel state body = .continue next) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .continue next := by
+  simpa [execIRStmt] using hbody
+
+private theorem execIRStmt_block_of_execIRStmts_return
+    (fuel : Nat) (state next : IRState) (body : List YulStmt) (value : Nat)
+    (hbody : execIRStmts fuel state body = .return value next) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .return value next := by
+  simpa [execIRStmt] using hbody
+
+private theorem execIRStmt_block_of_execIRStmts_stop
+    (fuel : Nat) (state next : IRState) (body : List YulStmt)
+    (hbody : execIRStmts fuel state body = .stop next) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .stop next := by
+  simpa [execIRStmt] using hbody
+
+private theorem execIRStmt_block_of_execIRStmts_revert
+    (fuel : Nat) (state next : IRState) (body : List YulStmt)
+    (hbody : execIRStmts fuel state body = .revert next) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .revert next := by
+  simpa [execIRStmt] using hbody
+
+private theorem execIRStmt_if_true_of_eval
+    (fuel : Nat) (state : IRState) (cond : YulExpr) (body : List YulStmt) (value : Nat)
+    (hcond : evalIRExpr state cond = some value)
+    (hvalue : value ≠ 0) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.if_ cond body) = execIRStmts fuel state body := by
+  simp [execIRStmt, hcond, hvalue]
+
+private theorem execIRStmt_if_false_of_eval
+    (fuel : Nat) (state : IRState) (cond : YulExpr) (body : List YulStmt) (value : Nat)
+    (hcond : evalIRExpr state cond = some value)
+    (hvalue : value = 0) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.if_ cond body) = .continue state := by
+  simp [execIRStmt, hcond, hvalue]
 
 private inductive RevertPrefixStmt : YulStmt → Prop where
   | mstore_lit {offset value : Nat} :
