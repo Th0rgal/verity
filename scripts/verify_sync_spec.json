@@ -1,5 +1,6 @@
 {
   "check_only_paths": [
+    ".github/workflows/issue-intake-guard.yml",
     ".github/ISSUE_TEMPLATE/**",
     "docs/**",
     "docs-site/**",
