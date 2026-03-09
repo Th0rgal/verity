@@ -281,6 +281,31 @@ private theorem nat_ceil_div_le_div_add_one (n c : Nat) (hC : c ≠ 0) :
       rw [Nat.mul_add]
       ac_rfl
 
+private theorem nat_ceil_div_eq_div_of_dvd (n c : Nat) (hC : c ≠ 0) (hDvd : c ∣ n) :
+    (n + (c - 1)) / c = n / c := by
+  have hCPos : 0 < c := Nat.pos_of_ne_zero hC
+  have hSubLt : c - 1 < c := Nat.sub_lt hCPos (by decide)
+  rw [Nat.add_div hCPos]
+  simp [Nat.mod_eq_zero_of_dvd hDvd, Nat.div_eq_of_lt hSubLt, Nat.mod_eq_of_lt hSubLt, hSubLt]
+
+private theorem nat_ceil_div_eq_div_add_one_of_not_dvd (n c : Nat) (hC : c ≠ 0)
+    (hNotDvd : ¬ c ∣ n) :
+    (n + (c - 1)) / c = n / c + 1 := by
+  have hCPos : 0 < c := Nat.pos_of_ne_zero hC
+  have hSubLt : c - 1 < c := Nat.sub_lt hCPos (by decide)
+  have hModPos : 0 < n % c := by
+    exact Nat.pos_of_ne_zero (by
+      intro hMod
+      apply hNotDvd
+      exact Nat.dvd_of_mod_eq_zero hMod)
+  rw [Nat.add_div hCPos]
+  have hCarry : c ≤ n % c + ((c - 1) % c) := by
+    rw [Nat.mod_eq_of_lt hSubLt]
+    omega
+  rw [Nat.div_eq_of_lt hSubLt, Nat.mod_eq_of_lt hSubLt]
+  simp
+  simpa [Nat.mod_eq_of_lt hSubLt] using hCarry
+
 /-- The ceil helper exceeds the floor helper by at most one quotient step when both are exact. -/
 theorem mulDivUp_le_mulDivDown_add_one (a b c : Uint256)
     (hC : c ≠ 0)
@@ -307,6 +332,38 @@ theorem mulDivUp_eq_mulDivDown_or_succ (a b c : Uint256)
   have hUpper : (mulDivUp a b c : Nat) ≤ (mulDivDown a b c : Nat) + 1 :=
     mulDivUp_le_mulDivDown_add_one a b c hC hNum
   omega
+
+/-- Exact divisibility removes the ceil/floor gap for `mulDivUp` and `mulDivDown`. -/
+theorem mulDivUp_eq_mulDivDown_of_dvd (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256)
+    (hDvd : (c : Nat) ∣ (a : Nat) * (b : Nat)) :
+    (mulDivUp a b c : Nat) = (mulDivDown a b c : Nat) := by
+  have hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.le_add_right _ _) hNum
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  rw [mulDivUp_nat_eq a b c hC hNum, mulDivDown_nat_eq a b c hMul]
+  simp [hCVal]
+  exact nat_ceil_div_eq_div_of_dvd ((a : Nat) * (b : Nat)) (c : Nat) hCVal hDvd
+
+/-- If the numerator is not divisible by the divisor, ceil division is the successor of floor division. -/
+theorem mulDivUp_eq_mulDivDown_add_one_of_not_dvd (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256)
+    (hNotDvd : ¬ (c : Nat) ∣ (a : Nat) * (b : Nat)) :
+    (mulDivUp a b c : Nat) = (mulDivDown a b c : Nat) + 1 := by
+  have hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256 := by
+    exact Nat.le_trans (Nat.le_add_right _ _) hNum
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  rw [mulDivUp_nat_eq a b c hC hNum, mulDivDown_nat_eq a b c hMul]
+  simp [hCVal]
+  exact nat_ceil_div_eq_div_add_one_of_not_dvd ((a : Nat) * (b : Nat)) (c : Nat) hCVal hNotDvd
 
 /-- Ceil division is positive whenever both numerator factors are positive. -/
 theorem mulDivUp_pos (a b c : Uint256)
@@ -829,22 +886,24 @@ safeDiv:
 35. mulDivDown_le_mulDivUp — ceil result never rounds below floor
 36. mulDivUp_le_mulDivDown_add_one — ceil result is at most one step above floor
 37. mulDivUp_eq_mulDivDown_or_succ — ceil/floor either match exactly or differ by one
-38. mulDivUp_pos — ceil division is positive for positive numerator factors
-39. mulDivUp_zero_left/right — zero numerators collapse ceil helpers
-40. mulDivUp_comm — widened numerator multiplication order does not matter
-41. mulDivUp_cancel_right/left — exact factor cancellation for ceil helpers
-42. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
-43. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
-44. wMulDown_pos — wad multiplication is positive once the product reaches one full wad
-45. wMulDown_zero_left/right — zero operands collapse wad multiplication
-46. wMulDown_one_left/right — wad-multiply identity lemmas
-47. wMulDown_comm — wad multiplication order does not matter
-48. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
-49. wDivUp_nat_eq — wad-divide specialization of mulDivUp
-50. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
-51. wDivUp_pos — positive wad numerators yield a positive ceil-division result
-52. wDivUp_zero — zero wad numerators collapse ceil helpers
-53. wDivUp_by_wad — wad ceil-division identity lemma
+38. mulDivUp_eq_mulDivDown_of_dvd — exact divisibility removes the ceil/floor gap
+39. mulDivUp_eq_mulDivDown_add_one_of_not_dvd — non-divisibility forces the one-step ceil gap
+40. mulDivUp_pos — ceil division is positive for positive numerator factors
+41. mulDivUp_zero_left/right — zero numerators collapse ceil helpers
+42. mulDivUp_comm — widened numerator multiplication order does not matter
+43. mulDivUp_cancel_right/left — exact factor cancellation for ceil helpers
+44. mulDivUp_antitone_divisor — larger divisors can only shrink ceil helpers
+45. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
+46. wMulDown_pos — wad multiplication is positive once the product reaches one full wad
+47. wMulDown_zero_left/right — zero operands collapse wad multiplication
+48. wMulDown_one_left/right — wad-multiply identity lemmas
+49. wMulDown_comm — wad multiplication order does not matter
+50. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
+51. wDivUp_nat_eq — wad-divide specialization of mulDivUp
+52. wDivUp_antitone_right — larger wad divisors can only shrink ceil helpers
+53. wDivUp_pos — positive wad numerators yield a positive ceil-division result
+54. wDivUp_zero — zero wad numerators collapse ceil helpers
+55. wDivUp_by_wad — wad ceil-division identity lemma
 -/
 
 end Verity.Proofs.Stdlib.Math

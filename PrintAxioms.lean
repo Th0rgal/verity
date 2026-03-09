@@ -565,8 +565,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
 -- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_le_div_add_one  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_eq_div_of_dvd  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_eq_div_add_one_of_not_dvd  -- private
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_le_mulDivDown_add_one
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_eq_mulDivDown_or_succ
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_eq_mulDivDown_of_dvd
+#print axioms Verity.Proofs.Stdlib.Math.mulDivUp_eq_mulDivDown_add_one_of_not_dvd
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_pos
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_zero_left
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_zero_right
@@ -768,4 +772,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 658 theorems/lemmas (605 public, 53 private)
+-- Total: 662 theorems/lemmas (607 public, 55 private)

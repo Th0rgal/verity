@@ -320,7 +320,7 @@ def wDivUp (a b : Uint256) : Uint256
 **Proof lemmas**
 
 - `mulDivDown_nat_eq`, `mulDivUp_nat_eq`, `mulDivDown_le_mulDivUp`, `mulDivDown_antitone_divisor`, `mulDivUp_antitone_divisor`, `mulDivDown_comm`, `mulDivUp_comm`, `wMulDown_comm` (`Verity/Proofs/Stdlib/Math.lean`)
-- Rounding-gap lemmas: `mulDivUp_le_mulDivDown_add_one`, `mulDivUp_eq_mulDivDown_or_succ` (`Verity/Proofs/Stdlib/Math.lean`)
+- Rounding-gap lemmas: `mulDivUp_le_mulDivDown_add_one`, `mulDivUp_eq_mulDivDown_or_succ`, `mulDivUp_eq_mulDivDown_of_dvd`, `mulDivUp_eq_mulDivDown_add_one_of_not_dvd` (`Verity/Proofs/Stdlib/Math.lean`)
 - Positivity lemmas: `mulDivDown_pos`, `mulDivUp_pos`, `wMulDown_pos`, `wDivUp_pos` (`Verity/Proofs/Stdlib/Math.lean`)
 - Zero-case lemmas: `mulDivDown_zero_left/right`, `mulDivUp_zero_left/right`, `wMulDown_zero_left/right`, `wDivUp_zero` (`Verity/Proofs/Stdlib/Math.lean`)
 - Exact cancellation and wad identity lemmas: `mulDivDown_cancel_right/left`, `mulDivUp_cancel_right/left`, `wMulDown_one_left/right`, `wDivUp_by_wad` (`Verity/Proofs/Stdlib/Math.lean`)
