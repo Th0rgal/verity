@@ -7,6 +7,23 @@ open Compiler.CompilationModel
 
 namespace Contract
 
+private theorem compiled_functions_forall₂_of_mapM_ok
+    (fields : List Field)
+    (events : List EventDef)
+    (errors : List ErrorDef) :
+    ∀ (entries : List (FunctionSpec × Nat)) irFns,
+      (entries.mapM fun (entry : FunctionSpec × Nat) =>
+        compileFunctionSpec fields events errors entry.2 entry.1) = Except.ok irFns →
+      List.Forall₂
+        (fun (entry : FunctionSpec × Nat) irFn =>
+          compileFunctionSpec fields events errors entry.2 entry.1 = Except.ok irFn)
+        entries irFns := by
+  /- TODO(#1510): discharge this as a purely structural `Except`/`List.mapM`
+  extraction lemma with no contract-specific assumptions. This is mechanical
+  proof plumbing; the generic Layer 2 proof must not depend on callers
+  supplying a pre-built `List.Forall₂` witness. -/
+  sorry
+
 theorem supported_params_of_supportedSpec
     (model : CompilationModel)
     (selectors : List Nat)
