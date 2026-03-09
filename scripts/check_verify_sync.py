@@ -381,9 +381,23 @@ def _extract_non_script_python_commands(run_commands: list[str]) -> list[str]:
     return result
 
 
-def _missing_required_run_substrings(run_commands: list[str], required_substrings: list[str]) -> list[str]:
-    joined = "\n".join(run_commands)
-    return [needle for needle in required_substrings if needle not in joined]
+def _normalize_run_command(raw: str) -> str:
+    return raw.rstrip().removesuffix("\\").rstrip()
+
+
+def _missing_required_run_commands(run_commands: list[str], required_commands: list[str]) -> list[str]:
+    normalized_run_commands = [_normalize_run_command(cmd) for cmd in run_commands]
+    missing: list[str] = []
+    for needle in required_commands:
+        normalized_needle = _normalize_run_command(needle)
+        if needle.startswith("-"):
+            pattern = re.compile(rf"(?:^|\s){re.escape(normalized_needle)}(?:\s|$)")
+            present = any(pattern.search(cmd) for cmd in normalized_run_commands)
+        else:
+            present = any(normalized_needle in cmd for cmd in normalized_run_commands)
+        if not present:
+            missing.append(needle)
+    return missing
 
 
 def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
@@ -429,7 +443,7 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
             spec["expected_build_compiler_commands"],
         )
     )
-    missing_build_run = _missing_required_run_substrings(
+    missing_build_run = _missing_required_run_commands(
         snapshot.run_commands("build"),
         spec.get("required_build_run_commands", []),
     )
@@ -438,7 +452,7 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
             "build job is missing required run commands: " + ", ".join(missing_build_run)
         )
 
-    missing_build_compiler_run = _missing_required_run_substrings(
+    missing_build_compiler_run = _missing_required_run_commands(
         snapshot.run_commands("build-compiler"),
         spec.get("required_build_compiler_run_commands", []),
     )

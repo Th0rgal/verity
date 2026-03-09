@@ -105,7 +105,15 @@
     "check_gas.py report",
     "check_patch_gas_delta.py --baseline-report gas-report-static.tsv --patched-report gas-report-static-patched.tsv --min-improved-contracts 0 --summary-markdown patch-gas-delta-summary.md >> \"$GITHUB_STEP_SUMMARY\""
   ],
-  "required_build_compiler_run_commands": [],
+  "required_build_compiler_run_commands": [
+    "lake build difftest-interpreter",
+    "--output compiler/yul",
+    "--output compiler/yul-patched",
+    "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
+    "--backend-profile solidity-parity",
+    "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
+    "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv"
+  ],
   "expected_foundry": {
     "shards": 8,
     "seed": 42
