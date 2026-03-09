@@ -2355,6 +2355,97 @@ theorem evalExpr_lt_evmModulus_core
       exact boolWord_lt_evmModulus _
 end
 
+theorem runtimeStateMatchesIR_setVar_bindValue
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state)
+    (boundName : String)
+    (value : Nat) :
+    runtimeStateMatchesIR fields
+      { runtime with bindings := SourceSemantics.bindValue runtime.bindings boundName value }
+      (state.setVar boundName value) := by
+  cases runtime
+  cases state
+  simpa [runtimeStateMatchesIR, IRState.setVar]
+
+def stmtResultMatchesIRExecExact :
+    SourceSemantics.StmtResult → IRExecResult → Prop
+  | .continue runtime, .continue state =>
+      bindingsExactlyMatchIRVars runtime.bindings state ∧
+      bindingsBounded runtime.bindings
+  | .stop runtime, .stop state =>
+      bindingsExactlyMatchIRVars runtime.bindings state ∧
+      bindingsBounded runtime.bindings
+  | .return _ runtime, .return _ state =>
+      bindingsExactlyMatchIRVars runtime.bindings state ∧
+      bindingsBounded runtime.bindings
+  | .revert, .revert _ => True
+  | _, _ => False
+
+/-- Statement fragment whose correctness can already be discharged using the
+expression core, without storage, calls, or ABI encoding. -/
+inductive StmtCompileCore : Stmt → Prop where
+  | letVar {name : String} {value : Expr} :
+      ExprCompileCore value → StmtCompileCore (.letVar name value)
+  | assignVar {name : String} {value : Expr} :
+      ExprCompileCore value → StmtCompileCore (.assignVar name value)
+  | return_ {value : Expr} :
+      ExprCompileCore value → StmtCompileCore (.return value)
+  | stop :
+      StmtCompileCore .stop
+
+theorem compileStmt_core_ok
+    {fields : List Field}
+    {stmt : Stmt}
+    (hcore : StmtCompileCore stmt) :
+    ∃ bodyIR, CompilationModel.compileStmt fields [] [] .calldata [] false [] stmt = Except.ok bodyIR := by
+  cases hcore with
+  | letVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.let_ name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | assignVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.assign name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | return_ hvalue =>
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | stop =>
+      exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
+        rw [CompilationModel.compileStmt]
+        rfl⟩
+
+theorem runtimeStateMatchesIR_setMemory
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hmatch : runtimeStateMatchesIR fields runtime state)
+    (offset value : Nat) :
+    runtimeStateMatchesIR fields runtime
+      { state with memory := fun o => if o = offset then value else state.memory o } := by
+  cases runtime
+  cases state
+  simpa [runtimeStateMatchesIR]
+
+theorem bindingsExactlyMatchIRVars_setMemory
+    {bindings : List (String × Nat)}
+    {state : IRState}
+    (hexact : bindingsExactlyMatchIRVars bindings state)
+    (offset value : Nat) :
+    bindingsExactlyMatchIRVars bindings
+      { state with memory := fun o => if o = offset then value else state.memory o } := by
+  intro name
+  simpa [IRState.getVar] using hexact name
+
 @[simp] theorem encodeEvents_withTransactionContext
     (world : Verity.ContractState) (tx : IRTransaction) :
     SourceSemantics.encodeEvents (SourceSemantics.withTransactionContext world tx).events =
@@ -2397,6 +2488,190 @@ def sourceResultMatchesIRResult
   source.returnValue = ir.returnValue ∧
   source.finalStorage = ir.finalStorage ∧
   source.events = ir.events
+
+theorem exec_compileStmt_letVar_core
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {name : String}
+    {value : Expr}
+    (hcore : ExprCompileCore value)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent value runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.letVar name value) = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmt fields runtime (.letVar name value)
+      let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
+      stmtResultMatchesIRExec fields sourceResult irExec ∧
+      stmtResultMatchesIRExecExact sourceResult irExec := by
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨[YulStmt.let_ name valueIR], ?_, ?_⟩
+  · rw [CompilationModel.compileStmt, hvalueIR]
+    rfl
+  · let valueNat := SourceSemantics.evalExpr fields runtime value
+    have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      simpa [valueNat] using heval
+    have hvalueLt := evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime
+    have hruntime' :
+        runtimeStateMatchesIR fields
+          ({ runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat })
+          (state.setVar name valueNat) :=
+      runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
+    have hexact' :
+        bindingsExactlyMatchIRVars
+          (SourceSemantics.bindValue runtime.bindings name valueNat)
+          (state.setVar name valueNat) :=
+      bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
+    have hbounded' :
+        bindingsBounded (SourceSemantics.bindValue runtime.bindings name valueNat) :=
+      bindingsBounded_bindValue hbounded name valueNat hvalueLt
+    have hirExec :
+        execIRStmts ([YulStmt.let_ name valueIR].length + 1) state [YulStmt.let_ name valueIR] =
+          .continue (state.setVar name valueNat) := by
+      simp [execIRStmts, execIRStmt, heval', valueNat]
+    constructor
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact hruntime'
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact ⟨hexact', hbounded'⟩
+
+theorem exec_compileStmt_assignVar_core
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {name : String}
+    {value : Expr}
+    (hcore : ExprCompileCore value)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent value runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.assignVar name value) = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmt fields runtime (.assignVar name value)
+      let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
+      stmtResultMatchesIRExec fields sourceResult irExec ∧
+      stmtResultMatchesIRExecExact sourceResult irExec := by
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨[YulStmt.assign name valueIR], ?_, ?_⟩
+  · rw [CompilationModel.compileStmt, hvalueIR]
+    rfl
+  · let valueNat := SourceSemantics.evalExpr fields runtime value
+    have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      simpa [valueNat] using heval
+    have hvalueLt := evalExpr_lt_evmModulus_core hcore hexact hbounded hpresent hruntime
+    have hruntime' :
+        runtimeStateMatchesIR fields
+          ({ runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat })
+          (state.setVar name valueNat) :=
+      runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
+    have hexact' :
+        bindingsExactlyMatchIRVars
+          (SourceSemantics.bindValue runtime.bindings name valueNat)
+          (state.setVar name valueNat) :=
+      bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
+    have hbounded' :
+        bindingsBounded (SourceSemantics.bindValue runtime.bindings name valueNat) :=
+      bindingsBounded_bindValue hbounded name valueNat hvalueLt
+    have hirExec :
+        execIRStmts ([YulStmt.assign name valueIR].length + 1) state [YulStmt.assign name valueIR] =
+          .continue (state.setVar name valueNat) := by
+      simp [execIRStmts, execIRStmt, heval', valueNat]
+    constructor
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact hruntime'
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact ⟨hexact', hbounded'⟩
+
+theorem exec_compileStmt_return_core
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {value : Expr}
+    (hcore : ExprCompileCore value)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent value runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] (.return value) = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmt fields runtime (.return value)
+      let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
+      stmtResultMatchesIRExec fields sourceResult irExec ∧
+      stmtResultMatchesIRExecExact sourceResult irExec := by
+  rcases compileExpr_core_ok hcore with ⟨valueIR, hvalueIR⟩
+  let retVal := SourceSemantics.evalExpr fields runtime value
+  let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
+  refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], ?_, ?_⟩
+  · rw [CompilationModel.compileStmt, hvalueIR]
+    rfl
+  · have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+    rw [hvalueIR] at heval
+    have heval' : evalIRExpr state valueIR = some retVal := by
+      simpa [retVal] using heval
+    have hruntime' : runtimeStateMatchesIR fields runtime state' :=
+      runtimeStateMatchesIR_setMemory hruntime 0 retVal
+    have hexact' : bindingsExactlyMatchIRVars runtime.bindings state' :=
+      bindingsExactlyMatchIRVars_setMemory hexact 0 retVal
+    have hmstore :
+        execIRStmt 2 state (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
+          .continue state' := by
+      simp [execIRStmt, evalIRExpr, heval', retVal, state']
+    have hreturn :
+        execIRStmt 1 state' (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
+          .return retVal state' := by
+      simp [execIRStmt, evalIRExpr, retVal, state']
+    have hirExec :
+        execIRStmts
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ].length + 1)
+            state
+            [ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] =
+          .return retVal state' := by
+      simp [execIRStmts, hmstore, hreturn]
+    constructor
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact ⟨rfl, hruntime'⟩
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact ⟨hexact', hbounded⟩
+
+theorem exec_compileStmt_stop_core
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] .stop = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmt fields runtime .stop
+      let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
+      stmtResultMatchesIRExec fields sourceResult irExec ∧
+      stmtResultMatchesIRExecExact sourceResult irExec := by
+  refine ⟨[YulStmt.expr (YulExpr.call "stop" [])], ?_, ?_⟩
+  · rw [CompilationModel.compileStmt]
+    rfl
+  · constructor
+    · have hirExec :
+          execIRStmts ([YulStmt.expr (YulExpr.call "stop" [])].length + 1) state
+            [YulStmt.expr (YulExpr.call "stop" [])] = .stop state := by
+        simp [execIRStmts]
+      rw [SourceSemantics.execStmt, hirExec]
+      exact hruntime
+    · have hirExec :
+          execIRStmts ([YulStmt.expr (YulExpr.call "stop" [])].length + 1) state
+            [YulStmt.expr (YulExpr.call "stop" [])] = .stop state := by
+        simp [execIRStmts]
+      rw [SourceSemantics.execStmt, hirExec]
+      exact ⟨hexact, hbounded⟩
 
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
