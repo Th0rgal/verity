@@ -123,7 +123,7 @@ This remains the last contract-level proof gap between body-level Yul equivalenc
 
 ### 7. `supported_function_body_correct_from_exact_state`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:670`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:684`
 
 **Statement**:
 ```lean
@@ -146,7 +146,7 @@ supported body shapes.
 
 ### 8. `supported_function_execIRFunction_eq_fuel`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:710`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:724`
 
 **Statement**:
 ```lean
@@ -166,7 +166,9 @@ checked counterexample now lives at
 (`execIRStmts_single_block_stop_length_insufficient`). So this is no longer
 just a missing bridge lemma: the supported-function path needs a structural
 fuel refactor (`sizeOf`-style) before it can reuse
-`execIRFunctionFuel_adequate` and eliminate this axiom cleanly.
+`execIRFunctionFuel_adequate` and eliminate this axiom cleanly. The new local
+structural lemmas in `Function.lean` now pin down the required lower bound
+`body.length + 1 ≤ sizeOf body + 1` for compiled function bodies.
 
 **Risk**: Medium.
 

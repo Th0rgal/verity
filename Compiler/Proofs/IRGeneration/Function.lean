@@ -48,6 +48,20 @@ def prebindRawArgs (state : IRState) (params : List Param) : IRState :=
 def rawArgBindings (params : List Param) (args : List Nat) : List (String × Nat) :=
   ((params.map Param.toIRParam).zip args).map (fun entry => (entry.1.name, entry.2))
 
+private theorem yulStmtList_length_le_sizeOf : (stmts : List YulStmt) → stmts.length ≤ sizeOf stmts
+  | [] => by simp
+  | _ :: rest => by
+      have hrest := yulStmtList_length_le_sizeOf rest
+      simp
+      omega
+
+private theorem compiledFunctionIR_body_length_le_sizeOf
+    (selector : Nat) (spec : FunctionSpec) (returns : List ParamType) (bodyStmts : List YulStmt) :
+    (compiledFunctionIR selector spec returns bodyStmts).body.length + 1 ≤
+      sizeOf (compiledFunctionIR selector spec returns bodyStmts).body + 1 := by
+  simpa [compiledFunctionIR] using Nat.add_le_add_right
+    (yulStmtList_length_le_sizeOf (genParamLoads spec.params ++ bodyStmts)) 1
+
 @[simp] theorem prebindRawArgs_calldata (state : IRState) (params : List Param) :
     (prebindRawArgs state params).calldata = state.calldata := by
   unfold prebindRawArgs
