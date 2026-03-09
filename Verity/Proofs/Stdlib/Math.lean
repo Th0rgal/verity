@@ -87,6 +87,27 @@ theorem mulDivDown_monotone_right (a b₁ b₂ c : Uint256)
     simp [hZero]
     exact Nat.div_le_div_right (Nat.mul_le_mul_left _ hB)
 
+/-- Floor rounding undershoots the exact numerator by less than one divisor-width. -/
+theorem mulDivDown_mul_lt_add (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (a : Nat) * (b : Nat) < (mulDivDown a b c : Nat) * (c : Nat) + (c : Nat) := by
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  rw [mulDivDown_nat_eq a b c hMul]
+  simp [hCVal]
+  have hModLt : ((a : Nat) * (b : Nat)) % (c : Nat) < (c : Nat) := Nat.mod_lt _ (Nat.pos_of_ne_zero hCVal)
+  calc
+    (a : Nat) * (b : Nat)
+        = (c : Nat) * (((a : Nat) * (b : Nat)) / (c : Nat)) + (((a : Nat) * (b : Nat)) % (c : Nat)) := by
+            simpa [Nat.mul_comm] using (Nat.div_add_mod ((a : Nat) * (b : Nat)) (c : Nat)).symm
+    _ < (c : Nat) * (((a : Nat) * (b : Nat)) / (c : Nat)) + (c : Nat) := by
+          exact Nat.add_lt_add_left hModLt _
+    _ = (((a : Nat) * (b : Nat)) / (c : Nat)) * (c : Nat) + (c : Nat) := by
+          simp [Nat.mul_comm]
+
 /-- `mulDivUp` agrees with exact ceil-division when the widened numerator does not wrap. -/
 theorem mulDivUp_nat_eq (a b c : Uint256)
     (hC : c ≠ 0)
@@ -224,6 +245,12 @@ theorem wMulDown_monotone_right (a b₁ b₂ : Uint256)
     (hMul : (a : Nat) * (b₂ : Nat) ≤ MAX_UINT256) :
     (wMulDown a b₁ : Nat) ≤ (wMulDown a b₂ : Nat) := by
   simpa [WAD_val] using mulDivDown_monotone_right a b₁ b₂ WAD hB hMul
+
+/-- Wad multiplication undershoots the numerator by less than one wad-width. -/
+theorem wMulDown_mul_lt_add (a b : Uint256)
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    (a : Nat) * (b : Nat) < (wMulDown a b : Nat) * (WAD : Nat) + (WAD : Nat) := by
+  simpa [WAD_val] using mulDivDown_mul_lt_add a b WAD (by decide) hMul
 
 /-- `wDivUp` is `mulDivUp` specialized to the canonical wad scale. -/
 theorem wDivUp_nat_eq (a b : Uint256)
@@ -462,10 +489,12 @@ safeDiv:
 
 26. mulDivDown_nat_eq — exact floor division when the numerator fits
 27. mulDivDown_mul_le — floor result never overshoots the numerator
-28. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
-29. mulDivDown_le_mulDivUp — ceil result never rounds below floor
-30. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
-31. wDivUp_nat_eq — wad-divide specialization of mulDivUp
+28. mulDivDown_mul_lt_add — floor undershoot is less than one divisor-width
+29. mulDivUp_nat_eq — exact ceil-style division when the widened numerator fits
+30. mulDivDown_le_mulDivUp — ceil result never rounds below floor
+31. wMulDown_nat_eq — wad-multiply specialization of mulDivDown
+32. wMulDown_mul_lt_add — wad floor undershoot is less than one wad-width
+33. wDivUp_nat_eq — wad-divide specialization of mulDivUp
 -/
 
 end Verity.Proofs.Stdlib.Math
