@@ -155,7 +155,7 @@ class VerifySyncTests(unittest.TestCase):
             err,
         )
 
-    def test_paths_check_fails_when_issue_intake_workflow_is_missing_from_filters(self) -> None:
+    def test_paths_check_fails_when_workflow_glob_is_missing_from_triggers(self) -> None:
         workflow = textwrap.dedent(
             """
             name: verify
@@ -185,50 +185,12 @@ class VerifySyncTests(unittest.TestCase):
         )
         rc, _, err = self._run_paths_check(
             workflow,
-            check_only_paths=[".github/workflows/issue-intake-guard.yml"],
+            check_only_paths=[".github/workflows/**"],
             compiler_paths=[".github/workflows/verify.yml", "scripts/**"],
         )
         self.assertEqual(rc, 1)
         self.assertIn(
-            "check_only_paths includes entries missing from on.push.paths: .github/workflows/issue-intake-guard.yml",
-            err,
-        )
-
-    def test_paths_check_fails_when_docs_workflow_is_missing_from_triggers(self) -> None:
-        workflow = textwrap.dedent(
-            """
-            name: verify
-            on:
-              push:
-                paths:
-                  - '.github/workflows/verify.yml'
-                  - 'docs-site/**'
-              pull_request:
-                paths:
-                  - '.github/workflows/verify.yml'
-                  - 'docs-site/**'
-            jobs:
-              changes:
-                runs-on: ubuntu-latest
-                steps:
-                  - uses: dorny/paths-filter@v3
-                    with:
-                      filters: |
-                        code:
-                          - '.github/workflows/verify.yml'
-                          - 'docs-site/**'
-                        compiler:
-                          - '.github/workflows/verify.yml'
-            """
-        )
-        rc, _, err = self._run_paths_check(
-            workflow,
-            check_only_paths=[".github/workflows/docs.yml", "docs-site/**"],
-            compiler_paths=[".github/workflows/verify.yml"],
-        )
-        self.assertEqual(rc, 1)
-        self.assertIn(
-            "check_only_paths includes entries missing from on.push.paths: .github/workflows/docs.yml",
+            "check_only_paths includes entries missing from on.push.paths: .github/workflows/**",
             err,
         )
 

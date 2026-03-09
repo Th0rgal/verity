@@ -6,8 +6,7 @@ on:
     paths:
       - '.github/actions/**'
       - '.github/ISSUE_TEMPLATE/**'
-      - '.github/workflows/docs.yml'
-      - '.github/workflows/issue-intake-guard.yml'
+      - '.github/workflows/**'
       - '.github/workflows/verify.yml'
       - 'artifacts/**'
       - 'Verity/**'
@@ -34,8 +33,7 @@ on:
     paths:
       - '.github/actions/**'
       - '.github/ISSUE_TEMPLATE/**'
-      - '.github/workflows/docs.yml'
-      - '.github/workflows/issue-intake-guard.yml'
+      - '.github/workflows/**'
       - '.github/workflows/verify.yml'
       - 'artifacts/**'
       - 'Verity/**'
