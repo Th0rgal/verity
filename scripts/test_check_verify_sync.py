@@ -394,6 +394,11 @@ class VerifySyncTests(unittest.TestCase):
         \tpython3 scripts/check_issue_templates.py
         \tpython3 scripts/check_docs_workflow_sync.py
         \tpython3 scripts/check_solc_pin.py
+        \tpython3 scripts/check_rewrite_proof_metadata.py
+        \tpython3 scripts/generate_evmyullean_capability_report.py --check
+        \tpython3 scripts/generate_evmyullean_adapter_report.py --check
+        \tpython3 scripts/generate_print_axioms.py --check
+        \tpython3 scripts/check_issue_1060_integrity.py
         \tpython3 -m unittest discover -s scripts -p 'test_*.py' -v
         """
         rc, out, err = self._run_makefile_check(
@@ -406,10 +411,55 @@ class VerifySyncTests(unittest.TestCase):
                 "python3 scripts/check_issue_templates.py",
                 "python3 scripts/check_docs_workflow_sync.py",
                 "python3 scripts/check_solc_pin.py",
+                "python3 scripts/check_rewrite_proof_metadata.py",
+                "python3 scripts/generate_evmyullean_capability_report.py --check",
+                "python3 scripts/generate_evmyullean_adapter_report.py --check",
+                "python3 scripts/generate_print_axioms.py --check",
+                "python3 scripts/check_issue_1060_integrity.py",
             ],
         )
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] makefile", out)
+
+    def test_makefile_check_fails_when_generated_report_commands_are_missing(self) -> None:
+        makefile = """
+        check:
+        \tpython3 scripts/generate_verification_status.py --check
+        \tpython3 scripts/check_verification_status_doc.py
+        \tpython3 scripts/check_verify_sync.py
+        \tpython3 scripts/check_issue_templates.py
+        \tpython3 scripts/check_docs_workflow_sync.py
+        \tpython3 scripts/check_solc_pin.py
+        \tpython3 -m unittest discover -s scripts -p 'test_*.py' -v
+        """
+        rc, _, err = self._run_makefile_check(
+            makefile,
+            expected_checks_commands=["make check"],
+            required_makefile_check_commands=[
+                "python3 scripts/generate_verification_status.py --check",
+                "python3 scripts/check_verification_status_doc.py",
+                "python3 scripts/check_verify_sync.py",
+                "python3 scripts/check_issue_templates.py",
+                "python3 scripts/check_docs_workflow_sync.py",
+                "python3 scripts/check_solc_pin.py",
+                "python3 scripts/check_rewrite_proof_metadata.py",
+                "python3 scripts/generate_evmyullean_capability_report.py --check",
+                "python3 scripts/generate_evmyullean_adapter_report.py --check",
+                "python3 scripts/generate_print_axioms.py --check",
+                "python3 scripts/check_issue_1060_integrity.py",
+                "python3 -m unittest discover -s scripts -p 'test_*.py' -v",
+            ],
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "Makefile check target is missing required commands: "
+            "python3 scripts/check_rewrite_proof_metadata.py, "
+            "python3 scripts/generate_evmyullean_capability_report.py --check, "
+            "python3 scripts/generate_evmyullean_adapter_report.py --check, "
+            "python3 scripts/generate_print_axioms.py --check, "
+            "python3 scripts/check_issue_1060_integrity.py",
+            err,
+        )
 
     def test_makefile_check_fails_when_required_solc_pin_command_is_missing(self) -> None:
         makefile = """
