@@ -1022,6 +1022,109 @@ theorem eval_compileExpr_localVar_of_exact_bindings
     SourceSemantics.boolWord b < Compiler.Constants.evmModulus := by
   cases b <;> norm_num [SourceSemantics.boolWord, Compiler.Constants.evmModulus]
 
+@[simp] theorem boolWord_and
+    (a b : Bool) :
+    (SourceSemantics.boolWord a &&& SourceSemantics.boolWord b) =
+      SourceSemantics.boolWord (a && b) := by
+  cases a <;> cases b <;>
+    simp [SourceSemantics.boolWord]
+
+@[simp] theorem boolWord_or
+    (a b : Bool) :
+    (SourceSemantics.boolWord a ||| SourceSemantics.boolWord b) =
+      SourceSemantics.boolWord (a || b) := by
+  cases a <;> cases b <;>
+    simp [SourceSemantics.boolWord]
+
+theorem compileExpr_eq_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.eq lhs rhs) =
+      Except.ok (YulExpr.call "eq" [lhsIR, rhsIR]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
+theorem compileExpr_lt_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.lt lhs rhs) =
+      Except.ok (YulExpr.call "lt" [lhsIR, rhsIR]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
+theorem compileExpr_gt_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.gt lhs rhs) =
+      Except.ok (YulExpr.call "gt" [lhsIR, rhsIR]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
+theorem compileExpr_ge_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.ge lhs rhs) =
+      Except.ok (YulExpr.call "iszero" [YulExpr.call "lt" [lhsIR, rhsIR]]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
+theorem compileExpr_le_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.le lhs rhs) =
+      Except.ok (YulExpr.call "iszero" [YulExpr.call "gt" [lhsIR, rhsIR]]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
+theorem compileExpr_logicalNot_ok
+    {fields : List Field}
+    {expr : Expr}
+    {exprIR : YulExpr}
+    (hexpr : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+    CompilationModel.compileExpr fields .calldata (.logicalNot expr) =
+      Except.ok (YulExpr.call "iszero" [exprIR]) := by
+  rw [CompilationModel.compileExpr, hexpr]
+  rfl
+
+theorem compileExpr_logicalAnd_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.logicalAnd lhs rhs) =
+      Except.ok (YulExpr.call "and"
+        [CompilationModel.yulToBool lhsIR, CompilationModel.yulToBool rhsIR]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
+theorem compileExpr_logicalOr_ok
+    {fields : List Field}
+    {lhs rhs : Expr}
+    {lhsIR rhsIR : YulExpr}
+    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
+    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
+    CompilationModel.compileExpr fields .calldata (.logicalOr lhs rhs) =
+      Except.ok (YulExpr.call "or"
+        [CompilationModel.yulToBool lhsIR, CompilationModel.yulToBool rhsIR]) := by
+  rw [CompilationModel.compileExpr, hlhs, hrhs]
+  rfl
+
 theorem evalExpr_literal_lt_evmModulus
     (fields : List Field)
     (state : SourceSemantics.RuntimeState)
