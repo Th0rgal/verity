@@ -699,6 +699,7 @@ def check_job_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
     expected_workflow_concurrency: dict[str, str] = spec.get(
         "expected_workflow_concurrency", {}
     )
+    expected_workflow_env: dict[str, str] = spec.get("expected_workflow_env", {})
 
     actual_workflow_permissions = _extract_literal_top_level_mapping(
         snapshot.workflow_text, "permissions"
@@ -721,6 +722,16 @@ def check_job_contracts(snapshot: Snapshot, spec: dict) -> CheckResult:
             actual_workflow_concurrency,
             "spec workflow concurrency",
             expected_workflow_concurrency,
+        )
+    )
+
+    actual_workflow_env = _extract_literal_top_level_mapping(snapshot.workflow_text, "env")
+    errors.extend(
+        _compare_mappings(
+            "workflow env",
+            actual_workflow_env,
+            "spec workflow env",
+            expected_workflow_env,
         )
     )
 

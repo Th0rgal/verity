@@ -132,6 +132,11 @@
     "group": "${{ github.workflow }}-${{ github.ref }}",
     "cancel-in-progress": "true"
   },
+  "expected_workflow_env": {
+    "SOLC_VERSION": "0.8.33",
+    "SOLC_URL": "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21",
+    "SOLC_SHA256": "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
+  },
   "expected_step_contracts": {
     "changes": [
       {

@@ -94,6 +94,7 @@ class VerifySyncTests(unittest.TestCase):
         expected_job_permissions: dict[str, dict[str, str]] | None = None,
         expected_workflow_permissions: dict[str, str] | None = None,
         expected_workflow_concurrency: dict[str, str] | None = None,
+        expected_workflow_env: dict[str, str] | None = None,
     ) -> tuple[int, str, str]:
         with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
             root = Path(td)
@@ -111,6 +112,7 @@ class VerifySyncTests(unittest.TestCase):
                         "expected_job_permissions": expected_job_permissions or {},
                         "expected_workflow_permissions": expected_workflow_permissions or {},
                         "expected_workflow_concurrency": expected_workflow_concurrency or {},
+                        "expected_workflow_env": expected_workflow_env or {},
                     }
                 ),
                 encoding="utf-8",
@@ -462,6 +464,8 @@ class VerifySyncTests(unittest.TestCase):
             concurrency:
               group: ${{ github.ref }}
               cancel-in-progress: false
+            env:
+              SOLC_VERSION: "0.8.32"
             jobs:
               changes:
                 runs-on: ubuntu-22.04
@@ -503,10 +507,12 @@ class VerifySyncTests(unittest.TestCase):
                 "group": "${{ github.workflow }}-${{ github.ref }}",
                 "cancel-in-progress": "true",
             },
+            expected_workflow_env={"SOLC_VERSION": "0.8.33"},
         )
         self.assertEqual(rc, 1)
         self.assertIn("workflow permissions does not match spec workflow permissions.", err)
         self.assertIn("workflow concurrency does not match spec workflow concurrency.", err)
+        self.assertIn("workflow env does not match spec workflow env.", err)
         self.assertIn(
             "changes runs-on does not match spec: workflow='ubuntu-22.04', spec='ubuntu-latest'",
             err,
@@ -527,6 +533,9 @@ class VerifySyncTests(unittest.TestCase):
             concurrency:
               group: ${{ github.workflow }}-${{ github.ref }}
               cancel-in-progress: true
+            env:
+              SOLC_VERSION: "0.8.33"
+              SOLC_URL: "https://example.invalid/solc"
             jobs:
               changes:
                 runs-on: ubuntu-latest
@@ -568,6 +577,10 @@ class VerifySyncTests(unittest.TestCase):
             expected_workflow_concurrency={
                 "group": "${{ github.workflow }}-${{ github.ref }}",
                 "cancel-in-progress": "true",
+            },
+            expected_workflow_env={
+                "SOLC_VERSION": "0.8.33",
+                "SOLC_URL": "https://example.invalid/solc",
             },
         )
         self.assertEqual(rc, 0, err)
