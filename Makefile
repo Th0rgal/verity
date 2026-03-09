@@ -126,6 +126,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_solc_pin.py
 	python3 scripts/check_property_manifest_sync.py
 	python3 scripts/check_issue_templates.py
+	python3 scripts/check_docs_workflow_sync.py
 	python3 scripts/check_macro_health.py
 	python3 scripts/check_storage_layout.py
 	python3 scripts/check_lean_hygiene.py

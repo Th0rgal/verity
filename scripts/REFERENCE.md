@@ -6,6 +6,7 @@ This document is the long-form reference for script responsibilities.
 
 - `check_verify_sync.py`: unified table-driven validator for workflow invariants.
 - `verify_sync_spec.json`: expected job order, command lists, path filters, foundry settings, and artifact producers.
+- `check_docs_workflow_sync.py`: keep the docs workflow self-triggering and aligned across push/pull_request path filters.
 
 ## Issue #1060 automation
 
