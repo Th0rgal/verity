@@ -2673,6 +2673,158 @@ theorem exec_compileStmt_stop_core
       rw [SourceSemantics.execStmt, hirExec]
       exact ⟨hexact, hbounded⟩
 
+def scopeNamesPresent (scope : List String) (bindings : List (String × Nat)) : Prop :=
+  ∀ name, name ∈ scope → ∃ value, lookupBinding? bindings name = some value
+
+def exprBoundNamesInScope (expr : Expr) (scope : List String) : Prop :=
+  ∀ name, name ∈ exprBoundNames expr → name ∈ scope
+
+theorem exprBoundNamesPresent_of_scope
+    {expr : Expr}
+    {scope : List String}
+    {bindings : List (String × Nat)}
+    (hscope : scopeNamesPresent scope bindings)
+    (hinScope : exprBoundNamesInScope expr scope) :
+    exprBoundNamesPresent expr bindings := by
+  intro name hname
+  exact hscope name (hinScope name hname)
+
+theorem scopeNamesPresent_bindValue
+    {scope : List String}
+    {bindings : List (String × Nat)}
+    {boundName : String}
+    {value : Nat}
+    (hscope : scopeNamesPresent scope bindings) :
+    scopeNamesPresent scope (SourceSemantics.bindValue bindings boundName value) := by
+  intro name hmem
+  rcases hscope name hmem with ⟨found, hfound⟩
+  by_cases hEq : name = boundName
+  · subst hEq
+    exact ⟨value, lookupBinding?_bindValue_eq bindings name value⟩
+  · exact ⟨found, by
+      rw [lookupBinding?_bindValue_ne bindings boundName name value hEq, hfound]⟩
+
+theorem scopeNamesPresent_cons_bindValue
+    {scope : List String}
+    {bindings : List (String × Nat)}
+    {boundName : String}
+    {value : Nat}
+    (hscope : scopeNamesPresent scope bindings) :
+    scopeNamesPresent (boundName :: scope) (SourceSemantics.bindValue bindings boundName value) := by
+  intro name hmem
+  simp at hmem
+  rcases hmem with rfl | hmem
+  · exact ⟨value, lookupBinding?_bindValue_eq bindings name value⟩
+  · exact (scopeNamesPresent_bindValue hscope) name hmem
+
+/-- Sequential statement fragment that can already be proved generically from the
+expression core. The scope tracks names available to later expressions. -/
+inductive StmtListCompileCore : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListCompileCore scope []
+  | letVar {scope : List String} {name : String} {value : Expr} {rest : List Stmt} :
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListCompileCore (name :: scope) rest →
+      StmtListCompileCore scope (.letVar name value :: rest)
+  | assignVar {scope : List String} {name : String} {value : Expr} {rest : List Stmt} :
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListCompileCore (name :: scope) rest →
+      StmtListCompileCore scope (.assignVar name value :: rest)
+  | return_ {scope : List String} {value : Expr} {rest : List Stmt} :
+      ExprCompileCore value →
+      exprBoundNamesInScope value scope →
+      StmtListCompileCore scope rest →
+      StmtListCompileCore scope (.return value :: rest)
+  | stop {scope : List String} {rest : List Stmt} :
+      StmtListCompileCore scope rest →
+      StmtListCompileCore scope (.stop :: rest)
+
+theorem compileStmt_core_ok_any_scope
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmt : Stmt}
+    (hcore : StmtCompileCore stmt) :
+    ∃ bodyIR,
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR := by
+  cases hcore with
+  | letVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.let_ name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | assignVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.assign name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | return_ hvalue =>
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | stop =>
+      exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
+        rw [CompilationModel.compileStmt]
+        rfl⟩
+
+theorem compileStmtList_core_ok
+    {fields : List Field}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (hcore : StmtListCompileCore scope stmts) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hcore generalizing inScopeNames
+  case nil =>
+      exact ⟨[], rfl⟩
+  case letVar scope name value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .letVar name value) (.letVar hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case assignVar scope name value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .assignVar name value) (.assignVar hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case return_ scope value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .return value) (.return_ hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.return value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case stop scope rest hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .stop) StmtCompileCore.stop with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.stop) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
