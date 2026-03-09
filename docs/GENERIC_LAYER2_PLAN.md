@@ -190,7 +190,7 @@ The work is only done if all checks below pass:
 
 Use this checklist in the PR description and keep it current:
 
-- [ ] Define `SupportedFunction` / `SupportedSpec`
+- [x] Define `SupportedFunction` / `SupportedSpec`
 - [ ] Define source whole-contract semantics for the supported fragment
 - [ ] Prove param-loading correctness
 - [ ] Prove `compileFunctionSpec` correctness
@@ -225,4 +225,3 @@ Success condition for the demo:
 - the contract still compiles via `CompilationModel.compile`
 - the generic theorem instantiates directly
 - the old contract-specific Layer 2 theorem is reduced to a wrapper or removed
-
