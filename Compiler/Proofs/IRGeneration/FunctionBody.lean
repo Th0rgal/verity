@@ -3983,6 +3983,25 @@ private theorem execIRStmts_cons_of_execIRStmt_continue_extraFuel
       execIRStmts (rest.length + extraFuel + 1) next rest := by
   simp [execIRStmts, hstmt]
 
+private theorem execIRStmts_cons_of_execIRStmt_continue_anyFuel
+    (fuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (hstmt : execIRStmt fuel state stmt = .continue next) :
+    execIRStmts (fuel + 1) state (stmt :: rest) =
+      execIRStmts fuel next rest := by
+  cases fuel with
+  | zero =>
+      cases stmt with
+      | funcDef name params rets body =>
+          have hnext : next = state := by
+            simpa [execIRStmt] using hstmt.symm
+          subst hnext
+          rfl
+      | _ =>
+          simp [execIRStmt] at hstmt
+  | succ fuel =>
+      simp [execIRStmts, hstmt]
+
 private theorem execIRStmts_cons_of_execIRStmt_return
     (state next : IRState) (stmt : YulStmt) (rest : List YulStmt) (value : Nat)
     (hstmt : execIRStmt (rest.length + 1) state stmt = .return value next) :
@@ -3997,6 +4016,18 @@ private theorem execIRStmts_cons_of_execIRStmt_return_extraFuel
     execIRStmts (rest.length + extraFuel + 2) state (stmt :: rest) =
       .return value next := by
   simp [execIRStmts, hstmt]
+
+private theorem execIRStmts_cons_of_execIRStmt_return_anyFuel
+    (fuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt) (value : Nat)
+    (hstmt : execIRStmt fuel state stmt = .return value next) :
+    execIRStmts (fuel + 1) state (stmt :: rest) =
+      .return value next := by
+  cases fuel with
+  | zero =>
+      cases stmt <;> simp [execIRStmt, execIRStmts] at hstmt ⊢ <;> simpa using hstmt
+  | succ fuel =>
+      simp [execIRStmts, hstmt]
 
 private theorem execIRStmts_cons_of_execIRStmt_stop
     (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
@@ -4013,6 +4044,18 @@ private theorem execIRStmts_cons_of_execIRStmt_stop_extraFuel
       .stop next := by
   simp [execIRStmts, hstmt]
 
+private theorem execIRStmts_cons_of_execIRStmt_stop_anyFuel
+    (fuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (hstmt : execIRStmt fuel state stmt = .stop next) :
+    execIRStmts (fuel + 1) state (stmt :: rest) =
+      .stop next := by
+  cases fuel with
+  | zero =>
+      cases stmt <;> simp [execIRStmt, execIRStmts] at hstmt ⊢ <;> simpa using hstmt
+  | succ fuel =>
+      simp [execIRStmts, hstmt]
+
 private theorem execIRStmts_cons_of_execIRStmt_revert
     (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
     (hstmt : execIRStmt (rest.length + 1) state stmt = .revert next) :
@@ -4027,6 +4070,18 @@ private theorem execIRStmts_cons_of_execIRStmt_revert_extraFuel
     execIRStmts (rest.length + extraFuel + 2) state (stmt :: rest) =
       .revert next := by
   simp [execIRStmts, hstmt]
+
+private theorem execIRStmts_cons_of_execIRStmt_revert_anyFuel
+    (fuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (hstmt : execIRStmt fuel state stmt = .revert next) :
+    execIRStmts (fuel + 1) state (stmt :: rest) =
+      .revert next := by
+  cases fuel with
+  | zero =>
+      cases stmt <;> simp [execIRStmt, execIRStmts] at hstmt ⊢ <;> simpa using hstmt
+  | succ fuel =>
+      simp [execIRStmts, hstmt]
 
 private theorem execIRStmts_two_of_execIRStmt_continue
     (state mid : IRState) (stmt1 stmt2 : YulStmt) (rest : List YulStmt)
