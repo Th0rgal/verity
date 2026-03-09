@@ -1127,6 +1127,40 @@ class VerifySyncTests(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] step-contracts", out)
 
+    def test_step_contracts_check_folds_with_script_block_scalars(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            jobs:
+              failure-hints:
+                runs-on: ubuntu-latest
+                steps:
+                  - name: Post CI failure hints
+                    uses: actions/github-script@v7
+                    with:
+                      script: >-
+                        const marker = "<!-- ci-failure-hints -->";
+
+                        core.info(marker);
+            """
+        )
+        rc, out, err = self._run_step_contracts_check(
+            workflow,
+            expected_step_contracts={
+                "failure-hints": [
+                    {
+                        "name": "Post CI failure hints",
+                        "uses": "actions/github-script@v7",
+                        "with": {
+                            "script": 'const marker = "<!-- ci-failure-hints -->";\ncore.info(marker);'
+                        },
+                    }
+                ]
+            },
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] step-contracts", out)
+
     def test_paths_check_fails_when_check_only_path_is_missing_from_triggers(self) -> None:
         workflow = textwrap.dedent(
             """
