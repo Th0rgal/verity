@@ -88,6 +88,12 @@ class VerifySyncTests(unittest.TestCase):
         *,
         expected_job_needs: dict[str, list[str]],
         expected_job_if_conditions: dict[str, str | None],
+        expected_job_runs_on: dict[str, str] | None = None,
+        expected_job_timeouts: dict[str, int] | None = None,
+        expected_job_outputs: dict[str, dict[str, str]] | None = None,
+        expected_job_permissions: dict[str, dict[str, str]] | None = None,
+        expected_workflow_permissions: dict[str, str] | None = None,
+        expected_workflow_concurrency: dict[str, str] | None = None,
     ) -> tuple[int, str, str]:
         with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
             root = Path(td)
@@ -99,6 +105,12 @@ class VerifySyncTests(unittest.TestCase):
                     {
                         "expected_job_needs": expected_job_needs,
                         "expected_job_if_conditions": expected_job_if_conditions,
+                        "expected_job_runs_on": expected_job_runs_on or {},
+                        "expected_job_timeouts": expected_job_timeouts or {},
+                        "expected_job_outputs": expected_job_outputs or {},
+                        "expected_job_permissions": expected_job_permissions or {},
+                        "expected_workflow_permissions": expected_workflow_permissions or {},
+                        "expected_workflow_concurrency": expected_workflow_concurrency or {},
                     }
                 ),
                 encoding="utf-8",
@@ -312,6 +324,8 @@ class VerifySyncTests(unittest.TestCase):
                 "changes": None,
                 "build": "needs.changes.outputs.code == 'true'",
             },
+            expected_job_runs_on={"changes": "ubuntu-latest", "build": "ubuntu-latest"},
+            expected_job_timeouts={"changes": 5, "build": 45},
         )
         self.assertEqual(rc, 1)
         self.assertIn("[FAIL] job-contracts", err)
@@ -353,6 +367,11 @@ class VerifySyncTests(unittest.TestCase):
                 "build": "needs.changes.outputs.code == 'true'",
                 "foundry": "always() && github.event_name == 'pull_request'",
             },
+            expected_job_runs_on={
+                "changes": "ubuntu-latest",
+                "build": "ubuntu-latest",
+                "foundry": "ubuntu-latest",
+            },
         )
         self.assertEqual(rc, 0, err)
         self.assertIn("[PASS] job-contracts", out)
@@ -391,6 +410,131 @@ class VerifySyncTests(unittest.TestCase):
                 "changes": None,
                 "build": "needs.changes.outputs.code == 'true'",
                 "foundry": "always() && github.event_name == 'pull_request'",
+            },
+            expected_job_runs_on={
+                "changes": "ubuntu-latest",
+                "build": "ubuntu-latest",
+                "foundry": "ubuntu-latest",
+            },
+        )
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[PASS] job-contracts", out)
+
+    def test_job_contracts_check_fails_when_runner_timeout_outputs_and_permissions_drift(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            permissions:
+              contents: write
+            concurrency:
+              group: ${{ github.ref }}
+              cancel-in-progress: false
+            jobs:
+              changes:
+                runs-on: ubuntu-22.04
+                timeout-minutes: 7
+                outputs:
+                  code: ${{ steps.filter.outputs.code }}
+                  compiler: ${{ steps.filter.outputs.code }}
+                steps: []
+              failure-hints:
+                runs-on: ubuntu-latest
+                permissions:
+                  contents: read
+                steps: []
+            """
+        )
+        rc, _, err = self._run_job_contracts_check(
+            workflow,
+            expected_job_needs={"changes": [], "failure-hints": []},
+            expected_job_if_conditions={"changes": None, "failure-hints": None},
+            expected_job_runs_on={
+                "changes": "ubuntu-latest",
+                "failure-hints": "ubuntu-latest",
+            },
+            expected_job_timeouts={"changes": 5},
+            expected_job_outputs={
+                "changes": {
+                    "code": "${{ steps.filter.outputs.code }}",
+                    "compiler": "${{ steps.filter.outputs.compiler }}",
+                }
+            },
+            expected_job_permissions={
+                "failure-hints": {
+                    "contents": "read",
+                    "pull-requests": "write",
+                }
+            },
+            expected_workflow_permissions={"contents": "read"},
+            expected_workflow_concurrency={
+                "group": "${{ github.workflow }}-${{ github.ref }}",
+                "cancel-in-progress": "true",
+            },
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("workflow permissions does not match spec workflow permissions.", err)
+        self.assertIn("workflow concurrency does not match spec workflow concurrency.", err)
+        self.assertIn(
+            "changes runs-on does not match spec: workflow='ubuntu-22.04', spec='ubuntu-latest'",
+            err,
+        )
+        self.assertIn(
+            "changes timeout-minutes does not match spec: workflow='7', spec='5'",
+            err,
+        )
+        self.assertIn("changes outputs does not match spec changes outputs.", err)
+        self.assertIn("failure-hints permissions does not match spec failure-hints permissions.", err)
+
+    def test_job_contracts_check_passes_when_workflow_platform_contracts_match_spec(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: verify
+            permissions:
+              contents: read
+            concurrency:
+              group: ${{ github.workflow }}-${{ github.ref }}
+              cancel-in-progress: true
+            jobs:
+              changes:
+                runs-on: ubuntu-latest
+                timeout-minutes: 5
+                outputs:
+                  code: ${{ steps.filter.outputs.code }}
+                  compiler: ${{ steps.filter.outputs.compiler }}
+                steps: []
+              failure-hints:
+                runs-on: ubuntu-latest
+                permissions:
+                  contents: read
+                  pull-requests: write
+                steps: []
+            """
+        )
+        rc, out, err = self._run_job_contracts_check(
+            workflow,
+            expected_job_needs={"changes": [], "failure-hints": []},
+            expected_job_if_conditions={"changes": None, "failure-hints": None},
+            expected_job_runs_on={
+                "changes": "ubuntu-latest",
+                "failure-hints": "ubuntu-latest",
+            },
+            expected_job_timeouts={"changes": 5},
+            expected_job_outputs={
+                "changes": {
+                    "code": "${{ steps.filter.outputs.code }}",
+                    "compiler": "${{ steps.filter.outputs.compiler }}",
+                }
+            },
+            expected_job_permissions={
+                "failure-hints": {
+                    "contents": "read",
+                    "pull-requests": "write",
+                }
+            },
+            expected_workflow_permissions={"contents": "read"},
+            expected_workflow_concurrency={
+                "group": "${{ github.workflow }}-${{ github.ref }}",
+                "cancel-in-progress": "true",
             },
         )
         self.assertEqual(rc, 0, err)

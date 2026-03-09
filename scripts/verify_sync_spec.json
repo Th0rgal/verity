@@ -90,6 +90,48 @@
     "foundry-multi-seed": "needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'",
     "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')"
   },
+  "expected_job_runs_on": {
+    "changes": "ubuntu-latest",
+    "checks": "ubuntu-latest",
+    "build": "ubuntu-latest",
+    "build-compiler": "ubuntu-latest",
+    "lean-profile": "ubuntu-latest",
+    "foundry-gas-calibration": "ubuntu-latest",
+    "foundry": "ubuntu-latest",
+    "foundry-patched": "ubuntu-latest",
+    "foundry-multi-seed": "ubuntu-latest",
+    "failure-hints": "ubuntu-latest"
+  },
+  "expected_job_timeouts": {
+    "changes": 5,
+    "checks": 5,
+    "build": 45,
+    "build-compiler": 90,
+    "lean-profile": 45,
+    "foundry-gas-calibration": 15,
+    "foundry": 15,
+    "foundry-patched": 15,
+    "foundry-multi-seed": 25
+  },
+  "expected_job_outputs": {
+    "changes": {
+      "code": "${{ steps.filter.outputs.code }}",
+      "compiler": "${{ steps.filter.outputs.compiler }}"
+    }
+  },
+  "expected_job_permissions": {
+    "failure-hints": {
+      "contents": "read",
+      "pull-requests": "write"
+    }
+  },
+  "expected_workflow_permissions": {
+    "contents": "read"
+  },
+  "expected_workflow_concurrency": {
+    "group": "${{ github.workflow }}-${{ github.ref }}",
+    "cancel-in-progress": "true"
+  },
   "expected_checks_commands": [
     "make check"
   ],
