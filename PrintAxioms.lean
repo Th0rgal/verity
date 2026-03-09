@@ -554,6 +554,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_monotone_left
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_monotone_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_lt_add
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_monotone_left
@@ -564,6 +565,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_mul_le
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_monotone_left
 #print axioms Verity.Proofs.Stdlib.Math.wMulDown_monotone_right
+#print axioms Verity.Proofs.Stdlib.Math.wMulDown_mul_lt_add
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_monotone_left
 #print axioms Verity.Proofs.Stdlib.Math.wDivUp_mul_lt_add
@@ -739,4 +741,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
--- Total: 629 theorems/lemmas (577 public, 52 private)
+-- Total: 631 theorems/lemmas (579 public, 52 private)
