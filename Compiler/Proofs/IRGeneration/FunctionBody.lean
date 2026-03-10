@@ -4220,6 +4220,38 @@ private theorem execIRStmt_if_false_of_eval
     execIRStmt (Nat.succ fuel) state (YulStmt.if_ cond body) = .continue state := by
   simp [execIRStmt, hcond, hvalue]
 
+private theorem execIRStmt_let_of_eval_anyFuel
+    (fuel : Nat)
+    (state : IRState)
+    (name : String)
+    (valueExpr : YulExpr)
+    (value : Nat)
+    (heval : evalIRExpr state valueExpr = some value) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.let_ name valueExpr) =
+      .continue (state.setVar name value) := by
+  simp [execIRStmt, heval]
+
+private theorem execIRStmt_assign_of_eval_anyFuel
+    (fuel : Nat)
+    (state : IRState)
+    (name : String)
+    (valueExpr : YulExpr)
+    (value : Nat)
+    (heval : evalIRExpr state valueExpr = some value) :
+    execIRStmt (Nat.succ fuel) state (YulStmt.assign name valueExpr) =
+      .continue (state.setVar name value) := by
+  simp [execIRStmt, heval]
+
+private theorem evalIRExpr_iszero_of_eval
+    (state : IRState)
+    (expr : YulExpr)
+    (value : Nat)
+    (heval : evalIRExpr state expr = some value)
+    (hvalueLt : value < Compiler.Constants.evmModulus) :
+    evalIRExpr state (YulExpr.call "iszero" [expr]) =
+      some (if value = 0 then 1 else 0) := by
+  simpa [boolWord_eq_if] using evalIRExpr_iszero_of_lt heval hvalueLt
+
 private inductive RevertPrefixStmt : YulStmt → Prop where
   | mstore_lit {offset value : Nat} :
       RevertPrefixStmt (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.lit value]))
