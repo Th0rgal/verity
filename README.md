@@ -219,7 +219,7 @@ verity/
 │   ├── <Name>/Spec.lean       #   Formal specification
 │   ├── <Name>/Proofs/*.lean   #   Correctness proofs
 │   ├── <Name>/<Name>.lean      #   Canonical verity_contract definitions
-│   └── Proofs/SemanticBridge.lean # Manual EDSL -> IR/Yul bridge theorems for a subset of contracts
+│   └── Proofs/SemanticBridge.lean # Current contract-specific Layer 2 wrapper theorems for supported contracts
 ├── Compiler/            # Compilation pipeline
 │   ├── CompilationModel/      # Declarative compiler-facing model (types, validation, codegen)
 │   ├── Proofs/          #   Compilation correctness proofs (Layers 1-3)

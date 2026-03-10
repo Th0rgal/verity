@@ -195,12 +195,16 @@ def mkIRState
   events := encodeEvents state.events
 }
 
-/-! ## Layer 2 Generic Theorem Spine -/
+/-! ## Layer 2 Wrapper Theorem -/
 
-/-- Generic Layer-2 bridge theorem: once a contract-specific postcondition is
-established for the compiled IR contract, the same postcondition is available
-through the `compile` entrypoint for all states and senders. This enforces the
-universal quantification shape at Layer 2 and avoids fixed test fixtures. -/
+/-- Wrapper theorem for the current contract-specific Layer 2 bridge style.
+
+This is not a generic compiler-correctness theorem for `CompilationModel.compile`.
+It only says that once a caller already has a contract-specific postcondition
+for the compiled IR contract, that same postcondition can be transported
+through the `compile` entrypoint for all states and senders. The actual
+semantic work still lives in the contract-specific bridge theorem passed in as
+`hpost`. -/
 theorem spec_to_ir_preserves_semantics
     {α : Type}
     (spec : CompilationModel.CompilationModel)
