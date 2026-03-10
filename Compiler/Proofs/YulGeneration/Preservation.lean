@@ -72,6 +72,59 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
           fn.body) := by
   simp [interpretYulBody]
 
+mutual
+def yulExprNoRef (name : String) : YulExpr → Prop
+  | .lit _ => True
+  | .hex _ => True
+  | .str _ => True
+  | .ident ident => ident ≠ name
+  | .call _ args => yulExprsNoRef name args
+
+def yulExprsNoRef (name : String) : List YulExpr → Prop
+  | [] => True
+  | expr :: exprs => yulExprNoRef name expr ∧ yulExprsNoRef name exprs
+end
+
+mutual
+def yulStmtNoRef (name : String) : YulStmt → Prop
+  | .comment _ => True
+  | .let_ _ value => yulExprNoRef name value
+  | .letMany _ value => yulExprNoRef name value
+  | .assign _ value => yulExprNoRef name value
+  | .expr expr => yulExprNoRef name expr
+  | .leave => True
+  | .if_ cond body => yulExprNoRef name cond ∧ yulStmtsNoRef name body
+  | .for_ init cond post body =>
+      yulStmtsNoRef name init ∧ yulExprNoRef name cond ∧
+        yulStmtsNoRef name post ∧ yulStmtsNoRef name body
+  | .switch expr cases defaultCase =>
+      yulExprNoRef name expr ∧ yulSwitchCasesNoRef name cases ∧
+        yulOptionStmtsNoRef name defaultCase
+  | .block stmts => yulStmtsNoRef name stmts
+  | .funcDef _ _ _ _ => True
+
+def yulStmtsNoRef (name : String) : List YulStmt → Prop
+  | [] => True
+  | stmt :: stmts => yulStmtNoRef name stmt ∧ yulStmtsNoRef name stmts
+
+def yulSwitchCasesNoRef (name : String) : List (Nat × List YulStmt) → Prop
+  | [] => True
+  | (_, body) :: rest => yulStmtsNoRef name body ∧ yulSwitchCasesNoRef name rest
+
+def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
+  | none => True
+  | some body => yulStmtsNoRef name body
+end
+
+/-- Explicit theorem hypothesis used in place of the old kernel axiom. -/
+def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
+  ∀ state fuel,
+    yulStmtsNoRef "__has_selector" body →
+    yulResultOfExecWithRollback state
+      (execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body) =
+    yulResultOfExecWithRollback state
+      (execYulStmtsFuel fuel state body)
+
 /-- Helper: initial Yul state aligned with the IR transaction/state. -/
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage state.events
@@ -746,18 +799,11 @@ After the guard prefix has been proved to pass (by `exec_switchCaseBody_continue
 the remaining gap is connecting fuel-bounded execution of `fn.body` in a state
 where `__has_selector = 1` to the total `interpretYulRuntime fn.body ...`.
 
-This gap is decomposed into two independent sub-properties, each captured by
-its own axiom:
+This gap is decomposed into:
+- an explicit dead-variable bridge hypothesis for bodies that syntactically do
+  not read `__has_selector`
+- the remaining fuel-adequacy axiom
 -/
-
-/-- **Variable irrelevance**: the `__has_selector` dispatch variable is never
-read by function body statements, so adding it to the variable environment
-does not change execution.  This is a purely Yul-level property that does not
-mention IR types. -/
-private axiom execYulStmtsFuel_setVar_hasSelector_irrelevant
-    (body : List YulStmt) (state : YulState) (fuel : Nat) :
-    execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body =
-    execYulStmtsFuel fuel state body
 
 /-- **Fuel adequacy**: when the fuel budget is at least `sizeOf body + 1`
 (the amount used by `execYulStmts`), fuel-bounded execution gives the same
@@ -771,12 +817,14 @@ private axiom execYulStmtsFuel_fuel_adequate
 /-- Composition of variable irrelevance and fuel adequacy. -/
 private theorem SwitchCaseBodyBridge_body
     (body : List YulStmt) (state : YulState) (fuel : Nat)
+    (hDead : HasSelectorDeadBridge body)
+    (hNoRef : yulStmtsNoRef "__has_selector" body)
     (h : fuel ≥ sizeOf body + 1) :
     yulResultOfExecWithRollback state
       (execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body) =
     yulResultOfExecWithRollback state
       (execYulStmts state body) := by
-  rw [execYulStmtsFuel_setVar_hasSelector_irrelevant]
+  rw [hDead state fuel hNoRef]
   rw [execYulStmtsFuel_fuel_adequate body state fuel h]
 
 /-! ### switchCaseBody bridge theorem
@@ -784,10 +832,13 @@ private theorem SwitchCaseBodyBridge_body
 `SwitchCaseBodyBridge` is now a proved theorem rather than an axiom.
 It composes two pieces:
 1. `exec_switchCaseBody_continue_of_long` — proved guard-prefix stepping
-2. `SwitchCaseBodyBridge_body` — composed from variable irrelevance + fuel adequacy axioms
+2. `SwitchCaseBodyBridge_body` — composed from an explicit dead-variable bridge
+   hypothesis and the fuel adequacy axiom
 -/
 private theorem SwitchCaseBodyBridge
     (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat)
+    (hDead : HasSelectorDeadBridge fn.body)
+    (hNoRef : yulStmtsNoRef "__has_selector" fn.body)
     (hFuelAdequate : fuel ≥ sizeOf fn.body + 5) :
     DispatchGuardsSafe fn tx →
     4 + tx.args.length * 32 < evmModulus →
@@ -857,7 +908,7 @@ private theorem SwitchCaseBodyBridge
   -- fuel' ≥ (fuel - 2) - 2 = fuel - 4 (by hge).
   -- Since fuel ≥ sizeOf fn.body + 5, we have fuel - 4 ≥ sizeOf fn.body + 1.
   have hfuelAdequate' : fuel' ≥ sizeOf fn.body + 1 := by omega
-  have hbody := SwitchCaseBodyBridge_body fn.body s₀ fuel' hfuelAdequate'
+  have hbody := SwitchCaseBodyBridge_body fn.body s₀ fuel' hDead hNoRef hfuelAdequate'
   -- hmatch gives us resultsMatch via interpretYulRuntime
   -- interpretYulRuntime fn.body yulTx ... = yulResultOfExecWithRollback s₀ (execYulStmts s₀ fn.body)
   rw [hbody]
@@ -882,6 +933,10 @@ theorem yulCodegen_preserves_semantics
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
     (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
         (execIRFunction fn tx.args
@@ -1048,7 +1103,8 @@ theorem yulCodegen_preserves_semantics
               blobBaseFee := tx.blobBaseFee
               calldata := tx.args
               selector := tx.functionSelector }
-            (m + 2) hFuelBody (hdispatchGuardSafe fn hmem) hNoWrap hlen hmatch)
+            (m + 2) (hHasSelectorDead fn hmem) (hNoHasSelector fn hmem)
+            hFuelBody (hdispatchGuardSafe fn hmem) hNoWrap hlen hmatch)
       · simpa [hlen] using
           (SwitchCaseBodyBridge_short fn tx
             { initialState with
