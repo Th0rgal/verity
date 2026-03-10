@@ -52,7 +52,7 @@ theorems for supported EDSL contracts, covering:
 - Explicit revert-path bridges for owner-gated and arithmetic failure paths
 - Composition with the compiled IR/Yul semantics used by the proof pipeline
 
-## Layer 2: CompilationModel → IR — GENERIC THEOREM SURFACE, NOT YET FULLY CLOSED
+## Layer 2: CompilationModel → IR — PARTIAL GENERIC
 
 **What is generic today**:
 - a structural theorem for raw statement lists inside the explicit `SupportedStmtList` fragment witness in [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean), re-exported for the compiler-proof layer in [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)
@@ -61,7 +61,7 @@ theorems for supported EDSL contracts, covering:
 **What is not fully discharged yet**:
 - the generic whole-contract theorem surface is now assembled by theorem, but it still depends on 2 documented Layer-2 axioms in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)
 - active end-to-end contract examples still rely on manual bridge theorems in [`Contracts/Proofs/SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
-- the repo does not yet have a closed generic proof that directly composes source whole-function semantics, parameter loading, supported statement compilation, and the exact `compileStmtList`/IR execution path used by `CompilationModel.compile`
+- the repo does not yet have a closed generic proof that directly composes source whole-function semantics, parameter loading, supported statement compilation, and the exact `compileStmtList`/IR execution path used by `CompilationModel.compile`; there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.
 
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem shape

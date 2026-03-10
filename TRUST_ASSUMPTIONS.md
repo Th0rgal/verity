@@ -8,7 +8,7 @@ This document states what Verity proves and what it still trusts.
 EDSL (Lean)
   ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS — generic core, contract bridges]
 CompilationModel
-  ↓ [Layer 2: PARTIAL GENERIC — generic theorem surface, 2 axioms]
+  ↓ [Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges]
 IR
   ↓ [Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul]
 Yul
@@ -24,7 +24,7 @@ The repository has no `sorry`, but it still has 4 documented Lean axioms. See [A
   This names the frontend EDSL-to-`CompilationModel` bridge only; the
   contract-specific specification theorems in `Contracts/<Name>/Proofs/` are a
   separate proof layer about human-readable contract behavior.
-- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem. The initial-state normalization step is proved, but the theorem surface still depends on 2 documented sub-axioms for generic body simulation and the `execIRFunctionFuel`/`execIRFunction` bridge. It now also makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains.
+- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem. The initial-state normalization step is proved, but whole-contract Layer 2 preservation still relies on contract-specific bridge theorems. The theorem surface also still depends on 2 documented sub-axioms for generic body simulation and the `execIRFunctionFuel`/`execIRFunction` bridge, and it makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains.
 - **Layer 3**: IR → Yul preservation is generic at the proof surface, but the current full dispatch-preservation path still depends on 1 documented bridge axiom. The checked contract-level theorem surface now makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
 - **Cross-layer**: [`Contracts/Proofs/SemanticBridge.lean`](Contracts/Proofs/SemanticBridge.lean) has zero `sorry`, but it is a manual bridge layer for a subset of contracts rather than a fully generic replacement for Layers 1-3.
 

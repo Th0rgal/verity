@@ -81,7 +81,7 @@ The compiler turns contracts into Yul (Solidity's low-level IR) through three la
 EDSL contract (Lean)
   ↓  Layer 1: EDSL ≡ CompilationModel     [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
 CompilationModel (declarative IR spec)
-  ↓  Layer 2: CompilationModel → IR        [GENERIC THEOREM SURFACE, 2 AXIOMS, CONTRACT BRIDGES ACTIVE]
+  ↓  Layer 2: CompilationModel → IR        [PARTIAL GENERIC, CONTRACT BRIDGES ACTIVE]
 Intermediate Representation
   ↓  Layer 3: IR → Yul                     [GENERIC SURFACE, 1 AXIOM]
 Yul
@@ -97,7 +97,7 @@ EVM Bytecode
 
 There are currently 4 documented Lean axioms in total: 1 selector axiom, 2 generic non-core Layer 2 axioms, and 1 Layer 3 dispatch bridge axiom. See [AXIOMS.md](AXIOMS.md).
 
-Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) and [AXIOMS.md](AXIOMS.md).
+Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) and [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 

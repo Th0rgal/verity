@@ -1099,7 +1099,7 @@ theorem supported_function_correct
     (model : CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
-    (_hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
     (fn : FunctionSpec)
     (selector : Nat)
     (returns : List ParamType)
@@ -1121,8 +1121,9 @@ theorem supported_function_correct
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
     FunctionBody.sourceResultMatchesIRResult
       (SourceSemantics.interpretFunction model fn tx initialWorld)
-      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
   classical
+  let _ := hvalidateInputs
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   have hinitBindings :
       FunctionBody.bindingsExactlyMatchIRVars [] initialState := by

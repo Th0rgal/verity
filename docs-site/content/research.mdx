@@ -20,7 +20,7 @@ The project evolved in two phases:
 This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Contract-specific specification proofs**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
-- **Layer 2 (CompilationModel → IR)**: Complete for all 7 contracts (per‑function preservation theorems compiled in Lean).
+- **Layer 2 (CompilationModel → IR)**: Partial generic coverage only. A supported-statement theorem exists, while whole-contract preservation still relies on contract-specific bridges and the generic `CompilationModel.compile` theorem is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510).
 - **Layer 3 (IR → Yul)**: Complete — all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
 
 Recent updates:

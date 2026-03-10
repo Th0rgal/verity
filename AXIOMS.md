@@ -119,7 +119,7 @@ the still-unproved non-core supported statement shapes preserve
 
 ### 4. `supported_function_execIRFunction_eq_fuel`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:850`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:849`
 
 **Statement**:
 ```lean
@@ -476,7 +476,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
   `setMappingUint` translation support in `Verity/Macro/Translate.lean`) do not
   add, remove, or modify Lean axioms.
 - The semantic bridge and typed-IR migration work (Issues #998 and #1060:
-  `Compiler/Proofs/EndToEnd.lean`, `Compiler/Proofs/SemanticBridge.lean`,
+  `Compiler/Proofs/EndToEnd.lean`, `Contracts/Proofs/SemanticBridge.lean`,
   `Verity/Macro/Bridge.lean`, and the `Compiler/TypedIR*` pipeline)
   does not add, remove, or modify Lean axioms. `SemanticBridge.lean` now has
   zero `sorry`. The typed-IR compilation path (`Compiler/TypedIRCompiler*.lean`) also

@@ -5,7 +5,7 @@ This document is the long-form reference for script responsibilities.
 ## Verify workflow sync
 
 - `check_verify_sync.py`: unified table-driven validator for workflow invariants.
-- `verify_sync_spec.json`: expected trigger keys/paths/branches, job order, top-level workflow/job/strategy contracts, critical step contracts, command lists, foundry settings, and artifact producers.
+- `verify_sync_spec.json`: expected trigger keys/paths/branches, job order, top-level workflow/job/strategy contracts, critical step contracts (including multiline `with.script` bodies for inline GitHub Script steps), command lists, foundry settings, and artifact producers.
 - `check_docs_workflow_sync.py`: keep the docs workflow self-triggering and aligned across push/pull_request path filters.
 
 ## Issue #1060 automation
@@ -17,6 +17,7 @@ This document is the long-form reference for script responsibilities.
 
 - `generate_verification_status.py`: refresh/check `artifacts/verification_status.json`.
 - `check_verification_status_doc.py`: keep `docs/VERIFICATION_STATUS.md` aligned with the artifact-backed live totals.
+- `check_layer2_boundary_sync.py`: keep Layer 2 proof-boundary claims aligned across README/trust/docs/docs-site surfaces.
 - `verification_metrics.py`: shared metric collection and strict artifact validation.
 - `refresh_verification_artifacts.sh`: regenerate and validate the verification artifact.
 

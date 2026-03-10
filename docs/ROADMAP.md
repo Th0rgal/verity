@@ -7,7 +7,7 @@
 ## Current Status
 
 - ✅ **Layer 1 Complete**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for the current theorem totals and contract coverage table
-- ✅ **Layer 2 Complete**: All IR generation with preservation proofs (CompilationModel → IR)
+- 🟡 **Layer 2 Partial Generic**: supported statement-list preservation is proven, but the generic whole-contract `CompilationModel.compile` theorem is still tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
 - ✅ **Property Testing**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for current coverage totals and exclusions
 - ✅ **Differential Testing**: Production-ready with 70k+ tests

@@ -24,7 +24,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   contract-specific theorems in `Contracts/Proofs/SemanticBridge.lean`.
 - **Layer 3: IR -> Yul**. Yul semantics, equivalence, and preservation proofs
   live in `Compiler/Proofs/YulGeneration/`. The proof surface is generic, but the
-  current full dispatch-preservation path still uses 5 documented axioms.
+  current full dispatch-preservation path still uses 1 documented bridge axiom.
 
 ## Key Modules
 
@@ -49,8 +49,7 @@ no separate verified EDSL-lowering boundary module in the active pipeline.
 This branch now includes the generic compiler-level theorem
 `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at
 successful `CompilationModel.compile` for an explicit supported whole-contract
-fragment. The theorem shape is in place, but it is not fully closed yet because
-it still depends on 2 documented axioms in
+fragment. The theorem shape is in place, but there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract. It is not fully closed yet because it still depends on 2 documented axioms in
 `Compiler.Proofs.IRGeneration.Function`, with the remaining trust boundary split
 into generic body simulation and
 `execIRFunctionFuel`/`execIRFunction` bridging.
