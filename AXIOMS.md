@@ -50,6 +50,16 @@ Bridges from the single-function body equivalence theorem to the actual generate
 
 **Why this is currently an axiom**:
 This remains the last contract-level proof gap between body-level Yul equivalence and full selector-dispatch preservation.
+The latest checked decomposition attempt showed the statement can likely be
+split into a proved short-calldata failure branch plus a smaller matched-case
+bridge, but the remaining local blocker is not semantic. It is a mechanical
+list-prefix normalization after the initial dispatch comment in
+`switchCaseBody fn`: after one comment step, the proof still has to rewrite the
+residual `execYulFuel (n + 1) ... (.stmts guardsAndBody)` shape far enough to
+expose either the `callvalueGuard` failure/no-op or the short-calldata guard
+revert. The next reliable move is therefore to package those one-step
+statement-list rewrites explicitly, then reattempt shrinking this axiom to the
+matched-dispatch branch only.
 
 **Risk**: Medium.
 
