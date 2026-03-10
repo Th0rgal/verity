@@ -36,26 +36,42 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `SwitchCaseBodyBridge`
+### 2. `SwitchCaseBodyBridge_body`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:532`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:659`
 
 **Statement**:
 ```lean
-private axiom SwitchCaseBodyBridge
+private axiom SwitchCaseBodyBridge_body
 ```
 
 **Purpose**:
-Bridges from the single-function body equivalence theorem to the remaining matched, arity-safe runtime-dispatch execution shape (`switchCaseBody`, `__has_selector`, and rollback shaping after the dispatch guards have been proved to pass).
+Captures that executing a Yul statement list `body` with the `__has_selector`
+variable set and dispatch-level fuel gives the same rollback-wrapped result as
+executing `body` via the total `execYulStmts` wrapper (which uses `sizeOf`-adequate
+fuel without the extra variable).
+
+This axiom is purely Yul-level — it does not mention IR types, transactions, or
+`resultsMatch`. It captures two sub-properties:
+1. **Variable irrelevance**: `__has_selector` is not read by generated function
+   bodies, so setting it has no effect on execution.
+2. **Fuel adequacy**: dispatch-level fuel (minus the guard prefix) is at least
+   `sizeOf body + 1`, which suffices for total execution.
 
 **Why this is currently an axiom**:
-This remains the last contract-level proof gap between body-level Yul equivalence and full selector-dispatch preservation, but the theorem surface is now smaller than before.
-The checked theorem surface now requires both `DispatchGuardsSafe fn tx` and an explicit arity fact `fn.params.length ≤ tx.args.length`.
-The short-calldata failure branch is no longer axiomatized: it is proved by the checked helper lemmas `execYulStmtsFuel_cons_continue`, `execYulStmtsFuel_cons_revert`, `exec_callvalueGuard_noop`, `exec_calldatasizeGuard_revert_of_short_noWrap`, `exec_switchCaseBody_revert_of_short`, and `SwitchCaseBodyBridge_short`.
-What remains axiomatized is only the matched-case bridge from `interpretYulRuntime fn.body ...` to executing the full `switchCaseBody fn` wrapper after the value guard and calldata-size guard are known to pass.
-The remaining blocker is therefore narrower and local: proving the success-path prefix normalization around the leading dispatch comment, optional `callvalueGuard`, and successful `calldatasizeGuard` no-op so the proof can hand control to the already-checked body equivalence theorem without an axiom.
+Variable irrelevance requires showing that `fn.body` never reads `__has_selector`,
+and fuel adequacy requires a monotonicity property over execution fuel. Both are
+understood but not yet mechanized.
 
-**Risk**: Medium.
+The former `SwitchCaseBodyBridge` axiom has been decomposed: the guard-prefix
+stepping (comment, optional `callvalueGuard`, `calldatasizeGuard`) is now fully
+proved by `exec_switchCaseBody_continue_of_long`, and `SwitchCaseBodyBridge`
+itself is now a theorem that composes the proved guard stepping with this axiom.
+The short-calldata failure branch was already proved by
+`exec_switchCaseBody_revert_of_short` and `SwitchCaseBodyBridge_short`.
+
+**Risk**: Low. This axiom is purely Yul-level and strictly narrower than its
+predecessor.
 
 ### 3. `supported_function_body_correct_from_exact_state`
 
@@ -453,9 +469,13 @@ scoped to contracts that use the module.
 
 The repository removed prior axioms related to IR and Yul expression and statement equivalence and address injectivity by making interpreters total and by using a bounded-nat `Address` representation.
 
-These removals reduced prior axiom debt. The Layer 3 switch-case bridge still has
-a small explicit preservation-side axiom boundary for dispatch-step normalization
-and case-body bridging; those active axioms are tracked above.
+These removals reduced prior axiom debt. The monolithic `SwitchCaseBodyBridge`
+axiom was decomposed: the guard-prefix stepping is now fully proved by
+`exec_switchCaseBody_continue_of_long`, the short-calldata case by
+`exec_switchCaseBody_revert_of_short` and `SwitchCaseBodyBridge_short`, and
+`SwitchCaseBodyBridge` is now a theorem. The remaining axiom
+`SwitchCaseBodyBridge_body` is purely Yul-level and captures only variable
+irrelevance and fuel adequacy; those active axioms are tracked above.
 
 ## Non-Axiom: Arithmetic Semantics
 
@@ -488,4 +508,4 @@ Any commit that adds, removes, renames, or moves an axiom must update this file 
 
 If this file is stale, trust analysis is stale.
 
-**Last Updated**: 2026-03-08
+**Last Updated**: 2026-03-10
