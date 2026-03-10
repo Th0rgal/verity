@@ -3408,6 +3408,35 @@ theorem exec_compileStmt_stop_core
       rw [SourceSemantics.execStmt, hirExec]
       exact ⟨hexact, hbounded⟩
 
+theorem exec_compileStmt_stop_core_extraFuel
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (extraFuel : Nat)
+    (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmt fields [] [] .calldata [] false [] .stop = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmt fields runtime .stop
+      let irExec := execIRStmts (bodyIR.length + extraFuel + 1) state bodyIR
+      stmtResultMatchesIRExec fields sourceResult irExec ∧
+      stmtResultMatchesIRExecExact sourceResult irExec := by
+  refine ⟨[YulStmt.expr (YulExpr.call "stop" [])], ?_, ?_⟩
+  · rw [CompilationModel.compileStmt]
+    rfl
+  · have hirExec :
+        execIRStmts
+          ([YulStmt.expr (YulExpr.call "stop" [])].length + extraFuel + 1)
+          state
+          [YulStmt.expr (YulExpr.call "stop" [])] = .stop state := by
+      simp [execIRStmts]
+    constructor
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact hruntime
+    · rw [SourceSemantics.execStmt, hirExec]
+      exact ⟨hexact, hbounded⟩
+
 def scopeNamesPresent (scope : List String) (bindings : List (String × Nat)) : Prop :=
   ∀ name, name ∈ scope → ∃ value, lookupBinding? bindings name = some value
 

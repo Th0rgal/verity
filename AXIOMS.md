@@ -290,6 +290,12 @@ composition wrappers for one-step IR heads:
 `execIRStmt (fuel + 1)` vs `execIRStmts (fuel + 2)` mismatch that the aborted
 terminal-core theorem attempt hit in the simple `let/assign/require/mstore;
 return/stop` prefixes.
+The newest green theorem extraction also adds
+`exec_compileStmt_stop_core_extraFuel` in
+`Compiler/Proofs/IRGeneration/FunctionBody.lean`, which packages the singleton
+terminal `stop` case directly at arbitrary extra fuel. That removes one more
+base-case special-casing point from the next recursive
+`StmtListTerminalCore` proof attempt.
 
 **Risk**: Medium.
 
