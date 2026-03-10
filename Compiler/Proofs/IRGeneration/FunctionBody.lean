@@ -3684,6 +3684,27 @@ theorem compileStmt_core_ok_any_scope
         rw [CompilationModel.compileStmt]
         rfl⟩
 
+theorem compileStmtList_cons_ok_of_compileStmt_ok
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmt : Stmt}
+    {rest : List Stmt}
+    {headIR tailIR : List YulStmt}
+    (hhead :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames stmt = Except.ok headIR)
+    (htail :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false
+          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR) :
+    CompilationModel.compileStmtList
+      fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+        Except.ok (headIR ++ tailIR) := by
+  rw [CompilationModel.compileStmtList, hhead]
+  dsimp
+  rw [htail]
+  rfl
+
 theorem compileStmtList_core_ok
     {fields : List Field}
     {scope inScopeNames : List String}

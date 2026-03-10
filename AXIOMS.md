@@ -310,7 +310,16 @@ packaged as
 `execIRStmts_two_of_continue_then_return_wholeFuel`, so the next
 `StmtListTerminalCore` theorem attempt can consume whole-prefix structural fuel
 directly instead of repeatedly normalizing it back into `fuel + 1` / `fuel + 2`
-shapes locally.
+shapes locally. A direct theorem attempt also exposed one compile-side proof
+gap that is now extracted as
+`compileStmtList_cons_ok_of_compileStmt_ok`: the recursive terminal-core proof
+keeps rebuilding the same head/tail `compileStmtList` monad normalization for
+`let`, `assign`, `require`, `return`, `stop`, and compiled terminal `ite`
+prefixes. The remaining semantic blocker is therefore narrower and more
+precise: the recursive theorem must quantify `extraFuel` strongly enough for
+the chosen `ite` branch induction hypothesis, and then use this new compile
+normalization lemma instead of fighting `simp` on the compiler monad shape in
+every case.
 
 **Risk**: Medium.
 
