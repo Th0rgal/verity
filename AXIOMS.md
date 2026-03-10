@@ -243,15 +243,15 @@ rebuilding those local rewrites and condition evaluations inline. The `then`
 composition step is now also factored as
 `execIRStmts_compiled_terminal_ite_then_of_irExec`, which lifts any non-
 `continue` chosen-then-branch result through the whole compiled terminal-`ite`
-block. The failed direct `else`-composition attempt made the exact remaining
-gap explicit and has now been reduced to precise fuel helpers:
-`compiled_terminal_ite_body_elseBranch_tailExecFuel_eq` and
-`compiled_terminal_ite_body_elseIfFuel_ne_zero` capture the one-step-smaller
-fuel shape for the singleton residual `[if iszero(__ite_cond) elseIR]` after
-the first compiled `if` falls through. The remaining blocker in this subpath is
-therefore no longer arithmetic discovery; it is just the final composition
-lemma that uses these new helpers to lift the chosen `else` branch result
-through the generated block and enclosing statement list.
+block. The residual `else` path is now factored too: the exact one-step-
+smaller singleton fuel step is packaged as
+`execIRStmt_compiled_terminal_ite_elseIf_true_tail`, and the full lift through
+the generated block and enclosing statement list is now
+`execIRStmts_compiled_terminal_ite_else_of_irExec`. The remaining blocker in
+this subpath is therefore no longer branch composition; it is reintroducing the
+recursive semantic theorem for `StmtListTerminalCore` with the right structural
+fuel schema so the branch induction hypotheses line up with these new `then` and
+`else` composition lemmas.
 
 **Risk**: Medium.
 
