@@ -36,34 +36,9 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `execYulStmtsFuel_setVar_hasSelector_irrelevant`
+### 2. `execYulStmtsFuel_fuel_adequate`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:757`
-
-**Statement**:
-```lean
-private axiom execYulStmtsFuel_setVar_hasSelector_irrelevant
-```
-
-**Purpose**:
-Variable irrelevance: the dispatch variable `__has_selector` is never read by
-function body statements, so adding it to the variable environment does not
-change execution. This is a purely Yul-level property: it says
-`execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body = execYulStmtsFuel fuel state body`.
-
-**Why this is currently an axiom**:
-Proving this mechanically requires showing that no subexpression in `body`
-evaluates `YulExpr.ident "__has_selector"`. The compiler never emits references
-to `__has_selector` inside function bodies (only in the dispatch prelude), but
-the proof infrastructure for "variable X is dead in statement list S" is not yet
-built.
-
-**Risk**: Low. Purely Yul-level, does not mention IR types. The property is
-a standard dead-variable elimination fact.
-
-### 3. `execYulStmtsFuel_fuel_adequate`
-
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:766`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:812`
 
 **Statement**:
 ```lean
@@ -97,7 +72,7 @@ In particular, the non-payable `msgValue = 0` dispatch path is handled construct
 inside the guard-stepping lemmas (`dispatchGuardsSafe_msgValue_zero_mod_of_nonpayable`
 plus `exec_callvalueGuard_noop`), so it is not covered by any separate bridge axiom.
 
-### 4. `supported_function_body_correct_from_exact_state`
+### 3. `supported_function_body_correct_from_exact_state`
 
 **Location**: `Compiler/Proofs/IRGeneration/Function.lean:827`
 
@@ -257,9 +232,15 @@ Specifically:
   `execIRFunctionFuel_adequate`) that the core path already uses. This avoids
   the unsound `length + 1` fuel budget that is insufficient for nested `block`s.
 
-These removals reduced prior axiom debt. The Layer 3 switch-case bridge still has
-a small explicit preservation-side axiom boundary for dispatch-step normalization
-and case-body bridging; those active axioms are tracked above.
+These removals reduced prior axiom debt. The Layer 3 switch-case bridge no longer
+uses a dedicated kernel axiom for `__has_selector` dead-variable irrelevance.
+Instead, `Compiler/Proofs/YulGeneration/Preservation.lean` exposes:
+
+- syntactic predicates `yulExprNoRef` / `yulStmtNoRef` / `yulStmtsNoRef`
+- an explicit theorem hypothesis `HasSelectorDeadBridge`
+
+That keeps the remaining trust boundary visible in theorem signatures without
+adding a new Lean axiom.
 
 ## Non-Axiom: Arithmetic Semantics
 
@@ -267,7 +248,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 4
+- Active axioms: 3
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not

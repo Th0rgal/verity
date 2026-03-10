@@ -204,6 +204,10 @@ theorem layer3_contract_preserves_semantics
           selector := tx.functionSelector })
     (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
       DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
     (hWF : ContractWF contract)
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none) :
@@ -211,7 +215,7 @@ theorem layer3_contract_preserves_semantics
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
   apply yulCodegen_preserves_semantics contract tx initialState
-    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe
+    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
   · intro fn hmem
     exact (yulBody_from_state_eq_yulBody fn tx
       { initialState with
@@ -240,6 +244,10 @@ theorem layer3_contract_preserves_semantics_general
     (hNoReceive : contract.receiveEntrypoint = none)
     (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
       DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
     (hbody : ∀ fn, fn ∈ contract.functions →
       Compiler.Proofs.YulGeneration.resultsMatch
         (execIRFunction fn tx.args
@@ -268,7 +276,7 @@ theorem layer3_contract_preserves_semantics_general
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
   yulCodegen_preserves_semantics contract tx initialState
-    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hbody
+    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead hbody
 
 /-! ## Layers 2+3 Composition -/
 
@@ -297,6 +305,10 @@ theorem layers2_3_ir_matches_yul
           selector := tx.functionSelector })
     (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions →
       DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions →
+      HasSelectorDeadBridge fn.body)
     (hWF : ContractWF irContract)
     (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none) :
@@ -304,7 +316,7 @@ theorem layers2_3_ir_matches_yul
       (interpretIR irContract tx initialState)
       (interpretYulFromIR irContract tx initialState) :=
   layer3_contract_preserves_semantics irContract tx initialState
-    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hWF hNoFallback hNoReceive
+    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead hWF hNoFallback hNoReceive
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
@@ -318,6 +330,10 @@ theorem simpleStorage_endToEnd
     (hreturn : initialState.returnValue = none)
     (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
     (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       paramLoadErasure fn tx
         { initialState with
@@ -334,7 +350,7 @@ theorem simpleStorage_endToEnd
       (interpretIR simpleStorageIRContract tx initialState)
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=
   layer3_contract_preserves_semantics simpleStorageIRContract tx initialState
-    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe
+    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
 /-! ## Universal Pure Arithmetic Bridge
