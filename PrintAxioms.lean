@@ -685,6 +685,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- Compiler/Proofs/IRGeneration/Function.lean
 -- #print axioms Compiler.Proofs.IRGeneration.Function.yulStmtList_length_le_sizeOf  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.compiledFunctionIR_body_length_le_sizeOf  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Function.yulStmtList_extraFuel_append_ge  -- private
 #print axioms Compiler.Proofs.IRGeneration.Function.prebindRawArgs_calldata
 #print axioms Compiler.Proofs.IRGeneration.Function.prebindRawArgs_exact_rawArgBindings
 #print axioms Compiler.Proofs.IRGeneration.Function.rawArgBindings_names_of_length_le
@@ -1152,4 +1153,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1024 theorems/lemmas (851 public, 173 private)
+-- Total: 1025 theorems/lemmas (851 public, 174 private)
