@@ -46,7 +46,7 @@ def checkMessageExecutableBranchesOnCondition : Bool :=
   match StringErrorSmoke.checkMessage true "ok" Verity.defaultState,
       StringErrorSmoke.checkMessage false "boom" Verity.defaultState with
   | .success () successState, .revert msg revertState =>
-      msg == "BadMessage" &&
+      msg == "BadMessage(boom)" &&
       successState.sender == Verity.defaultState.sender &&
       revertState.sender == Verity.defaultState.sender
   | _, _ => false
@@ -57,7 +57,7 @@ def checkTaggedMessageExecutableBranchesOnCondition : Bool :=
   match StringErrorSmoke.checkTaggedMessage 1 "ok" Verity.defaultState,
       StringErrorSmoke.checkTaggedMessage 7 "boom" Verity.defaultState with
   | .success () successState, .revert msg revertState =>
-      msg == "TaggedMessage" &&
+      msg == "TaggedMessage(7, boom)" &&
       successState.sender == Verity.defaultState.sender &&
       revertState.sender == Verity.defaultState.sender
   | _, _ => false
@@ -68,7 +68,7 @@ def checkSecondMessageExecutableBranchesOnCondition : Bool :=
   match StringErrorSmoke.checkSecondMessage true "ignored" "ok" Verity.defaultState,
       StringErrorSmoke.checkSecondMessage false "ignored" "boom" Verity.defaultState with
   | .success () successState, .revert msg revertState =>
-      msg == "SecondMessage" &&
+      msg == "SecondMessage(ignored, boom)" &&
       successState.sender == Verity.defaultState.sender &&
       revertState.sender == Verity.defaultState.sender
   | _, _ => false

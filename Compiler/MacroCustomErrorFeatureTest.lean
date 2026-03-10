@@ -60,7 +60,8 @@ example : requirePositiveExecutablePreservesSuccess = true := by native_decide
 
 def rejectLargeExecutableUsesRuntimeFallback : Bool :=
   match MacroCustomErrorUsage.rejectLarge 101 Verity.defaultState with
-  | .revert msg state => msg == "AmountTooLarge" && state.sender == Verity.defaultState.sender
+  | .revert msg state =>
+      msg == "AmountTooLarge(101, 100)" && state.sender == Verity.defaultState.sender
   | .success _ _ => false
 
 example : rejectLargeExecutableUsesRuntimeFallback = true := by native_decide

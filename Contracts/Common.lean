@@ -22,12 +22,28 @@ macro_rules
           let _ := $_module
           let _ := $_args
           pure ())
-  | `(doElem| revert $errorName:ident($_args,*)) =>
-      `(doElem| require false $(Lean.quote (toString errorName.getId)))
-  | `(doElem| revertError $errorName:ident($_args,*)) =>
-      `(doElem| require false $(Lean.quote (toString errorName.getId)))
-  | `(doElem| requireError $cond:term $errorName:ident($_args,*)) =>
-      `(doElem| if $cond then pure () else require false $(Lean.quote (toString errorName.getId)))
+  | `(doElem| revert $errorName:ident($args,*)) => do
+      let revertFn := Lean.mkIdentFrom errorName `_root_.Contracts.revertCustomError
+      let encodeFn := Lean.mkIdentFrom errorName `_root_.Contracts.CustomErrorArg.encode
+      let encodedArgs ← args.getElems.mapM fun arg => `(term| $encodeFn:ident $arg)
+      `(doElem| $revertFn:ident
+          $(Lean.quote (toString errorName.getId))
+          [ $[$encodedArgs],* ])
+  | `(doElem| revertError $errorName:ident($args,*)) => do
+      let revertFn := Lean.mkIdentFrom errorName `_root_.Contracts.revertCustomError
+      let encodeFn := Lean.mkIdentFrom errorName `_root_.Contracts.CustomErrorArg.encode
+      let encodedArgs ← args.getElems.mapM fun arg => `(term| $encodeFn:ident $arg)
+      `(doElem| $revertFn:ident
+          $(Lean.quote (toString errorName.getId))
+          [ $[$encodedArgs],* ])
+  | `(doElem| requireError $cond:term $errorName:ident($args,*)) => do
+      let requireFn := Lean.mkIdentFrom errorName `_root_.Contracts.requireCustomError
+      let encodeFn := Lean.mkIdentFrom errorName `_root_.Contracts.CustomErrorArg.encode
+      let encodedArgs ← args.getElems.mapM fun arg => `(term| $encodeFn:ident $arg)
+      `(doElem| $requireFn:ident
+          $cond
+          $(Lean.quote (toString errorName.getId))
+          [ $[$encodedArgs],* ])
   | `(doElem| let $name:ident := arrayElement $values:term $index:term) => do
       let checked := Lean.mkIdentFrom name `_root_.Contracts.arrayElementChecked
       `(doElem| let $name ← $checked:ident $values $index)
@@ -54,6 +70,42 @@ macro_rules
 def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def bitOr (a b : Uint256) : Uint256 := Verity.Core.Uint256.or a b
 def bitXor (a b : Uint256) : Uint256 := Verity.Core.Uint256.xor a b
+
+class CustomErrorArg (α : Type) where
+  encode : α → String
+
+instance : CustomErrorArg Uint256 where
+  encode value := toString (value : Nat)
+
+instance : CustomErrorArg Nat where
+  encode value := toString value
+
+instance : CustomErrorArg Address where
+  encode value := toString value.toNat
+
+instance : CustomErrorArg Bool where
+  encode value := if value then "true" else "false"
+
+instance : CustomErrorArg String where
+  encode value := value
+
+instance : CustomErrorArg ByteArray where
+  encode value := reprStr value.toList
+
+instance [CustomErrorArg α] : CustomErrorArg (Array α) where
+  encode values := "[" ++ String.intercalate ", " (values.toList.map CustomErrorArg.encode) ++ "]"
+
+instance [CustomErrorArg α] [CustomErrorArg β] : CustomErrorArg (α × β) where
+  encode value := "(" ++ CustomErrorArg.encode value.1 ++ ", " ++ CustomErrorArg.encode value.2 ++ ")"
+
+def formatCustomError (name : String) (args : List String) : String :=
+  name ++ "(" ++ String.intercalate ", " args ++ ")"
+
+def revertCustomError (name : String) (args : List String) : Contract Unit :=
+  require false (formatCustomError name args)
+
+def requireCustomError (condition : Bool) (name : String) (args : List String) : Contract Unit :=
+  if condition then pure () else revertCustomError name args
 
 private def signedWordLimit : Nat := Verity.Core.Uint256.modulus / 2
 
