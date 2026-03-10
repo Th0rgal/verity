@@ -239,7 +239,14 @@ decomposition ad hoc. The branch-entry wrappers are now also explicit:
 `execIRStmt_compiled_terminal_ite_elseIf_true` package the exact generated
 `__ite_cond` control-flow steps at the structural fuel the remaining theorem
 needs, so the next proof can focus on composing branch results instead of
-rebuilding those local rewrites and condition evaluations inline.
+rebuilding those local rewrites and condition evaluations inline. The `then`
+composition step is now also factored as
+`execIRStmts_compiled_terminal_ite_then_of_irExec`, which lifts any non-
+`continue` chosen-then-branch result through the whole compiled terminal-`ite`
+block. The remaining blocker in this subpath is now concentrated on the `else`
+composition, where the proof still needs the exact one-step-smaller fuel shape
+for the singleton residual `[if iszero(__ite_cond) elseIR]` after the first
+compiled `if` falls through.
 
 **Risk**: Medium.
 

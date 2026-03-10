@@ -5679,6 +5679,540 @@ private theorem execIRStmt_compiled_terminal_ite_elseIf_true
         (state.setVar tempName condValue) elseIR := by
           rw [hfuelEq]
 
+private theorem execIRStmts_compiled_terminal_ite_then_of_irExec
+    (extraFuel : Nat)
+    (state : IRState)
+    (tempName : String)
+    (condIR : YulExpr)
+    (thenIR elseIR tailIR : List YulStmt)
+    (condValue : Nat)
+    (irExec : IRExecResult)
+    (hcond : evalIRExpr state condIR = some condValue)
+    (hcondNonzero : condValue ≠ 0)
+    (hthenExec :
+      execIRStmts
+        (sizeOf thenIR +
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) -
+            (sizeOf thenIR + 5) +
+            extraFuel) + 1)
+        (state.setVar tempName condValue) thenIR = irExec)
+    (hirNoContinue : ∀ next, irExec ≠ .continue next) :
+    execIRStmts
+      (sizeOf
+          ([YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_
+                  (YulExpr.call "iszero" [YulExpr.ident tempName])
+                  elseIR
+              ]] ++ tailIR) + extraFuel + 1)
+      state
+      ([YulStmt.block
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_
+              (YulExpr.call "iszero" [YulExpr.ident tempName])
+              elseIR
+          ]] ++ tailIR) = irExec := by
+  have hlet :=
+    execIRStmt_compiled_terminal_ite_let
+      extraFuel state tempName condIR thenIR elseIR tailIR condValue hcond
+  have hthenStmt :
+      execIRStmt
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel - 3)
+        (state.setVar tempName condValue)
+        (YulStmt.if_ (YulExpr.ident tempName) thenIR) = irExec := by
+    rw [execIRStmt_compiled_terminal_ite_thenIf_true
+      extraFuel state tempName condIR thenIR elseIR tailIR condValue hcondNonzero]
+    exact hthenExec
+  have hafterLet :
+      execIRStmts
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel - 2)
+        (state.setVar tempName condValue)
+        [ YulStmt.if_ (YulExpr.ident tempName) thenIR
+        , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ] = irExec := by
+    have hfuelEq :
+        sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel - 2 =
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel - 3) + 1 := by
+      have hblock :=
+        (compiled_terminal_ite_body_size_ge_branchExecFuel tempName condIR thenIR elseIR tailIR).1
+      omega
+    rw [hfuelEq]
+    cases hir : irExec
+    · rename_i next
+      exact False.elim (hirNoContinue next hir)
+    · rename_i value next
+      have hthenStmt' :
+          execIRStmt
+            (sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel - 3)
+            (state.setVar tempName condValue)
+            (YulStmt.if_ (YulExpr.ident tempName) thenIR) =
+            .return value next := by
+        simpa [hir] using hthenStmt
+      simpa [hir] using
+          (execIRStmts_cons_of_execIRStmt_return_anyFuel
+            (fuel :=
+              sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel - 3)
+            (state := state.setVar tempName condValue)
+            (next := next)
+            (stmt := YulStmt.if_ (YulExpr.ident tempName) thenIR)
+            (rest := [YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR])
+            (value := value)
+            hthenStmt')
+    · rename_i next
+      have hthenStmt' :
+          execIRStmt
+            (sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel - 3)
+            (state.setVar tempName condValue)
+            (YulStmt.if_ (YulExpr.ident tempName) thenIR) =
+            .stop next := by
+        simpa [hir] using hthenStmt
+      simpa [hir] using
+          (execIRStmts_cons_of_execIRStmt_stop_anyFuel
+            (fuel :=
+              sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel - 3)
+            (state := state.setVar tempName condValue)
+            (next := next)
+            (stmt := YulStmt.if_ (YulExpr.ident tempName) thenIR)
+            (rest := [YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR])
+            hthenStmt')
+    · rename_i next
+      have hthenStmt' :
+          execIRStmt
+            (sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel - 3)
+            (state.setVar tempName condValue)
+            (YulStmt.if_ (YulExpr.ident tempName) thenIR) =
+            .revert next := by
+        simpa [hir] using hthenStmt
+      simpa [hir] using
+          (execIRStmts_cons_of_execIRStmt_revert_anyFuel
+            (fuel :=
+              sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel - 3)
+            (state := state.setVar tempName condValue)
+            (next := next)
+            (stmt := YulStmt.if_ (YulExpr.ident tempName) thenIR)
+            (rest := [YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR])
+            hthenStmt')
+  have hinner :
+      execIRStmts
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel - 1)
+        state
+        [ YulStmt.let_ tempName condIR
+        , YulStmt.if_ (YulExpr.ident tempName) thenIR
+        , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ] = irExec := by
+    have hfuelEq :
+        sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel - 1 =
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel - 2) + 1 := by
+      have hblock :=
+        (compiled_terminal_ite_body_size_ge_branchExecFuel tempName condIR thenIR elseIR tailIR).1
+      omega
+    rw [hfuelEq]
+    rw [execIRStmts_cons_of_execIRStmt_continue_anyFuel
+      (fuel :=
+        sizeOf
+          ([YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_
+                  (YulExpr.call "iszero" [YulExpr.ident tempName])
+                  elseIR
+              ]] ++ tailIR) + extraFuel - 2)
+      (state := state)
+      (next := state.setVar tempName condValue)
+      (stmt := YulStmt.let_ tempName condIR)
+      (rest :=
+        [ YulStmt.if_ (YulExpr.ident tempName) thenIR
+        , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+      hlet]
+    exact hafterLet
+  have hblock :
+      execIRStmt
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel)
+        state
+        (YulStmt.block
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]) = irExec := by
+    cases hir : irExec
+    · rename_i next
+      exact False.elim (hirNoContinue next hir)
+    · rename_i value next
+      have hinner' : execIRStmts
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                  ]] ++ tailIR) + extraFuel - 1)
+          state
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ] =
+          .return value next := by
+        simpa [hir] using hinner
+      simpa [hir] using
+          (execIRStmt_block_of_execIRStmts_return_nonzeroFuel
+            (fuel :=
+              sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel)
+            (state := state)
+            (next := next)
+            (body :=
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+            (value := value)
+            (compiled_terminal_ite_body_blockStmtFuel_ne_zero
+              extraFuel tempName condIR thenIR elseIR tailIR)
+            hinner')
+    · rename_i next
+      have hinner' : execIRStmts
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                  ]] ++ tailIR) + extraFuel - 1)
+          state
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ] =
+          .stop next := by
+        simpa [hir] using hinner
+      simpa [hir] using
+          (execIRStmt_block_of_execIRStmts_stop_nonzeroFuel
+            (fuel :=
+              sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel)
+            (state := state)
+            (next := next)
+            (body :=
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+            (compiled_terminal_ite_body_blockStmtFuel_ne_zero
+              extraFuel tempName condIR thenIR elseIR tailIR)
+            hinner')
+    · rename_i next
+      have hinner' : execIRStmts
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                  ]] ++ tailIR) + extraFuel - 1)
+          state
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ] =
+          .revert next := by
+        simpa [hir] using hinner
+      simpa [hir] using
+          (execIRStmt_block_of_execIRStmts_revert_nonzeroFuel
+            (fuel :=
+              sizeOf
+                ([YulStmt.block
+                    [ YulStmt.let_ tempName condIR
+                    , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                    , YulStmt.if_
+                        (YulExpr.call "iszero" [YulExpr.ident tempName])
+                        elseIR
+                    ]] ++ tailIR) + extraFuel)
+            (state := state)
+            (next := next)
+            (body :=
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+            (compiled_terminal_ite_body_blockStmtFuel_ne_zero
+              extraFuel tempName condIR thenIR elseIR tailIR)
+            hinner')
+  cases hir : irExec
+  · rename_i next
+    exact False.elim (hirNoContinue next hir)
+  · rename_i value next
+    have hblock' :
+        execIRStmt
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                  ]] ++ tailIR) + extraFuel)
+          state
+          (YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]) =
+          .return value next := by
+      simpa [hir] using hblock
+    have hfuelEq :
+        sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1 =
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel) + 1 := by
+        omega
+    rw [hfuelEq]
+    simpa [hir] using
+      (execIRStmts_cons_of_execIRStmt_return_anyFuel
+          (fuel :=
+            sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel)
+          (state := state)
+          (next := next)
+          (stmt :=
+            YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+          (rest := tailIR)
+          (value := value)
+        hblock')
+  · rename_i next
+    have hblock' :
+        execIRStmt
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                  ]] ++ tailIR) + extraFuel)
+          state
+          (YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]) =
+          .stop next := by
+      simpa [hir] using hblock
+    have hfuelEq :
+        sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1 =
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel) + 1 := by
+        omega
+    rw [hfuelEq]
+    simpa [hir] using
+      (execIRStmts_cons_of_execIRStmt_stop_anyFuel
+          (fuel :=
+            sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel)
+          (state := state)
+          (next := next)
+          (stmt :=
+            YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+          (rest := tailIR)
+        hblock')
+  · rename_i next
+    have hblock' :
+        execIRStmt
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR
+                  ]] ++ tailIR) + extraFuel)
+          state
+          (YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]) =
+          .revert next := by
+      simpa [hir] using hblock
+    have hfuelEq :
+        sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1 =
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel) + 1 := by
+        omega
+    rw [hfuelEq]
+    simpa [hir] using
+      (execIRStmts_cons_of_execIRStmt_revert_anyFuel
+          (fuel :=
+            sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) + extraFuel)
+          (state := state)
+          (next := next)
+          (stmt :=
+            YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ])
+          (rest := tailIR)
+        hblock')
 
 theorem execStmtList_terminal_core_not_continue
     {fields : List Field}
