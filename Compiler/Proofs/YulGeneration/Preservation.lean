@@ -242,18 +242,41 @@ private theorem eval_hasSelector_after_set (state : YulState) :
   simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
   cases hExec : execYulFuel (fuel + 1) state (.stmt stmt) <;> simp
 
-/-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
-    the switch dispatch when `calldatasize()` does not wrap modulo `2^256`.
+/-- Executing `[buildSwitch fns none none]` with enough fuel reduces to the singleton
+    switch list when `calldatasize()` does not wrap modulo `2^256`.
 
-    The fully generic theorem is false without this hypothesis; the no-wrap form is
-    the strongest true statement currently used by Layer 3. -/
-private axiom execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : YulState)
+    The old direct-`execYulStmtFuel` target was stronger than the literal small-step
+    trace provides; this singleton-list form is the strongest true shape needed by
+    the current Layer 3 proof. -/
+private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : YulState)
     (fns : List IRFunction)
     (hNoWrap : 4 + state.calldata.length * 32 < evmModulus) :
     execYulStmtsFuel (fuel + 6) state [Compiler.buildSwitch fns none none] =
-      execYulStmtFuel (fuel + 1) (state.setVar "__has_selector" 1)
-        (YulStmt.switch selectorExpr (switchCases fns)
-          (some (switchDefaultCase none none)))
+      execYulStmtsFuel fuel (state.setVar "__has_selector" 1)
+        [YulStmt.switch selectorExpr (switchCases fns)
+          (some (switchDefaultCase none none))] := by
+  let state' := state.setVar "__has_selector" 1
+  have h4 : 4 < evmModulus := by
+    norm_num [evmModulus]
+  have hHasSelectorEval :
+      evalYulExpr state
+        (YulExpr.call "iszero"
+          [YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit 4]]) = some 1 := by
+    simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
+      evalBuiltinCallWithContext, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt h4]
+  have hIdentEval :
+      evalYulExpr state' (YulExpr.ident "__has_selector") = some 1 := by
+    simpa [state', evalYulExpr] using eval_hasSelector_after_set state
+  have hIfZeroEval :
+      evalYulExpr state'
+        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) = some 0 := by
+    simp [evalYulExpr, evalYulCall, evalYulExprs,
+      evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, hIdentEval]
+  rw [show fuel + 6 = (fuel + 4) + 2 by omega, execYulStmtsFuel_singleton_succ_local]
+  simp only [Compiler.buildSwitch, execYulStmtFuel, execYulFuel]
+  simp [state', execYulStmtsFuel, hHasSelectorEval, hIfZeroEval, hIdentEval,
+    switchCases, switchCaseBody, dispatchBody, selectorExpr, switchDefaultCase]
+  exact yulExecResult_match_id _
 
 /-- Executing a singleton statement list consumes one list-step of fuel. -/
 @[simp] private theorem execYulStmtsFuel_singleton_succ
@@ -477,6 +500,7 @@ theorem yulCodegen_preserves_semantics
         simpa [hYulInitDef] using hNoWrap)
       rw [show m + 4 + 6 = m + 10 from by omega] at hStep
       rw [hStep]
+      rw [show m + 4 = (m + 2) + 2 by omega, execYulStmtsFuel_singleton_succ]
       -- Now we have execYulStmtFuel on the switch with state augmented by __has_selector
       -- The selector evaluates the same way since selectorExpr doesn't use __has_selector
       have hSelEval := evalSelectorExpr_setVar_has_selector yulInitState 1 (by
@@ -485,7 +509,7 @@ theorem yulCodegen_preserves_semantics
       have hcase := find_switch_case_of_find_function_none contract.functions
         yulInitState.selector (hSelEq ▸ hFind)
       -- Apply switch miss lemma
-      rw [show m + 4 + 1 = Nat.succ (m + 4) from by omega]
+      rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
       rw [execYulStmtFuel_switch_miss _ _ _ _ _ _ hSelEval hcase]
       -- Now we need to show the revert case matches resultsMatch for failure
       simp [execYulStmtFuel_switch_miss_result, switchDefaultCase,
@@ -505,6 +529,7 @@ theorem yulCodegen_preserves_semantics
         simpa [hYulInitDef] using hNoWrap)
       rw [show m + 4 + 6 = m + 10 from by omega] at hStep
       rw [hStep]
+      rw [show m + 4 = (m + 2) + 2 by omega, execYulStmtsFuel_singleton_succ]
       -- The selector evaluates the same way
       have hSelEval := evalSelectorExpr_setVar_has_selector yulInitState 1 (by
         rw [hSelEq]; exact hselector)
@@ -516,7 +541,7 @@ theorem yulCodegen_preserves_semantics
             (hSelEq ▸ hFind))
       rw [← hSelEq] at hcase
       -- Apply switch match lemma
-      rw [show m + 4 + 1 = Nat.succ (m + 4) from by omega]
+      rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
       rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
       exact SwitchCaseBodyBridge fn tx
         { initialState with
@@ -529,7 +554,7 @@ theorem yulCodegen_preserves_semantics
           blobBaseFee := tx.blobBaseFee
           calldata := tx.args
           selector := tx.functionSelector }
-        (m + 4) hmatch
+        (m + 2) hmatch
 
 /-! ## Complete Preservation Theorem
 
