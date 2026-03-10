@@ -10,7 +10,7 @@ EDSL (Lean)
 CompilationModel
   ↓ [Layer 2: PARTIAL GENERIC — generic theorem surface, 2 axioms]
 IR
-  ↓ [Layer 3: GENERIC, 5 axioms — IR → Yul]
+  ↓ [Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul]
 Yul
   ↓ [trusted — solc]
 EVM Bytecode

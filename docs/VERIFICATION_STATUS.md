@@ -10,7 +10,7 @@ EDSL contracts (Lean)
 CompilationModel (declarative compiler-facing model)
     ↓ Layer 2: CompilationModel → IR [GENERIC THEOREM SURFACE, 2 AXIOMS, CONTRACT BRIDGES ACTIVE]
 Intermediate Representation (IR)
-    ↓ Layer 3: IR → Yul [GENERIC, 5 AXIOMS]
+    ↓ Layer 3: IR → Yul [GENERIC SURFACE, 1 AXIOM]
 Yul (EVM Assembly)
     ↓ (Trusted: solc compiler)
 EVM Bytecode
