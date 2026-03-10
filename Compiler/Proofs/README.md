@@ -91,13 +91,16 @@ All proofs complete — no `sorry` warnings expected.
 
 ## Infrastructure
 
-### SpecInterpreter ([SpecInterpreter.lean](../../Verity/Proofs/Stdlib/SpecInterpreter.lean))
+### Core Semantics ([Verity/Core.lean](../../Verity/Core.lean), [Semantics.lean](../../Verity/Core/Semantics.lean))
 
-Execution semantics for the compilation-model language (`CompilationModel` today).
+The old `SpecInterpreter` module has been removed. EDSL execution now lives in
+the `Contract` monad and `ContractState` defined in `Verity/Core.lean`, with
+environment wrappers in `Verity/Core/Semantics.lean`.
 
-**Key Types**: `EvalContext` (execution environment), `SpecStorage` (abstract storage), `ExecState` (execution state with storage, return value, and halt flag).
+**Key Types**: `Contract`, `ContractState`, `ContractResult`, `Env`, `World`.
 
-**Key Functions**: `evalExpr` (expression evaluation), `execStmt` (statement execution), `interpretSpec` (top-level interpreter).
+**Key Functions**: `Contract.run`, `Contract.runState`, `Contract.runValue`,
+`Env.ofWorld`, `World.withEnv`.
 
 ### Automation Library ([Automation.lean](../../Verity/Proofs/Stdlib/Automation.lean))
 
@@ -114,11 +117,12 @@ Proven helper lemmas for common proof patterns:
 ```lean
 theorem getter_correct (state : ContractState) (sender : Address) :
     let edslValue := (getValue.runValue { state with sender := sender }).val
-    let specResult := interpretSpec spec (edslToSpecStorage state) tx
-    specResult.success = true ∧
-    specResult.returnValue = some edslValue := by
-  unfold getValue Contract.runValue spec interpretSpec
-  simp [getStorage, execFunction, execStmt, evalExpr]
+    let result := Contract.run getValue { state with sender := sender }
+    match result with
+    | .success value _ => value = edslValue
+    | .revert _ _ => False := by
+  unfold getValue Contract.runValue Contract.run
+  simp [getStorage]
 ```
 
 ### 2. Storage Updates
@@ -127,7 +131,7 @@ theorem getter_correct (state : ContractState) (sender : Address) :
 theorem setter_correct (state : ContractState) (value : Uint256) (sender : Address) :
     let finalState := (setValue value).runState { state with sender := sender }
     finalState.storage slot = value := by
-  unfold setValue Contract.runState
+  unfold setValue Contract.runState Contract.run
   simp [setStorage]
 ```
 
