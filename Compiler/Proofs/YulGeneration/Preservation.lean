@@ -179,17 +179,6 @@ private theorem exec_calldatasizeGuard_noop_of_noWrap
       evalBuiltinCallWithContext, hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
   simp [Compiler.calldatasizeGuard, execYulStmtsFuel, execYulFuel, hEval]
 
-/-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
-
-This remains axiomatic for the fully generic proof because the current semantics
-allow modulo wraparound in `lt(calldatasize(), ...)` without a bound on
-`state.calldata.length`. -/
-private axiom exec_calldatasizeGuard_noop
-    (fuel : Nat) (state : YulState) (numParams : Nat)
-    (hArity : numParams ≤ state.calldata.length) :
-    execYulStmtsFuel (fuel + 2) state [Compiler.calldatasizeGuard numParams] =
-      YulExecResult.continue state
-
 /-! ### buildSwitch stepping axiom
 
 The `buildSwitch` block structure generates:
@@ -246,16 +235,21 @@ private theorem eval_hasSelector_after_set (state : YulState) :
   | cons _ _ =>
       simp [execYulStmtsFuel, execYulFuel]
 
-/-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
-    the switch dispatch.
+/-- Executing a singleton statement list consumes one list-step of fuel. -/
+@[simp] private theorem execYulStmtsFuel_singleton_succ_local
+    (fuel : Nat) (state : YulState) (stmt : YulStmt) :
+    execYulStmtsFuel (fuel + 2) state [stmt] = execYulStmtFuel (fuel + 1) state stmt := by
+  simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
+  cases hExec : execYulFuel (fuel + 1) state (.stmt stmt) <;> simp
 
-    This remains axiomatic for the fully generic proof for the same reason as
-    `exec_calldatasizeGuard_noop`: the `__has_selector` test computes
-    `iszero(lt(calldatasize(), 4))`, and `lt` compares modulo `2^256`. Without a
-    no-wrap bound on `state.calldata.length`, the intended `__has_selector = 1`
-    reduction is false in general. -/
-private axiom execBuildSwitch_none_none_aux (fuel : Nat) (state : YulState)
-    (fns : List IRFunction) :
+/-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
+    the switch dispatch when `calldatasize()` does not wrap modulo `2^256`.
+
+    The fully generic theorem is false without this hypothesis; the no-wrap form is
+    the strongest true statement currently used by Layer 3. -/
+private axiom execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : YulState)
+    (fns : List IRFunction)
+    (hNoWrap : 4 + state.calldata.length * 32 < evmModulus) :
     execYulStmtsFuel (fuel + 6) state [Compiler.buildSwitch fns none none] =
       execYulStmtFuel (fuel + 1) (state.setVar "__has_selector" 1)
         (YulStmt.switch selectorExpr (switchCases fns)
@@ -378,6 +372,7 @@ default case. Extending to fallback/receive requires extending `interpretIR`. -/
 theorem yulCodegen_preserves_semantics
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hWF : ContractWF contract)
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
@@ -478,7 +473,8 @@ theorem yulCodegen_preserves_semantics
         execYulStmts, hRuntimeEq, hSkip]
       rw [hm, hSwitchSimp]
       -- Use the buildSwitch stepping axiom
-      have hStep := execBuildSwitch_none_none_aux (m + 4) yulInitState contract.functions
+      have hStep := execBuildSwitch_none_none_aux_of_noWrap (m + 4) yulInitState contract.functions (by
+        simpa [hYulInitDef] using hNoWrap)
       rw [show m + 4 + 6 = m + 10 from by omega] at hStep
       rw [hStep]
       -- Now we have execYulStmtFuel on the switch with state augmented by __has_selector
@@ -505,7 +501,8 @@ theorem yulCodegen_preserves_semantics
       simp only [interpretYulBody_eq_runtime, interpretYulRuntime, execYulStmts] at hmatch
       rw [hm, hSwitchSimp]
       -- Use the buildSwitch stepping axiom
-      have hStep := execBuildSwitch_none_none_aux (m + 4) yulInitState contract.functions
+      have hStep := execBuildSwitch_none_none_aux_of_noWrap (m + 4) yulInitState contract.functions (by
+        simpa [hYulInitDef] using hNoWrap)
       rw [show m + 4 + 6 = m + 10 from by omega] at hStep
       rw [hStep]
       -- The selector evaluates the same way

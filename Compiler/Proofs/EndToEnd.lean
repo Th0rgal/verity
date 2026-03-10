@@ -65,6 +65,7 @@ private def paramLoadErasure (fn : IRFunction) (tx : IRTransaction) (state : IRS
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -97,6 +98,7 @@ theorem yulStateOfIR_eq_initial
     (htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (hnumber : state.blockNumber = tx.blockNumber)
     (hchain : state.chainId = tx.chainId)
+    (hblobBaseFee : state.blobBaseFee = tx.blobBaseFee)
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
@@ -109,11 +111,12 @@ theorem yulStateOfIR_eq_initial
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           functionSelector := tx.functionSelector
           args := tx.args }
         state.storage state.events := by
   simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hmsgValue, hthis,
-    htimestamp, hnumber, hchain, hselector, hreturn]
+    htimestamp, hnumber, hchain, hblobBaseFee, hselector, hreturn]
 
 /-- Hypothesis-driven param-load erasure. -/
 theorem execYulStmts_paramState_eq_emptyVars
@@ -144,6 +147,7 @@ theorem yulBody_from_state_eq_yulBody
     (htimestamp : state.blockTimestamp = tx.blockTimestamp)
     (hnumber : state.blockNumber = tx.blockNumber)
     (hchain : state.chainId = tx.chainId)
+    (hblobBaseFee : state.blobBaseFee = tx.blobBaseFee)
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
@@ -158,7 +162,7 @@ theorem yulBody_from_state_eq_yulBody
       state = interpretYulBody fn tx state by
     rwa [h_eq] at h_ir_from
   simp only [interpretYulBodyFromState, interpretYulBody]
-  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hmsgValue hthis htimestamp hnumber hchain hselector hreturn hmemory hvars
+  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hmsgValue hthis htimestamp hnumber hchain hblobBaseFee hselector hreturn hmemory hvars
   have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hmsgValue hthis htimestamp hnumber hchain hselector hreturn hparamErase
   rw [h_rollback]
   simp only at h_exec
@@ -170,6 +174,7 @@ theorem yulBody_from_state_eq_yulBody
       blockTimestamp := tx.blockTimestamp
       blockNumber := tx.blockNumber
       chainId := tx.chainId
+      blobBaseFee := tx.blobBaseFee
       functionSelector := tx.functionSelector
       args := tx.args }
     state.storage state.events).symm
@@ -181,6 +186,7 @@ equivalent results under the Yul runtime dispatch. -/
 theorem layer3_contract_preserves_semantics
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hvars : initialState.vars = [])
     (hmemory : initialState.memory = fun _ => 0)
     (hreturn : initialState.returnValue = none)
@@ -193,6 +199,7 @@ theorem layer3_contract_preserves_semantics
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           calldata := tx.args
           selector := tx.functionSelector })
     (hWF : ContractWF contract)
@@ -201,7 +208,7 @@ theorem layer3_contract_preserves_semantics
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
-  apply yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive
+  apply yulCodegen_preserves_semantics contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
   · intro fn hmem
     exact (yulBody_from_state_eq_yulBody fn tx
       { initialState with
@@ -211,9 +218,10 @@ theorem layer3_contract_preserves_semantics
         blockTimestamp := tx.blockTimestamp
         blockNumber := tx.blockNumber
         chainId := tx.chainId
+        blobBaseFee := tx.blobBaseFee
         calldata := tx.args
         selector := tx.functionSelector }
-      rfl rfl rfl rfl rfl rfl rfl rfl
+      rfl rfl rfl rfl rfl rfl rfl rfl rfl
       (by simpa using hreturn)
       (by simpa using hmemory)
       (by simpa using hvars)
@@ -223,6 +231,7 @@ theorem layer3_contract_preserves_semantics
 theorem layer3_contract_preserves_semantics_general
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hWF : ContractWF contract)
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
@@ -236,6 +245,7 @@ theorem layer3_contract_preserves_semantics_general
             blockTimestamp := tx.blockTimestamp
             blockNumber := tx.blockNumber
             chainId := tx.chainId
+            blobBaseFee := tx.blobBaseFee
             calldata := tx.args
             selector := tx.functionSelector })
         (interpretYulBody fn tx
@@ -246,12 +256,13 @@ theorem layer3_contract_preserves_semantics_general
             blockTimestamp := tx.blockTimestamp
             blockNumber := tx.blockNumber
             chainId := tx.chainId
+            blobBaseFee := tx.blobBaseFee
             calldata := tx.args
             selector := tx.functionSelector })) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
-  yulCodegen_preserves_semantics contract tx initialState hselector hWF hNoFallback hNoReceive hbody
+  yulCodegen_preserves_semantics contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive hbody
 
 /-! ## Layers 2+3 Composition -/
 
@@ -262,6 +273,7 @@ theorem layers2_3_ir_matches_yul
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
     (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hvars : initialState.vars = [])
     (hmemory : initialState.memory = fun _ => 0)
     (hreturn : initialState.returnValue = none)
@@ -274,6 +286,7 @@ theorem layers2_3_ir_matches_yul
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           calldata := tx.args
           selector := tx.functionSelector })
     (hWF : ContractWF irContract)
@@ -282,7 +295,7 @@ theorem layers2_3_ir_matches_yul
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
       (interpretYulFromIR irContract tx initialState) :=
-  layer3_contract_preserves_semantics irContract tx initialState hselector hvars hmemory hreturn hparamErase hWF hNoFallback hNoReceive
+  layer3_contract_preserves_semantics irContract tx initialState hselector hNoWrap hvars hmemory hreturn hparamErase hWF hNoFallback hNoReceive
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
@@ -290,6 +303,7 @@ theorem layers2_3_ir_matches_yul
 theorem simpleStorage_endToEnd
     (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hvars : initialState.vars = [])
     (hmemory : initialState.memory = fun _ => 0)
     (hreturn : initialState.returnValue = none)
@@ -302,12 +316,13 @@ theorem simpleStorage_endToEnd
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           calldata := tx.args
           selector := tx.functionSelector }) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=
-  layer3_contract_preserves_semantics simpleStorageIRContract tx initialState hselector hvars hmemory hreturn hparamErase
+  layer3_contract_preserves_semantics simpleStorageIRContract tx initialState hselector hNoWrap hvars hmemory hreturn hparamErase
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
 /-! ## Universal Pure Arithmetic Bridge

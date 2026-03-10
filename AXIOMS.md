@@ -36,53 +36,30 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `exec_calldatasizeGuard_noop`
+### 2. `execBuildSwitch_none_none_aux_of_noWrap`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:187`
-
-**Statement**:
-```lean
-private axiom exec_calldatasizeGuard_noop
-```
-
-**Purpose**:
-Bridges the preservation proof over the generated `calldatasizeGuard` when calldata arity is sufficient.
-
-**Why this is currently an axiom**:
-This is not merely an unfinished mechanization. Under the current proof semantics,
-`lt` compares its arguments modulo `2^256`, while `calldatasize` is modeled from
-an unbounded Lean `List.length`. So the intended theorem is false without an
-additional no-wrap hypothesis on `state.calldata.length`. A checked weaker lemma,
-`exec_calldatasizeGuard_noop_of_noWrap`, is now proved in the same file; removing
-this axiom cleanly requires either threading that bound through Layer 3 or changing
-the builtin model.
-
-**Risk**: Medium.
-
-### 3. `execBuildSwitch_none_none_aux`
-
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:257`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:250`
 
 **Statement**:
 ```lean
-private axiom execBuildSwitch_none_none_aux
+private axiom execBuildSwitch_none_none_aux_of_noWrap
 ```
 
 **Purpose**:
 Connects execution of the emitted `buildSwitch ... none none` block to the corresponding selector-switch step used in contract dispatch.
 
 **Why this is currently an axiom**:
-This shares the same semantic issue as `exec_calldatasizeGuard_noop`. The emitted
-`__has_selector` test computes `iszero(lt(calldatasize(), 4))`, and under the
-current modulo semantics that reduction to `1` is false on wraparound-sized
-calldata. So the fully generic statement needs an additional no-wrap hypothesis
-before it can be proved constructively.
+The old fully generic dispatch normalization statement was false on wraparound-sized
+calldata and has now been removed. The remaining axiom is the narrowed true form:
+it explicitly assumes `4 + state.calldata.length * 32 < evmModulus`. Layer 3 now
+threads that no-wrap hypothesis publicly, so this axiom surface is smaller than
+before, but the actual small-step normalization is still axiomatic.
 
 **Risk**: Medium.
 
-### 4. `SwitchCaseBodyBridge`
+### 3. `SwitchCaseBodyBridge`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:318`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:312`
 
 **Statement**:
 ```lean
@@ -97,7 +74,7 @@ This remains the last contract-level proof gap between body-level Yul equivalenc
 
 **Risk**: Medium.
 
-### 5. `supported_function_body_correct_from_exact_state`
+### 4. `supported_function_body_correct_from_exact_state`
 
 **Location**: `Compiler/Proofs/IRGeneration/Function.lean:810`
 
@@ -149,7 +126,7 @@ supported non-core fragment including storage and mapping writes.
 
 **Risk**: Medium.
 
-### 6. `supported_function_execIRFunction_eq_fuel`
+### 5. `supported_function_execIRFunction_eq_fuel`
 
 **Location**: `Compiler/Proofs/IRGeneration/Function.lean:850`
 
@@ -494,7 +471,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 6
+- Active axioms: 5
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not
