@@ -38,7 +38,7 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 ### 2. `exec_calldatasizeGuard_noop`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:161`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:187`
 
 **Statement**:
 ```lean
@@ -49,13 +49,19 @@ private axiom exec_calldatasizeGuard_noop
 Bridges the preservation proof over the generated `calldatasizeGuard` when calldata arity is sufficient.
 
 **Why this is currently an axiom**:
-The reduction from proof-runtime `calldatasize`/`lt` normalization to the intended arity check is still not fully mechanized in this theorem path.
+This is not merely an unfinished mechanization. Under the current proof semantics,
+`lt` compares its arguments modulo `2^256`, while `calldatasize` is modeled from
+an unbounded Lean `List.length`. So the intended theorem is false without an
+additional no-wrap hypothesis on `state.calldata.length`. A checked weaker lemma,
+`exec_calldatasizeGuard_noop_of_noWrap`, is now proved in the same file; removing
+this axiom cleanly requires either threading that bound through Layer 3 or changing
+the builtin model.
 
 **Risk**: Medium.
 
 ### 3. `execBuildSwitch_none_none_aux`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:233`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:257`
 
 **Statement**:
 ```lean
@@ -66,13 +72,17 @@ private axiom execBuildSwitch_none_none_aux
 Connects execution of the emitted `buildSwitch ... none none` block to the corresponding selector-switch step used in contract dispatch.
 
 **Why this is currently an axiom**:
-The step-by-step execution trace is known, but proving it directly through reducible `execYulFuel` remains technically brittle.
+This shares the same semantic issue as `exec_calldatasizeGuard_noop`. The emitted
+`__has_selector` test computes `iszero(lt(calldatasize(), 4))`, and under the
+current modulo semantics that reduction to `1` is false on wraparound-sized
+calldata. So the fully generic statement needs an additional no-wrap hypothesis
+before it can be proved constructively.
 
 **Risk**: Medium.
 
 ### 4. `SwitchCaseBodyBridge`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:294`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:318`
 
 **Statement**:
 ```lean

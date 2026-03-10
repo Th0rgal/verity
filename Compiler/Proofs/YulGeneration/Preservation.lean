@@ -28,6 +28,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           functionSelector := tx.functionSelector
           args := tx.args }
         state.storage state.events := by
@@ -52,6 +53,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
             blockTimestamp := tx.blockTimestamp
             blockNumber := tx.blockNumber
             chainId := tx.chainId
+            blobBaseFee := tx.blobBaseFee
             functionSelector := tx.functionSelector
             args := tx.args }
           state.storage state.events)
@@ -63,6 +65,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
               blockTimestamp := tx.blockTimestamp
               blockNumber := tx.blockNumber
               chainId := tx.chainId
+              blobBaseFee := tx.blobBaseFee
               functionSelector := tx.functionSelector
               args := tx.args }
             state.storage state.events)
@@ -156,8 +159,31 @@ private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState)
 
 /-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
 
-This currently relies on the intended raw-`calldatasize` ordering model rather than
-fully discharging the modulo-shaped builtin normalization mechanically. -/
+Under the current builtin model, `lt` compares modulo `2^256`, so the generic
+statement additionally needs a no-wrap hypothesis on `calldatasize()`. -/
+private theorem exec_calldatasizeGuard_noop_of_noWrap
+    (fuel : Nat) (state : YulState) (numParams : Nat)
+    (hArity : numParams ≤ state.calldata.length)
+    (hNoWrap : 4 + state.calldata.length * 32 < evmModulus) :
+    execYulStmtsFuel (fuel + 2) state [Compiler.calldatasizeGuard numParams] =
+      YulExecResult.continue state := by
+  have hLtFalse : ¬ (4 + state.calldata.length * 32 < 4 + numParams * 32) := by
+    omega
+  have hParamNoWrap : 4 + numParams * 32 < evmModulus := by
+    omega
+  have hEval :
+      evalYulExpr state
+        (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)]) =
+        some 0 := by
+    simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
+      evalBuiltinCallWithContext, hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
+  simp [Compiler.calldatasizeGuard, execYulStmtsFuel, execYulFuel, hEval]
+
+/-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
+
+This remains axiomatic for the fully generic proof because the current semantics
+allow modulo wraparound in `lt(calldatasize(), ...)` without a bound on
+`state.calldata.length`. -/
 private axiom exec_calldatasizeGuard_noop
     (fuel : Nat) (state : YulState) (numParams : Nat)
     (hArity : numParams ≤ state.calldata.length) :
@@ -221,15 +247,13 @@ private theorem eval_hasSelector_after_set (state : YulState) :
       simp [execYulStmtsFuel, execYulFuel]
 
 /-- Executing `[buildSwitch fns none none]` with enough fuel is equivalent to executing
-    the switch dispatch. This is stated as an axiom pending a full mechanical proof.
+    the switch dispatch.
 
-    The execution trace is:
-    - Block unwrap (1 fuel)
-    - `let_ "__has_selector"` evaluation (1 fuel, `calldatasize ≥ 4` → value = 1)
-    - `if_ (iszero "__has_selector")` skipped (1 fuel, `iszero(1) = 0`)
-    - `if_ "__has_selector"` enters body (1 fuel, `1 ≠ 0`)
-    - Singleton `[switch ...]` unwrap (1 fuel)
-    Total: 5 fuel consumed from the outer stmts wrapper + inner steps. -/
+    This remains axiomatic for the fully generic proof for the same reason as
+    `exec_calldatasizeGuard_noop`: the `__has_selector` test computes
+    `iszero(lt(calldatasize(), 4))`, and `lt` compares modulo `2^256`. Without a
+    no-wrap bound on `state.calldata.length`, the intended `__has_selector = 1`
+    reduction is false in general. -/
 private axiom execBuildSwitch_none_none_aux (fuel : Nat) (state : YulState)
     (fns : List IRFunction) :
     execYulStmtsFuel (fuel + 6) state [Compiler.buildSwitch fns none none] =
@@ -302,6 +326,7 @@ private axiom SwitchCaseBodyBridge
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           functionSelector := tx.functionSelector
           args := tx.args }
         irState.storage irState.events) →
@@ -322,6 +347,7 @@ private axiom SwitchCaseBodyBridge
             blockTimestamp := tx.blockTimestamp
             blockNumber := tx.blockNumber
             chainId := tx.chainId
+            blobBaseFee := tx.blobBaseFee
             functionSelector := tx.functionSelector
             args := tx.args }
           irState.storage irState.events)
@@ -333,6 +359,7 @@ private axiom SwitchCaseBodyBridge
               blockTimestamp := tx.blockTimestamp
               blockNumber := tx.blockNumber
               chainId := tx.chainId
+              blobBaseFee := tx.blobBaseFee
               functionSelector := tx.functionSelector
               args := tx.args }
             irState.storage irState.events).setVar "__has_selector" 1)
@@ -364,6 +391,7 @@ theorem yulCodegen_preserves_semantics
             blockTimestamp := tx.blockTimestamp
             blockNumber := tx.blockNumber
             chainId := tx.chainId
+            blobBaseFee := tx.blobBaseFee
             calldata := tx.args
             selector := tx.functionSelector })
         (interpretYulBody fn tx
@@ -374,6 +402,7 @@ theorem yulCodegen_preserves_semantics
             blockTimestamp := tx.blockTimestamp
             blockNumber := tx.blockNumber
             chainId := tx.chainId
+            blobBaseFee := tx.blobBaseFee
             calldata := tx.args
             selector := tx.functionSelector })) :
     resultsMatch
@@ -387,6 +416,7 @@ theorem yulCodegen_preserves_semantics
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     calldata := tx.args
     selector := tx.functionSelector
   }
@@ -397,6 +427,7 @@ theorem yulCodegen_preserves_semantics
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -498,6 +529,7 @@ theorem yulCodegen_preserves_semantics
           blockTimestamp := tx.blockTimestamp
           blockNumber := tx.blockNumber
           chainId := tx.chainId
+          blobBaseFee := tx.blobBaseFee
           calldata := tx.args
           selector := tx.functionSelector }
         (m + 4) hmatch
