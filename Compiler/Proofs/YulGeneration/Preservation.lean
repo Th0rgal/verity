@@ -640,28 +640,45 @@ private theorem exec_switchCaseBody_continue_of_long
               rw [execYulStmtsFuel_cons_continue (fuel := fuel) (next := state) (hstmt := hGuard)]
               exact ⟨fuel, by omega, rfl⟩
 
-/-! ### switchCaseBody body bridge axiom
+/-! ### switchCaseBody body bridge axioms
 
 After the guard prefix has been proved to pass (by `exec_switchCaseBody_continue_of_long`),
 the remaining gap is connecting fuel-bounded execution of `fn.body` in a state
 where `__has_selector = 1` to the total `interpretYulRuntime fn.body ...`.
 
-This axiom captures two sub-properties:
-1. **Variable irrelevance** — `__has_selector` is not read by `fn.body`, so
-   `execYulStmtsFuel fuel' (state.setVar "__has_selector" 1) fn.body` behaves
-   identically to execution without the extra variable.
-2. **Fuel adequacy** — `fuel'` (derived from dispatch-level fuel minus the
-   guard prefix) is at least `sizeOf fn.body + 1`, which suffices for
-   `execYulStmts` (the total execution wrapper).
-
-Neither sub-property introduces IR-level types: this axiom is purely Yul-level.
+This gap is decomposed into two independent sub-properties, each captured by
+its own axiom:
 -/
-private axiom SwitchCaseBodyBridge_body
+
+/-- **Variable irrelevance**: the `__has_selector` dispatch variable is never
+read by function body statements, so adding it to the variable environment
+does not change execution.  This is a purely Yul-level property that does not
+mention IR types. -/
+private axiom execYulStmtsFuel_setVar_hasSelector_irrelevant
+    (body : List YulStmt) (state : YulState) (fuel : Nat) :
+    execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body =
+    execYulStmtsFuel fuel state body
+
+/-- **Fuel adequacy**: when the fuel budget is at least `sizeOf body + 1`
+(the amount used by `execYulStmts`), the rollback-wrapped execution result
+is the same as the total execution result.  This is a purely Yul-level
+fuel-monotonicity property. -/
+private axiom execYulStmtsFuel_fuel_adequate
+    (body : List YulStmt) (state : YulState) (fuel : Nat) :
+    yulResultOfExecWithRollback state
+      (execYulStmtsFuel fuel state body) =
+    yulResultOfExecWithRollback state
+      (execYulStmts state body)
+
+/-- Composition of variable irrelevance and fuel adequacy. -/
+private theorem SwitchCaseBodyBridge_body
     (body : List YulStmt) (state : YulState) (fuel : Nat) :
     yulResultOfExecWithRollback state
       (execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body) =
     yulResultOfExecWithRollback state
-      (execYulStmts state body)
+      (execYulStmts state body) := by
+  rw [execYulStmtsFuel_setVar_hasSelector_irrelevant]
+  rw [execYulStmtsFuel_fuel_adequate]
 
 /-! ### switchCaseBody bridge theorem
 

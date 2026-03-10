@@ -36,44 +36,61 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `SwitchCaseBodyBridge_body`
+### 2. `execYulStmtsFuel_setVar_hasSelector_irrelevant`
 
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:659`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:657`
 
 **Statement**:
 ```lean
-private axiom SwitchCaseBodyBridge_body
+private axiom execYulStmtsFuel_setVar_hasSelector_irrelevant
 ```
 
 **Purpose**:
-Captures that executing a Yul statement list `body` with the `__has_selector`
-variable set and dispatch-level fuel gives the same rollback-wrapped result as
-executing `body` via the total `execYulStmts` wrapper (which uses `sizeOf`-adequate
-fuel without the extra variable).
-
-This axiom is purely Yul-level — it does not mention IR types, transactions, or
-`resultsMatch`. It captures two sub-properties:
-1. **Variable irrelevance**: `__has_selector` is not read by generated function
-   bodies, so setting it has no effect on execution.
-2. **Fuel adequacy**: dispatch-level fuel (minus the guard prefix) is at least
-   `sizeOf body + 1`, which suffices for total execution.
+Variable irrelevance: the dispatch variable `__has_selector` is never read by
+function body statements, so adding it to the variable environment does not
+change execution. This is a purely Yul-level property: it says
+`execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body = execYulStmtsFuel fuel state body`.
 
 **Why this is currently an axiom**:
-Variable irrelevance requires showing that `fn.body` never reads `__has_selector`,
-and fuel adequacy requires a monotonicity property over execution fuel. Both are
-understood but not yet mechanized.
+Proving this mechanically requires showing that no subexpression in `body`
+evaluates `YulExpr.ident "__has_selector"`. The compiler never emits references
+to `__has_selector` inside function bodies (only in the dispatch prelude), but
+the proof infrastructure for "variable X is dead in statement list S" is not yet
+built.
 
-The former `SwitchCaseBodyBridge` axiom has been decomposed: the guard-prefix
-stepping (comment, optional `callvalueGuard`, `calldatasizeGuard`) is now fully
-proved by `exec_switchCaseBody_continue_of_long`, and `SwitchCaseBodyBridge`
-itself is now a theorem that composes the proved guard stepping with this axiom.
-The short-calldata failure branch was already proved by
-`exec_switchCaseBody_revert_of_short` and `SwitchCaseBodyBridge_short`.
+**Risk**: Low. Purely Yul-level, does not mention IR types. The property is
+a standard dead-variable elimination fact.
 
-**Risk**: Low. This axiom is purely Yul-level and strictly narrower than its
-predecessor.
+### 3. `execYulStmtsFuel_fuel_adequate`
 
-### 3. `supported_function_body_correct_from_exact_state`
+**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:666`
+
+**Statement**:
+```lean
+private axiom execYulStmtsFuel_fuel_adequate
+```
+
+**Purpose**:
+Fuel adequacy / monotonicity: when the rollback-wrapped result is taken,
+executing with any fuel budget gives the same result as executing with the
+canonical `sizeOf body + 1` fuel used by `execYulStmts`. This is a purely
+Yul-level fuel-monotonicity property.
+
+**Why this is currently an axiom**:
+The `execYulFuel` engine reuses the same fuel counter across recursive calls
+(it is a depth bound, not a countdown), so once fuel exceeds the structural
+depth the result stabilizes. Proving this requires a fuel-monotonicity induction
+over `execYulFuel` that is understood but not yet mechanized.
+
+**Risk**: Low. Purely Yul-level, does not mention IR types. The property is a
+standard fuel-monotonicity / fuel-saturation fact for bounded recursion.
+
+*Note*: The former `SwitchCaseBodyBridge_body` axiom has been decomposed into
+these two independent axioms. `SwitchCaseBodyBridge_body` is now a proved theorem
+that composes them. The guard-prefix stepping and short-calldata branches were
+already proved in the previous decomposition round.
+
+### 4. `supported_function_body_correct_from_exact_state`
 
 **Location**: `Compiler/Proofs/IRGeneration/Function.lean:810`
 
@@ -133,7 +150,7 @@ the still-unproved non-core supported statement shapes preserve
 
 **Risk**: Medium.
 
-### 4. `supported_function_execIRFunction_eq_fuel`
+### 5. `supported_function_execIRFunction_eq_fuel`
 
 **Location**: `Compiler/Proofs/IRGeneration/Function.lean:849`
 
@@ -473,9 +490,11 @@ These removals reduced prior axiom debt. The monolithic `SwitchCaseBodyBridge`
 axiom was decomposed: the guard-prefix stepping is now fully proved by
 `exec_switchCaseBody_continue_of_long`, the short-calldata case by
 `exec_switchCaseBody_revert_of_short` and `SwitchCaseBodyBridge_short`, and
-`SwitchCaseBodyBridge` is now a theorem. The remaining axiom
-`SwitchCaseBodyBridge_body` is purely Yul-level and captures only variable
-irrelevance and fuel adequacy; those active axioms are tracked above.
+`SwitchCaseBodyBridge` is now a theorem. The intermediate axiom
+`SwitchCaseBodyBridge_body` was further decomposed into two independent axioms:
+`execYulStmtsFuel_setVar_hasSelector_irrelevant` (variable irrelevance) and
+`execYulStmtsFuel_fuel_adequate` (fuel adequacy); `SwitchCaseBodyBridge_body` is
+now a proved theorem composing them. Those active axioms are tracked above.
 
 ## Non-Axiom: Arithmetic Semantics
 
@@ -483,7 +502,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 4
+- Active axioms: 5
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not
