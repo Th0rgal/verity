@@ -96,6 +96,12 @@ Recent progress for ABI-level string support (`#1159`):
 - `ParamType.string` now compiles through the existing dynamic-bytes ABI path for macro parsing/lowering, calldata loading, ABI JSON/signature rendering, `Stmt.returnBytes`, event emission, and custom errors.
 - This support is intentionally ABI-only for now: Solidity-style string storage/layout and typed-IR string lowering remain unsupported and should continue to fail fast with explicit diagnostics.
 
+Recent progress for constants and immutables (`#1569`):
+- `verity_contract` now exposes `constants` and `immutables` sections in the macro surface, with smoke, invariant, round-trip, and generated Foundry property coverage.
+- Constants are validated as compile-time expressions, elaborated as Lean definitions, and can reference earlier constants while failing fast on runtime-dependent expressions and recursive definitions.
+- Immutables support `Uint256`, `Uint8`, `Address`, `Bytes32`, and `Bool` values bound from constructor-visible expressions, materialized as hidden storage-backed fields in the compilation model, and reintroduced as read-only bindings in function bodies.
+- Name-collision and type-mismatch diagnostics now fail fast for storage/constant/immutable/function conflicts and unsupported immutable payload types.
+
 Delivery policy for unsupported features:
 1. Compiler diagnostics must identify the exact unsupported construct.
 2. Error text must suggest the nearest currently-supported pattern.

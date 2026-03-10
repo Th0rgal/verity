@@ -42,7 +42,31 @@ verity_contract Counter where
     setStorage count (add current 1)
 ```
 
-Under the hood, the macro generates a `Contract α` state monad (`ContractState → ContractResult α`) with operations like `getStorage`, `setStorage`, and `require` that manipulate blockchain state. You generally should not hand-write a separate `CompilationModel`; the macro-generated one is the compiler input.
+The macro surface also supports contract-level constants and constructor-bound immutables:
+
+```lean
+verity_contract FeeVault where
+  storage
+    owner : Address := slot 0
+
+  constants
+    basisPoints : Uint256 := 10000
+
+  immutables
+    treasury : Address := seedTreasury
+    withdrawFeeBps : Uint256 := 30
+
+  constructor (seedTreasury : Address) := do
+    setStorageAddr owner msgSender
+
+  function feeOn (amount : Uint256) : Uint256 := do
+    return div (mul amount withdrawFeeBps) basisPoints
+
+  function treasuryAddr () : Address := do
+    return treasury
+```
+
+Under the hood, the macro generates a `Contract α` state monad (`ContractState → ContractResult α`) with operations like `getStorage`, `setStorage`, and `require` that manipulate blockchain state. Constants are validated as compile-time expressions, and immutables are initialized once from constructor-visible expressions and exposed as read-only values in function bodies. You generally should not hand-write a separate `CompilationModel`; the macro-generated one is the compiler input.
 
 ### 2. Write a spec
 
