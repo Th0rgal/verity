@@ -160,9 +160,15 @@ that arithmetic is semantic rather than fuel-only:
 `stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope`, and
 `stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel` now lift those
 compiled head-step facts directly into `stmtResultMatchesIRExec`. The remaining
-blocker is therefore narrower again: landing the recursive
-`StmtListTerminalCore` theorem itself, with the branch-specific compile/fuel
-plumbing concentrated in terminal `ite`, before attacking the broader
+blocker is therefore narrower again: the recursive
+`StmtListTerminalCore` proof needs a second structural-fuel schema for bodies
+entered under an already-spent token, not just the top-level
+`sizeOf bodyIR + extraFuel + 1` shape. A direct checked theorem attempt showed
+that terminal `ite` then-branches fit the current schema, but else-branches
+still enter their compiled body through `execIRStmt_if_true_of_eval_nonzeroFuel`
+with the body fuel already decremented by one. The next leverageful move is
+therefore to package that if-body entry form cleanly, then reattempt the
+explicit-`bodyIR` `StmtListTerminalCore` theorem before attacking the broader
 supported non-core fragment including storage and mapping writes.
 
 **Risk**: Medium.
