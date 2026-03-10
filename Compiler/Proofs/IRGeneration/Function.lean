@@ -809,18 +809,16 @@ proof under the exact-state invariant produced by parameter loading. This is
 the second strategy-3 subgoal after `supported_function_param_state_exact`. -/
 axiom supported_function_body_correct_from_exact_state
     (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
     (fn : FunctionSpec)
-    (selector : Nat)
-    (returns : List ParamType)
     (bodyStmts : List YulStmt)
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState)
     (state : IRState)
     (bindings : List (String × Nat))
-    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hsupportedFn : SupportedFunction model.fields fn)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
@@ -1101,7 +1099,7 @@ theorem supported_function_correct
     (model : CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (_hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
     (fn : FunctionSpec)
     (selector : Nat)
     (returns : List ParamType)
@@ -1279,10 +1277,15 @@ theorem supported_function_correct
           FunctionBody.stmtResultMatchesIRExec
             (SourceSemantics.effectiveFields model) sourceResult irExec := by
       exact supported_function_body_correct_from_exact_state
-          model selectors hSupported hvalidateInputs fn selector returns bodyStmts tx initialWorld
+          model fn bodyStmts tx initialWorld
           (ParamLoading.applyBindingsToIRState
             (prebindRawArgs initialState fn.params) bindings)
-          bindings hfn hbodyCompile hbodyStateRuntime hcore hbodyStateBindings
+          bindings
+          (hSupported.supportedFunctionOfSelectorDispatched hfn)
+          (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
+          hSupported.noEvents
+          hSupported.noErrors
+          hbodyCompile hbodyStateRuntime hcore hbodyStateBindings
     rcases hbodyCorrect with
       ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
     have hfuel :=

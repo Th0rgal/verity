@@ -69,15 +69,18 @@ axiom supported_function_body_correct_from_exact_state
 **Purpose**:
 Captures the second strategy-3 Layer-2 subgoal: once runtime/storage fields match
 and variable bindings are exact, executing `compileStmtList ... fn.body` simulates
-`SourceSemantics.execStmtList` for any supported function body.
+`SourceSemantics.execStmtList` for a single supported non-core function body.
 
 **Why this is currently an axiom**:
 This is the remaining generic body-simulation proof over the supported fragment.
 The exact parameter-state reconstruction step is now proved, and `Function.lean`
 now bypasses this axiom for `StmtListCompileCore` bodies. The axiom statement
-has therefore been narrowed to the non-core fragment only; the repo still
-needs the broader expression/statement induction library for the remaining
-supported body shapes. The latest checked extractions here are the scope-local
+has therefore been narrowed twice: first to the non-core fragment only, and now
+to the exact per-function `SupportedFunction model.fields fn` witness actually
+consumed by the caller instead of the larger whole-contract `SupportedSpec`
+package and selector-bookkeeping context. The repo still needs the broader
+expression/statement induction library for the remaining supported body shapes.
+The latest checked extractions here are the scope-local
 whole-fuel prefix wrappers
 `execIRStmts_compiled_let_core_append_wholeFuel_of_scope`,
 `execIRStmts_compiled_assign_core_append_wholeFuel_of_scope`,
@@ -107,6 +110,10 @@ with the body fuel already decremented by one. The next leverageful move is
 therefore to package that if-body entry form cleanly, then reattempt the
 explicit-`bodyIR` `StmtListTerminalCore` theorem before attacking the broader
 supported non-core fragment including storage and mapping writes.
+
+This leaves the trusted statement closer to the real blocker: a local proof that
+the still-unproved non-core supported statement shapes preserve
+`stmtResultMatchesIRExec` once parameter loading has established exact state.
 
 **Risk**: Medium.
 
