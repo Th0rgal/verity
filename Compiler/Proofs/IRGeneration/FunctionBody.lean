@@ -3696,6 +3696,35 @@ inductive StmtListTerminalCore : List String → List Stmt → Prop where
       StmtListCompileCore scope rest →
       StmtListTerminalCore scope (.ite cond thenBranch elseBranch :: rest)
 
+theorem stmtListTerminalCore_return_tail_compileCore
+    {scope : List String}
+    {value : Expr}
+    {rest : List Stmt}
+    (hterminal : StmtListTerminalCore scope (.return value :: rest)) :
+    StmtListCompileCore scope rest := by
+  cases hterminal with
+  | return_ _ _ hrest =>
+      exact hrest
+
+theorem stmtListTerminalCore_stop_tail_compileCore
+    {scope : List String}
+    {rest : List Stmt}
+    (hterminal : StmtListTerminalCore scope (.stop :: rest)) :
+    StmtListCompileCore scope rest := by
+  cases hterminal with
+  | stop hrest =>
+      exact hrest
+
+theorem stmtListTerminalCore_ite_tail_compileCore
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch rest : List Stmt}
+    (hterminal : StmtListTerminalCore scope (.ite cond thenBranch elseBranch :: rest)) :
+    StmtListCompileCore scope rest := by
+  cases hterminal with
+  | ite _ _ _ _ hrest =>
+      exact hrest
+
 theorem stmtListTerminalCore_ne_nil
     {scope : List String}
     {stmts : List Stmt}

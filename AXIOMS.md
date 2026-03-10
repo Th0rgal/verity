@@ -388,7 +388,14 @@ compiled-block composition lemmas inline.
 The next direct move is still the explicit-`bodyIR` terminal-core theorem, but
 it can now evaluate `let`, `assign`, `return`, and `require` heads directly
 from the theorem’s scope-local invariant instead of rebuilding `...OnExpr`
-facts inline.
+facts inline. The newest inversion cleanup also extracts the compile-core tails
+hidden inside terminal heads as
+`stmtListTerminalCore_return_tail_compileCore`,
+`stmtListTerminalCore_stop_tail_compileCore`, and
+`stmtListTerminalCore_ite_tail_compileCore`, so the next compile-guided proof
+can recover the nonterminal tail witness immediately after inverting a
+terminal-head hypothesis instead of redoing that constructor bookkeeping by
+hand.
 
 **Risk**: Medium.
 
