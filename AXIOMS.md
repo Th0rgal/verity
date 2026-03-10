@@ -236,7 +236,16 @@ decomposition ad hoc. The newest arithmetic extraction also adds
 `yulStmtList_sizeOf_two_cons_tail_extraFuel_eq`, which package the exact
 two-statement head/tail decomposition needed for the compiled terminal
 `mstore; return` prefixes without redoing nested `sizeOf` subtraction
-normalization inside the recursive proof. The branch-entry wrappers are now also explicit:
+normalization inside the recursive proof. The latest theorem attempt also made
+the next arithmetic gap fully explicit: the recursive terminal-core proof
+needs the same decompositions in direct execution-fuel form after consuming the
+first one or two head statements, not just in `= ... + 1` introduction form.
+Those are now extracted as
+`yulStmtList_sizeOf_cons_tailExecFuel_eq`,
+`yulStmtList_sizeOf_two_cons_secondExecFuel_eq`, and
+`yulStmtList_sizeOf_two_cons_tailExecFuel_eq`, so the next attempt can rewrite
+tail calls straight to `sizeOf whole + extraFuel - 1` / `- 2` instead of
+re-deriving that arithmetic inline. The branch-entry wrappers are now also explicit:
 `execIRStmt_compiled_terminal_ite_let`,
 `evalIRExpr_compiled_terminal_ite_elseCond_of_zero`,
 `execIRStmt_compiled_terminal_ite_thenIf_true`,
