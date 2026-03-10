@@ -9021,6 +9021,322 @@ theorem execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
     (rest := tailIR)
     hstmt
 
+theorem stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {name : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {rest : List Stmt}
+    {tailIR : List YulStmt}
+    {extraFuel : Nat}
+    (hcore : ExprCompileCore value)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope value scope)
+    (hscope : scopeNamesPresent scope runtime.bindings)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state)
+    (htail :
+      let valueNat := SourceSemantics.evalExpr fields runtime value
+      let runtime' :=
+        { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+      stmtResultMatchesIRExec
+        fields
+        (SourceSemantics.execStmtList fields runtime' rest)
+        (execIRStmts
+          (sizeOf tailIR +
+            (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) -
+              (sizeOf tailIR + 1) +
+              extraFuel) + 1)
+          (state.setVar name valueNat)
+          tailIR)) :
+    stmtResultMatchesIRExec
+      fields
+      (SourceSemantics.execStmtList fields runtime (.letVar name value :: rest))
+      (execIRStmts
+        (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.let_ name valueIR] ++ tailIR)) := by
+  let valueNat := SourceSemantics.evalExpr fields runtime value
+  let runtime' :=
+    { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+  let state' := state.setVar name valueNat
+  rcases execIRStmts_compiled_let_core_tailExtraFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (name := name)
+      (value := value)
+      (valueIR := valueIR)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      (irExec :=
+        execIRStmts
+          (sizeOf tailIR +
+            (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) -
+              (sizeOf tailIR + 1) +
+              extraFuel) + 1)
+          state'
+          tailIR)
+      hcore hvalueIR hexact hinScope hscope hbounded hruntime rfl with
+    ⟨hwhole, hruntime', hexact', hbounded', hscope'⟩
+  have hwhole' :
+      execIRStmts
+        (1 + (1 + sizeOf name + sizeOf valueIR) + sizeOf tailIR + extraFuel + 1)
+        state
+        (YulStmt.let_ name valueIR :: tailIR) =
+      execIRStmts
+        (sizeOf tailIR +
+          (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) -
+            (sizeOf tailIR + 1) +
+            extraFuel) + 1)
+        state'
+        tailIR := by
+    simpa using hwhole
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  dsimp [runtime', valueNat]
+  rw [hwhole']
+  exact htail
+
+theorem stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {name : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {rest : List Stmt}
+    {tailIR : List YulStmt}
+    {extraFuel : Nat}
+    (hcore : ExprCompileCore value)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope value scope)
+    (hscope : scopeNamesPresent scope runtime.bindings)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state)
+    (htail :
+      let valueNat := SourceSemantics.evalExpr fields runtime value
+      let runtime' :=
+        { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+      stmtResultMatchesIRExec
+        fields
+        (SourceSemantics.execStmtList fields runtime' rest)
+        (execIRStmts
+          (sizeOf tailIR +
+            (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) -
+              (sizeOf tailIR + 1) +
+              extraFuel) + 1)
+          (state.setVar name valueNat)
+          tailIR)) :
+    stmtResultMatchesIRExec
+      fields
+      (SourceSemantics.execStmtList fields runtime (.assignVar name value :: rest))
+      (execIRStmts
+        (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.assign name valueIR] ++ tailIR)) := by
+  let valueNat := SourceSemantics.evalExpr fields runtime value
+  let runtime' :=
+    { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+  let state' := state.setVar name valueNat
+  rcases execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (name := name)
+      (value := value)
+      (valueIR := valueIR)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      (irExec :=
+        execIRStmts
+          (sizeOf tailIR +
+            (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) -
+              (sizeOf tailIR + 1) +
+              extraFuel) + 1)
+          state'
+          tailIR)
+      hcore hvalueIR hexact hinScope hscope hbounded hruntime rfl with
+    ⟨hwhole, hruntime', hexact', hbounded', hscope'⟩
+  have hwhole' :
+      execIRStmts
+        (1 + (1 + sizeOf name + sizeOf valueIR) + sizeOf tailIR + extraFuel + 1)
+        state
+        (YulStmt.assign name valueIR :: tailIR) =
+      execIRStmts
+        (sizeOf tailIR +
+          (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) -
+            (sizeOf tailIR + 1) +
+            extraFuel) + 1)
+        state'
+        tailIR := by
+    simpa using hwhole
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  dsimp [runtime', valueNat]
+  rw [hwhole']
+  exact htail
+
+theorem stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {cond : Expr}
+    {message : String}
+    {failCond : YulExpr}
+    {rest : List Stmt}
+    {tailIR : List YulStmt}
+    {extraFuel : Nat}
+    (hcore : ExprCompileCore cond)
+    (hfailCompile : CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope cond scope)
+    (hscope : scopeNamesPresent scope runtime.bindings)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state)
+    (hcondNeZero : SourceSemantics.evalExpr fields runtime cond ≠ 0)
+    (htail :
+      stmtResultMatchesIRExec
+        fields
+        (SourceSemantics.execStmtList fields runtime rest)
+        (execIRStmts
+          (sizeOf tailIR +
+            (sizeOf
+                ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) -
+              (sizeOf tailIR + 1) +
+              extraFuel) + 1)
+          state
+          tailIR)) :
+    stmtResultMatchesIRExec
+      fields
+      (SourceSemantics.execStmtList fields runtime (.require cond message :: rest))
+      (execIRStmts
+        (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) +
+          extraFuel + 1)
+        state
+        ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR)) := by
+  have hwhole :=
+    execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (cond := cond)
+      (message := message)
+      (failCond := failCond)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      (irExec :=
+        execIRStmts
+          (sizeOf tailIR +
+            (sizeOf
+                ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) -
+              (sizeOf tailIR + 1) +
+              extraFuel) + 1)
+          state
+          tailIR)
+      hcore hfailCompile hexact hinScope hscope hbounded hruntime hcondNeZero rfl
+  have hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true := by
+    simp [hcondNeZero]
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  rw [hwhole]
+  simpa [hcondTrue] using htail
+
+theorem stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {rest : List Stmt}
+    {tailIR : List YulStmt}
+    {extraFuel : Nat}
+    (hcore : ExprCompileCore value)
+    (hvalueIR : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope value scope)
+    (hscope : scopeNamesPresent scope runtime.bindings)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    stmtResultMatchesIRExec
+      fields
+      (SourceSemantics.execStmtList fields runtime (.return value :: rest))
+      (execIRStmts
+        (sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel + 1)
+        state
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+          tailIR)) := by
+  rcases execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (value := value)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      hcore hexact hinScope hbounded
+      (exprBoundNamesPresent_of_scope hscope hinScope)
+      hruntime with
+    ⟨valueIR', hvalueIR', hwhole⟩
+  rw [hvalueIR] at hvalueIR'
+  injection hvalueIR' with hEq
+  subst hEq
+  let retVal := SourceSemantics.evalExpr fields runtime value
+  let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
+  have hmatch :
+      stmtResultMatchesIRExec fields
+        (SourceSemantics.StmtResult.return retVal runtime)
+        (.return retVal state') := by
+    exact ⟨rfl, runtimeStateMatchesIR_setMemory hruntime 0 retVal⟩
+  have hwhole' :
+      execIRStmts
+        (1 + (1 + sizeOf (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) +
+            (1 + (1 + sizeOf (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) + sizeOf tailIR) +
+          extraFuel + 1)
+        state
+        (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
+          YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) :: tailIR) =
+      .return retVal state' := by
+    simpa [retVal, state'] using hwhole
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  dsimp [retVal, state']
+  rw [hwhole']
+  exact hmatch
+
+theorem stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {rest : List Stmt}
+    {tailIR : List YulStmt}
+    {extraFuel : Nat}
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    stmtResultMatchesIRExec
+      fields
+      (SourceSemantics.execStmtList fields runtime (.stop :: rest))
+      (execIRStmts
+        (sizeOf ([YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR)) := by
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  rw [execIRStmts_compiled_stop_core_append_wholeFuel
+    (state := state)
+    (tailIR := tailIR)
+    (extraFuel := extraFuel)]
+  exact hruntime
+
 theorem scopeNamesIncluded_refl
     {scope : List String} :
     scopeNamesIncluded scope scope := by

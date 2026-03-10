@@ -152,10 +152,18 @@ that arithmetic: `execIRStmts_compiled_let_core_tailExtraFuel_of_scope`,
 `execIRStmts_compiled_assign_core_tailExtraFuel_of_scope`, and
 `execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope` now package the
 ordinary singleton-prefix cases directly in the tail-IH fuel shape that the
-recursive `StmtListTerminalCore` theorem wants. The remaining blocker is
-therefore narrower: landing that recursive theorem itself, especially the
-terminal `return`/`stop`/`ite` branches, before attacking the broader supported
-non-core fragment including storage and mapping writes.
+recursive `StmtListTerminalCore` theorem wants. The newest checked layer above
+that arithmetic is semantic rather than fuel-only:
+`stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope`,
+`stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope`,
+`stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope`,
+`stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope`, and
+`stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel` now lift those
+compiled head-step facts directly into `stmtResultMatchesIRExec`. The remaining
+blocker is therefore narrower again: landing the recursive
+`StmtListTerminalCore` theorem itself, with the branch-specific compile/fuel
+plumbing concentrated in terminal `ite`, before attacking the broader
+supported non-core fragment including storage and mapping writes.
 
 **Risk**: Medium.
 
