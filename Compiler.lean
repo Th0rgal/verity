@@ -28,6 +28,14 @@ import Compiler.Yul.PatchRules
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.IRGeneration.Expr
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.IRGeneration.SupportedFragment
+import Compiler.Proofs.IRGeneration.Contract
+import Compiler.Proofs.IRGeneration.Dispatch
+import Compiler.Proofs.IRGeneration.Function
+import Compiler.Proofs.IRGeneration.FunctionBody
+import Compiler.Proofs.IRGeneration.ParamLoading
+import Compiler.Proofs.IRGeneration.SupportedSpec
+import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest

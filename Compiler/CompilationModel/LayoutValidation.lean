@@ -39,6 +39,96 @@ def firstDuplicateEventParamName
         | none => goEvents rest
   goEvents events
 
+private theorem firstDuplicateName_go_eq_none_of_nodup
+    (seen names : List String)
+    (hseen : seen.Nodup)
+    (hnames : names.Nodup)
+    (hdisjoint : ∀ name, name ∈ names → name ∉ seen) :
+    firstDuplicateName.go seen names = none := by
+  induction names generalizing seen with
+  | nil =>
+      rfl
+  | cons name rest ih =>
+      simp only [List.nodup_cons] at hnames
+      rcases hnames with ⟨hnameRest, hrest⟩
+      have hnameSeen : name ∉ seen := hdisjoint name (by simp)
+      have hseen' : (name :: seen).Nodup := List.nodup_cons.mpr ⟨hnameSeen, hseen⟩
+      have hdisjoint' : ∀ next, next ∈ rest → next ∉ (name :: seen) := by
+        intro next hnext
+        have hnextSeen : next ∉ seen := hdisjoint next (by simp [hnext])
+        have hnextNe : next ≠ name := by
+          intro hEq
+          subst hEq
+          exact hnameRest hnext
+        simp [hnextNe, hnextSeen]
+      simp [firstDuplicateName.go, hnameSeen, ih (seen := name :: seen) hseen' hrest hdisjoint']
+
+private theorem nodup_of_firstDuplicateName_go_eq_none
+    (seen names : List String)
+    (hseen : seen.Nodup)
+    (hnone : firstDuplicateName.go seen names = none) :
+    names.Nodup ∧ ∀ name, name ∈ names → name ∉ seen := by
+  induction names generalizing seen with
+  | nil =>
+      simp
+  | cons name rest ih =>
+      simp only [firstDuplicateName.go] at hnone
+      have hnameSeen : name ∉ seen := by
+        intro hmem
+        simp [hmem] at hnone
+      have hseen' : (name :: seen).Nodup := List.nodup_cons.mpr ⟨hnameSeen, hseen⟩
+      have hnoneRest : firstDuplicateName.go (name :: seen) rest = none := by
+        simpa [hnameSeen] using hnone
+      rcases ih (seen := name :: seen) hseen' hnoneRest with ⟨hrestNodup, hrestDisjoint⟩
+      refine ⟨?_, ?_⟩
+      · exact List.nodup_cons.mpr ⟨by
+          intro hmem
+          exact hrestDisjoint name hmem (by simp), hrestNodup⟩
+      · intro next hmem
+        simp at hmem
+        rcases hmem with rfl | hrestMem
+        · exact hnameSeen
+        · exact fun hseenMem => hrestDisjoint next hrestMem (by simp [hseenMem])
+
+theorem firstDuplicateName_eq_none_of_nodup
+    (names : List String)
+    (hnodup : names.Nodup) :
+    firstDuplicateName names = none := by
+  simpa [firstDuplicateName] using
+    firstDuplicateName_go_eq_none_of_nodup [] names List.nodup_nil hnodup
+      (by intro name hmem; simp)
+
+theorem nodup_of_firstDuplicateName_eq_none
+    (names : List String)
+    (hnone : firstDuplicateName names = none) :
+    names.Nodup := by
+  simpa [firstDuplicateName] using
+    (nodup_of_firstDuplicateName_go_eq_none [] names List.nodup_nil (by simpa [firstDuplicateName] using hnone)).1
+
+theorem functionParamNames_nodup_of_firstDuplicateFunctionParamName_eq_none
+    {fns : List FunctionSpec}
+    {fn : FunctionSpec}
+    (hnone : firstDuplicateFunctionParamName fns = none)
+    (hfn : fn ∈ fns) :
+    (fn.params.map (·.name)).Nodup := by
+  unfold firstDuplicateFunctionParamName at hnone
+  induction fns generalizing fn with
+  | nil =>
+      cases hfn
+  | cons head tail ih =>
+      simp only [firstDuplicateFunctionParamName.goFns] at hnone
+      have hmem : fn = head ∨ fn ∈ tail := by
+        simpa using hfn
+      cases hdup : firstDuplicateName (head.params.map (·.name)) with
+      | some dup =>
+          simp [hdup] at hnone
+      | none =>
+          have htailNone : firstDuplicateFunctionParamName.goFns tail = none := by
+            simpa [hdup] using hnone
+          rcases hmem with rfl | htail
+          · exact nodup_of_firstDuplicateName_eq_none _ hdup
+          · exact ih htailNone htail
+
 def dedupNatPreserve (xs : List Nat) : List Nat :=
   let rec go (seen : List Nat) : List Nat → List Nat
     | [] => []

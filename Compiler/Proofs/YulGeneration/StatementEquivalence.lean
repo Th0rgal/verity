@@ -259,6 +259,7 @@ private theorem stmt_and_stmts_equiv :
                         msgValue := irState.msgValue, thisAddress := irState.thisAddress,
                         blockTimestamp := irState.blockTimestamp, blockNumber := irState.blockNumber,
                         chainId := irState.chainId,
+                        blobBaseFee := irState.blobBaseFee,
                         events := irState.events } expr = none := by
                   simpa [yulStateOfIR] using hEval
                 simp [hEval', execResultsAligned, statesAligned, yulStateOfIR]
@@ -271,6 +272,7 @@ private theorem stmt_and_stmts_equiv :
                         msgValue := irState.msgValue, thisAddress := irState.thisAddress,
                         blockTimestamp := irState.blockTimestamp, blockNumber := irState.blockNumber,
                         chainId := irState.chainId,
+                        blobBaseFee := irState.blobBaseFee,
                         events := irState.events } expr = some v := by
                   simpa [yulStateOfIR] using hEval
                 simp [hEval']

@@ -23,6 +23,7 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     blockTimestamp := state.blockTimestamp
     blockNumber := state.blockNumber
     chainId := state.chainId
+    blobBaseFee := state.blobBaseFee
     events := state.events }
 
 def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
@@ -42,6 +43,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     functionSelector := tx.functionSelector
     args := tx.args
   }
@@ -56,6 +58,7 @@ noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state
     blockTimestamp := tx.blockTimestamp
     blockNumber := tx.blockNumber
     chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
     functionSelector := tx.functionSelector
     args := tx.args
   }

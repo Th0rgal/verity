@@ -1,6 +1,8 @@
 # Solidity Reference Implementations
 
-These Solidity contracts serve as **reference implementations** for Verity's differential testing infrastructure. Each file corresponds to a formally verified Lean contract and is used to cross-validate the compiled Yul output against standard Solidity semantics.
+These Solidity contracts serve as **reference implementations** for Verity's differential testing infrastructure. Each file corresponds to a Lean contract with contract/spec proofs, and is used to cross-validate the compiled Yul output against standard Solidity semantics.
+
+Important boundary: not every listed Lean contract currently has a dedicated whole-contract theorem showing `EDSL semantics = compiled Yul semantics`. For several contracts, the repo currently relies on differential tests plus partial/generic compiler proofs rather than a contract-specific end-to-end bridge theorem. See [`docs/VERIFICATION_STATUS.md`](../../docs/VERIFICATION_STATUS.md) for the exact current split.
 
 ## Contracts
 
@@ -16,7 +18,7 @@ These Solidity contracts serve as **reference implementations** for Verity's dif
 | `SimpleToken.sol` | `Contracts/SimpleToken/SimpleToken.lean` | 61 theorems | Token with mint/transfer + supply invariants |
 | `(pending)` | `Contracts/ERC20/ERC20.lean` | 19 theorems | ERC20 scaffold with initial read-state/spec bridge proofs |
 | `(pending)` | `Contracts/ERC721/ERC721.lean` | 11 theorems | ERC721 scaffold with ownership/approval read-state proof baseline |
-| `ReentrancyExample.sol` | `Contracts/ReentrancyExample/Contract.lean` | 5 theorems | Reentrancy guard pattern |
+| `ReentrancyExample.sol` | `Contracts/ReentrancyExample/Contract.lean` | 5 theorems | Reentrancy guard pattern; semantic case study rather than current `verity_contract` bridge example |
 
 ## How Testing Works
 

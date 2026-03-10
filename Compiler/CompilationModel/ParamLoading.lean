@@ -69,7 +69,7 @@ private def genDynamicParamLoads
   [offsetLoad, offsetBoundsCheck, absoluteOffsetLoad, absoluteBoundsCheck, lengthLoad, tailHeadEndLoad, tailRemainingLoad]
     ++ lengthBoundsCheck ++ [dataOffsetLoad]
 
-private def genScalarLoad
+def genScalarLoad
     (loadWord : YulExpr → YulExpr) (name : String) (ty : ParamType) (offset : Nat) :
     List YulStmt :=
   let load := loadWord (YulExpr.lit offset)
@@ -122,19 +122,13 @@ private partial def genStaticTypeLoads
       go elemTys 0 offset
   | _ => []
 
-private def genParamLoadsFrom
+def genParamLoadBodyFrom
     (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
-    (headStart : Nat) (baseOffset : Nat) (params : List Param) :
+    (headSize : Nat) (baseOffset : Nat) (params : List Param) (headOffset : Nat) :
     List YulStmt :=
-  let headSize := (params.map (fun p => paramHeadSize p.ty)).foldl (· + ·) 0
-  let minInputSizeCheck :=
-    YulStmt.if_ (YulExpr.call "lt" [sizeExpr, YulExpr.lit (baseOffset + headSize)]) [
-      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
-    ]
-  let rec go (paramList : List Param) (headOffset : Nat) : List YulStmt :=
-    match paramList with
-    | [] => []
-    | param :: rest =>
+  match params with
+  | [] => []
+  | param :: rest =>
       let stmts := match param.ty with
         | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
           genScalarLoad loadWord param.name param.ty headOffset
@@ -163,8 +157,20 @@ private def genParamLoadsFrom
               staticLoads ++ firstAlias
         | ParamType.bytes | ParamType.string =>
           genDynamicParamLoads loadWord sizeExpr headSize baseOffset param.name param.ty headOffset
-      stmts ++ go rest (headOffset + paramHeadSize param.ty)
-  minInputSizeCheck :: go params headStart
+      stmts ++
+        genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset rest
+          (headOffset + paramHeadSize param.ty)
+
+def genParamLoadsFrom
+    (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
+    (headStart : Nat) (baseOffset : Nat) (params : List Param) :
+    List YulStmt :=
+  let headSize := (params.map (fun p => paramHeadSize p.ty)).foldl (· + ·) 0
+  let minInputSizeCheck :=
+    YulStmt.if_ (YulExpr.call "lt" [sizeExpr, YulExpr.lit (baseOffset + headSize)]) [
+      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+    ]
+  minInputSizeCheck :: genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset params headStart
 
 def genParamLoads (params : List Param) : List YulStmt :=
   genParamLoadsFrom (fun pos => YulExpr.call "calldataload" [pos]) (YulExpr.call "calldatasize" []) 4 4 params

@@ -68,7 +68,7 @@ private def compileSpecialEntrypoint (fields : List Field) (events : List EventD
     body := bodyChunks
   }
 
-private def pickUniqueFunctionByName (name : String) (funcs : List FunctionSpec) :
+def pickUniqueFunctionByName (name : String) (funcs : List FunctionSpec) :
     Except String (Option FunctionSpec) :=
   match funcs.filter (·.name == name) with
   | [] => pure none
@@ -97,7 +97,7 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
 -- Use `Compiler.Selector.compileChecked` on caller-provided selector lists.
 -- WARNING: Order matters! If selector list is reordered but function list isn't,
 -- functions will be mapped to wrong selectors with no runtime error.
-def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRContract := do
+def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Except String Unit := do
   validateIdentifierShapes spec
   match firstInvalidSlotAliasRange spec.slotAliasRanges with
   | some (idx, range) =>
@@ -111,7 +111,6 @@ def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRC
       pure ()
   let fields := applySlotAliasRanges spec.fields spec.slotAliasRanges
   let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
-  let internalFns := spec.functions.filter (·.isInternal)
   match firstInternalDynamicParam spec.functions with
   | some (fnName, paramName, ty) =>
       throw s!"Compilation error: internal function '{fnName}' parameter '{paramName}' has dynamic type {repr ty}, which is currently unsupported ({issue753Ref}). Internal dynamic ABI lowering is not implemented yet."
@@ -222,8 +221,6 @@ def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRC
       pure ()
   for err in spec.errors do
     validateErrorDef err
-  let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
-  let receiveSpec ← pickUniqueFunctionByName "receive" spec.functions
   if externalFns.length != selectors.length then
     throw s!"Selector count mismatch for {spec.name}: {selectors.length} selectors for {externalFns.length} external functions"
   match firstDuplicateSelector selectors with
@@ -232,6 +229,15 @@ def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRC
       let nameStr := if names.isEmpty then "<unknown>" else String.intercalate ", " names
       throw s!"Selector collision in {spec.name}: {dup} assigned to {nameStr}"
   | none => pure ()
+
+def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Except String IRContract := do
+  let fields := applySlotAliasRanges spec.fields spec.slotAliasRanges
+  let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
+  let internalFns := spec.functions.filter (·.isInternal)
+  let mappingHelpersRequired := usesMapping fields
+  let arrayHelpersRequired := contractUsesArrayElement spec
+  let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
+  let receiveSpec ← pickUniqueFunctionByName "receive" spec.functions
   let functions ← (externalFns.zip selectors).mapM fun (fnSpec, sel) =>
     compileFunctionSpec fields spec.events spec.errors sel fnSpec
   let internalFuncDefs ← internalFns.mapM (compileInternalFunction fields spec.events spec.errors)
@@ -252,5 +258,9 @@ def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRC
     usesMapping := mappingHelpersRequired
     internalFunctions := arrayElementHelpers ++ internalFuncDefs
   }
+
+def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRContract := do
+  validateCompileInputs spec selectors
+  compileValidatedCore spec selectors
 
 end Compiler.CompilationModel

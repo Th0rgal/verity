@@ -10,15 +10,21 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
 - **Layer 1: EDSL ≡ CompilationModel**. This is the frontend semantic bridge.
   Contract-specific specification proofs live separately in
   `Contracts/<Name>/Proofs/`, while generic typed-IR compilation correctness
-  lives in `Compiler/TypedIRCompilerCorrectness.lean`.
+  lives in `Compiler/TypedIRCompilerCorrectness.lean`. The generic core is
+  real, but the active bridge theorems are still instantiated per contract.
 - **Layer 2: CompilationModel -> IR**. The current proof surface is split:
   a generic supported-statement-fragment theorem lives in
   `Compiler/TypedIRCompilerCorrectness.lean` and
-  `Compiler/Proofs/IRGeneration/SupportedFragment.lean`, while full-contract
-  EDSL/CompilationModel-to-IR bridges still rely on contract-specific theorems
-  in `Contracts/Proofs/SemanticBridge.lean`.
+  `Compiler/Proofs/IRGeneration/SupportedFragment.lean`. A generic whole-contract
+  theorem surface now also exists in `Compiler/Proofs/IRGeneration/Contract.lean`,
+  but its function-level closure still depends on 2 narrower documented Layer-2
+  axioms in `Compiler.Proofs.IRGeneration.Function`. The initial-state
+  normalization step is now proved under an explicit transaction-context
+  normalization hypothesis. Active end-to-end examples still rely on
+  contract-specific theorems in `Contracts/Proofs/SemanticBridge.lean`.
 - **Layer 3: IR -> Yul**. Yul semantics, equivalence, and preservation proofs
-  live in `Compiler/Proofs/YulGeneration/`.
+  live in `Compiler/Proofs/YulGeneration/`. The proof surface is generic, but the
+  current full dispatch-preservation path still uses 1 documented bridge axiom.
 
 ## Key Modules
 
@@ -39,9 +45,14 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   layout invariants and arithmetic/backend alignment.
 
 The current compiler path consumes `CompilationModel` values directly. There is
-no separate verified EDSL-lowering boundary module in the active pipeline, and
-there is not yet a single generic theorem saying `CompilationModel.compile`
-preserves semantics for every supported full contract.
+no separate verified EDSL-lowering boundary module in the active pipeline.
+This branch now includes the generic compiler-level theorem
+`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at
+successful `CompilationModel.compile` for an explicit supported whole-contract
+fragment. The theorem shape is in place, but there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract. It is not fully closed yet because it still depends on 2 documented axioms in
+`Compiler.Proofs.IRGeneration.Function`, with the remaining trust boundary split
+into generic body simulation and
+`execIRFunctionFuel`/`execIRFunction` bridging.
 
 ## Current Layer 2 Boundary
 
@@ -55,11 +66,11 @@ What exists today:
 - Generic Layer 3 preservation from IR to Yul
 
 What does not exist yet:
-- A compiler-level theorem quantified over an arbitrary supported
-  `CompilationModel` and the successful result of `CompilationModel.compile`
+- A fully closed proof of the compiler-level theorem quantified over an
+  arbitrary supported `CompilationModel` and successful
+  `CompilationModel.compile`, with no remaining axioms
 - A generic dispatch/function-body/whole-contract Layer 2 preservation proof
-  that removes the contract-specific `hpost` premise used by
-  `spec_to_ir_preserves_semantics`
+  with no remaining function-body axiom
 
 Current supported-fragment scope for the generic theorem:
 - Included: statement lists that can be witnessed by `SupportedStmtList`
@@ -87,7 +98,8 @@ lake build                                      # Build everything
 lake build Contracts.SimpleStorage.Proofs    # Build one contract's proofs
 ```
 
-All proofs complete — no `sorry` warnings expected.
+The proof tree currently has 0 `sorry`, but it still has the documented axioms
+listed in `AXIOMS.md`.
 
 ## Infrastructure
 

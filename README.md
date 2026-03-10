@@ -79,11 +79,11 @@ The compiler turns contracts into Yul (Solidity's low-level IR) through three la
 
 ```
 EDSL contract (Lean)
-  ↓  Layer 1: EDSL ≡ CompilationModel     [PROVEN]
+  ↓  Layer 1: EDSL ≡ CompilationModel     [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
 CompilationModel (declarative IR spec)
   ↓  Layer 2: CompilationModel → IR        [PARTIAL GENERIC, CONTRACT BRIDGES ACTIVE]
 Intermediate Representation
-  ↓  Layer 3: IR → Yul                     [PROVEN, 1 axiom]
+  ↓  Layer 3: IR → Yul                     [GENERIC SURFACE, 1 AXIOM]
 Yul
   ↓  solc (trusted external compiler)
 EVM Bytecode
@@ -91,11 +91,13 @@ EVM Bytecode
 
 | Layer | What it proves | Key file |
 |-------|---------------|----------|
-| 1 | EDSL execution = CompilationModel interpretation | [TypedIRCompilerCorrectness.lean](Compiler/TypedIRCompilerCorrectness.lean) |
-| 2 | Supported-statement CompilationModel → IR fragment is generic; full-contract bridges remain contract-specific | [SupportedFragment.lean](Compiler/Proofs/IRGeneration/SupportedFragment.lean) |
-| 3 | IR → Yul codegen preserves behavior | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
+| 1 | A generic typed-IR core plus contract-level bridge theorems establish EDSL execution = CompilationModel interpretation for the current supported contracts | [TypedIRCompilerCorrectness.lean](Compiler/TypedIRCompilerCorrectness.lean) |
+| 2 | A generic whole-contract theorem shape exists, but its non-core function-level closure still depends on 2 documented axioms; the proved core fragment already runs on structural fuel, and the theorem surface now explicitly assumes normalized transaction-context fields | [Contract.lean](Compiler/Proofs/IRGeneration/Contract.lean) |
+| 3 | IR → Yul codegen is proved generically at the statement/function level, but the current full dispatch-preservation path still uses 1 documented bridge axiom; the checked contract-level theorem surface now makes dispatch-guard safety explicit for each selected function case | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
-Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 3 is generically verified with 1 documented axiom (the selector axiom). Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges. See [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) and [AXIOMS.md](AXIOMS.md).
+There are currently 4 documented Lean axioms in total: 1 selector axiom, 2 generic non-core Layer 2 axioms, and 1 Layer 3 dispatch bridge axiom. See [AXIOMS.md](AXIOMS.md).
+
+Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) and [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 
@@ -217,10 +219,10 @@ verity/
 │   ├── <Name>/Spec.lean       #   Formal specification
 │   ├── <Name>/Proofs/*.lean   #   Correctness proofs
 │   ├── <Name>/<Name>.lean      #   Canonical verity_contract definitions
+│   └── Proofs/SemanticBridge.lean # Manual EDSL -> IR/Yul bridge theorems for a subset of contracts
 ├── Compiler/            # Compilation pipeline
 │   ├── CompilationModel/      # Declarative compiler-facing model (types, validation, codegen)
 │   ├── Proofs/          #   Compilation correctness proofs (Layers 1-3)
-│   │   ├── SemanticBridge.lean      # EDSL ≡ IR bridge theorems
 │   │   ├── EndToEnd.lean            # Layers 2+3 composition
 │   │   └── YulGeneration/           # IR → Yul preservation
 │   ├── Yul/             #   Yul code generation

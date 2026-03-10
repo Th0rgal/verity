@@ -6,24 +6,27 @@ This document states what Verity proves and what it still trusts.
 
 ```
 EDSL (Lean)
-  ↓ [Layer 1: PROVEN — EDSL ≡ CompilationModel bridge]
+  ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS — generic core, contract bridges]
 CompilationModel
   ↓ [Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges]
 IR
-  ↓ [Layer 3: FULLY VERIFIED, 1 axiom — IR → Yul]
+  ↓ [Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul]
 Yul
   ↓ [trusted — solc]
 EVM Bytecode
 ```
 
-Layer 1 and Layer 3 have generic proof surfaces in Lean. Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridge theorems, with 1 documented axiom in the overall stack (the selector axiom; see [AXIOMS.md](AXIOMS.md)).
+The repository has no `sorry`, but it still has 4 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
 
 ## What's Verified
 
-- **Layer 1**: EDSL behavior matches its `CompilationModel`. This names the frontend semantic bridge only; it does not refer to the contract-specific specification theorems in `Contracts/<Name>/Proofs/`. For supported contracts, macro-generated bridge theorems and the typed-IR correctness path discharge this boundary.
-- **Layer 2**: a supported statement-list `CompilationModel → IR` theorem exists, but whole-contract Layer 2 preservation still relies on contract-specific bridge theorems.
-- **Layer 3**: IR → Yul preserves behavior, with 1 documented axiom (keccak256 selector).
-- **Cross-layer**: `Contracts/Proofs/SemanticBridge.lean` provides the active contract-specific Layer 2 bridge surface; `Compiler/Proofs/EndToEnd.lean` composes that current Layer 2 boundary with Layer 3.
+- **Layer 1**: A generic typed-IR compilation-correctness core exists, but the active contract-level bridges are still instantiated per contract and internal-helper proof reuse is not yet a first-class generic interface.
+  This names the frontend EDSL-to-`CompilationModel` bridge only; the
+  contract-specific specification theorems in `Contracts/<Name>/Proofs/` are a
+  separate proof layer about human-readable contract behavior.
+- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem. The initial-state normalization step is proved, but whole-contract Layer 2 preservation still relies on contract-specific bridge theorems. The theorem surface also still depends on 2 documented sub-axioms for generic body simulation and the `execIRFunctionFuel`/`execIRFunction` bridge, and it makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains.
+- **Layer 3**: IR → Yul preservation is generic at the proof surface, but the current full dispatch-preservation path still depends on 1 documented bridge axiom. The checked contract-level theorem surface now makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
+- **Cross-layer**: [`Contracts/Proofs/SemanticBridge.lean`](Contracts/Proofs/SemanticBridge.lean) has zero `sorry`, but it is a manual bridge layer for a subset of contracts rather than a fully generic replacement for Layers 1-3.
 
 Current theorem totals, property-test coverage, and proof status live in [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md).
 
@@ -36,7 +39,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 1 documented axiom in [AXIOMS.md](AXIOMS.md) (`keccak256_first_4_bytes`).
+- **Status**: 4 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom, 2 generic non-core Layer 2 axioms, and 1 Layer 3 dispatch bridge axiom.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation
@@ -72,7 +75,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 - **Role**: Generates both EDSL `Contract` monad value and `CompilationModel` from one syntax tree.
 - **Status**: Trusted unverified metaprogram ([Verity/Macro/Translate.lean](Verity/Macro/Translate.lean)).
 - **Risk**: A translation bug would silently cause EDSL and CompilationModel to diverge.
-- **Mitigation**: EDSL ≡ IR bridge theorems in `Contracts/Proofs/SemanticBridge.lean` cross-check independently.
+- **Mitigation**: EDSL/IR/Yul cross-checks in [`Contracts/Proofs/SemanticBridge.lean`](Contracts/Proofs/SemanticBridge.lean) and differential tests catch divergence on the current contract set.
 
 ### 9. Local Unsafe / Refinement Obligations
 - **Role**: Let a function or constructor declare a localized proof obligation for an unsafe/assembly-shaped boundary without marking the whole contract as opaque.
@@ -108,5 +111,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-03-08
+**Last Updated**: 2026-03-09
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.
