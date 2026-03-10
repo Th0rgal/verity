@@ -171,6 +171,13 @@ ALLOWLIST: set[str] = {
     # and are kept intact while the remaining dispatch axiom is narrowed further.
     "exec_switchCaseBody_revert_of_short",
     "SwitchCaseBodyBridge_short",
+    # Layer 3 switch-case axiom decomposition (SwitchCaseBodyBridge narrowing):
+    # success-path guard stepping mirrors the revert-path structure and is long
+    # for the same reason (explicit case-split over payable + fuel arithmetic).
+    "exec_switchCaseBody_continue_of_long",
+    # Composition theorem bridging proved guard stepping + narrower body axiom;
+    # long due to explicit fuel case-split and interpretYulRuntime unfolding.
+    "SwitchCaseBodyBridge",
 }
 
 # Directories containing proof files to scan.
