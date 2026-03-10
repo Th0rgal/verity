@@ -213,7 +213,16 @@ fuel wrappers for terminal IR steps are now also in place:
 `execIRStmt_stop_nonzeroFuel` in
 `Compiler/Proofs/IRGeneration/FunctionBody.lean`. That removes the last local
 need to destruct `fuel` manually when the terminal-core proof reaches compiled
-`mstore; return` / `stop` shapes under a structural budget.
+`mstore; return` / `stop` shapes under a structural budget. The remaining
+freshness precondition is now also encoded explicitly as the reusable
+`scopeNamesIncluded` invariant plus its terminal-`ite` specializations
+`scopeNamesIncluded_compiled_terminal_ite_usedNames`,
+`compiled_terminal_ite_temp_not_mem_scope`, and
+`bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant`.
+That closes the last missing link between the theorem’s logical scope and the
+compiler’s concrete `inScopeNames` argument, so the next terminal-core proof
+attempt can preserve the on-scope bindings invariant through the generated
+`__ite_cond` temporary without rebuilding that subset argument inline.
 
 **Risk**: Medium.
 

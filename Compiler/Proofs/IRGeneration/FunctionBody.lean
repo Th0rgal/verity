@@ -5410,6 +5410,67 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
       hterminal)
     hmatch
 
+def scopeNamesIncluded
+    (scope inScopeNames : List String) : Prop :=
+  ∀ name, name ∈ scope → name ∈ inScopeNames
+
+theorem scopeNamesIncluded_refl
+    {scope : List String} :
+    scopeNamesIncluded scope scope := by
+  intro name hname
+  exact hname
+
+theorem scopeNamesIncluded_append_right
+    {scope left right : List String}
+    (hincluded : scopeNamesIncluded scope right) :
+    scopeNamesIncluded scope (left ++ right) := by
+  intro name hname
+  exact List.mem_append.mpr <| Or.inr (hincluded name hname)
+
+theorem scopeNamesIncluded_collectStmtNames_tail
+    {scope inScopeNames : List String}
+    {stmt : Stmt}
+    (hincluded : scopeNamesIncluded scope inScopeNames) :
+    scopeNamesIncluded scope (collectStmtNames stmt ++ inScopeNames) := by
+  exact scopeNamesIncluded_append_right (left := collectStmtNames stmt) hincluded
+
+theorem scopeNamesIncluded_collectStmtNames_letVar
+    {scope inScopeNames : List String}
+    {name : String}
+    {value : Expr}
+  (hincluded : scopeNamesIncluded scope inScopeNames) :
+    scopeNamesIncluded (name :: scope)
+      (collectStmtNames (.letVar name value) ++ inScopeNames) := by
+  intro other hmem
+  simp at hmem
+  rcases hmem with rfl | hmem
+  · simp [collectStmtNames]
+  · simp [collectStmtNames, hincluded other hmem]
+
+theorem scopeNamesIncluded_collectStmtNames_assignVar
+    {scope inScopeNames : List String}
+    {name : String}
+    {value : Expr}
+  (hincluded : scopeNamesIncluded scope inScopeNames) :
+    scopeNamesIncluded (name :: scope)
+      (collectStmtNames (.assignVar name value) ++ inScopeNames) := by
+  intro other hmem
+  simp at hmem
+  rcases hmem with rfl | hmem
+  · simp [collectStmtNames]
+  · simp [collectStmtNames, hincluded other hmem]
+
+theorem scopeNamesIncluded_compiled_terminal_ite_usedNames
+    {scope inScopeNames : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hincluded : scopeNamesIncluded scope inScopeNames) :
+    scopeNamesIncluded scope
+      (inScopeNames ++ collectExprNames cond ++
+        collectStmtListNames thenBranch ++ collectStmtListNames elseBranch) := by
+  intro name hname
+  simp [hincluded name hname]
+
 theorem pickFreshName_not_mem_scope_of_subset
     {base : String}
     {scope usedNames : List String}
@@ -5431,6 +5492,37 @@ theorem bindingsExactlyMatchIRVarsOnScope_setFreshTemp_irrelevant
       (state.setVar (CompilationModel.pickFreshName base usedNames) value) := by
   apply bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact
   exact pickFreshName_not_mem_scope_of_subset hsubset
+
+theorem compiled_terminal_ite_temp_not_mem_scope
+    {scope inScopeNames : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hincluded : scopeNamesIncluded scope inScopeNames) :
+    CompilationModel.pickFreshName "__ite_cond"
+      (inScopeNames ++ collectExprNames cond ++
+        collectStmtListNames thenBranch ++ collectStmtListNames elseBranch) ∉ scope := by
+  apply pickFreshName_not_mem_scope_of_subset
+  exact scopeNamesIncluded_compiled_terminal_ite_usedNames
+    (cond := cond) (thenBranch := thenBranch) (elseBranch := elseBranch) hincluded
+
+theorem bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
+    {scope inScopeNames : List String}
+    {bindings : List (String × Nat)}
+    {state : IRState}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    {value : Nat}
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope bindings state)
+    (hincluded : scopeNamesIncluded scope inScopeNames) :
+    bindingsExactlyMatchIRVarsOnScope scope bindings
+      (state.setVar
+        (CompilationModel.pickFreshName "__ite_cond"
+          (inScopeNames ++ collectExprNames cond ++
+            collectStmtListNames thenBranch ++ collectStmtListNames elseBranch))
+        value) := by
+  apply bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact
+  exact compiled_terminal_ite_temp_not_mem_scope
+    (cond := cond) (thenBranch := thenBranch) (elseBranch := elseBranch) hincluded
 
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
