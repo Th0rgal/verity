@@ -376,7 +376,15 @@ head shape of `Stmt.ite`, including `condIR`, `thenIR`, `elseIR`, the chosen
 fresh `__ite_cond` name, and the enclosing generated `block [...]`. The next
 explicit-`bodyIR` theorem attempt can use that directly instead of redoing the
 nested `compileExpr` / `compileStmtList` monad inversion locally in the
-terminal `ite` case.
+terminal `ite` case. The remaining semantic branch glue is also factored now:
+`stmtResultMatchesIRExec_compiled_terminal_ite_then` and
+`stmtResultMatchesIRExec_compiled_terminal_ite_else` package the full source-
+and compiled-side lift from a matched chosen branch result to the enclosing
+compiled terminal `ite` block. That removes the need for the next recursive
+`StmtListTerminalCore` theorem attempt to manually combine
+`execStmtList_terminal_core_ite_{then,else}_eq`,
+`stmtResultMatchesIRExec_ir_not_continue_of_terminal_core`, and the private
+compiled-block composition lemmas inline.
 The next direct move is still the explicit-`bodyIR` terminal-core theorem, but
 it can now evaluate `let`, `assign`, `return`, and `require` heads directly
 from the theorem’s scope-local invariant instead of rebuilding `...OnExpr`

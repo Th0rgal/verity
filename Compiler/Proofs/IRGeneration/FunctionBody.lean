@@ -7857,6 +7857,210 @@ theorem execStmtList_terminal_core_ite_else_eq
       (stmts := elseBranch)
       helse next helseExec
 
+theorem stmtResultMatchesIRExec_compiled_terminal_ite_then
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch rest : List Stmt}
+    {extraFuel : Nat}
+    {tempName : String}
+    {condIR : YulExpr}
+    {thenIR elseIR tailIR : List YulStmt}
+    {condValue : Nat}
+    {irExec : IRExecResult}
+    (hthen : StmtListTerminalCore scope thenBranch)
+    (hmatch :
+      stmtResultMatchesIRExec fields
+        (SourceSemantics.execStmtList fields runtime thenBranch)
+        irExec)
+    (hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true)
+    (hcond : evalIRExpr state condIR = some condValue)
+    (hcondNonzero : condValue ≠ 0)
+    (hthenExec :
+      execIRStmts
+        (sizeOf thenIR +
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) -
+            (sizeOf thenIR + 5) +
+            extraFuel) + 1)
+        (state.setVar tempName condValue) thenIR = irExec) :
+    stmtResultMatchesIRExec fields
+      (SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest))
+      (execIRStmts
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR)) := by
+  have hirNoContinue :
+      ∀ next, irExec ≠ .continue next := by
+    exact stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (stmts := thenBranch)
+      (irExec := irExec)
+      hthen
+      hmatch
+  have hsourceEq :
+      SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
+        SourceSemantics.execStmtList fields runtime thenBranch :=
+    execStmtList_terminal_core_ite_then_eq
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (cond := cond)
+      (thenBranch := thenBranch)
+      (elseBranch := elseBranch)
+      (rest := rest)
+      hthen
+      hcondTrue
+  have hirEq :
+      execIRStmts
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR) =
+      irExec :=
+    execIRStmts_compiled_terminal_ite_then_of_irExec
+      extraFuel state tempName condIR thenIR elseIR tailIR condValue irExec
+      hcond hcondNonzero hthenExec hirNoContinue
+  rw [hsourceEq, hirEq]
+  exact hmatch
+
+theorem stmtResultMatchesIRExec_compiled_terminal_ite_else
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch rest : List Stmt}
+    {extraFuel : Nat}
+    {tempName : String}
+    {condIR : YulExpr}
+    {thenIR elseIR tailIR : List YulStmt}
+    {condValue : Nat}
+    {irExec : IRExecResult}
+    (helse : StmtListTerminalCore scope elseBranch)
+    (hmatch :
+      stmtResultMatchesIRExec fields
+        (SourceSemantics.execStmtList fields runtime elseBranch)
+        irExec)
+    (hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false)
+    (hcond : evalIRExpr state condIR = some condValue)
+    (hcondZero : condValue = 0)
+    (helseExec :
+      execIRStmts
+        (sizeOf elseIR +
+          (sizeOf
+              ([YulStmt.block
+                  [ YulStmt.let_ tempName condIR
+                  , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                  , YulStmt.if_
+                      (YulExpr.call "iszero" [YulExpr.ident tempName])
+                      elseIR
+                  ]] ++ tailIR) -
+            (sizeOf elseIR + 5) +
+            extraFuel))
+        (state.setVar tempName condValue) elseIR = irExec) :
+    stmtResultMatchesIRExec fields
+      (SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest))
+      (execIRStmts
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR)) := by
+  have hirNoContinue :
+      ∀ next, irExec ≠ .continue next := by
+    exact stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (stmts := elseBranch)
+      (irExec := irExec)
+      helse
+      hmatch
+  have hsourceEq :
+      SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
+        SourceSemantics.execStmtList fields runtime elseBranch :=
+    execStmtList_terminal_core_ite_else_eq
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (cond := cond)
+      (thenBranch := thenBranch)
+      (elseBranch := elseBranch)
+      (rest := rest)
+      helse
+      hcondFalse
+  have hirEq :
+      execIRStmts
+        (sizeOf
+            ([YulStmt.block
+                [ YulStmt.let_ tempName condIR
+                , YulStmt.if_ (YulExpr.ident tempName) thenIR
+                , YulStmt.if_
+                    (YulExpr.call "iszero" [YulExpr.ident tempName])
+                    elseIR
+                ]] ++ tailIR) + extraFuel + 1)
+        state
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR) =
+      irExec :=
+    execIRStmts_compiled_terminal_ite_else_of_irExec
+      extraFuel state tempName condIR thenIR elseIR tailIR condValue irExec
+      hcond hcondZero helseExec hirNoContinue
+  rw [hsourceEq, hirEq]
+  exact hmatch
+
 theorem scopeNamesIncluded_refl
     {scope : List String} :
     scopeNamesIncluded scope scope := by
