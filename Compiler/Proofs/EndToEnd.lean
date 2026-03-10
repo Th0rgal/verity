@@ -208,6 +208,8 @@ theorem layer3_contract_preserves_semantics
       yulStmtsNoRef "__has_selector" fn.body)
     (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
       HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF contract)
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none) :
@@ -216,6 +218,7 @@ theorem layer3_contract_preserves_semantics
       (interpretYulFromIR contract tx initialState) := by
   apply yulCodegen_preserves_semantics contract tx initialState
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    hLoopFree
   · intro fn hmem
     exact (yulBody_from_state_eq_yulBody fn tx
       { initialState with
@@ -248,6 +251,8 @@ theorem layer3_contract_preserves_semantics_general
       yulStmtsNoRef "__has_selector" fn.body)
     (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
       HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
     (hbody : ∀ fn, fn ∈ contract.functions →
       Compiler.Proofs.YulGeneration.resultsMatch
         (execIRFunction fn tx.args
@@ -276,7 +281,8 @@ theorem layer3_contract_preserves_semantics_general
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
   yulCodegen_preserves_semantics contract tx initialState
-    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead hbody
+    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    hLoopFree hbody
 
 /-! ## Layers 2+3 Composition -/
 
@@ -309,6 +315,8 @@ theorem layers2_3_ir_matches_yul
       yulStmtsNoRef "__has_selector" fn.body)
     (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions →
       HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions →
+      yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF irContract)
     (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none) :
@@ -316,7 +324,8 @@ theorem layers2_3_ir_matches_yul
       (interpretIR irContract tx initialState)
       (interpretYulFromIR irContract tx initialState) :=
   layer3_contract_preserves_semantics irContract tx initialState
-    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead hWF hNoFallback hNoReceive
+    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    hLoopFree hWF hNoFallback hNoReceive
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
@@ -351,6 +360,7 @@ theorem simpleStorage_endToEnd
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=
   layer3_contract_preserves_semantics simpleStorageIRContract tx initialState
     hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    (by intro fn hmem; simp [simpleStorageIRContract, yulStmtsLoopFree, yulStmtLoopFree] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
 /-! ## Universal Pure Arithmetic Bridge

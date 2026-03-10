@@ -36,43 +36,7 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 **Risk**: Low.
 
-### 2. `execYulStmtsFuel_fuel_adequate`
-
-**Location**: `Compiler/Proofs/YulGeneration/Preservation.lean:812`
-
-**Statement**:
-```lean
-private axiom execYulStmtsFuel_fuel_adequate
-    (body : List YulStmt) (state : YulState) (fuel : Nat)
-    (h : fuel ≥ sizeOf body + 1) :
-    execYulStmtsFuel fuel state body = execYulStmts state body
-```
-
-**Purpose**:
-Fuel adequacy: when the fuel budget is at least `sizeOf body + 1` (the amount
-used by `execYulStmts`), fuel-bounded execution gives the same result as total
-execution. This is a purely Yul-level fuel-saturation property. The hypothesis
-`h` ensures the fuel is sufficient; the equality is unwrapped (not wrapped
-in `yulResultOfExecWithRollback`), making this a strictly stronger and more
-composable statement than the previous version.
-
-**Why this is currently an axiom**:
-The `execYulFuel` engine reuses the same fuel counter across recursive calls
-(it is a depth bound, not a countdown), so once fuel exceeds the structural
-depth the result stabilizes. Proving this requires a fuel-monotonicity induction
-over `execYulFuel` that is understood but not yet mechanized.
-
-**Risk**: Low. Purely Yul-level, does not mention IR types. The property is a
-standard fuel-monotonicity / fuel-saturation fact for bounded recursion.
-
-*Note*: The former monolithic `SwitchCaseBodyBridge` axiom has been eliminated.
-`SwitchCaseBodyBridge` is now a proved theorem built by composing the short-calldata
-guard theorems with these two smaller Yul-level axioms through `SwitchCaseBodyBridge_body`.
-In particular, the non-payable `msgValue = 0` dispatch path is handled constructively
-inside the guard-stepping lemmas (`dispatchGuardsSafe_msgValue_zero_mod_of_nonpayable`
-plus `exec_callvalueGuard_noop`), so it is not covered by any separate bridge axiom.
-
-### 3. `supported_function_body_correct_from_exact_state`
+### 2. `supported_function_body_correct_from_exact_state`
 
 **Location**: `Compiler/Proofs/IRGeneration/Function.lean:827`
 
@@ -218,6 +182,14 @@ scoped to contracts that use the module.
 The repository removed prior axioms related to IR and Yul expression and statement equivalence and address injectivity by making interpreters total and by using a bounded-nat `Address` representation.
 
 Specifically:
+- `execYulStmtsFuel_fuel_adequate` was eliminated by proving fuel-monotonicity
+  via strong induction on `sizeOf target` over `execYulFuel`. The proof
+  introduces a `yulStmtsLoopFree` predicate (compiled code never contains
+  `for_` loops) and a key lemma `execYulFuel_succ_eq` showing that for
+  loop-free Yul programs, adding one unit of fuel beyond `sizeOf body + 1`
+  does not change the result. The callers (`yulCodegen_preserves_semantics`,
+  `layer3_contract_preserves_semantics`, `simpleStorage_endToEnd`) now take
+  a `hLoopFree` hypothesis dischargeable via `rfl` for compiled output.
 - `execIRStmtsFuel_adequate` was eliminated by making the IR interpreter total
   (fuel-based). The fuel adequacy relationship is now trivially `rfl` and the
   Layer 3 proof chain flows through
@@ -248,7 +220,7 @@ Wrapping modular arithmetic at 2^256 is **proven**, not assumed. All 15 pure bui
 
 ## Trust Summary
 
-- Active axioms: 3
+- Active axioms: 2
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source location.
 - Compilation-path totalization work in `Compiler/CompilationModel.lean` does not

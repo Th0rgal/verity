@@ -177,6 +177,13 @@ ALLOWLIST: set[str] = {
     # Composition theorem bridging proved guard stepping + narrower body axiom;
     # long due to explicit fuel case-split and interpretYulRuntime unfolding.
     "SwitchCaseBodyBridge",
+    # Issue #1563 — fuel adequacy proof (axiom elimination):
+    # strong induction over sizeOf covering all YulStmt constructors; length
+    # comes from exhaustive case-split, not proof complexity.
+    "execYulFuel_succ_eq",
+    # Issue #1563 — end-to-end composition now threads loop-free hypothesis;
+    # marginally above limit (55 lines) due to added precondition plumbing.
+    "layer3_contract_preserves_semantics",
 }
 
 # Directories containing proof files to scan.
