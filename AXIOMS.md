@@ -182,7 +182,13 @@ branch-exec-fuel bounds
 off-by-one needed to justify entering a chosen `ite` branch with the usual
 `stmt-list + 1` fuel under a top-level `sizeOf` budget, which is the exact
 arithmetic layer needed for the next recursive `StmtListTerminalCore` proof
-over nested compiled blocks.
+over nested compiled blocks. The scoped-freshness handoff for the generated
+`__ite_cond` temporary is now also isolated by
+`pickFreshName_not_mem_scope_of_subset` and
+`bindingsExactlyMatchIRVarsOnScope_setFreshTemp_irrelevant`, so the remaining
+terminal-`ite` proof no longer needs to inline fresh-name reasoning just to
+preserve `bindingsExactlyMatchIRVarsOnScope` across the compiler-generated
+temporary binding.
 
 **Risk**: Medium.
 

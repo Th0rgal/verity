@@ -4953,6 +4953,28 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
       hterminal)
     hmatch
 
+theorem pickFreshName_not_mem_scope_of_subset
+    {base : String}
+    {scope usedNames : List String}
+    (hsubset : ∀ name, name ∈ scope → name ∈ usedNames) :
+    CompilationModel.pickFreshName base usedNames ∉ scope := by
+  intro hmem
+  exact CompilationModel.pickFreshName_not_mem_usedNames base usedNames (hsubset _ hmem)
+
+theorem bindingsExactlyMatchIRVarsOnScope_setFreshTemp_irrelevant
+    {scope : List String}
+    {bindings : List (String × Nat)}
+    {state : IRState}
+    {base : String}
+    {usedNames : List String}
+    {value : Nat}
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope bindings state)
+    (hsubset : ∀ name, name ∈ scope → name ∈ usedNames) :
+    bindingsExactlyMatchIRVarsOnScope scope bindings
+      (state.setVar (CompilationModel.pickFreshName base usedNames) value) := by
+  apply bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact
+  exact pickFreshName_not_mem_scope_of_subset hsubset
+
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
