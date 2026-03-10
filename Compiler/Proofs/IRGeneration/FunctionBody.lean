@@ -3915,6 +3915,109 @@ theorem compileStmtList_terminal_core_ok
       simp [helseNonempty]
       rfl
 
+theorem compileStmtList_terminal_core_ok_nonempty
+    {fields : List Field}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    {bodyIR : List YulStmt}
+    (hterminal : StmtListTerminalCore scope stmts)
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+    bodyIR ≠ [] := by
+  induction hterminal generalizing inScopeNames bodyIR with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .letVar name value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .assignVar name value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      rcases compileRequireFailCond_core_ok (fields := fields) hcond with ⟨failCond, hfailCond⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .require cond message) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hfailCond] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .return value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | stop hrest =>
+      rename_i scope rest
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .stop) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rename_i scope cond thenBranch elseBranch rest
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .ite cond thenBranch elseBranch) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      have helseNonempty : elseBranch.isEmpty = false := by
+        cases elseBranch with
+        | nil =>
+            exfalso
+            exact stmtListTerminalCore_ne_nil helse rfl
+        | cons =>
+            simp
+      rcases compileExpr_core_ok (fields := fields) hcond with ⟨condIR', hcondOk⟩
+      rcases compileStmtList_terminal_core_ok (fields := fields)
+          (scope := scope) (inScopeNames := inScopeNames) (stmts := thenBranch) hthen with
+        ⟨thenIR', hthenOk⟩
+      rcases compileStmtList_terminal_core_ok (fields := fields)
+          (scope := scope) (inScopeNames := inScopeNames) (stmts := elseBranch) helse with
+        ⟨elseIR', helseOk⟩
+      cases hcondIR : CompilationModel.compileExpr fields .calldata cond with
+      | error err =>
+          rw [hcondOk] at hcondIR
+          cases hcondIR
+      | ok condIR =>
+          cases hthenIR :
+              CompilationModel.compileStmtList
+                fields [] [] .calldata [] false inScopeNames thenBranch with
+          | error err =>
+              rw [hthenOk] at hthenIR
+              cases hthenIR
+          | ok thenIR =>
+              cases helseIR :
+                  CompilationModel.compileStmtList
+                    fields [] [] .calldata [] false inScopeNames elseBranch with
+              | error err =>
+                  rw [helseOk] at helseIR
+                  cases helseIR
+              | ok elseIR =>
+                  simp [CompilationModel.compileStmt, helseNonempty, hcondIR, hthenIR, helseIR] at hhead
+                  injection hhead with hheadEq
+                  subst hheadEq
+                  simp [hbody]
+
 private theorem yulStmtList_length_le_sizeOf : (stmts : List YulStmt) → stmts.length ≤ sizeOf stmts
   | [] => by simp
   | _ :: rest => by
