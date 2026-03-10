@@ -3705,6 +3705,44 @@ theorem compileStmtList_cons_ok_of_compileStmt_ok
   rw [htail]
   rfl
 
+theorem compileStmtList_cons_ok_inv
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmt : Stmt}
+    {rest : List Stmt}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+          Except.ok bodyIR) :
+    ∃ headIR tailIR,
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames stmt = Except.ok headIR ∧
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false
+          (collectStmtNames stmt ++ inScopeNames) rest = Except.ok tailIR ∧
+      bodyIR = headIR ++ tailIR := by
+  rw [CompilationModel.compileStmtList] at hcompile
+  cases hhead : CompilationModel.compileStmt
+      fields [] [] .calldata [] false inScopeNames stmt with
+  | error err =>
+      simp [hhead] at hcompile
+      cases hcompile
+  | ok headIR =>
+      cases htail : CompilationModel.compileStmtList
+          fields [] [] .calldata [] false
+            (collectStmtNames stmt ++ inScopeNames) rest with
+      | error err =>
+          simp [hhead, htail] at hcompile
+          cases hcompile
+      | ok tailIR =>
+          simp [hhead, htail] at hcompile
+          injection hcompile with hbody
+          subst hbody
+          refine ⟨headIR, tailIR, ?_, ?_, rfl⟩
+          · simpa [hhead]
+          · simpa [htail]
+
 theorem compileStmtList_core_ok
     {fields : List Field}
     {scope inScopeNames : List String}

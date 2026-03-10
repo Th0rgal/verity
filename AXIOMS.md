@@ -315,11 +315,18 @@ gap that is now extracted as
 `compileStmtList_cons_ok_of_compileStmt_ok`: the recursive terminal-core proof
 keeps rebuilding the same head/tail `compileStmtList` monad normalization for
 `let`, `assign`, `require`, `return`, `stop`, and compiled terminal `ite`
-prefixes. The remaining semantic blocker is therefore narrower and more
-precise: the recursive theorem must quantify `extraFuel` strongly enough for
-the chosen `ite` branch induction hypothesis, and then use this new compile
-normalization lemma instead of fighting `simp` on the compiler monad shape in
-every case.
+prefixes. The newest extraction adds the inverse direction too:
+`compileStmtList_cons_ok_inv`. That gives the next theorem attempt the missing
+compile-guided induction shape on an explicit compiled body: after fixing
+`bodyIR`, the proof can decompose it into `headIR ++ tailIR`, recurse on the
+known compiled tail with a branch-specific structural `extraFuel`, and avoid
+the prior circularity where the needed tail fuel depended on a `tailIR` that
+only existed after applying the induction hypothesis. The remaining semantic
+blocker is therefore narrower and more precise: reintroduce the recursive
+`StmtListTerminalCore` theorem over an explicit compiled `bodyIR`, quantify
+`extraFuel` strongly enough for the chosen `ite` branch induction hypothesis,
+and use these forward/backward compile normalization lemmas instead of fighting
+`simp` on the compiler monad shape in every case.
 
 **Risk**: Medium.
 
