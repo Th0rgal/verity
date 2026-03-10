@@ -332,7 +332,21 @@ blocker is therefore narrower and more precise: reintroduce the recursive
 `StmtListTerminalCore` theorem over an explicit compiled `bodyIR`, quantify
 `extraFuel` strongly enough for the chosen `ite` branch induction hypothesis,
 and use these forward/backward compile normalization lemmas instead of fighting
-`simp` on the compiler monad shape in every case.
+`simp` on the compiler monad shape in every case. The latest direct attempt
+also exposed one more syntactic proof gap that is now extracted in
+`Compiler/Proofs/IRGeneration/FunctionBody.lean`: the whole-fuel composition
+lemmas were stated on `stmt :: rest` / `stmt1 :: stmt2 :: rest`, but the
+compile-guided theorem naturally produces `headIR ++ tailIR`, especially
+singleton and two-head terminal prefixes. The append-normalized wrappers
+`execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel`,
+`execIRStmts_singleton_append_of_execIRStmt_return_wholeFuel`,
+`execIRStmts_singleton_append_of_execIRStmt_stop_wholeFuel`,
+`execIRStmts_singleton_append_of_execIRStmt_revert_wholeFuel`, and
+`execIRStmts_two_append_of_continue_then_return_wholeFuel` now remove that
+`[stmt] ++ tailIR` / `[stmt1, stmt2] ++ tailIR` friction directly, so the next
+terminal-core theorem attempt can stay on the explicit compiled-body shape
+instead of converting back and forth to cons form just to use the fuel
+wrappers.
 
 **Risk**: Medium.
 

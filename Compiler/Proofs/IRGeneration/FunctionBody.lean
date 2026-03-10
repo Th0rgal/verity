@@ -4428,6 +4428,21 @@ private theorem execIRStmts_cons_of_execIRStmt_continue_wholeFuel
       (rest := rest)
       hstmt)
 
+private theorem execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+    (extraFuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (hstmt : execIRStmt (sizeOf ([stmt] ++ rest) + extraFuel) state stmt = .continue next) :
+    execIRStmts (sizeOf ([stmt] ++ rest) + extraFuel + 1) state ([stmt] ++ rest) =
+      execIRStmts (sizeOf ([stmt] ++ rest) + extraFuel) next rest := by
+  simpa using
+    (execIRStmts_cons_of_execIRStmt_continue_wholeFuel
+      (extraFuel := extraFuel)
+      (state := state)
+      (next := next)
+      (stmt := stmt)
+      (rest := rest)
+      hstmt)
+
 private theorem execIRStmts_cons_of_execIRStmt_return
     (state next : IRState) (stmt : YulStmt) (rest : List YulStmt) (value : Nat)
     (hstmt : execIRStmt (rest.length + 1) state stmt = .return value next) :
@@ -4480,6 +4495,22 @@ private theorem execIRStmts_cons_of_execIRStmt_return_wholeFuel
   simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using
     (execIRStmts_cons_of_execIRStmt_return_anyFuel
       (fuel := sizeOf (stmt :: rest) + extraFuel)
+      (state := state)
+      (next := next)
+      (stmt := stmt)
+      (rest := rest)
+      (value := value)
+      hstmt)
+
+private theorem execIRStmts_singleton_append_of_execIRStmt_return_wholeFuel
+    (extraFuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt) (value : Nat)
+    (hstmt : execIRStmt (sizeOf ([stmt] ++ rest) + extraFuel) state stmt = .return value next) :
+    execIRStmts (sizeOf ([stmt] ++ rest) + extraFuel + 1) state ([stmt] ++ rest) =
+      .return value next := by
+  simpa using
+    (execIRStmts_cons_of_execIRStmt_return_wholeFuel
+      (extraFuel := extraFuel)
       (state := state)
       (next := next)
       (stmt := stmt)
@@ -4544,6 +4575,21 @@ private theorem execIRStmts_cons_of_execIRStmt_stop_wholeFuel
       (rest := rest)
       hstmt)
 
+private theorem execIRStmts_singleton_append_of_execIRStmt_stop_wholeFuel
+    (extraFuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (hstmt : execIRStmt (sizeOf ([stmt] ++ rest) + extraFuel) state stmt = .stop next) :
+    execIRStmts (sizeOf ([stmt] ++ rest) + extraFuel + 1) state ([stmt] ++ rest) =
+      .stop next := by
+  simpa using
+    (execIRStmts_cons_of_execIRStmt_stop_wholeFuel
+      (extraFuel := extraFuel)
+      (state := state)
+      (next := next)
+      (stmt := stmt)
+      (rest := rest)
+      hstmt)
+
 private theorem execIRStmts_cons_of_execIRStmt_revert
     (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
     (hstmt : execIRStmt (rest.length + 1) state stmt = .revert next) :
@@ -4595,6 +4641,21 @@ private theorem execIRStmts_cons_of_execIRStmt_revert_wholeFuel
   simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using
     (execIRStmts_cons_of_execIRStmt_revert_anyFuel
       (fuel := sizeOf (stmt :: rest) + extraFuel)
+      (state := state)
+      (next := next)
+      (stmt := stmt)
+      (rest := rest)
+      hstmt)
+
+private theorem execIRStmts_singleton_append_of_execIRStmt_revert_wholeFuel
+    (extraFuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (hstmt : execIRStmt (sizeOf ([stmt] ++ rest) + extraFuel) state stmt = .revert next) :
+    execIRStmts (sizeOf ([stmt] ++ rest) + extraFuel + 1) state ([stmt] ++ rest) =
+      .revert next := by
+  simpa using
+    (execIRStmts_cons_of_execIRStmt_revert_wholeFuel
+      (extraFuel := extraFuel)
       (state := state)
       (next := next)
       (stmt := stmt)
@@ -4683,6 +4744,29 @@ private theorem execIRStmts_two_of_continue_then_return_wholeFuel
   simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using
     (execIRStmts_two_of_continue_then_return_anyFuel
       (fuel := sizeOf (stmt1 :: stmt2 :: rest) + extraFuel)
+      (state := state)
+      (mid := mid)
+      (next := next)
+      (stmt1 := stmt1)
+      (stmt2 := stmt2)
+      (rest := rest)
+      (value := value)
+      hstmt1
+      hstmt2)
+
+private theorem execIRStmts_two_append_of_continue_then_return_wholeFuel
+    (extraFuel : Nat)
+    (state mid next : IRState) (stmt1 stmt2 : YulStmt) (rest : List YulStmt) (value : Nat)
+    (hstmt1 :
+      execIRStmt (sizeOf ([stmt1, stmt2] ++ rest) + extraFuel) state stmt1 = .continue mid)
+    (hstmt2 :
+      execIRStmt (sizeOf ([stmt1, stmt2] ++ rest) + extraFuel - 1) mid stmt2 =
+        .return value next) :
+    execIRStmts (sizeOf ([stmt1, stmt2] ++ rest) + extraFuel + 1) state ([stmt1, stmt2] ++ rest) =
+      .return value next := by
+  simpa using
+    (execIRStmts_two_of_continue_then_return_wholeFuel
+      (extraFuel := extraFuel)
       (state := state)
       (mid := mid)
       (next := next)
