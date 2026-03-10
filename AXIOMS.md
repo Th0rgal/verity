@@ -182,8 +182,13 @@ branch-exec-fuel bounds
 off-by-one needed to justify entering a chosen `ite` branch with the usual
 `stmt-list + 1` fuel under a top-level `sizeOf` budget, which is the exact
 arithmetic layer needed for the next recursive `StmtListTerminalCore` proof
-over nested compiled blocks. The scoped-freshness handoff for the generated
-`__ite_cond` temporary is now also isolated by
+over nested compiled blocks. That arithmetic is now also normalized into the
+equalities `compiled_terminal_ite_body_block_extraFuel_eq`,
+`compiled_terminal_ite_body_thenBranch_extraFuel_eq`, and
+`compiled_terminal_ite_body_elseBranch_extraFuel_eq`, so the next recursive
+proof can invoke the block and branch induction hypotheses without redoing
+the `Nat` subtraction algebra inline. The scoped-freshness handoff for the
+generated `__ite_cond` temporary is now also isolated by
 `pickFreshName_not_mem_scope_of_subset` and
 `bindingsExactlyMatchIRVarsOnScope_setFreshTemp_irrelevant`, so the remaining
 terminal-`ite` proof no longer needs to inline fresh-name reasoning just to

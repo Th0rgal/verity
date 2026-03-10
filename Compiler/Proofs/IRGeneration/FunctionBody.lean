@@ -4857,6 +4857,100 @@ theorem exec_compileStmtList_core_extraFuel
               stmtResultMatchesIRExecExact (SourceSemantics.StmtResult.stop runtime) (.stop state) from
             ⟨hruntime, ⟨hexact, hbounded⟩⟩)
 
+private theorem compiled_terminal_ite_body_block_extraFuel_eq
+    (extraFuel : Nat)
+    (tempName : String)
+    (condIR : YulExpr)
+    (thenIR elseIR tailIR : List YulStmt) :
+    sizeOf
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR) + extraFuel - 1 =
+      sizeOf
+        [ YulStmt.let_ tempName condIR
+        , YulStmt.if_ (YulExpr.ident tempName) thenIR
+        , YulStmt.if_
+            (YulExpr.call "iszero" [YulExpr.ident tempName])
+            elseIR ] +
+        (sizeOf
+          ([YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_
+                  (YulExpr.call "iszero" [YulExpr.ident tempName])
+                  elseIR
+              ]] ++ tailIR) -
+          (sizeOf
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR ] + 2) +
+          extraFuel) + 1 := by
+  have hblock :=
+    compiled_terminal_ite_body_size_ge_blockFuel tempName condIR thenIR elseIR tailIR
+  omega
+
+private theorem compiled_terminal_ite_body_thenBranch_extraFuel_eq
+    (extraFuel : Nat)
+    (tempName : String)
+    (condIR : YulExpr)
+    (thenIR elseIR tailIR : List YulStmt) :
+    sizeOf
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR) + extraFuel - 4 =
+      sizeOf thenIR +
+        (sizeOf
+          ([YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_
+                  (YulExpr.call "iszero" [YulExpr.ident tempName])
+                  elseIR
+              ]] ++ tailIR) -
+          (sizeOf thenIR + 5) +
+          extraFuel) + 1 := by
+  have hbranch :=
+    (compiled_terminal_ite_body_size_ge_branchExecFuel tempName condIR thenIR elseIR tailIR).1
+  omega
+
+private theorem compiled_terminal_ite_body_elseBranch_extraFuel_eq
+    (extraFuel : Nat)
+    (tempName : String)
+    (condIR : YulExpr)
+    (thenIR elseIR tailIR : List YulStmt) :
+    sizeOf
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR) + extraFuel - 4 =
+      sizeOf elseIR +
+        (sizeOf
+          ([YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_
+                  (YulExpr.call "iszero" [YulExpr.ident tempName])
+                  elseIR
+              ]] ++ tailIR) -
+          (sizeOf elseIR + 5) +
+          extraFuel) + 1 := by
+  have hbranch :=
+    (compiled_terminal_ite_body_size_ge_branchExecFuel tempName condIR thenIR elseIR tailIR).2
+  omega
+
 theorem execStmtList_terminal_core_not_continue
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
