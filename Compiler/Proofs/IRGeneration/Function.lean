@@ -830,6 +830,7 @@ axiom supported_function_body_correct_from_exact_state
         { world := SourceSemantics.withTransactionContext initialWorld tx
           bindings := [] }
         state)
+    (hnotCore : ¬ FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
     (hstateBindings :
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     ∃ sourceResult irExec,
@@ -861,6 +862,7 @@ axiom supported_function_execIRFunction_eq_fuel
     (hbodyCompile :
       compileStmtList model.fields model.events model.errors .calldata [] false
         (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hnotCore : ¬ FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
     (hreturns : functionReturns fn = Except.ok returns) :
     execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld) =
       Compiler.Proofs.YulGeneration.execIRFunctionFuel
@@ -1280,7 +1282,7 @@ theorem supported_function_correct
           model selectors hSupported hvalidateInputs fn selector returns bodyStmts tx initialWorld
           (ParamLoading.applyBindingsToIRState
             (prebindRawArgs initialState fn.params) bindings)
-          bindings hfn hbodyCompile hbodyStateRuntime hbodyStateBindings
+          bindings hfn hbodyCompile hbodyStateRuntime hcore hbodyStateBindings
     rcases hbodyCorrect with
       ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
     have hfuel :=
@@ -1312,7 +1314,7 @@ theorem supported_function_correct
       (irFn := irFn)
       (tx := tx)
       (initialWorld := initialWorld)
-      hcompile hbodyCompile hreturns]
+      hcompile hbodyCompile hcore hreturns]
     exact hfuel
 
 end Function

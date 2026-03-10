@@ -80,7 +80,8 @@ and variable bindings are exact, executing `compileStmtList ... fn.body` simulat
 **Why this is currently an axiom**:
 This is the remaining generic body-simulation proof over the supported fragment.
 The exact parameter-state reconstruction step is now proved, and `Function.lean`
-now bypasses this axiom for `StmtListCompileCore` bodies, but the repo still
+now bypasses this axiom for `StmtListCompileCore` bodies. The axiom statement
+has therefore been narrowed to the non-core fragment only; the repo still
 needs the broader expression/statement induction library for the remaining
 supported body shapes. The latest checked extractions here are the scope-local
 whole-fuel prefix wrappers
@@ -142,7 +143,8 @@ of `supported_function_correct` now already takes that non-axiomatic route:
 `FunctionBody.exec_compileStmtList_core_extraFuel`,
 `supported_function_body_correct_from_exact_state_core_extraFuel`, and the
 `compileFunctionSpec_correct_of_body_supported_extraFuel` bridge thread a
-structural `extraFuel` all the way to `sizeOf`. The remaining axiom usage is
+structural `extraFuel` all the way to `sizeOf`. The axiom statement has
+therefore been narrowed to the non-core fragment only. The remaining axiom usage is
 therefore outside the proven core fragment, where the generic body proof still
 falls back to the old `length + 1` spine. The terminal-`ite` preparation now
 also includes explicit branch-size lower bounds

@@ -95,7 +95,7 @@ Key files:
 
 ## Layer 3: IR → Yul — GENERIC, WITH EXPLICIT AXIOM BOUNDARY
 
-**What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 5 documented axioms in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean).
+**What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 1 documented bridge axiom in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean).
 
 All 8 Yul statement types proven equivalent to IR counterparts. Universal dispatcher theorem:
 
@@ -184,7 +184,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 
-8 documented axioms remain.
+4 documented axioms remain.
 
 ## Differential Testing
 
