@@ -4188,11 +4188,33 @@ private theorem execIRStmt_block_of_execIRStmts_continue
     execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .continue next := by
   simpa [execIRStmt] using hbody
 
+private theorem execIRStmt_block_of_execIRStmts_continue_nonzeroFuel
+    (fuel : Nat) (state next : IRState) (body : List YulStmt)
+    (hfuel : fuel ≠ 0)
+    (hbody : execIRStmts (fuel - 1) state body = .continue next) :
+    execIRStmt fuel state (YulStmt.block body) = .continue next := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_block_of_execIRStmts_continue fuel state next body hbody
+
 private theorem execIRStmt_block_of_execIRStmts_return
     (fuel : Nat) (state next : IRState) (body : List YulStmt) (value : Nat)
     (hbody : execIRStmts fuel state body = .return value next) :
     execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .return value next := by
   simpa [execIRStmt] using hbody
+
+private theorem execIRStmt_block_of_execIRStmts_return_nonzeroFuel
+    (fuel : Nat) (state next : IRState) (body : List YulStmt) (value : Nat)
+    (hfuel : fuel ≠ 0)
+    (hbody : execIRStmts (fuel - 1) state body = .return value next) :
+    execIRStmt fuel state (YulStmt.block body) = .return value next := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_block_of_execIRStmts_return fuel state next body value hbody
 
 private theorem execIRStmt_block_of_execIRStmts_stop
     (fuel : Nat) (state next : IRState) (body : List YulStmt)
@@ -4200,11 +4222,33 @@ private theorem execIRStmt_block_of_execIRStmts_stop
     execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .stop next := by
   simpa [execIRStmt] using hbody
 
+private theorem execIRStmt_block_of_execIRStmts_stop_nonzeroFuel
+    (fuel : Nat) (state next : IRState) (body : List YulStmt)
+    (hfuel : fuel ≠ 0)
+    (hbody : execIRStmts (fuel - 1) state body = .stop next) :
+    execIRStmt fuel state (YulStmt.block body) = .stop next := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_block_of_execIRStmts_stop fuel state next body hbody
+
 private theorem execIRStmt_block_of_execIRStmts_revert
     (fuel : Nat) (state next : IRState) (body : List YulStmt)
     (hbody : execIRStmts fuel state body = .revert next) :
     execIRStmt (Nat.succ fuel) state (YulStmt.block body) = .revert next := by
   simpa [execIRStmt] using hbody
+
+private theorem execIRStmt_block_of_execIRStmts_revert_nonzeroFuel
+    (fuel : Nat) (state next : IRState) (body : List YulStmt)
+    (hfuel : fuel ≠ 0)
+    (hbody : execIRStmts (fuel - 1) state body = .revert next) :
+    execIRStmt fuel state (YulStmt.block body) = .revert next := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_block_of_execIRStmts_revert fuel state next body hbody
 
 private theorem execIRStmt_if_true_of_eval
     (fuel : Nat) (state : IRState) (cond : YulExpr) (body : List YulStmt) (value : Nat)
@@ -4213,12 +4257,36 @@ private theorem execIRStmt_if_true_of_eval
     execIRStmt (Nat.succ fuel) state (YulStmt.if_ cond body) = execIRStmts fuel state body := by
   simp [execIRStmt, hcond, hvalue]
 
+private theorem execIRStmt_if_true_of_eval_nonzeroFuel
+    (fuel : Nat) (state : IRState) (cond : YulExpr) (body : List YulStmt) (value : Nat)
+    (hfuel : fuel ≠ 0)
+    (hcond : evalIRExpr state cond = some value)
+    (hvalue : value ≠ 0) :
+    execIRStmt fuel state (YulStmt.if_ cond body) = execIRStmts (fuel - 1) state body := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_if_true_of_eval fuel state cond body value hcond hvalue
+
 private theorem execIRStmt_if_false_of_eval
     (fuel : Nat) (state : IRState) (cond : YulExpr) (body : List YulStmt) (value : Nat)
     (hcond : evalIRExpr state cond = some value)
     (hvalue : value = 0) :
     execIRStmt (Nat.succ fuel) state (YulStmt.if_ cond body) = .continue state := by
   simp [execIRStmt, hcond, hvalue]
+
+private theorem execIRStmt_if_false_of_eval_nonzeroFuel
+    (fuel : Nat) (state : IRState) (cond : YulExpr) (body : List YulStmt) (value : Nat)
+    (hfuel : fuel ≠ 0)
+    (hcond : evalIRExpr state cond = some value)
+    (hvalue : value = 0) :
+    execIRStmt fuel state (YulStmt.if_ cond body) = .continue state := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_if_false_of_eval fuel state cond body value hcond hvalue
 
 private theorem execIRStmt_let_of_eval_anyFuel
     (fuel : Nat)
@@ -4231,6 +4299,22 @@ private theorem execIRStmt_let_of_eval_anyFuel
       .continue (state.setVar name value) := by
   simp [execIRStmt, heval]
 
+private theorem execIRStmt_let_of_eval_nonzeroFuel
+    (fuel : Nat)
+    (state : IRState)
+    (name : String)
+    (valueExpr : YulExpr)
+    (value : Nat)
+    (hfuel : fuel ≠ 0)
+    (heval : evalIRExpr state valueExpr = some value) :
+    execIRStmt fuel state (YulStmt.let_ name valueExpr) =
+      .continue (state.setVar name value) := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_let_of_eval_anyFuel fuel state name valueExpr value heval
+
 private theorem execIRStmt_assign_of_eval_anyFuel
     (fuel : Nat)
     (state : IRState)
@@ -4241,6 +4325,22 @@ private theorem execIRStmt_assign_of_eval_anyFuel
     execIRStmt (Nat.succ fuel) state (YulStmt.assign name valueExpr) =
       .continue (state.setVar name value) := by
   simp [execIRStmt, heval]
+
+private theorem execIRStmt_assign_of_eval_nonzeroFuel
+    (fuel : Nat)
+    (state : IRState)
+    (name : String)
+    (valueExpr : YulExpr)
+    (value : Nat)
+    (hfuel : fuel ≠ 0)
+    (heval : evalIRExpr state valueExpr = some value) :
+    execIRStmt fuel state (YulStmt.assign name valueExpr) =
+      .continue (state.setVar name value) := by
+  cases fuel with
+  | zero =>
+      exact False.elim (hfuel rfl)
+  | succ fuel =>
+      simpa using execIRStmt_assign_of_eval_anyFuel fuel state name valueExpr value heval
 
 private theorem evalIRExpr_iszero_of_eval
     (state : IRState)
