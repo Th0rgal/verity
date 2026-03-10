@@ -116,6 +116,33 @@ def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
   | some body => yulStmtsNoRef name body
 end
 
+/-! ### Loop-free syntactic predicates
+
+Decidable predicates checking that a Yul AST does not contain `for_` loops.
+These are `Bool`-valued so the compiler can discharge them automatically via `rfl`. -/
+mutual
+def yulStmtLoopFree : YulStmt → Bool
+  | .comment _ | .let_ _ _ | .letMany _ _ | .assign _ _ | .expr _ | .leave => true
+  | .if_ _ body => yulStmtsLoopFree body
+  | .for_ _ _ _ _ => false
+  | .switch _ cases defaultCase =>
+      yulSwitchCasesLoopFree cases && yulOptionStmtsLoopFree defaultCase
+  | .block stmts => yulStmtsLoopFree stmts
+  | .funcDef _ _ _ body => yulStmtsLoopFree body
+
+def yulStmtsLoopFree : List YulStmt → Bool
+  | [] => true
+  | stmt :: stmts => yulStmtLoopFree stmt && yulStmtsLoopFree stmts
+
+def yulSwitchCasesLoopFree : List (Nat × List YulStmt) → Bool
+  | [] => true
+  | (_, body) :: rest => yulStmtsLoopFree body && yulSwitchCasesLoopFree rest
+
+def yulOptionStmtsLoopFree : Option (List YulStmt) → Bool
+  | none => true
+  | some body => yulStmtsLoopFree body
+end
+
 /-- Explicit theorem hypothesis used in place of the old kernel axiom. -/
 def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
   ∀ state fuel,
@@ -805,27 +832,249 @@ This gap is decomposed into:
 - the remaining fuel-adequacy axiom
 -/
 
-/-- **Fuel adequacy**: when the fuel budget is at least `sizeOf body + 1`
+/-! #### Fuel adequacy proof
+
+We prove that for loop-free Yul bodies, once the fuel budget reaches
+`sizeOf body + 1`, adding more fuel does not change the result. -/
+
+/-- Loop-free predicate lifted to `YulExecTarget`. -/
+private def yulExecTargetLoopFree : YulExecTarget → Bool
+  | .stmt s => yulStmtLoopFree s
+  | .stmts ss => yulStmtsLoopFree ss
+
+/-- Inner sizeOf measure matching `execYulStmts`'s fuel convention. -/
+private noncomputable def sizeOfExecTarget : YulExecTarget → Nat
+  | .stmt s => sizeOf s
+  | .stmts ss => sizeOf ss
+
+/-- Loop-free switch cases: if the list is loop-free and a pair is a member,
+    its body is loop-free. -/
+private theorem yulSwitchCasesLoopFree_mem
+    {cases : List (Nat × List YulStmt)} {p : Nat × List YulStmt}
+    (hLF : yulSwitchCasesLoopFree cases = true) (hmem : p ∈ cases) :
+    yulStmtsLoopFree p.2 = true := by
+  induction cases with
+  | nil => exact absurd hmem List.not_mem_nil
+  | cons hd tl ih =>
+    simp [yulSwitchCasesLoopFree] at hLF
+    cases List.mem_cons.mp hmem with
+    | inl heq => rw [heq]; exact hLF.1
+    | inr htl => exact ih hLF.2 htl
+
+/-- Key lemma: adding one unit of fuel does not change the result when the
+target is loop-free and fuel already exceeds the structural measure. -/
+private theorem execYulFuel_succ_eq
+    (target : YulExecTarget) (state : YulState) (fuel : Nat)
+    (hLF : yulExecTargetLoopFree target = true)
+    (hFuel : fuel ≥ sizeOfExecTarget target + 1) :
+    execYulFuel (fuel + 1) state target = execYulFuel fuel state target := by
+  -- Strong induction on sizeOf target.
+  -- The measure decreases at every recursive position in execYulFuel
+  -- (stmt in a list, body of if/switch/block). Loop-free excludes for_.
+  suffices ∀ (n : Nat) (target : YulExecTarget) (state : YulState) (fuel : Nat),
+      sizeOf target = n →
+      yulExecTargetLoopFree target = true →
+      fuel ≥ sizeOfExecTarget target + 1 →
+      execYulFuel (fuel + 1) state target = execYulFuel fuel state target from
+    this (sizeOf target) target state fuel rfl hLF hFuel
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+  intro target state fuel hn hLF hFuel
+  cases target with
+  | stmts ss =>
+    cases ss with
+    | nil =>
+      cases fuel with
+      | zero => rfl
+      | succ f => rfl
+    | cons s rest =>
+      have hf : fuel ≥ 2 := by
+        simp only [sizeOfExecTarget] at hFuel
+        have : sizeOf s < sizeOf (s :: rest) := by simp_wf <;> omega
+        omega
+      obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
+      have hs_lt : sizeOf (YulExecTarget.stmt s) < n := by
+        rw [← hn]; simp_wf <;> omega
+      have hr_lt : sizeOf (YulExecTarget.stmts rest) < n := by
+        rw [← hn]; simp_wf <;> omega
+      simp [yulExecTargetLoopFree, yulStmtsLoopFree] at hLF
+      obtain ⟨hLFs, hLFr⟩ := hLF
+      have hs_fuel : f + 1 ≥ sizeOfExecTarget (.stmt s) + 1 := by
+        simp only [sizeOfExecTarget] at hFuel ⊢
+        have : sizeOf s < sizeOf (s :: rest) := by simp_wf <;> omega
+        omega
+      have hr_fuel : f + 1 ≥ sizeOfExecTarget (.stmts rest) + 1 := by
+        simp only [sizeOfExecTarget] at hFuel ⊢
+        have : sizeOf rest < sizeOf (s :: rest) := by simp_wf <;> omega
+        omega
+      have ihs := ih _ hs_lt (.stmt s) state (f + 1) rfl
+        (by simp [yulExecTargetLoopFree, hLFs]) hs_fuel
+      have ihr := fun s' => ih _ hr_lt (.stmts rest) s' (f + 1) rfl
+        (by simp [yulExecTargetLoopFree, hLFr]) hr_fuel
+      show execYulFuel (f + 3) state (.stmts (s :: rest)) =
+           execYulFuel (f + 2) state (.stmts (s :: rest))
+      simp only [execYulFuel]
+      rw [ihs]
+      cases h : execYulFuel (f + 1) state (.stmt s) with
+      | «continue» s' => exact ihr s'
+      | «return» v s' => rfl
+      | stop s' => rfl
+      | revert s' => rfl
+  | stmt s =>
+    simp [yulExecTargetLoopFree] at hLF
+    cases s with
+    | comment _ =>
+      have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
+      obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
+      simp [execYulFuel]
+    | let_ _ _ =>
+      have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
+      obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
+      simp [execYulFuel]
+    | letMany _ _ =>
+      have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
+      obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
+      simp [execYulFuel]
+    | assign _ _ =>
+      have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
+      obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
+      simp [execYulFuel]
+    | «leave» =>
+      have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
+      obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
+      simp [execYulFuel]
+    | funcDef _ _ _ _ => simp [execYulFuel]
+    | expr e =>
+      have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
+      obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
+      simp [execYulFuel]
+    | if_ cond body =>
+      simp [yulStmtLoopFree] at hLF
+      have : fuel ≥ 2 := by
+        simp only [sizeOfExecTarget] at hFuel
+        have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf <;> omega
+        omega
+      obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
+      have hb_lt : sizeOf (YulExecTarget.stmts body) < n := by
+        rw [← hn]; simp_wf <;> omega
+      have hb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts body) + 1 := by
+        simp only [sizeOfExecTarget] at hFuel ⊢
+        have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf <;> omega
+        omega
+      show execYulFuel (f + 3) state (.stmt (YulStmt.if_ cond body)) =
+           execYulFuel (f + 2) state (.stmt (YulStmt.if_ cond body))
+      simp only [execYulFuel]
+      cases evalYulExpr state cond with
+      | none => rfl
+      | some v =>
+        by_cases hv : v = 0
+        · simp [hv]
+        · simp [hv]
+          exact ih _ hb_lt (.stmts body) state (f + 1) rfl
+            (by simp [yulExecTargetLoopFree, hLF]) hb_fuel
+    | «switch» expr cases defaultCase =>
+      simp [yulStmtLoopFree] at hLF
+      obtain ⟨hLFcases, hLFdef⟩ := hLF
+      have : fuel ≥ 2 := by
+        simp only [sizeOfExecTarget] at hFuel
+        have : sizeOf expr < sizeOf (YulStmt.switch expr cases defaultCase) := by simp_wf <;> omega
+        omega
+      obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
+      show execYulFuel (f + 3) state (.stmt (YulStmt.switch expr cases defaultCase)) =
+           execYulFuel (f + 2) state (.stmt (YulStmt.switch expr cases defaultCase))
+      simp only [execYulFuel]
+      cases evalYulExpr state expr with
+      | none => rfl
+      | some v =>
+        simp only []
+        cases hfind : cases.find? (fun x => decide (x.fst = v)) with
+        | none =>
+          simp only []
+          cases defaultCase with
+          | none => rfl
+          | some defBody =>
+            have hdb_lt : sizeOf (YulExecTarget.stmts defBody) < n := by
+              rw [← hn]; simp_wf <;> omega
+            have hdb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts defBody) + 1 := by
+              simp only [sizeOfExecTarget] at hFuel ⊢
+              have : sizeOf defBody < sizeOf (YulStmt.switch expr cases (some defBody)) := by
+                simp_wf <;> omega
+              omega
+            simp [yulOptionStmtsLoopFree] at hLFdef
+            exact ih _ hdb_lt (.stmts defBody) state (f + 1) rfl
+              (by simp [yulExecTargetLoopFree, hLFdef]) hdb_fuel
+        | some val =>
+          obtain ⟨caseVal, caseBody⟩ := val
+          simp only []
+          have hmem : (caseVal, caseBody) ∈ cases := List.mem_of_find?_eq_some hfind
+          have hpair : sizeOf caseBody < sizeOf (caseVal, caseBody) := by
+            simp_wf <;> omega
+          have hlist : sizeOf (caseVal, caseBody) < sizeOf cases :=
+            List.sizeOf_lt_of_mem hmem
+          have hcases : sizeOf cases < sizeOf (YulStmt.switch expr cases defaultCase) := by
+            simp_wf <;> omega
+          have hcb_lt : sizeOf (YulExecTarget.stmts caseBody) < n := by
+            subst hn; simp_wf <;> omega
+          have hcb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts caseBody) + 1 := by
+            simp only [sizeOfExecTarget] at hFuel ⊢; omega
+          have hcb_lf : yulStmtsLoopFree caseBody = true :=
+            yulSwitchCasesLoopFree_mem hLFcases hmem
+          exact ih _ hcb_lt (.stmts caseBody) state (f + 1) rfl
+            (by simp [yulExecTargetLoopFree, hcb_lf]) hcb_fuel
+    | block stmts =>
+      simp [yulStmtLoopFree] at hLF
+      have : fuel ≥ 2 := by
+        simp only [sizeOfExecTarget] at hFuel
+        have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf <;> omega
+        omega
+      obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
+      have hb_lt : sizeOf (YulExecTarget.stmts stmts) < n := by
+        rw [← hn]; simp_wf <;> omega
+      have hb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts stmts) + 1 := by
+        simp only [sizeOfExecTarget] at hFuel ⊢
+        have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf <;> omega
+        omega
+      show execYulFuel (f + 3) state (.stmt (YulStmt.block stmts)) =
+           execYulFuel (f + 2) state (.stmt (YulStmt.block stmts))
+      simp only [execYulFuel]
+      exact ih _ hb_lt (.stmts stmts) state (f + 1) rfl
+        (by simp [yulExecTargetLoopFree, hLF]) hb_fuel
+    | for_ _ _ _ _ => simp [yulStmtLoopFree] at hLF
+
+/-- **Fuel adequacy** (proved): when the fuel budget is at least `sizeOf body + 1`
 (the amount used by `execYulStmts`), fuel-bounded execution gives the same
-result as total execution.  This is a purely Yul-level fuel-monotonicity
-property.  The hypothesis `h` ensures the fuel is sufficient. -/
-private axiom execYulStmtsFuel_fuel_adequate
+result as total execution, provided the body is loop-free. -/
+private theorem execYulStmtsFuel_fuel_adequate
     (body : List YulStmt) (state : YulState) (fuel : Nat)
+    (hLF : yulStmtsLoopFree body = true)
     (h : fuel ≥ sizeOf body + 1) :
-    execYulStmtsFuel fuel state body = execYulStmts state body
+    execYulStmtsFuel fuel state body = execYulStmts state body := by
+  unfold execYulStmts execYulStmtsFuel
+  -- fuel ≥ sizeOf body + 1: write fuel = (sizeOf body + 1) + k
+  obtain ⟨k, rfl⟩ : ∃ k, fuel = sizeOf body + 1 + k := ⟨fuel - (sizeOf body + 1), by omega⟩
+  clear h
+  induction k with
+  | zero => simp
+  | succ k ihk =>
+    rw [show sizeOf body + 1 + (k + 1) = (sizeOf body + 1 + k) + 1 by omega]
+    rw [execYulFuel_succ_eq (.stmts body) state (sizeOf body + 1 + k)
+      (by simp [yulExecTargetLoopFree, hLF]) (by simp [sizeOfExecTarget])]
+    exact ihk
 
 /-- Composition of variable irrelevance and fuel adequacy. -/
 private theorem SwitchCaseBodyBridge_body
     (body : List YulStmt) (state : YulState) (fuel : Nat)
     (hDead : HasSelectorDeadBridge body)
     (hNoRef : yulStmtsNoRef "__has_selector" body)
+    (hLF : yulStmtsLoopFree body = true)
     (h : fuel ≥ sizeOf body + 1) :
     yulResultOfExecWithRollback state
       (execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body) =
     yulResultOfExecWithRollback state
       (execYulStmts state body) := by
   rw [hDead state fuel hNoRef]
-  rw [execYulStmtsFuel_fuel_adequate body state fuel h]
+  rw [execYulStmtsFuel_fuel_adequate body state fuel hLF h]
 
 /-! ### switchCaseBody bridge theorem
 
@@ -839,6 +1088,7 @@ private theorem SwitchCaseBodyBridge
     (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat)
     (hDead : HasSelectorDeadBridge fn.body)
     (hNoRef : yulStmtsNoRef "__has_selector" fn.body)
+    (hLF : yulStmtsLoopFree fn.body = true)
     (hFuelAdequate : fuel ≥ sizeOf fn.body + 5) :
     DispatchGuardsSafe fn tx →
     4 + tx.args.length * 32 < evmModulus →
@@ -908,7 +1158,7 @@ private theorem SwitchCaseBodyBridge
   -- fuel' ≥ (fuel - 2) - 2 = fuel - 4 (by hge).
   -- Since fuel ≥ sizeOf fn.body + 5, we have fuel - 4 ≥ sizeOf fn.body + 1.
   have hfuelAdequate' : fuel' ≥ sizeOf fn.body + 1 := by omega
-  have hbody := SwitchCaseBodyBridge_body fn.body s₀ fuel' hDead hNoRef hfuelAdequate'
+  have hbody := SwitchCaseBodyBridge_body fn.body s₀ fuel' hDead hNoRef hLF hfuelAdequate'
   -- hmatch gives us resultsMatch via interpretYulRuntime
   -- interpretYulRuntime fn.body yulTx ... = yulResultOfExecWithRollback s₀ (execYulStmts s₀ fn.body)
   rw [hbody]
@@ -937,6 +1187,8 @@ theorem yulCodegen_preserves_semantics
       yulStmtsNoRef "__has_selector" fn.body)
     (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
       HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
     (hbody : ∀ fn, fn ∈ contract.functions →
       resultsMatch
         (execIRFunction fn tx.args
@@ -1104,7 +1356,7 @@ theorem yulCodegen_preserves_semantics
               calldata := tx.args
               selector := tx.functionSelector }
             (m + 2) (hHasSelectorDead fn hmem) (hNoHasSelector fn hmem)
-            hFuelBody (hdispatchGuardSafe fn hmem) hNoWrap hlen hmatch)
+            (hLoopFree fn hmem) hFuelBody (hdispatchGuardSafe fn hmem) hNoWrap hlen hmatch)
       · simpa [hlen] using
           (SwitchCaseBodyBridge_short fn tx
             { initialState with
