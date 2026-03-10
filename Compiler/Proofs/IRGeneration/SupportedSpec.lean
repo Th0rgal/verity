@@ -32,9 +32,9 @@ def exprTouchesUnsupportedContractSurface : Expr → Bool
   | .literal _ | .param _ | .storage _ | .storageAddr _ | .caller | .contractAddress
   | .chainid | .msgValue | .blockTimestamp | .blockNumber
   | .localVar _ => false
-  | .add a b | .sub a b | .mul a b | .div a b | .mod a b
+  | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
-  | .ge a b | .gt a b | .lt a b | .le a b
+  | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
   | .logicalAnd a b | .logicalOr a b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b
@@ -51,7 +51,7 @@ def exprTouchesUnsupportedContractSurface : Expr → Bool
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
-  | .shr _ _ => true
+  | .shr _ _ | .sdiv _ _ | .smod _ _ | .sar _ _ | .signextend _ _ | .sgt _ _ | .slt _ _ => true
 
 mutual
   /-- Statement forms intentionally outside the first generic whole-contract theorem. -/

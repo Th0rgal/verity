@@ -55,6 +55,78 @@ def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def bitOr (a b : Uint256) : Uint256 := Verity.Core.Uint256.or a b
 def bitXor (a b : Uint256) : Uint256 := Verity.Core.Uint256.xor a b
 
+private def signedWordLimit : Nat := Verity.Core.Uint256.modulus / 2
+
+private def wordToSigned (value : Uint256) : Int :=
+  let raw : Nat := value
+  if raw < signedWordLimit then
+    Int.ofNat raw
+  else
+    Int.ofNat raw - Int.ofNat Verity.Core.Uint256.modulus
+
+private def signedToWord (value : Int) : Uint256 :=
+  let reduced := Int.emod value (Int.ofNat Verity.Core.Uint256.modulus)
+  (reduced.toNat : Uint256)
+
+private def signedAbsNat (value : Int) : Nat :=
+  Int.natAbs value
+
+private def pow2 (n : Nat) : Nat := 2 ^ n
+
+def sdiv (a b : Uint256) : Uint256 :=
+  let lhs := wordToSigned a
+  let rhs := wordToSigned b
+  if rhs == 0 then
+    0
+  else
+    let quotient := signedAbsNat lhs / signedAbsNat rhs
+    let sameSign := (lhs < 0) == (rhs < 0)
+    if sameSign then
+      signedToWord (Int.ofNat quotient)
+    else
+      signedToWord (- Int.ofNat quotient)
+
+def smod (a b : Uint256) : Uint256 :=
+  let lhs := wordToSigned a
+  let rhs := wordToSigned b
+  if rhs == 0 then
+    0
+  else
+    let modulus := signedAbsNat lhs % signedAbsNat rhs
+    if lhs < 0 then
+      signedToWord (- Int.ofNat modulus)
+    else
+      signedToWord (Int.ofNat modulus)
+
+def slt (a b : Uint256) : Bool := wordToSigned a < wordToSigned b
+def sgt (a b : Uint256) : Bool := wordToSigned a > wordToSigned b
+
+def sar (shift value : Uint256) : Uint256 :=
+  let shiftNat : Nat := shift
+  if shiftNat >= 256 then
+    if wordToSigned value < 0 then
+      (Verity.Core.MAX_UINT256 : Uint256)
+    else
+      0
+  else
+    let divisor := Int.ofNat (pow2 shiftNat)
+    signedToWord (Int.ediv (wordToSigned value) divisor)
+
+def signextend (byteIndex value : Uint256) : Uint256 :=
+  let idx : Nat := byteIndex
+  if idx >= 32 then
+    value
+  else
+    let bitIndex := 8 * idx + 7
+    let width := bitIndex + 1
+    let lowMask := pow2 width - 1
+    let lowBits := (value : Nat) % pow2 width
+    let signSet := ((lowBits / pow2 bitIndex) % 2) == 1
+    if signSet then
+      ((lowBits + (Verity.Core.Uint256.modulus - lowMask - 1)) : Uint256)
+    else
+      (lowBits : Uint256)
+
 abbrev mulDivDown := Verity.Stdlib.Math.mulDivDown
 abbrev mulDivUp := Verity.Stdlib.Math.mulDivUp
 

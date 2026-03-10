@@ -62,6 +62,9 @@ private def bodyUsesAddressStorageRead (body : List Stmt) : Bool :=
 private def bodyUsesAddressStorageWrite (body : List Stmt) : Bool :=
   contains (reprStr body) "Stmt.setStorageAddr"
 
+private def bodyUsesSignedBuiltin (body : List Stmt) (builtinTag : String) : Bool :=
+  contains (reprStr body) builtinTag
+
 private def canonicalFieldSlots (spec : CompilationModel) : List Nat :=
   let indexed := List.zip (List.range spec.fields.length) spec.fields
   indexed.map (fun (idx, field) => field.slot.getD idx)
@@ -286,6 +289,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.MappingWordSmoke.spec
   , Contracts.Smoke.StorageWordsSmoke.spec
   , Contracts.Smoke.CustomErrorSmoke.spec
+  , Contracts.Smoke.SignedBuiltinSmoke.spec
   , Contracts.Smoke.StatelessSmoke.spec
   , Contracts.Smoke.MutabilitySmoke.spec
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
@@ -340,6 +344,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("MappingWordSmoke", ["setWord1(uint256,uint256)", "getWord1(uint256)", "isWord1NonZero(uint256)"])
   , ("StorageWordsSmoke", ["extSloadsLike(bytes32[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
+  , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
+      "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()"])
   , ("StatelessSmoke", ["echoWord(uint256)", "whoAmI()"])
   , ("MutabilitySmoke", ["deposit()", "currentOwner()"])
   , ("SpecialEntrypointSmoke", ["getReceiveCount()", "getFallbackCount()"])
@@ -391,6 +397,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("MappingWordSmoke", ["0x60ab11c4", "0x8f8a322f", "0xea3aded7"])
   , ("StorageWordsSmoke", ["0x764fa434"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
+  , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
+      "0xcc634d7f", "0x7c4ab1e5"])
   , ("StatelessSmoke", ["0x26534f53", "0xda91254c"])
   , ("MutabilitySmoke", ["0xd0e30db0", "0xb387ef92"])
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
@@ -448,6 +456,37 @@ private def checkMutabilitySmoke : IO Unit := do
   expectTrue "MutabilitySmoke: view flag is preserved" owner.isView
   expectTrue "MutabilitySmoke: deposit body reads msgValue"
     (contains (reprStr deposit.body) "Expr.msgValue")
+
+private def checkSignedBuiltinSmoke : IO Unit := do
+  let functions := Contracts.Smoke.SignedBuiltinSmoke.spec.functions
+  let signedDiv? := functions.find? (·.name == "signedDiv")
+  let signedMod? := functions.find? (·.name == "signedMod")
+  let signedLt? := functions.find? (·.name == "signedLt")
+  let signedGt? := functions.find? (·.name == "signedGt")
+  let arithmeticShift? := functions.find? (·.name == "arithmeticShift")
+  let signExtended? := functions.find? (·.name == "signExtended")
+  let shiftedMask? := functions.find? (·.name == "shiftedMask")
+  let signedDiv := signedDiv?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signedMod := signedMod?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signedLt := signedLt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signedGt := signedGt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let arithmeticShift := arithmeticShift?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signExtended := signExtended?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let shiftedMask := shiftedMask?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
+    (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")
+  expectTrue "SignedBuiltinSmoke: signedMod body uses Expr.smod"
+    (bodyUsesSignedBuiltin signedMod.body "Expr.smod")
+  expectTrue "SignedBuiltinSmoke: signedLt body uses Expr.slt"
+    (bodyUsesSignedBuiltin signedLt.body "Expr.slt")
+  expectTrue "SignedBuiltinSmoke: signedGt body uses Expr.sgt"
+    (bodyUsesSignedBuiltin signedGt.body "Expr.sgt")
+  expectTrue "SignedBuiltinSmoke: arithmeticShift body uses Expr.sar"
+    (bodyUsesSignedBuiltin arithmeticShift.body "Expr.sar")
+  expectTrue "SignedBuiltinSmoke: signExtended body inlines Expr.signextend"
+    (bodyUsesSignedBuiltin signExtended.body "Expr.signextend")
+  expectTrue "SignedBuiltinSmoke: shiftedMask body inlines Expr.sar"
+    (bodyUsesSignedBuiltin shiftedMask.body "Expr.sar")
 
 private def checkSpecialEntrypointSmoke : IO Unit := do
   let functions := Contracts.Smoke.SpecialEntrypointSmoke.spec.functions
@@ -581,6 +620,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
     "Owned.transferOwnership keeps address storage writes explicit in macro output"
     (bodyUsesAddressStorageWrite Contracts.Owned.transferOwnership_modelBody)
   checkMutabilitySmoke
+  checkSignedBuiltinSmoke
   checkSpecialEntrypointSmoke
   for spec in macroSpecs do
     checkSpec spec

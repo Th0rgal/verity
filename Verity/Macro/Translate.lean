@@ -940,7 +940,7 @@ private partial def inferPureExprType
   | `(term| $n:num) =>
       pure .uint256
   | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b)
-    | `(term| div $a $b) | `(term| mod $a $b) | `(term| bitAnd $a $b)
+    | `(term| div $a $b) | `(term| sdiv $a $b) | `(term| mod $a $b) | `(term| smod $a $b) | `(term| bitAnd $a $b)
     | `(term| bitOr $a $b) | `(term| bitXor $a $b) | `(term| and $a $b)
     | `(term| or $a $b) | `(term| xor $a $b) | `(term| min $a $b)
     | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b) => do
@@ -950,10 +950,15 @@ private partial def inferPureExprType
   | `(term| bitNot $a) | `(term| not $a) => do
       requireWordLikeType a "bitwise not" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       pure .uint256
-  | `(term| shl $shift $value) | `(term| shr $shift $value) => do
+  | `(term| shl $shift $value) | `(term| shr $shift $value) | `(term| sar $shift $value)
+    | `(term| signextend $shift $value) => do
       requireWordLikeType shift "shift" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals shift visitingConstants)
       requireWordLikeType value "shift" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals value visitingConstants)
       pure .uint256
+  | `(term| slt $a $b) | `(term| sgt $a $b) => do
+      requireWordLikeType a "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
+      requireWordLikeType b "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants)
+      pure .bool
   | `(term| $a == $b) | `(term| $a != $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
@@ -1272,7 +1277,9 @@ private partial def validateConstantBody
   | `(term| sub $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| mul $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| div $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
+  | `(term| sdiv $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| mod $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
+  | `(term| smod $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| bitAnd $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| bitOr $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| bitXor $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
@@ -1310,6 +1317,8 @@ private partial def validateConstantBody
   | `(term| mulmod $a $b $c) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting *> validateConstantBody constDecls c visiting
   | `(term| signextend $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| sar $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
+  | `(term| slt $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
+  | `(term| sgt $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| min $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| max $a $b) => validateConstantBody constDecls a visiting *> validateConstantBody constDecls b visiting
   | `(term| ite $cond $thenVal $elseVal) =>
@@ -1386,13 +1395,17 @@ partial def translatePureExpr
   | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| mul $a $b) => `(Compiler.CompilationModel.Expr.mul $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| div $a $b) => `(Compiler.CompilationModel.Expr.div $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| sdiv $a $b) => `(Compiler.CompilationModel.Expr.sdiv $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| mod $a $b) => `(Compiler.CompilationModel.Expr.mod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| smod $a $b) => `(Compiler.CompilationModel.Expr.smod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| bitAnd $a $b) => `(Compiler.CompilationModel.Expr.bitAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| bitOr $a $b) => `(Compiler.CompilationModel.Expr.bitOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| bitXor $a $b) => `(Compiler.CompilationModel.Expr.bitXor $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| bitNot $a) => `(Compiler.CompilationModel.Expr.bitNot $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants))
   | `(term| shl $shift $value) => `(Compiler.CompilationModel.Expr.shl $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| shr $shift $value) => `(Compiler.CompilationModel.Expr.shr $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
+  | `(term| sar $shift $value) => `(Compiler.CompilationModel.Expr.sar $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
+  | `(term| signextend $byteIndex $value) => `(Compiler.CompilationModel.Expr.signextend $(← translatePureExpr fields constDecls immutableDecls params locals byteIndex visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| $a == $b) => `(Compiler.CompilationModel.Expr.eq $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a != $b) =>
       `(Compiler.CompilationModel.Expr.logicalNot
@@ -1401,7 +1414,9 @@ partial def translatePureExpr
             $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
   | `(term| $a >= $b) => `(Compiler.CompilationModel.Expr.ge $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a > $b) => `(Compiler.CompilationModel.Expr.gt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| sgt $a $b) => `(Compiler.CompilationModel.Expr.sgt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a < $b) => `(Compiler.CompilationModel.Expr.lt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| slt $a $b) => `(Compiler.CompilationModel.Expr.slt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a <= $b) => `(Compiler.CompilationModel.Expr.le $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a && $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a || $b) => `(Compiler.CompilationModel.Expr.logicalOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))

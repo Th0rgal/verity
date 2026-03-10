@@ -84,6 +84,34 @@ verity_contract CustomErrorSmoke where
   function echo (amount : Uint256) : Uint256 := do
     return amount
 
+verity_contract SignedBuiltinSmoke where
+  storage
+
+  constants
+    extendedByte : Uint256 := (signextend 0 255)
+    arithmeticShifted : Uint256 := (sar 255 (sub 0 1))
+
+  function signedDiv (lhs : Uint256, rhs : Uint256) : Uint256 := do
+    return (sdiv lhs rhs)
+
+  function signedMod (lhs : Uint256, rhs : Uint256) : Uint256 := do
+    return (smod lhs rhs)
+
+  function signedLt (lhs : Uint256, rhs : Uint256) : Bool := do
+    return (slt lhs rhs)
+
+  function signedGt (lhs : Uint256, rhs : Uint256) : Bool := do
+    return (sgt lhs rhs)
+
+  function arithmeticShift (shift : Uint256, value : Uint256) : Uint256 := do
+    return (sar shift value)
+
+  function signExtended () : Uint256 := do
+    return extendedByte
+
+  function shiftedMask () : Uint256 := do
+    return arithmeticShifted
+
 verity_contract StatelessSmoke where
   storage
 
@@ -864,6 +892,7 @@ end SpecGenSmoke
 #check_contract MappingWordSmoke
 #check_contract StorageWordsSmoke
 #check_contract CustomErrorSmoke
+#check_contract SignedBuiltinSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
