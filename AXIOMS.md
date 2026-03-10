@@ -370,6 +370,13 @@ for the compiled terminal `ite` body,
 `compiled_terminal_ite_body_thenBranch_tailExecFuel_eq` and
 `compiled_terminal_ite_body_elseBranch_tailExecFuel_eq`, so the next theorem
 attempt no longer has to special-case the then-branch residual fuel arithmetic.
+The compile-guided `ite` path is also less noisy now:
+`compileStmt_terminal_ite_ok_inv` extracts the exact nonempty-`else` compiled
+head shape of `Stmt.ite`, including `condIR`, `thenIR`, `elseIR`, the chosen
+fresh `__ite_cond` name, and the enclosing generated `block [...]`. The next
+explicit-`bodyIR` theorem attempt can use that directly instead of redoing the
+nested `compileExpr` / `compileStmtList` monad inversion locally in the
+terminal `ite` case.
 The next direct move is still the explicit-`bodyIR` terminal-core theorem, but
 it can now evaluate `let`, `assign`, `return`, and `require` heads directly
 from the theorem’s scope-local invariant instead of rebuilding `...OnExpr`

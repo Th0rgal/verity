@@ -3800,6 +3800,62 @@ theorem compileStmtList_cons_ok_inv
           · simpa [hhead]
           · simpa [htail]
 
+theorem compileStmt_terminal_ite_ok_inv
+    {fields : List Field}
+    {inScopeNames : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    {bodyIR : List YulStmt}
+    (helseNonempty : elseBranch.isEmpty = false)
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames
+          (.ite cond thenBranch elseBranch) = Except.ok bodyIR) :
+    ∃ condIR thenIR elseIR tempName,
+      CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames thenBranch = Except.ok thenIR ∧
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames elseBranch = Except.ok elseIR ∧
+      tempName =
+        CompilationModel.pickFreshName "__ite_cond"
+          (inScopeNames ++ collectExprNames cond ++
+            collectStmtListNames thenBranch ++ collectStmtListNames elseBranch) ∧
+      bodyIR =
+        [YulStmt.block
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]] := by
+  unfold CompilationModel.compileStmt at hcompile
+  cases hcond : CompilationModel.compileExpr fields .calldata cond with
+  | error err =>
+      simp [hcond] at hcompile
+      cases hcompile
+  | ok condIR =>
+      cases hthen : CompilationModel.compileStmtList
+          fields [] [] .calldata [] false inScopeNames thenBranch with
+      | error err =>
+          simp [hcond, hthen] at hcompile
+          cases hcompile
+      | ok thenIR =>
+          cases helse : CompilationModel.compileStmtList
+              fields [] [] .calldata [] false inScopeNames elseBranch with
+          | error err =>
+              simp [hcond, hthen, helse] at hcompile
+              cases hcompile
+          | ok elseIR =>
+              simp [hcond, hthen, helse, helseNonempty] at hcompile
+              refine ⟨condIR, thenIR, elseIR,
+                CompilationModel.pickFreshName "__ite_cond"
+                  (inScopeNames ++ collectExprNames cond ++
+                    collectStmtListNames thenBranch ++ collectStmtListNames elseBranch),
+                ?_, ?_, ?_, rfl, ?_⟩
+              · simpa [hcond]
+              · simpa [hthen]
+              · simpa [helse]
+              · injection hcompile with hbody
+                simpa [List.append_assoc] using hbody.symm
+
 theorem compileStmtList_core_ok
     {fields : List Field}
     {scope inScopeNames : List String}
