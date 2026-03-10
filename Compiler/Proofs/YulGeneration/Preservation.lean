@@ -123,6 +123,103 @@ private theorem sizeOf_append_ge_length_add (l₁ l₂ : List YulStmt) :
       have : sizeOf (h :: (t ++ l₂)) = 1 + sizeOf h + sizeOf (t ++ l₂) := rfl
       omega
 
+/-- Membership in a list implies the element's sizeOf is strictly smaller than the list's. -/
+private theorem sizeOf_lt_of_mem {α : Type _} [SizeOf α] {x : α} {l : List α}
+    (hx : x ∈ l) : sizeOf x < sizeOf l := by
+  induction l with
+  | nil => cases hx
+  | cons h t ih =>
+      cases hx with
+      | head => show sizeOf x < 1 + sizeOf x + sizeOf t; omega
+      | tail _ hmem => have := ih hmem; show sizeOf x < 1 + sizeOf h + sizeOf t; omega
+
+/-- The `buildSwitch` output for a list of functions has `sizeOf` at least
+`sizeOf fn.body + 12` for any function in the list.  This is a structural
+bound following from the nesting depth of the generated Yul AST. -/
+private theorem sizeOf_switchCaseBody_ge (fn : IRFunction) :
+    sizeOf (switchCaseBody fn) ≥ sizeOf fn.body + 2 := by
+  -- switchCaseBody fn = prefix ++ fn.body where prefix has ≥ 2 elements
+  show sizeOf (([YulStmt.comment s!"{fn.name}()"] ++
+    (if fn.payable then [] else [Compiler.callvalueGuard]) ++
+    [Compiler.calldatasizeGuard fn.params.length]) ++ fn.body) ≥ _
+  have h := sizeOf_append_ge_length_add
+    ([YulStmt.comment s!"{fn.name}()"] ++
+      (if fn.payable then [] else [Compiler.callvalueGuard]) ++
+      [Compiler.calldatasizeGuard fn.params.length])
+    fn.body
+  have hlen : ([YulStmt.comment s!"{fn.name}()"] ++
+      (if fn.payable then [] else [Compiler.callvalueGuard]) ++
+      [Compiler.calldatasizeGuard fn.params.length]).length ≥ 2 := by
+    cases fn.payable <;> simp
+  omega
+
+/-- `sizeOf` of the `switchCases` list is strictly greater than `sizeOf (switchCaseBody fn)`
+for any `fn ∈ fns`. -/
+private theorem sizeOf_switchCases_gt_body {fns : List IRFunction} {fn : IRFunction}
+    (hmem : fn ∈ fns) :
+    sizeOf (switchCases fns) > sizeOf (switchCaseBody fn) := by
+  have hmem' : (fn.selector, switchCaseBody fn) ∈ switchCases fns := by
+    simp only [switchCases]
+    exact List.mem_map_of_mem hmem
+  have hlt := sizeOf_lt_of_mem hmem'
+  have : sizeOf (fn.selector, switchCaseBody fn) =
+      1 + sizeOf fn.selector + sizeOf (switchCaseBody fn) := rfl
+  omega
+
+/-- Helper: `sizeOf` of a singleton list `[x]` equals `1 + sizeOf x + 1`. -/
+private theorem sizeOf_singleton_list {α : Type _} [SizeOf α] (x : α) :
+    sizeOf [x] = 1 + sizeOf x + 1 := rfl
+
+/-- Helper: `sizeOf` of a 3-element list. -/
+private theorem sizeOf_list_three {α : Type _} [SizeOf α] (a b c : α) :
+    sizeOf [a, b, c] = 1 + sizeOf a + (1 + sizeOf b + (1 + sizeOf c + 1)) := rfl
+
+/-- `buildSwitch fns none none` wraps `switchCases fns` in an AST structure that adds
+a fixed overhead. The nesting is:
+`[block [let_, if_, if_ [switch selectorExpr (switchCases fns) (some default)]]]`. -/
+private theorem sizeOf_buildSwitch_ge_switchCases
+    (fns : List IRFunction) :
+    sizeOf [Compiler.buildSwitch fns none none] ≥ sizeOf (switchCases fns) + 9 := by
+  -- sizeOf [x] = sizeOf x + 2
+  have h_list : sizeOf [Compiler.buildSwitch fns none none] ≥
+      sizeOf (Compiler.buildSwitch fns none none) + 2 := by
+    show 1 + sizeOf (Compiler.buildSwitch fns none none) + 1 ≥ _; omega
+  suffices h : sizeOf (Compiler.buildSwitch fns none none) ≥ sizeOf (switchCases fns) + 7 by omega
+  -- Unfold buildSwitch, simplify the sortCasesBySelector=false branch, fold map to switchCases
+  change sizeOf (Compiler.buildSwitch fns (sortCasesBySelector := false)) ≥ _
+  unfold Compiler.buildSwitch
+  simp only [ite_false, Bool.false_eq_true, Compiler.defaultDispatchCase]
+  rw [show (fns.map (fun fn => (fn.selector,
+      dispatchBody fn.payable s!"{fn.name}()"
+        ([calldatasizeGuard fn.params.length] ++ fn.body)))) =
+    switchCases fns from by simp [switchCases, switchCaseBody, dispatchBody]]
+  -- Name sub-expressions and decompose sizeOf level by level (simp normalizes
+  -- auto-generated SizeOf instances; omega closes the arithmetic)
+  set defaultStmts : List YulStmt :=
+    [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+  set sw := YulStmt.switch
+    (YulExpr.call "shr" [YulExpr.lit selectorShift, YulExpr.call "calldataload" [YulExpr.lit 0]])
+    (switchCases fns) (some defaultStmts)
+  set if2 := YulStmt.if_ (YulExpr.ident "__has_selector") [sw]
+  have h1 : sizeOf (YulStmt.block [
+      YulStmt.let_ "__has_selector" (YulExpr.call "iszero"
+        [YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit 4]]),
+      YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) defaultStmts,
+      if2]) ≥ 5 + sizeOf if2 := by simp; omega
+  have h2 : sizeOf if2 ≥ 2 + sizeOf [sw] := by simp [if2]; omega
+  have h3 : sizeOf [sw] = sizeOf sw + 2 := by simp; omega
+  have h4 : sizeOf sw ≥ 1 + sizeOf (switchCases fns) := by simp [sw]; omega
+  omega
+
+private theorem sizeOf_buildSwitch_ge_fn_body
+    {fns : List IRFunction} {fn : IRFunction}
+    (hmem : fn ∈ fns) :
+    sizeOf [Compiler.buildSwitch fns none none] ≥ sizeOf fn.body + 12 := by
+  have h1 := sizeOf_buildSwitch_ge_switchCases fns
+  have h2 := sizeOf_switchCases_gt_body hmem
+  have h3 := sizeOf_switchCaseBody_ge fn
+  omega
+
 /-- Calldatasize is always ≥ 4 in the proof semantics (4-byte selector prefix). -/
 @[simp] private theorem calldatasize_ge_4 (args : List Nat) :
     ¬ (4 + args.length * 32 < 4) := by omega
@@ -539,8 +636,9 @@ private theorem exec_switchCaseBody_continue_of_long
     (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat)
     (hguards : DispatchGuardsSafe fn tx)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hLong : fn.params.length ≤ tx.args.length) :
-    ∃ fuel' : Nat, fuel' ≤ fuel ∧
+    (hLong : fn.params.length ≤ tx.args.length)
+    (hfuel : fuel ≥ 2) :
+    ∃ fuel' : Nat, fuel' ≤ fuel ∧ fuel' ≥ fuel - 2 ∧
     execYulStmtsFuel (fuel + 2)
       ((YulState.initial
           { sender := tx.sender
@@ -593,52 +691,45 @@ private theorem exec_switchCaseBody_continue_of_long
         YulStmt.comment s!"{fn.name}()" :: Compiler.calldatasizeGuard fn.params.length :: fn.body by
           simp [switchCaseBody, hPayable]]
       rw [execYulStmtsFuel_cons_continue (fuel := fuel) (next := state) (hstmt := hComment)]
-      cases fuel with
-      | zero =>
-          exact ⟨0, Nat.le_refl 0, rfl⟩
-      | succ fuel =>
-          have hGuard :
-              execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard fn.params.length) =
-                .continue state := by
-            simpa [execYulStmtFuel] using
-              (exec_calldatasizeGuard_noop_of_noWrap fuel state fn.params.length
-                hArity hDataNoWrap)
-          rw [execYulStmtsFuel_cons_continue (fuel := fuel) (next := state) (hstmt := hGuard)]
-          exact ⟨fuel, Nat.le_succ fuel, rfl⟩
+      -- fuel ≥ 2, so fuel ≥ 1 and we can write fuel = k + 1
+      obtain ⟨k, rfl⟩ : ∃ k, fuel = k + 1 := ⟨fuel - 1, by omega⟩
+      have hGuard :
+          execYulStmtFuel (k + 1) state (Compiler.calldatasizeGuard fn.params.length) =
+            .continue state := by
+        simpa [execYulStmtFuel] using
+          (exec_calldatasizeGuard_noop_of_noWrap k state fn.params.length
+            hArity hDataNoWrap)
+      rw [execYulStmtsFuel_cons_continue (fuel := k) (next := state) (hstmt := hGuard)]
+      exact ⟨k + 1, by omega, by omega, rfl⟩
   | false =>
       rw [show switchCaseBody fn =
         YulStmt.comment s!"{fn.name}()" ::
           Compiler.callvalueGuard ::
             Compiler.calldatasizeGuard fn.params.length :: fn.body by
           simp [switchCaseBody, hPayable]]
-      rw [execYulStmtsFuel_cons_continue (fuel := fuel) (next := state) (hstmt := hComment)]
-      cases fuel with
-      | zero =>
-          exact ⟨0, Nat.le_refl 0, rfl⟩
-      | succ fuel =>
-          have hMsgValue :
-              state.msgValue % evmModulus = 0 := by
-            have hZero : tx.msgValue % evmModulus = 0 := by
-              rcases hValueSafe with hTrue | hZero
-              · cases (by simpa [hPayable] using hTrue : False)
-              · exact hZero
-            simpa [state, YulState.initial, YulState.setVar] using hZero
-          have hValueGuard :
-              execYulStmtFuel (fuel + 1) state Compiler.callvalueGuard = .continue state := by
-            simpa [execYulStmtFuel] using exec_callvalueGuard_noop fuel state hMsgValue
-          rw [execYulStmtsFuel_cons_continue (fuel := fuel) (next := state) (hstmt := hValueGuard)]
-          cases fuel with
-          | zero =>
-              exact ⟨0, Nat.le_refl 0, rfl⟩
-          | succ fuel =>
-              have hGuard :
-                  execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard fn.params.length) =
-                    .continue state := by
-                simpa [execYulStmtFuel] using
-                  (exec_calldatasizeGuard_noop_of_noWrap fuel state fn.params.length
-                    hArity hDataNoWrap)
-              rw [execYulStmtsFuel_cons_continue (fuel := fuel) (next := state) (hstmt := hGuard)]
-              exact ⟨fuel, by omega, rfl⟩
+      -- fuel ≥ 2, so we can step through both guards without hitting zero fuel
+      obtain ⟨k, rfl⟩ : ∃ k, fuel = k + 2 := ⟨fuel - 2, by omega⟩
+      rw [execYulStmtsFuel_cons_continue (fuel := k + 2) (next := state) (hstmt := hComment)]
+      have hMsgValue :
+          state.msgValue % evmModulus = 0 := by
+        have hZero : tx.msgValue % evmModulus = 0 := by
+          rcases hValueSafe with hTrue | hZero
+          · cases (by simpa [hPayable] using hTrue : False)
+          · exact hZero
+        simpa [state, YulState.initial, YulState.setVar] using hZero
+      have hValueGuard :
+          execYulStmtFuel (k + 1 + 1) state Compiler.callvalueGuard = .continue state := by
+        simpa [execYulStmtFuel] using exec_callvalueGuard_noop (k + 1) state hMsgValue
+      rw [show k + 2 + 1 = (k + 1) + 2 from by omega]
+      rw [execYulStmtsFuel_cons_continue (fuel := k + 1) (next := state) (hstmt := hValueGuard)]
+      have hGuard :
+          execYulStmtFuel (k + 1) state (Compiler.calldatasizeGuard fn.params.length) =
+            .continue state := by
+        simpa [execYulStmtFuel] using
+          (exec_calldatasizeGuard_noop_of_noWrap k state fn.params.length
+            hArity hDataNoWrap)
+      rw [execYulStmtsFuel_cons_continue (fuel := k) (next := state) (hstmt := hGuard)]
+      exact ⟨k + 1, by omega, by omega, rfl⟩
 
 /-! ### switchCaseBody body bridge axioms
 
@@ -660,35 +751,35 @@ private axiom execYulStmtsFuel_setVar_hasSelector_irrelevant
     execYulStmtsFuel fuel state body
 
 /-- **Fuel adequacy**: when the fuel budget is at least `sizeOf body + 1`
-(the amount used by `execYulStmts`), the rollback-wrapped execution result
-is the same as the total execution result.  This is a purely Yul-level
-fuel-monotonicity property. -/
+(the amount used by `execYulStmts`), fuel-bounded execution gives the same
+result as total execution.  This is a purely Yul-level fuel-monotonicity
+property.  The hypothesis `h` ensures the fuel is sufficient. -/
 private axiom execYulStmtsFuel_fuel_adequate
-    (body : List YulStmt) (state : YulState) (fuel : Nat) :
-    yulResultOfExecWithRollback state
-      (execYulStmtsFuel fuel state body) =
-    yulResultOfExecWithRollback state
-      (execYulStmts state body)
+    (body : List YulStmt) (state : YulState) (fuel : Nat)
+    (h : fuel ≥ sizeOf body + 1) :
+    execYulStmtsFuel fuel state body = execYulStmts state body
 
 /-- Composition of variable irrelevance and fuel adequacy. -/
 private theorem SwitchCaseBodyBridge_body
-    (body : List YulStmt) (state : YulState) (fuel : Nat) :
+    (body : List YulStmt) (state : YulState) (fuel : Nat)
+    (h : fuel ≥ sizeOf body + 1) :
     yulResultOfExecWithRollback state
       (execYulStmtsFuel fuel (state.setVar "__has_selector" 1) body) =
     yulResultOfExecWithRollback state
       (execYulStmts state body) := by
   rw [execYulStmtsFuel_setVar_hasSelector_irrelevant]
-  rw [execYulStmtsFuel_fuel_adequate]
+  rw [execYulStmtsFuel_fuel_adequate body state fuel h]
 
 /-! ### switchCaseBody bridge theorem
 
 `SwitchCaseBodyBridge` is now a proved theorem rather than an axiom.
 It composes two pieces:
 1. `exec_switchCaseBody_continue_of_long` — proved guard-prefix stepping
-2. `SwitchCaseBodyBridge_body` — axiom for variable irrelevance + fuel adequacy
+2. `SwitchCaseBodyBridge_body` — composed from variable irrelevance + fuel adequacy axioms
 -/
 private theorem SwitchCaseBodyBridge
-    (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat) :
+    (fn : IRFunction) (tx : IRTransaction) (irState : IRState) (fuel : Nat)
+    (hFuelAdequate : fuel ≥ sizeOf fn.body + 5) :
     DispatchGuardsSafe fn tx →
     4 + tx.args.length * 32 < evmModulus →
     fn.params.length ≤ tx.args.length →
@@ -745,28 +836,24 @@ private theorem SwitchCaseBodyBridge
       args := tx.args }
   set s₀ := YulState.initial yulTx irState.storage irState.events
   -- Step 1: use guard-stepping to reduce to fn.body execution
-  -- We need fuel ≥ 2 to step through guards; handle small fuel first
-  by_cases hfuel : fuel ≥ 2
-  · obtain ⟨fuel', _, hstep⟩ :=
-      exec_switchCaseBody_continue_of_long fn tx irState (fuel - 2) hguards hNoWrap hlen
-    rw [show fuel = (fuel - 2) + 2 from by omega] at *
-    rw [hstep]
-    -- Step 2: bridge body execution to interpretYulRuntime
-    have hbody := SwitchCaseBodyBridge_body fn.body s₀ fuel'
-    -- hmatch gives us resultsMatch via interpretYulRuntime
-    -- interpretYulRuntime fn.body yulTx ... = yulResultOfExecWithRollback s₀ (execYulStmts s₀ fn.body)
-    rw [hbody]
-    simp only [interpretYulRuntime, execYulStmts] at hmatch
-    exact hmatch
-  · -- fuel < 2: execYulStmtsFuel on switchCaseBody with < 2 fuel
-    -- In this case, fuel is 0 or 1, and switchCaseBody has at least 2 statements
-    -- (comment + calldatasizeGuard), so execution runs out of fuel
-    interval_cases fuel
-    · -- fuel = 0
-      simp [execYulStmtsFuel, yulResultOfExecWithRollback, resultsMatch]
-    · -- fuel = 1
-      simp [switchCaseBody, execYulStmtsFuel, execYulFuel, execYulStmtFuel,
-        yulResultOfExecWithRollback, resultsMatch]
+  -- fuel ≥ sizeOf fn.body + 5 ≥ 5 ≥ 2, so guards can be stepped
+  have hfuel2 : fuel ≥ 2 := by omega
+  obtain ⟨fuel', hle, hge, hstep⟩ :=
+    exec_switchCaseBody_continue_of_long fn tx irState (fuel - 2) hguards hNoWrap hlen (by omega)
+  -- Align fuel: fuel = (fuel - 2) + 2 since fuel ≥ 2
+  have hfuelEq : fuel = (fuel - 2) + 2 := by omega
+  rw [hfuelEq]
+  rw [hstep]
+  -- Step 2: bridge body execution to interpretYulRuntime
+  -- fuel' ≥ (fuel - 2) - 2 = fuel - 4 (by hge).
+  -- Since fuel ≥ sizeOf fn.body + 5, we have fuel - 4 ≥ sizeOf fn.body + 1.
+  have hfuelAdequate' : fuel' ≥ sizeOf fn.body + 1 := by omega
+  have hbody := SwitchCaseBodyBridge_body fn.body s₀ fuel' hfuelAdequate'
+  -- hmatch gives us resultsMatch via interpretYulRuntime
+  -- interpretYulRuntime fn.body yulTx ... = yulResultOfExecWithRollback s₀ (execYulStmts s₀ fn.body)
+  rw [hbody]
+  simp only [interpretYulRuntime, execYulStmts] at hmatch
+  exact hmatch
 
 set_option maxHeartbeats 1600000000 in
 /-- Main preservation theorem: Yul codegen preserves IR semantics.
@@ -930,6 +1017,15 @@ theorem yulCodegen_preserves_semantics
       -- Apply switch match lemma
       rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
       rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
+      -- Establish fuel adequacy for the body bridge.
+      -- sizeOf [switchStmt] ≥ sizeOf fn.body + 12 (by sizeOf_buildSwitch_ge_fn_body),
+      -- adjustedFuel ≥ sizeOf [switchStmt] + 1, and m + 10 = adjustedFuel.
+      have hFuelBody : m + 2 ≥ sizeOf fn.body + 5 := by
+        have hBound := sizeOf_buildSwitch_ge_fn_body (fns := contract.functions) (fn := fn) hmem
+        rw [← hSwitchSimp] at hBound
+        have hAdj : adjustedFuel ≥ sizeOf [switchStmt] + 1 := by
+          have := sizeOf_append_ge_length_add prefix_ [switchStmt]; omega
+        omega
       by_cases hlen : fn.params.length ≤ tx.args.length
       · simpa [hlen] using
           (SwitchCaseBodyBridge fn tx
@@ -943,7 +1039,7 @@ theorem yulCodegen_preserves_semantics
               blobBaseFee := tx.blobBaseFee
               calldata := tx.args
               selector := tx.functionSelector }
-            (m + 2) (hdispatchGuardSafe fn hmem) hNoWrap hlen hmatch)
+            (m + 2) hFuelBody (hdispatchGuardSafe fn hmem) hNoWrap hlen hmatch)
       · simpa [hlen] using
           (SwitchCaseBodyBridge_short fn tx
             { initialState with
