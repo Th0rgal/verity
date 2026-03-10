@@ -3411,6 +3411,10 @@ theorem exec_compileStmt_stop_core
 def scopeNamesPresent (scope : List String) (bindings : List (String × Nat)) : Prop :=
   ∀ name, name ∈ scope → ∃ value, lookupBinding? bindings name = some value
 
+def scopeNamesIncluded
+    (scope inScopeNames : List String) : Prop :=
+  ∀ name, name ∈ scope → name ∈ inScopeNames
+
 def exprBoundNamesInScope (expr : Expr) (scope : List String) : Prop :=
   ∀ name, name ∈ exprBoundNames expr → name ∈ scope
 
@@ -3425,6 +3429,16 @@ theorem bindingsExactlyMatchIRVarsOnScope_implies_onExpr
   intro name hname
   exact hexact name (hinScope name hname)
 
+theorem bindingsExactlyMatchIRVarsOnScope_of_included
+    {scope largerScope : List String}
+    {bindings : List (String × Nat)}
+    {state : IRState}
+    (hexact : bindingsExactlyMatchIRVarsOnScope largerScope bindings state)
+    (hincluded : scopeNamesIncluded scope largerScope) :
+    bindingsExactlyMatchIRVarsOnScope scope bindings state := by
+  intro name hname
+  exact hexact name (hincluded name hname)
+
 theorem exprBoundNamesPresent_of_scope
     {expr : Expr}
     {scope : List String}
@@ -3434,6 +3448,15 @@ theorem exprBoundNamesPresent_of_scope
     exprBoundNamesPresent expr bindings := by
   intro name hname
   exact hscope name (hinScope name hname)
+
+theorem scopeNamesPresent_of_included
+    {scope largerScope : List String}
+    {bindings : List (String × Nat)}
+    (hscope : scopeNamesPresent largerScope bindings)
+    (hincluded : scopeNamesIncluded scope largerScope) :
+    scopeNamesPresent scope bindings := by
+  intro name hname
+  exact hscope name (hincluded name hname)
 
 theorem scopeNamesPresent_bindValue
     {scope : List String}
@@ -7233,10 +7256,6 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
       (stmts := stmts)
       hterminal)
     hmatch
-
-def scopeNamesIncluded
-    (scope inScopeNames : List String) : Prop :=
-  ∀ name, name ∈ scope → name ∈ inScopeNames
 
 theorem scopeNamesIncluded_refl
     {scope : List String} :

@@ -251,6 +251,15 @@ the two-head path: sometimes the recursive proof needs to rewrite the whole
 execution budget directly to the tail structural budget after consuming both
 head steps, without stopping at the intermediate second-head budget. That is
 now packaged as `yulStmtList_sizeOf_two_cons_wholeExecFuel_eq`.
+The newest terminal-core theorem draft also made one more hygiene gap explicit:
+the recursive proof keeps re-deriving scope-subset transport just to reuse the
+existing expression and binding lemmas under compiler-grown `inScopeNames`.
+That transport is now extracted as
+`bindingsExactlyMatchIRVarsOnScope_of_included` and
+`scopeNamesPresent_of_included` in
+`Compiler/Proofs/IRGeneration/FunctionBody.lean`, so the next terminal-core
+attempt can move between theorem scope and compiler scope directly instead of
+threading ad hoc subset lambdas through every recursive call.
 The branch-entry wrappers are now also explicit:
 `execIRStmt_compiled_terminal_ite_let`,
 `evalIRExpr_compiled_terminal_ite_elseCond_of_zero`,
