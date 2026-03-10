@@ -4636,6 +4636,32 @@ private theorem execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
       (rest := rest)
       hstmt)
 
+private theorem execIRStmts_singleton_append_of_execIRStmt_continue_tailExtraFuel
+    (extraFuel : Nat)
+    (state next : IRState) (stmt : YulStmt) (rest : List YulStmt)
+    (irExec : IRExecResult)
+    (hstmt : execIRStmt (sizeOf ([stmt] ++ rest) + extraFuel) state stmt = .continue next)
+    (htail :
+      execIRStmts
+        (sizeOf rest +
+          (sizeOf ([stmt] ++ rest) - (sizeOf rest + 1) + extraFuel) + 1)
+        next rest = irExec) :
+    execIRStmts (sizeOf ([stmt] ++ rest) + extraFuel + 1) state ([stmt] ++ rest) = irExec := by
+  rw [execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+      (extraFuel := extraFuel)
+      (state := state)
+      (next := next)
+      (stmt := stmt)
+      (rest := rest)
+      hstmt]
+  have hfuelEq :
+      sizeOf rest +
+          (sizeOf ([stmt] ++ rest) - (sizeOf rest + 1) + extraFuel) + 1 =
+        sizeOf ([stmt] ++ rest) + extraFuel := by
+    simpa using (yulStmtList_sizeOf_cons_extraFuel_eq extraFuel stmt rest).symm
+  rw [hfuelEq] at htail
+  exact htail
+
 private theorem execIRStmts_cons_of_execIRStmt_return
     (state next : IRState) (stmt : YulStmt) (rest : List YulStmt) (value : Nat)
     (hstmt : execIRStmt (rest.length + 1) state stmt = .return value next) :

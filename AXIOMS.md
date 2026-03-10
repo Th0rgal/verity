@@ -147,16 +147,14 @@ whole-fuel prefix wrappers
 `execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope`,
 `execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope`, and
 `execIRStmts_compiled_return_core_append_wholeFuel_of_scope` in
-`FunctionBody.lean`. Those confirm the terminal-core path can now drive the
-ordinary singleton heads and compiled `return` directly under
-`bindingsExactlyMatchIRVarsOnScope` instead of rebuilding their whole-body
-`sizeOf` fuel steps inline. A direct attempt to finish the explicit-`bodyIR`
-`StmtListTerminalCore` theorem still failed for a sharper reason: the
-recursive induction must generalize branch- and prefix-specific `extraFuel`
-for every recursive tail, not only for terminal `ite`. That proof-shape gap is
-now better understood, but the main blocker is still larger than terminal-core
-composition alone: the remaining axiom covers the whole supported non-core
-fragment, including storage and mapping writes.
+`FunctionBody.lean`. The newest extraction is
+`execIRStmts_singleton_append_of_execIRStmt_continue_tailExtraFuel`, which
+packages the exact singleton-prefix whole-fuel rewrite the recursive
+`StmtListTerminalCore` proof needs when its IH is stated on tail-specific
+structural fuel. That removes one more source of inline `Nat` normalization for
+the ordinary `let`/`assign`/passing-`require` heads. The remaining blocker is
+still the recursive theorem schema itself, plus the broader supported non-core
+fragment including storage and mapping writes.
 
 **Risk**: Medium.
 
