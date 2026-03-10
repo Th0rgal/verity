@@ -202,7 +202,11 @@ facts `compiled_terminal_ite_body_letFuel_ne_zero`,
 `compiled_terminal_ite_body_blockStmtFuel_ne_zero`. Those are the exact
 shapes consumed by the `execIRStmt_*_nonzeroFuel` lemmas, so the next
 terminal-`ite` proof attempt can plug branch results into the compiled block
-without reconstructing those entry-fuel facts by hand.
+without reconstructing those entry-fuel facts by hand. The newest wrapper
+`compiled_terminal_ite_body_block_execFuel_eq` also puts the inner
+`block [let __ite_cond; if_; if_]` body fuel in the exact direction consumed
+by the remaining block-lifting step, so the next proof no longer needs to
+manually invert `compiled_terminal_ite_body_block_extraFuel_eq`.
 
 **Risk**: Medium.
 

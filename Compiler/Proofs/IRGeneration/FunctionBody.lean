@@ -5212,6 +5212,44 @@ private theorem compiled_terminal_ite_body_blockStmtFuel_ne_zero
     compiled_terminal_ite_body_size_ge_blockFuel tempName condIR thenIR elseIR tailIR
   omega
 
+private theorem compiled_terminal_ite_body_block_execFuel_eq
+    (extraFuel : Nat)
+    (tempName : String)
+    (condIR : YulExpr)
+    (thenIR elseIR tailIR : List YulStmt) :
+    sizeOf
+        [ YulStmt.let_ tempName condIR
+        , YulStmt.if_ (YulExpr.ident tempName) thenIR
+        , YulStmt.if_
+            (YulExpr.call "iszero" [YulExpr.ident tempName])
+            elseIR ] +
+      (sizeOf
+          ([YulStmt.block
+              [ YulStmt.let_ tempName condIR
+              , YulStmt.if_ (YulExpr.ident tempName) thenIR
+              , YulStmt.if_
+                  (YulExpr.call "iszero" [YulExpr.ident tempName])
+                  elseIR
+              ]] ++ tailIR) -
+        (sizeOf
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_
+              (YulExpr.call "iszero" [YulExpr.ident tempName])
+              elseIR ] + 2) +
+        extraFuel) + 1 =
+      sizeOf
+        ([YulStmt.block
+            [ YulStmt.let_ tempName condIR
+            , YulStmt.if_ (YulExpr.ident tempName) thenIR
+            , YulStmt.if_
+                (YulExpr.call "iszero" [YulExpr.ident tempName])
+                elseIR
+            ]] ++ tailIR) + extraFuel - 1 := by
+  simpa using
+    (compiled_terminal_ite_body_block_extraFuel_eq
+      extraFuel tempName condIR thenIR elseIR tailIR).symm
+
 
 theorem execStmtList_terminal_core_not_continue
     {fields : List Field}
