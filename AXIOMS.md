@@ -140,14 +140,15 @@ This is the remaining generic body-simulation proof over the supported fragment.
 The exact parameter-state reconstruction step is now proved, and `Function.lean`
 now bypasses this axiom for `StmtListCompileCore` bodies, but the repo still
 needs the broader expression/statement induction library for the remaining
-supported body shapes. The latest compile-guided extraction here is the pair
-`execIRStmts_compiled_return_core_append_wholeFuel` and
-`execIRStmts_compiled_stop_core_append_wholeFuel` in
-`FunctionBody.lean`: the terminal-core path now has direct whole-body `sizeOf`
-execution facts for compiled `return` and `stop` prefixes with arbitrary
-compiled tails. That removes the last local head/tail execution packaging the
-planned explicit-`bodyIR` induction would otherwise need to rebuild for those
-terminal cases, but the main blocker is still larger than terminal-core
+supported body shapes. The latest checked extraction here is the scope-local
+wrapper `execIRStmts_compiled_return_core_append_wholeFuel_of_scope` in
+`FunctionBody.lean`, which confirms the terminal-core path can drive compiled
+`return` under `bindingsExactlyMatchIRVarsOnScope` instead of whole-state
+exactness. A direct attempt to finish the explicit-`bodyIR`
+`StmtListTerminalCore` theorem still failed for a sharper reason: the
+recursive induction must generalize branch- and prefix-specific `extraFuel`
+for every recursive tail, not only for terminal `ite`. That proof-shape gap is
+now better understood, but the main blocker is still larger than terminal-core
 composition alone: the remaining axiom covers the whole supported non-core
 fragment, including storage and mapping writes.
 
@@ -402,7 +403,10 @@ hidden inside terminal heads as
 `stmtListTerminalCore_ite_tail_compileCore`, so the next compile-guided proof
 can recover the nonterminal tail witness immediately after inverting a
 terminal-head hypothesis instead of redoing that constructor bookkeeping by
-hand.
+hand. The latest failed theorem attempt also made the remaining fuel problem
+more precise: the recursive statement must quantify tail-specific structural
+`extraFuel` for ordinary singleton prefixes (`let`, `assign`, and `require`),
+not just for the compiled terminal-`ite` branches.
 
 **Risk**: Medium.
 
