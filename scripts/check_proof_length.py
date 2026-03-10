@@ -107,7 +107,6 @@ ALLOWLIST: set[str] = {
     # isolates the `CompilationModel.compile` field-normalization boundary so later
     # compile-facing theorems can reuse the existing function correctness theorem
     # without re-proving slot-alias normalization at each call site.
-    "compileFunctionSpec_correct_of_body_supported",
     # Generic Layer 2 dispatch assembly theorem (Issue #1510 / PR #1554):
     # intentionally keeps selector lookup, arity shortfall, and revert packaging
     # in one compiler-facing theorem so later whole-contract correctness can

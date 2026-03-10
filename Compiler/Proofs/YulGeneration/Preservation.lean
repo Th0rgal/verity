@@ -1057,17 +1057,17 @@ theorem yulCodegen_preserves_semantics
 /-! ## Complete Preservation Theorem
 
 This version of the preservation theorem discharges the `hbody` hypothesis
-using the proven `all_stmts_equiv` and the `execIRFunctionFuel_adequate` lemma.
+using the proven `all_stmts_equiv` and `ir_yul_function_equiv_from_state_of_stmt_equiv`.
 
 The remaining gap between `interpretYulBodyFromState` (fuel-based proof chain) and
 `interpretYulBody` (used by the theorem above) requires bridging two
 different Yul execution entry points. This bridging lemma documents that gap explicitly.
 
-**Proof chain** (complete — fuel adequacy is now `rfl`):
+**Proof chain** (complete — fuel adequacy eliminated, now internal):
 1. `all_stmts_equiv` — every IR statement type is equivalent (StatementEquivalence.lean)
 2. `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv` — lifts to lists (Equivalence.lean)
-3. `execIRFunctionFuel_adequate` — bridges fuel-based ↔ total IR (Equivalence.lean, `rfl`)
-4. `ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy` — function-level equivalence
+3. `ir_yul_function_equiv_from_state_of_stmt_equiv` — function-level equivalence
+   (fuel adequacy is discharged internally via `rfl`)
 
 The theorem `ir_function_body_equiv` below demonstrates the complete chain for any
 single function, and `yulCodegen_preserves_semantics` lifts it to full contracts.
@@ -1075,8 +1075,9 @@ single function, and `yulCodegen_preserves_semantics` lifts it to full contracts
 
 /-- Any single IR function body produces equivalent results under fuel-based Yul execution.
 
-This is the instantiation of the proof chain with `all_stmts_equiv` and the adequacy lemma,
-producing a self-contained result for any function/args/state triple.
+This is the instantiation of the proof chain with `all_stmts_equiv`, producing a
+self-contained result for any function/args/state triple. Fuel adequacy is discharged
+internally (it is `rfl` since the IR interpreter is total/fuel-based).
 -/
 theorem ir_function_body_equiv
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) :
@@ -1085,9 +1086,8 @@ theorem ir_function_body_equiv
       (interpretYulBodyFromState fn selector
         (fn.params.zip args |>.foldl (fun s (p, v) => s.setVar p.name v) initialState)
         initialState) :=
-  ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
+  ir_yul_function_equiv_from_state_of_stmt_equiv
     (fun sel f st irSt yulSt => all_stmts_equiv sel f st irSt yulSt)
     fn selector args initialState
-    (execIRFunctionFuel_adequate fn args initialState)
 
 end Compiler.Proofs.YulGeneration

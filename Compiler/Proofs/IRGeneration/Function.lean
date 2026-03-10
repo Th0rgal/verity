@@ -62,6 +62,16 @@ private theorem compiledFunctionIR_body_length_le_sizeOf
   simpa [compiledFunctionIR] using Nat.add_le_add_right
     (yulStmtList_length_le_sizeOf (genParamLoads spec.params ++ bodyStmts)) 1
 
+private theorem yulStmtList_extraFuel_append_ge
+    (pre body : List YulStmt) :
+    sizeOf (pre ++ body) - (pre ++ body).length ≥ sizeOf body - body.length := by
+  induction pre with
+  | nil =>
+      simp
+  | cons stmt rest ih =>
+      simp [List.length_append] at ih ⊢
+      omega
+
 @[simp] theorem prebindRawArgs_calldata (state : IRState) (params : List Param) :
     (prebindRawArgs state params).calldata = state.calldata := by
   unfold prebindRawArgs
@@ -806,7 +816,14 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
 
 /-- TODO(#1510): replace this temporary bridge with the generic body simulation
 proof under the exact-state invariant produced by parameter loading. This is
-the second strategy-3 subgoal after `supported_function_param_state_exact`. -/
+the second strategy-3 subgoal after `supported_function_param_state_exact`.
+
+NOTE: the `extraFuel` parameter was added when eliminating
+`supported_function_execIRFunction_eq_fuel`: the caller instantiates
+`extraFuel := sizeOf irFn.body - irFn.body.length` so that the fuel bridges
+cleanly to `sizeOf`-style budgets and `execIRFunctionFuel_adequate`.
+The axiom is only claimed once that extra slack is large enough to cover the
+known structural `sizeOf bodyStmts - bodyStmts.length` gap for nested blocks. -/
 axiom supported_function_body_correct_from_exact_state
     (model : CompilationModel)
     (fn : FunctionSpec)
@@ -815,6 +832,8 @@ axiom supported_function_body_correct_from_exact_state
     (initialWorld : Verity.ContractState)
     (state : IRState)
     (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
     (hsupportedFn : SupportedFunction model.fields fn)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
@@ -836,36 +855,10 @@ axiom supported_function_body_correct_from_exact_state
         { world := SourceSemantics.withTransactionContext initialWorld tx
           bindings := bindings }
         fn.body = sourceResult ∧
-      execIRStmts (bodyStmts.length + 1) state bodyStmts = irExec ∧
+      execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
         (SourceSemantics.effectiveFields model) sourceResult irExec
 
-/-- TODO(#1510): replace this axiom by refactoring the supported-function proof
-spine onto a structurally sufficient fuel. The current `length + 1` body fuel
-is not strong enough once compilation introduces nested `block`s
-(`IRInterpreter.execIRStmts_single_block_stop_length_insufficient`), so the
-right elimination path is to move these theorems to a `sizeOf`-style budget and
-then discharge the remaining bridge with `execIRFunctionFuel_adequate`. -/
-axiom supported_function_execIRFunction_eq_fuel
-    (model : CompilationModel)
-    (selector : Nat)
-    (fn : FunctionSpec)
-    (returns : List ParamType)
-    (bodyStmts : List YulStmt)
-    (irFn : IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hcompile :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
-    (hbodyCompile :
-      compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
-    (hnotCore : ¬ FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
-    (hreturns : functionReturns fn = Except.ok returns) :
-    execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld) =
-      Compiler.Proofs.YulGeneration.execIRFunctionFuel
-        ((genParamLoads fn.params ++ bodyStmts).length + 1)
-        irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)
 
 theorem compileFunctionSpec_correct_of_body
     (model : CompilationModel)
@@ -937,74 +930,6 @@ theorem compileFunctionSpec_correct_of_body
   subst hirFn
   rw [hcompiledExec]
   simpa [initialState] using hsourceMatch
-
-theorem compileFunctionSpec_correct_of_body_supported
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (selector : Nat) (fn : FunctionSpec) (irFn : IRFunction)
-    (returns : List ParamType) (bodyStmts : List YulStmt)
-    (tx : IRTransaction) (initialWorld : Verity.ContractState)
-    (sourceResult : SourceSemantics.StmtResult) (irExec : IRExecResult)
-    (bindings : List (String × Nat))
-    (hvalidate : validateFunctionSpec fn = Except.ok ())
-    (hreturns : functionReturns fn = Except.ok returns)
-    (hbodyCompile :
-      compileStmtList
-        (applySlotAliasRanges model.fields model.slotAliasRanges)
-        model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
-    (hcompile :
-      compileFunctionSpec
-        (applySlotAliasRanges model.fields model.slotAliasRanges)
-        model.events model.errors selector fn = Except.ok irFn)
-    (hparamsSupported : ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx)
-    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
-    (hsource :
-      SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
-        { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
-        fn.body = sourceResult)
-    (hbodyExec :
-      execIRStmts (bodyStmts.length + 1)
-        (ParamLoading.applyBindingsToIRState
-          (prebindRawArgs (FunctionBody.initialIRStateForTx model tx initialWorld) fn.params)
-          bindings)
-        bodyStmts = irExec)
-    (hmatch :
-      FunctionBody.stmtResultMatchesIRExec
-        (SourceSemantics.effectiveFields model) sourceResult irExec) :
-    FunctionBody.sourceResultMatchesIRResult
-      (SourceSemantics.interpretFunction model fn tx initialWorld)
-      (Compiler.Proofs.YulGeneration.execIRFunctionFuel
-        ((genParamLoads fn.params ++ bodyStmts).length + 1)
-        irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hnormalized :
-      applySlotAliasRanges model.fields model.slotAliasRanges = model.fields :=
-    hSupported.normalizedFields
-  have hbodyCompile' :
-      compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
-    simpa [hnormalized] using hbodyCompile
-  have hcompile' :
-      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn := by
-    simpa [hnormalized] using hcompile
-  simpa [hnormalized] using
-    compileFunctionSpec_correct_of_body
-      (model := model)
-      (selector := selector)
-      (fn := fn)
-      (irFn := irFn)
-      (returns := returns)
-      (bodyStmts := bodyStmts)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (sourceResult := sourceResult)
-      (irExec := irExec)
-      (bindings := bindings)
-      hvalidate hreturns hbodyCompile' hcompile' hparamsSupported hcalldataSizeFits
-      hbind hsource hbodyExec hmatch
 
 theorem compileFunctionSpec_correct_of_body_supported_extraFuel
     (model : CompilationModel)
@@ -1265,13 +1190,29 @@ theorem supported_function_correct
       simpa [compiledFunctionIR, List.length_append, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm,
         hfuelEq'] using hfuel
     simpa [hadequacy] using hfuel'
-  · have hbodyCorrect :
+  · -- Non-core path: mirror the core path's extraFuel strategy so that
+    -- we bridge to `sizeOf`-style fuel and discharge via
+    -- `execIRFunctionFuel_adequate`, eliminating the former
+    -- `supported_function_execIRFunction_eq_fuel` axiom.
+    have hcompiled := compileFunctionSpec_ok_of_components model.fields model.events model.errors
+        selector fn returns bodyStmts hvalidate hreturns hbodyCompile
+    have hirFn : irFn = compiledFunctionIR selector fn returns bodyStmts := by
+      rw [hcompile] at hcompiled
+      injection hcompiled
+    let extraFuel := sizeOf irFn.body - irFn.body.length
+    have hbodyExtraFuelLower :
+        sizeOf bodyStmts - bodyStmts.length ≤ extraFuel := by
+      subst hirFn
+      dsimp [extraFuel]
+      simpa [compiledFunctionIR] using
+        yulStmtList_extraFuel_append_ge (genParamLoads fn.params) bodyStmts
+    have hbodyCorrect :
         ∃ sourceResult irExec,
           SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
             { world := SourceSemantics.withTransactionContext initialWorld tx
               bindings := bindings }
             fn.body = sourceResult ∧
-          execIRStmts (bodyStmts.length + 1)
+          execIRStmts (bodyStmts.length + extraFuel + 1)
             (ParamLoading.applyBindingsToIRState
               (prebindRawArgs initialState fn.params) bindings)
             bodyStmts = irExec ∧
@@ -1281,7 +1222,7 @@ theorem supported_function_correct
           model fn bodyStmts tx initialWorld
           (ParamLoading.applyBindingsToIRState
             (prebindRawArgs initialState fn.params) bindings)
-          bindings
+          bindings extraFuel hbodyExtraFuelLower
           (hSupported.supportedFunctionOfSelectorDispatched hfn)
           (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
           hSupported.noEvents
@@ -1290,36 +1231,67 @@ theorem supported_function_correct
     rcases hbodyCorrect with
       ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
     have hfuel :=
-      compileFunctionSpec_correct_of_body_supported
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (selector := selector)
-      (fn := fn)
-      (irFn := irFn)
-      (returns := returns)
-      (bodyStmts := bodyStmts)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (sourceResult := sourceResult)
-      (irExec := irExec)
-      (bindings := bindings)
-      hvalidate hreturns
-      (by simpa [hSupported.normalizedFields] using hbodyCompile)
-      (by simpa [hSupported.normalizedFields] using hcompile)
-      (hSupported.selectorFunctionParamsSupported hfn)
-      hcalldataSizeFits hbind hsource hbodyExec hmatch
-    rw [supported_function_execIRFunction_eq_fuel
-      (model := model)
-      (selector := selector)
-      (fn := fn)
-      (returns := returns)
-      (bodyStmts := bodyStmts)
-      (irFn := irFn)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      hcompile hbodyCompile hcore hreturns]
-    exact hfuel
+      compileFunctionSpec_correct_of_body_supported_extraFuel
+        (model := model)
+        (selectors := selectors)
+        (hSupported := hSupported)
+        (selector := selector)
+        (fn := fn)
+        (irFn := irFn)
+        (returns := returns)
+        (bodyStmts := bodyStmts)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (sourceResult := sourceResult)
+        (irExec := irExec)
+        (bindings := bindings)
+        (extraFuel := extraFuel)
+        hvalidate hreturns
+        (by simpa [hSupported.normalizedFields] using hbodyCompile)
+        (by simpa [hSupported.normalizedFields] using hcompile)
+        (hSupported.selectorFunctionParamsSupported hfn)
+        hcalldataSizeFits hbind hsource hbodyExec hmatch
+    subst hirFn
+    have hbodyFuel :
+        (genParamLoads fn.params ++ bodyStmts).length + extraFuel =
+          sizeOf (compiledFunctionIR selector fn returns bodyStmts).body := by
+      have hlenle :
+          (compiledFunctionIR selector fn returns bodyStmts).body.length ≤
+            sizeOf (compiledFunctionIR selector fn returns bodyStmts).body := by
+        exact Nat.le_of_add_le_add_right
+          (compiledFunctionIR_body_length_le_sizeOf selector fn returns bodyStmts)
+      dsimp [extraFuel]
+      simpa [compiledFunctionIR] using Nat.add_sub_of_le hlenle
+    have hfuelEq' :
+        bodyStmts.length + (1 + ((genParamLoads fn.params).length + extraFuel)) =
+          1 + sizeOf (genParamLoads fn.params ++ bodyStmts) := by
+      have hbodyFuel' :
+          (genParamLoads fn.params ++ bodyStmts).length + extraFuel =
+            sizeOf (genParamLoads fn.params ++ bodyStmts) := by
+        simpa [compiledFunctionIR] using hbodyFuel
+      calc
+        bodyStmts.length + (1 + ((genParamLoads fn.params).length + extraFuel))
+            = ((genParamLoads fn.params ++ bodyStmts).length + extraFuel) + 1 := by
+                simp [List.length_append, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        _ = sizeOf (genParamLoads fn.params ++ bodyStmts) + 1 := by rw [hbodyFuel']
+        _ = 1 + sizeOf (genParamLoads fn.params ++ bodyStmts) := by omega
+    have hadequacy :
+        Compiler.Proofs.YulGeneration.execIRFunctionFuel
+            (sizeOf (compiledFunctionIR selector fn returns bodyStmts).body + 1)
+            (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState =
+          execIRFunction (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState := by
+      simpa [Compiler.Proofs.YulGeneration.execIRFunctionFuel_adequate_goal] using
+        (Compiler.Proofs.YulGeneration.execIRFunctionFuel_adequate
+          (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState)
+    have hfuel' :
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (Compiler.Proofs.YulGeneration.execIRFunctionFuel
+            (sizeOf (compiledFunctionIR selector fn returns bodyStmts).body + 1)
+            (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState) := by
+      simpa [compiledFunctionIR, List.length_append, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm,
+        hfuelEq'] using hfuel
+    simpa [hadequacy] using hfuel'
 
 end Function
 

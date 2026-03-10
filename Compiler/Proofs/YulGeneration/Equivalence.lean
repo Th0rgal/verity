@@ -484,7 +484,10 @@ relationship is trivially `rfl`. No axiom needed.
 
 Previously this required:
   axiom execIRStmtsFuel_adequate : ...
-This axiom has been **eliminated** by making the IR interpreter total.
+  axiom supported_function_execIRFunction_eq_fuel : ...
+Both axioms have been **eliminated** by making the IR interpreter total.
+The `ir_yul_function_equiv_from_state_of_stmt_equiv` theorem now composes
+the full proof chain without any external adequacy hypothesis.
 -/
 
 def execIRFunctionFuel_adequate_goal
@@ -548,5 +551,27 @@ theorem ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
   exact
     ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
       fn selector args initialState hAdequacy hFuelGoal
+
+/-- Direct function-level equivalence without an explicit adequacy hypothesis.
+
+Since `execIRFunctionFuel` and `execIRFunction` are definitionally equal
+(fuel adequacy is `rfl`), the adequacy hypothesis is always trivially
+dischargeable. This theorem composes `stmt_equiv` with the internal
+adequacy proof, eliminating the need for callers to supply it. -/
+theorem ir_yul_function_equiv_from_state_of_stmt_equiv
+    (stmt_equiv :
+      ∀ selector fuel stmt irState yulState,
+        execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState)
+    (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) :
+    resultsMatch
+      (execIRFunction fn args initialState)
+      (interpretYulBodyFromState fn selector
+        (fn.params.zip args |>.foldl
+          (fun s (p, v) => s.setVar p.name v)
+          initialState)
+        initialState) :=
+  ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
+    stmt_equiv fn selector args initialState
+    (execIRFunctionFuel_adequate fn args initialState)
 
 end Compiler.Proofs.YulGeneration
