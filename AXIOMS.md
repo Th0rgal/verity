@@ -356,7 +356,18 @@ normalization is now extracted as
 `Compiler/Proofs/IRGeneration/FunctionBody.lean`, so the next terminal-core
 theorem attempt can rewrite the source side directly to the chosen branch
 result instead of redoing the `execStmtList_terminal_core_not_continue`
-argument inline.
+argument inline. The latest failed direct theorem attempt also exposed a
+cleaner scope-local subgoal: the induction wants to stay on
+`bindingsExactlyMatchIRVarsOnScope`, but the reusable expression and
+`require`-condition simulation lemmas were still phrased on whole-binding
+exactness. That gap is now extracted as
+`eval_compileExpr_core_of_scope`,
+`evalExpr_lt_evmModulus_core_of_scope`, and
+`eval_compileRequireFailCond_core_of_scope` in
+`Compiler/Proofs/IRGeneration/FunctionBody.lean`. The next direct move is
+still the explicit-`bodyIR` terminal-core theorem, but it can now evaluate
+`let`, `assign`, `return`, and `require` heads directly from the theorem’s
+scope-local invariant instead of rebuilding `...OnExpr` facts inline.
 
 **Risk**: Medium.
 

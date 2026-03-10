@@ -2572,6 +2572,7 @@ theorem evalExpr_lt_evmModulus_core
   evalExpr_lt_evmModulus_core_onExpr hcore
     (bindingsExactlyMatchIRVars_implies_onExpr hexact) hbounded hpresent hruntime
 
+
 theorem compileRequireFailCond_core_ok
     {fields : List Field}
     {cond : Expr}
@@ -3515,6 +3516,62 @@ theorem bindingsExactlyMatchIRVarsOnScope_implies_onExpr
     bindingsExactlyMatchIRVarsOnExpr expr bindings state := by
   intro name hname
   exact hexact name (hinScope name hname)
+
+theorem eval_compileExpr_core_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {expr : Expr}
+    (hcore : ExprCompileCore expr)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope expr scope)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent expr runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    evalIRExpr state
+      (CompilationModel.compileExpr fields .calldata expr |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime expr) :=
+  eval_compileExpr_core_onExpr hcore
+    (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+    hbounded hpresent hruntime
+
+theorem evalExpr_lt_evmModulus_core_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {expr : Expr}
+    (hcore : ExprCompileCore expr)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope expr scope)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent expr runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    SourceSemantics.evalExpr fields runtime expr < Compiler.Constants.evmModulus :=
+  evalExpr_lt_evmModulus_core_onExpr hcore
+    (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+    hbounded hpresent hruntime
+
+theorem eval_compileRequireFailCond_core_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {cond : Expr}
+    (hcore : ExprCompileCore cond)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope cond scope)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent cond runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    ∃ failCond,
+      CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond ∧
+      evalIRExpr state failCond =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime cond = 0)) :=
+  eval_compileRequireFailCond_core_onExpr hcore
+    (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+    hbounded hpresent hruntime
 
 theorem bindingsExactlyMatchIRVarsOnScope_of_included
     {scope largerScope : List String}
