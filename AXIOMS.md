@@ -231,7 +231,12 @@ that schema are now exported as
 `yulStmtList_sizeOf_cons_ge_tailFuel` and
 `yulStmtList_sizeOf_cons_extraFuel_eq`, so the next attempt can reuse them
 outside the local arithmetic section instead of re-proving the head/tail fuel
-decomposition ad hoc. The branch-entry wrappers are now also explicit:
+decomposition ad hoc. The newest arithmetic extraction also adds
+`yulStmtList_sizeOf_two_cons_extraFuel_eq` and
+`yulStmtList_sizeOf_two_cons_tail_extraFuel_eq`, which package the exact
+two-statement head/tail decomposition needed for the compiled terminal
+`mstore; return` prefixes without redoing nested `sizeOf` subtraction
+normalization inside the recursive proof. The branch-entry wrappers are now also explicit:
 `execIRStmt_compiled_terminal_ite_let`,
 `evalIRExpr_compiled_terminal_ite_elseCond_of_zero`,
 `execIRStmt_compiled_terminal_ite_thenIf_true`,
