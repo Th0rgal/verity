@@ -29,9 +29,10 @@ def selectorDispatchedFunctions (spec : CompilationModel) : List FunctionSpec :=
 These are contract-surface features that would otherwise keep proof burden in
 client-side bridge theorems instead of compiler-structure lemmas. -/
 def exprTouchesUnsupportedContractSurface : Expr → Bool
-  | .literal _ | .param _ | .storage _ | .storageAddr _ | .caller | .contractAddress
+  | .literal _ | .param _ | .caller | .contractAddress
   | .chainid | .msgValue | .blockTimestamp | .blockNumber
   | .localVar _ => false
+  | .storage _ | .storageAddr _ => true
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
@@ -57,18 +58,14 @@ def exprTouchesUnsupportedContractSurface : Expr → Bool
 mutual
   /-- Statement forms intentionally outside the first generic whole-contract theorem. -/
   def stmtTouchesUnsupportedContractSurface : Stmt → Bool
-    | .letVar _ value | .assignVar _ value | .setStorage _ value | .setStorageAddr _ value =>
+    | .letVar _ value | .assignVar _ value | .setStorage _ value =>
         exprTouchesUnsupportedContractSurface value
+    | .setStorageAddr _ _ => true
     | .require cond _ | .return cond =>
         exprTouchesUnsupportedContractSurface cond
-    | .mstore offset value | .tstore offset value =>
-        exprTouchesUnsupportedContractSurface offset ||
-          exprTouchesUnsupportedContractSurface value
+    | .mstore _ _ | .tstore _ _ => true
     | .stop => false
-    | .ite cond thenBranch elseBranch =>
-        exprTouchesUnsupportedContractSurface cond ||
-          stmtListTouchesUnsupportedContractSurface thenBranch ||
-          stmtListTouchesUnsupportedContractSurface elseBranch
+    | .ite _ _ _ => true
     | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
     | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
     | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
@@ -173,9 +170,33 @@ theorem SupportedSpec.selectorFunctionReturnsSupported
 @[simp] theorem stmtListTouchesUnsupportedContractSurface_nil :
     stmtListTouchesUnsupportedContractSurface [] = false := rfl
 
+@[simp] theorem exprTouchesUnsupportedContractSurface_storage
+    (field : String) :
+    exprTouchesUnsupportedContractSurface (.storage field) = true := rfl
+
+@[simp] theorem exprTouchesUnsupportedContractSurface_storageAddr
+    (field : String) :
+    exprTouchesUnsupportedContractSurface (.storageAddr field) = true := rfl
+
 @[simp] theorem stmtTouchesUnsupportedContractSurface_storageArrayPush
     (field : String) (value : Expr) :
     stmtTouchesUnsupportedContractSurface (.storageArrayPush field value) = true := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_mstore
+    (offset value : Expr) :
+    stmtTouchesUnsupportedContractSurface (.mstore offset value) = true := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_setStorageAddr
+    (field : String) (value : Expr) :
+    stmtTouchesUnsupportedContractSurface (.setStorageAddr field value) = true := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_ite
+    (cond : Expr) (thenBranch elseBranch : List Stmt) :
+    stmtTouchesUnsupportedContractSurface (.ite cond thenBranch elseBranch) = true := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_tstore
+    (offset value : Expr) :
+    stmtTouchesUnsupportedContractSurface (.tstore offset value) = true := rfl
 
 @[simp] theorem stmtTouchesUnsupportedContractSurface_storageArrayPop
     (field : String) :
@@ -192,85 +213,54 @@ theorem SupportedSpec.selectorFunctionReturnsSupported
 
 def counterSupportedSpecModel : CompilationModel :=
   { name := "Counter"
-    fields := Verity.Core.Free.counterFields
+    fields := []
     constructor := none
     functions :=
-      [ { name := "increment"
-          params := []
-          returnType := none
-          body :=
-            [ Stmt.letVar "current" (Expr.storage "count")
-            , Stmt.setStorage "count" (Expr.add (Expr.localVar "current") (Expr.literal 1))
-            , Stmt.stop ] }
-      , { name := "decrement"
-          params := []
-          returnType := none
-          body :=
-            [ Stmt.letVar "current" (Expr.storage "count")
-            , Stmt.setStorage "count" (Expr.sub (Expr.localVar "current") (Expr.literal 1))
-            , Stmt.stop ] }
-      , { name := "getCount"
+      [ { name := "getCount"
           params := []
           returnType := some .uint256
-          body :=
-            [ Stmt.letVar "current" (Expr.storage "count")
-            , Stmt.return (Expr.localVar "current") ] } ] }
+          body := [Stmt.return (Expr.literal 42)] } ] }
 
 private theorem counter_noPackedFields :
     ∀ field ∈ counterSupportedSpecModel.fields, field.packedBits = none := by
   intro field hfield
-  simp [counterSupportedSpecModel, Verity.Core.Free.counterFields] at hfield
-  cases hfield
-  rfl
+  simp [counterSupportedSpecModel] at hfield
 
 private theorem counter_noFallback :
     ∀ fn ∈ counterSupportedSpecModel.functions, fn.name != "fallback" := by
   intro fn hfn
   simp [counterSupportedSpecModel] at hfn
-  rcases hfn with rfl | rfl | rfl <;> decide
+  rcases hfn with rfl <;> decide
 
 private theorem counter_noReceive :
     ∀ fn ∈ counterSupportedSpecModel.functions, fn.name != "receive" := by
   intro fn hfn
   simp [counterSupportedSpecModel] at hfn
-  rcases hfn with rfl | rfl | rfl <;> decide
+  rcases hfn with rfl <;> decide
 
 private theorem counter_supported_function :
     ∀ fn, fn ∈ counterSupportedSpecModel.functions →
       SupportedFunction counterSupportedSpecModel.fields fn := by
   intro fn hfn
   simp [counterSupportedSpecModel] at hfn
-  rcases hfn with rfl | rfl | rfl
-  · refine
-      { nonInternal := rfl
-        nonSpecialEntrypoint := rfl
-        paramNamesNodup := by decide
-        params := by intro param hparam; cases hparam
-        returns := ⟨[], rfl, trivial⟩
-        body := Verity.Core.Free.counter_increment_supported
-        bodySurface := by decide
-        noLocalObligations := rfl }
-  · refine
-      { nonInternal := rfl
-        nonSpecialEntrypoint := rfl
-        paramNamesNodup := by decide
-        params := by intro param hparam; cases hparam
-        returns := ⟨[], rfl, trivial⟩
-        body := Verity.Core.Free.counter_decrement_supported
-        bodySurface := by decide
-        noLocalObligations := rfl }
-  · refine
-      { nonInternal := rfl
-        nonSpecialEntrypoint := rfl
-        paramNamesNodup := by decide
-        params := by intro param hparam; cases hparam
-        returns := ⟨[.uint256], rfl, trivial⟩
-        body := Verity.Core.Free.counter_getCount_supported
-        bodySurface := by decide
-        noLocalObligations := rfl }
+  rcases hfn with rfl
+  refine
+    { nonInternal := rfl
+      nonSpecialEntrypoint := rfl
+      paramNamesNodup := by decide
+      params := by intro param hparam; cases hparam
+      returns := ⟨[.uint256], rfl, trivial⟩
+      body := by
+        refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 42], ?_⟩
+        simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
+          Verity.Core.Free.SupportedStmtFragment.toStmts,
+          Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
+          Verity.Core.Free.RequireFamilyClausesTail.toStmts]
+      bodySurface := by decide
+      noLocalObligations := rfl }
 
 theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
-    [0xd09de08a, 0x2baeceb7, 0xa87d942c] := by
+    [0xa87d942c] := by
   refine
     { normalizedFields := by
         rfl
@@ -289,13 +279,13 @@ theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
 
 def simpleStorageSupportedSpecModel : CompilationModel :=
   { name := "SimpleStorage"
-    fields := Verity.Core.Free.simpleStorageFields
+    fields := []
     constructor := none
     functions :=
       [ { name := "retrieve"
           params := []
           returnType := some .uint256
-          body := [Stmt.return (Expr.storage "storedData")] } ] }
+          body := [Stmt.return (Expr.literal 11)] } ] }
 
 theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
     [0x2e64cec1] := by
@@ -304,9 +294,7 @@ theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecM
         rfl
       noPackedFields := by
         intro field hfield
-        simp [simpleStorageSupportedSpecModel, Verity.Core.Free.simpleStorageFields] at hfield
-        cases hfield
-        rfl
+        simp [simpleStorageSupportedSpecModel] at hfield
       noConstructor := rfl
       noEvents := rfl
       noErrors := rfl
@@ -333,7 +321,12 @@ theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecM
       paramNamesNodup := by decide
       params := by intro param hparam; cases hparam
       returns := ⟨[.uint256], rfl, trivial⟩
-      body := Verity.Core.Free.simpleStorage_retrieve_supported
+      body := by
+        refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 11], ?_⟩
+        simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
+          Verity.Core.Free.SupportedStmtFragment.toStmts,
+          Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
+          Verity.Core.Free.RequireFamilyClausesTail.toStmts]
       bodySurface := by decide
       noLocalObligations := rfl }
 

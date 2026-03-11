@@ -128,6 +128,7 @@ theorem transferOwnership_unfold (s : ContractState) (newOwner : Address)
       storageMap := s.storageMap,
       storageMapUint := s.storageMapUint,
       storageMap2 := s.storageMap2,
+      storageArray := s.storageArray,
       sender := s.sender,
       thisAddress := s.thisAddress,
       msgValue := s.msgValue,

@@ -37,6 +37,37 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 mutual
+def collectStmtAssignedNames : Stmt → List String
+  | Stmt.assignVar name _ => [name]
+  | Stmt.ite _ thenBranch elseBranch =>
+      collectStmtListAssignedNames thenBranch ++ collectStmtListAssignedNames elseBranch
+  | Stmt.forEach _ _ body =>
+      collectStmtListAssignedNames body
+  | Stmt.letVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
+  | Stmt.return _
+  | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
+  | Stmt.setMappingChain _ _ _
+  | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
+  | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _
+  | Stmt.require _ _ | Stmt.requireError _ _ _ | Stmt.revertError _ _
+  | Stmt.returnValues _ | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.mstore _ _ | Stmt.tstore _ _ | Stmt.calldatacopy _ _ _ | Stmt.returndataCopy _ _ _ | Stmt.revertReturndata | Stmt.stop
+  | Stmt.emit _ _ | Stmt.internalCall _ _ | Stmt.internalCallAssign _ _ _
+  | Stmt.rawLog _ _ _ | Stmt.externalCallBind _ _ _ | Stmt.ecm _ _ =>
+      []
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def collectStmtListAssignedNames : List Stmt → List String
+  | [] => []
+  | stmt :: rest =>
+      collectStmtAssignedNames stmt ++ collectStmtListAssignedNames rest
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
 def exprUsesArrayElement : Expr → Bool
   | Expr.arrayElement _ _ => true
   | Expr.mapping _ key => exprUsesArrayElement key

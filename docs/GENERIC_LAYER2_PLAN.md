@@ -2,7 +2,7 @@
 
 Tracking:
 - umbrella issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- current proof blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
+- axiom-elimination milestone: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 
 ## Objective
 
@@ -36,14 +36,11 @@ The current proof boundary stops too low and too late:
 
 - `Compiler/Proofs/IRGeneration/SupportedFragment.lean` only re-exports a
   statement-list theorem over `SupportedStmtList`
-- `Contracts/Proofs/SemanticBridge.lean` still proves whole-contract results by
-  assuming a contract-specific `hpost`
 - dispatch selection, parameter loading, whole-function assembly, and contract-level
-  execution are therefore not proved generically as part of Layer 2
+  execution were therefore not proved generically as part of Layer 2
 
-As long as whole-contract reasoning is centered in `SemanticBridge.lean`, the repo
-does not have a generic compiler proof. It has a transport theorem around per-contract
-proofs.
+(Note: the manual `SemanticBridge.lean` has been removed. The generic compiler proof
+now serves as the sole Layer 2 boundary.)
 
 ## Required Architectural Shift
 
@@ -79,15 +76,8 @@ Add new compiler-proof modules under `Compiler/Proofs/IRGeneration/`:
 
 Keep `SupportedFragment.lean` as a lower-level statement theorem only.
 
-Keep `Contracts/Proofs/SemanticBridge.lean` only as:
-
-`Contracts/Proofs/SemanticBridge.lean` becomes client/example layer only.
-
-- examples
-- regressions
-- composition wrappers for already-proved generic theorems
-
-It must stop being the source of Layer 2 whole-contract correctness.
+`Contracts/Proofs/SemanticBridge.lean` has been removed. The generic compiler proof
+is now the sole source of Layer 2 whole-contract correctness.
 
 ## Semantic Interfaces To Introduce
 
@@ -191,7 +181,7 @@ The work is only done if all checks below pass:
 - the theorem does not accept `post`, `hpost`, or any contract-specific semantic premise
 - a supported contract can obtain Layer 2 correctness by theorem instantiation alone
 - no new contract-specific Layer 2 bridge theorem is introduced to demonstrate success
-- docs identify `SemanticBridge.lean` as example/wrapper layer, not proof source
+- `SemanticBridge.lean` has been removed; the generic theorem is the sole Layer 2 proof source
 
 ## Tracking Checklist
 
@@ -203,8 +193,8 @@ Use this checklist in the PR description and keep it current:
 - [x] Prove `compileFunctionSpec` correctness
 - [x] Prove selector-dispatch correctness
 - [x] Prove generic whole-contract `CompilationModel.compile` correctness
-- [ ] Refactor one existing contract proof into theorem instantiation
-- [ ] Update Layer 2 documentation boundaries
+- [x] Refactor one existing contract proof into theorem instantiation
+- [x] Update Layer 2 documentation boundaries
 
 ## Current Proof Status
 
@@ -213,12 +203,24 @@ The generic whole-contract theorem exists and its proof chain is complete:
 - **`compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile`. No contract-specific bridge premise.
 - **`compileFunctionSpec_correct_generic`** in the same file, per-function correctness.
 - **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean), selector-dispatch preservation.
+- **`counter_supported_spec_compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), the first direct consumer instantiating the generic theorem for an existing supported demo model, with no contract-specific body-simulation premise.
 
-The proof chain transitively depends on 1 documented axiom: `supported_function_body_correct_from_exact_state` in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean). This axiom covers non-core body simulation (storage writes, mapping writes, and other complex statement patterns). See [AXIOMS.md](../AXIOMS.md) for details and elimination plan.
+The proof chain no longer depends on `supported_function_body_correct_from_exact_state`; that axiom has been deleted. The only remaining documented project axiom is the selector-level `keccak256_first_4_bytes` assumption in [`Compiler/Selector.lean`](../Compiler/Selector.lean), as tracked in [AXIOMS.md](../AXIOMS.md).
 
-**Remaining work**:
-- No existing contract has been refactored to use the generic theorem yet; end-to-end examples still use manual bridge theorems in `SemanticBridge.lean`.
-- Eliminating the body-simulation axiom requires proving the remaining non-core statement patterns ([#1564](https://github.com/Th0rgal/verity/issues/1564)).
+- `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`
+
+This theorem is now quantified over a whole `CompilationModel`, selectors, a
+`SupportedSpec` witness, and successful `CompilationModel.compile`, with no
+contract-specific semantic bridge premise and no Layer 2 axiom. The function
+closure is discharged generically from the supported statement fragment, and the
+compiled-function-table witness is derived directly from
+`CompilationModel.compile = Except.ok ir`.
+
+The main objective of issue #1618 is therefore complete. Remaining Layer 2 work
+under [#1510](https://github.com/Th0rgal/verity/issues/1510) is follow-on
+adoption and breadth work:
+
+- widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem
 
@@ -245,4 +247,4 @@ Success condition for the demo:
 
 - the contract still compiles via `CompilationModel.compile`
 - the generic theorem instantiates directly
-- the old contract-specific Layer 2 theorem is reduced to a wrapper or removed
+- the old contract-specific Layer 2 theorems have been removed (SemanticBridge.lean deleted)

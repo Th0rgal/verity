@@ -36,6 +36,7 @@ import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.Dispatch
 import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.FunctionBody
+import Compiler.Proofs.IRGeneration.GenericInduction
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SupportedFragment
@@ -674,6 +675,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
+#print axioms Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
 -- #print axioms Compiler.Proofs.IRGeneration.Dispatch.decodeSupportedParamWord_some_of_supported  -- private
@@ -709,6 +711,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_terminal_core_extraFuel
+-- #print axioms Compiler.Proofs.IRGeneration.Function.firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs  -- private
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_supported_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct
@@ -994,6 +997,90 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultToSourceResult_matches_irExecResult
 
+-- Compiler/Proofs/IRGeneration/GenericInduction.lean
+-- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_findFieldWithResolvedSlot_some  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_compileSetStorage_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ite_ok_inv  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScope_of_mem_scope  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScopeList_of_mem_scope  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_validateScopedExprIdentifiers_core  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
+-- #print axioms Compiler.Proofs.IRGeneration.scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.collectExprNames_mem_exprBoundNames_of_core  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_scope_names  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letVar
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignVar
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_require
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_return
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_stop
+-- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_singleton_other  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_other  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.list_findSlotPackedNone_ne_none  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.firstInFieldConflictCopy_ne_none_of_seen_slot_unpacked  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_singleton  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singleton  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_copy  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_storage_of_resolvedSlot  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.abstractStoreStorageOrMappingMany_eq  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeUintSlot  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeUintSlots  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.bindingsExactlyMatchIRVarsOnScope_writeUintSlot  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.bindingsExactlyMatchIRVarsOnScope_writeUintSlots  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_sstore_lit_ident_slots_continue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_let_then_sstore_lit_ident_slots_continue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_block_of_continue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.compatValue_not_mem_scope_of_reservedPrefix  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_singleSlot
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_aliasSlots
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
+-- #print axioms Compiler.Proofs.IRGeneration.terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_append  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_of_requireLiteralGuardFamilyClauses  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.foldl_stmtNextScope_requireLiteralGuardFamilyClauses  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStorage_singleSlot  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesOnly  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenSetStorageLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenReturnLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetReturnLocalLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetSetStorageLocalLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetAssignSetStorageLocalLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetAssignAddSetStorageLocalLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetAssignSubSetStorageLocalLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtFragment_of_surface  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
+-- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_scopeNamesIncluded  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append
+-- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_foldl_stmtNextScope  -- private
+#print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericCore
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_of_included
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
+-- #print axioms Compiler.Proofs.IRGeneration.yulStmtList_sizeOf_append_left_le  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_stmtNextScope  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_append_of_continue  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_append_of_not_continue  -- private
+#print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel_step
+#print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel
+#print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic
+
 -- Compiler/Proofs/IRGeneration/IRInterpreter.lean
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_succ
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_one_add
@@ -1042,7 +1129,13 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionBodySupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionReturnsSupported
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_nil
+#print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_storage
+#print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_storageAddr
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_storageArrayPush
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_mstore
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_setStorageAddr
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_ite
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_tstore
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_storageArrayPop
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_setStorageArrayElement
 #print axioms Compiler.Proofs.IRGeneration.selectorDispatchedFunctions_nil
@@ -1157,4 +1250,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1029 theorems/lemmas (858 public, 171 private)
+-- Total: 1119 theorems/lemmas (890 public, 229 private)

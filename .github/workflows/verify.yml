@@ -256,7 +256,7 @@ jobs:
           LEAN_NUM_THREADS: 4
         run: |
           set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
-          stdbuf -oL -eL lake build "$@" verity-compiler
+          stdbuf -oL -eL lake build "$@" verity-compiler verity-compiler-patched
 
       - name: Build difftest interpreter
         env:
@@ -273,7 +273,7 @@ jobs:
 
       - name: Generate patched Yul + patch coverage report
         run: |
-          ./.lake/build/bin/verity-compiler \
+          ./.lake/build/bin/verity-compiler-patched \
             --manifest packages/verity-examples/contracts.manifest \
             --enable-patches \
             --patch-report compiler/patch-report.tsv \
@@ -284,7 +284,7 @@ jobs:
       - name: Generate parity-pack Yul (pinned solc tuple)
         if: github.event_name != 'pull_request'
         run: |
-          ./.lake/build/bin/verity-compiler \
+          ./.lake/build/bin/verity-compiler-patched \
             --manifest packages/verity-examples/contracts.manifest \
             --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai \
             --output compiler/yul-parity-pack \
@@ -294,7 +294,7 @@ jobs:
       - name: Generate parity-pack reference Yul (explicit profile + patch config)
         if: github.event_name != 'pull_request'
         run: |
-          ./.lake/build/bin/verity-compiler \
+          ./.lake/build/bin/verity-compiler-patched \
             --manifest packages/verity-examples/contracts.manifest \
             --backend-profile solidity-parity \
             --enable-patches \
@@ -352,6 +352,13 @@ jobs:
 
       - name: Save patched static gas report snapshot
         run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+
+      - name: Package compiler binaries
+        run: |
+          mkdir -p compiler/bin
+          cp ./.lake/build/bin/verity-compiler compiler/bin/
+          cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
+          cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
       - name: Check static gas patch delta non-regression
         run: |
@@ -411,6 +418,12 @@ jobs:
         with:
           name: difftest-interpreter
           path: .lake/build/bin/difftest-interpreter
+
+      - name: Upload compiler binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
 
       - name: Upload static gas report
         uses: actions/upload-artifact@v4

@@ -12,25 +12,19 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   `Contracts/<Name>/Proofs/`, while generic typed-IR compilation correctness
   lives in `Compiler/TypedIRCompilerCorrectness.lean`. The generic core is
   real, but the active bridge theorems are still instantiated per contract.
-- **Layer 2: CompilationModel -> IR**. The current proof surface is split:
-  a generic supported-statement-fragment theorem lives in
-  `Compiler/TypedIRCompilerCorrectness.lean` and
-  `Compiler/Proofs/IRGeneration/SupportedFragment.lean`. A generic whole-contract
-  theorem surface now also exists in `Compiler/Proofs/IRGeneration/Contract.lean`,
-  but its function-level closure still depends on 1 narrower documented Layer-2
-  axiom in `Compiler.Proofs.IRGeneration.Function`. The initial-state
-  normalization step is now proved under an explicit transaction-context
-  normalization hypothesis. Active end-to-end examples still rely on
-  contract-specific theorems in `Contracts/Proofs/SemanticBridge.lean`.
+- **Layer 2: CompilationModel -> IR**. A generic supported-statement-fragment
+  theorem lives in `Compiler/TypedIRCompilerCorrectness.lean` and
+  `Compiler/Proofs/IRGeneration/SupportedFragment.lean`, and the compiler-proof
+  layer now closes a generic whole-contract theorem in
+  `Compiler/Proofs/IRGeneration/Contract.lean`. The initial-state normalization
+  step is proved under an explicit transaction-context normalization hypothesis.
+  Layer 2 no longer depends on a Lean axiom.
 - **Layer 3: IR -> Yul**. Yul semantics, equivalence, and preservation proofs
   live in `Compiler/Proofs/YulGeneration/`. The proof surface is generic, but the
   current full dispatch-preservation path still uses 1 documented bridge hypothesis.
 
 ## Key Modules
 
-- `Contracts/Proofs/SemanticBridge.lean`: contract-level bridge theorems that
-  connect EDSL executions to compiled IR/Yul executions for supported
-  contracts. This is still the active full-contract Layer 2 bridge surface.
 - `Compiler/Proofs/EndToEnd.lean`: composed Layers 2 and 3 theorem spine,
   showing compiled IR execution matches Yul execution.
 - `Compiler/Proofs/IRGeneration/Expr.lean` and
@@ -49,13 +43,12 @@ no separate verified EDSL-lowering boundary module in the active pipeline.
 This branch now includes the generic compiler-level theorem
 `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at
 successful `CompilationModel.compile` for an explicit supported whole-contract
-fragment. The theorem shape is in place, but there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract. It is not fully closed yet because it still depends on 1 documented axiom in
-`Compiler.Proofs.IRGeneration.Function`, with the remaining trust boundary now
-narrowed to generic body simulation.
+fragment. The former exact-state body-simulation axiom in
+`Compiler.Proofs.IRGeneration.Function` has now been eliminated.
 
 Tracking:
 - issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- current blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
+- axiom elimination: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 - plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
 
 ## Current Layer 2 Boundary
@@ -64,36 +57,32 @@ What exists today:
 - A structural theorem for raw statement lists admitted by the explicit
   `SupportedStmtList` witness:
   `Compiler.compile_supported_stmt_list_direct_semantics`
-- Contract-specific bridge theorems in
-  `Contracts/Proofs/SemanticBridge.lean` that instantiate the current
-  compiler/interpreter machinery for specific contracts
+- A generic whole-contract theorem for successful `CompilationModel.compile` on
+  the current explicit supported fragment:
+  `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`
 - Generic Layer 3 preservation from IR to Yul
 
 What does not exist yet:
-- A fully closed proof of the compiler-level theorem quantified over an
-  arbitrary supported `CompilationModel` and successful
-  `CompilationModel.compile`, with no remaining axioms
-- A generic dispatch/function-body/whole-contract Layer 2 preservation proof
-  with no remaining function-body axiom
+- Broader supported-fragment coverage for features still intentionally outside
+  the current whole-contract theorem
 
 Current supported-fragment scope for the generic theorem:
-- Included: statement lists that can be witnessed by `SupportedStmtList`
-- Outside the current generic theorem: full contract dispatch, constructor
-  lowering, mappings as contract-wide compilation targets, events/logs,
-  external or linked functionality, and other features that still require
-  contract-specific bridge work
+- Included: the explicit whole-contract supported fragment captured by
+  `SupportedSpec`, including the generic dispatch/function/body closure proved
+  under that witness
+- Outside the current generic theorem: constructors, events/logs, linked
+  externals, and other features intentionally excluded from the current
+  supported fragment
 
 Negative boundary example:
-- A contract whose proof depends on entrypoint selection plus linked external
-  assumptions is outside `SupportedStmtList` and still needs a contract-level
-  bridge theorem today. `Contracts/Proofs/SemanticBridge.lean` remains the
-  place where those full-contract bridges are instantiated.
+- A contract whose proof depends on linked external assumptions is outside the
+  current supported fragment and still needs an explicit trust argument today.
 
 Internal helper calls are part of the supported `CompilationModel` execution
 surface, but the proof library does not yet provide a first-class
-helper-spec/helper-theorem reuse boundary across callers. Existing bridge
-theorems remain contract-specific; the compositional internal-call proof gap is
-tracked in [#1335](https://github.com/Th0rgal/verity/issues/1335).
+helper-spec/helper-theorem reuse boundary across callers. The compositional
+internal-call proof gap is tracked in
+[#1335](https://github.com/Th0rgal/verity/issues/1335).
 
 ## Build
 

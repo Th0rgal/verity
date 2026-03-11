@@ -109,6 +109,7 @@ theorem vulnerable_attack_exists :
         if slot == balances.slot && addr == 0xA77AC then (Verity.EVM.MAX_UINT256 : Uint256) else 0
     , storageMapUint := fun _ _ => 0
     , storageMap2 := fun _ _ _ => 0
+    , storageArray := fun _ => []
     , sender := 0xA77AC
     , thisAddress := 0x7415
     , msgValue := 0

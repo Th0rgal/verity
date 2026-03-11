@@ -1,10 +1,10 @@
 {
   "codebase": {
     "core_lines": 592,
-    "example_contracts": 14
+    "example_contracts": 13
   },
   "proofs": {
-    "axioms": 2,
+    "axioms": 1,
     "sorry": 0
   },
   "schema_version": 1,

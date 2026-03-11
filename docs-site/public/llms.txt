@@ -10,15 +10,15 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 
 **Contracts**: 9 formally verified contracts (+ CryptoHash as unverified linker demo) covering correctness, conservation laws, and storage isolation.
 
-**Compiler**: Declarative `CompilationModel` DSL compiles to Yul. Layer 2 currently has a generic supported-statement theorem plus contract-specific full-contract bridges. Solidity-compatible function selectors via keccak256.
+**Compiler**: Declarative `CompilationModel` DSL compiles to Yul. Layer 2 now has a generic whole-contract CompilationModel -> IR theorem for the supported fragment. Solidity-compatible function selectors via keccak256.
 
 ## Quick Facts
 
 - **Language**: Lean 4.22.0
 - **Core Size**: 400 lines
 - **Verified Contracts**: SimpleStorage, Counter, Owned, SimpleToken, OwnedCounter, Ledger, SafeCounter, ReentrancyExample (+ CryptoHash as unverified linker demo)
-- **Theorems**: 273 across 10 categories, 273 fully proven, 0 `sorry` placeholders (12 in SemanticBridge cross-layer proofs, 0 in Yul Preservation)
-- **Axioms**: 2 documented Lean axioms (see AXIOMS.md) — 1 selector axiom and 1 generic non-core Layer 2 axiom. Layer 3 keeps an explicit dispatch bridge hypothesis rather than a Lean axiom.
+- **Theorems**: 273 across 10 categories, 273 fully proven, 0 `sorry` placeholders
+- **Axioms**: 1 documented Lean axiom (see AXIOMS.md) — the selector axiom. Layer 2's former generic body-simulation axiom has been eliminated, and Layer 3 keeps an explicit dispatch bridge hypothesis rather than a Lean axiom.
 - **Tests**: 478 Foundry tests, multi-seed differential testing (7 seeds), 8-shard parallel CI
 - **Build**: `lake build` verifies all proofs
 - **Repository**: https://github.com/Th0rgal/verity
@@ -28,12 +28,12 @@ Lean 4 EDSL for writing smart contracts with machine-checked proofs. Three-layer
 ```
 Layer 1: EDSL -> CompilationModel bridge
 Contract proofs: human-readable spec theorems for each contract
-Layer 2: Compiler Proofs  — partial generic CompilationModel -> IR boundary
+Layer 2: Compiler Proofs  — generic whole-contract CompilationModel -> IR theorem for supported fragment
 Layer 3: IR -> Yul        — Statement/expression equivalence proofs
 Trust:   Yul -> Bytecode  — Via solc (validated by differential testing)
 ```
 
-Layer 2 currently combines a generic supported-statement theorem plus contract-specific full-contract bridges.
+Layer 2 now has a generic whole-contract theorem for the explicit supported fragment. The compiler proves Layer 2 preservation automatically.
 
 ## Key Design
 
@@ -80,7 +80,7 @@ def bind (x : Contract α) (f : α → Contract β) : Contract β :=
 
 The GitHub Actions workflow validates:
 - All Lean proofs compile (`lake build`)
-- Expected `sorry` count matches baseline (16: 16 SemanticBridge + 0 Preservation)
+- Expected `sorry` count matches baseline (0)
 - All axioms documented in AXIOMS.md
 - Property manifest in sync with Lean proofs
 - All manifest theorems have tests (or documented exclusions)
@@ -126,12 +126,12 @@ Add `.md` to any URL for raw markdown (saves tokens).
 See TRUST_ASSUMPTIONS.md for full analysis. Key trust boundaries:
 - **Verified**: EDSL -> CompilationModel -> IR -> Yul
 - **Trusted**: Yul -> Bytecode (via solc, validated by 90,000+ differential tests)
-- **Axioms**: 2 documented Lean axioms, with soundness justifications in AXIOMS.md
+- **Axioms**: 1 documented Lean axiom, with soundness justification in AXIOMS.md
 - **External**: Lean 4 kernel, EVM specification alignment
 
 ## Known Limitations
 
-- 0 `sorry` placeholders remain (12 SemanticBridge cross-layer bridge proofs, 0 Yul preservation — theorem statements preserved, only proof terms incomplete)
+- No `sorry` placeholders remain in the proof tree
 - Ledger sum properties proven in Conservation.lean (issue #65 resolved)
 - No gas modeling
 - Self-transfer handled via delta-zero pattern (not separate logic)

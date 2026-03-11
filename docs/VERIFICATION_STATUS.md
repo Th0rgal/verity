@@ -8,7 +8,7 @@ Verity implements a **three-layer verification stack** proving smart contracts c
 EDSL contracts (Lean)
     ↓ Layer 1: EDSL ≡ CompilationModel [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
 CompilationModel (declarative compiler-facing model)
-    ↓ Layer 2: CompilationModel → IR [PARTIAL GENERIC, 2 AXIOMS, CONTRACT BRIDGES ACTIVE]
+    ↓ Layer 2: CompilationModel → IR [GENERIC WHOLE-CONTRACT THEOREM, AXIOM-FREE]
 Intermediate Representation (IR)
     ↓ Layer 3: IR → Yul [GENERIC SURFACE, EXPLICIT BRIDGE HYPOTHESIS]
 Yul (EVM Assembly)
@@ -44,59 +44,37 @@ Layer 1 uses macro-generated EDSL-to-`CompilationModel` bridge theorems backed b
 
 Internal helper calls are supported operationally in `CompilationModel` and the fuel-based interpreter path, but helper-level compositional proof reuse across callers is not yet a first-class verified interface. Current EDSL-to-`CompilationModel` bridge instantiations remain contract-specific; the reusable internal-helper proof boundary is tracked in [#1335](https://github.com/Th0rgal/verity/issues/1335).
 
-### Lowering Bridge
-
-[`Contracts/Proofs/SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean) provides the active contract-level bridge
-theorems for supported EDSL contracts, covering:
-- Write/read bridges for mutating and getter entrypoints
-- Explicit revert-path bridges for owner-gated and arithmetic failure paths
-- Composition with the compiled IR/Yul semantics used by the proof pipeline
-
-## Layer 2: CompilationModel → IR — PARTIAL GENERIC
+## Layer 2: CompilationModel → IR — GENERIC WHOLE-CONTRACT THEOREM
 
 Tracking:
-- Whole-contract generic theorem gap: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- Current body-simulation blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
+- Follow-on widening and migration work: [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- Axiom-elimination work completed in: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 - Proof decomposition plan: [GENERIC_LAYER2_PLAN.md](./GENERIC_LAYER2_PLAN.md)
 
 **What is generic today**:
 - a structural theorem for raw statement lists inside the explicit `SupportedStmtList` fragment witness in [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean), re-exported for the compiler-proof layer in [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)
 - a whole-contract theorem surface, [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile` output
 
-**What is not fully discharged yet**:
-- the generic whole-contract theorem surface is now assembled by theorem, but it still depends on 1 documented Layer-2 axiom in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)
-- the hardest remaining closure step is the generic body-simulation axiom `supported_function_body_correct_from_exact_state`, tracked separately in [#1564](https://github.com/Th0rgal/verity/issues/1564)
-- active end-to-end contract examples still rely on manual bridge theorems in [`Contracts/Proofs/SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
-- the repo does not yet have a closed generic proof that directly composes source whole-function semantics, parameter loading, supported statement compilation, and the exact `compileStmtList`/IR execution path used by `CompilationModel.compile`; there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.
+**What is not yet covered**:
+- the supported whole-contract fragment is still intentionally narrower than the full `CompilationModel` surface; unsupported features remain documented at the boundary instead of being claimed as proved
+
+### What is not fully migrated yet
+
+- The generic theorem surface is in place, but the supported whole-contract fragment is still narrower than the full `CompilationModel` / EDSL surface.
+- Contracts and features outside `SupportedSpec` still rely on explicit trust-surface documentation, targeted testing, or future fragment-widening work rather than a claim of full generic compile-preservation.
 
 **Current boundary**:
-- Generic: supported statement-list compilation and the whole-contract theorem shape
+- Generic: supported statement-list compilation and the whole-contract theorem itself
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
-- Still axiomatized: generic supported body simulation
+- No Lean axioms remain in Layer 2
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
-- Contract-specific today: the concrete EDSL→compiled-IR bridges used for current end-to-end examples
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
-
-| Contract | IR Functions | Status |
-|----------|-------------|--------|
-| SimpleStorage | 2 | Contract bridge proven |
-| Counter | 3 | Contract bridge proven |
-| Owned | 2 | Contract bridge proven |
-| SafeCounter | 3 | Contract bridge proven |
-| OwnedCounter | 5 | Contract bridge proven |
-| Ledger | — | No contract bridge theorem in `Contracts/Proofs/SemanticBridge.lean` |
-| SimpleToken | — | No contract bridge theorem in `Contracts/Proofs/SemanticBridge.lean` |
-| ERC20 | — | No contract bridge theorem in `Contracts/Proofs/SemanticBridge.lean` |
-| ERC721 | — | No contract bridge theorem in `Contracts/Proofs/SemanticBridge.lean` |
-| Vault | — | No contract bridge theorem in `Contracts/Proofs/SemanticBridge.lean` |
-| LocalObligationMacroSmoke | — | No contract bridge theorem in `Contracts/Proofs/SemanticBridge.lean` |
 
 Key files:
 - [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)
 - [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)
 - [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)
 - [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean)
-- [`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
 - [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
 
 ## Layer 3: IR → Yul, GENERIC, WITH EXPLICIT AXIOM BOUNDARY
@@ -119,33 +97,13 @@ Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/Statem
 
 The repository contains several different kinds of contract examples. Their current compile-preservation status is not uniform.
 
-### Whole-contract EDSL → compiled IR bridge theorems present
+### Contracts covered by the generic Layer 2 theorem
 
-These require manual contract-specific bridge proofs today:
+All contracts within the `SupportedSpec` fragment are covered by the generic whole-contract theorem in `Compiler/Proofs/IRGeneration/Contract.lean`. No manual per-contract bridge proofs are needed.
 
-- `SimpleStorage` (`store`, `retrieve`)
-- `Counter` (`increment`, `decrement`, `getCount`)
-- `Owned` (`getOwner`, `transferOwnership`)
-- `SafeCounter` (`increment`, `decrement`, `getCount`)
-- `OwnedCounter` (`getCount`, `getOwner`, `increment`, `decrement`, `transferOwnership`)
+### Spec proofs exist, contract-level compile-preservation is generic
 
-### EDSL → compiled Yul theorem present in `Contracts/Proofs/SemanticBridge.lean`
-
-- `SimpleStorage` (`store`, `retrieve`)
-- `Counter` (`increment`)  
-
-All other current examples rely on the generic Layer 3 theorem plus testing, but do not yet have a dedicated contract-level EDSL → compiled Yul theorem in the repo.
-
-### Spec proofs exist, but no manifest contract-level compile-preservation theorem to Yul
-
-- `Ledger`
-- `SimpleToken`
-- `ERC20`
-- `ERC721`
-- `Vault`
-- `LocalObligationMacroSmoke`
-
-For these, the repo proves contract properties/specs, and many have macro-generated body-alignment theorems, but there is no manual bridge theorem in [`Contracts/Proofs/SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean) showing that the compiled IR/Yul execution preserves the contract semantics.
+All current contracts with spec proofs benefit from the generic Layer 2 theorem if they fall within the supported fragment. Contracts outside the fragment (e.g., those using linked externals or unsupported features) rely on testing for compile-preservation confidence.
 
 ### Semantic example, not a current `verity_contract` compilation example
 
@@ -190,7 +148,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 
-2 documented Lean axioms remain. The Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
+1 documented Lean axiom remains. The Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
 
 ## Differential Testing
 

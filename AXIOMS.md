@@ -41,51 +41,6 @@ Instead, Verity treats it as a black box and validates its outputs in CI.
 
 **Risk**: Low.
 
-### 2. `supported_function_body_correct_from_exact_state`
-
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:915`
-
-**Statement**:
-```lean
-axiom supported_function_body_correct_from_exact_state
-```
-
-**Purpose**:
-Says that if the contract's storage and runtime state are set up correctly,
-then the compiled version of a function body behaves identically to the
-original source code.
-
-**Why this is currently an axiom**:
-Proving that compiled code matches source code for every supported statement
-type requires a large induction proof. The project is building this proof
-incrementally:
-
-- **Proved:** Simple ("core") statement patterns — let bindings, assignments,
-  require checks, return, and stop.
-- **Proved:** Terminal control flow — if/else branching and the full
-  terminal-core recursion.
-- **Remaining:** Storage writes, mapping writes, and other complex statement
-  patterns.
-
-Each time a new pattern is proved, this axiom's scope shrinks. The goal is to
-eliminate it entirely. The exact-state setup proof is already done, and the
-compiler now bypasses this axiom for both `StmtListCompileCore` and
-`StmtListTerminalCore` bodies.
-
-The terminal `ite` branch-entry blocker described in issue `#1564` is now
-discharged: the remaining gap is no longer about entering checked terminal
-branches, but about proving the broader non-terminal supported statement shapes
-such as storage writes and mapping writes.
-
-**Technical note on fuel:**
-The proof system uses a "fuel" counter to bound how many steps the interpreter
-can take. Nested code blocks (like if-statements inside if-statements) need more
-fuel than flat code. This axiom requires that enough fuel is provided to handle
-the nesting depth of the function body. The caller provides this automatically
-based on the body's structure.
-
-**Risk**: Medium.
-
 ## Trusted Cryptographic Primitive (Non-Axiom)
 
 ### `ffi.KEC` (keccak256 via FFI)
@@ -179,12 +134,12 @@ specification.
 
 ## Trust Summary
 
-- Active axioms: 2
+- Active axioms: 1
 - Production blockers from axioms: 0
 - Enforcement: `scripts/check_axioms.py` ensures this file tracks exact source locations.
 - All internal compiler functions are proven to terminate (no axioms involved).
-- The macro front-end, semantic bridge, and typed-IR pipeline do not use any
-  axioms. Both `SemanticBridge.lean` and the typed-IR compiler have zero `sorry`.
+- The macro front-end and typed-IR pipeline do not use any
+  axioms. The typed-IR compiler has zero `sorry`.
 
 ## Maintenance Rule
 

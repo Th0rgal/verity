@@ -54,15 +54,6 @@ ALLOWLIST: set[str] = {
     "sub_add_cancel_left",
     "ledger_deposit_correct",
     "safeDiv_result_le_numerator",
-    # Semantic bridge proofs (Issue #998) — hand-composed EDSL≡IR per function:
-    "simpleStorage_store_semantic_bridge",
-    "simpleStorage_retrieve_semantic_bridge",
-    "counter_decrement_semantic_bridge",
-    "owned_transferOwnership_semantic_bridge",
-    "safeCounter_increment_semantic_bridge",
-    "safeCounter_decrement_semantic_bridge",
-    "ownedCounter_decrement_semantic_bridge",
-    "ownedCounter_transferOwnership_semantic_bridge",
     # End-to-end composition proofs (Issue #998) — compose Layers 2+3:
     "simpleStorage_endToEnd",
     "simpleStorage_retrieve_edsl_to_yul",
@@ -191,6 +182,34 @@ ALLOWLIST: set[str] = {
     # Issue #1563 — end-to-end composition now threads loop-free hypothesis;
     # marginally above limit (55 lines) due to added precondition plumbing.
     "layer3_contract_preserves_semantics",
+    # Issue #1618 / PR #1620 — generic statement-induction library:
+    # these proofs are the initial axiom-elimination spine for Layer 2. Most are
+    # structural inductions or compiler-surface assembly lemmas that currently
+    # centralize scope discipline, storage-write transport, and fuel arithmetic so
+    # the new generic theorem has a single reusable proof boundary. They should be
+    # decomposed further in follow-up cleanup, but allowlisting them keeps the
+    # migration reviewable without forcing a second large refactor in the same PR.
+    "exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false",
+    "stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface",
+    "exprBoundNamesInScope_of_validateScopedExprIdentifiers_core",
+    "stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers",
+    "scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers",
+    "stmtListScopeDiscipline_scope_names",
+    "compiledStmtStep_require",
+    "findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member",
+    "firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member",
+    "compiledStmtStep_setStorage_singleSlot",
+    "compiledStmtStep_setStorage_aliasSlots",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList",
+    "compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface",
+    "compiledStmtStep_ite",
+    "stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded",
+    "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
+    "exec_compileStmtList_generic_sizeOf_extraFuel_step",
+    "supported_function_body_correct_from_exact_state_generic",
+    "firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs",
 }
 
 # Directories containing proof files to scan.

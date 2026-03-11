@@ -940,6 +940,7 @@ def main (args : List String) : IO Unit := do
       storageMap := storageMapState
       storageMapUint := storageMapUintState
       storageMap2 := storageMap2State
+      storageArray := fun _ => []
       sender := senderAddress
       thisAddress := Verity.Core.Address.ofNat 0xC0437AC7
       msgValue := valueOpt.getD 0

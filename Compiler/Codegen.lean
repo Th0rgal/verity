@@ -1,274 +1,60 @@
-import Compiler.Constants
-import Compiler.IR
-import Compiler.Yul.PrettyPrint
-import Compiler.Yul.PatchFramework
+import Compiler.CodegenCommon
 import Compiler.Yul.PatchRules
 
 namespace Compiler
 
 open Yul
-open Compiler.Constants (selectorShift)
 
-inductive BackendProfile where
-  | semantic
-  | solidityParityOrdering
-  | solidityParity
-  deriving Repr, DecidableEq
+abbrev BackendProfile := Compiler.CodegenCommon.BackendProfile
+abbrev YulEmitOptions := Compiler.CodegenCommon.YulEmitOptions
 
-instance : Inhabited BackendProfile where
-  default := .semantic
+def mappingSlotFuncAt := Compiler.CodegenCommon.mappingSlotFuncAt
+def callvalueGuard := Compiler.CodegenCommon.callvalueGuard
+def calldatasizeGuard := Compiler.CodegenCommon.calldatasizeGuard
+def dispatchBody := Compiler.CodegenCommon.dispatchBody
+def defaultDispatchCase := Compiler.CodegenCommon.defaultDispatchCase
+def buildSwitch := Compiler.CodegenCommon.buildSwitch
+def runtimeCode := Compiler.CodegenCommon.runtimeCode
+def emitYul := Compiler.CodegenCommon.emitYul
 
-structure YulEmitOptions where
-  backendProfile : BackendProfile := .semantic
-  patchConfig : Yul.PatchPassConfig := { enabled := false }
-  /-- Scratch memory base used by compiler-generated mapping-slot helpers.
-      Default `0` preserves historical behavior (`mstore(0, key); mstore(32, baseSlot)`). -/
-  mappingSlotScratchBase : Nat := 0
-
-/-- Runtime emission output plus patch audit report for tool/CI consumption. -/
-private structure RuntimeEmitReport where
-  runtimeCode : List YulStmt
-  patchReport : Yul.PatchPassReport
-
-private def yulDatacopy : YulStmt :=
-  YulStmt.expr (YulExpr.call "datacopy" [
-    YulExpr.lit 0,
-    YulExpr.call "dataoffset" [YulExpr.str "runtime"],
-    YulExpr.call "datasize" [YulExpr.str "runtime"]
-  ])
-
-private def yulReturnRuntime : YulStmt :=
-  YulStmt.expr (YulExpr.call "return" [
-    YulExpr.lit 0,
-    YulExpr.call "datasize" [YulExpr.str "runtime"]
-  ])
-
-def mappingSlotFuncAt (scratchBase : Nat) : YulStmt :=
-  let keyPtr := scratchBase
-  let slotPtr := scratchBase + 32
-  YulStmt.funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] [
-    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit keyPtr, YulExpr.ident "key"]),
-    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit slotPtr, YulExpr.ident "baseSlot"]),
-    YulStmt.assign "slot" (YulExpr.call "keccak256" [YulExpr.lit keyPtr, YulExpr.lit 64])
-  ]
-
-private def mappingSlotFunc : YulStmt :=
-  mappingSlotFuncAt 0
-
-/-- Revert if ETH is sent to a non-payable function. -/
-def callvalueGuard : YulStmt :=
-  YulStmt.if_ (YulExpr.call "callvalue" [])
-    [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
-
-/-- Revert if calldata is shorter than expected (4-byte selector + 32 bytes per param). -/
-def calldatasizeGuard (numParams : Nat) : YulStmt :=
-  YulStmt.if_ (YulExpr.call "lt" [
-    YulExpr.call "calldatasize" [],
-    YulExpr.lit (4 + numParams * 32)])
-    [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
-
-def dispatchBody (payable : Bool) (label : String) (body : List YulStmt) : List YulStmt :=
-  let valueGuard := if payable then [] else [callvalueGuard]
-  [YulStmt.comment label] ++ valueGuard ++ body
-
-def defaultDispatchCase
-    (fallback : Option IREntrypoint)
-    (receive : Option IREntrypoint) : List YulStmt :=
-  match receive, fallback with
-  | none, none =>
-      [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
-  | none, some fb =>
-      dispatchBody fb.payable "fallback()" fb.body
-  | some rc, none =>
-      [YulStmt.block [
-        YulStmt.let_ "__is_empty_calldata" (YulExpr.call "eq" [YulExpr.call "calldatasize" [], YulExpr.lit 0]),
-        YulStmt.if_ (YulExpr.ident "__is_empty_calldata")
-          (dispatchBody rc.payable "receive()" rc.body),
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
-          [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
-      ]]
-  | some rc, some fb =>
-      [YulStmt.block [
-        YulStmt.let_ "__is_empty_calldata" (YulExpr.call "eq" [YulExpr.call "calldatasize" [], YulExpr.lit 0]),
-        YulStmt.if_ (YulExpr.ident "__is_empty_calldata")
-          (dispatchBody rc.payable "receive()" rc.body),
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
-          (dispatchBody fb.payable "fallback()" fb.body)
-      ]]
-
-private def insertBy [LT β] [DecidableRel (α := β) (· < ·)] (key : α → β) (x : α) : List α → List α
-  | [] => [x]
-  | head :: tail =>
-      if key x < key head then x :: head :: tail
-      else head :: insertBy key x tail
-
-private def insertionSortBy [LT β] [DecidableRel (α := β) (· < ·)] (key : α → β) (xs : List α) : List α :=
-  xs.foldl (fun acc x => insertBy key x acc) []
-
-def buildSwitch
-    (funcs : List IRFunction)
-    (fallback : Option IREntrypoint := none)
-    (receive : Option IREntrypoint := none)
-    (sortCasesBySelector : Bool := false) : YulStmt :=
-  let funcs :=
-    if sortCasesBySelector then
-      insertionSortBy (·.selector) funcs
-    else
-      funcs
-  let selectorExpr := YulExpr.call "shr" [YulExpr.lit selectorShift, YulExpr.call "calldataload" [YulExpr.lit 0]]
-  let cases := funcs.map (fun fn =>
-    let body := dispatchBody fn.payable s!"{fn.name}()" ([calldatasizeGuard fn.params.length] ++ fn.body)
-    (fn.selector, body)
-  )
-  let defaultCase := defaultDispatchCase fallback receive
-  YulStmt.block [
-    YulStmt.let_ "__has_selector"
-      (YulExpr.call "iszero" [YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit 4]]),
-    YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) defaultCase,
-    YulStmt.if_ (YulExpr.ident "__has_selector")
-      [YulStmt.switch selectorExpr cases (some defaultCase)]
-  ]
-
-def runtimeCode (contract : IRContract) : List YulStmt :=
-  let mapping := if contract.usesMapping then [mappingSlotFuncAt 0] else []
-  let internals := contract.internalFunctions
-  mapping ++ internals ++ [buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint]
-
-private def profileSortsOutput (profile : BackendProfile) : Bool :=
-  match profile with
-  | .semantic => false
-  | .solidityParityOrdering => true
-  | .solidityParity => true
-
-private def profileSortsDispatchCases (profile : BackendProfile) : Bool :=
-  profileSortsOutput profile
-
-private def profileSortsInternalHelpers (profile : BackendProfile) : Bool :=
-  profileSortsOutput profile
-
-private def internalHelperName? (stmt : YulStmt) : Option String :=
-  match stmt with
-  | .funcDef name _ _ _ => some name
-  | _ => none
-
-private def sortInternalHelpersByName (helpers : List YulStmt) : List YulStmt :=
-  let named := helpers.filterMap (fun stmt =>
-    match internalHelperName? stmt with
-    | some name => some (name, stmt)
-    | none => none)
-  if named.length == helpers.length then
-    (insertionSortBy Prod.fst named).map Prod.snd
-  else
-    helpers
-
-private def internalHelpersForProfile (profile : BackendProfile) (helpers : List YulStmt) : List YulStmt :=
-  if profileSortsInternalHelpers profile then
-    sortInternalHelpersByName helpers
-  else
-    helpers
-
-private def runtimeCodeWithEmitOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
-  let mapping := if contract.usesMapping then [mappingSlotFuncAt options.mappingSlotScratchBase] else []
-  let internals := internalHelpersForProfile options.backendProfile contract.internalFunctions
-  let sortCases := profileSortsDispatchCases options.backendProfile
-  -- Dispatch helper outlining is intentionally handled only by proof-gated object
-  -- rewrite rules (`solc-compat-*`) after codegen.
-  let switchStmt := buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint sortCases
-  mapping ++ internals ++ [switchStmt]
-
-private def deployCodeWithProfile (contract : IRContract) (profile : BackendProfile)
-    (mappingSlotScratchBase : Nat := 0) : List YulStmt :=
-  let valueGuard := if contract.constructorPayable then [] else [callvalueGuard]
-  let mapping := if contract.usesMapping then [mappingSlotFuncAt mappingSlotScratchBase] else []
-  let internals := internalHelpersForProfile profile contract.internalFunctions
-  valueGuard ++ mapping ++ internals ++ contract.deploy ++ [yulDatacopy, yulReturnRuntime]
-
-private def deployCode (contract : IRContract) : List YulStmt :=
-  deployCodeWithProfile contract .semantic
-
-private def baseObjectWithOptions (contract : IRContract) (options : YulEmitOptions) : YulObject :=
-  { name := contract.name
-    deployCode := deployCodeWithProfile contract options.backendProfile options.mappingSlotScratchBase
-    runtimeCode := runtimeCodeWithEmitOptions contract options }
-
-private structure EmitObjectWithOptionsReport where
-  patched : YulObject
-  patchReport : Yul.PatchPassReport
-
-private def emitYulWithOptionsInternal
-    (contract : IRContract)
-    (options : YulEmitOptions) : EmitObjectWithOptionsReport :=
-  let rewriteBundle := Yul.rewriteBundleForId options.patchConfig.rewriteBundleId
-  let requiredProofRefs :=
-    if options.patchConfig.requiredProofRefs.isEmpty then
-      Yul.rewriteProofAllowlistForId rewriteBundle.id
-    else
-      options.patchConfig.requiredProofRefs
-  let patchConfig :=
-    { options.patchConfig with
-      requiredProofRefs := requiredProofRefs }
-  let base := baseObjectWithOptions contract options
-  -- Keep expression/statement/block rewrites runtime-scoped; deploy rewriting is
-  -- reserved for explicit object-level rules.
-  let runtimePatchReport := Yul.runPatchPassWithBlocks
-    patchConfig
-    rewriteBundle.exprRules
-    rewriteBundle.stmtRules
-    rewriteBundle.blockRules
-    base.runtimeCode
-  let runtimePatched := { base with runtimeCode := runtimePatchReport.patched }
-  let objectReport := Yul.runPatchPassWithObjects
-    patchConfig
-    []
-    []
-    []
-    rewriteBundle.objectRules
-    runtimePatched
-  let mergedPatchReport : Yul.PatchPassReport :=
-    { patched := objectReport.patched.runtimeCode
-      iterations := runtimePatchReport.iterations + objectReport.iterations
-      manifest := runtimePatchReport.manifest ++ objectReport.manifest }
-  { patched := objectReport.patched
-    patchReport := mergedPatchReport }
-
-/-- Emit runtime code and keep the patch pass report (manifest + iteration count). -/
-private def runtimeCodeWithOptionsReport (contract : IRContract) (options : YulEmitOptions) : RuntimeEmitReport :=
-  let report := emitYulWithOptionsInternal contract options
-  { runtimeCode := report.patched.runtimeCode
-    patchReport := report.patchReport }
-
-private def runtimeCodeWithOptions (contract : IRContract) (options : YulEmitOptions) : List YulStmt :=
-  (runtimeCodeWithOptionsReport contract options).runtimeCode
-
-def emitYul (contract : IRContract) : YulObject :=
-  { name := contract.name
-    deployCode := deployCode contract
-    runtimeCode := runtimeCode contract }
+private def patchBackend : Compiler.CodegenCommon.PatchBackend :=
+  { apply := fun base options =>
+      let rewriteBundle := Yul.rewriteBundleForId options.patchConfig.rewriteBundleId
+      let requiredProofRefs :=
+        if options.patchConfig.requiredProofRefs.isEmpty then
+          Yul.rewriteProofAllowlistForId rewriteBundle.id
+        else
+          options.patchConfig.requiredProofRefs
+      let patchConfig :=
+        { options.patchConfig with
+          requiredProofRefs := requiredProofRefs }
+      let runtimePatchReport := Yul.runPatchPassWithBlocks
+        patchConfig
+        rewriteBundle.exprRules
+        rewriteBundle.stmtRules
+        rewriteBundle.blockRules
+        base.runtimeCode
+      let runtimePatched := { base with runtimeCode := runtimePatchReport.patched }
+      let objectReport := Yul.runPatchPassWithObjects
+        patchConfig
+        []
+        []
+        []
+        rewriteBundle.objectRules
+        runtimePatched
+      let mergedPatchReport : Yul.PatchPassReport :=
+        { patched := objectReport.patched.runtimeCode
+          iterations := runtimePatchReport.iterations + objectReport.iterations
+          manifest := runtimePatchReport.manifest ++ objectReport.manifest }
+      { patched := objectReport.patched
+        patchReport := mergedPatchReport } }
 
 def emitYulWithOptions (contract : IRContract) (options : YulEmitOptions) : YulObject :=
-  (emitYulWithOptionsInternal contract options).patched
+  Compiler.CodegenCommon.emitYulWithOptions patchBackend contract options
 
-/-- Emit Yul and preserve patch-pass audit details for downstream reporting. -/
 def emitYulWithOptionsReport (contract : IRContract) (options : YulEmitOptions) :
     YulObject × Yul.PatchPassReport :=
-  let report := emitYulWithOptionsInternal contract options
-  (report.patched, report.patchReport)
-
-/-- Regression guard: report and legacy runtime APIs stay in sync. -/
-example (contract : IRContract) (options : YulEmitOptions) :
-    (runtimeCodeWithOptionsReport contract options).runtimeCode = runtimeCodeWithOptions contract options := by
-  rfl
-
-/-- Regression guard: report and legacy object APIs stay in sync. -/
-example (contract : IRContract) (options : YulEmitOptions) :
-    (emitYulWithOptionsReport contract options).1 = emitYulWithOptions contract options := by
-  rfl
-
-/-- Regression guard: object report API returns the exact patch report from runtime emission. -/
-example (contract : IRContract) (options : YulEmitOptions) :
-    (emitYulWithOptionsReport contract options).2 =
-      (runtimeCodeWithOptionsReport contract options).patchReport := by
-  rfl
+  Compiler.CodegenCommon.emitYulWithOptionsReport patchBackend contract options
 
 private def contains (haystack needle : String) : Bool :=
   let h := haystack.toList
@@ -397,7 +183,7 @@ example :
              body := [.leave] }]
         usesMapping := false
         internalFunctions := [] }
-    let runtime := runtimeCodeWithEmitOptions contract { backendProfile := .solidityParity }
+    let runtime := (emitYulWithOptions contract { backendProfile := .solidityParity }).runtimeCode
     let hasFunHelper :=
       runtime.any (fun stmt =>
         match stmt with

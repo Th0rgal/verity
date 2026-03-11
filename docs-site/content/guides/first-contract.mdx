@@ -382,9 +382,9 @@ Function selectors (the first 4 bytes of `keccak256("functionName(paramTypes)")`
 
 ### 5.3 Compilation Correctness
 
-When you define a contract using the `verity_contract` macro in `Contracts/<Name>/<Name>.lean`, the framework automatically provides compilation correctness via the generic typed-IR theorem in `Compiler/TypedIRCompilerCorrectness.lean`. This theorem covers a grammar of 36+ supported statement fragments, so no per-contract compilation proofs are needed for standard patterns.
+When you define a contract using the `verity_contract` macro in `Contracts/<Name>/<Name>.lean`, the framework provides the frontend typed-IR correctness path in `Compiler/TypedIRCompilerCorrectness.lean`. For the current explicit supported fragment, the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean` as a generic whole-contract theorem rooted at successful `CompilationModel.compile`.
 
-The bridge between EDSL semantics and the compilation model is maintained in `Contracts/Proofs/SemanticBridge.lean`. The bridge theorem *statements* are fully defined for all supported patterns (storage reads/writes, mappings, require guards, arithmetic, conditionals), but 18 proof terms currently use `sorry` (blocked by heartbeat limits after the `evalBuiltinCall` refactor). The typed-IR compilation path (`TypedIRCompilerCorrectness.lean`) carries zero `sorry`.
+The compiler proves Layer 2 preservation automatically for the supported fragment — no manual per-contract bridge proofs are needed. The repository's proof tree currently has zero `sorry` placeholders; the remaining documented trust surface is tracked in `AXIOMS.md`.
 
 > **Tip**: Study `Compiler/TypedIRCompilerCorrectness.lean` to see the supported statement fragment grammar and bridge theorem examples for Counter, SimpleStorage, ERC20, and ERC721.
 

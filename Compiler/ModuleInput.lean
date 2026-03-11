@@ -73,7 +73,8 @@ private unsafe def evalSpecConst
       throw s!"Unable to evaluate '{specName}' as Compiler.CompilationModel.CompilationModel"
 
 private def splitPackageSearchRoots : List System.FilePath :=
-  [ "packages/verity-edsl/.lake/build/lib/lean"
+  [ ".lake/build/lib/lean"
+  , "packages/verity-edsl/.lake/build/lib/lean"
   , "packages/verity-compiler/.lake/build/lib/lean"
   , "packages/verity-examples/.lake/build/lib/lean"
   ]
@@ -87,6 +88,7 @@ private def existingSplitPackageSearchRoots : IO SearchPath := do
 
 /-- Import modules and evaluate their canonical `<Module>.spec` constants. -/
 unsafe def loadSpecsFromModules (moduleNames : List Name) : IO (Except String (List CompilationModel)) := do
+  Lean.initSearchPath (← Lean.findSysroot)
   let originalSearchPath ← searchPathRef.get
   let extraSearchRoots ← existingSplitPackageSearchRoots
   searchPathRef.set (originalSearchPath ++ extraSearchRoots)

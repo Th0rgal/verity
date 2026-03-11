@@ -1655,6 +1655,22 @@ private def reservedParamSpec : CompilationModel := {
   ]
 }
 
+private def reservedFieldSpec : CompilationModel := {
+  name := "ReservedField"
+  fields := [{ name := "__compat_value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.setStorage "__compat_value" (Expr.param "next"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def reservedLocalBinderSpec : CompilationModel := {
   name := "ReservedLocalBinder"
   fields := [{ name := "value", ty := FieldType.uint256 }]
@@ -1666,6 +1682,22 @@ private def reservedLocalBinderSpec : CompilationModel := {
       body := [
         Stmt.letVar "__has_selector" (Expr.param "next"),
         Stmt.setStorage "value" (Expr.localVar "__has_selector"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def reservedAssignTargetSpec : CompilationModel := {
+  name := "ReservedAssignTarget"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.assignVar "__compat_value" (Expr.param "next"),
         Stmt.stop
       ]
     }
@@ -2459,10 +2491,19 @@ set_option maxRecDepth 4096 in
     "reserved compiler prefix is rejected in function parameters"
     reservedParamSpec
     "function parameter '__has_selector' uses reserved compiler prefix '__'"
+  let reservedFieldRejected :=
+    match validateCompileInputs reservedFieldSpec (selectorsFor reservedFieldSpec) with
+    | .ok _ => false
+    | .error msg => contains msg "field '__compat_value' uses reserved compiler prefix '__'"
+  expectTrue "reserved compiler prefix is rejected in fields" reservedFieldRejected
   expectCompileErrorContains
     "reserved compiler prefix is rejected in local binders"
     reservedLocalBinderSpec
     "local binder '__has_selector' uses reserved compiler prefix '__'"
+  expectCompileErrorContains
+    "reserved compiler prefix is rejected in assignment targets"
+    reservedAssignTargetSpec
+    "assignment target '__compat_value' uses reserved compiler prefix '__'"
   expectCompileErrorContains
     "reserved compiler prefix is rejected in constructor parameters"
     reservedConstructorParamSpec

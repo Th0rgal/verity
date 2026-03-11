@@ -15,7 +15,7 @@ The compiler is verified with IR preservation proofs and Yul equivalence proofs 
 
 ## Compiler Proofs (IR + Yul)
 
-- **Semantic bridge**: `Contracts/Proofs/SemanticBridge.lean` (EDSL ≡ CompilationModel for supported contract bridges)
+- **Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean` (`CompilationModel.compile` correctness for the current supported fragment)
 - **End-to-end proofs**: `Compiler/Proofs/EndToEnd.lean` (full pipeline correctness)
 - **Typed IR correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic compilation-correctness theorem with 36 supported statement fragments, including ABI-head tuple/bytes/fixed-array/dynamic-array/string params as word-typed inputs)
 - **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + concrete IR proofs in `Expr.lean`)

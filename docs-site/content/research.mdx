@@ -15,13 +15,13 @@ The project evolved in two phases:
 
 **Phase 2 (Verification)**: Replaced `StateM` with custom `ContractResult` type (`success | revert`) to model `require` guards explicitly. This enabled proving properties like "mint reverts when caller is not owner." The core expanded to include proof automation lemmas and EVM context fields.
 
-## Progress and Roadmap (as of 2026-02-18)
+## Progress and Roadmap (as of 2026-03-11)
 
 This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Contract-specific specification proofs**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
-- **Layer 2 (CompilationModel → IR)**: Partial generic coverage only. A supported-statement theorem exists, while whole-contract preservation still relies on contract-specific bridges and the generic `CompilationModel.compile` theorem is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510).
-- **Layer 3 (IR → Yul)**: Complete; all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
+- **Layer 2 (CompilationModel → IR)**: Supported-fragment generic theorem in place. The compiler-level theorem lives in [`Compiler/Proofs/IRGeneration/Contract.lean`](https://github.com/Th0rgal/verity/blob/main/Compiler/Proofs/IRGeneration/Contract.lean). The compiler proves Layer 2 preservation automatically for supported contracts. [#1510](https://github.com/Th0rgal/verity/issues/1510) now tracks fragment widening.
+- **Layer 3 (IR → Yul)**: Complete — all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
 
 Recent updates:
 - Layer 3 fully proven; all 8 statement equivalence proofs + universal dispatcher (PR #42).
@@ -99,13 +99,12 @@ But `private theorem` isn't accessible from other files. Isolation proofs in sep
 ## Verification Structure
 
 Each contract has:
-- `Contracts/X/X.lean`: Implementation (EDSL)
-- `Contracts/X/Spec.lean`: Pre/postconditions for each operation
-- `Contracts/X/Invariants.lean`: State properties that should hold
-- `Contracts/X/SpecProofs.lean`: Contract-specific spec conformance and end-to-end proof layer
-- `Compiler/TypedIRCompilerCorrectness.lean`: Layer 1 typed-IR compilation correctness for the supported statement fragment
-- `Contracts/Proofs/SemanticBridge.lean`: Contract-level Layer 2 bridge theorems (client/example layer, not the generic compiler proof)
-- `Compiler/Proofs/IRGeneration/Contract.lean`: Partial generic Layer 2 theorem spine; the remaining whole-contract gap is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- `Contracts/X/X.lean` — Implementation (EDSL)
+- `Contracts/X/Spec.lean` — Pre/postconditions for each operation
+- `Contracts/X/Invariants.lean` — State properties that should hold
+- `Contracts/X/SpecProofs.lean` — Contract-specific spec conformance and end-to-end proof layer
+- `Compiler/TypedIRCompilerCorrectness.lean` — Layer 1 typed-IR compilation correctness for the supported statement fragment
+- `Compiler/Proofs/IRGeneration/Contract.lean` — Generic whole-contract Layer 2 theorem for the current supported fragment
 
 Some contracts have additional proof files:
 - `Contracts/SimpleToken/SpecProofs.lean`: Supply and transfer reasoning

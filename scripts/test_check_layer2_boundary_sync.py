@@ -60,7 +60,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
     def test_missing_required_snippet_fails(self) -> None:
         rc, output = self._run_check(use_expected=False, add_forbidden=False)
         self.assertEqual(rc, 1)
-        self.assertIn("missing `now bypasses this axiom for both `StmtListCompileCore` and `StmtListTerminalCore` bodies.`", output)
+        self.assertIn("missing `### 1. `keccak256_first_4_bytes``", output)
 
     def test_forbidden_overclaim_fails(self) -> None:
         rc, output = self._run_check(use_expected=True, add_forbidden=True)
@@ -74,7 +74,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
             target = root / check.TARGETS["ROOT_README"].relative_to(check.ROOT)
             target.write_text(
                 target.read_text(encoding="utf-8").replace(
-                    "There are currently 2 documented Lean axioms in total: 1 selector axiom and 1 generic non-core Layer 2 axiom.",
+                    "There is currently 1 documented Lean axiom in total: the selector axiom.",
                     "There are currently 3 documented Lean axioms in total: 1 selector axiom, 1 generic non-core Layer 2 axiom, and 1 Layer 3 dispatch bridge axiom.",
                 ),
                 encoding="utf-8",

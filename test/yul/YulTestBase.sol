@@ -5,7 +5,14 @@ import "forge-std/Test.sol";
 
 abstract contract YulTestBase is Test {
     function _yulDir() internal view returns (string memory) {
-        return vm.envOr("DIFFTEST_YUL_DIR", string("artifacts/yul"));
+        string memory envDir = vm.envOr("DIFFTEST_YUL_DIR", string(""));
+        if (bytes(envDir).length != 0) {
+            return envDir;
+        }
+        if (vm.exists("compiler/yul")) {
+            return "compiler/yul";
+        }
+        return "artifacts/yul";
     }
 
     // Edge-case values matching Lean's edgeUint256Values and DiffTestConfig._edgeUintValues():
@@ -73,11 +80,37 @@ abstract contract YulTestBase is Test {
             "'; compiler='./.lake/build/bin/verity-compiler'; ",
             "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && ",
             "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
-            "mkdir -p \"$out\" && lake build verity-compiler >/dev/null && ",
+            "mkdir -p \"$out\" && lake build \"$module\" verity-compiler >/dev/null && ",
             "\"$compiler\" --module \"$module\" --output \"$out\" >/dev/null"
         );
         vm.ffi(cmds);
         require(vm.exists(artifactPath), "Verity module compile did not emit Yul artifact");
+    }
+
+    function _ensureVerityManifestYul(
+        string memory manifestPath,
+        string memory contractName,
+        string memory outDir
+    ) internal {
+        string memory artifactPath = string.concat(outDir, "/", contractName, ".yul");
+        string[] memory cmds = new string[](3);
+        cmds[0] = "bash";
+        cmds[1] = "-lc";
+        cmds[2] = string.concat(
+            "artifact='",
+            artifactPath,
+            "'; out='",
+            outDir,
+            "'; manifest='",
+            manifestPath,
+            "'; compiler='./.lake/build/bin/verity-compiler'; ",
+            "if [ -f \"$artifact\" ] && [ -x \"$compiler\" ] && [ \"$compiler\" -ot \"$artifact\" ] && [ \"$manifest\" -ot \"$artifact\" ] && ",
+            "! find Contracts Compiler Verity -name '*.lean' -newer \"$artifact\" -print -quit | grep -q .; then exit 0; fi; ",
+            "mkdir -p \"$out\" && set -- $(grep -vE '^[[:space:]]*($|#)' \"$manifest\") && lake build \"$@\" verity-compiler >/dev/null && ",
+            "\"$compiler\" --manifest \"$manifest\" --output \"$out\" >/dev/null"
+        );
+        vm.ffi(cmds);
+        require(vm.exists(artifactPath), "Verity manifest compile did not emit Yul artifact");
     }
 
     function deployCompiledVerityModule(

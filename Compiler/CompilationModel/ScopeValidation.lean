@@ -362,6 +362,189 @@ def validateFunctionIdentifierReferences (spec : FunctionSpec) : Except String U
     spec.body
   pure ()
 
+theorem validateScopedStmtListIdentifiers_append_ok_inv
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {pre post : List Stmt}
+    {finalScope : List String}
+    (hvalidate :
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        (pre ++ post) = Except.ok finalScope) :
+    ∃ midScope,
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        pre = Except.ok midScope ∧
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams midScope constructorArgCount
+        post = Except.ok finalScope := by
+  induction pre generalizing localScope with
+  | nil =>
+      refine ⟨localScope, ?_, ?_⟩
+      · unfold validateScopedStmtListIdentifiers
+        rfl
+      · simpa using hvalidate
+  | cons stmt rest ih =>
+      simp [validateScopedStmtListIdentifiers] at hvalidate
+      cases hnext :
+          validateScopedStmtIdentifiers
+            context params paramScope dynamicParams localScope constructorArgCount stmt with
+      | error err =>
+          simp [hnext] at hvalidate
+          cases hvalidate
+      | ok nextScope =>
+          simp [hnext] at hvalidate
+          rcases ih (localScope := nextScope) hvalidate with
+            ⟨midScope, hprefix, hsuffix⟩
+          refine ⟨midScope, ?_, hsuffix⟩
+          simpa [validateScopedStmtListIdentifiers, hnext] using hprefix
+
+theorem validateScopedStmtListIdentifiers_cons_ok_inv
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {stmt : Stmt}
+    {rest : List Stmt}
+    {finalScope : List String}
+    (hvalidate :
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        (stmt :: rest) = Except.ok finalScope) :
+    ∃ nextScope,
+      validateScopedStmtIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        stmt = Except.ok nextScope ∧
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams nextScope constructorArgCount
+        rest = Except.ok finalScope := by
+  simp [validateScopedStmtListIdentifiers] at hvalidate
+  cases hnext :
+      validateScopedStmtIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount stmt with
+  | error err =>
+      simp [hnext] at hvalidate
+      cases hvalidate
+  | ok nextScope =>
+      simp [hnext] at hvalidate
+      refine ⟨nextScope, ?_, hvalidate⟩
+      simp
+
+theorem validateScopedStmtListIdentifiers_singleton_ok_inv
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {stmt : Stmt}
+    {finalScope : List String}
+    (hvalidate :
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        [stmt] = Except.ok finalScope) :
+    validateScopedStmtIdentifiers
+      context params paramScope dynamicParams localScope constructorArgCount
+      stmt = Except.ok finalScope := by
+  rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+    ⟨nextScope, hstmt, hnil⟩
+  have hEq : nextScope = finalScope := by
+    simp [validateScopedStmtListIdentifiers] at hnil
+    injection hnil with hEq
+  simpa [hEq] using hstmt
+
+theorem validateFunctionIdentifierReferences_prefix_ok
+    {spec : FunctionSpec}
+    {pre post : List Stmt}
+    (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
+    (hbody : spec.body = pre ++ post) :
+    ∃ localScope,
+      validateScopedStmtListIdentifiers
+        s!"function '{spec.name}'"
+        spec.params
+        (paramScopeNames spec.params)
+        (dynamicParamBases spec.params)
+        []
+        none
+        pre = Except.ok localScope := by
+  unfold validateFunctionIdentifierReferences at hvalidate
+  rw [hbody] at hvalidate
+  cases hscoped :
+      validateScopedStmtListIdentifiers
+        s!"function '{spec.name}'"
+        spec.params
+        (paramScopeNames spec.params)
+        (dynamicParamBases spec.params)
+        []
+        none
+        (pre ++ post) with
+  | error err =>
+      simp [hscoped] at hvalidate
+      cases hvalidate
+  | ok finalScope =>
+      simp [hscoped] at hvalidate
+      rcases validateScopedStmtListIdentifiers_append_ok_inv hscoped with
+        ⟨localScope, hprefix, _⟩
+      exact ⟨localScope, hprefix⟩
+
+theorem validateFunctionIdentifierReferences_prefix_stmt_ok
+    {spec : FunctionSpec}
+    {pre post : List Stmt}
+    {stmt : Stmt}
+    (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
+    (hbody : spec.body = pre ++ stmt :: post) :
+    ∃ localScope nextScope,
+      validateScopedStmtListIdentifiers
+        s!"function '{spec.name}'"
+        spec.params
+        (paramScopeNames spec.params)
+        (dynamicParamBases spec.params)
+        []
+        none
+        pre = Except.ok localScope ∧
+      validateScopedStmtIdentifiers
+        s!"function '{spec.name}'"
+        spec.params
+        (paramScopeNames spec.params)
+        (dynamicParamBases spec.params)
+        localScope
+        none
+        stmt = Except.ok nextScope := by
+  have hprefix :
+      ∃ midScope,
+        validateScopedStmtListIdentifiers
+          s!"function '{spec.name}'"
+          spec.params
+          (paramScopeNames spec.params)
+          (dynamicParamBases spec.params)
+          []
+          none
+          (pre ++ stmt :: []) = Except.ok midScope := by
+    have hbody' : spec.body = (pre ++ stmt :: []) ++ post := by
+      simpa [List.append_assoc] using hbody
+    rcases validateFunctionIdentifierReferences_prefix_ok hvalidate hbody' with
+      ⟨midScope, hprefix'⟩
+    exact ⟨midScope, hprefix'⟩
+  rcases hprefix with ⟨midScope, hprefix⟩
+  rcases validateScopedStmtListIdentifiers_append_ok_inv hprefix with
+    ⟨localScope, hprefixOnly, hstmtOnly⟩
+  simp [validateScopedStmtListIdentifiers] at hstmtOnly
+  cases hnext :
+      validateScopedStmtIdentifiers
+        s!"function '{spec.name}'"
+        spec.params
+        (paramScopeNames spec.params)
+        (dynamicParamBases spec.params)
+        localScope
+        none
+        stmt with
+  | error err =>
+      simp [hnext] at hstmtOnly
+  | ok nextScope =>
+      simp [hnext] at hstmtOnly
+      refine ⟨localScope, nextScope, hprefixOnly, ?_⟩
+      simp [hnext]
+
 def validateConstructorIdentifierReferences (ctor : Option ConstructorSpec) : Except String Unit := do
   match ctor with
   | none => pure ()

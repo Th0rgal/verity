@@ -15,8 +15,11 @@ TARGETS = {
     "ROADMAP": ROOT / "docs" / "ROADMAP.md",
     "ROOT_README": ROOT / "README.md",
     "TRUST_ASSUMPTIONS": ROOT / "TRUST_ASSUMPTIONS.md",
-    "SEMANTIC_BRIDGE": ROOT / "Contracts" / "Proofs" / "SemanticBridge.lean",
     "DOCS_SITE_COMPILER": ROOT / "docs-site" / "content" / "compiler.mdx",
+    "DOCS_SITE_INDEX": ROOT / "docs-site" / "content" / "index.mdx",
+    "DOCS_SITE_EXAMPLES": ROOT / "docs-site" / "content" / "examples.mdx",
+    "DOCS_SITE_FIRST_CONTRACT": ROOT / "docs-site" / "content" / "guides" / "first-contract.mdx",
+    "DOCS_SITE_VERIFICATION": ROOT / "docs-site" / "content" / "verification.mdx",
     "DOCS_SITE_RESEARCH": ROOT / "docs-site" / "content" / "research.mdx",
     "LLMS": ROOT / "docs-site" / "public" / "llms.txt",
 }
@@ -29,63 +32,69 @@ def normalize_ws(text: str) -> str:
 def expected_snippets() -> dict[str, list[str]]:
     return {
         "AXIOMS": [
-            "now bypasses this axiom for both `StmtListCompileCore` and `StmtListTerminalCore` bodies.",
-            "The terminal `ite` branch-entry blocker described in issue `#1564` is now discharged:",
+            "### 1. `keccak256_first_4_bytes`",
+            "- Active axioms: 1",
         ],
         "COMPILER_PROOFS_README": [
-            "there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract.",
-            "`Contracts/Proofs/SemanticBridge.lean`: contract-level bridge theorems",
-            "it still depends on 1 documented axiom in `Compiler.Proofs.IRGeneration.Function`",
+            "`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`",
+            "The former exact-state body-simulation axiom in `Compiler.Proofs.IRGeneration.Function` has now been eliminated",
         ],
         "GENERIC_PLAN": [
             "avoid any `post`/`hpost`/contract-specific bridge premise",
-            "`Contracts/Proofs/SemanticBridge.lean` becomes client/example layer only.",
+            "The main objective of issue #1618 is therefore complete.",
         ],
         "VERIFICATION_STATUS": [
-            "## Layer 2: CompilationModel → IR — PARTIAL GENERIC",
-            "there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.",
-            "it still depends on 1 documented Layer-2 axiom in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)",
-            "Still axiomatized: generic supported body simulation",
+            "## Layer 2: CompilationModel → IR — GENERIC WHOLE-CONTRACT THEOREM",
+            "a whole-contract theorem surface, [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s",
+            "What is not fully migrated yet",
+            "No Lean axioms remain in Layer 2",
         ],
         "ROADMAP": [
-            "🟡 **Layer 2 Partial Generic**",
-            "generic whole-contract `CompilationModel.compile` theorem is still tracked in [#1510]",
+            "🟢 **Layer 2 Generic Theorem**",
+            "generic whole-contract `CompilationModel.compile` theorem is proved for the current supported fragment",
         ],
         "ROOT_README": [
-            "Layer 2: CompilationModel → IR        [PARTIAL GENERIC, CONTRACT BRIDGES ACTIVE]",
-            "Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges.",
-            "its non-core function-level closure still depends on 1 documented axiom",
-            "There are currently 2 documented Lean axioms in total: 1 selector axiom and 1 generic non-core Layer 2 axiom.",
+            "Layer 2: CompilationModel → IR        [GENERIC WHOLE-CONTRACT THEOREM]",
+            "Layer 2 now has a generic whole-contract theorem for the explicit supported fragment.",
+            "its function-level closure now runs by theorem rather than axiom",
+            "There is currently 1 documented Lean axiom in total: the selector axiom.",
             "Layer 3 keeps its remaining dispatch bridge as an explicit theorem hypothesis rather than a Lean axiom.",
         ],
         "TRUST_ASSUMPTIONS": [
-            "Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges",
-            "whole-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
-            "The theorem surface still depends on 1 documented sub-axiom for generic body simulation",
-            "it still has 2 documented Lean axioms",
-            "former `execIRFunctionFuel`/`execIRFunction` bridge axiom has been eliminated",
+            "Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR",
+            "A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment.",
+            "former generic body-simulation axiom has been eliminated",
+            "it now has 1 documented Lean axiom",
             "explicit theorem hypothesis rather than a Lean axiom",
-        ],
-        "SEMANTIC_BRIDGE": [
-            "This is not a generic compiler-correctness theorem for `CompilationModel.compile`.",
-            "The actual semantic work still lives in the contract-specific bridge theorem passed in as `hpost`.",
         ],
         "DOCS_SITE_COMPILER": [
             "**Layer 2 boundary today**",
-            "full-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
-            "the remaining non-core closure still depends on 1 documented axiom.",
+            "the generic whole-contract `CompilationModel -> IR` theorem is proved for the current explicit supported fragment.",
+            "former exact-state body-simulation axiom has been eliminated",
             "explicit theorem hypothesis rather than a Lean axiom",
         ],
+        "DOCS_SITE_INDEX": [
+            "`Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract `CompilationModel -> IR` theorem for the current supported fragment)",
+            "This project currently has no `sorry` placeholders.",
+        ],
+        "DOCS_SITE_EXAMPLES": [
+            "`Compiler/Proofs/IRGeneration/Contract.lean` for the current supported fragment",
+        ],
+        "DOCS_SITE_FIRST_CONTRACT": [
+            "the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean`",
+            "The repository's proof tree currently has zero `sorry` placeholders",
+        ],
+        "DOCS_SITE_VERIFICATION": [
+            "**Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean`",
+        ],
         "DOCS_SITE_RESEARCH": [
-            "Partial generic coverage only.",
-            "generic `CompilationModel.compile` theorem is tracked in [#1510]",
-            "`Contracts/Proofs/SemanticBridge.lean`",
+            "Supported-fragment generic theorem in place.",
             "`Compiler/Proofs/IRGeneration/Contract.lean`",
         ],
         "LLMS": [
-            "partial generic CompilationModel -> IR boundary",
-            "generic supported-statement theorem plus contract-specific full-contract bridges.",
-            "2 documented Lean axioms",
+            "generic whole-contract CompilationModel -> IR theorem for the supported fragment",
+            "1 documented Lean axiom",
+            "0 `sorry` placeholders",
         ],
     }
 
@@ -97,25 +106,30 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "generic body simulation and `execIRFunctionFuel`/`execIRFunction` bridging",
         ],
         "AXIOMS": [
-            "else-branches still enter their compiled body through `execIRStmt_if_true_of_eval_nonzeroFuel`",
-            "package that if-body entry form cleanly, then reattempt the explicit-`bodyIR` `StmtListTerminalCore` theorem",
+            "### 2. `supported_function_body_correct_from_exact_state`",
+            "supported_function_body_correct_from_exact_state",
+            "- Active axioms: 2",
         ],
         "VERIFICATION_STATUS": [
             "## Layer 2: CompilationModel → IR — COMPLETE",
             "it still depends on 2 documented Layer-2 axioms",
             "Still axiomatized: generic supported body simulation and the `execIRFunctionFuel` to `execIRFunction` bridge",
+            "PARTIAL GENERIC, 2 AXIOMS, CONTRACT BRIDGES ACTIVE",
+            "there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.",
         ],
         "GENERIC_PLAN": [
             "use the old `hpost`-based bridge theorem as the solution",
         ],
         "ROADMAP": [
             "✅ **Layer 2 Complete**",
+            "Layer 2 Partial Generic",
         ],
         "ROOT_README": [
             "Layer 2: CompilationModel → IR        [PROVEN]",
             "| 2 | CompilationModel → IR preserves behavior |",
             "depends on 2 documented axioms",
             "documented bridge axiom",
+            "1 generic non-core Layer 2 axiom",
             "There are currently 3 documented Lean axioms in total",
             "There are currently 4 documented Lean axioms in total",
         ],
@@ -126,26 +140,32 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "3 documented Lean axioms",
             "4 documented Lean axioms",
             "1 documented bridge axiom",
+            "2 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom and 1 generic non-core Layer 2 axiom",
             "Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul",
             "1 Layer 3 dispatch bridge axiom",
-        ],
-        "SEMANTIC_BRIDGE": [
-            "proofs use placeholders until",
         ],
         "DOCS_SITE_COMPILER": [
             "**Layer 2 framework proof**: `CompilationModel -> IR` preserves semantics.",
             "depends on 2 documented axioms.",
             "1 documented bridge axiom",
+            "depends on 1 documented axiom",
+            "full-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
+        ],
+        "DOCS_SITE_FIRST_CONTRACT": [
+            "18 proof terms currently use `sorry`",
         ],
         "DOCS_SITE_RESEARCH": [
             "Complete for all 7 contracts",
             "`Verity/Examples/X.lean`",
             "`Compiler/TypedIRCompilerCorrectness.lean` — Compilation correctness (generic theorem, 36 supported fragments)",
+            "Partial generic coverage only.",
         ],
         "LLMS": [
             "CompilationModel -> IR preservation",
             "3 documented axioms",
             "4 documented axioms",
+            "2 documented Lean axioms",
+            "partial generic CompilationModel -> IR boundary",
         ],
     }
 
@@ -176,7 +196,7 @@ def main() -> int:
             print(error, file=sys.stderr)
         return 1
 
-    print("layer2 boundary sync passed: partial-generic/compiler-bridge split documented")
+    print("layer2 boundary sync passed: generic Layer 2 theorem boundary documented")
     return 0
 
 

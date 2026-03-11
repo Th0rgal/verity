@@ -8,17 +8,15 @@ Mode: incremental (cached) build
 
 | Rank | Module | Seconds |
 | ---: | :----- | ------: |
-| 1 | `Compiler.Proofs.SemanticBridge` | 29.46 |
-| 2 | `Compiler.MainTest` | 5.52 |
-| 3 | `Compiler.Proofs.EndToEnd` | 0.88 |
-| 4 | `Compiler.Proofs.YulGeneration.StatementEquivalence` | 0.77 |
-| 5 | `Compiler.Proofs.YulGeneration.Preservation` | 0.76 |
+| 1 | `Compiler.MainTest` | 5.52 |
+| 2 | `Compiler.Proofs.EndToEnd` | 0.88 |
+| 3 | `Compiler.Proofs.YulGeneration.StatementEquivalence` | 0.77 |
+| 4 | `Compiler.Proofs.YulGeneration.Preservation` | 0.76 |
 
 ## Full Profile
 
 | Module | Seconds |
 | :----- | ------: |
-| `Compiler.Proofs.SemanticBridge` | 29.46 |
 | `Compiler.MainTest` | 5.52 |
 | `Compiler.Proofs.EndToEnd` | 0.88 |
 | `Compiler.Proofs.YulGeneration.StatementEquivalence` | 0.77 |

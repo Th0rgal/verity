@@ -78,10 +78,10 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 ## Where things live
 
-- **User-facing specs**: `Contracts/<Name>/Spec.lean` (+ `Invariants.lean`)
-- **Implementations (EDSL)**: `Contracts/<Name>/<Name>.lean`
-- **Contract-specific proofs**: `Contracts/<Name>/Proofs/Basic.lean` + `Correctness.lean`
-- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic typed-IR theorem) + `Contracts/Proofs/SemanticBridge.lean` (contract bridge layer)
+- **User-facing specs**: `Verity/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
+- **Implementations (EDSL)**: `Verity/Examples/<Name>.lean`
+- **Contract-specific specification proofs**: `Verity/Proofs/<Name>/Basic.lean` + `Correctness.lean`
+- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (frontend typed-IR theorem) + `Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract `CompilationModel -> IR` theorem for the current supported fragment).
 - **Reusable proof infrastructure**: `Verity/Proofs/Stdlib/` (spec interpreter + automation)
 - **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
 - **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)
@@ -130,7 +130,7 @@ See [/verification](/verification) for the complete, always-current theorem list
 
 **What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project currently has no `sorry` placeholders.
 
-**What are axioms?** Statements assumed true without proof. This project currently documents 2 Lean axioms: `keccak256_first_4_bytes` for selector hashing and `supported_function_body_correct_from_exact_state` for the remaining generic Layer 2 body-simulation gap (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)). The Layer 3 dispatch bridge is kept as an explicit theorem hypothesis rather than a Lean axiom.
+**What are axioms?** Statements assumed true without proof. This project currently documents 1 Lean axiom: `keccak256_first_4_bytes` for selector hashing (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)). The former generic Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is kept as an explicit theorem hypothesis rather than a Lean axiom.
 
 Example proof technique (simplified):
 ```lean

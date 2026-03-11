@@ -6,6 +6,7 @@ import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.RawLogTrustSurface
 import Compiler.Main
+import Compiler.ParityPacks
 import Compiler.Linker
 import Compiler.TestModules
 
@@ -260,18 +261,19 @@ unsafe def runTests : IO Unit := do
   let nonSelectedArtifactsAbsent := nonSelectedArtifactFlags.all (fun isPresent => !isPresent)
   expectTrue "selected module mode does not emit non-selected artifacts" nonSelectedArtifactsAbsent
 
-  expectErrorContains "missing --patch-report value" ["--patch-report"] "Missing value for --patch-report"
+  expectErrorContains "patch report flag is redirected to patched compiler" ["--patch-report"] "verity-compiler-patched"
   expectErrorContains "missing --assumption-report value" ["--assumption-report"] "Missing value for --assumption-report"
   expectErrorContains "missing --layout-report value" ["--layout-report"] "Missing value for --layout-report"
   expectErrorContains "missing --layout-compat-report value" ["--layout-compat-report"] "Missing value for --layout-compat-report"
-  expectErrorContains "missing --patch-max-iterations value" ["--patch-max-iterations"] "Missing value for --patch-max-iterations"
+  expectErrorContains "patch max iterations flag is redirected to patched compiler" ["--patch-max-iterations"] "verity-compiler-patched"
   expectErrorContains "missing --backend-profile value" ["--backend-profile"] "Missing value for --backend-profile"
-  expectErrorContains "invalid --backend-profile value" ["--backend-profile", "invalid-profile"] "Invalid value for --backend-profile: invalid-profile"
-  expectErrorContains "missing --parity-pack value" ["--parity-pack"] "Missing value for --parity-pack"
-  expectErrorContains "invalid --parity-pack value" ["--parity-pack", "invalid-pack"] "Invalid value for --parity-pack: invalid-pack"
-  expectErrorContains "reject duplicate --parity-pack" ["--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--parity-pack", "solc-0.8.28-o999999-viair-true-evm-paris"] "Cannot specify --parity-pack more than once"
-  expectErrorContains "reject backend-profile + parity-pack conflict (profile first)" ["--backend-profile", "semantic", "--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai"] "Cannot combine --parity-pack with --backend-profile"
-  expectErrorContains "reject backend-profile + parity-pack conflict (pack first)" ["--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--backend-profile", "semantic"] "Cannot combine --backend-profile with --parity-pack"
+  expectErrorContains "invalid --backend-profile value" ["--backend-profile", "invalid-profile"] "expected semantic or solidity-parity-ordering"
+  expectErrorContains "solidity parity profile is redirected to patched compiler" ["--backend-profile", "solidity-parity"] "verity-compiler-patched"
+  expectErrorContains "parity pack flag is redirected to patched compiler" ["--parity-pack"] "verity-compiler-patched"
+  expectErrorContains "invalid parity pack is still redirected to patched compiler" ["--parity-pack", "invalid-pack"] "verity-compiler-patched"
+  expectErrorContains "duplicate parity pack still redirects to patched compiler" ["--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--parity-pack", "solc-0.8.28-o999999-viair-true-evm-paris"] "verity-compiler-patched"
+  expectErrorContains "backend-profile + parity-pack conflict is handled by patched compiler redirect (profile first)" ["--backend-profile", "semantic", "--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai"] "verity-compiler-patched"
+  expectErrorContains "backend-profile + parity-pack conflict is handled by patched compiler redirect (pack first)" ["--parity-pack", "solc-0.8.33-o200-viair-false-evm-shanghai", "--backend-profile", "semantic"] "verity-compiler-patched"
   expectErrorContains "missing --mapping-slot-scratch-base value" ["--mapping-slot-scratch-base"] "Missing value for --mapping-slot-scratch-base"
   expectErrorContains "invalid --mapping-slot-scratch-base value" ["--mapping-slot-scratch-base", "not-a-number"] "Invalid value for --mapping-slot-scratch-base: not-a-number"
   expectErrorContains "removed --ast flag is rejected" ["--ast"] "Unknown argument: --ast"

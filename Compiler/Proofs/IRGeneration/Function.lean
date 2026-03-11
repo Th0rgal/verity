@@ -1,5 +1,6 @@
 import Compiler.CompilationModel.Dispatch
 import Compiler.Proofs.IRGeneration.FunctionBody
+import Compiler.Proofs.IRGeneration.GenericInduction
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.YulGeneration.Equivalence
@@ -902,52 +903,74 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
   refine ⟨_, _, rfl, rfl, ?_⟩
   simpa [hfuel, sizeSlack] using hterminalSem
 
-/-- TODO(#1510): replace this temporary bridge with the generic body simulation
-proof under the exact-state invariant produced by parameter loading. This is
-the second strategy-3 subgoal after `supported_function_param_state_exact`.
-
-NOTE: the `extraFuel` parameter was added when eliminating
-`supported_function_execIRFunction_eq_fuel`: the caller instantiates
-`extraFuel := sizeOf irFn.body - irFn.body.length` so that the fuel bridges
-cleanly to `sizeOf`-style budgets and `execIRFunctionFuel_adequate`.
-The axiom is only claimed once that extra slack is large enough to cover the
-known structural `sizeOf bodyStmts - bodyStmts.length` gap for nested blocks. -/
-axiom supported_function_body_correct_from_exact_state
-    (model : CompilationModel)
-    (fn : FunctionSpec)
-    (bodyStmts : List YulStmt)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (state : IRState)
-    (bindings : List (String × Nat))
-    (extraFuel : Nat)
-    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
-    (hsupportedFn : SupportedFunction model.fields fn)
-    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
-    (hnoEvents : model.events = [])
-    (hnoErrors : model.errors = [])
-    (hbodyCompile :
-      compileStmtList model.fields model.events model.errors .calldata [] false
-        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
-    (hstateRuntime :
-      FunctionBody.runtimeStateMatchesIR
-        (SourceSemantics.effectiveFields model)
-        { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := [] }
-        state)
-    (hnotCore : ¬ FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
-    (hnotTerminal : ¬ FunctionBody.StmtListTerminalCore (fn.params.map (·.name)) fn.body)
-    (hstateBindings :
-      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
-    ∃ sourceResult irExec,
-      SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
-        { world := SourceSemantics.withTransactionContext initialWorld tx
-          bindings := bindings }
-        fn.body = sourceResult ∧
-      execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
-      FunctionBody.stmtResultMatchesIRExec
-        (SourceSemantics.effectiveFields model) sourceResult irExec
-
+private theorem firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs
+    {spec : CompilationModel}
+    {selectors : List Nat}
+    (hvalidate : validateCompileInputs spec selectors = Except.ok ()) :
+    firstFieldWriteSlotConflict
+        (applySlotAliasRanges spec.fields spec.slotAliasRanges) = none := by
+  unfold validateCompileInputs at hvalidate
+  cases hshapes : validateIdentifierShapes spec with
+  | error err =>
+      simp [hshapes] at hvalidate
+  | ok _ =>
+      cases hbadAlias : firstInvalidSlotAliasRange spec.slotAliasRanges with
+      | some bad =>
+          simp [hshapes, hbadAlias] at hvalidate
+      | none =>
+          cases hoverlap : firstSlotAliasSourceOverlap spec.slotAliasRanges with
+          | some overlap =>
+              simp [hshapes, hbadAlias, hoverlap] at hvalidate
+          | none =>
+              cases hdyn : firstInternalDynamicParam spec.functions with
+              | some dyn =>
+                  simp [hshapes, hbadAlias, hoverlap, hdyn] at hvalidate
+              | none =>
+                  cases hdupParam : firstDuplicateFunctionParamName spec.functions with
+                  | some dup =>
+                      simp [hshapes, hbadAlias, hoverlap, hdyn, hdupParam] at hvalidate
+                  | none =>
+                      cases hdupCtor : firstDuplicateConstructorParamName spec.constructor with
+                      | some dup =>
+                          simp [hshapes, hbadAlias, hoverlap, hdyn, hdupParam, hdupCtor] at hvalidate
+                      | none =>
+                          simp [hshapes, hbadAlias, hoverlap, hdyn, hdupParam, hdupCtor] at hvalidate
+                          set fields := applySlotAliasRanges spec.fields spec.slotAliasRanges with hfields
+                          cases hdupFn : firstDuplicateName (spec.functions.map (fun fn => fn.name)) with
+                          | some dup =>
+                              simp [hdupFn] at hvalidate
+                          | none =>
+                              cases hdupErr : firstDuplicateName (spec.errors.map (fun err => err.name)) with
+                              | some dup =>
+                                  simp [hdupErr] at hvalidate
+                              | none =>
+                                  cases hdupField : firstDuplicateName (spec.fields.map (fun field => field.name)) with
+                                  | some dup =>
+                                      simp [hdupField] at hvalidate
+                                  | none =>
+                                      cases hpacked : firstInvalidPackedBits spec.fields with
+                                      | some bad =>
+                                          simp [hpacked] at hvalidate
+                                      | none =>
+                                          cases hmappingPacked : firstMappingPackedBits spec.fields with
+                                          | some field =>
+                                              simp [hmappingPacked] at hvalidate
+                                          | none =>
+                                              cases harrayElem : firstUnsupportedStorageArrayElemType spec.fields with
+                                              | some bad =>
+                                                  simp [harrayElem] at hvalidate
+                                              | none =>
+                                                  cases hinvalidStruct : firstInvalidStructField spec.fields with
+                                                  | error err =>
+                                                      simp [hinvalidStruct] at hvalidate
+                                                  | ok _ =>
+                                                      cases hconflict : firstFieldWriteSlotConflict fields with
+                                                      | some conflict =>
+                                                          simp [hfields, hdupFn, hdupErr, hdupField,
+                                                            hpacked, hmappingPacked, harrayElem,
+                                                            hinvalidStruct, hconflict] at hvalidate
+                                                      | none =>
+                                                          simpa [hfields] using hconflict
 
 theorem compileFunctionSpec_correct_of_body
     (model : CompilationModel)
@@ -1328,19 +1351,48 @@ theorem supported_function_correct
           hbodyCompile
           hbodyStateRuntime
           hbodyStateBindings
-      · exact supported_function_body_correct_from_exact_state
+      · have hsupportedFn := hSupported.supportedFunctionOfSelectorDispatched hfn
+        have hscope :
+            FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
+          intro name hmem
+          have hmemBindings : name ∈ bindings.map Prod.fst := by
+            rw [ParamLoading.bindSupportedParams_names hbind]
+            simpa using hmem
+          exact lookupBinding?_some_of_mem bindings name hmemBindings
+        have hbounded : FunctionBody.bindingsBounded bindings :=
+          FunctionBody.bindingsBounded_of_bindSupportedParams hbind
+        have hnoConflict :
+            firstFieldWriteSlotConflict model.fields = none := by
+          simpa [hSupported.normalizedFields] using
+            firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs
+              (spec := model)
+              (selectors := selectors)
+              hvalidateInputs
+        have hgeneric :
+            StmtListGenericCore
+              (SourceSemantics.effectiveFields model)
+              (fn.params.map (·.name))
+              fn.body :=
+          stmtListGenericCore_of_supportedStmtList_of_surface
+            (fields := SourceSemantics.effectiveFields model)
+            (scope := fn.params.map (·.name))
+            (stmts := fn.body)
+            (by simpa [SourceSemantics.effectiveFields] using hnoConflict)
+            hsupportedFn.body
+            hsupportedFn.bodySurface
+        exact supported_function_body_correct_from_exact_state_generic
           model fn bodyStmts tx initialWorld
           (ParamLoading.applyBindingsToIRState
             (prebindRawArgs initialState fn.params) bindings)
           bindings extraFuel hbodyExtraFuelLower
-          (hSupported.supportedFunctionOfSelectorDispatched hfn)
           (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
           hSupported.noEvents
           hSupported.noErrors
+          hgeneric
           hbodyCompile
+          hscope
+          hbounded
           hbodyStateRuntime
-          hcore
-          hterminal
           hbodyStateBindings
     rcases hbodyCorrect with
       ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩

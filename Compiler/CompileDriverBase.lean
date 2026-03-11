@@ -1,6 +1,6 @@
 import Std
 import Compiler.Selector
-import Compiler.Codegen
+import Compiler.CodegenBase
 import Compiler.CompileDriverCommon
 import Compiler.Yul.PrettyPrint
 import Compiler.Linker
@@ -10,12 +10,12 @@ import Compiler.CompilationModel.LayoutCompatibilityReport
 import Compiler.CompilationModel.LayoutReport
 import Compiler.CompilationModel.TrustSurface
 
-namespace Compiler
+namespace Compiler.Base
 
 open Compiler.CompilationModel
 
 private def backend : Compiler.CompileDriverCommon.CodegenBackend :=
-  { emitYulWithOptionsReport := Compiler.emitYulWithOptionsReport }
+  { emitYulWithOptionsReport := emitYulWithOptionsReport }
 
 def compileSpecsWithOptions
     (specs : List CompilationModel)
@@ -73,4 +73,4 @@ unsafe def compileModulesWithOptions
     denyLinearMemoryMechanics denyEventEmission denyLowLevelMechanics denyRuntimeIntrospection
     denyProxyUpgradeability layoutReportPath layoutCompatibilityReportPath denyLayoutIncompatibility
 
-end Compiler
+end Compiler.Base
