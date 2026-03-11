@@ -677,10 +677,7 @@ lake exe verity-compiler
 
 4. **Done!** Contract generated in `artifacts/yul/MyContract.yul`
 
-Legacy note: handwritten `Compiler.Specs.*Spec` definitions are retained only for
-migration/special workflows and are not the canonical CLI compile path.
-
-Time: **~5 minutes** (vs ~30 minutes manual IR)
+Handwritten `Compiler.Specs.*Spec` definitions still exist but are not the canonical compile path.
 
 ## Test Results
 
@@ -712,89 +709,6 @@ All current example contracts compile and pass tests:
 - ✅ **SafeCounter** — Checked arithmetic with underflow protection
 
 **Not compiled**: ReentrancyExample (proofs are embedded inline, no compiler spec). CryptoHash compiles via `--link` with external Poseidon libraries and is validated in CI.
-
-## Comparison: Manual vs Automatic
-
-### Lines of Code
-- **Before**: Manual IR for all contracts (brittle to maintain)
-- **After**: Declarative specs for all contracts (stable, reusable)
-- **Reduction**: Manual IR eliminated
-
-### Time to Add Contract
-- **Before**: Manual IR requires more steps (write IR, test, debug)
-- **After**: Declarative specs reduce the setup and iteration work
-- **Improvement**: Faster authoring and less surface for mistakes
-
-### Code Quality
-- **Before**: Manual Yul construction, error-prone
-- **After**: Type-safe DSL, compile-time validation
-- **Result**: More optimized, safer, maintainable
-
-### Example: Owned Contract
-
-**Before** (manual IR):
-```lean
-private def ownedContract : IRContract :=
-  let deployBody := [
-    stmtLet "argsOffset" (call "sub" [call "codesize" [], lit 32]),
-    stmtExpr (call "codecopy" [lit 0, ident "argsOffset", lit 32]),
-    stmtLet "initialOwner" (call "and" [call "mload" [lit 0], hex addressMask]),
-    sstoreSlot 0 (ident "initialOwner")
-  ]
-  let transferBody := onlyOwnerCheck 0 ++ [
-    stmtLet "newOwner" (calldataAddress 4),
-    sstoreSlot 0 (ident "newOwner"),
-    stop
-  ]
-  let getOwnerBody := returnUint (sloadSlot 0)
-  { name := "Owned"
-    deploy := deployBody
-    functions := [
-      fn "transferOwnership" 0xf2fde38b [addrParam "newOwner"] IRType.unit transferBody,
-      fn "getOwner" 0x893d20e8 [] IRType.address getOwnerBody
-    ]
-    usesMapping := false }
-```
-
-**After** (declarative spec):
-```lean
-def ownedSpec : CompilationModel := {
-  name := "Owned"
-  fields := [
-    { name := "owner", ty := FieldType.address }
-  ]
-  constructor := some {
-    params := [{ name := "initialOwner", ty := ParamType.address }]
-    body := [
-      Stmt.setStorage "owner" (Expr.constructorArg 0)
-    ]
-  }
-  functions := [
-    { name := "transferOwnership"
-      params := [{ name := "newOwner", ty := ParamType.address }]
-      returnType := none
-      body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
-        Stmt.setStorage "owner" (Expr.param "newOwner"),
-        Stmt.stop
-      ]
-    },
-    { name := "getOwner"
-      params := []
-      returnType := some FieldType.address
-      body := [
-        Stmt.return (Expr.storage "owner")
-      ]
-    }
-  ]
-}
-```
-
-**Improvements**:
-- 33% shorter
-- Type-safe expressions
-- No manual Yul construction
-- Automatic slot/selector management
 
 ## Links
 
