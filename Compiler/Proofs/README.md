@@ -44,56 +44,33 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   `Compiler/Proofs/ArithmeticProfile.lean`: focused proof support for storage
   layout invariants and arithmetic/backend alignment.
 
-The current compiler path consumes `CompilationModel` values directly. There is
-no separate verified EDSL-lowering boundary module in the active pipeline.
-This branch now includes the generic compiler-level theorem
-`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at
-successful `CompilationModel.compile` for an explicit supported whole-contract
-fragment. The theorem shape is in place, but there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract. It is not fully closed yet because it still depends on 1 documented axiom in
-`Compiler.Proofs.IRGeneration.Function`, with the remaining trust boundary now
-narrowed to generic body simulation.
+The compiler path consumes `CompilationModel` values directly — there is no
+separate EDSL-lowering boundary module in the active pipeline.
 
-Tracking:
-- issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- current blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
-- plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
+## Layer 2 Status
 
-## Current Layer 2 Boundary
+The generic whole-contract theorem
+`Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics` is proved
+for arbitrary supported `CompilationModel`s, covering dispatch, parameter
+loading, and initial-state normalization. The proof chain is complete (zero
+sorry) but transitively depends on 1 documented axiom for non-core body
+simulation (`supported_function_body_correct_from_exact_state` in
+`Compiler/Proofs/IRGeneration/Function.lean`; see [AXIOMS.md](../../AXIOMS.md)).
 
-What exists today:
-- A structural theorem for raw statement lists admitted by the explicit
-  `SupportedStmtList` witness:
-  `Compiler.compile_supported_stmt_list_direct_semantics`
-- Contract-specific bridge theorems in
-  `Contracts/Proofs/SemanticBridge.lean` that instantiate the current
-  compiler/interpreter machinery for specific contracts
-- Generic Layer 3 preservation from IR to Yul
+**What is generic today:**
+- Whole-contract theorem shape, dispatch, parameter loading
+- Supported statement-list compilation (`SupportedFragment.lean`)
+- Initial-state normalization (`withTransactionContext` ↔ `initialIRStateForTx`)
 
-What does not exist yet:
-- A fully closed proof of the compiler-level theorem quantified over an
-  arbitrary supported `CompilationModel` and successful
-  `CompilationModel.compile`, with no remaining axioms
-- A generic dispatch/function-body/whole-contract Layer 2 preservation proof
-  with no remaining function-body axiom
+**What still needs per-contract work:**
+- End-to-end examples still use manual bridge theorems in
+  `Contracts/Proofs/SemanticBridge.lean`
+- Internal helper calls work operationally but compositional proof reuse across
+  callers is not yet a first-class interface ([#1335](https://github.com/Th0rgal/verity/issues/1335))
 
-Current supported-fragment scope for the generic theorem:
-- Included: statement lists that can be witnessed by `SupportedStmtList`
-- Outside the current generic theorem: full contract dispatch, constructor
-  lowering, mappings as contract-wide compilation targets, events/logs,
-  external or linked functionality, and other features that still require
-  contract-specific bridge work
-
-Negative boundary example:
-- A contract whose proof depends on entrypoint selection plus linked external
-  assumptions is outside `SupportedStmtList` and still needs a contract-level
-  bridge theorem today. `Contracts/Proofs/SemanticBridge.lean` remains the
-  place where those full-contract bridges are instantiated.
-
-Internal helper calls are part of the supported `CompilationModel` execution
-surface, but the proof library does not yet provide a first-class
-helper-spec/helper-theorem reuse boundary across callers. Existing bridge
-theorems remain contract-specific; the compositional internal-call proof gap is
-tracked in [#1335](https://github.com/Th0rgal/verity/issues/1335).
+Tracking: [#1510](https://github.com/Th0rgal/verity/issues/1510) ·
+[#1564](https://github.com/Th0rgal/verity/issues/1564) ·
+[GENERIC_LAYER2_PLAN.md](../../docs/GENERIC_LAYER2_PLAN.md)
 
 ## Build
 
@@ -109,9 +86,8 @@ listed in `AXIOMS.md`.
 
 ### Core Semantics ([Verity/Core.lean](../../Verity/Core.lean), [Semantics.lean](../../Verity/Core/Semantics.lean))
 
-The old `SpecInterpreter` module has been removed. EDSL execution now lives in
-the `Contract` monad and `ContractState` defined in `Verity/Core.lean`, with
-environment wrappers in `Verity/Core/Semantics.lean`.
+EDSL execution lives in the `Contract` monad and `ContractState` defined in
+`Verity/Core.lean`, with environment wrappers in `Verity/Core/Semantics.lean`.
 
 **Key Types**: `Contract`, `ContractState`, `ContractResult`, `Env`, `World`.
 
