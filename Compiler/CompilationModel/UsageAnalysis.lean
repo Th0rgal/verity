@@ -71,6 +71,8 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.returndataOptionalBoolAt outOffset => exprUsesArrayElement outOffset
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesArrayElement args
+  | Expr.storageArrayElement _ index =>
+      exprUsesArrayElement index
   | Expr.dynamicBytesEq _ _ =>
       false
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
@@ -168,6 +170,130 @@ def contractUsesArrayElement (spec : CompilationModel) : Bool :=
   constructorUsesArrayElement spec.constructor || spec.functions.any functionUsesArrayElement
 
 mutual
+def exprUsesStorageArrayElement : Expr → Bool
+  | Expr.storageArrayElement _ _ => true
+  | Expr.mapping _ key => exprUsesStorageArrayElement key
+  | Expr.mappingWord _ key _ => exprUsesStorageArrayElement key
+  | Expr.mappingPackedWord _ key _ _ => exprUsesStorageArrayElement key
+  | Expr.mappingChain _ keys => exprListUsesStorageArrayElement keys
+  | Expr.structMember _ key _ => exprUsesStorageArrayElement key
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ => exprUsesStorageArrayElement key1 || exprUsesStorageArrayElement key2
+  | Expr.mappingUint _ key => exprUsesStorageArrayElement key
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprUsesStorageArrayElement gas || exprUsesStorageArrayElement target || exprUsesStorageArrayElement value ||
+      exprUsesStorageArrayElement inOffset || exprUsesStorageArrayElement inSize ||
+      exprUsesStorageArrayElement outOffset || exprUsesStorageArrayElement outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize =>
+      exprUsesStorageArrayElement gas || exprUsesStorageArrayElement target ||
+      exprUsesStorageArrayElement inOffset || exprUsesStorageArrayElement inSize ||
+      exprUsesStorageArrayElement outOffset || exprUsesStorageArrayElement outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprUsesStorageArrayElement gas || exprUsesStorageArrayElement target ||
+      exprUsesStorageArrayElement inOffset || exprUsesStorageArrayElement inSize ||
+      exprUsesStorageArrayElement outOffset || exprUsesStorageArrayElement outSize
+  | Expr.extcodesize addr => exprUsesStorageArrayElement addr
+  | Expr.mload offset => exprUsesStorageArrayElement offset
+  | Expr.tload offset => exprUsesStorageArrayElement offset
+  | Expr.calldataload offset => exprUsesStorageArrayElement offset
+  | Expr.keccak256 offset size => exprUsesStorageArrayElement offset || exprUsesStorageArrayElement size
+  | Expr.returndataOptionalBoolAt outOffset => exprUsesStorageArrayElement outOffset
+  | Expr.externalCall _ args | Expr.internalCall _ args =>
+      exprListUsesStorageArrayElement args
+  | Expr.dynamicBytesEq _ _ =>
+      false
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b |
+    Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b |
+    Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
+    Expr.logicalAnd a b | Expr.logicalOr a b |
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b =>
+      exprUsesStorageArrayElement a || exprUsesStorageArrayElement b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprUsesStorageArrayElement a || exprUsesStorageArrayElement b || exprUsesStorageArrayElement c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprUsesStorageArrayElement a
+  | Expr.ite cond thenVal elseVal =>
+      exprUsesStorageArrayElement cond || exprUsesStorageArrayElement thenVal || exprUsesStorageArrayElement elseVal
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
+  | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.arrayElement _ _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListUsesStorageArrayElement : List Expr → Bool
+  | [] => false
+  | e :: es => exprUsesStorageArrayElement e || exprListUsesStorageArrayElement es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtUsesStorageArrayElement : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+    Stmt.storageArrayPush _ value |
+    Stmt.return value | Stmt.require value _ =>
+      exprUsesStorageArrayElement value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprUsesStorageArrayElement index || exprUsesStorageArrayElement value
+  | Stmt.storageArrayPop _ =>
+      false
+  | Stmt.requireError cond _ args =>
+      exprUsesStorageArrayElement cond || exprListUsesStorageArrayElement args
+  | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
+      exprListUsesStorageArrayElement args
+  | Stmt.mstore offset value =>
+      exprUsesStorageArrayElement offset || exprUsesStorageArrayElement value
+  | Stmt.tstore offset value =>
+      exprUsesStorageArrayElement offset || exprUsesStorageArrayElement value
+  | Stmt.calldatacopy destOffset sourceOffset size =>
+      exprUsesStorageArrayElement destOffset || exprUsesStorageArrayElement sourceOffset || exprUsesStorageArrayElement size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprUsesStorageArrayElement destOffset || exprUsesStorageArrayElement sourceOffset || exprUsesStorageArrayElement size
+  | Stmt.setMapping _ key value | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value | Stmt.setMappingUint _ key value
+  | Stmt.setStructMember _ key _ value =>
+      exprUsesStorageArrayElement key || exprUsesStorageArrayElement value
+  | Stmt.setMappingChain _ keys value =>
+      exprListUsesStorageArrayElement keys || exprUsesStorageArrayElement value
+  | Stmt.setMapping2 _ key1 key2 value | Stmt.setMapping2Word _ key1 key2 _ value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprUsesStorageArrayElement key1 || exprUsesStorageArrayElement key2 || exprUsesStorageArrayElement value
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprUsesStorageArrayElement cond || stmtListUsesStorageArrayElement thenBranch || stmtListUsesStorageArrayElement elseBranch
+  | Stmt.forEach _ count body =>
+      exprUsesStorageArrayElement count || stmtListUsesStorageArrayElement body
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args | Stmt.externalCallBind _ _ args =>
+      exprListUsesStorageArrayElement args
+  | Stmt.rawLog topics dataOffset dataSize =>
+      exprListUsesStorageArrayElement topics || exprUsesStorageArrayElement dataOffset || exprUsesStorageArrayElement dataSize
+  | Stmt.ecm _ args =>
+      exprListUsesStorageArrayElement args
+  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.revertReturndata | Stmt.stop =>
+      false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListUsesStorageArrayElement : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtUsesStorageArrayElement s || stmtListUsesStorageArrayElement ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+def functionUsesStorageArrayElement (fn : FunctionSpec) : Bool :=
+  fn.body.any stmtUsesStorageArrayElement
+
+def constructorUsesStorageArrayElement : Option ConstructorSpec → Bool
+  | none => false
+  | some ctor => ctor.body.any stmtUsesStorageArrayElement
+
+def contractUsesStorageArrayElement (spec : CompilationModel) : Bool :=
+  constructorUsesStorageArrayElement spec.constructor || spec.functions.any functionUsesStorageArrayElement
+
+mutual
 def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.dynamicBytesEq _ _ => true
   | Expr.mapping _ key => exprUsesDynamicBytesEq key
@@ -198,7 +324,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.returndataOptionalBoolAt outOffset => exprUsesDynamicBytesEq outOffset
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesDynamicBytesEq args
-  | Expr.arrayElement _ index => exprUsesDynamicBytesEq index
+  | Expr.storageArrayElement _ index | Expr.arrayElement _ index => exprUsesDynamicBytesEq index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b

@@ -20,6 +20,9 @@ def checkedArrayElementCalldataHelperName : String :=
 def checkedArrayElementMemoryHelperName : String :=
   "__verity_array_element_memory_checked"
 
+def checkedStorageArrayElementHelperName : String :=
+  "__verity_storage_array_element_checked"
+
 def dynamicBytesEqCalldataHelperName : String :=
   "__verity_dynamic_bytes_eq_calldata"
 
@@ -46,6 +49,21 @@ def checkedArrayElementCalldataHelper : YulStmt :=
 
 def checkedArrayElementMemoryHelper : YulStmt :=
   checkedArrayElementHelper checkedArrayElementMemoryHelperName "mload"
+
+def checkedStorageArrayElementHelper : YulStmt :=
+  YulStmt.funcDef checkedStorageArrayElementHelperName ["slot", "index"] ["word"] [
+    YulStmt.let_ "__array_len" (YulExpr.call "sload" [YulExpr.ident "slot"]),
+    YulStmt.if_ (YulExpr.call "iszero" [
+      YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "__array_len"]
+    ]) [
+      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+    ],
+    YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "slot"]),
+    YulStmt.let_ "__array_base" (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 32]),
+    YulStmt.assign "word" (YulExpr.call "sload" [
+      YulExpr.call "add" [YulExpr.ident "__array_base", YulExpr.ident "index"]
+    ])
+  ]
 
 private def dynamicBytesEqHelper (helperName loadOp : String) : YulStmt :=
   YulStmt.funcDef helperName

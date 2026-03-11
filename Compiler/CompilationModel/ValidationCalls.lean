@@ -12,11 +12,16 @@ import Compiler.CompilationModel.UsageAnalysis
 namespace Compiler.CompilationModel
 
 def reservedExternalNames
-    (mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : List String :=
+    (mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : List String :=
   let mappingHelpers := if mappingHelpersRequired then ["mappingSlot"] else []
   let arrayHelpers :=
     if arrayHelpersRequired then
       [checkedArrayElementCalldataHelperName, checkedArrayElementMemoryHelperName]
+    else
+      []
+  let storageArrayHelpers :=
+    if storageArrayHelpersRequired then
+      [checkedStorageArrayElementHelperName]
     else
       []
   let dynamicBytesEqHelpers :=
@@ -25,14 +30,14 @@ def reservedExternalNames
     else
       []
   let entrypoints := ["fallback", "receive"]
-  (mappingHelpers ++ arrayHelpers ++ dynamicBytesEqHelpers ++ entrypoints).eraseDups
+  (mappingHelpers ++ arrayHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ entrypoints).eraseDups
 
 def firstReservedExternalCollision
     (spec : CompilationModel)
-    (mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : Option String :=
+    (mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : Option String :=
   (spec.externals.map (·.name)).find? (fun name =>
     name.startsWith internalFunctionPrefix ||
-      (reservedExternalNames mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired).contains name)
+      (reservedExternalNames mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired).contains name)
 
 def firstInternalDynamicParam
     (fns : List FunctionSpec) : Option (String × String × ParamType) :=
@@ -117,6 +122,7 @@ def validateInternalCallShapesInExpr
       validateInternalCallShapesInExpr functions callerName key2
   | Expr.mappingUint _ key =>
       validateInternalCallShapesInExpr functions callerName key
+  | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index =>
       validateInternalCallShapesInExpr functions callerName index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
@@ -328,6 +334,7 @@ def validateExternalCallTargetsInExpr
       validateExternalCallTargetsInExpr externals context key
   | Expr.internalCall _ args =>
       validateExternalCallTargetsInExprList externals context args
+  | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index =>
       validateExternalCallTargetsInExpr externals context index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |

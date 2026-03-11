@@ -18,6 +18,7 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
   | Expr.structMember2 _ key1 key2 _ =>
       exprContainsCallLike key1 || exprContainsCallLike key2
+  | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index =>
       exprContainsCallLike index
   | Expr.dynamicBytesEq _ _ =>
@@ -103,7 +104,7 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
   | Expr.structMember2 _ key1 key2 _ =>
       exprContainsUnsafeLogicalCallLike key1 || exprContainsUnsafeLogicalCallLike key2
-  | Expr.arrayElement _ index | Expr.returndataOptionalBoolAt index =>
+  | Expr.storageArrayElement _ index | Expr.arrayElement _ index | Expr.returndataOptionalBoolAt index =>
       exprContainsUnsafeLogicalCallLike index
   | Expr.dynamicBytesEq _ _ =>
       false

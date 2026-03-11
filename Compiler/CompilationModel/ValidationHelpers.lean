@@ -79,6 +79,7 @@ def collectExprNames : Expr → List String
   | Expr.arrayLength name => [name]
   | Expr.arrayElement name index => name :: collectExprNames index
   | Expr.storageArrayLength field => [field]
+  | Expr.storageArrayElement field index => field :: collectExprNames index
   | Expr.dynamicBytesEq lhsName rhsName => [lhsName, rhsName]
   | Expr.add a b => collectExprNames a ++ collectExprNames b
   | Expr.sub a b => collectExprNames a ++ collectExprNames b

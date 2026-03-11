@@ -310,6 +310,7 @@ inductive Expr
   | arrayLength (name : String)  -- Length of a dynamic array parameter (#180)
   | arrayElement (name : String) (index : Expr)  -- Checked element access of a dynamic array parameter (revert on out-of-range) (#180)
   | storageArrayLength (field : String)  -- Read the length word of a storage dynamic array (#1571)
+  | storageArrayElement (field : String) (index : Expr)  -- Checked element access of a storage dynamic array (#1571)
   /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.
       The names refer to the dynamic parameter base names (`foo`, not `foo_offset`). -/
   | dynamicBytesEq (lhsName rhsName : String)

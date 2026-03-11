@@ -211,6 +211,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.externalCall _ _ | Expr.internalCall _ _ => true
   | Expr.arrayLength _ => false
   | Expr.storageArrayLength _ => true
+  | Expr.storageArrayElement _ index => true || exprReadsStateOrEnv index
   | Expr.arrayElement _ index => exprReadsStateOrEnv index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
@@ -272,6 +273,8 @@ def exprWritesState : Expr → Bool
       exprWritesState addr
   | Expr.storageArrayLength _ =>
       false
+  | Expr.storageArrayElement _ index =>
+      exprWritesState index
   | Expr.arrayElement _ index =>
       exprWritesState index
   | _ =>

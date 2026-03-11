@@ -50,7 +50,8 @@ def exprTouchesUnsupportedContractSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
+  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
+  | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
   | .shr _ _ | .sdiv _ _ | .smod _ _ | .sar _ _ | .signextend _ _ | .sgt _ _ | .slt _ _ => true
 
 mutual

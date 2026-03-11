@@ -1868,6 +1868,11 @@ private def storageArrayUint256SmokeSpec : CompilationModel := {
       returnType := some FieldType.uint256
       body := [Stmt.return (Expr.storageArrayLength "queue")]
     },
+    { name := "head"
+      params := []
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.storageArrayElement "queue" (Expr.literal 0))]
+    },
     { name := "enqueue"
       params := [{ name := "value", ty := ParamType.uint256 }]
       returnType := none
@@ -2515,6 +2520,9 @@ set_option maxRecDepth 4096 in
     expectCompileToYul "storage uint256[] smoke spec" storageArrayUint256SmokeSpec
   expectTrue "storage uint256[] length lowers to sload(slot)"
     (contains storageArrayUint256Yul "sload(7)")
+  expectTrue "storage uint256[] indexed reads use the checked storage-array helper"
+    ((contains storageArrayUint256Yul checkedStorageArrayElementHelperName) &&
+      (contains storageArrayUint256Yul "function __verity_storage_array_element_checked(slot, index)"))
   expectTrue "storage uint256[] push computes the Solidity base slot and bumps length"
     ((contains storageArrayUint256Yul "mstore(0, 7)") &&
       (contains storageArrayUint256Yul "keccak256(0, 32)") &&

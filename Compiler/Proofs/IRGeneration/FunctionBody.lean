@@ -38,6 +38,8 @@ def exprBoundNames : Expr → List String
   | .externalCall _ args | .internalCall _ args => exprListBoundNames args
   | .arrayElement name index => name :: exprBoundNames index
   | .arrayLength name => [name]
+  | .storageArrayLength name => [name]
+  | .storageArrayElement name index => name :: exprBoundNames index
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
   | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b

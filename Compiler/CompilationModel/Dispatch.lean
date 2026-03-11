@@ -216,9 +216,10 @@ def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Exc
       pure ()
   let mappingHelpersRequired := usesMapping fields
   let arrayHelpersRequired := contractUsesArrayElement spec
+  let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   match firstReservedExternalCollision
-      spec mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired with
+      spec mappingHelpersRequired arrayHelpersRequired storageArrayHelpersRequired dynamicBytesEqHelpersRequired with
   | some name =>
       if name.startsWith internalFunctionPrefix then
         throw s!"Compilation error: external declaration '{name}' uses reserved prefix '{internalFunctionPrefix}' ({issue756Ref})."
@@ -243,6 +244,7 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let internalFns := spec.functions.filter (·.isInternal)
   let mappingHelpersRequired := usesMapping fields
   let arrayHelpersRequired := contractUsesArrayElement spec
+  let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
   let receiveSpec ← pickUniqueFunctionByName "receive" spec.functions
@@ -252,6 +254,11 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let arrayElementHelpers :=
     if arrayHelpersRequired then
       [checkedArrayElementCalldataHelper, checkedArrayElementMemoryHelper]
+    else
+      []
+  let storageArrayElementHelpers :=
+    if storageArrayHelpersRequired then
+      [checkedStorageArrayElementHelper]
     else
       []
   let dynamicBytesEqHelpers :=
@@ -269,7 +276,7 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
     fallbackEntrypoint := fallbackEntrypoint
     receiveEntrypoint := receiveEntrypoint
     usesMapping := mappingHelpersRequired
-    internalFunctions := arrayElementHelpers ++ dynamicBytesEqHelpers ++ internalFuncDefs
+    internalFunctions := arrayElementHelpers ++ storageArrayElementHelpers ++ dynamicBytesEqHelpers ++ internalFuncDefs
   }
 
 def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRContract := do

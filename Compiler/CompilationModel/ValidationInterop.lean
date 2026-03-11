@@ -81,6 +81,8 @@ def validateInteropExpr (context : String) : Expr → Except String Unit
   | Expr.mappingUint _ key => validateInteropExpr context key
   | Expr.internalCall _ args =>
       validateInteropExprList context args
+  | Expr.storageArrayElement _ index =>
+      validateInteropExpr context index
   | Expr.arrayElement _ index =>
       validateInteropExpr context index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |

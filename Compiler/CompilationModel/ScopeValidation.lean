@@ -111,6 +111,8 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayLength"
   | Expr.storageArrayLength _ =>
       pure ()
+  | Expr.storageArrayElement _ index => do
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
   | Expr.arrayElement name index => do
       match findParamType params name with
       | some ty@(ParamType.array elemTy) =>

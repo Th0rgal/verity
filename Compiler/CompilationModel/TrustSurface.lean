@@ -57,6 +57,7 @@ private partial def collectLowLevelExprMechanics : Expr → List String
   | .structMember2 _ key1 key2 _ =>
       collectLowLevelExprMechanics key1 ++ collectLowLevelExprMechanics key2
   | .mappingUint _ key
+  | .storageArrayElement _ key
   | .arrayElement _ key =>
       collectLowLevelExprMechanics key
   | .mload key =>
@@ -119,6 +120,7 @@ private partial def collectAxiomatizedExprPrimitives : Expr → List String
   | .structMember2 _ key1 key2 _ =>
       collectAxiomatizedExprPrimitives key1 ++ collectAxiomatizedExprPrimitives key2
   | .mappingUint _ key
+  | .storageArrayElement _ key
   | .arrayElement _ key =>
       collectAxiomatizedExprPrimitives key
   | .externalCall _ args
