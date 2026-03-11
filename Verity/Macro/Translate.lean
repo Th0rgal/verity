@@ -942,6 +942,18 @@ private def requireBoolType (stx : Syntax) (context : String) (ty : ValueType) :
   unless ty == .bool do
     throwErrorAt stx s!"{context} requires Bool, got {renderValueType ty}"
 
+private def requireSupportedReturnArrayType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  match ty with
+  | .array elemTy =>
+      unless isWordLikeValueType elemTy do
+        throwErrorAt stx
+          s!"{context} currently supports only arrays with single-word static elements on the compilation-model path, got {renderValueType ty}"
+  | _ =>
+      throwErrorAt stx s!"{context} requires an Array value, got {renderValueType ty}"
+
 private def requireEqComparableTypes (stx : Syntax) (lhsTy rhsTy : ValueType) : CommandElabM Unit := do
   let bothWordLike := isWordLikeValueType lhsTy && isWordLikeValueType rhsTy
   let bothBool := lhsTy == .bool && rhsTy == .bool
@@ -2355,7 +2367,10 @@ private partial def validateEffectStmtExprTypes
       validateWordLikeExprListLiteral fields constDecls immutableDecls externalDecls params locals
         args "ECM argument"
       pure ()
-  | `(term| returnArray $_name:term) | `(term| returnBytes $_name:term) =>
+  | `(term| returnArray $name:term) => do
+      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
+      requireSupportedReturnArrayType name "returnArray" ty
+  | `(term| returnBytes $_name:term) =>
       pure ()
   | `(term| internalCall $_fnName:term $args:term)
     | `(term| internalCallAssign $_names:term $_fnName:term $args:term)

@@ -192,6 +192,28 @@ verity_contract BytesLocalAliasUnsupported where
     let alias := lhs
     return (alias == rhs)
 
+/--
+error: returnArray currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.string)
+-/
+#guard_msgs in
+verity_contract StringArrayReturnUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function echo (messages : Array String) : Array String := do
+    returnArray messages
+
+/--
+error: returnArray currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.bytes)
+-/
+#guard_msgs in
+verity_contract BytesArrayReturnUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function echo (calls : Array Bytes) : Array Bytes := do
+    returnArray calls
+
 #check_contract StringSmoke
 #check_contract StringEqSmoke
 #check_contract BytesEqSmoke
