@@ -131,12 +131,17 @@ interface is now already discharged in `IRInterpreter.lean` via
 `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`,
 `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper
 theorem `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`. The
-next compiled-side substep is therefore more precise than before: fill the
-remaining stmt / stmt-list / function slice for
-`runtimeContractOfFunctions`-style contracts over the subset, then generalize
-or retarget the broader theorem stack from legacy `interpretIR` to the richer
-helper-aware IR target. The helper-aware compiled target remains available as
-total fuel-indexed helper-aware IR semantics throughout that retargeting work.
+next compiled-side substep is therefore more precise than before:
+`IRInterpreter.lean` now also factors the shared transaction setup through
+`applyIRTransactionContext` and encodes the selected-function cut as
+`InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal` over
+`LegacyCompatibleRuntimeDispatch`. That leaves the remaining proof work as the
+stmt / stmt-list / function slice for `runtimeContractOfFunctions`-style
+contracts over the subset, followed by lifting that dispatch-local result into
+the contract-level conservative extension and retargeting the broader theorem
+stack from legacy `interpretIR` to the richer helper-aware IR target. The
+helper-aware compiled target remains available as total fuel-indexed
+helper-aware IR semantics throughout that retargeting work.
 The compiled-side blocker is tracked in
 [#1638](https://github.com/Th0rgal/verity/issues/1638).
 

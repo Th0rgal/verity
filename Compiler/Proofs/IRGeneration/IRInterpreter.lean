@@ -863,7 +863,6 @@ noncomputable def execIRFunctionWithInternals
 
 /-- Interpret an entire IR contract execution -/
 noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (initialState : IRState) : IRResult :=
-  -- Execution sender and selector come from the transaction (matches SpecInterpreter)
   let initialState := {
     initialState with
     sender := tx.sender
@@ -1077,6 +1076,62 @@ theorem interpretIRWithInternalsZeroConservativeExtensionExprInterfaces
           | none => .revert state) := by
   exact ⟨evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract,
     evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract⟩
+
+/-- Shared transaction-context initialization used by both legacy and helper-aware
+top-level IR interpreters. Making this explicit removes boilerplate from the
+remaining conservative-extension proof target. -/
+def applyIRTransactionContext (tx : IRTransaction) (initialState : IRState) : IRState :=
+  { initialState with
+    sender := tx.sender
+    msgValue := tx.msgValue
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    calldata := tx.args
+    selector := tx.functionSelector }
+
+/-- Dispatch-local restatement of the helper-free runtime-contract boundary.
+This is equivalent to `LegacyCompatibleRuntimeContract`, but packages the
+remaining compiled-side retarget goal around the actually selected external
+function instead of quantifying over the whole function list at each proof step. -/
+def LegacyCompatibleRuntimeDispatch (contract : IRContract) : Prop :=
+  contract.internalFunctions = [] ∧
+    ∀ (tx : IRTransaction) (fn : IRFunction),
+      contract.functions.find? (·.selector == tx.functionSelector) = some fn →
+        LegacyCompatibleExternalStmtList fn.body
+
+/-- The first compiled-side retarget theorem can be decomposed into a dispatch-local
+function step plus the already-shared transaction-context setup. This isolates the
+remaining proof obligation to the selected external function. -/
+def InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal
+    (contract : IRContract) : Prop :=
+  LegacyCompatibleRuntimeDispatch contract →
+    ∀ (tx : IRTransaction) initialState (fn : IRFunction),
+      contract.functions.find? (·.selector == tx.functionSelector) = some fn →
+      execIRFunctionWithInternals contract 0 fn tx.args (applyIRTransactionContext tx initialState) =
+        execIRFunction fn tx.args (applyIRTransactionContext tx initialState)
+
+theorem legacyCompatibleRuntimeDispatch_of_legacyCompatibleRuntimeContract
+    (contract : IRContract) :
+    LegacyCompatibleRuntimeContract contract →
+      LegacyCompatibleRuntimeDispatch contract := by
+  intro hlegacy
+  rcases hlegacy with ⟨hinternal, hfunctions⟩
+  refine ⟨hinternal, ?_⟩
+  intro tx fn hfind
+  exact hfunctions fn (List.mem_of_find?_eq_some hfind)
+
+@[simp] theorem applyIRTransactionContext_sender
+    (tx : IRTransaction) (initialState : IRState) :
+    (applyIRTransactionContext tx initialState).sender = tx.sender := by
+  simp [applyIRTransactionContext]
+
+@[simp] theorem applyIRTransactionContext_calldata
+    (tx : IRTransaction) (initialState : IRState) :
+    (applyIRTransactionContext tx initialState).calldata = tx.args := by
+  simp [applyIRTransactionContext]
 
 private def shortCalldataRegressionContract : IRContract :=
   { name := "ShortCalldataRegression"

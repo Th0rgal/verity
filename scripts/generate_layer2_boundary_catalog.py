@@ -151,10 +151,18 @@ def build_catalog() -> dict:
                 "compiled_side_blocker_issue": 1638,
                 "compiled_target_compatibility_subset": {
                     "name": "legacy_compatible_external_body_yul_subset",
-                    "status": "expr_layer_compatibility_proved_stmt_function_remaining",
+                    "status": "expr_layer_compatibility_proved_dispatch_local_goal_encoded",
                     "source": (
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "LegacyCompatibleExternalStmtList"
+                    ),
+                    "dispatch_local_surface": (
+                        "Compiler.Proofs.IRGeneration.IRInterpreter."
+                        "LegacyCompatibleRuntimeDispatch"
+                    ),
+                    "dispatch_goal_surface": (
+                        "Compiler.Proofs.IRGeneration.IRInterpreter."
+                        "InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal"
                     ),
                     "goal_surface": (
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
@@ -166,11 +174,15 @@ def build_catalog() -> dict:
                     ),
                     "required_goal": (
                         "finish the now-explicit zero-helper-fuel conservative-"
-                        "extension goal for helper-free runtime contracts with "
+                        "extension path for helper-free runtime contracts with "
                         "legacy-compatible external bodies: expr and expr-list "
-                        "compatibility are proved, while stmt / stmt-list / "
-                        "function compatibility still need to be filled and "
-                        "composed into the top-level goal"
+                        "compatibility are proved, the shared transaction-"
+                        "context step is factored through applyIRTransactionContext, "
+                        "and the remaining compiled-side cut is now encoded as "
+                        "the dispatch-local selected-function goal "
+                        "InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal "
+                        "over LegacyCompatibleRuntimeDispatch before lifting back "
+                        "to the top-level contract goal"
                     ),
                 },
                 "compiled_target_proof_surface": {
@@ -193,16 +205,18 @@ def build_catalog() -> dict:
                     "SupportedBodyCallInterface.helperCompatibility"
                 ),
                 "next_required_proof_step": (
-                    "next fill the remaining "
-                    "InterpretIRWithInternalsZeroConservativeExtensionInterfaces "
-                    "(stmt, stmt-list, and function compatibility; the expr and "
-                    "expr-list obligations are already discharged in "
-                    "IRInterpreter.lean) and compose them into the explicit "
+                    "next prove the selected-function dispatch-local step "
+                    "captured by "
+                    "InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal "
+                    "for helper-free runtime contracts already built by "
+                    "Dispatch.runtimeContractOfFunctions, using the already-"
+                    "proved expr / expr-list compatibility plus the remaining "
+                    "stmt / stmt-list / function slice of "
+                    "InterpretIRWithInternalsZeroConservativeExtensionInterfaces, "
+                    "then lift that dispatch-local result into the explicit "
                     "InterpretIRWithInternalsZeroConservativeExtensionGoal on "
                     "the legacy-compatible external-body Yul subset generated "
-                    "by the current supported fragment for the helper-free "
-                    "runtime contracts already built by "
-                    "Dispatch.runtimeContractOfFunctions, "
+                    "by the current supported fragment, "
                     "then retarget body/dispatch/contract preservation lemmas "
                     "to the helper-aware IR execution target (execIRFunctionWithInternals / "
                     "interpretIRWithInternals), and finally consume "
