@@ -401,6 +401,58 @@ theorem validateScopedStmtListIdentifiers_append_ok_inv
           refine ⟨midScope, ?_, hsuffix⟩
           simpa [validateScopedStmtListIdentifiers, hnext] using hprefix
 
+theorem validateScopedStmtListIdentifiers_cons_ok_inv
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {stmt : Stmt}
+    {rest : List Stmt}
+    {finalScope : List String}
+    (hvalidate :
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        (stmt :: rest) = Except.ok finalScope) :
+    ∃ nextScope,
+      validateScopedStmtIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        stmt = Except.ok nextScope ∧
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams nextScope constructorArgCount
+        rest = Except.ok finalScope := by
+  simp [validateScopedStmtListIdentifiers] at hvalidate
+  cases hnext :
+      validateScopedStmtIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount stmt with
+  | error err =>
+      simp [hnext] at hvalidate
+      cases hvalidate
+  | ok nextScope =>
+      simp [hnext] at hvalidate
+      refine ⟨nextScope, ?_, hvalidate⟩
+      simp
+
+theorem validateScopedStmtListIdentifiers_singleton_ok_inv
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {stmt : Stmt}
+    {finalScope : List String}
+    (hvalidate :
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount
+        [stmt] = Except.ok finalScope) :
+    validateScopedStmtIdentifiers
+      context params paramScope dynamicParams localScope constructorArgCount
+      stmt = Except.ok finalScope := by
+  rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+    ⟨nextScope, hstmt, hnil⟩
+  have hEq : nextScope = finalScope := by
+    simp [validateScopedStmtListIdentifiers] at hnil
+    injection hnil with hEq
+  simpa [hEq] using hstmt
+
 theorem validateFunctionIdentifierReferences_prefix_ok
     {spec : FunctionSpec}
     {pre post : List Stmt}
