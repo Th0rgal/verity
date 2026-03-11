@@ -38,10 +38,10 @@ Current P1 foundation coverage (Issue #582):
 - Proof hooks + preservation theorems in `Compiler/Proofs/YulGeneration/PatchRulesProofs.lean`
 - Opt-in compiler path via `Compiler.emitYulWithOptions` (`YulEmitOptions.patchConfig`)
 - Report-capable compiler path via `Compiler.emitYulWithOptionsReport` to surface patch manifest/iteration metadata to CI and tooling
-- `verity-compiler` patch coverage emission (`--patch-report`) now writes per-contract/rule TSV output and CI uploads it as an artifact for Issue #583 tuning
-- Static gas delta gate for patch impact (`scripts/check_patch_gas_delta.py`) now compares baseline vs patch-enabled reports in CI with median/p90 non-regression and measurable-improvement requirements
-- CI now runs `check_yul.py` + `check_gas.py coverage` on `artifacts/yul-patched` as part of Issue #582 fail-closed hardening for patch-enabled output, including filename-set parity checks against baseline Yul output
-- CI now runs a dedicated Foundry patched-Yul smoke gate (`DIFFTEST_YUL_DIR=artifacts/yul-patched`) so differential/property harnesses execute against patch-enabled output
+- `verity-compiler` patch coverage emission (`--patch-report`) writes per-contract/rule TSV output; CI uploads it as an artifact for Issue #583 tuning
+- Static gas delta gate for patch impact (`scripts/check_patch_gas_delta.py`) compares baseline vs patch-enabled reports in CI with median/p90 non-regression and measurable-improvement requirements
+- CI runs `check_yul.py` + `check_gas.py coverage` on `artifacts/yul-patched` as part of Issue #582 fail-closed hardening for patch-enabled output, including filename-set parity checks against baseline Yul output
+- CI runs a dedicated Foundry patched-Yul smoke gate (`DIFFTEST_YUL_DIR=artifacts/yul-patched`) so differential/property harnesses execute against patch-enabled output
 
 Execution policy:
 1. Do not start patch-pack expansion in `#583` before `#582` proof hooks are merged.
@@ -68,41 +68,41 @@ Status legend:
 | 5 | Storage layout controls (packed fields + explicit slot mapping) | partial | partial | partial | partial | partial |
 | 6 | ABI JSON artifact generation | partial | partial | n/a | partial | partial |
 
-Recent progress for storage layout controls (`#623`):
-- `CompilationModel.Field` now supports optional explicit slot assignment (`slot := some <n>`), with backward-compatible positional slots when omitted.
-- Compiler now fails fast on conflicting effective slot assignments with an issue-linked diagnostic.
-- `CompilationModel.Field` now supports compatibility mirror-write slots (`aliasSlots := [...]`), so `setStorage`/`setMapping`/`setMapping2` write to canonical and alias slots in one declarative policy.
-- `CompilationModel` now supports slot remap policies (`slotAliasRanges := [{ sourceStart := a, sourceEnd := b, targetStart := c }, ...]`) so compatibility windows like `8..11 -> 20..23` can be declared once and applied automatically to canonical field writes.
-- `CompilationModel` now supports declarative reserved storage slot ranges (`reservedSlotRanges := [{ start := a, end_ := b }, ...]`) with compile-time overlap checks and fail-fast diagnostics when field canonical/alias write slots intersect reserved intervals.
-- `CompilationModel.Field` now supports packed subfield placement (`packedBits := some { offset := o, width := w }`) so multiple fields can share a slot with disjoint bit ranges; codegen performs masked read-modify-write updates and masked reads directly from layout metadata.
-- `FieldType.mappingStruct` / `FieldType.mappingStruct2` plus `Expr.structMember` / `Stmt.setStructMember` now make struct-valued mappings and packed submembers first-class in the CompilationModel surface, and `verity_contract` now exposes matching `MappingStruct(...)` / `MappingStruct2(...)` storage declarations so Morpho-style layouts no longer require handwritten CompilationModel shims.
+Storage layout controls ([#623](https://github.com/Th0rgal/verity/issues/623)):
+- `CompilationModel.Field` supports optional explicit slot assignment (`slot := some <n>`), with backward-compatible positional slots when omitted.
+- Compiler fails fast on conflicting effective slot assignments with an issue-linked diagnostic.
+- `CompilationModel.Field` supports compatibility mirror-write slots (`aliasSlots := [...]`), so `setStorage`/`setMapping`/`setMapping2` write to canonical and alias slots in one declarative policy.
+- `CompilationModel` supports slot remap policies (`slotAliasRanges := [{ sourceStart := a, sourceEnd := b, targetStart := c }, ...]`) so compatibility windows like `8..11 -> 20..23` can be declared once and applied automatically to canonical field writes.
+- `CompilationModel` supports declarative reserved storage slot ranges (`reservedSlotRanges := [{ start := a, end_ := b }, ...]`) with compile-time overlap checks and fail-fast diagnostics when field canonical/alias write slots intersect reserved intervals.
+- `CompilationModel.Field` supports packed subfield placement (`packedBits := some { offset := o, width := w }`) so multiple fields can share a slot with disjoint bit ranges; codegen performs masked read-modify-write updates and masked reads directly from layout metadata.
+- `FieldType.mappingStruct` / `FieldType.mappingStruct2` plus `Expr.structMember` / `Stmt.setStructMember` make struct-valued mappings and packed submembers first-class in the CompilationModel surface, and `verity_contract` exposes matching `MappingStruct(...)` / `MappingStruct2(...)` storage declarations so Morpho-style layouts do not require handwritten CompilationModel shims.
 
-Recent progress for low-level calls + returndata handling (`#622`):
-- `CompilationModel.Expr` now supports first-class low-level call primitives (`call`, `staticcall`, `delegatecall`) with explicit gas/value/target/input/output operands and deterministic Yul lowering.
-- `CompilationModel.Expr.returndataSize`, `Stmt.returndataCopy`, and `Stmt.revertReturndata` now provide first-class returndata access and revert-data forwarding without raw Yul builtin injection.
-- `CompilationModel.Expr.returndataOptionalBoolAt(outOffset)` now provides a first-class ERC20 compatibility helper for optional return-data bool decoding (`returndatasize()==0 || (returndatasize()==32 && mload(outOffset)==1)`), so low-level token call acceptance paths can be expressed without raw Yul builtins.
+Low-level calls + returndata handling ([#622](https://github.com/Th0rgal/verity/issues/622)):
+- `CompilationModel.Expr` supports first-class low-level call primitives (`call`, `staticcall`, `delegatecall`) with explicit gas/value/target/input/output operands and deterministic Yul lowering.
+- `CompilationModel.Expr.returndataSize`, `Stmt.returndataCopy`, and `Stmt.revertReturndata` provide first-class returndata access and revert-data forwarding without raw Yul builtin injection.
+- `CompilationModel.Expr.returndataOptionalBoolAt(outOffset)` provides a first-class ERC20 compatibility helper for optional return-data bool decoding (`returndatasize()==0 || (returndatasize()==32 && mload(outOffset)==1)`), so low-level token call acceptance paths can be expressed without raw Yul builtins.
 - `verity-compiler --trust-report <path>` emits a machine-readable per-contract trust surface covering: low-level mechanics usage, event emission, linked externals, ECM axioms, proof-status buckets (`proved`/`assumed`/`unchecked`), per-site `usageSites` and `localObligations`, and dedicated slices for unmodeled proof gaps (events, proxy/upgradeability, linear memory, runtime introspection). `--verbose` adds matching human-readable summaries.
 - Nine `--deny-*` flags let CI fail closed on specific proof-gap categories. See the flag table in [VERIFICATION_STATUS.md § Diagnostics policy](VERIFICATION_STATUS.md#diagnostics-policy-for-unsupported-constructs) for the full list.
 - Raw `Expr.externalCall` interop names for low-level/builtin opcodes remain fail-fast rejected, preserving explicit migration diagnostics while the first-class surface continues to expand.
-- ABI artifact emission now reflects explicit function mutability markers (`isView`, `isPure`) as `stateMutability: "view" | "pure"` in generated JSON.
+- ABI artifact emission reflects explicit function mutability markers (`isView`, `isPure`) as `stateMutability: "view" | "pure"` in generated JSON.
 
-Recent progress for custom errors (`#586`):
-- `Stmt.requireError` / `Stmt.revertError` now support ABI encoding for tuple/fixed-array/array/bytes payloads (including nested dynamic composites) when arguments are direct `Expr.param` references.
+Custom errors ([#586](https://github.com/Th0rgal/verity/issues/586)):
+- `Stmt.requireError` / `Stmt.revertError` support ABI encoding for tuple/fixed-array/array/bytes payloads (including nested dynamic composites) when arguments are direct `Expr.param` references.
 - Static scalar payload args remain expression-friendly (`uint256`, `address`, `bool`, `bytes32`), while composite/dynamic payload args fail fast with issue-linked diagnostics when not provided as direct parameter references.
 
-Recent progress for ABI JSON artifact generation (`#688`):
+ABI JSON artifact generation ([#688](https://github.com/Th0rgal/verity/issues/688)):
 - `verity-compiler --abi-output <dir>` emits one `<Contract>.abi.json` file per compiled CompilationModel in the supported compilation path.
 
-Recent progress for ABI-level string support (`#1159`):
-- `ParamType.string` now compiles through the existing dynamic-bytes ABI path for macro parsing/lowering, calldata loading, ABI JSON/signature rendering, `Stmt.returnBytes`, event emission, and custom errors.
-- Direct parameter `String` / `Bytes` equality and inequality now lower through the dedicated dynamic-bytes equality helper on both the macro and compilation-model paths.
-- This support is intentionally ABI-only for now: Solidity-style string storage/layout and typed-IR string lowering remain unsupported and should continue to fail fast with explicit diagnostics.
+ABI-level string support ([#1159](https://github.com/Th0rgal/verity/issues/1159)):
+- `ParamType.string` compiles through the existing dynamic-bytes ABI path for macro parsing/lowering, calldata loading, ABI JSON/signature rendering, `Stmt.returnBytes`, event emission, and custom errors.
+- Direct parameter `String` / `Bytes` equality and inequality lower through the dedicated dynamic-bytes equality helper on both the macro and compilation-model paths.
+- This support is intentionally ABI-only: Solidity-style string storage/layout and typed-IR string lowering remain unsupported and fail fast with explicit diagnostics.
 
-Recent progress for constants and immutables (`#1569`):
-- `verity_contract` now exposes `constants` and `immutables` sections in the macro surface, with smoke, invariant, round-trip, and generated Foundry property coverage.
+Constants and immutables ([#1569](https://github.com/Th0rgal/verity/issues/1569)):
+- `verity_contract` exposes `constants` and `immutables` sections in the macro surface, with smoke, invariant, round-trip, and generated Foundry property coverage.
 - Constants are validated as compile-time expressions, elaborated as Lean definitions, and can reference earlier constants while failing fast on runtime-dependent expressions and recursive definitions.
 - Immutables support `Uint256`, `Uint8`, `Address`, `Bytes32`, and `Bool` values bound from constructor-visible expressions, materialized as hidden storage-backed fields in the compilation model, and reintroduced as read-only bindings in function bodies.
-- Name-collision and type-mismatch diagnostics now fail fast for storage/constant/immutable/function conflicts and unsupported immutable payload types.
+- Name-collision and type-mismatch diagnostics fail fast for storage/constant/immutable/function conflicts and unsupported immutable payload types.
 
 Delivery policy for unsupported features:
 1. Compiler diagnostics must identify the exact unsupported construct.
