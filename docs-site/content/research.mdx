@@ -17,11 +17,11 @@ The project evolved in two phases:
 
 ## Progress and Roadmap
 
-See [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the live proof-status snapshot.
+See [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the live proof-status snapshot (12 contracts, 277 properties).
 
-- **Contract-specific specification proofs**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
-- **Layer 2 (CompilationModel → IR)**: Partial generic coverage. A supported-statement theorem exists; whole-contract preservation still relies on contract-specific bridges. The generic `CompilationModel.compile` theorem is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510).
-- **Layer 3 (IR → Yul)**: Complete — all 8 statement equivalence proofs + universal dispatcher proven.
+- **Layer 1** (EDSL → CompilationModel): **Proved per contract.** Generic typed-IR core; per-contract bridge theorems.
+- **Layer 2** (CompilationModel → IR): **Proved generically, 1 axiom.** See [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).
+- **Layer 3** (IR → Yul): **Proved generically.** All 8 statement equivalence proofs + universal dispatcher.
 
 ## Iterations
 
@@ -239,7 +239,6 @@ FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_
 - **Property extraction**: Reduce exclusions. Add property tests contract‑by‑contract. Keep coverage script green.
 - **Nested mapping proofs**: Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`).
 - **Selector proofs**: Prove selector hashes in Lean (not just CI fixture checks).
-- **Yul↔EVM bridge**: Add a minimal semantic bridge lemma or mechanized model.
 - **Documentation**: Keep roadmap updates in sync with each milestone.
 
 See [`docs/ROADMAP.md`](https://github.com/Th0rgal/verity/blob/main/docs/ROADMAP.md) for the full roadmap and timeline.
