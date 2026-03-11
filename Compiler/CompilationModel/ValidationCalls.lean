@@ -654,9 +654,8 @@ private theorem validateFunctionYulIdentifiers_params_ok_of_mem
     | error err =>
         simp [hparams] at hvalidate
         cases hvalidate
-    | ok unit =>
-        cases unit
-        simpa using hparams
+    | ok () =>
+        simp using hparams
   exact validateContractIdentifiers_ok_of_mem hparams hmem
 
 private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
@@ -672,9 +671,8 @@ private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
     | error err =>
         simp [hparams] at hvalidate
         cases hvalidate
-    | ok unit =>
-        cases unit
-        simpa using hparams
+    | ok () =>
+        simp using hparams
   have hlocals :
       validateContractIdentifiers "local binder" (collectStmtListBindNames fn.body) = Except.ok () := by
     unfold validateFunctionYulIdentifiers at hvalidate
@@ -682,9 +680,8 @@ private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
     | error err =>
         simp [hparams, hlocals] at hvalidate
         cases hvalidate
-    | ok unit =>
-        cases unit
-        simpa [hparams] using hlocals
+    | ok () =>
+        simp [hparams] using hlocals
   exact validateContractIdentifiers_ok_of_mem hlocals hmem
 
 private theorem validateFunctionYulIdentifiers_assignTargets_ok_of_mem
@@ -700,9 +697,8 @@ private theorem validateFunctionYulIdentifiers_assignTargets_ok_of_mem
     | error err =>
         simp [hparams] at hvalidate
         cases hvalidate
-    | ok unit =>
-        cases unit
-        simpa using hparams
+    | ok () =>
+        simp using hparams
   have hlocals :
       validateContractIdentifiers "local binder" (collectStmtListBindNames fn.body) = Except.ok () := by
     unfold validateFunctionYulIdentifiers at hvalidate
@@ -710,9 +706,8 @@ private theorem validateFunctionYulIdentifiers_assignTargets_ok_of_mem
     | error err =>
         simp [hparams, hlocals] at hvalidate
         cases hvalidate
-    | ok unit =>
-        cases unit
-        simpa [hparams] using hlocals
+    | ok () =>
+        simp [hparams] using hlocals
   have hassign :
       validateContractIdentifiers "assignment target" (collectStmtListAssignedNames fn.body) = Except.ok () := by
     unfold validateFunctionYulIdentifiers at hvalidate
@@ -810,9 +805,8 @@ theorem validateIdentifierShapes_field_avoidReservedCompilerPrefix
         | error err =>
             simp [hcontract, hreserved] at hvalidate
             cases hvalidate
-        | ok unit =>
-            cases unit
-            simpa using hreserved
+        | ok () =>
+            simp using hreserved
   have hfields :
       validateFieldIdentifiers spec.fields = Except.ok () := by
     unfold validateReservedCompilerIdentifiers at hreserved
@@ -820,9 +814,8 @@ theorem validateIdentifierShapes_field_avoidReservedCompilerPrefix
     | error err =>
         simp [hfields] at hreserved
         cases hreserved
-    | ok unit =>
-        cases unit
-        simpa using hfields
+    | ok () =>
+        simp using hfields
   exact validateFieldIdentifiers_ok_of_mem hfields hmem
 
 theorem validateIdentifierShapes_functionIdentifiers_ok
@@ -843,9 +836,8 @@ theorem validateIdentifierShapes_functionIdentifiers_ok
         | error err =>
             simp [hcontract, hreserved] at hvalidate
             cases hvalidate
-        | ok unit =>
-            cases unit
-            simpa using hreserved
+        | ok () =>
+            simp using hreserved
   have hfunctions :
       validateFunctionIdentifierList spec.functions = Except.ok () := by
     unfold validateReservedCompilerIdentifiers at hreserved
@@ -858,9 +850,8 @@ theorem validateIdentifierShapes_functionIdentifiers_ok
         | error err =>
             simp [hfields, hfunctions] at hreserved
             cases hreserved
-        | ok unit =>
-            cases unit
-            simpa using hfunctions
+        | ok () =>
+            simp using hfunctions
   exact validateFunctionIdentifierList_ok_of_mem hfunctions hmem
 
 theorem validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
