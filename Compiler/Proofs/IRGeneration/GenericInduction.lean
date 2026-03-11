@@ -291,4 +291,326 @@ theorem compiledStmtStep_stop
     · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using
         And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
 
+theorem stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
+    {fields : List Field}
+    {scope : List String}
+    {sourceResult : SourceSemantics.StmtResult}
+    {irExec : IRExecResult}
+    (hmatch : stmtStepMatchesIRExec fields scope sourceResult irExec) :
+    FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
+  cases sourceResult <;> cases irExec <;> simp [stmtStepMatchesIRExec] at hmatch <;>
+    simp [FunctionBody.stmtResultMatchesIRExec, hmatch]
+
+private theorem yulStmtList_sizeOf_append_left_le
+    (head tail : List YulStmt) :
+    sizeOf head ≤ sizeOf (head ++ tail) := by
+  induction head with
+  | nil =>
+      simp
+  | cons stmt rest ih =>
+      simp [List.cons_append]
+      omega
+
+private theorem scopeNamesIncluded_stmtNextScope
+    {scope inScopeNames : List String}
+    {stmt : Stmt}
+    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
+    FunctionBody.scopeNamesIncluded
+      (stmtNextScope scope stmt)
+      (collectStmtNames stmt ++ inScopeNames) := by
+  intro name hname
+  rcases List.mem_append.mp hname with hhead | htail
+  · exact List.mem_append.mpr <| Or.inl hhead
+  · exact List.mem_append.mpr <| Or.inr <| hincluded name htail
+
+private theorem execIRStmts_append_of_continue
+    (fuel : Nat)
+    (state next : IRState)
+    (head tail : List YulStmt)
+    (hhead : execIRStmts fuel state head = .continue next) :
+    execIRStmts fuel state (head ++ tail) =
+      execIRStmts (fuel - head.length) next tail := by
+  induction head generalizing fuel state with
+  | nil =>
+      simp at hhead
+      subst hhead
+      simp
+  | cons stmt rest ih =>
+      cases fuel with
+      | zero =>
+          simp [execIRStmts] at hhead
+      | succ fuel =>
+          simp [execIRStmts] at hhead ⊢
+          cases hstmt : execIRStmt fuel state stmt <;> simp [hstmt] at hhead
+          case continue next' =>
+            simpa using ih fuel next' hhead
+
+private theorem execIRStmts_append_of_not_continue
+    (fuel : Nat)
+    (state : IRState)
+    (head tail : List YulStmt)
+    (irExec : IRExecResult)
+    (hhead : execIRStmts fuel state head = irExec)
+    (hnot : ∀ next, irExec ≠ .continue next) :
+    execIRStmts fuel state (head ++ tail) = irExec := by
+  induction head generalizing fuel state with
+  | nil =>
+      simp at hhead
+      subst hhead
+      exact False.elim (hnot state rfl)
+  | cons stmt rest ih =>
+      cases fuel with
+      | zero =>
+          simp [execIRStmts] at hhead ⊢
+      | succ fuel =>
+          simp [execIRStmts] at hhead ⊢
+          cases hstmt : execIRStmt fuel state stmt <;> simp [hstmt] at hhead ⊢
+          case continue next' =>
+            exact ih fuel next' hhead hnot
+          case return value state' =>
+            cases hhead
+            simp [execIRStmts, hstmt]
+          case stop state' =>
+            cases hhead
+            simp [execIRStmts, hstmt]
+          case revert state' =>
+            cases hhead
+            simp [execIRStmts, hstmt]
+
+theorem exec_compileStmtList_generic_sizeOf_extraFuel
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (extraFuel : Nat)
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmtList fields runtime stmts
+      let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
+  induction hgeneric generalizing runtime state inScopeNames extraFuel with
+  | nil =>
+      refine ⟨[], by simp [CompilationModel.compileStmtList], ?_⟩
+      simp [SourceSemantics.execStmtList, FunctionBody.stmtResultMatchesIRExec, hruntime]
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      have hnextIncluded :
+          FunctionBody.scopeNamesIncluded
+            (stmtNextScope scope stmt)
+            (collectStmtNames stmt ++ inScopeNames) :=
+        scopeNamesIncluded_stmtNextScope hincluded
+      rcases ih
+          (runtime := runtime)
+          (state := state)
+          (inScopeNames := collectStmtNames stmt ++ inScopeNames)
+          (extraFuel := 0)
+          hnextIncluded hscope hexact hbounded hruntime with
+        ⟨tailIR, htailCompile, htailSem⟩
+      let bodyIR := compiledIR ++ tailIR
+      have hbodyCompile :
+          CompilationModel.compileStmtList
+            fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+              Except.ok bodyIR := by
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+          hstep.compileOk htailCompile
+      let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
+      have hheadSlack :
+          sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
+        have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
+          simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [headExtraFuel]
+        omega
+      rcases hstep.preserves runtime state headExtraFuel
+          hexact hscope hbounded hruntime hheadSlack with
+        ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
+      refine ⟨bodyIR, hbodyCompile, ?_⟩
+      cases sourceHead <;> cases irHead <;> simp [stmtStepMatchesIRExec] at hheadMatch
+      ·
+        rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
+        let tailExtraFuel' :=
+          sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
+        have htailSem' :=
+          ih
+            (runtime := _)
+            (state := _)
+            (inScopeNames := collectStmtNames stmt ++ inScopeNames)
+            (extraFuel := tailExtraFuel')
+            hnextIncluded hscope' hexact' hbounded' hruntime'
+        rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
+        rw [htailCompile] at htailCompile'
+        injection htailCompile' with htailEq
+        subst htailEq
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .continue ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              execIRStmts (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
+          rw [execIRStmts_append_of_continue
+              (fuel := sizeOf bodyIR + extraFuel + 1)
+              (state := state)
+              (next := ‹IRState›)
+              (head := compiledIR)
+              (tail := tailIR)
+              hheadExec']
+          dsimp [tailExtraFuel']
+          omega
+        rw [show SourceSemantics.execStmtList fields runtime (stmt :: rest) =
+            SourceSemantics.execStmtList fields ‹SourceSemantics.RuntimeState› rest by
+              simp [SourceSemantics.execStmtList, hsourceHead]]
+        rw [hfullExec]
+        simpa [tailExtraFuel', bodyIR] using htailSem''
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .stop ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .stop ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .stop ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtList, hsourceHead]
+        rw [hfullExec]
+        exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hheadMatch
+      ·
+        rcases hheadMatch with ⟨rfl, hruntime', _, _, _⟩
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .return ‹Nat› ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .return ‹Nat› ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .return ‹Nat› ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtList, hsourceHead]
+        rw [hfullExec]
+        exact ⟨rfl, hruntime'⟩
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .revert ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .revert ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .revert ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtList, hsourceHead]
+        rw [hfullExec]
+        simp [FunctionBody.stmtResultMatchesIRExec]
+
+theorem supported_function_body_correct_from_exact_state_generic
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hgeneric :
+      StmtListGenericCore
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    ∃ sourceResult irExec,
+      SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body = sourceResult ∧
+      execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
+      FunctionBody.stmtResultMatchesIRExec
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases exec_compileStmtList_generic_sizeOf_extraFuel
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (inScopeNames := fn.params.map (·.name))
+      (stmts := fn.body)
+      (extraFuel := sizeSlack)
+      hgeneric
+      FunctionBody.scopeNamesIncluded_refl
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyGenericCompile
+    injection hbodyGenericCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    omega
+  refine ⟨_, _, rfl, ?_, ?_⟩
+  · simpa [hfuel] using rfl
+  · simpa [hfuel, sizeSlack] using hgenericSem
+
 end Compiler.Proofs.IRGeneration
