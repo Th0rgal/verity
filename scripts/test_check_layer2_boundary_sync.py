@@ -60,7 +60,7 @@ class Layer2BoundarySyncTests(unittest.TestCase):
     def test_missing_required_snippet_fails(self) -> None:
         rc, output = self._run_check(use_expected=False, add_forbidden=False)
         self.assertEqual(rc, 1)
-        self.assertIn("missing `there is not yet a single generic theorem saying", output)
+        self.assertIn("missing `now bypasses this axiom for both `StmtListCompileCore` and `StmtListTerminalCore` bodies.`", output)
 
     def test_forbidden_overclaim_fails(self) -> None:
         rc, output = self._run_check(use_expected=True, add_forbidden=True)

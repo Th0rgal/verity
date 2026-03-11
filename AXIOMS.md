@@ -53,14 +53,16 @@ and variable bindings are exact, executing `compileStmtList ... fn.body` simulat
 **Why this is currently an axiom**:
 This is the remaining generic body-simulation proof over the supported fragment.
 The exact parameter-state reconstruction step is now proved, and `Function.lean`
-now bypasses this axiom for both `StmtListCompileCore` bodies and the
-terminal-`ite` `StmtListTerminalCore` fragment. The axiom statement has
-therefore been narrowed again: first to the non-core fragment only, then to the
-exact per-function `SupportedFunction model.fields fn` witness actually consumed
-by the caller instead of the larger whole-contract `SupportedSpec` package and
-selector-bookkeeping context, and now further to supported bodies outside the
-checked terminal-core fragment. The repo still needs the broader
-expression/statement induction library for the remaining supported body shapes.
+now bypasses this axiom for both `StmtListCompileCore` and `StmtListTerminalCore`
+bodies. The axiom statement has therefore been narrowed twice: first to the
+non-core fragment only, and now to the exact per-function
+`SupportedFunction model.fields fn` witness actually consumed by the caller
+instead of the larger whole-contract `SupportedSpec` package and
+selector-bookkeeping context. The repo still needs the broader
+expression/statement induction library for the remaining supported non-terminal
+body shapes.
+That closure now reaches the checked terminal-core fragment as well, so the
+remaining trust surface sits outside the proved `StmtListTerminalCore` path.
 The latest checked extractions here are the scope-local
 whole-fuel prefix wrappers
 `execIRStmts_compiled_let_core_append_wholeFuel_of_scope`,
@@ -80,8 +82,17 @@ that arithmetic is semantic rather than fuel-only:
 `stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope`,
 `stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope`, and
 `stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel` now lift those
-compiled head-step facts directly into `stmtResultMatchesIRExec`. The newest
-checked layer above that is the explicit-`bodyIR`
+compiled head-step facts directly into `stmtResultMatchesIRExec`. The terminal
+`ite` branch-entry blocker described in issue `#1564` is now discharged:
+`FunctionBody.lean` proves both the ordinary then-branch entry theorem and the
+already-spent-token else-branch entry theorem, and `supported_function_correct`
+uses those lemmas to bypass this axiom for `StmtListTerminalCore` bodies as
+well. The remaining blocker is therefore narrower again: a generic proof that
+the still-unproved supported non-terminal body shapes preserve
+`stmtResultMatchesIRExec` once parameter loading has established exact state.
+The highest-leverage remaining targets are storage writes, mapping writes, and
+other supported fragment shapes that sit beyond the terminal-core recursion.
+The newest checked layer above that is the explicit-`bodyIR`
 `exec_compileStmtList_terminal_core_sizeOf_extraFuel` theorem, with
 `Function.supported_function_body_correct_from_exact_state_terminal_core_extraFuel`
 threading it into the generic per-function proof. The remaining blocker is now

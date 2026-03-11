@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
+    "AXIOMS": ROOT / "AXIOMS.md",
     "COMPILER_PROOFS_README": ROOT / "Compiler" / "Proofs" / "README.md",
     "GENERIC_PLAN": ROOT / "docs" / "GENERIC_LAYER2_PLAN.md",
     "VERIFICATION_STATUS": ROOT / "docs" / "VERIFICATION_STATUS.md",
@@ -27,6 +28,10 @@ def normalize_ws(text: str) -> str:
 
 def expected_snippets() -> dict[str, list[str]]:
     return {
+        "AXIOMS": [
+            "now bypasses this axiom for both `StmtListCompileCore` and `StmtListTerminalCore` bodies.",
+            "The terminal `ite` branch-entry blocker described in issue `#1564` is now discharged:",
+        ],
         "COMPILER_PROOFS_README": [
             "there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract.",
             "`Contracts/Proofs/SemanticBridge.lean`: contract-level bridge theorems",
@@ -58,6 +63,8 @@ def expected_snippets() -> dict[str, list[str]]:
             "whole-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
             "The theorem surface still depends on 1 documented sub-axiom for generic body simulation",
             "it still has 2 documented Lean axioms",
+            "former `execIRFunctionFuel`/`execIRFunction` bridge axiom has been eliminated",
+            "explicit theorem hypothesis rather than a Lean axiom",
         ],
         "SEMANTIC_BRIDGE": [
             "This is not a generic compiler-correctness theorem for `CompilationModel.compile`.",
@@ -89,6 +96,10 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "it still depends on 2 documented axioms in `Compiler.Proofs.IRGeneration.Function`",
             "generic body simulation and `execIRFunctionFuel`/`execIRFunction` bridging",
         ],
+        "AXIOMS": [
+            "else-branches still enter their compiled body through `execIRStmt_if_true_of_eval_nonzeroFuel`",
+            "package that if-body entry form cleanly, then reattempt the explicit-`bodyIR` `StmtListTerminalCore` theorem",
+        ],
         "VERIFICATION_STATUS": [
             "## Layer 2: CompilationModel → IR — COMPLETE",
             "it still depends on 2 documented Layer-2 axioms",
@@ -115,6 +126,8 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "3 documented Lean axioms",
             "4 documented Lean axioms",
             "1 documented bridge axiom",
+            "Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul",
+            "1 Layer 3 dispatch bridge axiom",
         ],
         "SEMANTIC_BRIDGE": [
             "proofs use placeholders until",
