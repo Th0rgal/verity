@@ -2,6 +2,7 @@ import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ScopeValidation
 import Compiler.CompilationModel.ValidationCalls
 import Compiler.Proofs.IRGeneration.FunctionBody
+import Compiler.Proofs.IRGeneration.SupportedSpec
 
 namespace Compiler.Proofs.IRGeneration
 
@@ -160,6 +161,411 @@ inductive StmtListScopeCore (fieldNames : List String) : List Stmt → Prop wher
       StmtListScopeCore fieldNames elseBranch →
       StmtListScopeCore fieldNames rest →
       StmtListScopeCore fieldNames (.ite cond thenBranch elseBranch :: rest)
+
+private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+    {expr : Expr}
+    (hsurface : exprTouchesUnsupportedContractSurface expr = false) :
+    FunctionBody.ExprCompileCore expr := by
+  induction expr with
+  | literal value =>
+      exact .literal value
+  | param name =>
+      exact .param name
+  | storage field =>
+      cases hsurface
+  | storageAddr field =>
+      cases hsurface
+  | localVar name =>
+      exact .localVar name
+  | caller =>
+      exact .caller
+  | contractAddress =>
+      exact .contractAddress
+  | chainid =>
+      exact .chainid
+  | msgValue =>
+      exact .msgValue
+  | blockTimestamp =>
+      exact .blockTimestamp
+  | blockNumber =>
+      exact .blockNumber
+  | constructorArg idx =>
+      cases hsurface
+  | blobbasefee =>
+      cases hsurface
+  | calldatasize =>
+      cases hsurface
+  | returndataSize =>
+      cases hsurface
+  | arrayLength name =>
+      cases hsurface
+  | storageArrayLength field =>
+      cases hsurface
+  | returnDataOptionalBoolAt outOffset =>
+      cases hsurface
+  | mload offset =>
+      cases hsurface
+  | tload offset =>
+      cases hsurface
+  | calldataload offset =>
+      cases hsurface
+  | extcodesize addr =>
+      cases hsurface
+  | dynamicBytesEq lhs rhs =>
+      cases hsurface
+  | bitNot expr ih =>
+      cases hsurface
+  | logicalNot expr ih =>
+      exact .logicalNot <| ih (by simpa [exprTouchesUnsupportedContractSurface] using hsurface)
+  | add lhs rhs ihL ihR =>
+      exact .add
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | sub lhs rhs ihL ihR =>
+      exact .sub
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | mul lhs rhs ihL ihR =>
+      exact .mul
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | div lhs rhs ihL ihR =>
+      exact .div
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | sdiv lhs rhs ihL ihR =>
+      cases hsurface
+  | mod lhs rhs ihL ihR =>
+      exact .mod
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | smod lhs rhs ihL ihR =>
+      cases hsurface
+  | bitAnd lhs rhs ihL ihR =>
+      cases hsurface
+  | bitOr lhs rhs ihL ihR =>
+      cases hsurface
+  | bitXor lhs rhs ihL ihR =>
+      cases hsurface
+  | shl lhs rhs ihL ihR =>
+      cases hsurface
+  | shr lhs rhs ihL ihR =>
+      cases hsurface
+  | sar lhs rhs ihL ihR =>
+      cases hsurface
+  | signextend lhs rhs ihL ihR =>
+      cases hsurface
+  | eq lhs rhs ihL ihR =>
+      exact .eq
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | ge lhs rhs ihL ihR =>
+      exact .ge
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | gt lhs rhs ihL ihR =>
+      exact .gt
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | sgt lhs rhs ihL ihR =>
+      cases hsurface
+  | lt lhs rhs ihL ihR =>
+      exact .lt
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | slt lhs rhs ihL ihR =>
+      cases hsurface
+  | le lhs rhs ihL ihR =>
+      exact .le
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | logicalAnd lhs rhs ihL ihR =>
+      exact .logicalAnd
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | logicalOr lhs rhs ihL ihR =>
+      exact .logicalOr
+        (ihL <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1)
+        (ihR <| by simpa [exprTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2)
+  | ite cond thenVal elseVal ihCond ihThen ihElse =>
+      cases hsurface
+  | min lhs rhs ihL ihR =>
+      cases hsurface
+  | max lhs rhs ihL ihR =>
+      cases hsurface
+  | wMulDown lhs rhs ihL ihR =>
+      cases hsurface
+  | wDivUp lhs rhs ihL ihR =>
+      cases hsurface
+  | mulDivDown a b c ihA ihB ihC =>
+      cases hsurface
+  | mulDivUp a b c ihA ihB ihC =>
+      cases hsurface
+  | mapping field key ih =>
+      cases hsurface
+  | mappingWord field key offset ih =>
+      cases hsurface
+  | mappingPackedWord field key offset packed ih =>
+      cases hsurface
+  | mapping2 field key1 key2 ih1 ih2 =>
+      cases hsurface
+  | mapping2Word field key1 key2 offset ih1 ih2 =>
+      cases hsurface
+  | mappingUint field key ih =>
+      cases hsurface
+  | mappingChain field keys ih =>
+      cases hsurface
+  | structMember field key memberName ih =>
+      cases hsurface
+  | structMember2 field key1 key2 memberName ih1 ih2 =>
+      cases hsurface
+  | arrayElement name index ih =>
+      cases hsurface
+  | storageArrayElement field index ih =>
+      cases hsurface
+  | call gas target value inOffset inSize outOffset outSize ih1 ih2 ih3 ih4 ih5 ih6 ih7 =>
+      cases hsurface
+  | staticcall gas target inOffset inSize outOffset outSize ih1 ih2 ih3 ih4 ih5 ih6 =>
+      cases hsurface
+  | delegatecall gas target inOffset inSize outOffset outSize ih1 ih2 ih3 ih4 ih5 ih6 =>
+      cases hsurface
+  | externalCall name args ih =>
+      cases hsurface
+  | internalCall name args ih =>
+      cases hsurface
+
+private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
+    {fields : List Field}
+    {fieldName : String}
+    {f : Field}
+    {slot : Nat}
+    (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
+    fieldName ∈ fields.map (·.name) := by
+  induction fields with
+  | nil =>
+      simp [findFieldWithResolvedSlot] at hfind
+  | cons field rest ih =>
+      simp [findFieldWithResolvedSlot] at hfind ⊢
+      by_cases hname : field.name == fieldName
+      · simp [hname]
+      · simp [hname] at hfind
+        exact Or.inr (ih hfind)
+
+private theorem fieldName_mem_fields_of_compileSetStorage_ok
+    {fields : List Field}
+    {fieldName : String}
+    {value : Expr}
+    {requireAddressField : Bool}
+    {compiledIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetStorage
+        fields
+        .calldata
+        fieldName
+        value
+        requireAddressField = Except.ok compiledIR) :
+    fieldName ∈ fields.map (·.name) := by
+  unfold CompilationModel.compileSetStorage at hcompile
+  split at hcompile
+  · simp at hcompile
+  · cases hfind : findFieldWithResolvedSlot fields fieldName with
+    | none =>
+        simp [hfind] at hcompile
+    | some resolved =>
+        exact fieldName_mem_fields_of_findFieldWithResolvedSlot_some hfind
+
+private theorem compileStmt_ite_ok_inv
+    {fields : List Field}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    {compiledIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false scope (.ite cond thenBranch elseBranch) =
+          Except.ok compiledIR) :
+    ∃ condIR thenIR elseIR,
+      CompilationModel.compileExpr fields .calldata cond = Except.ok condIR ∧
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope thenBranch = Except.ok thenIR ∧
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope elseBranch = Except.ok elseIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  cases hcond : CompilationModel.compileExpr fields .calldata cond with
+  | error err =>
+      simp [hcond] at hcompile
+  | ok condIR =>
+      cases hthen :
+          CompilationModel.compileStmtList fields [] [] .calldata [] false scope thenBranch with
+      | error err =>
+          simp [hcond, hthen] at hcompile
+      | ok thenIR =>
+          cases helse :
+              CompilationModel.compileStmtList fields [] [] .calldata [] false scope elseBranch with
+          | error err =>
+              simp [hcond, hthen, helse] at hcompile
+          | ok elseIR =>
+              by_cases helseEmpty : elseBranch.isEmpty
+              · simp [hcond, hthen, helse, helseEmpty] at hcompile
+                exact ⟨condIR, thenIR, elseIR, hcond, hthen, helse⟩
+              · simp [hcond, hthen, helse, helseEmpty] at hcompile
+                exact ⟨condIR, thenIR, elseIR, hcond, hthen, helse⟩
+
+theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+    {fields : List Field}
+    {scope : List String}
+    {prefix suffix : List Stmt}
+    {bodyIR : List YulStmt}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface (prefix ++ suffix) = false)
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false scope (prefix ++ suffix) =
+          Except.ok bodyIR) :
+    StmtListScopeCore (fields.map (·.name)) prefix := by
+  induction prefix generalizing scope suffix bodyIR with
+  | nil =>
+      exact StmtListScopeCore.nil
+  | cons stmt rest ih =>
+      rcases compileStmtList_cons_ok_inv hcompile with
+        ⟨headIR, tailIR, hhead, htail, rfl⟩
+      have hstmtSurface :
+          stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using
+          (Bool.or_eq_false.mp hsurface).1
+      have hrestSurface :
+          stmtListTouchesUnsupportedContractSurface (rest ++ suffix) = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using
+          (Bool.or_eq_false.mp hsurface).2
+      cases stmt with
+      | letVar name value =>
+          exact StmtListScopeCore.letVar
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | assignVar name value =>
+          exact StmtListScopeCore.assignVar
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | setStorage fieldName value =>
+          have hfield :
+              fieldName ∈ fields.map (·.name) := by
+            simp [CompilationModel.compileStmt] at hhead
+            exact fieldName_mem_fields_of_compileSetStorage_ok hhead
+          exact StmtListScopeCore.setStorage
+            hfield
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | setStorageAddr fieldName value =>
+          have hfield :
+              fieldName ∈ fields.map (·.name) := by
+            simp [CompilationModel.compileStmt] at hhead
+            exact fieldName_mem_fields_of_compileSetStorage_ok hhead
+          exact StmtListScopeCore.setStorageAddr
+            hfield
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | require cond message =>
+          exact StmtListScopeCore.require
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | return value =>
+          exact StmtListScopeCore.return_
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+              (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface))
+            (ih hrestSurface htail)
+      | stop =>
+          exact StmtListScopeCore.stop (ih hrestSurface htail)
+      | ite cond thenBranch elseBranch =>
+          have hcondSurface :
+              exprTouchesUnsupportedContractSurface cond = false := by
+            have hfalse1 := (Bool.or_eq_false.mp hstmtSurface).1
+            simpa [stmtTouchesUnsupportedContractSurface] using hfalse1
+          have hbranchesSurface :
+              stmtListTouchesUnsupportedContractSurface thenBranch ||
+                stmtListTouchesUnsupportedContractSurface elseBranch = false := by
+            have hfalse2 := (Bool.or_eq_false.mp hstmtSurface).2
+            simpa [stmtTouchesUnsupportedContractSurface] using hfalse2
+          have hthenSurface :
+              stmtListTouchesUnsupportedContractSurface thenBranch = false :=
+            (Bool.or_eq_false.mp hbranchesSurface).1
+          have helseSurface :
+              stmtListTouchesUnsupportedContractSurface elseBranch = false :=
+            (Bool.or_eq_false.mp hbranchesSurface).2
+          rcases compileStmt_ite_ok_inv hhead with ⟨condIR, thenIR, elseIR, _, hthen, helse⟩
+          exact StmtListScopeCore.ite
+            (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hcondSurface)
+            (stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+              (scope := scope) (prefix := thenBranch) (suffix := [])
+              (bodyIR := thenIR) (by simpa using hthenSurface) hthen)
+            (stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+              (scope := scope) (prefix := elseBranch) (suffix := [])
+              (bodyIR := elseIR) (by simpa using helseSurface) helse)
+            (ih hrestSurface htail)
+      | mstore offset value =>
+          cases hstmtSurface
+      | tstore offset value =>
+          cases hstmtSurface
+      | storageArrayPush field value =>
+          cases hstmtSurface
+      | storageArrayPop field =>
+          cases hstmtSurface
+      | setStorageArrayElement field index value =>
+          cases hstmtSurface
+      | setMapping field key value =>
+          cases hstmtSurface
+      | setMappingWord field key wordOffset value =>
+          cases hstmtSurface
+      | setMappingPackedWord field key wordOffset packed value =>
+          cases hstmtSurface
+      | setMapping2 field key1 key2 value =>
+          cases hstmtSurface
+      | setMapping2Word field key1 key2 wordOffset value =>
+          cases hstmtSurface
+      | setMappingUint field key value =>
+          cases hstmtSurface
+      | setMappingChain field keys value =>
+          cases hstmtSurface
+      | setStructMember field key memberName value =>
+          cases hstmtSurface
+      | setStructMember2 field key1 key2 memberName value =>
+          cases hstmtSurface
+      | requireError cond errorName args =>
+          cases hstmtSurface
+      | revertError errorName args =>
+          cases hstmtSurface
+      | returnValues values =>
+          cases hstmtSurface
+      | returnArray name =>
+          cases hstmtSurface
+      | returnBytes name =>
+          cases hstmtSurface
+      | returnStorageWords name =>
+          cases hstmtSurface
+      | calldatacopy destOffset sourceOffset size =>
+          cases hstmtSurface
+      | returndataCopy destOffset sourceOffset size =>
+          cases hstmtSurface
+      | revertReturndata =>
+          cases hstmtSurface
+      | forEach varName count body =>
+          cases hstmtSurface
+      | emit eventName args =>
+          cases hstmtSurface
+      | internalCall functionName args =>
+          cases hstmtSurface
+      | internalCallAssign names functionName args =>
+          cases hstmtSurface
+      | rawLog topics dataOffset dataSize =>
+          cases hstmtSurface
+      | externalCallBind resultVars externalName args =>
+          cases hstmtSurface
+      | ecm mod args =>
+          cases hstmtSurface
 
 private theorem mem_stmtNextScope_of_mem_scope
     {scope : List String}
@@ -1676,6 +2082,67 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
     (hprefix := stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
       hprefixCore hvalidateRefs hparamScope
       (by simpa [List.append_assoc] using hbody))
+    (hbody := hbody)
+    (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hvalueIR := hvalueIR)
+
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {prefix suffix : List Stmt}
+    {bodyIR : List YulStmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
+    (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
+    (hbodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
+    (hbodyCompile :
+      CompilationModel.compileStmtList
+        spec.fields [] [] .calldata [] false (fn.params.map (·.name)) fn.body =
+          Except.ok bodyIR)
+    (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
+        (.setStorage fieldName value)
+        compiledIR := by
+  apply compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+    (hvalidateShapes := hvalidateShapes)
+    (hvalidateRefs := hvalidateRefs)
+    (hfn := hfn)
+    (hparamScope := hparamScope)
+    (hprefixCore := stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+      (fields := spec.fields)
+      (scope := fn.params.map (·.name))
+      (prefix := prefix)
+      (suffix := .setStorage fieldName value :: suffix)
+      (bodyIR := bodyIR)
+      (by simpa [hbody] using hbodySurface)
+      (by simpa [hbody] using hbodyCompile))
     (hbody := hbody)
     (hcore := hcore)
     (hinScope := hinScope)
