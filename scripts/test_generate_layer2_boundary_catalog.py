@@ -43,7 +43,7 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
             ]["status"],
-            "expr_layer_compatibility_proved_dispatch_local_goal_encoded",
+            "expr_layer_proved_stmt_function_dispatch_contract_reduced_to_stmt_list",
         )
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"][

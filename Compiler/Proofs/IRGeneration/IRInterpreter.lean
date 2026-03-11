@@ -1105,6 +1105,38 @@ theorem execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility
   rw [hstmtList hinternal (sizeOf fn.body + 1) stateWithParams fn.body hbody]
   cases execIRStmts (sizeOf fn.body + 1) stateWithParams fn.body <;> rfl
 
+/-- The single-statement compatibility field is also just plumbing once the
+statement-list theorem is available: a compatible statement is exactly a
+singleton compatible statement list. This keeps the remaining blocker focused on
+the list theorem rather than splitting effort across equivalent surfaces. -/
+theorem execIRStmtWithInternals_eq_execIRStmt_of_stmtListCompatibility
+    (contract : IRContract)
+    (hstmtList :
+      ∀ (_hinternal : contract.internalFunctions = []) fuel state stmts,
+        LegacyCompatibleExternalStmtList stmts →
+          execIRStmtsWithInternals contract fuel state stmts =
+            match execIRStmts fuel state stmts with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next) :
+    contract.internalFunctions = [] →
+      ∀ fuel state stmt,
+        LegacyCompatibleExternalStmt stmt →
+          execIRStmtWithInternals contract fuel state stmt =
+            match execIRStmt fuel state stmt with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next := by
+  intro hinternal fuel state stmt hstmt
+  have hsingleton :=
+    hstmtList hinternal (fuel + 1) state [stmt] hstmt
+  cases hwith : execIRStmtWithInternals contract fuel state stmt <;>
+    cases hlegacy : execIRStmt fuel state stmt <;>
+      simp [execIRStmtsWithInternals, execIRStmts, hwith, hlegacy] at hsingleton ⊢ <;>
+      simpa using hsingleton
+
 /-- Shared transaction-context initialization used by both legacy and helper-aware
 top-level IR interpreters. Making this explicit removes boilerplate from the
 remaining conservative-extension proof target. -/
@@ -1151,6 +1183,28 @@ theorem legacyCompatibleRuntimeDispatch_of_legacyCompatibleRuntimeContract
   intro tx fn hfind
   exact hfunctions fn (List.mem_of_find?_eq_some hfind)
 
+/-- Once stmt-list compatibility is proved, the dispatch-local theorem is only
+runtime-contract bookkeeping: helper-free dispatch already selects a legacy-
+compatible external body, and function compatibility collapses the selected
+helper-aware execution to the legacy helper-free one. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtListCompatibility
+    (contract : IRContract)
+    (hstmtList :
+      ∀ (_hinternal : contract.internalFunctions = []) fuel state stmts,
+        LegacyCompatibleExternalStmtList stmts →
+          execIRStmtsWithInternals contract fuel state stmts =
+            match execIRStmts fuel state stmts with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next) :
+    InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal contract := by
+  intro hdispatch tx initialState fn hfind
+  rcases hdispatch with ⟨hinternal, hcompatible⟩
+  exact execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility
+    contract hstmtList hinternal fn tx.args (applyIRTransactionContext tx initialState)
+    (hcompatible tx fn hfind)
+
 /-- Once the selected-function compatibility theorem is available, the public
 contract-level helper-free conservative-extension goal follows directly. This
 packages the remaining compiled-side blocker as one dispatch-local theorem plus
@@ -1174,6 +1228,26 @@ theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal
       split
       · exact hdispatchCompat
       · rfl
+
+/-- After the preceding reductions, the first compiled-side helper retarget
+theorem is equivalent to proving the stmt-list compatibility field alone. The
+stmt, function, dispatch-local, and contract-level layers are all now composed
+from that one surface without changing theorem shape or trusted assumptions. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtListCompatibility
+    (contract : IRContract)
+    (hstmtList :
+      ∀ (_hinternal : contract.internalFunctions = []) fuel state stmts,
+        LegacyCompatibleExternalStmtList stmts →
+          execIRStmtsWithInternals contract fuel state stmts =
+            match execIRStmts fuel state stmts with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next) :
+    InterpretIRWithInternalsZeroConservativeExtensionGoal contract := by
+  exact interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal contract
+    (interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtListCompatibility
+      contract hstmtList)
 
 @[simp] theorem applyIRTransactionContext_sender
     (tx : IRTransaction) (initialState : IRState) :

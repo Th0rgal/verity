@@ -297,13 +297,16 @@ now sits under the post-generic widening/completeness plan in
   `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper theorem
   `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`;
   `IRInterpreter.lean` now also proves
-  `execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility`, so
-  function compatibility is reduced to stmt-list compatibility rather than
-  remaining an independent proof task;
-  the remaining compiled-side proof step is filling the stmt / stmt-list part of that interface,
-  proving the dispatch-local selected-function step, and then using the now-encoded
-  reduction theorem to obtain the conservative-extension goal from legacy `interpretIR`
-  to `interpretIRWithInternals` on that subset,
+  `execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility`,
+  `execIRStmtWithInternals_eq_execIRStmt_of_stmtListCompatibility`,
+  `interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtListCompatibility`,
+  and `interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtListCompatibility`,
+  so stmt compatibility, function compatibility, the dispatch-local cut, and the
+  contract-level lift are all reduced to stmt-list compatibility rather than
+  remaining independent proof tasks;
+  the remaining compiled-side proof step is therefore the stmt-list theorem itself,
+  after which the conservative-extension goal from legacy `interpretIR` to
+  `interpretIRWithInternals` on that subset follows by composition,
   while the public theorem stack still targets legacy `execIRFunction` / `interpretIR`
   even though `IRInterpreter.lean` now defines helper-aware compiled-side targets
   (`execIRFunctionWithInternals`, `interpretIRWithInternals`) for internal-helper composition;
