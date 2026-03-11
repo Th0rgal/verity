@@ -33,7 +33,7 @@ def validate_catalog(catalog: dict) -> None:
         raise ValueError("Layer 2 boundary catalog must exclude arbitrary Lean-produced models")
 
     helper = catalog.get("supported_spec_split", {}).get("helper_boundary", {})
-    if helper.get("current_fail_closed_gate") != "SupportedBodyHelperInterface.legacySurfaceClosed":
+    if helper.get("current_fail_closed_gate") != "SupportedBodyCallInterface.helperCompatibility":
         raise ValueError("Layer 2 boundary catalog is missing the helper fail-closed gate")
 
 
@@ -41,7 +41,7 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
     helper = catalog["supported_spec_split"]["helper_boundary"]
     theorem_target = catalog["theorem_target"]
     assert theorem_target["intended_claim"] == "proof_complete_macro_lowered_verity_contract_image"
-    assert helper["current_fail_closed_gate"] == "SupportedBodyHelperInterface.legacySurfaceClosed"
+    assert helper["current_fail_closed_gate"] == "SupportedBodyCallInterface.helperCompatibility"
     return {
         "GENERIC_PLAN": [
             "`artifacts/layer2_boundary_catalog.json`",
@@ -51,12 +51,12 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
         "ROADMAP": [
             "`artifacts/layer2_boundary_catalog.json`",
             "macro-lowered `verity_contract` image",
-            "`calls.helpers.legacySurfaceClosed` can disappear",
+            "`calls.helperCompatibility` can disappear",
         ],
         "VERIFICATION_STATUS": [
             "`artifacts/layer2_boundary_catalog.json`",
             "macro-lowered image of `verity_contract`",
-            "`calls.helpers.legacySurfaceClosed` gate",
+            "`calls.helperCompatibility` gate",
         ],
         "COMPILER_PROOFS_README": [
             "`artifacts/layer2_boundary_catalog.json`",

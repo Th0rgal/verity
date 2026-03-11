@@ -167,7 +167,7 @@
       }
     ],
     "helper_boundary": {
-      "current_fail_closed_gate": "SupportedBodyHelperInterface.legacySurfaceClosed",
+      "current_fail_closed_gate": "SupportedBodyCallInterface.helperCompatibility",
       "decreasing_rank_measure": "SupportedBodyHelperInterface.calleeRanksDecrease",
       "inventory_source": "SupportedBodyHelperInterface.summaryOf",
       "next_required_proof_step": "consume helper-summary soundness and helper ranks inside the body/IR preservation lemmas",

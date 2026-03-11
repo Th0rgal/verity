@@ -28,7 +28,7 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
                     },
                     "supported_spec_split": {
                         "helper_boundary": {
-                            "current_fail_closed_gate": "SupportedBodyHelperInterface.legacySurfaceClosed"
+                            "current_fail_closed_gate": "SupportedBodyCallInterface.helperCompatibility"
                         }
                     },
                 }
@@ -45,12 +45,12 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
             "ROADMAP": (
                 "`artifacts/layer2_boundary_catalog.json`\n"
                 "macro-lowered `verity_contract` image\n"
-                "`calls.helpers.legacySurfaceClosed` can disappear\n"
+                "`calls.helperCompatibility` can disappear\n"
             ),
             "VERIFICATION_STATUS": (
                 "`artifacts/layer2_boundary_catalog.json`\n"
                 "macro-lowered image of `verity_contract`\n"
-                "`calls.helpers.legacySurfaceClosed` gate\n"
+                "`calls.helperCompatibility` gate\n"
             ),
             "COMPILER_PROOFS_README": (
                 "`artifacts/layer2_boundary_catalog.json`\n"

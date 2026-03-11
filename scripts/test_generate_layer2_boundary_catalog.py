@@ -23,7 +23,7 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
         )
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"]["current_fail_closed_gate"],
-            "SupportedBodyHelperInterface.legacySurfaceClosed",
+            "SupportedBodyCallInterface.helperCompatibility",
         )
 
     def test_check_mode_rejects_stale_artifact(self) -> None:

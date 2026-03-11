@@ -147,7 +147,7 @@ def build_catalog() -> dict:
                     "SupportedBodyHelperInterface.calleeRanksDecrease"
                 ),
                 "current_fail_closed_gate": (
-                    "SupportedBodyHelperInterface.legacySurfaceClosed"
+                    "SupportedBodyCallInterface.helperCompatibility"
                 ),
                 "next_required_proof_step": (
                     "consume helper-summary soundness and helper ranks inside "

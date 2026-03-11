@@ -831,10 +831,17 @@ structure SupportedBodyHelperInterface (spec : CompilationModel) (fn : FunctionS
         exprHelperCallNames_subset_helperCallNames hmem
       InternalHelperSummaryPreservesWorldOnSuccess
         ((summaryOf calleeName hcall).summary.contract)
+
+/-- Temporary compatibility gate retained while helper-summary soundness and the
+generic body/IR preservation proof are not yet composed end to end. This is
+kept separate from `SupportedBodyHelperInterface` so the helper boundary itself
+remains a positive compositional inventory. -/
+structure SupportedBodyHelperCompatibility (fn : FunctionSpec) : Prop where
   legacySurfaceClosed : stmtListTouchesUnsupportedHelperSurface fn.body = false
 
 structure SupportedBodyCallInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
   helpers : SupportedBodyHelperInterface spec fn
+  helperCompatibility : SupportedBodyHelperCompatibility fn
   foreign : stmtListTouchesUnsupportedForeignSurface fn.body = false
   lowLevel : stmtListTouchesUnsupportedLowLevelSurface fn.body = false
 
@@ -921,11 +928,11 @@ def SupportedFunction.helperFuel
     (hSupported : SupportedFunction spec fn) : Nat :=
   hSupported.body.calls.helpers.helperRank
 
-theorem SupportedBodyHelperInterface.surfaceClosed
-    {spec : CompilationModel} {fn : FunctionSpec}
-    (hHelpers : SupportedBodyHelperInterface spec fn) :
+theorem SupportedBodyHelperCompatibility.surfaceClosed
+    {fn : FunctionSpec}
+    (hCompat : SupportedBodyHelperCompatibility fn) :
     stmtListTouchesUnsupportedHelperSurface fn.body = false :=
-  hHelpers.legacySurfaceClosed
+  hCompat.legacySurfaceClosed
 
 theorem SupportedBodyHelperInterface.summaryOfCall
     {spec : CompilationModel} {fn : FunctionSpec}
@@ -1186,7 +1193,7 @@ theorem SupportedBodyCallInterface.surfaceClosed
     (hCalls : SupportedBodyCallInterface spec fn) :
     stmtListTouchesUnsupportedCallSurface fn.body = false := by
   rw [stmtListTouchesUnsupportedCallSurface_eq_featureOr]
-  simp [hCalls.helpers.surfaceClosed, hCalls.foreign, hCalls.lowLevel]
+  simp [hCalls.helperCompatibility.surfaceClosed, hCalls.foreign, hCalls.lowLevel]
 
 theorem SupportedBodyInterface.surfaceClosed
     {spec : CompilationModel} {fn : FunctionSpec}
@@ -1437,21 +1444,24 @@ private theorem counter_supported_function :
               Verity.Core.Free.RequireFamilyClausesTail.toStmts]
           core := { surfaceClosed := by decide }
           state := { surfaceClosed := by decide }
-          calls :=
-            { helpers :=
-                { helperRank := 0
-                  callNamesNodup := helperCallNames_nodup _
-                  summaryOf := by
-                    intro calleeName hmem
-                    simp [helperCallNames] at hmem
-                  calleeRanksDecrease := by
-                    intro calleeName hmem
-                    simp [helperCallNames] at hmem
-                  legacySurfaceClosed := by decide }
-               foreign := by decide
-               lowLevel := by decide }
-          effects := { surfaceClosed := by decide }
-          noLocalObligations := rfl } }
+           calls :=
+             { helpers :=
+                 { helperRank := 0
+                   callNamesNodup := helperCallNames_nodup _
+                   summaryOf := by
+                     intro calleeName hmem
+                     simp [helperCallNames] at hmem
+                   calleeRanksDecrease := by
+                     intro calleeName hmem
+                     simp [helperCallNames] at hmem
+                   exprCallsPreserveWorld := by
+                     intro calleeName hmem
+                     simp [exprHelperCallNames] at hmem }
+               helperCompatibility := { legacySurfaceClosed := by decide }
+                foreign := by decide
+                lowLevel := by decide }
+           effects := { surfaceClosed := by decide }
+           noLocalObligations := rfl } }
 
 theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
     [0xa87d942c] := by
@@ -1522,21 +1532,24 @@ private theorem simpleStorage_supported_function :
               Verity.Core.Free.RequireFamilyClausesTail.toStmts]
           core := { surfaceClosed := by decide }
           state := { surfaceClosed := by decide }
-          calls :=
-            { helpers :=
-                { helperRank := 0
-                  callNamesNodup := helperCallNames_nodup _
-                  summaryOf := by
-                    intro calleeName hmem
-                    simp [helperCallNames] at hmem
-                  calleeRanksDecrease := by
-                    intro calleeName hmem
-                    simp [helperCallNames] at hmem
-                  legacySurfaceClosed := by decide }
-               foreign := by decide
-               lowLevel := by decide }
-          effects := { surfaceClosed := by decide }
-          noLocalObligations := rfl } }
+           calls :=
+             { helpers :=
+                 { helperRank := 0
+                   callNamesNodup := helperCallNames_nodup _
+                   summaryOf := by
+                     intro calleeName hmem
+                     simp [helperCallNames] at hmem
+                   calleeRanksDecrease := by
+                     intro calleeName hmem
+                     simp [helperCallNames] at hmem
+                   exprCallsPreserveWorld := by
+                     intro calleeName hmem
+                     simp [exprHelperCallNames] at hmem }
+               helperCompatibility := { legacySurfaceClosed := by decide }
+                foreign := by decide
+                lowLevel := by decide }
+           effects := { surfaceClosed := by decide }
+           noLocalObligations := rfl } }
 
 theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
     [0x2e64cec1] := by
