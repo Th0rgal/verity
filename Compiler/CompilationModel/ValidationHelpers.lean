@@ -78,6 +78,7 @@ def collectExprNames : Expr → List String
   | Expr.internalCall name args => name :: collectExprListNames args
   | Expr.arrayLength name => [name]
   | Expr.arrayElement name index => name :: collectExprNames index
+  | Expr.dynamicBytesEq lhsName rhsName => [lhsName, rhsName]
   | Expr.add a b => collectExprNames a ++ collectExprNames b
   | Expr.sub a b => collectExprNames a ++ collectExprNames b
   | Expr.mul a b => collectExprNames a ++ collectExprNames b

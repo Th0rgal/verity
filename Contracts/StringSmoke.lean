@@ -57,16 +57,51 @@ verity_contract StringStorageUnsupported where
   function echoString () : Unit := do
     pure ()
 
-/--
- error: equality is currently supported only for Bool and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got Verity.Macro.ValueType.string and Verity.Macro.ValueType.string
--/
-#guard_msgs in
-verity_contract StringEqUnsupported where
+verity_contract StringEqSmoke where
   storage
     sentinel : Uint256 := slot 0
 
   function same (lhs : String, rhs : String) : Bool := do
     return (lhs == rhs)
+
+  function different (lhs : String, rhs : String) : Bool := do
+    return (lhs != rhs)
+
+  function choose (lhs : String, rhs : String) : Uint256 := do
+    if lhs == rhs then
+      return 1
+    else
+      return 0
+
+def stringEqExecutableMatches : Bool :=
+  match StringEqSmoke.same "hello" "hello" Verity.defaultState,
+      StringEqSmoke.same "hello" "world" Verity.defaultState,
+      StringEqSmoke.different "hello" "world" Verity.defaultState,
+      StringEqSmoke.choose "same" "same" Verity.defaultState,
+      StringEqSmoke.choose "same" "diff" Verity.defaultState with
+  | .success eq1 _, .success eq2 _, .success ne _, .success pick1 _, .success pick2 _ =>
+      eq1 && (!eq2) && ne && pick1 == 1 && pick2 == 0
+  | _, _, _, _, _ => false
+
+example : stringEqExecutableMatches = true := by decide
+
+def stringEqModelUsesDynamicBytesEq : Bool :=
+  match StringEqSmoke.same_modelBody with
+  | [Compiler.CompilationModel.Stmt.return
+      (Compiler.CompilationModel.Expr.dynamicBytesEq "lhs" "rhs")] => true
+  | _ => false
+
+example : stringEqModelUsesDynamicBytesEq = true := by decide
+
+def stringEqBranchModelUsesDynamicBytesEq : Bool :=
+  match StringEqSmoke.choose_modelBody with
+  | [Compiler.CompilationModel.Stmt.ite
+      (Compiler.CompilationModel.Expr.dynamicBytesEq "lhs" "rhs")
+      [Compiler.CompilationModel.Stmt.return (Compiler.CompilationModel.Expr.literal 1)]
+      [Compiler.CompilationModel.Stmt.return (Compiler.CompilationModel.Expr.literal 0)]] => true
+  | _ => false
+
+example : stringEqBranchModelUsesDynamicBytesEq = true := by decide
 
 /--
 error: logical operator requires Bool, got Verity.Macro.ValueType.string
@@ -82,23 +117,7 @@ verity_contract StringLogicalUnsupported where
     else
       return 0
 
-/--
- error: equality is currently supported only for Bool and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got Verity.Macro.ValueType.string and Verity.Macro.ValueType.string
--/
-#guard_msgs in
-verity_contract StringImmutableEqUnsupported where
-  storage
-    sentinel : Uint256 := slot 0
-
-  immutables
-    bad : Bool := (lhs == rhs)
-
-  constructor (lhs : String, rhs : String) := do
-    pure ()
-
-  function same () : Bool := do
-    return bad
-
 #check_contract StringSmoke
+#check_contract StringEqSmoke
 
 end Contracts

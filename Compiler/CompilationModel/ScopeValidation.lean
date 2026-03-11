@@ -165,6 +165,16 @@ def validateScopedExprIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount outOffset
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
+  | Expr.dynamicBytesEq lhsName rhsName => do
+      let ensureDynamicParam (name : String) : Except String Unit := do
+        match findParamType params name with
+        | some ParamType.bytes | some ParamType.string => pure ()
+        | some ty =>
+            throw s!"Compilation error: {context} Expr.dynamicBytesEq '{name}' requires bytes/string parameter, got {repr ty}"
+        | none =>
+            throw s!"Compilation error: {context} Expr.dynamicBytesEq references unknown parameter '{name}'"
+      ensureDynamicParam lhsName
+      ensureDynamicParam rhsName
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
     Expr.sar a b | Expr.signextend a b |

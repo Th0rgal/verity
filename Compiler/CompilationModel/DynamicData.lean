@@ -20,6 +20,12 @@ def checkedArrayElementCalldataHelperName : String :=
 def checkedArrayElementMemoryHelperName : String :=
   "__verity_array_element_memory_checked"
 
+def dynamicBytesEqCalldataHelperName : String :=
+  "__verity_dynamic_bytes_eq_calldata"
+
+def dynamicBytesEqMemoryHelperName : String :=
+  "__verity_dynamic_bytes_eq_memory"
+
 private def checkedArrayElementHelper (helperName loadOp : String) : YulStmt :=
   YulStmt.funcDef helperName ["data_offset", "length", "index"] ["word"] [
     YulStmt.if_ (YulExpr.call "iszero" [
@@ -40,6 +46,44 @@ def checkedArrayElementCalldataHelper : YulStmt :=
 
 def checkedArrayElementMemoryHelper : YulStmt :=
   checkedArrayElementHelper checkedArrayElementMemoryHelperName "mload"
+
+private def dynamicBytesEqHelper (helperName loadOp : String) : YulStmt :=
+  YulStmt.funcDef helperName
+    ["lhs_data_offset", "lhs_length", "rhs_data_offset", "rhs_length"]
+    ["same"] [
+      YulStmt.assign "same" (YulExpr.call "eq" [YulExpr.ident "lhs_length", YulExpr.ident "rhs_length"]),
+      YulStmt.for_
+        [YulStmt.let_ "__cmp_i" (YulExpr.lit 0)]
+        (YulExpr.call "and" [
+          YulExpr.ident "same",
+          YulExpr.call "lt" [YulExpr.ident "__cmp_i", YulExpr.ident "lhs_length"]
+        ])
+        [YulStmt.assign "__cmp_i" (YulExpr.call "add" [YulExpr.ident "__cmp_i", YulExpr.lit 1])]
+        [YulStmt.if_ (YulExpr.call "iszero" [
+            YulExpr.call "eq" [
+              YulExpr.call "byte" [
+                YulExpr.lit 0,
+                YulExpr.call loadOp [
+                  YulExpr.call "add" [YulExpr.ident "lhs_data_offset", YulExpr.ident "__cmp_i"]
+                ]
+              ],
+              YulExpr.call "byte" [
+                YulExpr.lit 0,
+                YulExpr.call loadOp [
+                  YulExpr.call "add" [YulExpr.ident "rhs_data_offset", YulExpr.ident "__cmp_i"]
+                ]
+              ]
+            ]
+          ]) [
+            YulStmt.assign "same" (YulExpr.lit 0)
+          ]]
+    ]
+
+def dynamicBytesEqCalldataHelper : YulStmt :=
+  dynamicBytesEqHelper dynamicBytesEqCalldataHelperName "calldataload"
+
+def dynamicBytesEqMemoryHelper : YulStmt :=
+  dynamicBytesEqHelper dynamicBytesEqMemoryHelperName "mload"
 
 def dynamicCopyData (source : DynamicDataSource)
     (destOffset sourceOffset len : YulExpr) : List YulStmt :=

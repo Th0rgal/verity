@@ -11,21 +11,28 @@ import Compiler.CompilationModel.UsageAnalysis
 
 namespace Compiler.CompilationModel
 
-def reservedExternalNames (mappingHelpersRequired arrayHelpersRequired : Bool) : List String :=
+def reservedExternalNames
+    (mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : List String :=
   let mappingHelpers := if mappingHelpersRequired then ["mappingSlot"] else []
   let arrayHelpers :=
     if arrayHelpersRequired then
       [checkedArrayElementCalldataHelperName, checkedArrayElementMemoryHelperName]
     else
       []
+  let dynamicBytesEqHelpers :=
+    if dynamicBytesEqHelpersRequired then
+      [dynamicBytesEqCalldataHelperName, dynamicBytesEqMemoryHelperName]
+    else
+      []
   let entrypoints := ["fallback", "receive"]
-  (mappingHelpers ++ arrayHelpers ++ entrypoints).eraseDups
+  (mappingHelpers ++ arrayHelpers ++ dynamicBytesEqHelpers ++ entrypoints).eraseDups
 
 def firstReservedExternalCollision
-    (spec : CompilationModel) (mappingHelpersRequired arrayHelpersRequired : Bool) : Option String :=
+    (spec : CompilationModel)
+    (mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired : Bool) : Option String :=
   (spec.externals.map (·.name)).find? (fun name =>
     name.startsWith internalFunctionPrefix ||
-      (reservedExternalNames mappingHelpersRequired arrayHelpersRequired).contains name)
+      (reservedExternalNames mappingHelpersRequired arrayHelpersRequired dynamicBytesEqHelpersRequired).contains name)
 
 def firstInternalDynamicParam
     (fns : List FunctionSpec) : Option (String × String × ParamType) :=

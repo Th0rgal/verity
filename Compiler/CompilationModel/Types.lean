@@ -296,6 +296,9 @@ inductive Expr
   | internalCall (functionName : String) (args : List Expr)  -- Internal function call (#181)
   | arrayLength (name : String)  -- Length of a dynamic array parameter (#180)
   | arrayElement (name : String) (index : Expr)  -- Checked element access of a dynamic array parameter (revert on out-of-range) (#180)
+  /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.
+      The names refer to the dynamic parameter base names (`foo`, not `foo_offset`). -/
+  | dynamicBytesEq (lhsName rhsName : String)
   | add (a b : Expr)
   | sub (a b : Expr)
   | mul (a b : Expr)

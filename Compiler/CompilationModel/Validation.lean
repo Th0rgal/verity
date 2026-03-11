@@ -206,6 +206,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.delegatecall _ _ _ _ _ _ => true
   | Expr.returndataSize => true
   | Expr.returndataOptionalBoolAt _ => true
+  | Expr.dynamicBytesEq _ _ => false
   | Expr.localVar _ => false
   | Expr.externalCall _ _ | Expr.internalCall _ _ => true
   | Expr.arrayLength _ => false
@@ -263,6 +264,8 @@ def exprWritesState : Expr → Bool
       exprWritesState offset || exprWritesState size
   | Expr.returndataOptionalBoolAt outOffset =>
       exprWritesState outOffset
+  | Expr.dynamicBytesEq _ _ =>
+      false
   | Expr.externalCall _ _ | Expr.internalCall _ _ => true
   | Expr.extcodesize addr =>
       exprWritesState addr

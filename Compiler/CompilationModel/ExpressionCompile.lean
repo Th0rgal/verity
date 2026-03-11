@@ -254,6 +254,16 @@ def compileExpr (fields : List Field)
         YulExpr.ident s!"{name}_length",
         indexExpr
       ])
+  | Expr.dynamicBytesEq lhsName rhsName =>
+      let helperName := match dynamicSource with
+        | .calldata => dynamicBytesEqCalldataHelperName
+        | .memory => dynamicBytesEqMemoryHelperName
+      pure (YulExpr.call helperName [
+        YulExpr.ident s!"{lhsName}_data_offset",
+        YulExpr.ident s!"{lhsName}_length",
+        YulExpr.ident s!"{rhsName}_data_offset",
+        YulExpr.ident s!"{rhsName}_length"
+      ])
   | Expr.add a b     => return yulBinOp "add" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
   | Expr.sub a b     => return yulBinOp "sub" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)
   | Expr.mul a b     => return yulBinOp "mul" (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)

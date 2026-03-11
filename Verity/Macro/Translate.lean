@@ -945,9 +945,39 @@ private def requireBoolType (stx : Syntax) (context : String) (ty : ValueType) :
 private def requireEqComparableTypes (stx : Syntax) (lhsTy rhsTy : ValueType) : CommandElabM Unit := do
   let bothWordLike := isWordLikeValueType lhsTy && isWordLikeValueType rhsTy
   let bothBool := lhsTy == .bool && rhsTy == .bool
-  unless bothWordLike || bothBool do
+  let bothDynamicBytes := (lhsTy == .string && rhsTy == .string) || (lhsTy == .bytes && rhsTy == .bytes)
+  unless bothWordLike || bothBool || bothDynamicBytes do
     throwErrorAt stx
-      s!"equality is currently supported only for Bool and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got {renderValueType lhsTy} and {renderValueType rhsTy}"
+      s!"equality is currently supported only for Bool, matching bytes/string params, and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got {renderValueType lhsTy} and {renderValueType rhsTy}"
+
+private def directDynamicComparableParamName?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × ValueType) :=
+  match stripParens stx with
+  | `(term| $id:ident) =>
+      let name := toString id.getId
+      params.findSome? fun p =>
+        if p.name == name && (p.ty == .string || p.ty == .bytes) then
+          some (name, p.ty)
+        else
+          none
+  | _ => none
+
+private def dynamicEqParamNames
+    (stx : Syntax)
+    (params : Array ParamDecl)
+    (lhs rhs : Term)
+    (lhsTy rhsTy : ValueType) : CommandElabM (String × String) := do
+  match directDynamicComparableParamName? params lhs, directDynamicComparableParamName? params rhs with
+  | some (lhsName, lhsParamTy), some (rhsName, rhsParamTy) =>
+      if lhsParamTy == lhsTy && rhsParamTy == rhsTy && lhsTy == rhsTy then
+        pure (lhsName, rhsName)
+      else
+        throwErrorAt stx
+          s!"bytes/string equality requires matching direct parameter references, got {renderValueType lhsTy} and {renderValueType rhsTy}"
+  | _, _ =>
+      throwErrorAt stx
+        "bytes/string equality currently requires direct parameter references on the compilation-model path"
 
 private def requireSameOrWordLikeTypes (stx : Syntax) (context : String) (lhsTy rhsTy : ValueType) : CommandElabM Unit := do
   unless lhsTy == rhsTy || (isWordLikeValueType lhsTy && isWordLikeValueType rhsTy) do
@@ -1531,12 +1561,30 @@ partial def translatePureExpr
   | `(term| shr $shift $value) => `(Compiler.CompilationModel.Expr.shr $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| sar $shift $value) => `(Compiler.CompilationModel.Expr.sar $(← translatePureExpr fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| signextend $byteIndex $value) => `(Compiler.CompilationModel.Expr.signextend $(← translatePureExpr fields constDecls immutableDecls params locals byteIndex visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals value visitingConstants))
-  | `(term| $a == $b) => `(Compiler.CompilationModel.Expr.eq $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
-  | `(term| $a != $b) =>
-      `(Compiler.CompilationModel.Expr.logicalNot
-          (Compiler.CompilationModel.Expr.eq
-            $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
-            $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
+  | `(term| $a == $b) => do
+      let typedLocals := locals.map (fun localName => (localName, .uint256))
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params typedLocals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params typedLocals b visitingConstants
+      if (lhsTy == .string && rhsTy == .string) || (lhsTy == .bytes && rhsTy == .bytes) then
+        let (lhsName, rhsName) ← dynamicEqParamNames stx params a b lhsTy rhsTy
+        `(Compiler.CompilationModel.Expr.dynamicBytesEq $(strTerm lhsName) $(strTerm rhsName))
+      else
+        `(Compiler.CompilationModel.Expr.eq
+          $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+          $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a != $b) => do
+      let typedLocals := locals.map (fun localName => (localName, .uint256))
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params typedLocals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params typedLocals b visitingConstants
+      if (lhsTy == .string && rhsTy == .string) || (lhsTy == .bytes && rhsTy == .bytes) then
+        let (lhsName, rhsName) ← dynamicEqParamNames stx params a b lhsTy rhsTy
+        `(Compiler.CompilationModel.Expr.logicalNot
+            (Compiler.CompilationModel.Expr.dynamicBytesEq $(strTerm lhsName) $(strTerm rhsName)))
+      else
+        `(Compiler.CompilationModel.Expr.logicalNot
+            (Compiler.CompilationModel.Expr.eq
+              $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+              $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
   | `(term| $a >= $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants

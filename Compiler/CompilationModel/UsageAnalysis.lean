@@ -69,6 +69,8 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.returndataOptionalBoolAt outOffset => exprUsesArrayElement outOffset
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesArrayElement args
+  | Expr.dynamicBytesEq _ _ =>
+      false
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
@@ -157,5 +159,114 @@ def constructorUsesArrayElement : Option ConstructorSpec → Bool
 
 def contractUsesArrayElement (spec : CompilationModel) : Bool :=
   constructorUsesArrayElement spec.constructor || spec.functions.any functionUsesArrayElement
+
+mutual
+def exprUsesDynamicBytesEq : Expr → Bool
+  | Expr.dynamicBytesEq _ _ => true
+  | Expr.mapping _ key => exprUsesDynamicBytesEq key
+  | Expr.mappingWord _ key _ => exprUsesDynamicBytesEq key
+  | Expr.mappingPackedWord _ key _ _ => exprUsesDynamicBytesEq key
+  | Expr.mappingChain _ keys => exprListUsesDynamicBytesEq keys
+  | Expr.structMember _ key _ => exprUsesDynamicBytesEq key
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ =>
+      exprUsesDynamicBytesEq key1 || exprUsesDynamicBytesEq key2
+  | Expr.mappingUint _ key => exprUsesDynamicBytesEq key
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprUsesDynamicBytesEq gas || exprUsesDynamicBytesEq target || exprUsesDynamicBytesEq value ||
+      exprUsesDynamicBytesEq inOffset || exprUsesDynamicBytesEq inSize ||
+      exprUsesDynamicBytesEq outOffset || exprUsesDynamicBytesEq outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize =>
+      exprUsesDynamicBytesEq gas || exprUsesDynamicBytesEq target ||
+      exprUsesDynamicBytesEq inOffset || exprUsesDynamicBytesEq inSize ||
+      exprUsesDynamicBytesEq outOffset || exprUsesDynamicBytesEq outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprUsesDynamicBytesEq gas || exprUsesDynamicBytesEq target ||
+      exprUsesDynamicBytesEq inOffset || exprUsesDynamicBytesEq inSize ||
+      exprUsesDynamicBytesEq outOffset || exprUsesDynamicBytesEq outSize
+  | Expr.extcodesize addr => exprUsesDynamicBytesEq addr
+  | Expr.mload offset | Expr.tload offset => exprUsesDynamicBytesEq offset
+  | Expr.calldataload offset => exprUsesDynamicBytesEq offset
+  | Expr.keccak256 offset size => exprUsesDynamicBytesEq offset || exprUsesDynamicBytesEq size
+  | Expr.returndataOptionalBoolAt outOffset => exprUsesDynamicBytesEq outOffset
+  | Expr.externalCall _ args | Expr.internalCall _ args =>
+      exprListUsesDynamicBytesEq args
+  | Expr.arrayElement _ index => exprUsesDynamicBytesEq index
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b
+  | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b
+  | Expr.logicalAnd a b | Expr.logicalOr a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b =>
+      exprUsesDynamicBytesEq a || exprUsesDynamicBytesEq b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c =>
+      exprUsesDynamicBytesEq a || exprUsesDynamicBytesEq b || exprUsesDynamicBytesEq c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprUsesDynamicBytesEq a
+  | Expr.ite cond thenVal elseVal =>
+      exprUsesDynamicBytesEq cond || exprUsesDynamicBytesEq thenVal || exprUsesDynamicBytesEq elseVal
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
+  | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListUsesDynamicBytesEq : List Expr → Bool
+  | [] => false
+  | e :: es => exprUsesDynamicBytesEq e || exprListUsesDynamicBytesEq es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtUsesDynamicBytesEq : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.return value | Stmt.require value _ =>
+      exprUsesDynamicBytesEq value
+  | Stmt.requireError cond _ args =>
+      exprUsesDynamicBytesEq cond || exprListUsesDynamicBytesEq args
+  | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
+      exprListUsesDynamicBytesEq args
+  | Stmt.mstore offset value | Stmt.tstore offset value =>
+      exprUsesDynamicBytesEq offset || exprUsesDynamicBytesEq value
+  | Stmt.calldatacopy destOffset sourceOffset size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprUsesDynamicBytesEq destOffset || exprUsesDynamicBytesEq sourceOffset || exprUsesDynamicBytesEq size
+  | Stmt.setMapping _ key value | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value
+  | Stmt.setMappingUint _ key value
+  | Stmt.setStructMember _ key _ value =>
+      exprUsesDynamicBytesEq key || exprUsesDynamicBytesEq value
+  | Stmt.setMappingChain _ keys value =>
+      exprListUsesDynamicBytesEq keys || exprUsesDynamicBytesEq value
+  | Stmt.setMapping2 _ key1 key2 value | Stmt.setMapping2Word _ key1 key2 _ value
+  | Stmt.setStructMember2 _ key1 key2 _ value =>
+      exprUsesDynamicBytesEq key1 || exprUsesDynamicBytesEq key2 || exprUsesDynamicBytesEq value
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprUsesDynamicBytesEq cond || stmtListUsesDynamicBytesEq thenBranch || stmtListUsesDynamicBytesEq elseBranch
+  | Stmt.forEach _ count body =>
+      exprUsesDynamicBytesEq count || stmtListUsesDynamicBytesEq body
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
+  | Stmt.externalCallBind _ _ args
+  | Stmt.ecm _ args =>
+      exprListUsesDynamicBytesEq args
+  | Stmt.rawLog topics dataOffset dataSize =>
+      exprListUsesDynamicBytesEq topics || exprUsesDynamicBytesEq dataOffset || exprUsesDynamicBytesEq dataSize
+  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.revertReturndata | Stmt.stop =>
+      false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListUsesDynamicBytesEq : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtUsesDynamicBytesEq s || stmtListUsesDynamicBytesEq ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+def contractUsesDynamicBytesEq (spec : CompilationModel) : Bool :=
+  (spec.constructor.map (fun ctor => ctor.body.any stmtUsesDynamicBytesEq) |>.getD false) ||
+    spec.functions.any (fun fn => fn.body.any stmtUsesDynamicBytesEq)
 
 end Compiler.CompilationModel

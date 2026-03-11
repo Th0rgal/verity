@@ -20,6 +20,8 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
       exprContainsCallLike key1 || exprContainsCallLike key2
   | Expr.arrayElement _ index =>
       exprContainsCallLike index
+  | Expr.dynamicBytesEq _ _ =>
+      false
   | Expr.mload offset | Expr.tload offset | Expr.calldataload offset | Expr.extcodesize offset |
     Expr.returndataOptionalBoolAt offset =>
       exprContainsCallLike offset
@@ -103,6 +105,8 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
       exprContainsUnsafeLogicalCallLike key1 || exprContainsUnsafeLogicalCallLike key2
   | Expr.arrayElement _ index | Expr.returndataOptionalBoolAt index =>
       exprContainsUnsafeLogicalCallLike index
+  | Expr.dynamicBytesEq _ _ =>
+      false
   | Expr.extcodesize addr =>
       exprContainsUnsafeLogicalCallLike addr
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b

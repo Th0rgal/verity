@@ -15,6 +15,7 @@ DEFAULT_FUZZ_FILE = ROOT / "Contracts" / "MacroTranslateRoundTripFuzz.lean"
 EXCLUDED_CONTRACTS = {
     "StringSmoke",  # ABI-level string support is not yet covered by the numeric-only round-trip fuzz harness
     "StringErrorSmoke",  # String custom-error payloads are covered by dedicated ABI/runtime tests, not the numeric-only fuzz harness
+    "StringEqSmoke",  # Direct string equality lowering still depends on ABI-dynamic string inputs, which this numeric-only fuzz harness does not model
 }
 
 CONTRACT_RE = re.compile(r"\bverity_contract\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\b")
