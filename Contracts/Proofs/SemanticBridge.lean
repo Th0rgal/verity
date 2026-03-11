@@ -14,9 +14,9 @@
   **Status**: This file is the contract-specific Layer 2 client/example layer.
   The bridge theorems below are intentionally concrete per contract function:
   they demonstrate how to connect EDSL execution, compiled IR execution, and
-  Layer 3 preservation without claiming a single generic
-  `CompilationModel.compile` correctness theorem for arbitrary supported
-  contracts.
+  Layer 3 preservation. This is not the source of generic compiler correctness
+  for `CompilationModel.compile`. The generic Layer 2 theorem now lives under
+  `Compiler/Proofs/IRGeneration/Contract.lean`.
 
   **Why a separate file**: The macro-generated theorems cannot import
   `Compiler.Proofs.IRGeneration.IRInterpreter` (it would transitively pull
@@ -199,12 +199,10 @@ def mkIRState
 
 /-- Wrapper theorem for the current contract-specific Layer 2 bridge style.
 
-This is not a generic compiler-correctness theorem for `CompilationModel.compile`.
-It only says that once a caller already has a contract-specific postcondition
-for the compiled IR contract, that same postcondition can be transported
-through the `compile` entrypoint for all states and senders. The actual
-semantic work still lives in the contract-specific bridge theorem passed in as
-`hpost`. -/
+This is a legacy/example wrapper theorem around the generic compiler proof
+surface. It only says that once a caller already has a contract-specific
+postcondition for the compiled IR contract, that same postcondition can be
+transported through the `compile` entrypoint for all states and senders. -/
 theorem spec_to_ir_preserves_semantics
     {α : Type}
     (spec : CompilationModel.CompilationModel)

@@ -8,7 +8,7 @@ This document states what Verity proves and what it still trusts.
 EDSL (Lean)
   ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS, generic core, contract bridges]
 CompilationModel
-  ↓ [Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges]
+  ↓ [Layer 2: SUPPORTED-FRAGMENT GENERIC THEOREM — CompilationModel → IR]
 IR
   ↓ [Layer 3: GENERIC SURFACE, explicit bridge hypothesis, IR → Yul]
 Yul
@@ -24,9 +24,7 @@ The repository has no `sorry`, and it now has 1 documented Lean axiom. See [AXIO
   This names the frontend EDSL-to-`CompilationModel` bridge only; the
   contract-specific specification theorems in `Contracts/<Name>/Proofs/` are a
   separate proof layer about human-readable contract behavior.
-- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem. The initial-state normalization step is proved, the former generic body-simulation axiom has been eliminated, and whole-contract Layer 2 preservation still relies on contract-specific bridge theorems. The theorem surface makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains.
-- **Layer 3**: IR → Yul preservation is generic at the proof surface, but the current full dispatch-preservation path still depends on 1 documented bridge hypothesis. The checked contract-level theorem surface now makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
-- **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem. The initial-state normalization step is proved, and the former `execIRFunctionFuel`/`execIRFunction` bridge axiom and the former generic body-simulation axiom have both been eliminated, but whole-contract Layer 2 preservation still relies on contract-specific bridge theorems. The theorem surface makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains.
+- **Layer 2**: A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment. `supported_function_correct` is now a real theorem, the initial-state normalization step is proved, the former generic body-simulation axiom has been eliminated, and the theorem surface makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains. Legacy wrapper theorems in `Contracts/Proofs/SemanticBridge.lean` remain as example consumers, not as the source of Layer 2 correctness.
 - **Layer 3**: IR → Yul preservation is generic at the proof surface, and the remaining dispatch bridge now lives as an explicit theorem hypothesis rather than a Lean axiom. The checked contract-level theorem surface makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
 - **Cross-layer**: [`Contracts/Proofs/SemanticBridge.lean`](Contracts/Proofs/SemanticBridge.lean) has zero `sorry`, but it is a manual bridge layer for a subset of contracts rather than a fully generic replacement for Layers 1-3.
 
@@ -113,5 +111,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-03-09
+**Last Updated**: 2026-03-11
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.

@@ -2,7 +2,7 @@
 
 Tracking:
 - umbrella issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
-- current proof blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
+- axiom-elimination milestone: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 
 ## Objective
 
@@ -204,7 +204,7 @@ Use this checklist in the PR description and keep it current:
 - [x] Prove selector-dispatch correctness
 - [x] Prove generic whole-contract `CompilationModel.compile` correctness
 - [ ] Refactor one existing contract proof into theorem instantiation
-- [ ] Update Layer 2 documentation boundaries
+- [x] Update Layer 2 documentation boundaries
 
 ## Current Proof Status
 
@@ -214,11 +214,24 @@ The generic whole-contract theorem exists and its proof chain is complete:
 - **`compileFunctionSpec_correct_generic`** in the same file, per-function correctness.
 - **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean), selector-dispatch preservation.
 
-The proof chain transitively depends on 1 documented axiom: `supported_function_body_correct_from_exact_state` in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean). This axiom covers non-core body simulation (storage writes, mapping writes, and other complex statement patterns). See [AXIOMS.md](../AXIOMS.md) for details and elimination plan.
+The proof chain no longer depends on `supported_function_body_correct_from_exact_state`; that axiom has been deleted. The only remaining documented project axiom is the selector-level `keccak256_first_4_bytes` assumption in [`Compiler/Selector.lean`](../Compiler/Selector.lean), as tracked in [AXIOMS.md](../AXIOMS.md).
 
-**Remaining work**:
-- No existing contract has been refactored to use the generic theorem yet; end-to-end examples still use manual bridge theorems in `SemanticBridge.lean`.
-- Eliminating the body-simulation axiom requires proving the remaining non-core statement patterns ([#1564](https://github.com/Th0rgal/verity/issues/1564)).
+- `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`
+
+This theorem is now quantified over a whole `CompilationModel`, selectors, a
+`SupportedSpec` witness, and successful `CompilationModel.compile`, with no
+contract-specific semantic bridge premise and no Layer 2 axiom. The function
+closure is discharged generically from the supported statement fragment, and the
+compiled-function-table witness is derived directly from
+`CompilationModel.compile = Except.ok ir`.
+
+The main objective of issue #1618 is therefore complete. Remaining Layer 2 work
+under [#1510](https://github.com/Th0rgal/verity/issues/1510) is follow-on
+adoption and breadth work:
+
+- refactor at least one existing contract proof so it instantiates the generic
+  theorem directly instead of using a legacy wrapper bridge
+- widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem
 

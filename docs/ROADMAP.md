@@ -7,7 +7,7 @@
 ## Current Status
 
 - ✅ **Layer 1 Complete**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for the current theorem totals and contract coverage table
-- 🟡 **Layer 2 Partial Generic**: supported statement-list preservation is proven, but the generic whole-contract `CompilationModel.compile` theorem is still tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- 🟢 **Layer 2 Generic Theorem**: the generic whole-contract `CompilationModel.compile` theorem is proved for the current supported fragment; remaining work in [#1510](https://github.com/Th0rgal/verity/issues/1510) is widening the fragment and migrating legacy bridge consumers
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
 - ✅ **Property Testing**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for current coverage totals and exclusions
 - ✅ **Differential Testing**: Production-ready with 70k+ tests
@@ -320,4 +320,4 @@ See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contribution guidelines and [`VE
 ---
 
 **Last Updated**: 2026-03-10
-**Status**: Layer 1 is complete for the current contract set; Layer 2 remains partial-generic with an open whole-contract theorem gap tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510); Layer 3 is complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). CompilationModel now supports real-world contracts (loops, branching, events, multi-mappings, internal call mechanics, verified externs).
+**Status**: Layer 1 is complete for the current contract set; Layer 2 now has a generic whole-contract theorem for the current supported fragment, with remaining [#1510](https://github.com/Th0rgal/verity/issues/1510) work focused on fragment widening and legacy bridge migration; Layer 3 is complete. Trust reduction 1/3 done. Sum properties complete (7/7 proven). CompilationModel now supports real-world contracts (loops, branching, events, multi-mappings, internal call mechanics, verified externs).

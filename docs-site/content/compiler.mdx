@@ -30,8 +30,8 @@ Important: Verity has two different "spec" concepts.
 
 ### What's Verified (Zero Trust Required)
 - **Layer 1 frontend bridge**: EDSL behavior is proven equivalent to its `CompilationModel`.
-- **Layer 2 boundary today**: a supported-statement `CompilationModel -> IR` theorem exists, but full-contract Layer 2 preservation still relies on contract-specific bridge theorems.
-- **Layer 2 framework proof**: a generic whole-contract theorem surface exists and its former exact-state body-simulation axiom has been eliminated, but full-contract Layer 2 preservation still relies on contract-specific bridge theorems.
+- **Layer 2 boundary today**: the generic whole-contract `CompilationModel -> IR` theorem is proved for the current explicit supported fragment.
+- **Layer 2 framework proof**: the former exact-state body-simulation axiom has been eliminated, and legacy contract-specific bridge theorems now sit above the generic compiler theorem as example wrappers.
 - **Layer 3 framework proof**: `IR -> Yul` preserves semantics, with the remaining dispatch bridge exposed as an explicit theorem hypothesis rather than a Lean axiom.
 - **Machine-checked proofs**: see [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current proof-status snapshot and [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) for documented axioms.
 - **Interpreter semantics**: Spec, IR, and Yul semantics defined and linked in Lean

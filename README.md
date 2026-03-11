@@ -105,7 +105,7 @@ The compiler turns contracts into Yul (Solidity's low-level IR) through three la
 EDSL contract (Lean)
   ↓  Layer 1: EDSL ≡ CompilationModel     [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
 CompilationModel (declarative IR spec)
-  ↓  Layer 2: CompilationModel → IR        [PARTIAL GENERIC, CONTRACT BRIDGES ACTIVE]
+  ↓  Layer 2: CompilationModel → IR        [GENERIC WHOLE-CONTRACT THEOREM, LEGACY EXAMPLE BRIDGES]
 Intermediate Representation
   ↓  Layer 3: IR → Yul                     [GENERIC SURFACE, EXPLICIT BRIDGE HYPOTHESIS]
 Yul
@@ -116,12 +116,12 @@ EVM Bytecode
 | Layer | What it proves | Key file |
 |-------|---------------|----------|
 | 1 | A generic typed-IR core plus contract-level bridge theorems establish EDSL execution = CompilationModel interpretation for the current supported contracts | [TypedIRCompilerCorrectness.lean](Compiler/TypedIRCompilerCorrectness.lean) |
-| 2 | A generic whole-contract theorem surface exists for the current explicit supported fragment, and its function-level closure now runs by theorem rather than axiom. Active end-to-end examples still rely on contract-specific bridge theorems, and the theorem surface explicitly assumes normalized transaction-context fields. The remaining closure work is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510), with the current proof plan in [docs/GENERIC_LAYER2_PLAN.md](docs/GENERIC_LAYER2_PLAN.md). | [Contract.lean](Compiler/Proofs/IRGeneration/Contract.lean) |
+| 2 | A generic whole-contract theorem is proved for the current explicit supported fragment, and its function-level closure now runs by theorem rather than axiom. Some end-to-end examples still keep legacy wrapper bridge theorems, and the theorem surface explicitly assumes normalized transaction-context fields. Follow-on work in [#1510](https://github.com/Th0rgal/verity/issues/1510) now focuses on widening the fragment and migrating consumers. | [Contract.lean](Compiler/Proofs/IRGeneration/Contract.lean) |
 | 3 | IR → Yul codegen is proved generically at the statement/function level, but the current full dispatch-preservation path still uses 1 documented bridge hypothesis; the checked contract-level theorem surface now makes dispatch-guard safety explicit for each selected function case | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
 There is currently 1 documented Lean axiom in total: the selector axiom. Layer 2's former generic body-simulation axiom has been eliminated, and Layer 3 keeps its remaining dispatch bridge as an explicit theorem hypothesis rather than a Lean axiom. See [AXIOMS.md](AXIOMS.md).
 
-Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md), [docs/GENERIC_LAYER2_PLAN.md](docs/GENERIC_LAYER2_PLAN.md), and [AXIOMS.md](AXIOMS.md).
+Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 2 now has a generic whole-contract theorem for the explicit supported fragment. Some legacy example bridges remain in `Contracts/Proofs/SemanticBridge.lean`. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md), [docs/GENERIC_LAYER2_PLAN.md](docs/GENERIC_LAYER2_PLAN.md), and [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 
