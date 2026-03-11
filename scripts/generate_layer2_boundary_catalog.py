@@ -168,6 +168,11 @@ def build_catalog() -> dict:
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "InterpretIRWithInternalsZeroConservativeExtensionGoal"
                     ),
+                    "goal_composition_surface": (
+                        "Compiler.Proofs.IRGeneration.IRInterpreter."
+                        "interpretIRWithInternalsZeroConservativeExtensionGoal_"
+                        "of_dispatchGoal"
+                    ),
                     "goal_decomposition_surface": (
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "InterpretIRWithInternalsZeroConservativeExtensionInterfaces"
@@ -181,8 +186,12 @@ def build_catalog() -> dict:
                         "and the remaining compiled-side cut is now encoded as "
                         "the dispatch-local selected-function goal "
                         "InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal "
-                        "over LegacyCompatibleRuntimeDispatch before lifting back "
-                        "to the top-level contract goal"
+                        "over LegacyCompatibleRuntimeDispatch; "
+                        "IRInterpreter.lean now also proves the reduction from "
+                        "that selected-function goal back to the contract-level "
+                        "InterpretIRWithInternalsZeroConservativeExtensionGoal "
+                        "via interpretIRWithInternalsZeroConservativeExtensionGoal_"
+                        "of_dispatchGoal"
                     ),
                 },
                 "compiled_target_proof_surface": {
@@ -213,7 +222,9 @@ def build_catalog() -> dict:
                     "proved expr / expr-list compatibility plus the remaining "
                     "stmt / stmt-list / function slice of "
                     "InterpretIRWithInternalsZeroConservativeExtensionInterfaces, "
-                    "then lift that dispatch-local result into the explicit "
+                    "then compose it through "
+                    "interpretIRWithInternalsZeroConservativeExtensionGoal_"
+                    "of_dispatchGoal into the explicit "
                     "InterpretIRWithInternalsZeroConservativeExtensionGoal on "
                     "the legacy-compatible external-body Yul subset generated "
                     "by the current supported fragment, "
@@ -263,9 +274,13 @@ def build_catalog() -> dict:
                             "theorem. IRInterpreter.lean now also packages the "
                             "expected expr/stmt/stmt-list/function sub-lemmas as "
                             "InterpretIRWithInternalsZeroConservativeExtensionInterfaces; "
-                            "the repo still needs those interfaces proved and "
-                            "composed into the top-level goal before the public theorem "
-                            "stack can safely retarget from interpretIR to "
+                            "the repo still needs those interfaces proved to "
+                            "establish the dispatch-local selected-function "
+                            "goal, while the lift from that goal back to the "
+                            "top-level contract theorem is now already encoded "
+                            "by interpretIRWithInternalsZeroConservativeExtensionGoal_"
+                            "of_dispatchGoal before the public theorem stack "
+                            "can safely retarget from interpretIR to "
                             "interpretIRWithInternals"
                         ),
                     },

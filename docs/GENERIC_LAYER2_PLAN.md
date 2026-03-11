@@ -287,14 +287,19 @@ now sits under the post-generic widening/completeness plan in
   `applyIRTransactionContext` and packages the selected-function cut as
   `InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal` over
   `LegacyCompatibleRuntimeDispatch`;
+  `IRInterpreter.lean` now also proves
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal`, so
+  lifting the selected-function theorem back to the contract-level conservative-extension
+  goal is no longer part of the open blocker;
   the expr / expr-list obligations in that interface are now discharged directly in
   `IRInterpreter.lean` via
   `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`,
   `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper theorem
   `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`;
   the remaining compiled-side proof step is filling the stmt / stmt-list / function part of that interface,
-  proving the dispatch-local selected-function step, and then composing that into the
-  conservative-extension goal from legacy `interpretIR` to `interpretIRWithInternals` on that subset,
+  proving the dispatch-local selected-function step, and then using the now-encoded
+  reduction theorem to obtain the conservative-extension goal from legacy `interpretIR`
+  to `interpretIRWithInternals` on that subset,
   while the public theorem stack still targets legacy `execIRFunction` / `interpretIR`
   even though `IRInterpreter.lean` now defines helper-aware compiled-side targets
   (`execIRFunctionWithInternals`, `interpretIRWithInternals`) for internal-helper composition;

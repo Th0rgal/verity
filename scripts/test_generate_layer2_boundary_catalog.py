@@ -69,6 +69,14 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
+            ]["goal_composition_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "interpretIRWithInternalsZeroConservativeExtensionGoal_"
+            "of_dispatchGoal",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
             ]["goal_decomposition_surface"],
             "Compiler.Proofs.IRGeneration.IRInterpreter."
             "InterpretIRWithInternalsZeroConservativeExtensionInterfaces",

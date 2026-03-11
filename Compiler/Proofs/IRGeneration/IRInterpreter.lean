@@ -1123,6 +1123,30 @@ theorem legacyCompatibleRuntimeDispatch_of_legacyCompatibleRuntimeContract
   intro tx fn hfind
   exact hfunctions fn (List.mem_of_find?_eq_some hfind)
 
+/-- Once the selected-function compatibility theorem is available, the public
+contract-level helper-free conservative-extension goal follows directly. This
+packages the remaining compiled-side blocker as one dispatch-local theorem plus
+the already-explicit runtime-boundary conversion. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal
+    (contract : IRContract) :
+    InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal contract →
+      InterpretIRWithInternalsZeroConservativeExtensionGoal contract := by
+  intro hdispatch
+  intro hlegacy tx initialState
+  let stateWithTx := applyIRTransactionContext tx initialState
+  cases hfind : contract.functions.find? (·.selector == tx.functionSelector) with
+  | none =>
+      simp [interpretIRWithInternals, interpretIR, hfind]
+  | some fn =>
+      have hdispatchCompat :=
+        hdispatch
+          (legacyCompatibleRuntimeDispatch_of_legacyCompatibleRuntimeContract contract hlegacy)
+          tx initialState fn hfind
+      simp [interpretIRWithInternals, interpretIR, hfind]
+      split
+      · exact hdispatchCompat
+      · rfl
+
 @[simp] theorem applyIRTransactionContext_sender
     (tx : IRTransaction) (initialState : IRState) :
     (applyIRTransactionContext tx initialState).sender = tx.sender := by
