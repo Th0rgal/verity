@@ -6,7 +6,7 @@ This document is the authoritative reference for arithmetic semantics. For forma
 
 ## Wrapping Semantics
 
-All arithmetic in the compilation path (`EDSL -> CompilationModel -> IR -> Yul`) wraps modulo 2^256. There are **no implicit overflow checks** — values silently wrap.
+All arithmetic in the compilation path (`EDSL -> CompilationModel -> IR -> Yul`) wraps modulo 2^256. There are **no implicit overflow checks**; values silently wrap.
 
 | Operation | Semantics | Div/Mod-by-zero |
 |-----------|-----------|-----------------|
@@ -54,7 +54,7 @@ For contracts that require overflow protection, the EDSL provides checked operat
 | `safeMul a b` | `Option Uint256` | `none` if `a * b > 2^256 - 1` |
 | `safeDiv a b` | `Option Uint256` | `none` if `b = 0` |
 
-Checked operations are **EDSL-level constructs**. They are not compiler-enforced — the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
+Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 
@@ -104,7 +104,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 
 ## Related Documents
 
-- [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md) — trust boundaries and semantic caveats
-- [`AXIOMS.md`](../AXIOMS.md) — documented axioms (arithmetic is NOT an axiom)
-- [`docs/SOLIDITY_PARITY_PROFILE.md`](SOLIDITY_PARITY_PROFILE.md) — backend profile specification
-- [`Compiler/Proofs/ArithmeticProfile.lean`](../Compiler/Proofs/ArithmeticProfile.lean) — formal proofs
+- [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md): trust boundaries and semantic caveats
+- [`AXIOMS.md`](../AXIOMS.md): documented axioms (arithmetic is NOT an axiom)
+- [`docs/SOLIDITY_PARITY_PROFILE.md`](SOLIDITY_PARITY_PROFILE.md): backend profile specification
+- [`Compiler/Proofs/ArithmeticProfile.lean`](../Compiler/Proofs/ArithmeticProfile.lean): formal proofs

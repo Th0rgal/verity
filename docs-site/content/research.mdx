@@ -42,7 +42,7 @@ See [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VE
 - Storage as functions (`Nat -> Uint256`), not finite maps. Uninitialized slots return 0.
 - `require` returns `ContractResult.revert msg s`, preserving original state.
 - Manual storage slot allocation (slot 0, 1, 2...). No automatic allocation needed.
-- Selectors are auto-computed from function signatures via `computeSelectors` — no manual selector maps needed.
+- Selectors are auto-computed from function signatures via `computeSelectors`; no manual selector maps needed.
 - `onlyOwner` is a regular function, not special syntax.
 
 **What didn't work:**
@@ -93,18 +93,18 @@ But `private theorem` isn't accessible from other files. Isolation proofs in sep
 ## Verification Structure
 
 Each contract has:
-- `Contracts/X/X.lean` — Implementation (EDSL)
-- `Contracts/X/Spec.lean` — Pre/postconditions for each operation
-- `Contracts/X/Invariants.lean` — State properties that should hold
-- `Contracts/X/SpecProofs.lean` — Contract-specific spec conformance and end-to-end proof layer
-- `Compiler/TypedIRCompilerCorrectness.lean` — Layer 1 typed-IR compilation correctness for the supported statement fragment
-- `Contracts/Proofs/SemanticBridge.lean` — Contract-level Layer 2 bridge theorems (client/example layer, not the generic compiler proof)
-- `Compiler/Proofs/IRGeneration/Contract.lean` — Partial generic Layer 2 theorem spine; the remaining whole-contract gap is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- `Contracts/X/X.lean`: Implementation (EDSL)
+- `Contracts/X/Spec.lean`: Pre/postconditions for each operation
+- `Contracts/X/Invariants.lean`: State properties that should hold
+- `Contracts/X/SpecProofs.lean`: Contract-specific spec conformance and end-to-end proof layer
+- `Compiler/TypedIRCompilerCorrectness.lean`: Layer 1 typed-IR compilation correctness for the supported statement fragment
+- `Contracts/Proofs/SemanticBridge.lean`: Contract-level Layer 2 bridge theorems (client/example layer, not the generic compiler proof)
+- `Compiler/Proofs/IRGeneration/Contract.lean`: Partial generic Layer 2 theorem spine; the remaining whole-contract gap is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
 
 Some contracts have additional proof files:
-- `Contracts/SimpleToken/SpecProofs.lean` — Supply and transfer reasoning
-- `Contracts/Ledger/SpecProofs.lean` — Balance accounting and conservation equations
-- `Contracts/OwnedCounter/SpecProofs.lean` — Cross-pattern ownership and counter invariants
+- `Contracts/SimpleToken/SpecProofs.lean`: Supply and transfer reasoning
+- `Contracts/Ledger/SpecProofs.lean`: Balance accounting and conservation equations
+- `Contracts/OwnedCounter/SpecProofs.lean`: Cross-pattern ownership and counter invariants
 
 Conservation proofs use `List.countOcc` to account for duplicate addresses. For `NoDup` lists, transfer preserves exact sum. For general lists, exact equations with `countOcc` multipliers are proven.
 
@@ -122,7 +122,7 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 
 ### Generic Compilation
 
-All contracts are compiled from declarative `CompilationModel` specifications (in `Compiler/Specs.lean`) — no manual IR. The compiler handles storage slot inference, constructor parameters, function selectors, and expression inlining automatically. See the [Compiler reference](/compiler) for the full DSL documentation.
+All contracts are compiled from declarative `CompilationModel` specifications (in `Compiler/Specs.lean`), no manual IR. The compiler handles storage slot inference, constructor parameters, function selectors, and expression inlining automatically. See the [Compiler reference](/compiler) for the full DSL documentation.
 
 ### Differential Testing
 

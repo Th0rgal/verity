@@ -9,11 +9,11 @@ description: Step-by-step tutorial for creating a verified smart contract in Ver
 **Prerequisites**: Basic familiarity with Lean 4 syntax and smart contract concepts
 
 > **New to Lean 4?** You'll need to understand `do` notation, `def`/`theorem`, and basic tactic proofs (`simp`, `intro`, `constructor`). Start with:
-> - [Lean 4 Manual — Basics](https://lean-lang.org/lean4/doc/) — language overview
-> - [Theorem Proving in Lean 4](https://leanprover.github.io/theorem_proving_in_lean4/) — chapters 1–5 cover everything needed here
-> - [Functional Programming in Lean](https://lean-lang.org/functional_programming_in_lean/) — `do` notation and monads (chapter 4)
+> - [Lean 4 Manual: Basics](https://lean-lang.org/lean4/doc/): language overview
+> - [Theorem Proving in Lean 4](https://leanprover.github.io/theorem_proving_in_lean4/): chapters 1–5 cover everything needed here
+> - [Functional Programming in Lean](https://lean-lang.org/functional_programming_in_lean/): `do` notation and monads (chapter 4)
 
-This tutorial walks you through creating a complete verified smart contract from scratch. We'll build a **TipJar** contract — a simple balance ledger where users can deposit tips and check balances.
+This tutorial walks you through creating a complete verified smart contract from scratch. We'll build a **TipJar** contract, a simple balance ledger where users can deposit tips and check balances.
 
 > **Why TipJar?** It uses the core EDSL features (mappings, `msgSender`, `require`, arithmetic) while staying simple enough to prove fully on your first attempt.
 
@@ -49,13 +49,13 @@ python3 scripts/generate_contract.py TipJar \
 ```
 
 This creates all required files:
-- `Contracts/TipJar/Spec.lean` — formal specification
-- `Contracts/TipJar/Invariants.lean` — state invariants
-- `Contracts/TipJar/SpecProofs.lean` — compilation correctness proof re-export
-- `Contracts/TipJar/TipJar.lean` — EDSL implementation
-- `Contracts/TipJar/Proofs/Basic.lean` — basic correctness proofs (EDSL matches spec)
-- `Contracts/TipJar/Proofs/Correctness.lean` — advanced correctness proofs
-- `test/PropertyTipJar.t.sol` — Foundry tests
+- `Contracts/TipJar/Spec.lean`: formal specification
+- `Contracts/TipJar/Invariants.lean`: state invariants
+- `Contracts/TipJar/SpecProofs.lean`: compilation correctness proof re-export
+- `Contracts/TipJar/TipJar.lean`: EDSL implementation
+- `Contracts/TipJar/Proofs/Basic.lean`: basic correctness proofs (EDSL matches spec)
+- `Contracts/TipJar/Proofs/Correctness.lean`: advanced correctness proofs
+- `test/PropertyTipJar.t.sol`: Foundry tests
 
 ### 1.2 Or Create Files Manually
 
@@ -76,7 +76,7 @@ We want to build a contract where:
 - Users can deposit a tip (adding to their balance) via `tip(uint256)`
 - Anyone can check a balance via `getBalance(address) → uint256`
 - Each address has an independent balance
-- Balances use EVM modular arithmetic (wrapping on overflow) — this matches EVM opcodes, not Solidity's default checked arithmetic
+- Balances use EVM modular arithmetic (wrapping on overflow). This matches EVM opcodes, not Solidity's default checked arithmetic
 
 > **Tip**: For contracts that should match Solidity ^0.8 behavior, add `require` guards (see `SafeCounter` example).
 
@@ -161,7 +161,7 @@ end Contracts.TipJar.Invariants
 
 ## Phase 3: Implement in EDSL (45 minutes)
 
-Now we implement the contract using the EDSL. Every function in the EDSL is a `Contract` — a state-transforming computation that can succeed or revert.
+Now we implement the contract using the EDSL. Every function in the EDSL is a `Contract`, a state-transforming computation that can succeed or revert.
 
 ### 3.1 Create EDSL Implementation
 
@@ -495,7 +495,7 @@ contract PropertyTipJarTest is YulTestBase {
         setBalance(addr, 42);
         uint256 balanceBefore = getBalanceFromStorage(addr);
 
-        // Call getBalance — should be read-only
+        // Call getBalance, should be read-only
         (bool success,) = tipjar.call(
             abi.encodeWithSignature("getBalance(address)", addr)
         );
@@ -564,7 +564,7 @@ contract PropertyTipJarTest is YulTestBase {
 - `deployYul("TipJar")` deploys your pre-generated `artifacts/yul/TipJar.yul` contract (via `solc` assembly through `vm.ffi`)
 - `vm.prank(sender)` sets `msg.sender` for the next call (Foundry cheatcode)
 - `vm.load`/`vm.store` read/write raw storage slots (for assertions and test setup)
-- Mapping slot formula: `keccak256(abi.encode(key, baseSlot))` — this is the standard Solidity storage layout
+- Mapping slot formula: `keccak256(abi.encode(key, baseSlot))` (the standard Solidity storage layout)
 - `vm.assume(...)` constrains fuzz inputs to avoid false failures (e.g., overflow)
 
 ### 6.2 Run Tests
@@ -624,7 +624,7 @@ import Contracts.TipJar.Proofs.Basic
 import Contracts.TipJar.Proofs.Correctness
 ```
 
-> **Tip**: The scaffold generator prints these exact lines when you run it — copy them directly.
+> **Tip**: The scaffold generator prints these exact lines when you run it. Copy them directly.
 
 > **Tip**: Focus on the supported `CompilationModel` (`CompilationModel`) path for compiler-facing work. The scaffold and CI checks in this repository are aligned to that single path.
 
@@ -691,8 +691,8 @@ python3 scripts/check_selectors.py
 
 ### Learning Resources
 
-- [Core Architecture](/core) — the full EDSL API reference
-- [Compiler](/compiler) — how the compilation pipeline works
-- [Proof Debugging Handbook](/guides/debugging-proofs) — common tactic failures and fixes
-- [Lean 4 Manual](https://lean-lang.org/lean4/doc/) — language reference
-- [Foundry Book](https://book.getfoundry.sh/) — testing framework
+- [Core Architecture](/core): the full EDSL API reference
+- [Compiler](/compiler): how the compilation pipeline works
+- [Proof Debugging Handbook](/guides/debugging-proofs): common tactic failures and fixes
+- [Lean 4 Manual](https://lean-lang.org/lean4/doc/): language reference
+- [Foundry Book](https://book.getfoundry.sh/): testing framework

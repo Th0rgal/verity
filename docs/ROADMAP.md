@@ -7,7 +7,7 @@
 ## Current Status
 
 - ✅ **Layer 1 Complete**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for the current theorem totals and contract coverage table
-- 🟡 **Layer 2 Partial Generic**: `compile_preserves_semantics` is proved for arbitrary supported `CompilationModel`s (zero sorry), but depends on 1 documented axiom for body simulation — see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) and [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- 🟡 **Layer 2 Partial Generic**: `compile_preserves_semantics` is proved for arbitrary supported `CompilationModel`s (zero sorry), but depends on 1 documented axiom for body simulation; see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) and [#1510](https://github.com/Th0rgal/verity/issues/1510)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
 - ✅ **Property Testing**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for current coverage totals and exclusions
 - ✅ **Differential Testing**: Production-ready with 70k+ tests
@@ -113,7 +113,7 @@ Delivery policy for unsupported features:
 
 ## Lessons from UnlinkPool (#185)
 
-[UnlinkPool](https://github.com/Th0rgal/unlink-contracts/pull/4) — a ZK privacy pool — was the first non-trivial contract built with Verity (37 theorems, 0 `sorry`, 64 Foundry tests). It exposed gaps in the CompilationModel compilation path that prevented real-world contracts from using the verified pipeline (Layers 2+3).
+[UnlinkPool](https://github.com/Th0rgal/unlink-contracts/pull/4), a ZK privacy pool, was the first non-trivial contract built with Verity (37 theorems, 0 `sorry`, 64 Foundry tests). It exposed gaps in the CompilationModel compilation path that prevented real-world contracts from using the verified pipeline (Layers 2+3).
 
 ### What was added
 
@@ -130,7 +130,7 @@ Delivery policy for unsupported features:
 
 ### What this enables
 
-A developer can now write a `CompilationModel` for contracts with conditional logic, loops over arrays, nested mappings (`address → address → uint256` for ERC20 allowances), event emission, internal helper functions, and linked external libraries — and compile through the verified pipeline (Layers 2+3). Previously only simple counter/token contracts were supported.
+A developer can now write a `CompilationModel` for contracts with conditional logic, loops over arrays, nested mappings (`address → address → uint256` for ERC20 allowances), event emission, internal helper functions, and linked external libraries, then compile through the verified pipeline (Layers 2+3). Previously only simple counter/token contracts were supported.
 
 ### Remaining gap
 
@@ -197,7 +197,7 @@ All 7 ledger sum-invariant theorems proved with zero `sorry` (PR #47, #51, Issue
 **Goal**: Demonstrate scalability beyond toy examples.
 
 **Completed Contracts**:
-1. **ERC721** (NFT standard) — implemented with 11 theorems, differential + property tests
+1. **ERC721** (NFT standard), implemented with 11 theorems, differential + property tests
 
 **Proposed Contracts**:
 1. **Governance** (voting/proposals)
@@ -245,9 +245,9 @@ All 7 ledger sum-invariant theorems proved with zero `sorry` (PR #47, #51, Issue
 
 - ✅ Layer 3 statement-level proofs (PR #42)
 - ✅ Function selector verification (PR #43, #46)
-- ✅ Ledger sum properties — all 7/7 proved (PR #47, #51, Issue #65)
-- ✅ ERC721 example contract — 11 theorems
-- ✅ Differential testing at scale — 70k+ test vectors
+- ✅ Ledger sum properties, all 7/7 proved (PR #47, #51, Issue #65)
+- ✅ ERC721 example contract, 11 theorems
+- ✅ Differential testing at scale, 70k+ test vectors
 
 ## Design Decisions
 

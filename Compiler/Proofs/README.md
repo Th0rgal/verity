@@ -44,7 +44,7 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   `Compiler/Proofs/ArithmeticProfile.lean`: focused proof support for storage
   layout invariants and arithmetic/backend alignment.
 
-The compiler path consumes `CompilationModel` values directly — there is no
+The compiler path consumes `CompilationModel` values directly; there is no
 separate EDSL-lowering boundary module in the active pipeline.
 
 ## Layer 2 Status

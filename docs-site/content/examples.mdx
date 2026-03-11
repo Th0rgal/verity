@@ -174,7 +174,7 @@ Proofs cover mint/transfer correctness, supply conservation equations, and stora
 
 ## ReentrancyExample
 
-Two parallel bank contracts — one vulnerable, one safe — demonstrating that reentrancy is a *provable* property, not just a testing concern.
+Two parallel bank contracts, one vulnerable, one safe, demonstrating that reentrancy is a *provable* property, not just a testing concern.
 
 ```lean
 -- Vulnerable: external call before state update
@@ -200,7 +200,7 @@ Proofs cover: existential attack witness (vulnerability is provably exploitable)
 
 ## CryptoHash
 
-Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs — it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
+Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs; it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
 
 ```lean
 -- Placeholder hash for proofs (replaced with real Poseidon at compile time)

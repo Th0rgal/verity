@@ -210,14 +210,14 @@ Use this checklist in the PR description and keep it current:
 
 The generic whole-contract theorem exists and its proof chain is complete:
 
-- **`compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean) — quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile`. No contract-specific bridge premise.
-- **`compileFunctionSpec_correct_generic`** in the same file — per-function correctness.
-- **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean) — selector-dispatch preservation.
+- **`compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile`. No contract-specific bridge premise.
+- **`compileFunctionSpec_correct_generic`** in the same file, per-function correctness.
+- **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean), selector-dispatch preservation.
 
 The proof chain transitively depends on 1 documented axiom: `supported_function_body_correct_from_exact_state` in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean). This axiom covers non-core body simulation (storage writes, mapping writes, and other complex statement patterns). See [AXIOMS.md](../AXIOMS.md) for details and elimination plan.
 
 **Remaining work**:
-- No existing contract has been refactored to use the generic theorem yet — end-to-end examples still use manual bridge theorems in `SemanticBridge.lean`.
+- No existing contract has been refactored to use the generic theorem yet; end-to-end examples still use manual bridge theorems in `SemanticBridge.lean`.
 - Eliminating the body-simulation axiom requires proving the remaining non-core statement patterns ([#1564](https://github.com/Th0rgal/verity/issues/1564)).
 
 ## Non-Goals For The First Generic Theorem

@@ -13,7 +13,7 @@ This document defines the proposed structure for versioned parity packs that tar
 | CLI | `--parity-pack <id>` selects a pack; cannot be combined with `--backend-profile` |
 | Registry | Hard validation in `Compiler/ParityPacks.lean`; fails closed on unknown/ambiguous tuples |
 | Patch pipeline | Two-stage typed pipeline: runtime-scoped `ExprRule`/`StmtRule`/`BlockRule` fixpoint pass, then `ObjectRule` pass over the full object |
-| Rewrite bundles | `foundation` (baseline) and `solc-compat-v0` (compatibility-only rewrites); 13 active rules — see [REWRITE_RULES.md](REWRITE_RULES.md) for the full list |
+| Rewrite bundles | `foundation` (baseline) and `solc-compat-v0` (compatibility-only rewrites); 13 active rules, see [REWRITE_RULES.md](REWRITE_RULES.md) for the full list |
 | Proof enforcement | Packs carry `compositionProofRef` + `requiredProofRefs`; fail-closed validation at selection time; proof registries propagate through CLI → codegen |
 | Pack metadata | `rewriteBundleId`, `metadataMode`, `patchMaxIterations` (default 6), and `RewriteCtx` scope/phase/iteration data threaded through execution |
 | Yul normalization | Switch zero-tags canonicalized to `case 0` (not `case 0x0`) for tokenization-level identity comparison |

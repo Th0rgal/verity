@@ -116,7 +116,7 @@ def myCall (token amount : Expr) : Stmt :=
 
 The `compile` function receives a `CompilationContext` with:
 
-- `isDynamicFromCalldata : Bool` — whether dynamic data (bytes, arrays) comes
+- `isDynamicFromCalldata : Bool`, whether dynamic data (bytes, arrays) comes
   from calldata (external functions) or memory (internal functions). Use this
   to emit `calldatacopy` vs `mcopy` as appropriate.
 

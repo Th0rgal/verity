@@ -250,7 +250,7 @@ Pre-computed from Solidity keccak256. Extensible for new functions.
 
 The CompilationModel DSL provides a complete expression and statement language for specifying contract behavior.
 
-**Expressions** (`Expr`) — key constructors:
+**Expressions** (`Expr`): key constructors:
 
 | Constructor | Description | Yul Output |
 |-------------|-------------|------------|
@@ -318,7 +318,7 @@ Some expression and statement types compile to correct Yul but are not yet fully
 | `rawLog` event emission | Not modeled (compiles correctly) | `--deny-event-emission` | — |
 | `keccak256` intrinsic | Axiomatized, not end-to-end modeled | `--deny-axiomatized-primitives` | [#1411](https://github.com/Th0rgal/verity/issues/1411) |
 
-**Local obligations**: Functions or constructors that use raw low-level calls, returndata choreography, or manual memory primitives carry `localObligations` — user-supplied refinement contracts scoped to that boundary. For proof-strict builds, add `--deny-local-obligations` to fail closed on undischarged obligations. Use `--assumption-report` for a flat machine-readable list.
+**Local obligations**: Functions or constructors that use raw low-level calls, returndata choreography, or manual memory primitives carry `localObligations` (user-supplied refinement contracts scoped to that boundary). For proof-strict builds, add `--deny-local-obligations` to fail closed on undischarged obligations. Use `--assumption-report` for a flat machine-readable list.
 
 **Upgradeability reviews**: Pair `--layout-compat-report` with `--deny-layout-incompatibility` to compare two contracts' storage layouts and fail closed if the candidate moves or mutates persisted fields.
 
@@ -338,7 +338,7 @@ approvals : MappingStruct2(Address,Address,[
 
 Members can carry packed bit metadata, so common `uint128`-style packed subfields stay declarative instead of becoming hand-written masking arithmetic in user code.
 
-**Statements** (`Stmt`) — key constructors:
+**Statements** (`Stmt`): key constructors:
 
 | Constructor | Description | Yul Output |
 |-------------|-------------|------------|
@@ -363,7 +363,7 @@ Members can carry packed bit metadata, so common `uint128`-style packed subfield
 | `emit "Event" args` | Emit event | `log1(ptr, size, topic0)` |
 | `internalCall "f" args` | Call internal function (statement) | `internal_f(args...)` |
 
-**Example** — combining multiple features:
+**Example** combining multiple features:
 ```lean
 -- Balance check with require
 Stmt.require (Expr.ge (Expr.mapping "balances" Expr.caller) (Expr.param "amount")) "Insufficient",
@@ -585,7 +585,7 @@ Expr.mapping2 "allowances" (Expr.param "owner") (Expr.param "spender")
 Stmt.setMapping2 "allowances" (Expr.param "owner") (Expr.param "spender") (Expr.param "amount")
 ```
 
-Storage layout: `keccak256(spender . keccak256(owner . slot))` — matches Solidity nested mapping layout.
+Storage layout: `keccak256(spender . keccak256(owner . slot))` (matches Solidity nested mapping layout).
 
 ### Uint256-Keyed Mappings
 
@@ -699,19 +699,19 @@ $ FOUNDRY_PROFILE=difftest forge test
 ### Validated Contracts
 
 All current example contracts compile and pass tests:
-- ✅ **SimpleStorage** — Basic storage operations
-- ✅ **Counter** — Arithmetic operations
-- ✅ **Owned** — Access control with constructor args
-- ✅ **OwnedCounter** — Pattern composition with constructor
-- ✅ **Ledger** — Mapping-based balances
-- ✅ **SimpleToken** — ERC20-like token with constructor
-- ✅ **SafeCounter** — Checked arithmetic with underflow protection
+- ✅ **SimpleStorage**: Basic storage operations
+- ✅ **Counter**: Arithmetic operations
+- ✅ **Owned**: Access control with constructor args
+- ✅ **OwnedCounter**: Pattern composition with constructor
+- ✅ **Ledger**: Mapping-based balances
+- ✅ **SimpleToken**: ERC20-like token with constructor
+- ✅ **SafeCounter**: Checked arithmetic with underflow protection
 
 **Not compiled**: ReentrancyExample (proofs are embedded inline, no compiler spec). CryptoHash compiles via `--link` with external Poseidon libraries and is validated in CI.
 
 ## Links
 
-- [Research & Development](/research) — Design decisions and proof techniques
-- [Examples](/examples) — current example contracts and walkthroughs
-- [Verification](/verification) — live proof/test status and verification structure
-- [GitHub Repository](https://github.com/Th0rgal/verity) — Source code
+- [Research & Development](/research): Design decisions and proof techniques
+- [Examples](/examples): current example contracts and walkthroughs
+- [Verification](/verification): live proof/test status and verification structure
+- [GitHub Repository](https://github.com/Th0rgal/verity): Source code

@@ -16,13 +16,13 @@ Yul (EVM Assembly)
 EVM Bytecode
 ```
 
-## Layer 1: EDSL ≡ CompilationModel — PROVEN FOR CURRENT CONTRACTS
+## Layer 1: EDSL ≡ CompilationModel, PROVEN FOR CURRENT CONTRACTS
 
 **What it proves today**: running a contract through the EDSL `Contract` monad produces the same result as interpreting its `CompilationModel`. This is proved for every contract in the table below.
 
 The proof core is generic (see [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)), but the bridge theorem that connects each contract's EDSL to its `CompilationModel` is still instantiated per contract.
 
-> **Scope note**: the per-contract proofs under `Contracts/<Name>/Proofs/` go further — they show contracts satisfy human-readable specifications (e.g. "increment adds 1"). Those are downstream contract proofs, not Layer 1 itself.
+> **Scope note**: the per-contract proofs under `Contracts/<Name>/Proofs/` go further: they show contracts satisfy human-readable specifications (e.g. "increment adds 1"). Those are downstream contract proofs, not Layer 1 itself.
 
 ### Verified Contracts
 
@@ -59,14 +59,14 @@ theorems for supported EDSL contracts, covering:
 - Explicit revert-path bridges for owner-gated and arithmetic failure paths
 - Composition with the compiled IR/Yul semantics used by the proof pipeline
 
-## Layer 2: CompilationModel → IR — PROVED GENERICALLY, 1 AXIOM
+## Layer 2: CompilationModel → IR, PROVED GENERICALLY, 1 AXIOM
 
 Tracking:
 - Whole-contract generic theorem gap: [#1510](https://github.com/Th0rgal/verity/issues/1510)
 - Current body-simulation blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
 - Proof decomposition plan: [GENERIC_LAYER2_PLAN.md](./GENERIC_LAYER2_PLAN.md)
 
-**Main theorem**: [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean) — quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile` output. The proof chain is complete but transitively depends on 1 documented axiom (see below).
+**Main theorem**: [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile` output. The proof chain is complete but transitively depends on 1 documented axiom (see below).
 
 **Current proof status**:
 
@@ -75,7 +75,7 @@ Tracking:
 | Proved generically | Supported statement-list compilation ([`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean), re-exported from [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)) |
 | Proved generically | Initial-state normalization (`withTransactionContext` ↔ `initialIRStateForTx`) |
 | Proved generically | Whole-contract theorem shape, dispatch, parameter loading |
-| Still axiomatized | Body simulation for non-core statement patterns — `supported_function_body_correct_from_exact_state` in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean) ([#1564](https://github.com/Th0rgal/verity/issues/1564)) |
+| Still axiomatized | Body simulation for non-core statement patterns, `supported_function_body_correct_from_exact_state` in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean) ([#1564](https://github.com/Th0rgal/verity/issues/1564)) |
 | Contract-specific | End-to-end examples still use manual bridge theorems in [`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean) |
 
 **Explicit precondition**: the theorem requires transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains.
@@ -104,7 +104,7 @@ Key files:
 - [`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
 - [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
 
-## Layer 3: IR → Yul — PROVED GENERICALLY
+## Layer 3: IR → Yul, PROVED GENERICALLY
 
 **What it proves**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack. The dispatch bridge is an explicit theorem hypothesis in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), not a Lean axiom. Dispatch-guard preconditions: non-payable functions require word-level zero `msg.value`; each function case requires a non-wrapping calldata-width guard.
 
@@ -227,7 +227,7 @@ Diagnostics policy for unsupported constructs:
 
 The trust report groups every foreign trust surface into `proofStatus.proved`, `proofStatus.assumed`, and `proofStatus.unchecked` buckets, localized to constructor/function usage sites. It separately lists proof-gap categories: `notModeledEventEmission`, `notModeledProxyUpgradeability`, `partiallyModeledLinearMemoryMechanics`, and `partiallyModeledRuntimeIntrospection`.
 
-**Fail-closed flags** — each flag rejects the named surface and reports the exact usage site that introduced it:
+**Fail-closed flags**: each flag rejects the named surface and reports the exact usage site that introduced it:
 
 | Flag | Rejects |
 |------|---------|

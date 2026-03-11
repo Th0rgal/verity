@@ -19,7 +19,7 @@
 
 ## What is Verity?
 
-Verity is a **formally verified smart contract compiler** written in [Lean 4](https://lean-lang.org/). You write contracts in an embedded DSL (domain-specific language), write specs describing what the contract should do, prove the specs hold, and compile to Yul/EVM bytecode — with machine-checked proofs that compilation preserves semantics.
+Verity is a **formally verified smart contract compiler** written in [Lean 4](https://lean-lang.org/). You write contracts in an embedded DSL (domain-specific language), write specs describing what the contract should do, prove the specs hold, and compile to Yul/EVM bytecode, with machine-checked proofs that compilation preserves semantics.
 
 **In short**: write a contract, state what it should do, prove it, compile it, and the compiler is proven to not break anything along the way.
 
@@ -97,7 +97,7 @@ theorem increment_meets_spec (s : ContractState) :
   · simp [sameAddrMapContext, ...]
 ```
 
-### 4. Compile — with proven correctness
+### 4. Compile, with proven correctness
 
 The compiler turns contracts into Yul (Solidity's low-level IR) through three layers, each proven to preserve semantics:
 
@@ -190,7 +190,7 @@ This is intentionally narrower than Solidity's full `try/catch`: higher-level ex
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 source ~/.elan/env
 
-# Clone and build — verifies the current proof set
+# Clone and build, verifies the current proof set
 git clone https://github.com/Th0rgal/verity.git && cd verity
 lake build
 
