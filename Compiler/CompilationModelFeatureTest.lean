@@ -10,6 +10,7 @@ import Contracts.Common
 import Contracts.Counter.Counter
 import Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
+import Contracts.StringArrayEventSmoke
 
 namespace Compiler.CompilationModelFeatureTest
 
@@ -1804,30 +1805,6 @@ private def stringEventMismatchSpec : CompilationModel := {
   ]
 }
 
-private def stringArrayEventSpec : CompilationModel := {
-  name := "StringArrayEvents"
-  fields := []
-  «constructor» := none
-  functions := [
-    { name := "log"
-      params := [{ name := "messages", ty := ParamType.array ParamType.string }]
-      returnType := none
-      body := [
-        Stmt.emit "MessageBatch" [Expr.param "messages", Expr.param "messages"],
-        Stmt.stop
-      ]
-    }
-  ]
-  events := [
-    { name := "MessageBatch"
-      params := [
-        { name := "body", ty := ParamType.array ParamType.string, kind := EventParamKind.unindexed },
-        { name := "topicBody", ty := ParamType.array ParamType.string, kind := EventParamKind.indexed }
-      ]
-    }
-  ]
-}
-
 private def addressArrayReturnSpec : CompilationModel := {
   name := "AddressArrayReturn"
   fields := []
@@ -2448,7 +2425,8 @@ set_option maxRecDepth 4096 in
     stringEventMismatchSpec
     "event 'MessageLogged' param 'message' expects"
   let stringArrayEventsCompile :=
-    match Compiler.CompilationModel.compile stringArrayEventSpec (selectorsFor stringArrayEventSpec) with
+    match Compiler.CompilationModel.compile Contracts.StringArrayEventSmoke.spec
+        (selectorsFor Contracts.StringArrayEventSmoke.spec) with
     | .ok _ => true
     | .error _ => false
   expectTrue "string[] event emission compiles for indexed and unindexed params" stringArrayEventsCompile
