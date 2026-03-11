@@ -1,4 +1,6 @@
 import Compiler.CompilationModel.ExpressionCompile
+import Compiler.CompilationModel.AbiTypeLayout
+import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.MappingWrites
 import Compiler.CompilationModel.ValidationHelpers
 
@@ -6,6 +8,18 @@ namespace Compiler.CompilationModel
 
 open Compiler
 open Compiler.Yul
+
+private def validateDynamicArrayField (fields : List Field) (field : String) :
+    Except String (Nat × StorageArrayElemType) := do
+  match findFieldWithResolvedSlot fields field with
+  | some (f, slot) =>
+      match f.ty with
+      | .dynamicArray elemType =>
+          pure (slot, elemType)
+      | _ =>
+          throw s!"Compilation error: field '{field}' is not a storage dynamic array"
+  | none =>
+      throw s!"Compilation error: unknown storage field '{field}'"
 
 private def compilePackedStorageWrite (writeSlot valueExpr : YulExpr) (packed : PackedBits) :
     List YulStmt :=
@@ -94,6 +108,68 @@ def compileSetStorage (fields : List Field) (dynamicSource : DynamicDataSource)
             | some packed =>
                 pure (compileCompatPackedStorageWrites writeSlots valueExpr packed)
     | none => throw s!"Compilation error: unknown storage field '{field}' in setStorage"
+
+def compileStorageArrayPush (fields : List Field) (dynamicSource : DynamicDataSource)
+    (field : String) (value : Expr) : Except String (List YulStmt) := do
+  let (slot, _) ← validateDynamicArrayField fields field
+  let valueExpr ← compileExpr fields dynamicSource value
+  pure [
+    YulStmt.block [
+      YulStmt.let_ "__array_len" (YulExpr.call "sload" [YulExpr.lit slot]),
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit slot]),
+      YulStmt.let_ "__array_base" (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 32]),
+      YulStmt.expr (YulExpr.call "sstore" [
+        YulExpr.call "add" [YulExpr.ident "__array_base", YulExpr.ident "__array_len"],
+        valueExpr
+      ]),
+      YulStmt.expr (YulExpr.call "sstore" [
+        YulExpr.lit slot,
+        YulExpr.call "add" [YulExpr.ident "__array_len", YulExpr.lit 1]
+      ])
+    ]
+  ]
+
+def compileStorageArrayPop (fields : List Field) (field : String) : Except String (List YulStmt) := do
+  let (slot, _) ← validateDynamicArrayField fields field
+  pure [
+    YulStmt.block [
+      YulStmt.let_ "__array_len" (YulExpr.call "sload" [YulExpr.lit slot]),
+      YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__array_len"]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__array_new_len" (YulExpr.call "sub" [YulExpr.ident "__array_len", YulExpr.lit 1]),
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit slot]),
+      YulStmt.let_ "__array_base" (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 32]),
+      YulStmt.expr (YulExpr.call "sstore" [
+        YulExpr.call "add" [YulExpr.ident "__array_base", YulExpr.ident "__array_new_len"],
+        YulExpr.lit 0
+      ]),
+      YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident "__array_new_len"])
+    ]
+  ]
+
+def compileSetStorageArrayElement (fields : List Field) (dynamicSource : DynamicDataSource)
+    (field : String) (index value : Expr) : Except String (List YulStmt) := do
+  let (slot, _) ← validateDynamicArrayField fields field
+  let indexExpr ← compileExpr fields dynamicSource index
+  let valueExpr ← compileExpr fields dynamicSource value
+  pure [
+    YulStmt.block [
+      YulStmt.let_ "__array_len" (YulExpr.call "sload" [YulExpr.lit slot]),
+      YulStmt.let_ "__array_index" indexExpr,
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "__array_index", YulExpr.ident "__array_len"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit slot]),
+      YulStmt.let_ "__array_base" (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 32]),
+      YulStmt.expr (YulExpr.call "sstore" [
+        YulExpr.call "add" [YulExpr.ident "__array_base", YulExpr.ident "__array_index"],
+        valueExpr
+      ])
+    ]
+  ]
 
 def compileSetMapping2 (fields : List Field) (dynamicSource : DynamicDataSource)
     (field : String) (key1 key2 value : Expr) : Except String (List YulStmt) := do

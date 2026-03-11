@@ -116,8 +116,14 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def validateInteropStmt (context : String) : Stmt → Except String Unit
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+    Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInteropExpr context value
+  | Stmt.setStorageArrayElement _ index value => do
+      validateInteropExpr context index
+      validateInteropExpr context value
+  | Stmt.storageArrayPop _ =>
+      pure ()
   | Stmt.requireError cond _ args => do
       validateInteropExpr context cond
       validateInteropExprList context args

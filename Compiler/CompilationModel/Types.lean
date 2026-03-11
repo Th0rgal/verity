@@ -85,9 +85,22 @@ structure StructMember where
   packed : Option PackedBits := none
   deriving Repr, BEq
 
+inductive StorageArrayElemType
+  | uint256
+  | address
+  | bool
+  | uint8
+  | bytes32
+  deriving Repr, BEq
+
+def storageArrayElemUsesOneStorageWord : StorageArrayElemType → Bool
+  | .uint256 | .address | .bytes32 => true
+  | .bool | .uint8 => false
+
 inductive FieldType
   | uint256
   | address
+  | dynamicArray (elemType : StorageArrayElemType)
   | mappingTyped (mt : MappingType)  -- Flexible mapping types (#154)
   /-- A mapping whose value is a multi-word struct with named members.
       `mappingStruct keyType members` defines `mapping(K => Struct)` where
@@ -296,6 +309,7 @@ inductive Expr
   | internalCall (functionName : String) (args : List Expr)  -- Internal function call (#181)
   | arrayLength (name : String)  -- Length of a dynamic array parameter (#180)
   | arrayElement (name : String) (index : Expr)  -- Checked element access of a dynamic array parameter (revert on out-of-range) (#180)
+  | storageArrayLength (field : String)  -- Read the length word of a storage dynamic array (#1571)
   /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.
       The names refer to the dynamic parameter base names (`foo`, not `foo_offset`). -/
   | dynamicBytesEq (lhsName rhsName : String)
@@ -354,6 +368,9 @@ inductive Stmt
   | assignVar (name : String) (value : Expr)  -- Reassign existing variable
   | setStorage (field : String) (value : Expr)
   | setStorageAddr (field : String) (value : Expr)
+  | storageArrayPush (field : String) (value : Expr)  -- Append to a storage dynamic array (#1571)
+  | storageArrayPop (field : String)  -- Pop from a storage dynamic array (#1571)
+  | setStorageArrayElement (field : String) (index : Expr) (value : Expr)  -- Indexed write (#1571)
   | setMapping (field : String) (key : Expr) (value : Expr)
   | setMappingWord (field : String) (key : Expr) (wordOffset : Nat) (value : Expr)  -- mappingSlot(base,key)+wordOffset write
   | setMappingPackedWord (field : String) (key : Expr) (wordOffset : Nat) (packed : PackedBits) (value : Expr)
@@ -493,6 +510,7 @@ def mappingTypeDepth (mt : MappingType) : Nat :=
 def isMapping (fields : List Field) (name : String) : Bool :=
   fields.find? (·.name == name) |>.any fun f =>
     match f.ty with
+    | FieldType.dynamicArray _ => false
     | FieldType.mappingTyped _ => true
     | FieldType.mappingStruct _ _ => true
     | FieldType.mappingStruct2 _ _ _ => true
@@ -502,6 +520,7 @@ def isMapping (fields : List Field) (name : String) : Bool :=
 def isMapping2 (fields : List Field) (name : String) : Bool :=
   fields.find? (·.name == name) |>.any fun f =>
     match f.ty with
+    | FieldType.dynamicArray _ => false
     | FieldType.mappingTyped mt => mappingTypeDepth mt == 2
     | FieldType.mappingStruct2 _ _ _ => true
     | _ => false

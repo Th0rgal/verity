@@ -254,6 +254,16 @@ def compileExpr (fields : List Field)
         YulExpr.ident s!"{name}_length",
         indexExpr
       ])
+  | Expr.storageArrayLength field =>
+      match findFieldWithResolvedSlot fields field with
+      | some (f, slot) =>
+          match f.ty with
+          | .dynamicArray _ =>
+              pure (YulExpr.call "sload" [YulExpr.lit slot])
+          | _ =>
+              throw s!"Compilation error: field '{field}' is not a storage dynamic array; use Expr.storageArrayLength only with FieldType.dynamicArray"
+      | none =>
+          throw s!"Compilation error: unknown storage field '{field}'"
   | Expr.dynamicBytesEq lhsName rhsName =>
       let helperName := match dynamicSource with
         | .calldata => dynamicBytesEqCalldataHelperName

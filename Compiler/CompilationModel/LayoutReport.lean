@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.Types
+import Compiler.CompilationModel.AbiHelpers
 import Compiler.CompilationModel.LayoutValidation
 import Compiler.Json
 
@@ -38,6 +39,11 @@ private def fieldTypeJson : FieldType → String
       jsonObject [("kind", jsonString "uint256")]
   | .address =>
       jsonObject [("kind", jsonString "address")]
+  | .dynamicArray elemType =>
+      jsonObject [
+        ("kind", jsonString "dynamicArray"),
+        ("elemType", jsonString (paramTypeToSolidityString (storageArrayElemTypeToParamType elemType)))
+      ]
   | .mappingTyped mt =>
       jsonObject [
         ("kind", jsonString "mapping"),

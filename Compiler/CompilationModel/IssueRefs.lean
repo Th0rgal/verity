@@ -33,4 +33,7 @@ def issue184Ref : String :=
 def issue1424Ref : String :=
   "Issue #1424 (controlled unsafe/assembly escape hatches)"
 
+def issue1571Ref : String :=
+  "Issue #1571 (dynamic arrays in storage)"
+
 end Compiler.CompilationModel

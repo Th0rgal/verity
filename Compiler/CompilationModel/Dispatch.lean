@@ -171,6 +171,11 @@ def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Exc
       throw s!"Compilation error: field '{fieldName}' is a mapping and cannot declare packedBits in {spec.name} ({issue623Ref}). Packed subfields are only supported for value-word fields."
   | none =>
       pure ()
+  match firstUnsupportedStorageArrayElemType spec.fields with
+  | some (fieldName, elemType) =>
+      throw s!"Compilation error: field '{fieldName}' uses unsupported storage dynamic array element type {repr elemType} in {spec.name} ({issue1571Ref}). This incremental lowering currently supports only one-storage-word elements (uint256, address, bytes32)."
+  | none =>
+      pure ()
   firstInvalidStructField spec.fields
   match firstFieldWriteSlotConflict fields with
   | some (slot, existingField, conflictingField) =>

@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.LayoutReport
+import Compiler.CompilationModel.AbiHelpers
 import Compiler.Json
 
 namespace Compiler.CompilationModel
@@ -31,6 +32,8 @@ private def packedBitsJson (packed : PackedBits) : String :=
 private def fieldTypeSummary : FieldType → String
   | .uint256 => "uint256"
   | .address => "address"
+  | .dynamicArray elemType =>
+      s!"dynamicArray({paramTypeToSolidityString (storageArrayElemTypeToParamType elemType)})"
   | .mappingTyped (.simple keyType) =>
       s!"mapping({mappingKeyTypeString keyType}=>uint256)"
   | .mappingTyped (.nested outer inner) =>

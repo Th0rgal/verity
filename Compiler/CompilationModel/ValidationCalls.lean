@@ -154,8 +154,14 @@ decreasing_by all_goals simp_wf; all_goals omega
 def validateInternalCallShapesInStmt
     (functions : List FunctionSpec) (callerName : String) : Stmt → Except String Unit
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+    Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       validateInternalCallShapesInExpr functions callerName value
+  | Stmt.setStorageArrayElement _ index value => do
+      validateInternalCallShapesInExpr functions callerName index
+      validateInternalCallShapesInExpr functions callerName value
+  | Stmt.storageArrayPop _ =>
+      pure ()
   | Stmt.requireError cond _ args => do
       validateInternalCallShapesInExpr functions callerName cond
       validateInternalCallShapesInExprList functions callerName args
@@ -359,8 +365,14 @@ decreasing_by all_goals simp_wf; all_goals omega
 def validateExternalCallTargetsInStmt
     (externals : List ExternalFunction) (context : String) : Stmt → Except String Unit
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+    Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       validateExternalCallTargetsInExpr externals context value
+  | Stmt.setStorageArrayElement _ index value => do
+      validateExternalCallTargetsInExpr externals context index
+      validateExternalCallTargetsInExpr externals context value
+  | Stmt.storageArrayPop _ =>
+      pure ()
   | Stmt.requireError cond _ args => do
       validateExternalCallTargetsInExpr externals context cond
       validateExternalCallTargetsInExprList externals context args

@@ -109,6 +109,8 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.arrayLength '{name}' requires array parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayLength"
+  | Expr.storageArrayLength _ =>
+      pure ()
   | Expr.arrayElement name index => do
       match findParamType params name with
       | some ty@(ParamType.array elemTy) =>
@@ -244,6 +246,15 @@ def validateScopedStmtIdentifiers
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
       pure localScope
   | Stmt.setStorage _ value | Stmt.setStorageAddr _ value | Stmt.return value | Stmt.require value _ => do
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
+      pure localScope
+  | Stmt.storageArrayPush _ value => do
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
+      pure localScope
+  | Stmt.storageArrayPop _ =>
+      pure localScope
+  | Stmt.setStorageArrayElement _ index value => do
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount value
       pure localScope
   | Stmt.setMapping _ key value | Stmt.setMappingWord _ key _ value | Stmt.setMappingPackedWord _ key _ _ value | Stmt.setMappingUint _ key value

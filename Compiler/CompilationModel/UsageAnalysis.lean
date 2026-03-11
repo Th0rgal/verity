@@ -13,7 +13,9 @@ def collectStmtBindNames : Stmt → List String
   | Stmt.externalCallBind resultVars _ _ => resultVars
   | Stmt.ecm mod _ => mod.resultVars
   -- Statements that never bind new names.
-  | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.return _
+  | Stmt.assignVar _ _ | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
+  | Stmt.return _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
   | Stmt.setMappingChain _ _ _
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
@@ -89,7 +91,7 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -102,8 +104,13 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtUsesArrayElement : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
+    Stmt.storageArrayPush _ value |
     Stmt.return value | Stmt.require value _ =>
       exprUsesArrayElement value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprUsesArrayElement index || exprUsesArrayElement value
+  | Stmt.storageArrayPop _ =>
+      false
   | Stmt.requireError cond _ args =>
       exprUsesArrayElement cond || exprListUsesArrayElement args
   | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
@@ -209,7 +216,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ =>
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -222,8 +229,13 @@ decreasing_by all_goals simp_wf; all_goals omega
 
 def stmtUsesDynamicBytesEq : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.storageArrayPush _ value
   | Stmt.return value | Stmt.require value _ =>
       exprUsesDynamicBytesEq value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprUsesDynamicBytesEq index || exprUsesDynamicBytesEq value
+  | Stmt.storageArrayPop _ =>
+      false
   | Stmt.requireError cond _ args =>
       exprUsesDynamicBytesEq cond || exprListUsesDynamicBytesEq args
   | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>

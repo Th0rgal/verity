@@ -121,6 +121,7 @@ Delivery policy for unsupported features:
 | If/else branching | #179 | `Stmt.ite` | `execStmt` mutual recursion |
 | ForEach loops | #179 | `Stmt.forEach` | `execStmtsFuel` + `expandForEach` desugaring |
 | Array/bytes params | #180 | `ParamType.bytes32`, `.array`, `.fixedArray`, `.bytes` | `arrayParams` in `EvalContext` |
+| Storage dynamic arrays | #1571 | `FieldType.dynamicArray`, `Expr.storageArrayLength`, `Stmt.storageArrayPush` / `.storageArrayPop` / `.setStorageArrayElement` | compile-time/Yul lowering only so far; interpreter + proofs still pending |
 | Internal function calls | #181 | `Stmt.internalCall`, `Expr.internalCall`, `FunctionSpec.isInternal` | Statement + expression evaluation |
 | Multi-mapping types | #154 | `Expr.mapping2`, `Stmt.setMapping2`, `MappingType`, `FieldType.mappingTyped` | `storageMap2`/`storageMapUint` in `ContractState` |
 | Events/logs | #153 | `EventDef`, `EventParam`, `Stmt.emit` | `Event` struct, `emitEvent`, LOG opcodes in codegen |

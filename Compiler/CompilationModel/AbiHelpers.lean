@@ -69,9 +69,17 @@ def eventSignature (eventDef : EventDef) : String :=
 def errorSignature (errorDef : ErrorDef) : String :=
   s!"{errorDef.name}(" ++ String.intercalate "," (errorDef.params.map paramTypeToSolidityString) ++ ")"
 
+def storageArrayElemTypeToParamType : StorageArrayElemType → ParamType
+  | .uint256 => .uint256
+  | .address => .address
+  | .bool => .bool
+  | .uint8 => .uint8
+  | .bytes32 => .bytes32
+
 def fieldTypeToParamType : FieldType → ParamType
   | FieldType.uint256 => ParamType.uint256
   | FieldType.address => ParamType.address
+  | FieldType.dynamicArray elemType => ParamType.array (storageArrayElemTypeToParamType elemType)
   | FieldType.mappingTyped _ => ParamType.uint256
   | FieldType.mappingStruct _ _ => ParamType.uint256
   | FieldType.mappingStruct2 _ _ _ => ParamType.uint256

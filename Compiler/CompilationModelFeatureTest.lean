@@ -1858,6 +1858,47 @@ private def bytesArrayElementSpec : CompilationModel := {
   ]
 }
 
+private def storageArrayUint256SmokeSpec : CompilationModel := {
+  name := "StorageArrayUint256Smoke"
+  fields := [{ name := "queue", ty := FieldType.dynamicArray .uint256, «slot» := some 7 }]
+  «constructor» := none
+  functions := [
+    { name := "size"
+      params := []
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.storageArrayLength "queue")]
+    },
+    { name := "enqueue"
+      params := [{ name := "value", ty := ParamType.uint256 }]
+      returnType := none
+      body := [Stmt.storageArrayPush "queue" (Expr.param "value"), Stmt.stop]
+    },
+    { name := "setHead"
+      params := [{ name := "value", ty := ParamType.uint256 }]
+      returnType := none
+      body := [Stmt.setStorageArrayElement "queue" (Expr.literal 0) (Expr.param "value"), Stmt.stop]
+    },
+    { name := "dequeue"
+      params := []
+      returnType := none
+      body := [Stmt.storageArrayPop "queue", Stmt.stop]
+    }
+  ]
+}
+
+private def storageArrayBoolRejectSpec : CompilationModel := {
+  name := "StorageArrayBoolReject"
+  fields := [{ name := "flags", ty := FieldType.dynamicArray .bool, «slot» := some 9 }]
+  «constructor» := none
+  functions := [
+    { name := "pushFlag"
+      params := [{ name := "flag", ty := ParamType.bool }]
+      returnType := none
+      body := [Stmt.storageArrayPush "flags" (Expr.param "flag"), Stmt.stop]
+    }
+  ]
+}
+
 private def ecrecoverSmokeSpec : CompilationModel := {
   name := "EcrecoverSmoke"
   fields := []
@@ -2470,6 +2511,28 @@ set_option maxRecDepth 4096 in
     "arrayElement rejects bytes[] params until dynamic-element indexing lands"
     bytesArrayElementSpec
     "Expr.arrayElement 'calls' requires an array with single-word static elements"
+  let storageArrayUint256Yul ←
+    expectCompileToYul "storage uint256[] smoke spec" storageArrayUint256SmokeSpec
+  expectTrue "storage uint256[] length lowers to sload(slot)"
+    (contains storageArrayUint256Yul "sload(7)")
+  expectTrue "storage uint256[] push computes the Solidity base slot and bumps length"
+    ((contains storageArrayUint256Yul "mstore(0, 7)") &&
+      (contains storageArrayUint256Yul "keccak256(0, 32)") &&
+      (contains storageArrayUint256Yul "sstore(7, add(__array_len, 1))"))
+  expectTrue "storage uint256[] indexed writes guard bounds"
+    (contains storageArrayUint256Yul "lt(__array_index, __array_len)")
+  expectTrue "storage uint256[] pop clears the removed tail word"
+    (contains storageArrayUint256Yul "sstore(add(__array_base, __array_new_len), 0)")
+  expectTrue "storageArrayPush is tracked as reading state"
+    (Compiler.CompilationModel.stmtReadsStateOrEnv
+      (Stmt.storageArrayPush "queue" (Expr.literal 1)))
+  expectTrue "setStorageArrayElement is tracked as reading state"
+    (Compiler.CompilationModel.stmtReadsStateOrEnv
+      (Stmt.setStorageArrayElement "queue" (Expr.literal 0) (Expr.literal 1)))
+  expectCompileErrorContains
+    "storage bool[] rejects packed element layouts until slot packing lands"
+    storageArrayBoolRejectSpec
+    "only one-storage-word elements (uint256, address, bytes32)"
   let envYul ← expectCompileToYul "env runtime smoke spec" envRuntimeSmokeSpec
   expectTrue "address(this) lowers to the Yul address builtin"
     (contains envYul "address()")

@@ -145,9 +145,14 @@ private partial def collectLowLevelStmtMechanics : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .storageArrayPush _ value
   | .return value
   | .require value _ =>
       collectLowLevelExprMechanics value
+  | .setStorageArrayElement _ index value =>
+      collectLowLevelExprMechanics index ++ collectLowLevelExprMechanics value
+  | .storageArrayPop _ =>
+      []
   | .requireError cond _ args =>
       collectLowLevelExprMechanics cond ++ args.flatMap collectLowLevelExprMechanics
   | .revertError _ args =>
@@ -199,9 +204,14 @@ private partial def collectAxiomatizedStmtPrimitives : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .storageArrayPush _ value
   | .return value
   | .require value _ =>
       collectAxiomatizedExprPrimitives value
+  | .setStorageArrayElement _ index value =>
+      collectAxiomatizedExprPrimitives index ++ collectAxiomatizedExprPrimitives value
+  | .storageArrayPop _ =>
+      []
   | .requireError cond _ args =>
       collectAxiomatizedExprPrimitives cond ++ args.flatMap collectAxiomatizedExprPrimitives
   | .revertError _ args =>
@@ -349,9 +359,14 @@ private partial def collectEventEmissionStmtMechanics : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .storageArrayPush _ value
   | .return value
   | .require value _ =>
       collectEventEmissionExprMechanics value
+  | .setStorageArrayElement _ index value =>
+      collectEventEmissionExprMechanics index ++ collectEventEmissionExprMechanics value
+  | .storageArrayPop _ =>
+      []
   | .requireError cond _ args =>
       collectEventEmissionExprMechanics cond ++ args.flatMap collectEventEmissionExprMechanics
   | .revertError _ args =>
@@ -498,9 +513,14 @@ private partial def collectRuntimeIntrospectionStmtMechanics : Stmt → List Str
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .storageArrayPush _ value
   | .return value
   | .require value _ =>
       collectRuntimeIntrospectionExprMechanics value
+  | .setStorageArrayElement _ index value =>
+      collectRuntimeIntrospectionExprMechanics index ++ collectRuntimeIntrospectionExprMechanics value
+  | .storageArrayPop _ =>
+      []
   | .requireError cond _ args =>
       collectRuntimeIntrospectionExprMechanics cond ++ args.flatMap collectRuntimeIntrospectionExprMechanics
   | .revertError _ args =>
@@ -635,9 +655,14 @@ private partial def collectExternalStmtNames : Stmt → List String
   | .assignVar _ value
   | .setStorage _ value
   | .setStorageAddr _ value
+  | .storageArrayPush _ value
   | .return value
   | .require value _ =>
       collectExternalExprNames value
+  | .setStorageArrayElement _ index value =>
+      collectExternalExprNames index ++ collectExternalExprNames value
+  | .storageArrayPop _ =>
+      []
   | .requireError cond _ args =>
       collectExternalExprNames cond ++ args.flatMap collectExternalExprNames
   | .revertError _ args =>

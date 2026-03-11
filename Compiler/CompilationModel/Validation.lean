@@ -210,6 +210,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.localVar _ => false
   | Expr.externalCall _ _ | Expr.internalCall _ _ => true
   | Expr.arrayLength _ => false
+  | Expr.storageArrayLength _ => true
   | Expr.arrayElement _ index => exprReadsStateOrEnv index
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
@@ -269,6 +270,8 @@ def exprWritesState : Expr → Bool
   | Expr.externalCall _ _ | Expr.internalCall _ _ => true
   | Expr.extcodesize addr =>
       exprWritesState addr
+  | Expr.storageArrayLength _ =>
+      false
   | Expr.arrayElement _ index =>
       exprWritesState index
   | _ =>
@@ -286,6 +289,7 @@ def stmtWritesState : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value =>
       exprWritesState value
   | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _
+  | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
   | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
   | Stmt.setMappingChain _ _ _
   | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
@@ -342,6 +346,12 @@ def stmtReadsStateOrEnv : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value |
     Stmt.return value | Stmt.require value _ =>
       exprReadsStateOrEnv value
+  | Stmt.storageArrayPush _ value =>
+      true || exprReadsStateOrEnv value
+  | Stmt.setStorageArrayElement _ index value =>
+      true || exprReadsStateOrEnv index || exprReadsStateOrEnv value
+  | Stmt.storageArrayPop _ =>
+      true
   | Stmt.requireError cond _ args =>
       exprReadsStateOrEnv cond || args.any exprReadsStateOrEnv
   | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>

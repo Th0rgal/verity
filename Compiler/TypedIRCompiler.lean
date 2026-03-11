@@ -63,6 +63,7 @@ private def paramTypeToTy : ParamType → Except String Ty
 private def fieldTypeToTy : FieldType → Except String Ty
   | .uint256 => Except.ok Ty.uint256
   | .address => Except.ok Ty.address
+  | .dynamicArray _ => Except.ok Ty.uint256
   | .mappingTyped _ => Except.ok Ty.uint256
   | .mappingStruct _ _ => Except.ok Ty.uint256
   | .mappingStruct2 _ _ _ => Except.ok Ty.uint256
