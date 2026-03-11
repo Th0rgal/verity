@@ -310,6 +310,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
+  , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
   ]
@@ -377,6 +378,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
+  , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
   ]
@@ -428,6 +430,7 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
+  , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
   ]
@@ -515,6 +518,24 @@ private def checkSignedBuiltinSmoke : IO Unit := do
     (!bodyUsesSignedBuiltin castToUint.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: minusOne preserves Int256 constants as raw words"
     (!minusOne.body.isEmpty)
+
+private def checkLowLevelTryCatchSmoke : IO Unit := do
+  let functions := Contracts.Smoke.LowLevelTryCatchSmoke.spec.functions
+  let catchFailure? := functions.find? (·.name == "catchFailure")
+  let skipCatch? := functions.find? (·.name == "skipCatchOnSuccess")
+  let catchFailure := catchFailure?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let skipCatch := skipCatch?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  expectTrue "LowLevelTryCatchSmoke: catchFailure introduces a synthetic success temp"
+    (contains (reprStr catchFailure.body) "\"verity_try_success\"")
+  expectTrue "LowLevelTryCatchSmoke: catchFailure lowers through Stmt.ite"
+    (contains (reprStr catchFailure.body) "CompilationModel.Stmt.ite")
+  expectTrue "LowLevelTryCatchSmoke: catchFailure preserves Expr.call in the model"
+    (contains (reprStr catchFailure.body) "CompilationModel.Expr.call")
+  expectTrue "LowLevelTryCatchSmoke: skipCatchOnSuccess keeps the zero-check branch"
+    (contains (reprStr skipCatch.body) "CompilationModel.Expr.eq")
+  expectTrue "LowLevelTryCatchSmoke: synthetic success temp avoids param shadowing"
+    (contains (reprStr Contracts.Smoke.LowLevelTryCatchSmoke.catchFailureWithShadowedParam_modelBody)
+      "\"verity_try_success_1\"")
 
 private def checkSpecialEntrypointSmoke : IO Unit := do
   let functions := Contracts.Smoke.SpecialEntrypointSmoke.spec.functions
@@ -649,6 +670,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
     (bodyUsesAddressStorageWrite Contracts.Owned.transferOwnership_modelBody)
   checkMutabilitySmoke
   checkSignedBuiltinSmoke
+  checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   for spec in macroSpecs do
     checkSpec spec

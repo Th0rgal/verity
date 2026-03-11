@@ -37,6 +37,7 @@ syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard
 syntax "ecmCall " term:max ppSpace term:max : term
 syntax "ecmDo " term:max ppSpace term:max : term
+syntax "tryCatch " term:max ppSpace term:max : doElem
 syntax "revert " ident "(" sepBy(term, ",") ")" : doElem
 syntax "revertError " ident "(" sepBy(term, ",") ")" : doElem
 syntax "requireError " term:max ppSpace ident "(" sepBy(term, ",") ")" : doElem

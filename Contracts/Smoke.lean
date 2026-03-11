@@ -667,6 +667,51 @@ verity_contract GenericECMWriteSmoke where
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
 
+verity_contract LowLevelTryCatchSmoke where
+  storage
+    lastOutcome : Uint256 := slot 0
+
+  function catchFailure ()
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256
+    := do
+    tryCatch (call 0 0 0 0 0 0 0) (do
+      setStorage lastOutcome 7)
+    let current ← getStorage lastOutcome
+    return current
+
+  function skipCatchOnSuccess ()
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256
+    := do
+    tryCatch (call 1 0 0 0 0 0 0) (do
+      setStorage lastOutcome 9)
+    let current ← getStorage lastOutcome
+    return current
+
+  function catchFailureWithShadowedParam (verity_try_success : Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256
+    := do
+    tryCatch (call 0 0 0 0 0 0 0) (do
+      setStorage lastOutcome 11)
+    let current ← getStorage lastOutcome
+    return current
+
+/--
+error: tryCatch catch payload 'err' is not available on the compilation-model path yet; use `_`/ignore it and read returndata explicitly if needed
+-/
+#guard_msgs in
+verity_contract LowLevelTryCatchPayloadRejected where
+  storage
+
+  function badCatchPayload ()
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Unit
+    := do
+    tryCatch (call 0 0 0 0 0 0 0) (fun err => do
+      require false err)
+
 /--
 error: ERC-20 helper form 'balanceOf' conflicts with contract function 'balanceOf'; rename the function or avoid the direct helper syntax here
 -/
@@ -1194,6 +1239,72 @@ example :
           , Compiler.CompilationModel.Expr.param "rhs"
           ]
       , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    (LowLevelTryCatchSmoke.catchFailure.run Verity.defaultState).getValue? = some 7 := by
+  decide
+
+example :
+    (LowLevelTryCatchSmoke.skipCatchOnSuccess.run Verity.defaultState).getValue? = some 0 := by
+  decide
+
+example :
+    ((LowLevelTryCatchSmoke.catchFailureWithShadowedParam 5).run Verity.defaultState).getValue? = some 11 := by
+  decide
+
+example :
+    LowLevelTryCatchSmoke.catchFailure_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar "verity_try_success"
+          (Compiler.CompilationModel.Expr.call
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0))
+      , Compiler.CompilationModel.Stmt.ite
+          (Compiler.CompilationModel.Expr.eq
+            (Compiler.CompilationModel.Expr.localVar "verity_try_success")
+            (Compiler.CompilationModel.Expr.literal 0))
+          [ Compiler.CompilationModel.Stmt.setStorage
+              "lastOutcome"
+              (Compiler.CompilationModel.Expr.literal 7)
+          ]
+          []
+      , Compiler.CompilationModel.Stmt.letVar
+          "current"
+          (Compiler.CompilationModel.Expr.storage "lastOutcome")
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "current")
+      ] := rfl
+
+example :
+    LowLevelTryCatchSmoke.catchFailureWithShadowedParam_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar "verity_try_success_1"
+          (Compiler.CompilationModel.Expr.call
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0)
+            (Compiler.CompilationModel.Expr.literal 0))
+      , Compiler.CompilationModel.Stmt.ite
+          (Compiler.CompilationModel.Expr.eq
+            (Compiler.CompilationModel.Expr.localVar "verity_try_success_1")
+            (Compiler.CompilationModel.Expr.literal 0))
+          [ Compiler.CompilationModel.Stmt.setStorage
+              "lastOutcome"
+              (Compiler.CompilationModel.Expr.literal 11)
+          ]
+          []
+      , Compiler.CompilationModel.Stmt.letVar
+          "current"
+          (Compiler.CompilationModel.Expr.storage "lastOutcome")
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "current")
       ] := rfl
 
 example :

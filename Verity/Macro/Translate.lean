@@ -1697,6 +1697,52 @@ private def validateWordLikeExprListLiteral
           (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
   | _ => throwErrorAt args "expected list literal [..]"
 
+private partial def syntaxMentionsIdent (stx : Syntax) (name : String) : Bool :=
+  match stx with
+  | .ident _ raw _ _ => raw.toString == name
+  | .node _ _ args => args.any (fun child => syntaxMentionsIdent child name)
+  | _ => false
+
+private def freshSyntheticLocalName
+    (base : String)
+    (params : Array ParamDecl)
+    (locals : Array String)
+    (mutableLocals : Array String) : String :=
+  let used :=
+    ((params.map (·.name)) ++ locals ++ mutableLocals).toList
+  let rec go (remaining : Nat) (suffix : Nat) : String :=
+    let candidate :=
+      if suffix == 0 then base else s!"{base}_{suffix}"
+    if !(used.contains candidate) then
+      candidate
+    else
+      match remaining with
+      | 0 => s!"{base}_fresh"
+      | n + 1 => go n (suffix + 1)
+  go used.length 0
+
+private def parseTryCatchHandler
+    (handler : Term) : CommandElabM (Option String × Array (TSyntax `doElem)) := do
+  match stripParens handler with
+  | `(term| fun $name:ident => do $[$elems:doElem]*) =>
+      pure (some (toString name.getId), elems)
+  | `(term| do $[$elems:doElem]*) =>
+      pure (none, elems)
+  | _ =>
+      throwErrorAt handler
+        "tryCatch handler must be `fun _ => do ...` or a direct `do ...` block"
+
+private def validateTryCatchHandlerDoesNotUsePayload
+    (handler : Term)
+    (payloadName? : Option String)
+    (elems : Array (TSyntax `doElem)) : CommandElabM Unit := do
+  match payloadName? with
+  | none => pure ()
+  | some payloadName =>
+      if elems.any (fun elem => syntaxMentionsIdent elem.raw payloadName) then
+        throwErrorAt handler
+          s!"tryCatch catch payload '{payloadName}' is not available on the compilation-model path yet; use `_`/ignore it and read returndata explicitly if needed"
+
 private unsafe def evalExternalCallModuleTerm
     (moduleTerm : Term) : CommandElabM Compiler.ECM.ExternalCallModule := do
   liftTermElabM do
@@ -2158,6 +2204,13 @@ private partial def validateDoElemExprTypes
       | `(doElem| revertError $errorName:ident($args,*)) =>
           for arg in args.getElems do
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+          pure locals
+      | `(doElem| tryCatch $attempt:term $handler:term) => do
+          requireWordLikeType attempt "tryCatch attempt"
+            (← inferPureExprType fields constDecls immutableDecls externalDecls params locals attempt)
+          let (payloadName?, catchElems) ← parseTryCatchHandler handler
+          validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
+          let _ ← validateDoElemsExprTypes fields constDecls immutableDecls externalDecls functions params locals catchElems
           pure locals
       | `(doElem| $stmt:term) =>
           validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls params locals stmt
@@ -2791,6 +2844,27 @@ private partial def translateDoElem
               [ $[$elseStmts],* ]))],
               locals,
               mutableLocals)
+      | `(doElem| tryCatch $attempt:term $handler:term) => do
+          let trySuccessName :=
+            freshSyntheticLocalName "verity_try_success" params locals mutableLocals
+          let (payloadName?, catchElems) ← parseTryCatchHandler handler
+          validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
+          let attemptExpr ← translatePureExpr fields constDecls immutableDecls params locals attempt
+          let catchTranslation ←
+            translateDoElems fields constDecls immutableDecls functions params locals mutableLocals catchElems
+          let catchStmts := catchTranslation.1
+          pure
+            (#[
+              (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm trySuccessName) $attemptExpr)),
+              (← `(Compiler.CompilationModel.Stmt.ite
+                    (Compiler.CompilationModel.Expr.eq
+                      (Compiler.CompilationModel.Expr.localVar $(strTerm trySuccessName))
+                      (Compiler.CompilationModel.Expr.literal 0))
+                    [ $[$catchStmts],* ]
+                    []))
+            ],
+            locals,
+            mutableLocals)
       | `(doElem| forEach $name:term $count:term $body:term) =>
           let loopVar := ← expectStringOrIdent name
           let countExpr ← translatePureExpr fields constDecls immutableDecls params locals count

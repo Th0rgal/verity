@@ -22,6 +22,12 @@ macro_rules
           let _ := $_module
           let _ := $_args
           pure ())
+  | `(doElem| tryCatch $attempt:term (fun $name:ident => do $[$elems:doElem]*)) => do
+      let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
+      `(doElem| $tryCatchFn:ident $attempt (fun $name => do $[$elems:doElem]*))
+  | `(doElem| tryCatch $attempt:term (do $[$elems:doElem]*)) => do
+      let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
+      `(doElem| $tryCatchFn:ident $attempt (fun _ => do $[$elems:doElem]*))
   | `(doElem| revert $errorName:ident($args,*)) => do
       let revertFn := Lean.mkIdentFrom errorName `_root_.Contracts.revertCustomError
       let encodeFn := Lean.mkIdentFrom errorName `_root_.Contracts.CustomErrorArg.encode
@@ -213,6 +219,8 @@ def ite (cond : Prop) [Decidable cond] (thenVal elseVal : Uint256) : Uint256 :=
 def logicalAnd (a b : Uint256) : Uint256 := if a != 0 && b != 0 then 1 else 0
 def logicalOr (a b : Uint256) : Uint256 := if a != 0 || b != 0 then 1 else 0
 def logicalNot (a : Uint256) : Uint256 := if a == 0 then 1 else 0
+def tryCatchWord (attempt : Uint256) (handler : String → Contract Unit) : Contract Unit :=
+  if attempt == 0 then handler "" else pure ()
 def calldatasize : Uint256 := 0
 def returndataSize : Uint256 := 0
 def calldataload (offset : Uint256) : Uint256 := offset

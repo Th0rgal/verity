@@ -134,6 +134,16 @@ def Contract.run {α : Type} (c : Contract α) (s : ContractState) : ContractRes
   | ContractResult.success a s' => ContractResult.success a s'
   | ContractResult.revert msg _ => ContractResult.revert msg s
 
+/-- Execute `attempt` with per-call rollback semantics and, on revert, run
+`handler` from the original pre-call snapshot. Successful attempts keep their
+post-state and do not invoke the handler. -/
+def Contract.tryCatch {α : Type} (attempt : Contract α) (handler : String → Contract Unit) :
+    Contract Unit :=
+  fun s =>
+    match Contract.run attempt s with
+    | ContractResult.success _ s' => ContractResult.success () s'
+    | ContractResult.revert msg rollback => handler msg rollback
+
 @[simp] theorem Contract.eq_of_run_success {α : Type} {c : Contract α} {s : ContractState}
     {a : α} {s' : ContractState} (h : c.run s = ContractResult.success a s') :
     c s = ContractResult.success a s' := by
@@ -150,6 +160,22 @@ def Contract.run {α : Type} (c : Contract α) (s : ContractState) : ContractRes
 
 @[simp] theorem pure_run (a : α) (state : ContractState) :
   (pure a : Contract α).run state = ContractResult.success a state := rfl
+
+@[simp] theorem tryCatch_success_run
+    (attempt : Contract α) (handler : String → Contract Unit) (state state' : ContractState)
+    (value : α)
+    (h : attempt.run state = ContractResult.success value state') :
+    (Contract.tryCatch attempt handler).run state = ContractResult.success () state' := by
+  unfold Contract.tryCatch Contract.run at *
+  simp [h]
+
+@[simp] theorem tryCatch_revert_run
+    (attempt : Contract α) (handler : String → Contract Unit) (state : ContractState)
+    (msg : String)
+    (h : attempt.run state = ContractResult.revert msg state) :
+    (Contract.tryCatch attempt handler).run state = (handler msg).run state := by
+  unfold Contract.tryCatch Contract.run at *
+  simp [h]
 
 -- Helper: check if result is success
 def ContractResult.isSuccess {α : Type} : ContractResult α → Bool
