@@ -38,7 +38,7 @@ Selector hashing is modeled as an external cryptographic primitive rather than r
 
 ### 2. `supported_function_body_correct_from_exact_state`
 
-**Location**: `Compiler/Proofs/IRGeneration/Function.lean:827`
+**Location**: `Compiler/Proofs/IRGeneration/Function.lean:915`
 
 **Statement**:
 ```lean
@@ -53,11 +53,13 @@ and variable bindings are exact, executing `compileStmtList ... fn.body` simulat
 **Why this is currently an axiom**:
 This is the remaining generic body-simulation proof over the supported fragment.
 The exact parameter-state reconstruction step is now proved, and `Function.lean`
-now bypasses this axiom for `StmtListCompileCore` bodies. The axiom statement
-has therefore been narrowed twice: first to the non-core fragment only, and now
-to the exact per-function `SupportedFunction model.fields fn` witness actually
-consumed by the caller instead of the larger whole-contract `SupportedSpec`
-package and selector-bookkeeping context. The repo still needs the broader
+now bypasses this axiom for both `StmtListCompileCore` bodies and the
+terminal-`ite` `StmtListTerminalCore` fragment. The axiom statement has
+therefore been narrowed again: first to the non-core fragment only, then to the
+exact per-function `SupportedFunction model.fields fn` witness actually consumed
+by the caller instead of the larger whole-contract `SupportedSpec` package and
+selector-bookkeeping context, and now further to supported bodies outside the
+checked terminal-core fragment. The repo still needs the broader
 expression/statement induction library for the remaining supported body shapes.
 The latest checked extractions here are the scope-local
 whole-fuel prefix wrappers
@@ -78,20 +80,16 @@ that arithmetic is semantic rather than fuel-only:
 `stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope`,
 `stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope`, and
 `stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel` now lift those
-compiled head-step facts directly into `stmtResultMatchesIRExec`. The remaining
-blocker is therefore narrower again: the recursive
-`StmtListTerminalCore` proof needs a second structural-fuel schema for bodies
-entered under an already-spent token, not just the top-level
-`sizeOf bodyIR + extraFuel + 1` shape. A direct checked theorem attempt showed
-that terminal `ite` then-branches fit the current schema, but else-branches
-still enter their compiled body through `execIRStmt_if_true_of_eval_nonzeroFuel`
-with the body fuel already decremented by one. The next leverageful move is
-therefore to package that if-body entry form cleanly, then reattempt the
-explicit-`bodyIR` `StmtListTerminalCore` theorem before attacking the broader
-supported non-core fragment including storage and mapping writes.
+compiled head-step facts directly into `stmtResultMatchesIRExec`. The newest
+checked layer above that is the explicit-`bodyIR`
+`exec_compileStmtList_terminal_core_sizeOf_extraFuel` theorem, with
+`Function.supported_function_body_correct_from_exact_state_terminal_core_extraFuel`
+threading it into the generic per-function proof. The remaining blocker is now
+the broader supported non-core fragment outside `StmtListTerminalCore`,
+including storage and mapping writes.
 
 This leaves the trusted statement closer to the real blocker: a local proof that
-the still-unproved non-core supported statement shapes preserve
+the still-unproved non-terminal supported statement shapes preserve
 `stmtResultMatchesIRExec` once parameter loading has established exact state.
 
 Note: this axiom's signature was widened with an `extraFuel : Nat` parameter

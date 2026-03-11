@@ -814,6 +814,94 @@ theorem supported_function_body_correct_from_exact_state_core_extraFuel
   subst bodyIR
   refine ⟨_, _, rfl, rfl, hcoreSem⟩
 
+theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hterminal : FunctionBody.StmtListTerminalCore (fn.params.map (·.name)) fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    ∃ sourceResult irExec,
+      SourceSemantics.execStmtList (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body = sourceResult ∧
+      execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
+      FunctionBody.stmtResultMatchesIRExec
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  have hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
+    intro name hmem
+    have hmemBindings : name ∈ bindings.map Prod.fst := by
+      rw [ParamLoading.bindSupportedParams_names hbind]
+      simpa using hmem
+    exact lookupBinding?_some_of_mem bindings name hmemBindings
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  have hbounded : FunctionBody.bindingsBounded bindings :=
+    FunctionBody.bindingsBounded_of_bindSupportedParams hbind
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] []
+        .calldata [] false (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (inScopeNames := fn.params.map (·.name))
+      (stmts := fn.body)
+      (extraFuel := sizeSlack)
+      hterminal
+      FunctionBody.scopeNamesIncluded_refl
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyTerminalCompile, hterminalSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyTerminalCompile
+    injection hbodyTerminalCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    omega
+  refine ⟨_, _, rfl, rfl, ?_⟩
+  simpa [hfuel, sizeSlack] using hterminalSem
+
 /-- TODO(#1510): replace this temporary bridge with the generic body simulation
 proof under the exact-state invariant produced by parameter loading. This is
 the second strategy-3 subgoal after `supported_function_param_state_exact`.
@@ -848,6 +936,7 @@ axiom supported_function_body_correct_from_exact_state
           bindings := [] }
         state)
     (hnotCore : ¬ FunctionBody.StmtListCompileCore (fn.params.map (·.name)) fn.body)
+    (hnotTerminal : ¬ FunctionBody.StmtListTerminalCore (fn.params.map (·.name)) fn.body)
     (hstateBindings :
       FunctionBody.bindingsExactlyMatchIRVars bindings state) :
     ∃ sourceResult irExec,
@@ -1218,7 +1307,28 @@ theorem supported_function_correct
             bodyStmts = irExec ∧
           FunctionBody.stmtResultMatchesIRExec
             (SourceSemantics.effectiveFields model) sourceResult irExec := by
-      exact supported_function_body_correct_from_exact_state
+      by_cases hterminal : FunctionBody.StmtListTerminalCore (fn.params.map (·.name)) fn.body
+      · exact supported_function_body_correct_from_exact_state_terminal_core_extraFuel
+          (model := model)
+          (fn := fn)
+          (bodyStmts := bodyStmts)
+          (tx := tx)
+          (initialWorld := initialWorld)
+          (state := ParamLoading.applyBindingsToIRState
+            (prebindRawArgs initialState fn.params) bindings)
+          (bindings := bindings)
+          (extraFuel := extraFuel)
+          (hextraFuel := hbodyExtraFuelLower)
+          (hnormalized := by
+            simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
+          (hnoEvents := hSupported.noEvents)
+          (hnoErrors := hSupported.noErrors)
+          hbind
+          hterminal
+          hbodyCompile
+          hbodyStateRuntime
+          hbodyStateBindings
+      · exact supported_function_body_correct_from_exact_state
           model fn bodyStmts tx initialWorld
           (ParamLoading.applyBindingsToIRState
             (prebindRawArgs initialState fn.params) bindings)
@@ -1227,7 +1337,11 @@ theorem supported_function_correct
           (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
           hSupported.noEvents
           hSupported.noErrors
-          hbodyCompile hbodyStateRuntime hcore hbodyStateBindings
+          hbodyCompile
+          hbodyStateRuntime
+          hcore
+          hterminal
+          hbodyStateBindings
     rcases hbodyCorrect with
       ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
     have hfuel :=
