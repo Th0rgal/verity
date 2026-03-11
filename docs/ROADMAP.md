@@ -160,7 +160,9 @@ exclusion list.
 Execution priorities:
 1. Define the theorem target precisely as the proof-complete macro-lowered `verity_contract` image, not arbitrary Lean-generated `CompilationModel` terms.
 2. Split `SupportedSpec` into persistent global invariants plus feature-local proof interfaces.
+   Current status: the top-level witness is split into invariants vs surface, and the body witness is now split into `core` / `state` / `calls` / `effects` interfaces in `Compiler/Proofs/IRGeneration/SupportedSpec.lean` instead of one monolithic exclusion scan.
 3. Add compositional helper-call proof reuse across callers.
+   Next structural blocker: replace the current `calls.surfaceClosed` helper-call exclusion with a reusable helper-summary theorem interface rather than another widening-specific side condition.
 4. Add low-level call / returndata / proxy-upgradeability proof modeling.
 5. Extend preserved observables to events/logs and typed errors.
 6. Widen storage/layout-rich whole-contract coverage, then constructor / `fallback` / `receive`.

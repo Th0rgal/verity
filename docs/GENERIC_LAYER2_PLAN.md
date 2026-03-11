@@ -236,6 +236,9 @@ The main objective of issue #1618 is therefore complete. Remaining Layer 2 work
 now sits under the post-generic widening/completeness plan in
 [#1630](https://github.com/Th0rgal/verity/issues/1630):
 
+- keep shrinking the body-level `SupportedSpec` witness by replacing the new
+  `core` / `state` / `calls` / `effects` interfaces with positive proof
+  interfaces
 - widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem
