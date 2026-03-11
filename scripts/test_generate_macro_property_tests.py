@@ -110,6 +110,23 @@ class ParseContractsTests(unittest.TestCase):
         parsed = gen.parse_contracts(src, Path("dummy.lean"))
         self.assertEqual(sorted(parsed.keys()), ["HappyPath"])
 
+    def test_parse_contracts_stops_function_body_at_top_level_defs(self) -> None:
+        src = textwrap.dedent(
+            """
+            verity_contract StringSmoke where
+              storage
+                sentinel : Uint256 := slot 0
+
+              function echoSecondString (_prefix : String, message : String) : String := do
+                returnBytes message
+
+            def helper : Bool :=
+              true
+            """
+        )
+        parsed = gen.parse_contracts(src, Path("dummy.lean"))
+        self.assertEqual(parsed["StringSmoke"].functions[0].body, ("returnBytes message",))
+
 
 class RenderTests(unittest.TestCase):
     def test_render_unit_and_non_unit_tests(self) -> None:
@@ -341,6 +358,66 @@ class RenderTests(unittest.TestCase):
         self.assertIn("function testAuto_SigV_ReturnsDeclaredConstant()", rendered)
         self.assertIn("uint8 actual = abi.decode(ret, (uint8));", rendered)
         self.assertIn('assertEq(actual, 27, "sigV should return the declared constant");', rendered)
+
+    def test_render_direct_param_return_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StatelessSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "echoWord",
+                    (gen.ParamDecl("value", "Uint256"),),
+                    "Uint256",
+                    body=("return value",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_EchoWord_ReturnsDirectParam()", rendered)
+        self.assertIn("uint256 actual = abi.decode(ret, (uint256));", rendered)
+        self.assertIn('assertEq(actual, uint256(1), "echoWord should preserve the expected value");', rendered)
+
+    def test_render_return_bytes_direct_param_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StringSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "echoString",
+                    (gen.ParamDecl("message", "String"),),
+                    "String",
+                    body=("returnBytes message",),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_EchoString_ReturnsDirectDynamicParam()", rendered)
+        self.assertIn("string actual = abi.decode(ret, (string));", rendered)
+        self.assertIn('assertEq(actual, "verity", "echoString should preserve the expected value");', rendered)
+
+    def test_render_msg_sender_return_infers_assertion(self) -> None:
+        contract = gen.ContractDecl(
+            name="StatelessSmoke",
+            constructor=None,
+            source=gen.ROOT / "Contracts/Sample/Sample.lean",
+            functions=(
+                gen.FunctionDecl(
+                    "whoAmI",
+                    (),
+                    "Address",
+                    body=("let sender ← msgSender", "return sender"),
+                ),
+            ),
+            storage_slots={},
+        )
+        rendered = gen.render_contract_test(contract)
+        self.assertIn("function testAuto_WhoAmI_ReturnsMsgSender()", rendered)
+        self.assertIn("address actual = abi.decode(ret, (address));", rendered)
+        self.assertIn('assertEq(actual, alice, "whoAmI should preserve the expected value");', rendered)
 
     def test_render_tuple_return_values_infers_assertion(self) -> None:
         contract = gen.ContractDecl(

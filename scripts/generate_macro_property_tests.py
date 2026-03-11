@@ -47,6 +47,9 @@ MAPPING_WORD_READ_RE = re.compile(
 NON_ZERO_REQUIRE_RE = re.compile(
     r'require\s+\(([A-Za-z_][A-Za-z0-9_]*)\s*!=\s*0\)\s+"[^"]+"$'
 )
+BUILTIN_READ_RE = re.compile(
+    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(msgSender|msgValue)$"
+)
 
 
 @dataclass(frozen=True)
@@ -183,6 +186,9 @@ def parse_contracts(text: str, source: Path) -> dict[str, ContractDecl]:
 
         if current_name is None:
             continue
+
+        if current_function is not None and line.strip() and not line.startswith("    "):
+            flush_function()
 
         if line.strip() == "storage":
             in_storage_block = True
@@ -518,6 +524,28 @@ def _render_decoded_assertion(
 """
 
 
+def _render_direct_return_assertion(
+    fn: FunctionDecl,
+    idx: int,
+    encode_args: str,
+    decoded_type: str,
+    expected_expr: str,
+    summary: str,
+    suffix: str,
+) -> str:
+    ret_assert = _return_shape_assertion(fn.return_type, fn.name)
+    return f"""    // Property {idx}: {summary}
+    function testAuto_{_fn_camel(fn.name)}_{suffix}() public {{
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature({encode_args}));
+        require(ok, \"{fn.name} reverted unexpectedly\");
+{ret_assert}
+        {decoded_type} actual = abi.decode(ret, ({decoded_type}));
+        assertEq(actual, {expected_expr}, \"{fn.name} should preserve the expected value\");
+    }}
+"""
+
+
 def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx: int, encode_args: str) -> str | None:
     fn_camel = _fn_camel(fn.name)
     body = list(fn.body)
@@ -526,6 +554,34 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
     decoded_type = _sol_type(fn.return_type)
 
     if len(body) == 1:
+        direct_return_match = re.fullmatch(r"return\s+([A-Za-z_][A-Za-z0-9_]*)", body[0])
+        if direct_return_match:
+            returned_name = direct_return_match.group(1)
+            if returned_name in param_examples:
+                return _render_direct_return_assertion(
+                    fn,
+                    idx,
+                    encode_args,
+                    decoded_type,
+                    param_examples[returned_name],
+                    f"{fn.name} returns the direct parameter value",
+                    "ReturnsDirectParam",
+                )
+
+        return_bytes_match = re.fullmatch(r"returnBytes\s+([A-Za-z_][A-Za-z0-9_]*)", body[0])
+        if return_bytes_match:
+            returned_name = return_bytes_match.group(1)
+            if returned_name in param_examples:
+                return _render_direct_return_assertion(
+                    fn,
+                    idx,
+                    encode_args,
+                    decoded_type,
+                    param_examples[returned_name],
+                    f"{fn.name} returns the direct dynamic parameter payload",
+                    "ReturnsDirectDynamicParam",
+                )
+
         literal_match = re.fullmatch(r"return\s+(.+)", body[0])
         if literal_match:
             literal_expr = _literal_expr(literal_match.group(1).strip(), ty)
@@ -575,6 +631,26 @@ def _render_inferred_non_unit_test(contract: ContractDecl, fn: FunctionDecl, idx
 """
 
     if len(body) == 2:
+        builtin_read_match = BUILTIN_READ_RE.fullmatch(body[0])
+        if builtin_read_match and body[1] == f"return {builtin_read_match.group(1)}":
+            builtin_name = builtin_read_match.group(2)
+            expected_expr = "alice" if builtin_name == "msgSender" else "0"
+            summary = (
+                f"{fn.name} returns the active caller"
+                if builtin_name == "msgSender"
+                else f"{fn.name} returns the active call value"
+            )
+            suffix = "ReturnsMsgSender" if builtin_name == "msgSender" else "ReturnsMsgValue"
+            return _render_direct_return_assertion(
+                fn,
+                idx,
+                encode_args,
+                decoded_type,
+                expected_expr,
+                summary,
+                suffix,
+            )
+
         read = _parse_read_accessor(body[0])
         if read and body[1] == f"return {read.var_name}":
             ret_assert = _return_shape_assertion(fn.return_type, fn.name)

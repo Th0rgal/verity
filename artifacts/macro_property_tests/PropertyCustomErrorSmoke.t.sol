@@ -17,13 +17,13 @@ contract PropertyCustomErrorSmokeTest is YulTestBase {
         require(target != address(0), "Deploy failed");
     }
 
-    // Property 1: TODO decode and assert `echo` result
-    function testTODO_Echo_DecodeAndAssert() public {
+    // Property 1: echo returns the direct parameter value
+    function testAuto_Echo_ReturnsDirectParam() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("echo(uint256)", uint256(1)));
         require(ok, "echo reverted unexpectedly");
         assertEq(ret.length, 32, "echo ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, uint256(1), "echo should preserve the expected value");
     }
 }

@@ -35,13 +35,13 @@ contract PropertyImmutableSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 3: TODO decode and assert `shadowed` result
-    function testTODO_Shadowed_DecodeAndAssert() public {
+    // Property 3: shadowed returns the direct parameter value
+    function testAuto_Shadowed_ReturnsDirectParam() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("shadowed(uint256)", uint256(1)));
         require(ok, "shadowed reverted unexpectedly");
         assertEq(ret.length, 32, "shadowed ABI return length mismatch (expected 32 bytes)");
-        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
-        ret;
+        uint256 actual = abi.decode(ret, (uint256));
+        assertEq(actual, uint256(1), "shadowed should preserve the expected value");
     }
 }
