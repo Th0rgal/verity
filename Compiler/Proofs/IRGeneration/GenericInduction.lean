@@ -2921,7 +2921,7 @@ private theorem execIRStmts_append_of_not_continue
             cases hhead
             simp [execIRStmts, hstmt]
 
-theorem exec_compileStmtList_generic_sizeOf_extraFuel
+theorem exec_compileStmtList_generic_sizeOf_extraFuel_step
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
@@ -2939,11 +2939,15 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
-      FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
+      stmtStepMatchesIRExec
+        fields
+        (List.foldl stmtNextScope scope stmts)
+        sourceResult
+        irExec := by
   induction hgeneric generalizing runtime state inScopeNames extraFuel with
   | nil =>
       refine ⟨[], by simp [CompilationModel.compileStmtList], ?_⟩
-      simp [SourceSemantics.execStmtList, FunctionBody.stmtResultMatchesIRExec, hruntime]
+      exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
   | @cons scope stmt compiledIR rest hstep hrest ih =>
       have hnextIncluded :
           FunctionBody.scopeNamesIncluded
@@ -3011,7 +3015,7 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
             SourceSemantics.execStmtList fields ‹SourceSemantics.RuntimeState› rest by
               simp [SourceSemantics.execStmtList, hsourceHead]]
         rw [hfullExec]
-        simpa [tailExtraFuel', bodyIR] using htailSem''
+        simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
       ·
         have hheadExec' :
             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
@@ -3030,7 +3034,7 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
             (by intro next hcontra; simp at hcontra)
         rw [SourceSemantics.execStmtList, hsourceHead]
         rw [hfullExec]
-        exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hheadMatch
+        simpa [List.foldl] using hheadMatch
       ·
         rcases hheadMatch with ⟨rfl, hruntime'⟩
         have hheadExec' :
@@ -3069,7 +3073,44 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
             (by intro next hcontra; simp at hcontra)
         rw [SourceSemantics.execStmtList, hsourceHead]
         rw [hfullExec]
-        simp [FunctionBody.stmtResultMatchesIRExec]
+        simp [stmtStepMatchesIRExec]
+
+theorem exec_compileStmtList_generic_sizeOf_extraFuel
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (extraFuel : Nat)
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmtList fields runtime stmts
+      let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
+  rcases exec_compileStmtList_generic_sizeOf_extraFuel_step
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (inScopeNames := inScopeNames)
+      (stmts := stmts)
+      (extraFuel := extraFuel)
+      hgeneric
+      hincluded
+      hscope
+      hexact
+      hbounded
+      hruntime with
+    ⟨bodyIR, hcompile, hstep⟩
+  refine ⟨bodyIR, hcompile, ?_⟩
+  exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hstep
 
 theorem supported_function_body_correct_from_exact_state_generic
     (model : CompilationModel)
