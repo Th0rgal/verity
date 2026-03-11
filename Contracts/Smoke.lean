@@ -95,6 +95,17 @@ verity_contract StorageWordsSmoke where
   function extSloadsLike (slots : Array Bytes32) : Array Uint256 := do
     returnStorageWords slots
 
+/--
+error: returnStorageWords requires an Array Bytes32 or Array Uint256 parameter on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.address)
+-/
+#guard_msgs in
+verity_contract StorageWordsUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function extSloadsLike (slots : Array Address) : Array Uint256 := do
+    returnStorageWords slots
+
 verity_contract CustomErrorSmoke where
   storage
     sentinel : Uint256 := slot 0

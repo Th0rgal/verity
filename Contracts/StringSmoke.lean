@@ -204,6 +204,17 @@ verity_contract StringArrayReturnUnsupported where
     returnArray messages
 
 /--
+error: returnBytes requires a Bytes or String parameter on the compilation-model path, got Verity.Macro.ValueType.uint256
+-/
+#guard_msgs in
+verity_contract ReturnBytesWordUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function echo (amount : Uint256) : Bytes := do
+    returnBytes amount
+
+/--
 error: returnArray currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.bytes)
 -/
 #guard_msgs in

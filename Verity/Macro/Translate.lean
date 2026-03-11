@@ -958,6 +958,24 @@ private def requireSupportedReturnArrayType
   | _ =>
       throwErrorAt stx s!"{context} requires an Array value, got {renderValueType ty}"
 
+private def requireSupportedReturnBytesType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  unless ty == .bytes || ty == .string do
+    throwErrorAt stx
+      s!"{context} requires a Bytes or String parameter on the compilation-model path, got {renderValueType ty}"
+
+private def requireSupportedReturnStorageWordsType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  match ty with
+  | .array .bytes32 | .array .uint256 => pure ()
+  | _ =>
+      throwErrorAt stx
+        s!"{context} requires an Array Bytes32 or Array Uint256 parameter on the compilation-model path, got {renderValueType ty}"
+
 private def requireEqComparableTypes (stx : Syntax) (lhsTy rhsTy : ValueType) : CommandElabM Unit := do
   let bothWordLike := isWordLikeValueType lhsTy && isWordLikeValueType rhsTy
   let bothBool := lhsTy == .bool && rhsTy == .bool
@@ -2326,7 +2344,7 @@ private partial def validateEffectStmtExprTypes
       for arg in [token, spender, amount] do
         requireWordLikeType arg "ERC-20 helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg)
   | `(term| setStorage $_field:ident $value:term) | `(term| setStorageAddr $_field:ident $value:term)
-    | `(term| require $value:term $_msg) | `(term| returnStorageWords $value:term) =>
+    | `(term| require $value:term $_msg) =>
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
   | `(term| setMapping $_field:ident $key:term $value:term) | `(term| setMappingAddr $_field:ident $key:term $value:term)
@@ -2374,8 +2392,12 @@ private partial def validateEffectStmtExprTypes
   | `(term| returnArray $name:term) => do
       let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
       requireSupportedReturnArrayType name "returnArray" ty
-  | `(term| returnBytes $_name:term) =>
-      pure ()
+  | `(term| returnBytes $name:term) => do
+      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
+      requireSupportedReturnBytesType name "returnBytes" ty
+  | `(term| returnStorageWords $name:term) => do
+      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
+      requireSupportedReturnStorageWordsType name "returnStorageWords" ty
   | `(term| internalCall $_fnName:term $args:term)
     | `(term| internalCallAssign $_names:term $_fnName:term $args:term)
     | `(term| externalCallBind $_names:term $_fnName:term $args:term) =>
