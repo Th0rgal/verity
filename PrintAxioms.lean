@@ -1042,6 +1042,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionBodySupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionReturnsSupported
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_nil
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_storageArrayPush
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_storageArrayPop
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_setStorageArrayElement
 #print axioms Compiler.Proofs.IRGeneration.selectorDispatchedFunctions_nil
 -- #print axioms Compiler.Proofs.IRGeneration.counter_noPackedFields  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.counter_noFallback  -- private
@@ -1154,4 +1157,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1026 theorems/lemmas (855 public, 171 private)
+-- Total: 1029 theorems/lemmas (858 public, 171 private)

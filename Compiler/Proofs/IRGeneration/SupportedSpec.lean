@@ -72,6 +72,7 @@ mutual
     | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
     | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
     | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
+    | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
     | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
     | .returnBytes _ | .returnStorageWords _ | .calldatacopy _ _ _
     | .returndataCopy _ _ _ | .revertReturndata | .forEach _ _ _
@@ -171,6 +172,18 @@ theorem SupportedSpec.selectorFunctionReturnsSupported
 
 @[simp] theorem stmtListTouchesUnsupportedContractSurface_nil :
     stmtListTouchesUnsupportedContractSurface [] = false := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_storageArrayPush
+    (field : String) (value : Expr) :
+    stmtTouchesUnsupportedContractSurface (.storageArrayPush field value) = true := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_storageArrayPop
+    (field : String) :
+    stmtTouchesUnsupportedContractSurface (.storageArrayPop field) = true := rfl
+
+@[simp] theorem stmtTouchesUnsupportedContractSurface_setStorageArrayElement
+    (field : String) (index value : Expr) :
+    stmtTouchesUnsupportedContractSurface (.setStorageArrayElement field index value) = true := rfl
 
 @[simp] theorem selectorDispatchedFunctions_nil :
     selectorDispatchedFunctions
