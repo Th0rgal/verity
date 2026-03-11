@@ -1154,13 +1154,16 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.returnsSupported
-#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.surfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperCompatibility.surfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryOfCall
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryContractOfCall
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.calleeRank_lt
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.exprSummaryPreservesWorld
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_featureOr
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedCallSurface_eq_featureOr
+-- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyCallInterface.surfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.surfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.normalizedFields
@@ -1304,4 +1307,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1170 theorems/lemmas (937 public, 233 private)
+-- Total: 1173 theorems/lemmas (938 public, 235 private)

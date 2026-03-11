@@ -218,6 +218,12 @@ ALLOWLIST: set[str] = {
     # theorem avoids duplicating the structural cases across the paired list/stmt
     # compatibility lemmas introduced by the new proof interface inventory.
     "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
+    # Issue #1630 / PR #1633 — feature-interface compatibility bridge:
+    # this private theorem is the one place that folds the split `core` / `state`
+    # / `calls` booleans back into the legacy `exprTouchesUnsupportedContractSurface`
+    # predicate while the generic body proof still consumes the old boundary.
+    # Decomposing it now would only spread the temporary compatibility transport.
+    "exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
     "firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs",
 }
 
