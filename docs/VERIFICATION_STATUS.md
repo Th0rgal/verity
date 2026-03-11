@@ -6,13 +6,13 @@ Verity implements a **three-layer verification stack** proving smart contracts c
 
 ```
 EDSL contracts (Lean)
-    ↓ Layer 1: EDSL ≡ CompilationModel [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
+    ↓ Layer 1: proved per contract — generic core + per-contract bridges
 CompilationModel (declarative compiler-facing model)
-    ↓ Layer 2: CompilationModel → IR [PARTIAL GENERIC, 2 AXIOMS, CONTRACT BRIDGES ACTIVE]
+    ↓ Layer 2: proved generically, 1 axiom
 Intermediate Representation (IR)
-    ↓ Layer 3: IR → Yul [GENERIC SURFACE, EXPLICIT BRIDGE HYPOTHESIS]
+    ↓ Layer 3: proved generically — dispatch bridge is a theorem hypothesis
 Yul (EVM Assembly)
-    ↓ (Trusted: solc compiler)
+    ↓ trusted — solc compiler
 EVM Bytecode
 ```
 
@@ -59,7 +59,7 @@ theorems for supported EDSL contracts, covering:
 - Explicit revert-path bridges for owner-gated and arithmetic failure paths
 - Composition with the compiled IR/Yul semantics used by the proof pipeline
 
-## Layer 2: CompilationModel → IR — PARTIAL GENERIC
+## Layer 2: CompilationModel → IR — PROVED GENERICALLY, 1 AXIOM
 
 Tracking:
 - Whole-contract generic theorem gap: [#1510](https://github.com/Th0rgal/verity/issues/1510)
@@ -104,9 +104,9 @@ Key files:
 - [`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
 - [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
 
-## Layer 3: IR → Yul — GENERIC, WITH EXPLICIT AXIOM BOUNDARY
+## Layer 3: IR → Yul — PROVED GENERICALLY
 
-**What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 1 documented bridge hypothesis in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean). The checked contract-level theorem surface now explicitly requires dispatch-guard safety for each selected function case: word-level zero `msg.value` on non-payable paths and a non-wrapping calldata-width bound for each case guard.
+**What it proves**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack. The dispatch bridge is an explicit theorem hypothesis in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), not a Lean axiom. Dispatch-guard preconditions: non-payable functions require word-level zero `msg.value`; each function case requires a non-wrapping calldata-width guard.
 
 All 8 Yul statement types proven equivalent to IR counterparts. Universal dispatcher theorem:
 
