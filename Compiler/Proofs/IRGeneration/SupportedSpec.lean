@@ -658,42 +658,6 @@ theorem stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
         calleeName ∈ stmtInternalHelperCallNames stmt := by
   intro calleeName hmem
   induction stmt with
-  | letVar name value
-  | assignVar name value
-  | setStorage name value
-  | setStorageAddr name value
-  | storageArrayPush name value
-  | return value
-  | require value msg =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hmem
-  | setStorageArrayElement name index value =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
-  | requireError cond err args
-  | calldatacopy cond err args
-  | returndataCopy cond err args =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
-  | revertError err args
-  | emit err args
-  | returnValues args
-  | externalCallBind names err args
-  | ecm err args =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hmem
-  | mstore offset value
-  | tstore offset value =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
-  | setMapping name key value
-  | setMappingWord name key offset value
-  | setMappingPackedWord name key offset packed value
-  | setMappingUint name key value
-  | setStructMember name key member value =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
-  | setMappingChain name keys value =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
-  | setMapping2 name key1 key2 value
-  | setMapping2Word name key1 key2 offset value
-  | setStructMember2 name key1 key2 member value =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
-        or_left_comm, or_assoc] using hmem
   | ite cond thenBranch elseBranch ihThen ihElse =>
       simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
         List.mem_cons] at hmem ⊢
@@ -713,16 +677,13 @@ theorem stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
   | internalCallAssign names calleeName args =>
       simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_cons] at hmem ⊢
       exact Or.inr hmem
-  | rawLog topics dataOffset dataSize =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
-        or_left_comm, or_assoc] using hmem
-  | storageArrayPop name
-  | returnArray values
-  | returnBytes values
-  | returnStorageWords values
-  | revertReturndata
-  | stop =>
-      simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hmem
+  | _ =>
+      all_goals
+        first
+        | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hmem
+        | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
+        | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
+            or_left_comm, or_assoc] using hmem
 
 theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames
     (stmts : List Stmt) :
