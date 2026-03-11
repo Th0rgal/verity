@@ -1,5 +1,9 @@
 # Generic Layer 2 Plan
 
+Tracking:
+- umbrella issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- current proof blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
+
 ## Objective
 
 Implement one compiler-level theorem proving whole-contract semantic preservation for

@@ -54,6 +54,11 @@ fragment. The theorem shape is in place, but there is not yet a single generic t
 into generic body simulation and
 `execIRFunctionFuel`/`execIRFunction` bridging.
 
+Tracking:
+- issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- current blocker: [#1564](https://github.com/Th0rgal/verity/issues/1564)
+- plan: [`docs/GENERIC_LAYER2_PLAN.md`](../docs/GENERIC_LAYER2_PLAN.md)
+
 ## Current Layer 2 Boundary
 
 What exists today:
