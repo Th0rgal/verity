@@ -50,7 +50,7 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
                 "`artifacts/layer2_boundary_catalog.json`\n"
                 "macro-lowered `verity_contract` image\n"
                 "`calls.helperCompatibility` can disappear\n"
-                "`execIRFunction` does not yet model internal helper call composition\n"
+                "`execIRFunctionWithInternals` / `interpretIRWithInternals`\n"
                 "[#1638]\n"
             ),
             "VERIFICATION_STATUS": (

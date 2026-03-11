@@ -55,7 +55,7 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
             "`artifacts/layer2_boundary_catalog.json`",
             "macro-lowered `verity_contract` image",
             "`calls.helperCompatibility` can disappear",
-            "`execIRFunction` does not yet model internal helper call composition",
+            "`execIRFunctionWithInternals` / `interpretIRWithInternals`",
             "[#1638]",
         ],
         "VERIFICATION_STATUS": [

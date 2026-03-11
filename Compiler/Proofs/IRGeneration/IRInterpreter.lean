@@ -95,6 +95,56 @@ def IRState.getVar (s : IRState) (name : String) : Option Nat :=
 def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
   { s with vars := (name, value) :: s.vars.filter (·.1 != name) }
 
+/-- Set several variables in order, matching the left-to-right binding behavior used
+by parameter initialization and multi-return helper calls. -/
+def IRState.setVars (s : IRState) (bindings : List (String × Nat)) : IRState :=
+  bindings.foldl (fun st (name, value) => st.setVar name value) s
+
+/-- Decoded internal helper definition from `IRContract.internalFunctions`. -/
+structure IRInternalFunctionDef where
+  name : String
+  params : List String
+  rets : List String
+  body : List YulStmt
+
+/-- View a stored internal-function statement as a decoded helper definition. -/
+def irInternalFunctionDefOfStmt? : YulStmt → Option IRInternalFunctionDef
+  | .funcDef name params rets body => some { name, params, rets, body }
+  | _ => none
+
+/-- Look up a helper function in the contract-local internal function table. -/
+def findInternalFunction? (contract : IRContract) (name : String) :
+    Option IRInternalFunctionDef :=
+  (contract.internalFunctions.filterMap irInternalFunctionDefOfStmt?).find? (fun fn => fn.name = name)
+
+/-- Helper-aware expression evaluation result, which can thread stateful helper-call
+effects or propagate control-flow effects out of expression position. -/
+inductive IRExprEvalResult
+  | value (value : Nat) (state : IRState)
+  | stop (state : IRState)
+  | return (value : Nat) (state : IRState)
+  | revert (state : IRState)
+  deriving Nonempty
+
+/-- Helper-aware call / argument-list evaluation result, carrying either a list of
+values or an early control-flow effect. -/
+inductive IRValuesEvalResult
+  | values (values : List Nat) (state : IRState)
+  | stop (state : IRState)
+  | return (value : Nat) (state : IRState)
+  | revert (state : IRState)
+  deriving Nonempty
+
+/-- Helper-aware statement execution result. `leave` is propagated explicitly so
+internal Yul helper bodies can exit without aborting the whole external function. -/
+inductive IRExecResultWithInternals
+  | continue (state : IRState)
+  | return (value : Nat) (state : IRState)
+  | stop (state : IRState)
+  | revert (state : IRState)
+  | leave (state : IRState)
+  deriving Nonempty
+
 /-! ## IR Expression Evaluation (Total)
 
 Expression evaluators use structural recursion on expression size, matching the
@@ -160,6 +210,255 @@ decreasing_by
   simp [exprSize]
 
 end -- mutual
+
+private def restoreCallerVars (callerState calleeState : IRState) : IRState :=
+  { calleeState with vars := callerState.vars }
+
+private def internalReturnValues (state : IRState) (retNames : List String) : List Nat :=
+  retNames.map (fun name => (state.getVar name).getD 0)
+
+mutual
+
+/-- Evaluate a list of Yul expressions in the helper-aware IR context, threading
+stateful internal helper effects left-to-right. -/
+partial def evalIRExprsWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) (exprs : List YulExpr) :
+    IRValuesEvalResult :=
+  match exprs with
+  | [] => .values [] state
+  | e :: es =>
+      match evalIRExprWithInternals contract fuel state e with
+      | .value v state' =>
+          match evalIRExprsWithInternals contract fuel state' es with
+          | .values vs state'' => .values (v :: vs) state''
+          | .stop state'' => .stop state''
+          | .return value state'' => .return value state''
+          | .revert state'' => .revert state''
+      | .stop state' => .stop state'
+      | .return value state' => .return value state'
+      | .revert state' => .revert state'
+
+/-- Execute a contract-local helper call, propagating control-flow effects and
+restoring the caller's local variable frame on all non-revert exits. -/
+partial def execIRInternalFunctionWithInternals
+    (contract : IRContract) (fuel : Nat) (callerState : IRState)
+    (helper : IRInternalFunctionDef) (args : List Nat) : IRValuesEvalResult :=
+  match fuel with
+  | 0 => .revert callerState
+  | Nat.succ fuel' =>
+      if helper.params.length = args.length then
+        let paramBindings := helper.params.zip args
+        let retBindings := helper.rets.map (fun name => (name, 0))
+        let calleeState := callerState.setVars (paramBindings ++ retBindings)
+        match execIRStmtsWithInternals contract fuel' calleeState helper.body with
+        | .continue finalState =>
+            .values (internalReturnValues finalState helper.rets)
+              (restoreCallerVars callerState finalState)
+        | .leave finalState =>
+            .values (internalReturnValues finalState helper.rets)
+              (restoreCallerVars callerState finalState)
+        | .stop finalState =>
+            .stop (restoreCallerVars callerState finalState)
+        | .return value finalState =>
+            .return value (restoreCallerVars callerState finalState)
+        | .revert _ =>
+            .revert callerState
+      else
+        .revert callerState
+
+/-- Evaluate a Yul call in the helper-aware IR context. Builtins remain pure, while
+internal helper calls execute through `IRContract.internalFunctions`. -/
+partial def evalIRCallWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) (func : String)
+    (args : List YulExpr) : IRValuesEvalResult :=
+  match evalIRExprsWithInternals contract fuel state args with
+  | .values argVals state' =>
+      match findInternalFunction? contract func with
+      | some helper =>
+          execIRInternalFunctionWithInternals contract fuel state' helper argVals
+      | none =>
+          match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+              Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+              state'.storage state'.sender state'.msgValue state'.thisAddress
+              state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
+              state'.selector state'.calldata func argVals with
+          | some value => .values [value] state'
+          | none => .revert state'
+  | .stop state' => .stop state'
+  | .return value state' => .return value state'
+  | .revert state' => .revert state'
+
+/-- Evaluate a single expression in the helper-aware IR context. -/
+partial def evalIRExprWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) (expr : YulExpr) :
+    IRExprEvalResult :=
+  match expr with
+  | .lit n => .value n state
+  | .hex n => .value n state
+  | .str _ => .revert state
+  | .ident name =>
+      match state.getVar name with
+      | some value => .value value state
+      | none => .revert state
+  | .call func args =>
+      match evalIRCallWithInternals contract fuel state func args with
+      | .values [value] state' => .value value state'
+      | .values _ state' => .revert state'
+      | .stop state' => .stop state'
+      | .return value state' => .return value state'
+      | .revert state' => .revert state'
+
+/-- Execute a single Yul statement in the helper-aware IR context. -/
+partial def execIRStmtWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) (stmt : YulStmt) :
+    IRExecResultWithInternals :=
+  match stmt with
+  | .funcDef _ _ _ _ => .continue state
+  | _ =>
+    match fuel with
+    | 0 => .revert state
+    | Nat.succ fuel =>
+      match stmt with
+      | .comment _ => .continue state
+      | .let_ name value =>
+          match evalIRExprWithInternals contract fuel state value with
+          | .value v state' => .continue (state'.setVar name v)
+          | .stop state' => .stop state'
+          | .return value' state' => .return value' state'
+          | .revert state' => .revert state'
+      | .letMany names value =>
+          match value with
+          | .call func args =>
+              match evalIRCallWithInternals contract fuel state func args with
+              | .values values state' =>
+                  if names.length = values.length then
+                    .continue (state'.setVars (names.zip values))
+                  else
+                    .revert state'
+              | .stop state' => .stop state'
+              | .return value' state' => .return value' state'
+              | .revert state' => .revert state'
+          | _ => .revert state
+      | .assign name value =>
+          match evalIRExprWithInternals contract fuel state value with
+          | .value v state' => .continue (state'.setVar name v)
+          | .stop state' => .stop state'
+          | .return value' state' => .return value' state'
+          | .revert state' => .revert state'
+      | .leave => .leave state
+      | .expr e =>
+          match e with
+          | .call "sstore" [slotExpr, valExpr] =>
+              match evalIRExprsWithInternals contract fuel state [slotExpr, valExpr] with
+              | .values [slot, val] state' =>
+                  let updated := Compiler.Proofs.abstractStoreStorageOrMapping state'.storage slot val
+                  .continue { state' with storage := updated }
+              | .values _ state' => .revert state'
+              | .stop state' => .stop state'
+              | .return value' state' => .return value' state'
+              | .revert state' => .revert state'
+          | .call "mstore" [offsetExpr, valExpr] =>
+              match evalIRExprsWithInternals contract fuel state [offsetExpr, valExpr] with
+              | .values [offset, val] state' =>
+                  .continue {
+                    state' with
+                    memory := fun o => if o = offset then val else state'.memory o
+                  }
+              | .values _ state' => .revert state'
+              | .stop state' => .stop state'
+              | .return value' state' => .return value' state'
+              | .revert state' => .revert state'
+          | .call "stop" [] => .stop state
+          | .call "revert" [_, _] => .revert state
+          | .call "return" [offsetExpr, sizeExpr] =>
+              match evalIRExprsWithInternals contract fuel state [offsetExpr, sizeExpr] with
+              | .values [offset, size] state' =>
+                  if size = 32 then
+                    .return (state'.memory offset) state'
+                  else
+                    .return 0 state'
+              | .values _ state' => .revert state'
+              | .stop state' => .stop state'
+              | .return value' state' => .return value' state'
+              | .revert state' => .revert state'
+          | _ =>
+              match evalIRExprWithInternals contract fuel state e with
+              | .value _ state' => .continue state'
+              | .stop state' => .stop state'
+              | .return value' state' => .return value' state'
+              | .revert state' => .revert state'
+      | .if_ cond body =>
+          match evalIRExprWithInternals contract fuel state cond with
+          | .value condValue state' =>
+              if condValue ≠ 0 then
+                execIRStmtsWithInternals contract fuel state' body
+              else
+                .continue state'
+          | .stop state' => .stop state'
+          | .return value state' => .return value state'
+          | .revert state' => .revert state'
+      | .switch expr cases defaultCase =>
+          match evalIRExprWithInternals contract fuel state expr with
+          | .value switchValue state' =>
+              match cases.find? (·.1 == switchValue) with
+              | some (_, body) => execIRStmtsWithInternals contract fuel state' body
+              | none =>
+                  match defaultCase with
+                  | some body => execIRStmtsWithInternals contract fuel state' body
+                  | none => .continue state'
+          | .stop state' => .stop state'
+          | .return value state' => .return value state'
+          | .revert state' => .revert state'
+      | .for_ init cond post body =>
+          match execIRStmtsWithInternals contract fuel state init with
+          | .continue state' =>
+              match evalIRExprWithInternals contract fuel state' cond with
+              | .value condValue state'' =>
+                  if condValue ≠ 0 then
+                    match execIRStmtsWithInternals contract fuel state'' body with
+                    | .continue state''' =>
+                        match execIRStmtsWithInternals contract fuel state''' post with
+                        | .continue state'''' =>
+                            execIRStmtWithInternals contract fuel state'''' (.for_ [] cond post body)
+                        | .return value state'''' => .return value state''''
+                        | .stop state'''' => .stop state''''
+                        | .revert state'''' => .revert state''''
+                        | .leave state'''' => .leave state''''
+                    | .return value state''' => .return value state'''
+                    | .stop state''' => .stop state'''
+                    | .revert state''' => .revert state'''
+                    | .leave state''' => .leave state'''
+                  else
+                    .continue state''
+              | .stop state'' => .stop state''
+              | .return value state'' => .return value state''
+              | .revert state'' => .revert state''
+          | .return value state' => .return value state'
+          | .stop state' => .stop state'
+          | .revert state' => .revert state'
+          | .leave state' => .leave state'
+      | .block stmts =>
+          execIRStmtsWithInternals contract fuel state stmts
+      | .funcDef _ _ _ _ => .continue state
+
+/-- Execute a list of statements in the helper-aware IR context. -/
+partial def execIRStmtsWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) (stmts : List YulStmt) :
+    IRExecResultWithInternals :=
+  match stmts with
+  | [] => .continue state
+  | stmt :: rest =>
+      match fuel with
+      | 0 => .revert state
+      | Nat.succ fuel' =>
+          match execIRStmtWithInternals contract fuel' state stmt with
+          | .continue state' => execIRStmtsWithInternals contract fuel' state' rest
+          | .return value state' => .return value state'
+          | .stop state' => .stop state'
+          | .revert state' => .revert state'
+          | .leave state' => .leave state'
+
+end
 
 /-! ## IR Statement Execution (Fuel-Based, Total)
 
@@ -412,6 +711,48 @@ noncomputable def execIRFunction (fn : IRFunction) (args : List Nat) (initialSta
       finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
       events := initialState.events }
 
+/-- Execute an IR function against a contract-aware helper table using an explicit
+extra helper budget on top of the usual body fuel. This leaves the existing
+`execIRFunction` theorem surface untouched while encoding the compiled-side helper
+composition target tracked in issue `#1638`. -/
+noncomputable def execIRFunctionWithInternals
+    (contract : IRContract) (helperFuel : Nat)
+    (fn : IRFunction) (args : List Nat) (initialState : IRState) : IRResult :=
+  let stateWithParams := fn.params.zip args |>.foldl
+    (fun s (p, v) => s.setVar p.name v)
+    initialState
+  match execIRStmtsWithInternals contract (sizeOf fn.body + helperFuel + 1) stateWithParams fn.body with
+  | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .leave s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .return v s =>
+      { success := true
+        returnValue := some v
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .stop s =>
+      { success := true
+        returnValue := none
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .revert _ =>
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events }
+
 /-- Interpret an entire IR contract execution -/
 noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (initialState : IRState) : IRResult :=
   -- Execution sender and selector come from the transaction (matches SpecInterpreter)
@@ -445,6 +786,42 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
       finalStorage := initialState.storage
       finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
       events := initialState.events }
+
+/-- Contract-aware runtime interpretation with explicit helper fuel. This is the
+compiled-side semantic target for future helper-summary composition proofs; the
+existing `interpretIR` remains the current public theorem target on the helper-free
+fragment. -/
+noncomputable def interpretIRWithInternals
+    (contract : IRContract) (helperFuel : Nat)
+    (tx : IRTransaction) (initialState : IRState) : IRResult :=
+  let initialState := {
+    initialState with
+    sender := tx.sender
+    msgValue := tx.msgValue
+    thisAddress := tx.thisAddress
+    blockTimestamp := tx.blockTimestamp
+    blockNumber := tx.blockNumber
+    chainId := tx.chainId
+    blobBaseFee := tx.blobBaseFee
+    calldata := tx.args
+    selector := tx.functionSelector
+  }
+  match contract.functions.find? (·.selector == tx.functionSelector) with
+  | some fn =>
+      if _ : fn.params.length ≤ tx.args.length then
+        execIRFunctionWithInternals contract helperFuel fn tx.args initialState
+      else
+        { success := false
+          returnValue := none
+          finalStorage := initialState.storage
+          finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+          events := initialState.events }
+  | none =>
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events }
 
 private def shortCalldataRegressionContract : IRContract :=
   { name := "ShortCalldataRegression"

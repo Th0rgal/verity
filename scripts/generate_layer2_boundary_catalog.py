@@ -156,10 +156,12 @@ def build_catalog() -> dict:
                     "SupportedBodyCallInterface.helperCompatibility"
                 ),
                 "next_required_proof_step": (
-                    "define helper-aware IR internal-call semantics, then "
-                    "consume helper-summary soundness/rank evidence in the "
-                    "body/IR composition interface so helperCompatibility can "
-                    "disappear"
+                    "retarget body/dispatch/contract preservation lemmas to "
+                    "the new helper-aware IR execution target "
+                    "(execIRFunctionWithInternals / interpretIRWithInternals), "
+                    "then consume helper-summary soundness/rank evidence in "
+                    "the body/IR composition interface so helperCompatibility "
+                    "can disappear"
                 ),
                 "blocking_seams": [
                     {
@@ -173,12 +175,14 @@ def build_catalog() -> dict:
                     {
                         "name": "ir_internal_call_semantics",
                         "source": (
-                            "Compiler.Proofs.IRGeneration.IRInterpreter.execIRFunction"
+                            "Compiler.Proofs.IRGeneration.IRInterpreter."
+                            "execIRFunctionWithInternals"
                         ),
                         "status": (
-                            "IR execution still runs only the compiled external "
-                            "function body and does not model internal helper "
-                            "call composition"
+                            "a helper-aware IR execution target now exists and "
+                            "can resolve IRContract.internalFunctions, but the "
+                            "public theorem stack still targets the legacy "
+                            "helper-free execIRFunction / interpretIR surface"
                         ),
                     },
                     {

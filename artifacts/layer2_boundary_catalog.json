@@ -191,8 +191,8 @@
         },
         {
           "name": "ir_internal_call_semantics",
-          "source": "Compiler.Proofs.IRGeneration.IRInterpreter.execIRFunction",
-          "status": "IR execution still runs only the compiled external function body and does not model internal helper call composition"
+          "source": "Compiler.Proofs.IRGeneration.IRInterpreter.execIRFunctionWithInternals",
+          "status": "a helper-aware IR execution target now exists and can resolve IRContract.internalFunctions, but the public theorem stack still targets the legacy helper-free execIRFunction / interpretIR surface"
         },
         {
           "name": "summary_soundness_not_yet_consumed",
@@ -204,7 +204,7 @@
       "current_fail_closed_gate": "SupportedBodyCallInterface.helperCompatibility",
       "decreasing_rank_measure": "SupportedBodyHelperInterface.calleeRanksDecrease",
       "inventory_source": "SupportedBodyHelperInterface.summaryOf",
-      "next_required_proof_step": "define helper-aware IR internal-call semantics, then consume helper-summary soundness/rank evidence in the body/IR composition interface so helperCompatibility can disappear",
+      "next_required_proof_step": "retarget body/dispatch/contract preservation lemmas to the new helper-aware IR execution target (execIRFunctionWithInternals / interpretIRWithInternals), then consume helper-summary soundness/rank evidence in the body/IR composition interface so helperCompatibility can disappear",
       "proof_contract": "InternalHelperSummaryContract",
       "proof_soundness_slot": "SupportedSpecHelperProofs"
     }

@@ -277,7 +277,9 @@ now sits under the post-generic widening/completeness plan in
   callers still derive generic body proofs through the helper-free `SupportedStmtList` witness,
   the generic body theorem now already targets the helper-aware source semantics family under the current fail-closed helper gate,
   but summary-soundness/rank evidence is still not consumed inside that body proof,
-  and the current IR function semantics has no first-class internal-helper composition;
+  and the public theorem stack still targets legacy `execIRFunction` / `interpretIR`
+  even though `IRInterpreter.lean` now defines helper-aware compiled-side targets
+  (`execIRFunctionWithInternals`, `interpretIRWithInternals`) for internal-helper composition;
   the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)
 - widen the supported whole-contract fragment without reintroducing axioms
 
@@ -289,7 +291,11 @@ The first theorem does not need to cover everything. It may explicitly leave out
 - fallback / receive
 - events/logs
 - external or linked calls
-- internal helper compositional reuse
+- internal helper compositional reuse:
+  `IRInterpreter.lean` now defines helper-aware compiled-side targets
+  (`execIRFunctionWithInternals`, `interpretIRWithInternals`) that can execute
+  `IRContract.internalFunctions`, so the remaining work is retargeting the proof
+  stack to those semantics and consuming helper-summary soundness/rank evidence
 - dynamic ABI cases outside the current typed path
 
 If a feature is out of scope, say so in the supported-fragment witness and docs.
