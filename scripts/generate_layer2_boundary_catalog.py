@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+"""Generate artifacts/layer2_boundary_catalog.json."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from property_utils import ROOT
+
+
+def build_catalog() -> dict:
+    return {
+        "schema_version": 1,
+        "description": (
+            "Machine-readable Layer 2 proof-boundary catalog for the generic "
+            "CompilationModel -> IR theorem."
+        ),
+        "theorem_target": {
+            "intended_claim": "proof_complete_macro_lowered_verity_contract_image",
+            "generic_theorem_domain": "supported_compilation_model_subset",
+            "excludes_arbitrary_lean_compilation_models": True,
+            "issue_refs": {
+                "theorem_shape": 1510,
+                "completeness": 1630,
+            },
+            "source_refs": [
+                "docs/GENERIC_LAYER2_PLAN.md",
+                "docs/ROADMAP.md",
+                "docs/VERIFICATION_STATUS.md",
+            ],
+        },
+        "current_theorem": {
+            "theorem": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics",
+            "source_semantics": (
+                "Compiler.Proofs.IRGeneration.SourceSemantics.supportedSourceContractSemantics"
+            ),
+            "supported_spec": "Compiler.Proofs.IRGeneration.SupportedSpec",
+            "layer2_axioms": [],
+            "remaining_global_hypotheses": [
+                "CompilationModel.compile spec selectors = Except.ok ir",
+                "Function.TxContextNormalized tx",
+                "Function.TxCalldataSizeFitsEvm tx",
+            ],
+            "trusted_boundary_change": "none",
+        },
+        "supported_spec_split": {
+            "global_invariants": [
+                {
+                    "name": "normalizedFields",
+                    "source": "SupportedSpecInvariants.normalizedFields",
+                    "kind": "global_precondition",
+                },
+                {
+                    "name": "noPackedFields",
+                    "source": "SupportedSpecInvariants.noPackedFields",
+                    "kind": "global_precondition",
+                },
+                {
+                    "name": "selectorCount",
+                    "source": "SupportedSpecInvariants.selectorCount",
+                    "kind": "global_precondition",
+                },
+                {
+                    "name": "selectorsDistinct",
+                    "source": "SupportedSpecInvariants.selectorsDistinct",
+                    "kind": "global_precondition",
+                },
+            ],
+            "global_surface_exclusions": [
+                {
+                    "name": "constructor",
+                    "source": "SupportedSpecSurface.noConstructor",
+                    "kind": "temporary_surface_boundary",
+                },
+                {
+                    "name": "events",
+                    "source": "SupportedSpecSurface.noEvents",
+                    "kind": "temporary_surface_boundary",
+                },
+                {
+                    "name": "errors",
+                    "source": "SupportedSpecSurface.noErrors",
+                    "kind": "temporary_surface_boundary",
+                },
+                {
+                    "name": "externals",
+                    "source": "SupportedSpecSurface.noExternals",
+                    "kind": "temporary_surface_boundary",
+                },
+                {
+                    "name": "fallback",
+                    "source": "SupportedSpecSurface.noFallback",
+                    "kind": "temporary_surface_boundary",
+                },
+                {
+                    "name": "receive",
+                    "source": "SupportedSpecSurface.noReceive",
+                    "kind": "temporary_surface_boundary",
+                },
+            ],
+            "function_interfaces": [
+                {
+                    "name": "params",
+                    "source": "SupportedFunction.params",
+                    "kind": "feature_local_interface",
+                },
+                {
+                    "name": "returns",
+                    "source": "SupportedFunction.returns",
+                    "kind": "feature_local_interface",
+                },
+                {
+                    "name": "body",
+                    "source": "SupportedFunction.body",
+                    "kind": "feature_local_interface",
+                },
+            ],
+            "body_interfaces": [
+                {
+                    "name": "core",
+                    "source": "SupportedBodyCoreInterface.surfaceClosed",
+                    "kind": "feature_local_interface",
+                },
+                {
+                    "name": "state",
+                    "source": "SupportedBodyStateInterface.surfaceClosed",
+                    "kind": "feature_local_interface",
+                },
+                {
+                    "name": "calls",
+                    "source": "SupportedBodyCallInterface",
+                    "kind": "feature_local_interface",
+                },
+                {
+                    "name": "effects",
+                    "source": "SupportedBodyEffectInterface.surfaceClosed",
+                    "kind": "feature_local_interface",
+                },
+            ],
+            "helper_boundary": {
+                "inventory_source": "SupportedBodyHelperInterface.summaryOf",
+                "proof_contract": "InternalHelperSummaryContract",
+                "proof_soundness_slot": "SupportedSpecHelperProofs",
+                "decreasing_rank_measure": (
+                    "SupportedBodyHelperInterface.calleeRanksDecrease"
+                ),
+                "current_fail_closed_gate": (
+                    "SupportedBodyHelperInterface.legacySurfaceClosed"
+                ),
+                "next_required_proof_step": (
+                    "consume helper-summary soundness and helper ranks inside "
+                    "the body/IR preservation lemmas"
+                ),
+            },
+        },
+        "current_out_of_scope_surfaces": [
+            {
+                "name": "helper_composition",
+                "status": "interface_defined_but_not_consumed",
+                "issue": 1335,
+            },
+            {
+                "name": "low_level_calls_and_returndata",
+                "status": "not_in_generic_theorem",
+                "issue": 1630,
+            },
+            {
+                "name": "proxy_upgradeability_delegatecall",
+                "status": "not_in_generic_theorem",
+                "issue": 1630,
+            },
+            {
+                "name": "events_and_typed_errors",
+                "status": "not_in_generic_theorem",
+                "issue": 1630,
+            },
+            {
+                "name": "storage_layout_rich_features",
+                "status": "partially_outside_generic_theorem",
+                "issue": 1630,
+            },
+            {
+                "name": "constructors_fallback_receive",
+                "status": "not_in_generic_theorem",
+                "issue": 1630,
+            },
+            {
+                "name": "local_obligations",
+                "status": "explicitly_excluded_from_supported_fragment",
+                "issue": 1630,
+            },
+        ],
+        "ranked_next_steps": [
+            {
+                "rank": "P1",
+                "name": "replace exclusions with compositional interfaces",
+                "status": "in_progress",
+            },
+            {
+                "rank": "P2",
+                "name": "internal helper compositional proof reuse",
+                "status": "next_structural_blocker",
+            },
+            {
+                "rank": "P3",
+                "name": "low-level calls, returndata, and proxy modeling",
+                "status": "pending",
+            },
+            {
+                "rank": "P4",
+                "name": "events, logs, and typed errors",
+                "status": "pending",
+            },
+        ],
+    }
+
+
+def render_catalog() -> str:
+    return json.dumps(build_catalog(), indent=2, sort_keys=True) + "\n"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate the Layer 2 proof-boundary catalog artifact."
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=ROOT / "artifacts" / "layer2_boundary_catalog.json",
+        help="Output artifact path.",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Fail if the output file is missing or stale; do not write changes.",
+    )
+    args = parser.parse_args()
+
+    rendered = render_catalog()
+    output = args.output
+
+    if args.check:
+        if not output.exists():
+            raise SystemExit(f"Missing Layer 2 boundary artifact: {output}")
+        existing = output.read_text(encoding="utf-8")
+        if existing != rendered:
+            raise SystemExit(
+                f"Stale Layer 2 boundary artifact: {output}\n"
+                "Run `python3 scripts/generate_layer2_boundary_catalog.py`."
+            )
+        print(f"Layer 2 boundary artifact is up to date: {output}")
+        return
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(rendered, encoding="utf-8")
+    print(f"Wrote Layer 2 boundary artifact: {output}")
+
+
+if __name__ == "__main__":
+    main()

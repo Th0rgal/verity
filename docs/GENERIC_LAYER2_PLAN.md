@@ -46,6 +46,11 @@ That is the mechanically checkable meaning of a future "whole EDSL is formally p
 claim. Stronger claims about arbitrary Lean-produced `CompilationModel` values should not
 be made unless the theorem domain itself expands to cover them.
 
+The machine-readable boundary companion for this theorem target now lives in
+[`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json).
+It records the exact target claim, the `SupportedSpec` split, the current helper
+fail-closed gate, and the ranked follow-on blockers.
+
 ## Why The Current Architecture Cannot Satisfy The Goal
 
 The current proof boundary stops too low and too late:

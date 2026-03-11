@@ -290,9 +290,8 @@ theorem compileFunctionSpec_correct_generic
 
 /-- Primary whole-contract Layer 2 theorem: compilation preserves semantics
 for any supported `CompilationModel`. No contract-specific bridge premise.
-The proof chain is complete; it transitively depends on 1 documented axiom
-(`supported_function_body_correct_from_exact_state` in Function.lean).
-See AXIOMS.md. -/
+Layer 2 itself is axiom-free; the remaining documented project axiom is the
+selector-level `keccak256_first_4_bytes` assumption tracked in `AXIOMS.md`. -/
 theorem compile_preserves_semantics
     (model : CompilationModel)
     (selectors : List Nat)

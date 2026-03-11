@@ -51,6 +51,7 @@ Tracking:
 - axiom elimination: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 - completeness/generalization: [#1630](https://github.com/Th0rgal/verity/issues/1630)
 - plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
+- machine-readable boundary catalog: [`artifacts/layer2_boundary_catalog.json`](../../artifacts/layer2_boundary_catalog.json)
 
 ## Current Layer 2 Boundary
 
@@ -78,6 +79,11 @@ Current supported-fragment scope for the generic theorem:
 - Outside the current generic theorem: constructors, events/logs, linked
   externals, and other features intentionally excluded from the current
   supported fragment
+
+The `SupportedSpec` split is now explicit and auditable in the machine-readable
+catalog: global invariants, temporary surface exclusions, feature-local body
+interfaces, and the current `calls.helpers` helper boundary all appear in
+`artifacts/layer2_boundary_catalog.json`.
 
 Negative boundary example:
 - A contract whose proof depends on linked external assumptions is outside the

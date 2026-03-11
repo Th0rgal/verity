@@ -64,11 +64,12 @@ Tracking:
 **Intended end-state claim**:
 - "whole EDSL" means the proof-complete macro-lowered image of `verity_contract`, not all arbitrary Lean-produced `CompilationModel` terms
 - the widening target is to prove the generic theorem for that frontend image, or for a `CompilationModel` subset that the frontend lowering is proved to land inside
+- the machine-readable companion for that claim and the current proof boundary is [`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json)
 
 ### What is not fully migrated yet
 
 - The generic theorem surface is in place, but the supported whole-contract fragment is still narrower than the full `CompilationModel` / EDSL surface.
-- The contract/body support witness is no longer one undifferentiated exclusion bit, and helper calls now have an explicit summary inventory boundary, a reusable semantic summary contract slot, explicit theorem-level proof wrappers for summary soundness, and a dedicated source-semantics target, but the remaining excluded surfaces are still real proof gaps until the corresponding feature-local interfaces are consumed by positive theorem interfaces.
+- The contract/body support witness is no longer one undifferentiated exclusion bit, and helper calls now have an explicit summary inventory boundary, a reusable semantic summary contract slot, explicit theorem-level proof wrappers for summary soundness, and a dedicated source-semantics target, but the remaining excluded surfaces are still real proof gaps until the corresponding feature-local interfaces are consumed by positive theorem interfaces. In particular, helper reuse is still held behind the explicit `calls.helpers.legacySurfaceClosed` gate recorded in `artifacts/layer2_boundary_catalog.json`.
 - Contracts and features outside `SupportedSpec` still rely on explicit trust-surface documentation, targeted testing, or future fragment-widening work rather than a claim of full generic compile-preservation.
 
 **Current boundary**:

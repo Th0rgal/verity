@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+import io
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import generate_layer2_boundary_catalog as gen
+
+
+class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
+    def test_rendered_catalog_has_expected_target_and_helper_gate(self) -> None:
+        catalog = gen.build_catalog()
+        self.assertEqual(
+            catalog["theorem_target"]["intended_claim"],
+            "proof_complete_macro_lowered_verity_contract_image",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"]["current_fail_closed_gate"],
+            "SupportedBodyHelperInterface.legacySurfaceClosed",
+        )
+
+    def test_check_mode_rejects_stale_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = Path(tmpdir) / "layer2_boundary_catalog.json"
+            output.write_text("{\"stale\": true}\n", encoding="utf-8")
+            old_argv = sys.argv
+            sys.argv = [
+                "generate_layer2_boundary_catalog.py",
+                "--check",
+                "--output",
+                str(output),
+            ]
+            try:
+                with self.assertRaises(SystemExit) as exc:
+                    gen.main()
+            finally:
+                sys.argv = old_argv
+        self.assertIn("Stale Layer 2 boundary artifact", str(exc.exception))
+
+    def test_writes_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = Path(tmpdir) / "layer2_boundary_catalog.json"
+            old_argv = sys.argv
+            sys.argv = [
+                "generate_layer2_boundary_catalog.py",
+                "--output",
+                str(output),
+            ]
+            try:
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    gen.main()
+            finally:
+                sys.argv = old_argv
+            self.assertTrue(output.exists())
+            self.assertIn("Wrote Layer 2 boundary artifact", stdout.getvalue())
+
+
+if __name__ == "__main__":
+    unittest.main()
