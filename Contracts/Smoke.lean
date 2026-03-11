@@ -90,6 +90,7 @@ verity_contract SignedBuiltinSmoke where
   constants
     extendedByte : Uint256 := (signextend 0 255)
     arithmeticShifted : Uint256 := (sar 255 (sub 0 1))
+    negativeOne : Int256 := (toInt256 (sub 0 1))
 
   function signedDiv (lhs : Uint256, rhs : Uint256) : Uint256 := do
     return (sdiv lhs rhs)
@@ -111,6 +112,21 @@ verity_contract SignedBuiltinSmoke where
 
   function shiftedMask () : Uint256 := do
     return arithmeticShifted
+
+  function signedDivSurface (lhs : Int256, rhs : Int256) : Int256 := do
+    return (lhs / rhs)
+
+  function signedModSurface (lhs : Int256, rhs : Int256) : Int256 := do
+    return (lhs % rhs)
+
+  function castToInt (value : Uint256) : Int256 := do
+    return (toInt256 value)
+
+  function castToUint (value : Int256) : Uint256 := do
+    return (toUint256 value)
+
+  function minusOne () : Int256 := do
+    return negativeOne
 
 verity_contract StatelessSmoke where
   storage
@@ -261,7 +277,7 @@ verity_contract ConstantRuntimeBuiltinRejected where
     return seededAt
 
 /--
-error: contract immutables currently support only Uint256, Uint8, Address, Bytes32, and Bool; 'metadata' uses unsupported type
+ error: contract immutables currently support only Uint256, Int256, Uint8, Address, Bytes32, and Bool; 'metadata' uses unsupported type
 -/
 #guard_msgs in
 verity_contract ImmutableTypeRejected where
@@ -658,7 +674,7 @@ verity_contract ERC20HelperShadowWriteRejected where
     safeTransfer token to amount
 
 /--
-error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Uint8, Address, Bytes32, and Bool
+ error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
 -/
 #guard_msgs in
 verity_contract ExternalCallUnsupportedType where

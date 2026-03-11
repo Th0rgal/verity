@@ -71,6 +71,16 @@ def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def bitOr (a b : Uint256) : Uint256 := Verity.Core.Uint256.or a b
 def bitXor (a b : Uint256) : Uint256 := Verity.Core.Uint256.xor a b
 
+structure Int256 where
+  word : Uint256
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def toInt256 (value : Uint256) : Int256 := ⟨value⟩
+def toUint256 (value : Int256) : Uint256 := value.word
+
+instance : Coe Int256 Uint256 := ⟨Int256.word⟩
+instance : OfNat Int256 n := ⟨toInt256 (n : Uint256)⟩
+
 class CustomErrorArg (α : Type) where
   encode : α → String
 
@@ -122,6 +132,9 @@ private def signedToWord (value : Int) : Uint256 :=
 
 private def signedAbsNat (value : Int) : Nat :=
   Int.natAbs value
+
+instance : CustomErrorArg Int256 where
+  encode value := toString (wordToSigned value.word)
 
 private def pow2 (n : Nat) : Nat := 2 ^ n
 
@@ -178,6 +191,14 @@ def signextend (byteIndex value : Uint256) : Uint256 :=
       ((lowBits + (Verity.Core.Uint256.modulus - lowMask - 1)) : Uint256)
     else
       (lowBits : Uint256)
+
+instance : Add Int256 := ⟨fun a b => toInt256 (a.word + b.word)⟩
+instance : Sub Int256 := ⟨fun a b => toInt256 (a.word - b.word)⟩
+instance : Mul Int256 := ⟨fun a b => toInt256 (a.word * b.word)⟩
+instance : Div Int256 := ⟨fun a b => toInt256 (sdiv a.word b.word)⟩
+instance : Mod Int256 := ⟨fun a b => toInt256 (smod a.word b.word)⟩
+instance : LT Int256 := ⟨fun a b => wordToSigned a.word < wordToSigned b.word⟩
+instance : LE Int256 := ⟨fun a b => wordToSigned a.word ≤ wordToSigned b.word⟩
 
 abbrev mulDivDown := Verity.Stdlib.Math.mulDivDown
 abbrev mulDivUp := Verity.Stdlib.Math.mulDivUp
@@ -245,12 +266,16 @@ class ExternalResult (α : Type) where
   fromWord : Uint256 → α
 instance : ExternalArg Uint256 where
   toWord value := value
+instance : ExternalArg Int256 where
+  toWord value := value.word
 instance : ExternalArg Address where
   toWord value := value.toNat
 instance : ExternalArg Bool where
   toWord value := if value then 1 else 0
 instance : ExternalResult Uint256 where
   fromWord value := value
+instance : ExternalResult Int256 where
+  fromWord value := toInt256 value
 instance : ExternalResult Address where
   fromWord value := wordToAddress value
 instance : ExternalResult Bool where

@@ -10,7 +10,7 @@ import Compiler.CompilationModel.ScopeValidation
 namespace Compiler.CompilationModel
 
 def customErrorRequiresDirectParamRef : ParamType → Bool
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => false
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => false
   | _ => true
 
 def validateDirectParamCustomErrorArg

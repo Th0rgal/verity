@@ -80,4 +80,49 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
+    // Property 8: TODO decode and assert `signedDivSurface` result
+    function testTODO_SignedDivSurface_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedDivSurface(int256,int256)", int256(1), int256(1)));
+        require(ok, "signedDivSurface reverted unexpectedly");
+        assertEq(ret.length, 32, "signedDivSurface ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 9: TODO decode and assert `signedModSurface` result
+    function testTODO_SignedModSurface_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedModSurface(int256,int256)", int256(1), int256(1)));
+        require(ok, "signedModSurface reverted unexpectedly");
+        assertEq(ret.length, 32, "signedModSurface ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 10: TODO decode and assert `castToInt` result
+    function testTODO_CastToInt_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("castToInt(uint256)", uint256(1)));
+        require(ok, "castToInt reverted unexpectedly");
+        assertEq(ret.length, 32, "castToInt ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 11: TODO decode and assert `castToUint` result
+    function testTODO_CastToUint_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("castToUint(int256)", int256(1)));
+        require(ok, "castToUint reverted unexpectedly");
+        assertEq(ret.length, 32, "castToUint ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 12: TODO decode and assert `minusOne` result
+    function testTODO_MinusOne_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("minusOne()"));
+        require(ok, "minusOne reverted unexpectedly");
+        assertEq(ret.length, 32, "minusOne ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
 }

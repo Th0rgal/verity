@@ -12,7 +12,7 @@ open Compiler
 open Compiler.Yul
 
 private def isScalarParamType : ParamType → Bool
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
   | _ => false
 
 private def genDynamicParamLoads
@@ -76,6 +76,8 @@ def genScalarLoad
   match ty with
   | ParamType.uint256 =>
       [YulStmt.let_ name load]
+  | ParamType.int256 =>
+      [YulStmt.let_ name load]
   | ParamType.uint8 =>
       [YulStmt.let_ name (YulExpr.call "and" [load, YulExpr.lit 255])]
   | ParamType.bytes32 =>
@@ -106,7 +108,7 @@ private partial def genStaticTypeLoads
     (loadWord : YulExpr → YulExpr) (name : String) (ty : ParamType) (offset : Nat) :
     List YulStmt :=
   match ty with
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
       genScalarLoad loadWord name ty offset
   | ParamType.fixedArray elemTy n =>
       (List.range n).flatMap fun i =>
@@ -130,7 +132,7 @@ def genParamLoadBodyFrom
   | [] => []
   | param :: rest =>
       let stmts := match param.ty with
-        | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+        | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
           genScalarLoad loadWord param.name param.ty headOffset
         | ParamType.tuple elemTypes =>
           if isDynamicParamType param.ty then
@@ -184,7 +186,7 @@ private def constructorArgAliases (params : List Param) : List YulStmt :=
           YulExpr.ident s!"{param.name}_offset"
         else
           match param.ty with
-          | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+          | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
               YulExpr.ident param.name
           | _ =>
               YulExpr.call "mload" [YulExpr.lit headOffset]

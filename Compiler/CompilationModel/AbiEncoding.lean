@@ -13,7 +13,7 @@ open Compiler.Yul
 def encodeStaticCustomErrorArg (errorName : String) (ty : ParamType) (argExpr : YulExpr) :
     Except String YulExpr :=
   match ty with
-  | ParamType.uint256 | ParamType.bytes32 =>
+  | ParamType.uint256 | ParamType.int256 | ParamType.bytes32 =>
       pure argExpr
   | ParamType.uint8 =>
       pure (YulExpr.call "and" [argExpr, YulExpr.lit 255])
@@ -37,7 +37,7 @@ partial def compileUnindexedAbiEncode
     (srcBase dstBase : YulExpr) (stem : String) :
     Except String (List YulStmt × YulExpr) := do
   match ty with
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
       let loaded := dynamicWordLoad dynamicSource srcBase
       pure ([
         YulStmt.expr (YulExpr.call "mstore" [dstBase, normalizeEventWord ty loaded])
@@ -279,7 +279,7 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
   let argsWithHeadOffsets := attachOffsets argsWithSources 4
   let argStores ← argsWithHeadOffsets.zipIdx.mapM fun ((ty, srcExpr, argExpr, headOffset), idx) => do
     match ty with
-    | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+    | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
         let encoded ← encodeStaticCustomErrorArg errorDef.name ty argExpr
         pure [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit headOffset, encoded])]
     | ParamType.tuple _ | ParamType.fixedArray _ _ =>

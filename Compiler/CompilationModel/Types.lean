@@ -138,6 +138,7 @@ Extended parameter types supporting arrays, bytes, and bytes32.
 
 inductive ParamType
   | uint256
+  | int256
   | uint8
   | address
   | bool                                   -- Solidity bool (ABI-encoded as 32-byte 0/1)
@@ -157,6 +158,7 @@ structure Param where
 -- Convert to IR types
 def ParamType.toIRType : ParamType → IRType
   | uint256 => IRType.uint256
+  | int256 => IRType.uint256
   | uint8 => IRType.uint256
   | address => IRType.address
   | bool => IRType.uint256
