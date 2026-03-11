@@ -106,6 +106,28 @@ verity_contract StorageWordsUnsupported where
   function extSloadsLike (slots : Array Address) : Array Uint256 := do
     returnStorageWords slots
 
+/--
+error: returnStorageWords currently requires a direct parameter reference on the compilation-model path
+-/
+#guard_msgs in
+verity_contract StorageWordsConstructedUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function extSloadsLike (_ok : Bool, slots : Array Bytes32) : Array Uint256 := do
+    returnStorageWords ([] : Array Bytes32)
+
+/--
+error: returnArray currently requires a direct parameter reference on the compilation-model path
+-/
+#guard_msgs in
+verity_contract ReturnArrayConstructedUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function echo (_ok : Bool, values : Array Uint256) : Array Uint256 := do
+    returnArray ([] : Array Uint256)
+
 verity_contract CustomErrorSmoke where
   storage
     sentinel : Uint256 := slot 0

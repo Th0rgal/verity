@@ -958,6 +958,29 @@ private def requireSupportedReturnArrayType
   | _ =>
       throwErrorAt stx s!"{context} requires an Array value, got {renderValueType ty}"
 
+private def directParamNameWithType?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × ValueType) :=
+  match stripParens stx with
+  | `(term| $id:ident) =>
+      let name := toString id.getId
+      params.findSome? fun p =>
+        if p.name == name then
+          some (name, p.ty)
+        else
+          none
+  | _ => none
+
+private def requireDirectParamRef
+    (stx : Term)
+    (context : String)
+    (params : Array ParamDecl) : CommandElabM ValueType := do
+  match directParamNameWithType? params stx with
+  | some (_, paramTy) => pure paramTy
+  | none =>
+      throwErrorAt stx
+        s!"{context} currently requires a direct parameter reference on the compilation-model path"
+
 private def requireSupportedReturnBytesType
     (stx : Syntax)
     (context : String)
@@ -2446,13 +2469,13 @@ private partial def validateEffectStmtExprTypes
         args "ECM argument"
       pure ()
   | `(term| returnArray $name:term) => do
-      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
+      let ty ← requireDirectParamRef name "returnArray" params
       requireSupportedReturnArrayType name "returnArray" ty
   | `(term| returnBytes $name:term) => do
-      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
+      let ty ← requireDirectParamRef name "returnBytes" params
       requireSupportedReturnBytesType name "returnBytes" ty
   | `(term| returnStorageWords $name:term) => do
-      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals name
+      let ty ← requireDirectParamRef name "returnStorageWords" params
       requireSupportedReturnStorageWordsType name "returnStorageWords" ty
   | `(term| internalCall $_fnName:term $args:term)
     | `(term| internalCallAssign $_names:term $_fnName:term $args:term)

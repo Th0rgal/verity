@@ -215,6 +215,17 @@ verity_contract ReturnBytesWordUnsupported where
     returnBytes amount
 
 /--
+error: returnBytes currently requires a direct parameter reference on the compilation-model path
+-/
+#guard_msgs in
+verity_contract ReturnBytesLiteralUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function echo (_amount : Uint256) : String := do
+    returnBytes "hello"
+
+/--
 error: returnArray currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.bytes)
 -/
 #guard_msgs in
