@@ -405,7 +405,13 @@ partial def execIRStmtWithInternals
               | .return value' state' => .return value' state'
               | .revert state' => .revert state'
           | .call "stop" [] => .stop state
-          | .call "revert" [_, _] => .revert state
+          | .call "revert" [offsetExpr, sizeExpr] =>
+              match evalIRExprsWithInternals contract fuel state [offsetExpr, sizeExpr] with
+              | .values [_, _] state' => .revert state'
+              | .values _ state' => .revert state'
+              | .stop state' => .stop state'
+              | .return value' state' => .return value' state'
+              | .revert state' => .revert state'
           | .call "return" [offsetExpr, sizeExpr] =>
               match evalIRExprsWithInternals contract fuel state [offsetExpr, sizeExpr] with
               | .values [offset, size] state' =>
