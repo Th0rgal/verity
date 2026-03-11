@@ -209,6 +209,13 @@ ALLOWLIST: set[str] = {
     "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
     "exec_compileStmtList_generic_sizeOf_extraFuel_step",
     "supported_function_body_correct_from_exact_state_generic",
+    # Issue #1630 / helper-semantics retarget follow-up:
+    # this theorem is the helper-aware wrapper around the existing generic body
+    # proof while helper-summary soundness/rank evidence is still threaded only
+    # partway through the stack. Its length comes from preserving the generic
+    # body theorem surface during the semantics retarget, not from novel proof
+    # complexity in the wrapper itself.
+    "supported_function_body_correct_from_exact_state_generic_with_helpers",
     # Issue #1630 / PR #1633 — helper-aware source-semantics compatibility:
     # this mutual-recursion theorem centralizes the constructor-by-constructor
     # collapse from helper-aware expression evaluation back to the legacy
