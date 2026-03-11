@@ -151,7 +151,7 @@ FOUNDRY_PROFILE=difftest forge test
 
 Current theorem totals, test counts, coverage, and proof status live in [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md).
 
-Current dynamic-type status: ABI-level `String` support is available for macro parsing, calldata flow, `returnBytes`, event payloads, and custom-error payloads, but Solidity-style string storage/layout, dynamic linked externals, and word-style string operators still remain intentionally unsupported while issue [#1159](https://github.com/Th0rgal/verity/issues/1159) stays open for the remaining work.
+Current dynamic-type status: ABI-level `String` support is available for macro parsing, calldata flow, `returnBytes`, event payloads, custom-error payloads, and direct parameter `==` / `!=` checks via the dynamic-bytes equality helper. Solidity-style string storage/layout, dynamic linked externals, dynamic local aliases, and broader word-style operators still remain intentionally unsupported while issue [#1159](https://github.com/Th0rgal/verity/issues/1159) stays open for the remaining work.
 
 ---
 

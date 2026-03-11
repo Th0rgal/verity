@@ -94,6 +94,7 @@ Recent progress for ABI JSON artifact generation (`#688`):
 
 Recent progress for ABI-level string support (`#1159`):
 - `ParamType.string` now compiles through the existing dynamic-bytes ABI path for macro parsing/lowering, calldata loading, ABI JSON/signature rendering, `Stmt.returnBytes`, event emission, and custom errors.
+- Direct parameter `String` / `Bytes` equality and inequality now lower through the dedicated dynamic-bytes equality helper on both the macro and compilation-model paths.
 - This support is intentionally ABI-only for now: Solidity-style string storage/layout and typed-IR string lowering remain unsupported and should continue to fail fast with explicit diagnostics.
 
 Recent progress for constants and immutables (`#1569`):

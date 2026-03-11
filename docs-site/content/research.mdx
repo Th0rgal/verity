@@ -122,7 +122,7 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 - **No gas modeling**: EDSL models storage and control flow only; verification assumes infinite gas.
 - **Events**: The CompilationModel DSL supports event emission (`Stmt.emit`), but the EDSL core does not yet model events in proofs.
 - **Nested mappings**: The CompilationModel DSL supports double mappings (`mapping2`/`setMapping2`), but EDSL-level proofs for nested mapping semantics are still limited.
-- **Strings are ABI-only today**: `String` flows through macro parsing, calldata, `returnBytes`, event payloads, and custom errors, but Solidity-style string storage/layout, dynamic linked externals, and word-style string operators still fail fast instead of pretending to be supported (see issue `#1159`).
+- **Strings are still bounded today**: `String` flows through macro parsing, calldata, `returnBytes`, event payloads, custom errors, and direct parameter `==` / `!=` checks, but Solidity-style string storage/layout, dynamic linked externals, dynamic local aliases, and broader word-style operators still fail fast instead of pretending to be supported (see issue `#1159`).
 
 ## Compiler Development
 
