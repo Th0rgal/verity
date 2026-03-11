@@ -260,6 +260,19 @@ example : storeEchoExecutableUsesStub = true := by native_decide
 
 end MacroExternalSmoke
 
+namespace DynamicBytesEqUsageAnalysisSmoke
+
+def rawLogDynamicBytesEqIsDetected : Bool :=
+  stmtUsesDynamicBytesEq
+    (Stmt.rawLog
+      [Expr.dynamicBytesEq "lhs" "rhs"]
+      (Expr.literal 0)
+      (Expr.literal 32))
+
+example : rawLogDynamicBytesEqIsDetected = true := by native_decide
+
+end DynamicBytesEqUsageAnalysisSmoke
+
 namespace MacroERC20Smoke
 
 open Contracts

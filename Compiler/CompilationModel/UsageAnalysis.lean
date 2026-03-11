@@ -250,9 +250,10 @@ def stmtUsesDynamicBytesEq : Stmt → Bool
   | Stmt.externalCallBind _ _ args
   | Stmt.ecm _ args =>
       exprListUsesDynamicBytesEq args
+  | Stmt.rawLog topics dataOffset dataSize =>
+      exprListUsesDynamicBytesEq topics || exprUsesDynamicBytesEq dataOffset || exprUsesDynamicBytesEq dataSize
   | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
-  | Stmt.revertReturndata | Stmt.stop
-  | Stmt.rawLog _ _ _ =>
+  | Stmt.revertReturndata | Stmt.stop =>
       false
 termination_by s => sizeOf s
 decreasing_by all_goals simp_wf; all_goals omega
