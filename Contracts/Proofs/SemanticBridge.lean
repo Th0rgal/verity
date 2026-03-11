@@ -27,6 +27,7 @@
   Run: lake build Contracts.Proofs.SemanticBridge
 -/
 
+import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.EndToEnd
 import Contracts.Specs
@@ -225,6 +226,37 @@ theorem spec_to_ir_preserves_semantics
       | Except.error _ => False := by
   intro state sender
   simpa [hcompile] using hpost state sender
+
+/-- First client/example theorem in `SemanticBridge.lean` that instantiates the
+generic Layer 2 whole-contract theorem directly, instead of proving a manual
+per-contract bridge by unfolding IR execution. -/
+theorem counter_supported_spec_generic_semantic_bridge
+    (state : ContractState)
+    (sender : Address)
+    (ir : IRContract)
+    (hcompile :
+      CompilationModel.compile counterSupportedSpecModel [0xa87d942c] = Except.ok ir) :
+    let tx := mkIRTransaction sender 0xa87d942c []
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretContract counterSupportedSpecModel [0xa87d942c] tx state)
+      (interpretIR ir tx
+        (FunctionBody.initialIRStateForTx counterSupportedSpecModel tx state)) := by
+  let tx := mkIRTransaction sender 0xa87d942c []
+  have htxNormalized : Function.TxContextNormalized tx := by
+    unfold Function.TxContextNormalized tx mkIRTransaction
+    simp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus,
+      Verity.Core.ADDRESS_MODULUS, Verity.Core.UINT256_MODULUS, sender.isLt]
+  have hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx := by
+    unfold Function.TxCalldataSizeFitsEvm tx mkIRTransaction
+    simp [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS]
+  simpa [tx] using
+    Contract.counter_supported_spec_compile_preserves_semantics
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := state)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hcompile := hcompile)
 
 /-! ## Target Theorems: SimpleStorage -/
 

@@ -77,6 +77,9 @@ What does not exist yet:
   Layer 2 theorem surface. The first direct instantiation now exists for the
   supported demo model in
   `Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics`.
+  `Contracts/Proofs/SemanticBridge.lean` also now includes
+  `counter_supported_spec_generic_semantic_bridge` as a client/example wrapper
+  that calls the generic theorem directly.
 - Broader supported-fragment coverage for features still intentionally outside
   the current whole-contract theorem
 
