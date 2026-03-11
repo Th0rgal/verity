@@ -6,46 +6,22 @@ This document defines the proposed structure for versioned parity packs that tar
 
 ## Status
 
-Partially implemented:
-1. CLI selection via `--parity-pack <id>`.
-2. Registry + hard validation in `Compiler/ParityPacks.lean`.
-3. Ambiguous selection guard (`--parity-pack` cannot be combined with `--backend-profile`).
-4. Codegen now runs a typed two-stage patch pipeline:
-   - runtime-scoped `ExprRule`/`StmtRule`/`BlockRule` fixpoint pass,
-   - followed by `ObjectRule` pass over the full object.
-   This keeps deploy rewrites explicit (object rules only) while preserving runtime patch diagnostics.
-5. Verbose parity-pack logs now include `metadataMode` alongside the rest of the pinned tuple.
-6. Typed `RewriteCtx` scope/phase/iteration/pack metadata is now threaded through patch execution, and rule scope is enforced at application sites.
-7. `--parity-pack` now propagates into patch execution context (`PatchPassConfig.packId`), and rules can gate activation with `packAllowlist`.
-8. Patch execution now supports proof registry enforcement (`PatchPassConfig.requiredProofRefs`), and codegen wires the shipped foundation packs to an explicit allowlist (`foundationProofAllowlist`).
-9. Parity packs now carry explicit proof-composition metadata (`compositionProofRef`, `requiredProofRefs`) with fail-closed validation at `--parity-pack` selection time.
-10. Pack proof registries now propagate through CLI → codegen patch config, with codegen defaulting to the selected rewrite bundle's proof allowlist when no explicit registry is provided.
-11. Parity packs now carry `rewriteBundleId`, and `--parity-pack` selection fails closed unless that bundle exists and the pack proof registry is a deduped subset of the bundle's proof allowlist.
-12. Shipped rewrite bundles now include a baseline `foundation` bundle and an explicit opt-in `solc-compat-v0` bundle boundary.
-13. `solc-compat-v0` now carries compatibility-only object rewrites:
-   - `solc-compat-canonicalize-internal-fun-names` for deterministic internal helper naming canonicalization (`internal__*` → `fun_*`) with in-object callsite rewrites;
-   - `solc-compat-inline-dispatch-wrapper-calls` for deterministic runtime switch-case inlining from `fun_*()` wrappers to helper bodies;
-   - `solc-compat-inline-mapping-slot-calls` for deterministic inlining of runtime `mappingSlot(baseSlot, key)` calls to explicit helper-equivalent scratch writes (`mstore(512, key)`, `mstore(544, baseSlot)`) plus `keccak256(512, 64)`;
-   - `solc-compat-inline-keccak-market-params-calls` for deterministic inlining of direct runtime `keccakMarketParams(...)` helper calls to explicit `mstore`/`keccak256` sequences;
-   - `solc-compat-rewrite-elapsed-checked-sub` for deterministic rewrite of runtime `sub(timestamp(), prevLastUpdate)` expressions to `checked_sub_uint256(timestamp(), prevLastUpdate)` with conditional top-level helper materialization when referenced and absent;
-   - `solc-compat-rewrite-accrue-interest-prologue-temps` for deterministic rewrite of the canonical two-arg runtime `fun_accrueInterest(var_marketParams_46531_mpos, var_id)` compat prologue (`mstore(512, var_id)`, `mstore(544, 3)`, compat slot-0 elapsed check) into Solidity-style `_1.._5` scratch-slot temp bindings, guarded by exact-shape matching and local-name collision checks;
-   - `solc-compat-rewrite-accrue-interest-irm-guard` for deterministic rewrite of runtime `if iszero(eq(mload(add(var_marketParams_*, 96)), 0))` guards to Solidity-style masked `cleaned` guards (`let cleaned := and(..., addressMask)` + `if iszero(iszero(cleaned))`) under compat pointer-name guards, without introducing new helper insertion behavior;
-   - `solc-compat-rewrite-accrue-interest-checked-arithmetic`: composite rule that rewrites the `accrueInterest` function body to match Solidity's checked-arithmetic output. Covers arithmetic → checked helpers, packed slot writes, fee arithmetic, timestamp guards, IRM call sequence normalization, entry signature canonicalization, and conditional helper materialization. See [REWRITE_RULES.md](REWRITE_RULES.md) for the full sub-step breakdown;
-   - `solc-compat-rewrite-nonce-increment` for deterministic rewrite of runtime `add(currentNonce, 1)` expressions to `increment_uint256(currentNonce)` with conditional top-level helper materialization when referenced and absent;
-   - `solc-compat-prune-unreachable-deploy-helpers` for deterministic pruning of deploy-only top-level helper defs that are unreachable from non-function deploy statements;
-   - `solc-compat-drop-unused-mapping-slot-helper` for deterministic removal of top-level runtime `mappingSlot` helper defs after call sites are eliminated;
-   - `solc-compat-drop-unused-keccak-market-params-helper` for deterministic removal of top-level runtime `keccakMarketParams` helper defs after call sites are eliminated;
-   - `solc-compat-dedupe-equivalent-helpers` for deterministic deduplication of structurally equivalent top-level helpers with callsite rewrites to canonical helpers.
-   `solc-compat-prune-unreachable-helpers` remains implemented and tested, but is intentionally not active in `solc-compat-v0` to avoid deleting `solc`-emitted helper families needed for function-level identity comparison.
-   `solc-compat-outline-dispatch-helpers` is currently kept out of the default bundle activation to avoid over-outlining runtime entry dispatch on active parity targets.
-   Runtime codegen does not provide a separate backend-profile dispatch-helper outlining toggle; compat outlining is object-rule only.
-   Parity packs wire `requiredProofRefs` to `solcCompatProofAllowlist`.
-14. Shipped parity packs now default `patchMaxIterations` to `6` so the full object-rule sequence can execute (`canonicalize` → `inline-wrapper-calls` → `inline-mapping-slot-calls` → `inline-keccak-market-params` → `rewrite-elapsed-checked-sub` → `rewrite-accrue-interest-irm-guard` → `rewrite-accrue-interest-checked-arithmetic` → `rewrite-accrue-interest-prologue-temps` → `rewrite-nonce-increment` → `prune-unreachable-deploy-helpers` → `drop-unused-mapping-slot-helper` → `drop-unused-keccak-helper` → `dedupe`) without manual CLI overrides.
-15. Yul pretty-printing now canonicalizes switch zero-tags to `case 0` (instead of `case 0x0`) so function-level hash comparison aligns with Solidity tokenization in parity reports.
-16. Added pinned-solc pack `solc-0.8.33-o200-viair-false-evm-shanghai` (matching CI solc pin `0.8.33+commit.64118f21`) and CI parity-pack metric gates (`onlyInVerity`, `onlyInSolidity`, `hashMismatch`) sourced from machine-readable identity reports.
+**Implemented:**
 
-Not implemented yet:
-1. unsupported manifest workflow.
+| Area | What works |
+|------|-----------|
+| CLI | `--parity-pack <id>` selects a pack; cannot be combined with `--backend-profile` |
+| Registry | Hard validation in `Compiler/ParityPacks.lean`; fails closed on unknown/ambiguous tuples |
+| Patch pipeline | Two-stage typed pipeline: runtime-scoped `ExprRule`/`StmtRule`/`BlockRule` fixpoint pass, then `ObjectRule` pass over the full object |
+| Rewrite bundles | `foundation` (baseline) and `solc-compat-v0` (compatibility-only rewrites); 13 active rules — see [REWRITE_RULES.md](REWRITE_RULES.md) for the full list |
+| Proof enforcement | Packs carry `compositionProofRef` + `requiredProofRefs`; fail-closed validation at selection time; proof registries propagate through CLI → codegen |
+| Pack metadata | `rewriteBundleId`, `metadataMode`, `patchMaxIterations` (default 6), and `RewriteCtx` scope/phase/iteration data threaded through execution |
+| Yul normalization | Switch zero-tags canonicalized to `case 0` (not `case 0x0`) for tokenization-level identity comparison |
+| Shipped packs | 3 pinned-solc packs (see [Implemented Packs](#implemented-packs) below); CI metric gates on `onlyInVerity`, `onlyInSolidity`, `hashMismatch` |
+
+Two rules (`solc-compat-prune-unreachable-helpers`, `solc-compat-outline-dispatch-helpers`) are implemented and tested but intentionally inactive in `solc-compat-v0` to preserve helper families needed for function-level identity comparison.
+
+**Not implemented:** unsupported manifest workflow.
 
 ## Purpose
 
@@ -62,7 +38,7 @@ Not implemented yet:
 
 Example: `solc-0.8.27-o200-viair-false-evm-shanghai`
 
-## Implemented Pack(s)
+## Implemented Packs
 
 1. `solc-0.8.28-o200-viair-false-evm-shanghai`
 2. `solc-0.8.33-o200-viair-false-evm-shanghai` (pinned-CI tuple)
