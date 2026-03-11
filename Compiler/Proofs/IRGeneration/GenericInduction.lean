@@ -567,6 +567,20 @@ theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsuppo
       | ecm mod args =>
           cases hstmtSurface
 
+private theorem stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
+    {prefix suffix : List Stmt}
+    {stmt : Stmt}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface (prefix ++ stmt :: suffix) = false) :
+    stmtTouchesUnsupportedContractSurface stmt = false := by
+  induction prefix with
+  | nil =>
+      simpa [stmtListTouchesUnsupportedContractSurface] using
+        (Bool.or_eq_false.mp hsurface).1
+  | cons head rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurface] at hsurface
+      exact ih hsurface.2
+
 private theorem mem_stmtNextScope_of_mem_scope
     {scope : List String}
     {stmt : Stmt}
@@ -574,6 +588,18 @@ private theorem mem_stmtNextScope_of_mem_scope
     (hmem : name ∈ scope) :
     name ∈ stmtNextScope scope stmt :=
   List.mem_append.mpr <| Or.inr hmem
+
+private theorem mem_stmtNextScopeList_of_mem_scope
+    {scope : List String}
+    {stmts : List Stmt}
+    {name : String}
+    (hmem : name ∈ scope) :
+    name ∈ List.foldl stmtNextScope scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      simpa using hmem
+  | cons stmt rest ih =>
+      exact ih (mem_stmtNextScope_of_mem_scope hmem)
 
 private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
     {context : String}
@@ -806,6 +832,178 @@ theorem stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
     simpa using hmem
   · intro name hmem
     simp at hmem
+
+private theorem scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers
+    {fieldNames : List String}
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope scope : List String}
+    {constructorArgCount : Option Nat}
+    {stmts : List Stmt}
+    {finalScope : List String}
+    (hcore : StmtListScopeCore fieldNames stmts)
+    (hvalidate :
+      validateScopedStmtListIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount stmts =
+          Except.ok finalScope)
+    (hparamsInScope : ∀ name, name ∈ paramScope → name ∈ scope)
+    (hlocalsInScope : ∀ name, name ∈ localScope → name ∈ scope) :
+    ∀ name, name ∈ finalScope → name ∈ List.foldl stmtNextScope scope stmts := by
+  induction hcore generalizing localScope scope finalScope with
+  | nil =>
+      cases hvalidate
+      intro name hmem
+      simpa using hmem
+  | letVar hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨hvalueValidate, _, _, rfl⟩
+      intro other hmem
+      exact ih hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          simp at hname
+          rcases hname with rfl | hname
+          · simp [stmtNextScope, collectStmtNames]
+          · exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+  | assignVar hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨_, hvalueValidate, rfl⟩
+      intro other hmem
+      exact ih hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+  | require hcondCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨hcondValidate, rfl⟩
+      intro other hmem
+      exact ih hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+  | return_ hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨hvalueValidate, rfl⟩
+      intro other hmem
+      exact ih hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+  | stop hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with rfl
+      intro other hmem
+      exact ih hrestValidate hparamsInScope hlocalsInScope other hmem
+  | setStorage hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨hvalueValidate, rfl⟩
+      intro other hmem
+      exact ih hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+  | setStorageAddr hfield hvalueCore hrest ih =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨hvalueValidate, rfl⟩
+      intro other hmem
+      exact ih hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+  | ite hcondCore hthenCore helseCore hrest ihThen ihElse ihRest =>
+      rcases validateScopedStmtListIdentifiers_cons_ok_inv hvalidate with
+        ⟨nextLocalScope, hstmt, hrestValidate⟩
+      simp [validateScopedStmtIdentifiers] at hstmt
+      rcases hstmt with ⟨hcondValidate, hthenValidate, helseValidate, rfl⟩
+      intro other hmem
+      exact ihRest hrestValidate
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hparamsInScope name hname))
+        (by
+          intro name hname
+          exact mem_stmtNextScope_of_mem_scope (hlocalsInScope name hname))
+        other hmem
+
+private theorem exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences
+    {spec : FunctionSpec}
+    {fieldNames : List String}
+    {prefix suffix : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    (hprefixCore : StmtListScopeCore fieldNames prefix)
+    (hvalueCore : FunctionBody.ExprCompileCore value)
+    (hvalidate : validateFunctionIdentifierReferences spec = Except.ok ())
+    (hparamScope : paramScopeNames spec.params = spec.params.map (·.name))
+    (hbody : spec.body = prefix ++ .setStorage fieldName value :: suffix) :
+    FunctionBody.exprBoundNamesInScope
+      value
+      (List.foldl stmtNextScope (spec.params.map (·.name)) prefix) := by
+  rcases validateFunctionIdentifierReferences_prefix_stmt_ok hvalidate hbody with
+    ⟨localScope, nextScope, hprefixValidate, hstmtValidate⟩
+  simp [validateScopedStmtIdentifiers] at hstmtValidate
+  rcases hstmtValidate with ⟨hvalueValidate, rfl⟩
+  apply exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
+    (paramScope := paramScopeNames spec.params)
+    (dynamicParams := dynamicParamBases spec.params)
+    (localScope := localScope)
+    (scope := List.foldl stmtNextScope (spec.params.map (·.name)) prefix)
+    hvalueCore
+    hvalueValidate
+  · intro name hname
+    rw [hparamScope] at hname
+    exact mem_stmtNextScopeList_of_mem_scope hname
+  · intro name hname
+    exact scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers
+      hprefixCore
+      hprefixValidate
+      (by
+        intro other hmem
+        rw [hparamScope] at hmem
+        simpa using hmem)
+      (by
+        intro other hmem
+        simp at hmem)
+      name
+      hname
 
 private theorem collectExprNames_mem_exprBoundNames_of_core
     {expr : Expr}
@@ -2145,6 +2343,80 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunct
       (by simpa [hbody] using hbodyCompile))
     (hbody := hbody)
     (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hvalueIR := hvalueIR)
+
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {prefix suffix : List Stmt}
+    {bodyIR : List YulStmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidateShapes : validateIdentifierShapes spec = Except.ok ())
+    (hvalidateRefs : validateFunctionIdentifierReferences fn = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hparamScope : paramScopeNames fn.params = fn.params.map (·.name))
+    (hbodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
+    (hbodyCompile :
+      CompilationModel.compileStmtList
+        spec.fields [] [] .calldata [] false (fn.params.map (·.name)) fn.body =
+          Except.ok bodyIR)
+    (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
+        (.setStorage fieldName value)
+        compiledIR := by
+  have hprefixCore :
+      StmtListScopeCore (spec.fields.map (·.name)) prefix :=
+    stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+      (fields := spec.fields)
+      (scope := fn.params.map (·.name))
+      (prefix := prefix)
+      (suffix := .setStorage fieldName value :: suffix)
+      (bodyIR := bodyIR)
+      (by simpa [hbody] using hbodySurface)
+      (by simpa [hbody] using hbodyCompile)
+  have hstmtSurface :
+      stmtTouchesUnsupportedContractSurface (.setStorage fieldName value) = false := by
+    exact
+      stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons
+        (by simpa [hbody] using hbodySurface)
+  have hvalueCore : FunctionBody.ExprCompileCore value :=
+    exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false
+      (by simpa [stmtTouchesUnsupportedContractSurface] using hstmtSurface)
+  have hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) prefix) :=
+    exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences
+      hprefixCore hvalueCore hvalidateRefs hparamScope hbody
+  exact compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
+    (hvalidateShapes := hvalidateShapes)
+    (hvalidateRefs := hvalidateRefs)
+    (hfn := hfn)
+    (hparamScope := hparamScope)
+    (hbodySurface := hbodySurface)
+    (hbodyCompile := hbodyCompile)
+    (hbody := hbody)
+    (hcore := hvalueCore)
     (hinScope := hinScope)
     (hfind := hfind)
     (hwriteSlots := hwriteSlots)
