@@ -244,7 +244,9 @@ now sits under the post-generic widening/completeness plan in
   target (`evalExprWithHelpers` / `execStmtListWithHelpers` /
   `interpretInternalFunctionFuel`), while `SupportedSpec.lean` now attaches a
   reusable `InternalHelperSummaryContract` interface directly to helper-summary
-  witnesses
+  witnesses; the feature-local `state` / `calls` / `effects` scans now recurse
+  through nested `ite` / `forEach` bodies so those boundaries are control-flow
+  complete rather than top-level-only
 - widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem

@@ -259,13 +259,18 @@ def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
   | .externalCallBind _ _ _ | .ecm _ _ => true
   | .letVar _ _ | .assignVar _ _ | .setStorage _ _ | .setStorageAddr _ _
   | .require _ _ | .return _ | .mstore _ _ | .tstore _ _ | .stop
-  | .ite _ _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _
+  | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
-  | .forEach _ _ _ | .internalCall _ _ | .internalCallAssign _ _ _ => false
+  | .internalCall _ _ | .internalCallAssign _ _ _ => false
+  | .ite _ thenBranch elseBranch =>
+      stmtListTouchesUnsupportedEffectSurface thenBranch ||
+        stmtListTouchesUnsupportedEffectSurface elseBranch
+  | .forEach _ _ body =>
+      stmtListTouchesUnsupportedEffectSurface body
 
 /-- Statement forms intentionally still outside the current generic-induction
 core, excluding richer state/call/effect surfaces that now have dedicated
@@ -300,12 +305,19 @@ def stmtTouchesUnsupportedStateSurface : Stmt → Bool
   | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _ => true
-  | .stop | .mstore _ _ | .tstore _ _ | .ite _ _ _ | .forEach _ _ _
+  | .stop | .mstore _ _ | .tstore _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
   | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _ => false
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedStateSurface cond ||
+        stmtListTouchesUnsupportedStateSurface thenBranch ||
+        stmtListTouchesUnsupportedStateSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedStateSurface count ||
+        stmtListTouchesUnsupportedStateSurface body
 
 /-- Helper/foreign/runtime-call statement surfaces still outside the current
 generic theorem. -/
@@ -318,13 +330,20 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .mstore _ _ | .tstore _ _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
   | .ecm _ _ => true
-  | .stop | .ite _ _ _ | .forEach _ _ _ | .setStorageAddr _ _
+  | .stop | .setStorageAddr _ _
   | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
   | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedCallSurface cond ||
+        stmtListTouchesUnsupportedCallSurface thenBranch ||
+        stmtListTouchesUnsupportedCallSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedCallSurface count ||
+        stmtListTouchesUnsupportedCallSurface body
 
 def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
@@ -332,7 +351,7 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedHelperSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
-  | .stop | .ite _ _ _ | .forEach _ _ _ | .setStorageAddr _ _
+  | .stop | .setStorageAddr _ _
   | .mstore _ _ | .tstore _ _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
   | .ecm _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _
@@ -342,6 +361,13 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedHelperSurface cond ||
+        stmtListTouchesUnsupportedHelperSurface thenBranch ||
+        stmtListTouchesUnsupportedHelperSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedHelperSurface count ||
+        stmtListTouchesUnsupportedHelperSurface body
 
 def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
@@ -349,7 +375,7 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedForeignSurface cond
   | .externalCallBind _ _ _ | .ecm _ _ => true
-  | .stop | .ite _ _ _ | .forEach _ _ _ | .setStorageAddr _ _
+  | .stop | .setStorageAddr _ _
   | .internalCall _ _ | .internalCallAssign _ _ _ | .mstore _ _ | .tstore _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _ | .revertReturndata
   | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
@@ -358,6 +384,13 @@ def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedForeignSurface cond ||
+        stmtListTouchesUnsupportedForeignSurface thenBranch ||
+        stmtListTouchesUnsupportedForeignSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedForeignSurface count ||
+        stmtListTouchesUnsupportedForeignSurface body
 
 def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
@@ -366,7 +399,7 @@ def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
       exprTouchesUnsupportedLowLevelSurface cond
   | .mstore _ _ | .tstore _ _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata => true
-  | .stop | .ite _ _ _ | .forEach _ _ _ | .setStorageAddr _ _
+  | .stop | .setStorageAddr _ _
   | .internalCall _ _ | .internalCallAssign _ _ _ | .externalCallBind _ _ _
   | .ecm _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
@@ -375,6 +408,13 @@ def stmtTouchesUnsupportedLowLevelSurface : Stmt → Bool
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesUnsupportedLowLevelSurface cond ||
+        stmtListTouchesUnsupportedLowLevelSurface thenBranch ||
+        stmtListTouchesUnsupportedLowLevelSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesUnsupportedLowLevelSurface count ||
+        stmtListTouchesUnsupportedLowLevelSurface body
 
 def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   stmtTouchesUnsupportedCoreSurface stmt ||
@@ -556,6 +596,21 @@ def stmtListTouchesUnsupportedContractSurface : List Stmt → Bool
   | stmt :: rest =>
       stmtTouchesUnsupportedContractSurface stmt ||
         stmtListTouchesUnsupportedContractSurface rest
+
+example :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.ite (.literal 1) [Stmt.internalCall "helper" []] []] = true := by
+  decide
+
+example :
+    stmtListTouchesUnsupportedForeignSurface
+      [Stmt.forEach "i" (.literal 1) [Stmt.externalCallBind [] "ext" []]] = true := by
+  decide
+
+example :
+    stmtListTouchesUnsupportedEffectSurface
+      [Stmt.ite (.literal 1) [Stmt.emit "Evt" []] []] = true := by
+  decide
 
 structure SupportedBodyCoreInterface (fn : FunctionSpec) : Prop where
   surfaceClosed : stmtListTouchesUnsupportedCoreSurface fn.body = false
