@@ -167,6 +167,15 @@ Verity's DSL prevents raw external calls for safety. Instead, you can:
 
 2. **Use External Call Modules (ECMs)** for typed, auditable call patterns (ERC-20 transfers, precompiles, callbacks). See [Compiler/Modules/](Compiler/Modules/) and [docs/EXTERNAL_CALL_MODULES.md](docs/EXTERNAL_CALL_MODULES.md).
 
+There is also a bounded `tryCatch` surface in `verity_contract` for low-level call-style expressions that return a success word:
+
+```lean
+tryCatch (call gas target value inOffset inSize outOffset outSize) (do
+  setStorage lastFailure 1)
+```
+
+This is intentionally narrower than Solidity's full `try/catch`: higher-level external-call helpers / ECMs do not lower through `tryCatch` yet, and catch-payload decoding is not available on the compilation-model path. Issue [#1161](https://github.com/Th0rgal/verity/issues/1161) remains open for that broader external-call surface.
+
 ---
 
 ## Quick start

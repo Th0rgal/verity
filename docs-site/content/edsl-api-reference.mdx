@@ -606,6 +606,17 @@ Those forms compile to the corresponding `Compiler.Modules.ERC20.*Module` ECMs, 
 
 If the contract already defines a same-named function with the matching arity, the macro now rejects the direct ERC-20 helper form instead of silently reinterpreting it. That keeps `balanceOf` / `safeTransfer` helper syntax reserved for ECM lowering and avoids ambiguous model generation.
 
+### Low-level `tryCatch`
+
+`verity_contract` also accepts a low-level `tryCatch` do-element for call-style expressions that return a success word:
+
+```lean
+tryCatch (call gas target value inOffset inSize outOffset outSize) (do
+  setStorage lastFailure 1)
+```
+
+On the compilation-model path, this lowers to a synthetic `letVar` followed by an `ite` that enters the catch block when the result word is `0`. This currently covers low-level call-like expressions only. Higher-level external-call helpers / ECMs are still outside this surface, and catch-payload decoding is not modeled yet, so any named handler argument must currently be ignored.
+
 ### Generic external call with return value
 
 ```lean
