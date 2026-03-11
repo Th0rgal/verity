@@ -21,10 +21,10 @@ This is the single source of truth for progress, roadmap, and milestone updates.
 
 - **Contract-specific specification proofs**: Complete for all 8 verified contracts (7 compiler-spec contracts + ReentrancyExample).
 - **Layer 2 (CompilationModel → IR)**: Partial generic coverage only. A supported-statement theorem exists, while whole-contract preservation still relies on contract-specific bridges and the generic `CompilationModel.compile` theorem is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510).
-- **Layer 3 (IR → Yul)**: Complete — all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
+- **Layer 3 (IR → Yul)**: Complete; all 8 statement equivalence proofs + universal dispatcher proven (PR #42).
 
 Recent updates:
-- Layer 3 fully proven — all 8 statement equivalence proofs + universal dispatcher (PR #42).
+- Layer 3 fully proven; all 8 statement equivalence proofs + universal dispatcher (PR #42).
 - Function selectors verified via keccak256 axiom + CI validation (PR #43, #46).
 - External cryptographic library linking support (PR #49).
 - Nested mapping encoding preserves tagged base slots so nested slots round‑trip without losing tags.
@@ -48,7 +48,7 @@ Recent updates:
 - Storage as functions (`Nat -> Uint256`), not finite maps. Uninitialized slots return 0.
 - `require` returns `ContractResult.revert msg s`, preserving original state.
 - Manual storage slot allocation (slot 0, 1, 2...). No automatic allocation needed.
-- Selectors are auto-computed from function signatures via `computeSelectors` — no manual selector maps needed.
+- Selectors are auto-computed from function signatures via `computeSelectors`; no manual selector maps needed.
 - `onlyOwner` is a regular function, not special syntax.
 
 **What didn't work:**
@@ -99,18 +99,18 @@ But `private theorem` isn't accessible from other files. Isolation proofs in sep
 ## Verification Structure
 
 Each contract has:
-- `Contracts/X/X.lean` — Implementation (EDSL)
-- `Contracts/X/Spec.lean` — Pre/postconditions for each operation
-- `Contracts/X/Invariants.lean` — State properties that should hold
-- `Contracts/X/SpecProofs.lean` — Contract-specific spec conformance and end-to-end proof layer
-- `Compiler/TypedIRCompilerCorrectness.lean` — Layer 1 typed-IR compilation correctness for the supported statement fragment
-- `Contracts/Proofs/SemanticBridge.lean` — Contract-level Layer 2 bridge theorems (client/example layer, not the generic compiler proof)
-- `Compiler/Proofs/IRGeneration/Contract.lean` — Partial generic Layer 2 theorem spine; the remaining whole-contract gap is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- `Contracts/X/X.lean`: Implementation (EDSL)
+- `Contracts/X/Spec.lean`: Pre/postconditions for each operation
+- `Contracts/X/Invariants.lean`: State properties that should hold
+- `Contracts/X/SpecProofs.lean`: Contract-specific spec conformance and end-to-end proof layer
+- `Compiler/TypedIRCompilerCorrectness.lean`: Layer 1 typed-IR compilation correctness for the supported statement fragment
+- `Contracts/Proofs/SemanticBridge.lean`: Contract-level Layer 2 bridge theorems (client/example layer, not the generic compiler proof)
+- `Compiler/Proofs/IRGeneration/Contract.lean`: Partial generic Layer 2 theorem spine; the remaining whole-contract gap is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510)
 
 Some contracts have additional proof files:
-- `Contracts/SimpleToken/SpecProofs.lean` — Supply and transfer reasoning
-- `Contracts/Ledger/SpecProofs.lean` — Balance accounting and conservation equations
-- `Contracts/OwnedCounter/SpecProofs.lean` — Cross-pattern ownership and counter invariants
+- `Contracts/SimpleToken/SpecProofs.lean`: Supply and transfer reasoning
+- `Contracts/Ledger/SpecProofs.lean`: Balance accounting and conservation equations
+- `Contracts/OwnedCounter/SpecProofs.lean`: Cross-pattern ownership and counter invariants
 
 Conservation proofs use `List.countOcc` to account for duplicate addresses. For `NoDup` lists, transfer preserves exact sum. For general lists, exact equations with `countOcc` multipliers are proven.
 
@@ -135,14 +135,14 @@ Conservation proofs use `List.countOcc` to account for duplicate addresses. For 
 **Result**: All 7 contracts compile automatically. Zero manual IR. Generated code is more optimized than manual translations.
 
 **Implementation** (as of 2026-02-13):
-- `Compiler/CompilationModel.lean` — DSL + automatic IR compiler
+- `Compiler/CompilationModel.lean`: DSL + automatic IR compiler
   - Type-safe expression language (literals, storage, mappings, arithmetic, comparisons)
   - Statement DSL (setStorage, setMapping, require, return)
   - Automatic storage slot inference from field order
   - Constructor parameter handling (bytecode argument loading)
-- `Compiler/Specs.lean` — All 7 contract specifications
-- `Compiler/Selector.lean` — Function selector computation (Solidity keccak256)
-- `Compiler/Main.lean` — New compilation entry point
+- `Compiler/Specs.lean`: All 7 contract specifications
+- `Compiler/Selector.lean`: Function selector computation (Solidity keccak256)
+- `Compiler/Main.lean`: New compilation entry point
 
 **Before**:
 ```lean
@@ -200,14 +200,14 @@ FOUNDRY_PROFILE=difftest forge test
 **Result**: default runs use 100 random transactions per contract, while CI scales the large suite to 10,000+ per contract. Zero mismatches detected so far.
 
 **Implementation** (as of 2026-02-13):
-- `Compiler/Interpreter.lean` — EDSL interpreter for differential testing
+- `Compiler/Interpreter.lean`: EDSL interpreter for differential testing
   - Executes EDSL contracts on abstract state
   - Returns JSON results for comparison with EVM
   - Supports all 7 compiled contracts (Counter, SafeCounter, SimpleStorage, Ledger, Owned, OwnedCounter, SimpleToken)
-- `Compiler/RandomGen.lean` — Random transaction generator
+- `Compiler/RandomGen.lean`: Random transaction generator
   - Generates random addresses, values, and function calls
   - Contract-specific transaction generation (store/retrieve for SimpleStorage)
-- `test/DifferentialSimpleStorage.t.sol` — Foundry test harness
+- `test/DifferentialSimpleStorage.t.sol`: Foundry test harness
   - Executes transactions on compiled EVM bytecode
   - Calls EDSL interpreter via `vm.ffi`
   - Compares: success/revert, return values, storage changes
@@ -242,7 +242,7 @@ FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_
 
 **Remaining Work**:
 
-**A. ~~Scale Differential Testing~~** (done — PR #307):
+**A. ~~Scale Differential Testing~~** (done: PR #307):
 - ~~Centralize the "random run" entrypoint so each harness can opt into the same seed/count knobs.~~
 - ~~Add adversarial patterns: boundary overflows, more edge cases.~~
 - ~~**Done when**: random harness setup is shared and parameterized across all 7 contracts.~~ All 7 differential tests now inherit `DifferentialTestBase` with shared utilities.
@@ -251,7 +251,7 @@ FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_
 - Reduce exclusions. Add property tests contract‑by‑contract. Keep coverage script green.
 
 **C. Address Known Limitations (Core Modeling)**:
-- ~~Full "supply = sum balances" proof over a finite address set~~ (PR #47 foundation, PR #51 infrastructure — all 7/7 sum properties proven in `Conservation.lean`).
+- ~~Full "supply = sum balances" proof over a finite address set~~ (PR #47 foundation, PR #51 infrastructure; all 7/7 sum properties proven in `Conservation.lean`).
 - Extend storage semantics + proofs for nested mappings to support allowances (`approve`/`transferFrom`).
 
 **D. Reduce Remaining Trust Assumptions**:
@@ -259,7 +259,7 @@ FOUNDRY_PROFILE=difftest DIFFTEST_SHARD_COUNT=8 DIFFTEST_SHARD_INDEX=0 DIFFTEST_
 - Add a minimal Yul↔EVM semantic bridge lemma or mechanized model.
 
 **E. Documentation**:
-- ~~Add the 1‑page "add a contract" guide~~ — done: see [Add a Contract](/add-contract).
+- ~~Add the 1‑page "add a contract" guide~~; done: see [Add a Contract](/add-contract).
 - Keep roadmap updates in sync with each milestone.
 
 See [`docs/ROADMAP.md`](https://github.com/Th0rgal/verity/blob/main/docs/ROADMAP.md) for the full roadmap and timeline.

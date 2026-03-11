@@ -9,26 +9,26 @@ A small set of contracts, each introducing a new pattern. They build on each oth
 
 ## How to organize a contract
 
-- **Spec**: `Verity/Specs/<Name>/Spec.lean`
-- **Invariants**: `Verity/Specs/<Name>/Invariants.lean`
-- **Implementation**: `Verity/Examples/<Name>.lean`
-- **Basic proofs**: `Verity/Proofs/<Name>/Basic.lean`
-- **Advanced proofs**: `Verity/Proofs/<Name>/Correctness.lean`
+- **Spec**: `Contracts/<Name>/Spec.lean`
+- **Invariants**: `Contracts/<Name>/Invariants.lean`
+- **Implementation**: `Contracts/<Name>/<Name>.lean`
+- **Basic proofs**: `Contracts/<Name>/Proofs/Basic.lean`
+- **Advanced proofs**: `Contracts/<Name>/Proofs/Correctness.lean`
 - **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` + `Contracts/Proofs/SemanticBridge.lean`
 - **Reusable proof infra**: `Verity/Proofs/Stdlib/`
 
 Example (SimpleStorage):
-- Spec: `Verity/Specs/SimpleStorage/Spec.lean`
-- Implementation: `Verity/Examples/SimpleStorage.lean`
-- Basic proofs: `Verity/Proofs/SimpleStorage/Basic.lean`
-- Correctness proofs: `Verity/Proofs/SimpleStorage/Correctness.lean`
+- Spec: `Contracts/SimpleStorage/Spec.lean`
+- Implementation: `Contracts/SimpleStorage/SimpleStorage.lean`
+- Basic proofs: `Contracts/SimpleStorage/Proofs/Basic.lean`
+- Correctness proofs: `Contracts/SimpleStorage/Proofs/Correctness.lean`
 
 ## Authoring checklist
 
-1. Define behavior in `Verity/Specs/<Name>/Spec.lean`.
-2. Add invariants in `Verity/Specs/<Name>/Invariants.lean` if needed.
-3. Implement the EDSL contract in `Verity/Examples/<Name>.lean`.
-4. Prove spec adherence in `Verity/Proofs/<Name>/Basic.lean` using `Verity/Proofs/Stdlib/` helpers.
+1. Define behavior in `Contracts/<Name>/Spec.lean`.
+2. Add invariants in `Contracts/<Name>/Invariants.lean` if needed.
+3. Implement the EDSL contract in `Contracts/<Name>/<Name>.lean`.
+4. Prove spec adherence in `Contracts/<Name>/Proofs/Basic.lean` using `Verity/Proofs/Stdlib/` helpers.
 
 ## SimpleStorage
 
@@ -174,7 +174,7 @@ Proofs cover mint/transfer correctness, supply conservation equations, and stora
 
 ## ReentrancyExample
 
-Two parallel bank contracts — one vulnerable, one safe — demonstrating that reentrancy is a *provable* property, not just a testing concern.
+Two parallel bank contracts, one vulnerable, one safe, demonstrating that reentrancy is a *provable* property, not just a testing concern.
 
 ```lean
 -- Vulnerable: external call before state update
@@ -200,7 +200,7 @@ Proofs cover: existential attack witness (vulnerability is provably exploitable)
 
 ## CryptoHash
 
-Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs — it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
+Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs; it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
 
 ```lean
 -- Placeholder hash for proofs (replaced with real Poseidon at compile time)
@@ -215,16 +215,16 @@ def storeHashTwo (a b : Uint256) : Contract Unit := do
 
 The EDSL uses a placeholder function (`add`) for the hash. At compile time, the [Linker](/guides/linking-libraries) replaces the compiled output with a call to the real Poseidon library via `Expr.externalCall` in the CompilationModel layer.
 
-Source: [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/CryptoHash.lean)
+Source: [`Contracts/CryptoHash/Contract.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/CryptoHash/Contract.lean)
 
 ## ERC20 (Foundation Scaffold)
 
 Baseline-verified ERC20 foundation scaffold with executable logic (`mint`, `transfer`, `approve`, `transferFrom`) and formal spec/invariant modules.
 
 Source:
-- Implementation: [`Verity/Examples/ERC20.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/ERC20.lean)
-- Spec: [`Verity/Specs/ERC20/Spec.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Specs/ERC20/Spec.lean)
-- Invariants: [`Verity/Specs/ERC20/Invariants.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Specs/ERC20/Invariants.lean)
+- Implementation: [`Contracts/ERC20/ERC20.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/ERC20/ERC20.lean)
+- Spec: [`Contracts/ERC20/Spec.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/ERC20/Spec.lean)
+- Invariants: [`Contracts/ERC20/Invariants.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/ERC20/Invariants.lean)
 
 ## Pattern progression
 
@@ -241,4 +241,4 @@ Source:
 
 ## Source
 
-All contracts are in [`Verity/Examples/`](https://github.com/Th0rgal/verity/tree/main/Verity/Examples).
+All contracts are in [`Contracts/`](https://github.com/Th0rgal/verity/tree/main/Contracts).

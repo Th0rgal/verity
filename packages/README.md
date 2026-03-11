@@ -1,6 +1,6 @@
 # Package Split
 
-This repository now exposes three first-class Lake packages:
+This repository exposes three first-class Lake packages:
 
 - `packages/verity-edsl`: Verity EDSL, macro system, semantics, and proof helpers.
 - `packages/verity-compiler`: compiler pipeline and CLI (`verity-compiler`) depending on `verity-edsl`.

@@ -6,7 +6,7 @@ This document is the authoritative reference for arithmetic semantics. For forma
 
 ## Wrapping Semantics
 
-All arithmetic in the compilation path (`EDSL -> CompilationModel -> IR -> Yul`) wraps modulo 2^256. There are **no implicit overflow checks** — values silently wrap.
+All arithmetic in the compilation path (`EDSL -> CompilationModel -> IR -> Yul`) wraps modulo 2^256. There are **no implicit overflow checks**; values silently wrap.
 
 | Operation | Semantics | Div/Mod-by-zero |
 |-----------|-----------|-----------------|
@@ -54,11 +54,26 @@ For contracts that require overflow protection, the EDSL provides checked operat
 | `safeMul a b` | `Option Uint256` | `none` if `a * b > 2^256 - 1` |
 | `safeDiv a b` | `Option Uint256` | `none` if `b = 0` |
 
-Checked operations are **EDSL-level constructs**. They are not compiler-enforced — the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
+Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 
-`Stdlib.Math` also exposes fixed-point helpers `mulDivDown`, `mulDivUp`, `wMulDown`, and `wDivUp`. Their proof surface is intentionally preconditioned rather than total: the lemmas in `Verity/Proofs/Stdlib/Math.lean` prove exact floor/ceil behavior only when the relevant widened numerator stays within `MAX_UINT256`. That surface now includes numerator-monotonicity facts for both the generic helpers (`mulDivDown_monotone_left/right`, `mulDivUp_monotone_left/right`) and the wad-specialized helpers (`wMulDown_monotone_left/right`, `wDivUp_monotone_left`), numerator-order commutativity facts for multiplicative helpers (`mulDivDown_comm`, `mulDivUp_comm`, `wMulDown_comm`), positivity facts for nontrivial fixed-point results (`mulDivDown_pos`, `mulDivUp_pos`, `wMulDown_pos`, `wDivUp_pos`), zero-case collapse facts (`mulDivDown_zero_left/right`, `mulDivUp_zero_left/right`, `wMulDown_zero_left/right`, `wDivUp_zero`), exact cancellation/identity facts for exact divisors (`mulDivDown_cancel_right/left`, `mulDivUp_cancel_right/left`, `wMulDown_one_left/right`, `wDivUp_by_wad`), divisor-antitonicity facts for both ceil and floor helpers (`mulDivDown_antitone_divisor`, `mulDivUp_antitone_divisor`, `wDivUp_antitone_right`), ceil/floor rounding-gap facts (`mulDivUp_le_mulDivDown_add_one`, `mulDivUp_eq_mulDivDown_or_succ`), divisibility-sensitive exactness facts (`mulDivUp_eq_mulDivDown_of_dvd`, `mulDivUp_eq_mulDivDown_add_one_of_not_dvd`), and full floor/ceil sandwiches for the scaled helpers: floor lower/upper gap bounds (`mulDivDown_mul_le`, `mulDivDown_mul_lt_add`, `wMulDown_mul_le`, `wMulDown_mul_lt_add`) and ceil lower/upper gap bounds (`mulDivUp_mul_ge`, `mulDivUp_mul_lt_add`, `wDivUp_mul_ge`, `wDivUp_mul_lt_add`) that are useful for AMM reserve/share proofs.
+`Stdlib.Math` also exposes fixed-point helpers `mulDivDown`, `mulDivUp`, `wMulDown`, and `wDivUp` (the `w` variants fix the divisor/multiplier to `WAD = 10^18`). All lemmas are in `Verity/Proofs/Stdlib/Math.lean` and are intentionally **preconditioned**: they assume the widened numerator stays within `MAX_UINT256`.
+
+| Lemma family | Generic helpers | Wad-specialized helpers |
+|--------------|----------------|------------------------|
+| Monotonicity (numerator) | `mulDivDown_monotone_left/right`, `mulDivUp_monotone_left/right` | `wMulDown_monotone_left/right`, `wDivUp_monotone_left` |
+| Commutativity | `mulDivDown_comm`, `mulDivUp_comm` | `wMulDown_comm` |
+| Positivity | `mulDivDown_pos`, `mulDivUp_pos` | `wMulDown_pos`, `wDivUp_pos` |
+| Zero collapse | `mulDivDown_zero_left/right`, `mulDivUp_zero_left/right` | `wMulDown_zero_left/right`, `wDivUp_zero` |
+| Cancellation / identity | `mulDivDown_cancel_right/left`, `mulDivUp_cancel_right/left` | `wMulDown_one_left/right`, `wDivUp_by_wad` |
+| Antitonicity (divisor) | `mulDivDown_antitone_divisor`, `mulDivUp_antitone_divisor` | `wDivUp_antitone_right` |
+| Rounding gap (ceil vs floor) | `mulDivUp_le_mulDivDown_add_one`, `mulDivUp_eq_mulDivDown_or_succ` | — |
+| Divisibility exactness | `mulDivUp_eq_mulDivDown_of_dvd`, `mulDivUp_eq_mulDivDown_add_one_of_not_dvd` | — |
+| Floor sandwich bounds | `mulDivDown_mul_le`, `mulDivDown_mul_lt_add` | `wMulDown_mul_le`, `wMulDown_mul_lt_add` |
+| Ceil sandwich bounds | `mulDivUp_mul_ge`, `mulDivUp_mul_lt_add` | `wDivUp_mul_ge`, `wDivUp_mul_lt_add` |
+
+The sandwich bounds are especially useful for AMM reserve/share proofs.
 
 **Example**: See `Contracts/SafeCounter/SafeCounter.lean` and `Contracts/SafeCounter/Proofs/Basic.lean` for a contract using checked arithmetic with proven overflow/underflow behavior.
 
@@ -89,7 +104,7 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 
 ## Related Documents
 
-- [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md) — trust boundaries and semantic caveats
-- [`AXIOMS.md`](../AXIOMS.md) — documented axioms (arithmetic is NOT an axiom)
-- [`docs/SOLIDITY_PARITY_PROFILE.md`](SOLIDITY_PARITY_PROFILE.md) — backend profile specification
-- [`Compiler/Proofs/ArithmeticProfile.lean`](../Compiler/Proofs/ArithmeticProfile.lean) — formal proofs
+- [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md): trust boundaries and semantic caveats
+- [`AXIOMS.md`](../AXIOMS.md): documented axioms (arithmetic is NOT an axiom)
+- [`docs/SOLIDITY_PARITY_PROFILE.md`](SOLIDITY_PARITY_PROFILE.md): backend profile specification
+- [`Compiler/Proofs/ArithmeticProfile.lean`](../Compiler/Proofs/ArithmeticProfile.lean): formal proofs

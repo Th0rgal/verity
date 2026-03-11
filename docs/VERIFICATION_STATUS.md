@@ -16,7 +16,7 @@ Yul (EVM Assembly)
 EVM Bytecode
 ```
 
-## Layer 1: EDSL ≡ CompilationModel — PROVEN FOR CURRENT CONTRACTS
+## Layer 1: EDSL ≡ CompilationModel, PROVEN FOR CURRENT CONTRACTS
 
 **What it proves today**: The EDSL `Contract` monad execution is equivalent to `CompilationModel` interpretation for the current supported contract set. This is the frontend semantic bridge. The proof stack has a generic typed-IR core, but the active bridge theorems are still instantiated per contract. Separate per-contract proofs under `Contracts/<Name>/Proofs/` then show these contracts satisfy their human-readable specifications; those specification theorems are downstream contract proofs, not the definition of Layer 1 itself.
 
@@ -99,7 +99,7 @@ Key files:
 - [`SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
 - [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
 
-## Layer 3: IR → Yul — GENERIC, WITH EXPLICIT AXIOM BOUNDARY
+## Layer 3: IR → Yul, GENERIC, WITH EXPLICIT AXIOM BOUNDARY
 
 **What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 1 documented bridge hypothesis in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean). The checked contract-level theorem surface now explicitly requires dispatch-guard safety for each selected function case: word-level zero `msg.value` on non-payable paths and a non-wrapping calldata-width bound for each case guard.
 

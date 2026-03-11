@@ -112,7 +112,7 @@ Delivery policy for unsupported features:
 
 ## Lessons from UnlinkPool (#185)
 
-[UnlinkPool](https://github.com/Th0rgal/unlink-contracts/pull/4) — a ZK privacy pool — was the first non-trivial contract built with Verity (37 theorems, 0 `sorry`, 64 Foundry tests). It exposed gaps in the CompilationModel compilation path that prevented real-world contracts from using the verified pipeline (Layers 2+3).
+[UnlinkPool](https://github.com/Th0rgal/unlink-contracts/pull/4), a ZK privacy pool, was the first non-trivial contract built with Verity (37 theorems, 0 `sorry`, 64 Foundry tests). It exposed gaps in the CompilationModel compilation path that prevented real-world contracts from using the verified pipeline (Layers 2+3).
 
 ### What was added
 
@@ -129,7 +129,7 @@ Delivery policy for unsupported features:
 
 ### What this enables
 
-A developer can now write a `CompilationModel` for contracts with conditional logic, loops over arrays, nested mappings (`address → address → uint256` for ERC20 allowances), event emission, internal helper functions, and linked external libraries — and compile through the verified pipeline (Layers 2+3). Previously only simple counter/token contracts were supported.
+A developer can now write a `CompilationModel` for contracts with conditional logic, loops over arrays, nested mappings (`address → address → uint256` for ERC20 allowances), event emission, internal helper functions, and linked external libraries, and compile through the verified pipeline (Layers 2+3). Previously only simple counter/token contracts were supported.
 
 ### Remaining gap
 
@@ -207,7 +207,7 @@ Reference docs:
 **Goal**: Demonstrate scalability beyond toy examples.
 
 **Completed Contracts**:
-1. **ERC721** (NFT standard) — implemented with 11 theorems, differential + property tests
+1. **ERC721** (NFT standard): implemented with 11 theorems, differential + property tests
 
 **Proposed Contracts**:
 1. **Governance** (voting/proposals)
@@ -274,7 +274,7 @@ Reference docs:
 **Milestone**: First real-world verified contract deployment
 
 **Work Items**:
-- ~~Add ERC721 example contract~~ (done — 11 theorems)
+- ~~Add ERC721 example contract~~ (done: 11 theorems)
 - Strengthen differential testing coverage (ongoing)
 - Comprehensive documentation and tutorials (1 month)
 - Performance optimization (ongoing)
@@ -305,7 +305,7 @@ Reference docs:
 
 1. **Should we prioritize Yul → EVM bridge or accept it as trust assumption?**
    - Tradeoff: 1-3 months of effort vs. documented trust
-   - Recommendation: Start with documented trust (ledger sum properties now complete — revisit when resources allow)
+   - Recommendation: Start with documented trust (ledger sum properties now complete; revisit when resources allow)
 
 2. **Should we support multiple smart contract languages (Solidity, Vyper, Fe)?**
    - Current: EDSL only

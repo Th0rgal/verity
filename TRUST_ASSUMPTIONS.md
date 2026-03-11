@@ -6,13 +6,13 @@ This document states what Verity proves and what it still trusts.
 
 ```
 EDSL (Lean)
-  ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS — generic core, contract bridges]
+  ↓ [Layer 1: PROVEN FOR CURRENT CONTRACTS, generic core, contract bridges]
 CompilationModel
   ↓ [Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges]
 IR
-  ↓ [Layer 3: GENERIC SURFACE, explicit bridge hypothesis — IR → Yul]
+  ↓ [Layer 3: GENERIC SURFACE, explicit bridge hypothesis, IR → Yul]
 Yul
-  ↓ [trusted — solc]
+  ↓ [trusted: solc]
 EVM Bytecode
 ```
 
@@ -95,7 +95,7 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 ## Security Audit Checklist
 
 1. Confirm deployment uses the supported EDSL CLI path.
-2. Review [AXIOMS.md](AXIOMS.md) — ensure the axiom list is unchanged and justified.
+2. Review [AXIOMS.md](AXIOMS.md); ensure the axiom list is unchanged and justified.
 3. If linked libraries are used, audit each linked Yul file as trusted code.
 4. Validate selector, Yul compile, and storage-layout CI checks.
 5. Confirm arithmetic and revert assumptions are acceptable for the target contract.

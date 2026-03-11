@@ -15,9 +15,9 @@ import { Callout } from 'nextra/components'
 
 Write smart contracts three times:
 
-1. **Human-readable specification** — What should the contract do?
-2. **Implementation in Lean** — Code that matches the spec
-3. **Formal proof** — Machine-checked verification that implementation meets specification
+1. **Human-readable specification**: What should the contract do?
+2. **Implementation in Lean**: Code that matches the spec
+3. **Formal proof**: Machine-checked verification that implementation meets specification
 
 Then compile the verified Lean implementation to EVM bytecode with automatic IR generation.
 
@@ -40,7 +40,7 @@ This project uses Lean to:
 
 Each contract has three files:
 
-**1. Specification** (`Verity/Specs/SimpleToken/Spec.lean`)
+**1. Specification** (`Contracts/SimpleToken/Spec.lean`)
 ```lean
 -- What should mint do?
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
@@ -50,7 +50,7 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   sameContext s s'                                         -- context preserved
 ```
 
-**2. Implementation** (`Verity/Examples/SimpleToken.lean`)
+**2. Implementation** (`Contracts/SimpleToken/SimpleToken.lean`)
 ```lean
 -- How to implement mint (with overflow protection)
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
@@ -63,7 +63,7 @@ def mint (to : Address) (amount : Uint256) : Contract Unit := do
   setStorage totalSupply newSupply
 ```
 
-**3. Proof** (`Verity/Proofs/SimpleToken/Basic.lean`)
+**3. Proof** (`Contracts/SimpleToken/Proofs/Basic.lean`)
 ```lean
 -- Proof that implementation satisfies specification
 theorem mint_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
@@ -78,10 +78,10 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 ## Where things live
 
-- **User-facing specs**: `Verity/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
-- **Implementations (EDSL)**: `Verity/Examples/<Name>.lean`
-- **Contract-specific specification proofs**: `Verity/Proofs/<Name>/Basic.lean` + `Correctness.lean`
-- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic typed-IR theorem) + `Contracts/Proofs/SemanticBridge.lean` (current contract bridge layer)
+- **User-facing specs**: `Contracts/<Name>/Spec.lean` (+ `Invariants.lean`)
+- **Implementations (EDSL)**: `Contracts/<Name>/<Name>.lean`
+- **Contract-specific proofs**: `Contracts/<Name>/Proofs/Basic.lean` + `Correctness.lean`
+- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic typed-IR theorem) + `Contracts/Proofs/SemanticBridge.lean` (contract bridge layer)
 - **Reusable proof infrastructure**: `Verity/Proofs/Stdlib/` (spec interpreter + automation)
 - **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
 - **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)
@@ -90,16 +90,16 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 Use `python3 scripts/generate_contract.py <Name>` to scaffold all boilerplate files, then:
 
-1. Write a small, human-readable spec in `Verity/Specs/<Name>/Spec.lean`.
-2. Add any invariants in `Verity/Specs/<Name>/Invariants.lean` (optional but encouraged).
-3. Implement the contract in `Verity/Examples/<Name>.lean` using the EDSL.
-4. Prove the implementation meets the spec in `Verity/Proofs/<Name>/Basic.lean`.
+1. Write a small, human-readable spec in `Contracts/<Name>/Spec.lean`.
+2. Add any invariants in `Contracts/<Name>/Invariants.lean` (optional but encouraged).
+3. Implement the contract in `Contracts/<Name>/<Name>.lean` using the EDSL.
+4. Prove the implementation meets the spec in `Contracts/<Name>/Proofs/Basic.lean`.
 5. Add compiler-level spec glue in `Compiler/Specs.lean` and any IR/Yul proofs in `Compiler/Proofs/` if new patterns are introduced.
 6. Add tests in `test/` (unit + property + differential if applicable).
 
 See [Add a Contract](/add-contract) for the full guide.
 
-In this repo, “Layer 1” refers specifically to the EDSL-to-`CompilationModel` semantic bridge in the compiler pipeline. The files under `Verity/Proofs/<Name>/` are contract-level specification proofs.
+In this repo, "Layer 1" refers specifically to the EDSL-to-`CompilationModel` semantic bridge in the compiler pipeline. The files under `Contracts/<Name>/Proofs/` are contract-level specification proofs.
 
 ## Example Contracts
 
@@ -144,25 +144,25 @@ theorem store_retrieve : store 42 >> retrieve = pure 42 := by
 ## Documentation
 
 **Guides**:
-- **[Getting Started](/getting-started)** — Install prerequisites, build, and run tests
-- **[First Contract](/guides/first-contract)** — Step-by-step walkthrough: spec, implement, prove, test
-- **[Debugging Proofs](/guides/debugging-proofs)** — Common proof strategies and error messages
-- **[Linking Libraries](/guides/linking-libraries)** — Use external Yul libraries (Poseidon, etc.) with verified contracts
+- **[Getting Started](/getting-started)**: Install prerequisites, build, and run tests
+- **[First Contract](/guides/first-contract)**: Step-by-step walkthrough (spec, implement, prove, test)
+- **[Debugging Proofs](/guides/debugging-proofs)**: Common proof strategies and error messages
+- **[Linking Libraries](/guides/linking-libraries)**: Use external Yul libraries (Poseidon, etc.) with verified contracts
 
 **Reference**:
-- **[Verification](/verification)** — Full theorem list by contract
-- **[Examples](/examples)** — All 9 example contracts and what they demonstrate
-- **[Core](/core)** — How the 400-line EDSL works
-- **[Research](/research)** — Design decisions and proof techniques
+- **[Verification](/verification)**: Full theorem list by contract
+- **[Examples](/examples)**: All 9 example contracts and what they demonstrate
+- **[Core](/core)**: How the 400-line EDSL works
+- **[Research](/research)**: Design decisions and proof techniques
 
 ## Learning Resources
 
-- [Lean 4 Manual](https://lean-lang.org/lean4/doc/) — Official documentation
-- [Theorem Proving in Lean 4](https://lean-lang.org/theorem_proving_in_lean4/) — Introductory book
-- [Lean Zulip Chat](https://leanprover.zulipchat.com/) — Community forum
-- [Lean GitHub](https://github.com/leanprover/lean4) — Source code and examples
+- [Lean 4 Manual](https://lean-lang.org/lean4/doc/): Official documentation
+- [Theorem Proving in Lean 4](https://lean-lang.org/theorem_proving_in_lean4/): Introductory book
+- [Lean Zulip Chat](https://leanprover.zulipchat.com/): Community forum
+- [Lean GitHub](https://github.com/leanprover/lean4): Source code and examples
 
 ## Project Links
 
-- [GitHub Repository](https://github.com/Th0rgal/verity) — Source code
-- [Build Status](https://github.com/Th0rgal/verity/actions) — CI verification runs
+- [GitHub Repository](https://github.com/Th0rgal/verity): Source code
+- [Build Status](https://github.com/Th0rgal/verity/actions): CI verification runs

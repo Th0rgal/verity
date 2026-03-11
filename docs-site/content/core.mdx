@@ -163,28 +163,11 @@ Every storage operation, context accessor, and event function has a full-result 
   (require false msg).run s = ContractResult.revert msg s := rfl
 ```
 
-Legacy `_fst`/`_snd` projection lemmas also exist but the full-result forms above are preferred — they prove success, value, and state in one shot. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
+Older `_fst`/`_snd` projection lemmas also exist, but the full-result forms above are preferred — they prove success, value, and state in one shot. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
 
 ## Why ContractResult instead of StateM
 
-The original core used `StateM ContractState α`. This was simpler but couldn't model `require` failures. Proofs had to assume guards passed (using axioms).
-
-`ContractResult` makes success/failure explicit. Proofs can reason about both paths, and no axioms are needed. The cost is a small amount of extra infrastructure (the ContractResult type, custom bind, and simp lemmas).
-
-## Core growth
-
-| Iteration | Focus | What was added |
-|-----------|-------|----------------|
-| 1 (Bootstrap) | Minimal core | Initial core |
-| 2 (Counter) | Counter spec | Nothing needed |
-| 3 (Owned) | Ownership | Address storage |
-| 4 (OwnedCounter) | Ownership + counter | Nothing needed |
-| 5 (SafeCounter) | Guarded ops | Cleanup |
-| 6 (Ledger) | Mapping storage | Mapping storage |
-| 7 (SimpleToken) | Token contract | Nothing needed |
-| 8 (Verification) | Proof support | ContractResult, bind, simp lemmas, EVM context |
-
-Most implementation iterations needed no core changes. The verification step added proof infrastructure rather than new contract primitives.
+A plain `StateM ContractState α` monad cannot model `require` failures — proofs would have to assume guards pass (introducing axioms). `ContractResult` makes success/failure explicit, so proofs reason about both paths with no axioms. The cost is a small amount of extra infrastructure (the `ContractResult` type, custom `bind`, and simp lemmas).
 
 ## Type safety
 
