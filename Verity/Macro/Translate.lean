@@ -992,6 +992,19 @@ private def requireDeclaredValueType
     throwErrorAt stx
       s!"{context} expects {renderValueType expectedTy}, got {renderValueType actualTy}"
 
+private partial def localBindingUsesDynamicData : ValueType → Bool
+  | .string | .bytes | .array _ => true
+  | .tuple elemTys => elemTys.any localBindingUsesDynamicData
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool | .unit => false
+
+private def requireSupportedLocalBindingType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  if localBindingUsesDynamicData ty then
+    throwErrorAt stx
+      s!"{context} currently cannot bind dynamic values ({renderValueType ty}) to local variables on the compilation-model path; use the parameter directly"
+
 mutual
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
@@ -2186,6 +2199,9 @@ private partial def validateDoElemExprTypes
           | some valueTys =>
               if names.size != valueTys.size then
                 throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueTys.size} values"
+              for (name?, ty) in names.zip valueTys do
+                if let some name := name? then
+                  requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
               let typedNames := (names.zip valueTys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
               pure (some (locals ++ typedNames))
           | none => pure none
@@ -2199,6 +2215,9 @@ private partial def validateDoElemExprTypes
           | some valueTys =>
               if names.size != valueTys.size then
                 throwErrorAt patDecl s!"tuple destructuring binds {names.size} names, but the source provides {valueTys.size} values"
+              for (name?, ty) in names.zip valueTys do
+                if let some name := name? then
+                  requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
               let typedNames := (names.zip valueTys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
               pure (some (locals ++ typedNames))
           | none => pure none
@@ -2209,11 +2228,17 @@ private partial def validateDoElemExprTypes
   | some typedLocals => pure typedLocals
   | none => match elem with
       | `(doElem| let mut $name:ident := $rhs:term) =>
-          pure <| locals.push (toString name.getId, ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs)
+          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
+          requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
+          pure <| locals.push (toString name.getId, ty)
       | `(doElem| let $name:ident := $rhs:term) =>
-          pure <| locals.push (toString name.getId, ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs)
+          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
+          requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
+          pure <| locals.push (toString name.getId, ty)
       | `(doElem| let $name:ident ← $rhs:term) =>
-          pure <| locals.push (toString name.getId, ← inferBindSourceType fields constDecls immutableDecls externalDecls params locals rhs)
+          let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls params locals rhs
+          requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
+          pure <| locals.push (toString name.getId, ty)
       | `(doElem| $name:ident := $rhs:term) =>
           let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure locals
