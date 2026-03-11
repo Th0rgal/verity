@@ -18,7 +18,11 @@ EVM Bytecode
 
 ## Layer 1: EDSL ≡ CompilationModel — PROVEN FOR CURRENT CONTRACTS
 
-**What it proves today**: The EDSL `Contract` monad execution is equivalent to `CompilationModel` interpretation for the current supported contract set. This is the frontend semantic bridge. The proof stack has a generic typed-IR core, but the active bridge theorems are still instantiated per contract. Separate per-contract proofs under `Contracts/<Name>/Proofs/` then show these contracts satisfy their human-readable specifications; those specification theorems are downstream contract proofs, not the definition of Layer 1 itself.
+**What it proves today**: running a contract through the EDSL `Contract` monad produces the same result as interpreting its `CompilationModel`. This is proved for every contract in the table below.
+
+The proof core is generic (see [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)), but the bridge theorem that connects each contract's EDSL to its `CompilationModel` is still instantiated per contract.
+
+> **Scope note**: the per-contract proofs under `Contracts/<Name>/Proofs/` go further — they show contracts satisfy human-readable specifications (e.g. "increment adds 1"). Those are downstream contract proofs, not Layer 1 itself.
 
 ### Verified Contracts
 
@@ -40,9 +44,12 @@ EVM Bytecode
 
 > **Note**: Stdlib (0 internal proof-automation properties) is excluded from the contract-spec theorem table above but included in overall coverage statistics (277 total properties).
 
-Layer 1 uses macro-generated EDSL-to-`CompilationModel` bridge theorems backed by a generic typed-IR compilation-correctness theorem ([`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean)). Tuple/bytes/fixed-array/dynamic-array/string parameters now stay inside that proof path when they are carried as ABI head words/offsets. Advanced constructs beyond that typed-IR head-word surface (linked libraries, ECMs, fully custom ABI behavior) are still expressed directly in `CompilationModel` and trusted at that boundary.
+**What the generic typed-IR core covers**:
 
-Internal helper calls are supported operationally in `CompilationModel` and the fuel-based interpreter path, but helper-level compositional proof reuse across callers is not yet a first-class verified interface. Current EDSL-to-`CompilationModel` bridge instantiations remain contract-specific; the reusable internal-helper proof boundary is tracked in [#1335](https://github.com/Th0rgal/verity/issues/1335).
+- **Inside the proof path**: tuple, bytes, fixed-array, dynamic-array, and string parameters carried as ABI head words/offsets.
+- **Outside the proof path** (trusted at the `CompilationModel` boundary): linked libraries, ECMs, and fully custom ABI behavior.
+
+**Internal helper calls**: supported operationally in `CompilationModel` and the fuel-based interpreter, but compositional proof reuse of helpers across callers is not yet a first-class verified interface. Tracked in [#1335](https://github.com/Th0rgal/verity/issues/1335).
 
 ### Lowering Bridge
 
