@@ -296,7 +296,11 @@ now sits under the post-generic widening/completeness plan in
   `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`,
   `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper theorem
   `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`;
-  the remaining compiled-side proof step is filling the stmt / stmt-list / function part of that interface,
+  `IRInterpreter.lean` now also proves
+  `execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility`, so
+  function compatibility is reduced to stmt-list compatibility rather than
+  remaining an independent proof task;
+  the remaining compiled-side proof step is filling the stmt / stmt-list part of that interface,
   proving the dispatch-local selected-function step, and then using the now-encoded
   reduction theorem to obtain the conservative-extension goal from legacy `interpretIR`
   to `interpretIRWithInternals` on that subset,

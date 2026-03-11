@@ -1077,6 +1077,34 @@ theorem interpretIRWithInternalsZeroConservativeExtensionExprInterfaces
   exact ⟨evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract,
     evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract⟩
 
+/-- Once statement-list compatibility is proved, the function-level compatibility
+field in `InterpretIRWithInternalsZeroConservativeExtensionInterfaces` is just
+plumbing: both interpreters initialize parameters identically and run the same
+fuel budget when `helperFuel = 0`. This keeps the remaining compiled-side blocker
+focused on stmt / stmt-list compatibility instead of re-proving function setup. -/
+theorem execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility
+    (contract : IRContract)
+    (hstmtList :
+      ∀ (_hinternal : contract.internalFunctions = []) fuel state stmts,
+        LegacyCompatibleExternalStmtList stmts →
+          execIRStmtsWithInternals contract fuel state stmts =
+            match execIRStmts fuel state stmts with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next) :
+    contract.internalFunctions = [] →
+      ∀ fn args initialState,
+        LegacyCompatibleExternalStmtList fn.body →
+          execIRFunctionWithInternals contract 0 fn args initialState =
+            execIRFunction fn args initialState := by
+  intro hinternal fn args initialState hbody
+  let stateWithParams :=
+    fn.params.zip args |>.foldl (fun s (p, v) => s.setVar p.name v) initialState
+  rw [execIRFunctionWithInternals, execIRFunction]
+  rw [hstmtList hinternal (sizeOf fn.body + 1) stateWithParams fn.body hbody]
+  cases execIRStmts (sizeOf fn.body + 1) stateWithParams fn.body <;> rfl
+
 /-- Shared transaction-context initialization used by both legacy and helper-aware
 top-level IR interpreters. Making this explicit removes boilerplate from the
 remaining conservative-extension proof target. -/

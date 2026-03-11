@@ -138,10 +138,13 @@ next compiled-side substep is therefore more precise than before:
 `LegacyCompatibleRuntimeDispatch`, and now also proves
 `interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal` so that
 the contract-level lift is no longer part of the open blocker. That leaves the
-remaining proof work as the stmt / stmt-list / function slice for
+remaining proof work as the stmt / stmt-list slice for
 `runtimeContractOfFunctions`-style contracts over the subset plus the
-dispatch-local selected-function theorem, after which the broader theorem stack
-can retarget from legacy `interpretIR` to the richer helper-aware IR target.
+dispatch-local selected-function theorem; `IRInterpreter.lean` now also proves
+`execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility`, so
+function compatibility is no longer an independent blocker once stmt-list
+compatibility is available. After that, the broader theorem stack can retarget
+from legacy `interpretIR` to the richer helper-aware IR target.
 The helper-aware compiled target remains available as total fuel-indexed
 helper-aware IR semantics throughout that retargeting work.
 The compiled-side blocker is tracked in
