@@ -301,25 +301,27 @@ The CompilationModel DSL provides a complete expression and statement language f
 | `lt a b` | Less than | `lt(a, b)` |
 | `ge a b` | Greater or equal | `iszero(lt(a, b))` |
 | `le a b` | Less or equal | `iszero(gt(a, b))` |
-
-Low-level call expressions compile to the expected Yul builtins, but their runtime semantics are still outside the current proof-interpreter model. Today they are a partial feature: codegen exists, while call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`.
-
-`delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
 | `logicalAnd a b` | Short-circuit logical AND | `and(iszero(iszero(a)), iszero(iszero(b)))` |
 | `logicalOr a b` | Short-circuit logical OR | `or(iszero(iszero(a)), iszero(iszero(b)))` |
 | `logicalNot a` | Logical NOT | `iszero(a)` |
 
-Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `Expr.chainid`, `Stmt.mstore`) instead of `Expr.externalCall` for these opcodes. Builtin names routed through `externalCall` remain rejected by interop validation.
+Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `Expr.chainid`, `Stmt.mstore`) instead of `Expr.externalCall` for these opcodes. Builtin names routed through `externalCall` are rejected by interop validation.
 
-Memory-oriented intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) compile, but the current proof interpreters still model them only partially. For audit-oriented or proof-strict builds, surface that boundary with `--trust-report` / `--deny-linear-memory-mechanics`; the remaining gap is tracked under issue `#1411`.
+#### Partial-proof features
 
-Raw `rawLog` event emission also compiles, but the current proof interpreters still treat it as a not-modeled feature rather than a proved event semantics layer. For audit-oriented or proof-strict builds, archive `--trust-report` and add `--deny-event-emission` if the selected contracts must stay inside the proved subset.
+Some expression and statement types compile to correct Yul but are not yet fully modeled in the proof interpreters. Use `--trust-report` to surface the boundary, and the corresponding `--deny-*` flag to fail closed when a contract must stay inside the proved subset.
 
-The `keccak256` intrinsic also compiles, but it remains axiomatized in the current proof stack rather than fully modeled end to end. For audit-oriented or proof-strict builds, archive `--trust-report` and add `--deny-axiomatized-primitives` if the selected contracts must stay inside the proved subset (see issue `#1411`).
+| Feature | Proof status | `--deny-*` flag | Tracking |
+|---------|-------------|-----------------|----------|
+| Low-level calls (`call`, `staticcall`) | Codegen only; validated by differential tests | — | [#1332](https://github.com/Th0rgal/verity/issues/1332) |
+| `delegatecall` | Codegen only; separate proxy/upgradeability trust boundary | `--deny-proxy-upgradeability` | [#1420](https://github.com/Th0rgal/verity/issues/1420) |
+| Memory intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) | Partially modeled | `--deny-linear-memory-mechanics` | [#1411](https://github.com/Th0rgal/verity/issues/1411) |
+| `rawLog` event emission | Not modeled (compiles correctly) | `--deny-event-emission` | — |
+| `keccak256` intrinsic | Axiomatized, not end-to-end modeled | `--deny-axiomatized-primitives` | [#1411](https://github.com/Th0rgal/verity/issues/1411) |
 
-The trust-report surface also supports localized `localObligations` on a function or constructor. Use these when a small unsafe/assembly-shaped boundary still needs a user-supplied refinement contract without turning the whole compilation unit into an opaque trust blob. Direct raw low-level calls, returndata choreography, and manual memory/calldata primitives are expected to carry at least one such obligation on the enclosing constructor or function. For proof-strict builds, add `--deny-local-obligations` so any undischarged local obligation fails closed. When audit tooling needs a flat machine-readable list instead of the full nested trust report, archive `--assumption-report` alongside `--trust-report`.
+**Local obligations**: Functions or constructors that use raw low-level calls, returndata choreography, or manual memory primitives carry `localObligations` — user-supplied refinement contracts scoped to that boundary. For proof-strict builds, add `--deny-local-obligations` to fail closed on undischarged obligations. Use `--assumption-report` for a flat machine-readable list.
 
-For upgradeability reviews, pair `--layout-compat-report` with `--deny-layout-incompatibility`. That path compares the first selected contract against the second, preserves all baseline field slots/types/alias writes, and fails closed if the candidate moves or mutates persisted storage fields while still writing the JSON compatibility report for audit trails.
+**Upgradeability reviews**: Pair `--layout-compat-report` with `--deny-layout-incompatibility` to compare two contracts' storage layouts and fail closed if the candidate moves or mutates persisted fields.
 
 For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. The `verity_contract` surface now exposes matching storage forms:
 
