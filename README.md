@@ -116,12 +116,12 @@ EVM Bytecode
 | Layer | What it proves | Key file |
 |-------|---------------|----------|
 | 1 | A generic typed-IR core plus contract-level bridge theorems establish EDSL execution = CompilationModel interpretation for the current supported contracts | [TypedIRCompilerCorrectness.lean](Compiler/TypedIRCompilerCorrectness.lean) |
-| 2 | A generic whole-contract theorem shape exists, but its non-core function-level closure still depends on 2 documented axioms; the proved core fragment already runs on structural fuel, and the theorem surface now explicitly assumes normalized transaction-context fields | [Contract.lean](Compiler/Proofs/IRGeneration/Contract.lean) |
+| 2 | A generic whole-contract theorem shape exists, but its non-core function-level closure still depends on 2 documented axioms; the proved core fragment already runs on structural fuel, and the theorem surface now explicitly assumes normalized transaction-context fields. The remaining closure work is tracked in [#1510](https://github.com/Th0rgal/verity/issues/1510), with the current proof plan in [docs/GENERIC_LAYER2_PLAN.md](docs/GENERIC_LAYER2_PLAN.md). | [Contract.lean](Compiler/Proofs/IRGeneration/Contract.lean) |
 | 3 | IR → Yul codegen is proved generically at the statement/function level, but the current full dispatch-preservation path still uses 1 documented bridge axiom; the checked contract-level theorem surface now makes dispatch-guard safety explicit for each selected function case | [Preservation.lean](Compiler/Proofs/YulGeneration/Preservation.lean) |
 
 There are currently 4 documented Lean axioms in total: 1 selector axiom, 2 generic non-core Layer 2 axioms, and 1 Layer 3 dispatch bridge axiom. See [AXIOMS.md](AXIOMS.md).
 
-Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) and [AXIOMS.md](AXIOMS.md).
+Layer 1 is the frontend EDSL-to-`CompilationModel` bridge. The per-contract files in `Contracts/<Name>/Proofs/` prove human-readable contract specifications; they are not what “Layer 1” means in the compiler stack. Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges. Layers 2 and 3 (`CompilationModel → IR → Yul`) are verified with the current documented axioms and bridge boundaries; see [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md), [docs/GENERIC_LAYER2_PLAN.md](docs/GENERIC_LAYER2_PLAN.md), and [AXIOMS.md](AXIOMS.md).
 
 ### 5. Test the compiled output (belt and suspenders)
 
