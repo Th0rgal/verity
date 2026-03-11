@@ -58,8 +58,10 @@ Tracking:
 **What is not yet covered**:
 - the supported whole-contract fragment is still intentionally narrower than the full `CompilationModel` surface; unsupported features remain documented at the boundary instead of being claimed as proved
 
-**What is not fully migrated yet**:
-- widening the `SupportedSpec` predicate to cover constructors, events, errors, mappings, external calls, internal calls, loops, and other EDSL features beyond the current scalar fragment
+### What is not fully migrated yet
+
+- The generic theorem surface is in place, but the supported whole-contract fragment is still narrower than the full `CompilationModel` / EDSL surface.
+- Contracts and features outside `SupportedSpec` still rely on explicit trust-surface documentation, targeted testing, or future fragment-widening work rather than a claim of full generic compile-preservation.
 
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem itself

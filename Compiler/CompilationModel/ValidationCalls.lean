@@ -654,8 +654,9 @@ private theorem validateFunctionYulIdentifiers_params_ok_of_mem
     | error err =>
         simp [hparams] at hvalidate
         cases hvalidate
-    | ok () =>
-        simp using hparams
+    | ok a =>
+        cases a
+        rfl
   exact validateContractIdentifiers_ok_of_mem hparams hmem
 
 private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
@@ -671,8 +672,9 @@ private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
     | error err =>
         simp [hparams] at hvalidate
         cases hvalidate
-    | ok () =>
-        simp using hparams
+    | ok a =>
+        cases a
+        rfl
   have hlocals :
       validateContractIdentifiers "local binder" (collectStmtListBindNames fn.body) = Except.ok () := by
     unfold validateFunctionYulIdentifiers at hvalidate
@@ -680,8 +682,9 @@ private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
     | error err =>
         simp [hparams, hlocals] at hvalidate
         cases hvalidate
-    | ok () =>
-        simp [hparams] using hlocals
+    | ok a =>
+        cases a
+        rfl
   exact validateContractIdentifiers_ok_of_mem hlocals hmem
 
 private theorem validateFunctionYulIdentifiers_assignTargets_ok_of_mem
@@ -697,8 +700,9 @@ private theorem validateFunctionYulIdentifiers_assignTargets_ok_of_mem
     | error err =>
         simp [hparams] at hvalidate
         cases hvalidate
-    | ok () =>
-        simp using hparams
+    | ok a =>
+        cases a
+        rfl
   have hlocals :
       validateContractIdentifiers "local binder" (collectStmtListBindNames fn.body) = Except.ok () := by
     unfold validateFunctionYulIdentifiers at hvalidate
@@ -706,8 +710,9 @@ private theorem validateFunctionYulIdentifiers_assignTargets_ok_of_mem
     | error err =>
         simp [hparams, hlocals] at hvalidate
         cases hvalidate
-    | ok () =>
-        simp [hparams] using hlocals
+    | ok a =>
+        cases a
+        rfl
   have hassign :
       validateContractIdentifiers "assignment target" (collectStmtListAssignedNames fn.body) = Except.ok () := by
     unfold validateFunctionYulIdentifiers at hvalidate
@@ -805,8 +810,9 @@ theorem validateIdentifierShapes_field_avoidReservedCompilerPrefix
         | error err =>
             simp [hcontract, hreserved] at hvalidate
             cases hvalidate
-        | ok () =>
-            simp using hreserved
+        | ok a =>
+            cases a
+            rfl
   have hfields :
       validateFieldIdentifiers spec.fields = Except.ok () := by
     unfold validateReservedCompilerIdentifiers at hreserved
@@ -814,8 +820,9 @@ theorem validateIdentifierShapes_field_avoidReservedCompilerPrefix
     | error err =>
         simp [hfields] at hreserved
         cases hreserved
-    | ok () =>
-        simp using hfields
+    | ok a =>
+        cases a
+        rfl
   exact validateFieldIdentifiers_ok_of_mem hfields hmem
 
 theorem validateIdentifierShapes_functionIdentifiers_ok
@@ -836,8 +843,9 @@ theorem validateIdentifierShapes_functionIdentifiers_ok
         | error err =>
             simp [hcontract, hreserved] at hvalidate
             cases hvalidate
-        | ok () =>
-            simp using hreserved
+        | ok a =>
+            cases a
+            rfl
   have hfunctions :
       validateFunctionIdentifierList spec.functions = Except.ok () := by
     unfold validateReservedCompilerIdentifiers at hreserved
@@ -850,8 +858,9 @@ theorem validateIdentifierShapes_functionIdentifiers_ok
         | error err =>
             simp [hfields, hfunctions] at hreserved
             cases hreserved
-        | ok () =>
-            simp using hfunctions
+        | ok a =>
+            cases a
+            rfl
   exact validateFunctionIdentifierList_ok_of_mem hfunctions hmem
 
 theorem validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
