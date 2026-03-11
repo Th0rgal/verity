@@ -78,10 +78,10 @@ The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
 
 ## Where things live
 
-- **User-facing specs**: `Contracts/<Name>/Spec.lean` (+ `Invariants.lean`)
-- **Implementations (EDSL)**: `Contracts/<Name>/<Name>.lean`
-- **Contract-specific proofs**: `Contracts/<Name>/Proofs/Basic.lean` + `Correctness.lean`
-- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic typed-IR theorem) + `Contracts/Proofs/SemanticBridge.lean` (contract bridge layer)
+- **User-facing specs**: `Verity/Specs/<Name>/Spec.lean` (+ `Invariants.lean`)
+- **Implementations (EDSL)**: `Verity/Examples/<Name>.lean`
+- **Contract-specific specification proofs**: `Verity/Proofs/<Name>/Basic.lean` + `Correctness.lean`
+- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (frontend typed-IR theorem) + `Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract `CompilationModel -> IR` theorem for the current supported fragment). `Contracts/Proofs/SemanticBridge.lean` remains as a legacy/example wrapper layer.
 - **Reusable proof infrastructure**: `Verity/Proofs/Stdlib/` (spec interpreter + automation)
 - **Compiler specs (for codegen)**: `Compiler/Specs.lean` (separate from user specs)
 - **Compiler proofs**: `Compiler/Proofs/` (IR generation + Yul preservation)

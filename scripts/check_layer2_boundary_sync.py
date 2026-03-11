@@ -17,6 +17,10 @@ TARGETS = {
     "TRUST_ASSUMPTIONS": ROOT / "TRUST_ASSUMPTIONS.md",
     "SEMANTIC_BRIDGE": ROOT / "Contracts" / "Proofs" / "SemanticBridge.lean",
     "DOCS_SITE_COMPILER": ROOT / "docs-site" / "content" / "compiler.mdx",
+    "DOCS_SITE_INDEX": ROOT / "docs-site" / "content" / "index.mdx",
+    "DOCS_SITE_EXAMPLES": ROOT / "docs-site" / "content" / "examples.mdx",
+    "DOCS_SITE_FIRST_CONTRACT": ROOT / "docs-site" / "content" / "guides" / "first-contract.mdx",
+    "DOCS_SITE_VERIFICATION": ROOT / "docs-site" / "content" / "verification.mdx",
     "DOCS_SITE_RESEARCH": ROOT / "docs-site" / "content" / "research.mdx",
     "LLMS": ROOT / "docs-site" / "public" / "llms.txt",
 }
@@ -76,6 +80,24 @@ def expected_snippets() -> dict[str, list[str]]:
             "former exact-state body-simulation axiom has been eliminated",
             "explicit theorem hypothesis rather than a Lean axiom",
         ],
+        "DOCS_SITE_INDEX": [
+            "`Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract `CompilationModel -> IR` theorem for the current supported fragment)",
+            "`Contracts/Proofs/SemanticBridge.lean` remains as a legacy/example wrapper layer",
+            "This project currently has no `sorry` placeholders.",
+        ],
+        "DOCS_SITE_EXAMPLES": [
+            "`Compiler/Proofs/IRGeneration/Contract.lean` for the current supported fragment",
+            "`Contracts/Proofs/SemanticBridge.lean` remains as a legacy/example wrapper layer",
+        ],
+        "DOCS_SITE_FIRST_CONTRACT": [
+            "the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean`",
+            "`Contracts/Proofs/SemanticBridge.lean` still exists, but it is now a legacy/example wrapper layer",
+            "The repository's proof tree currently has zero `sorry` placeholders",
+        ],
+        "DOCS_SITE_VERIFICATION": [
+            "**Legacy/example bridge wrappers**: `Contracts/Proofs/SemanticBridge.lean`",
+            "**Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean`",
+        ],
         "DOCS_SITE_RESEARCH": [
             "Supported-fragment generic theorem in place.",
             "legacy bridge consumers in",
@@ -86,6 +108,7 @@ def expected_snippets() -> dict[str, list[str]]:
             "generic whole-contract CompilationModel -> IR theorem for the supported fragment",
             "legacy example wrapper bridges remain",
             "1 documented Lean axiom",
+            "0 `sorry` placeholders",
         ],
     }
 
@@ -147,6 +170,19 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "depends on 1 documented axiom",
             "full-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
         ],
+        "DOCS_SITE_INDEX": [
+            "`Contracts/Proofs/SemanticBridge.lean` (current contract bridge layer)",
+        ],
+        "DOCS_SITE_EXAMPLES": [
+            "`Compiler/TypedIRCompilerCorrectness.lean` + `Contracts/Proofs/SemanticBridge.lean`",
+        ],
+        "DOCS_SITE_FIRST_CONTRACT": [
+            "18 proof terms currently use `sorry`",
+            "The bridge between EDSL semantics and the compilation model is maintained in `Contracts/Proofs/SemanticBridge.lean`.",
+        ],
+        "DOCS_SITE_VERIFICATION": [
+            "**Semantic bridge**: `Contracts/Proofs/SemanticBridge.lean` (EDSL ≡ CompilationModel for supported contract bridges)",
+        ],
         "DOCS_SITE_RESEARCH": [
             "Complete for all 7 contracts",
             "`Verity/Examples/X.lean`",
@@ -159,6 +195,8 @@ def forbidden_snippets() -> dict[str, list[str]]:
             "4 documented axioms",
             "2 documented Lean axioms",
             "partial generic CompilationModel -> IR boundary",
+            "12 in SemanticBridge cross-layer proofs",
+            "16 SemanticBridge + 0 Preservation",
         ],
     }
 

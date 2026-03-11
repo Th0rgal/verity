@@ -9,12 +9,12 @@ A small set of contracts, each introducing a new pattern. They build on each oth
 
 ## How to organize a contract
 
-- **Spec**: `Contracts/<Name>/Spec.lean`
-- **Invariants**: `Contracts/<Name>/Invariants.lean`
-- **Implementation**: `Contracts/<Name>/<Name>.lean`
-- **Basic proofs**: `Contracts/<Name>/Proofs/Basic.lean`
-- **Advanced proofs**: `Contracts/<Name>/Proofs/Correctness.lean`
-- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` + `Contracts/Proofs/SemanticBridge.lean`
+- **Spec**: `Verity/Specs/<Name>/Spec.lean`
+- **Invariants**: `Verity/Specs/<Name>/Invariants.lean`
+- **Implementation**: `Verity/Examples/<Name>.lean`
+- **Basic proofs**: `Verity/Proofs/<Name>/Basic.lean`
+- **Advanced proofs**: `Verity/Proofs/<Name>/Correctness.lean`
+- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` + `Compiler/Proofs/IRGeneration/Contract.lean` for the current supported fragment. `Contracts/Proofs/SemanticBridge.lean` remains as a legacy/example wrapper layer.
 - **Reusable proof infra**: `Verity/Proofs/Stdlib/`
 
 Example (SimpleStorage):
