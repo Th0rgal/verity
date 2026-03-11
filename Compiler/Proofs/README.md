@@ -92,6 +92,7 @@ sub-interface in
 work is now split into:
 - a positive direct-callee summary inventory already attached to `calls.helpers`
 - a spec-aware helper source semantics target in `Compiler/Proofs/IRGeneration/SourceSemantics.lean`
+- a reusable helper-summary contract API attached directly to those witnesses
 - a temporary legacy fail-closed check that keeps the current theorem boundary unchanged
 
 The remaining work tracked in

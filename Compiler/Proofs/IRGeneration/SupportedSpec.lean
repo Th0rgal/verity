@@ -563,6 +563,9 @@ structure SupportedBodyCoreInterface (fn : FunctionSpec) : Prop where
 structure SupportedBodyStateInterface (fn : FunctionSpec) : Prop where
   surfaceClosed : stmtListTouchesUnsupportedStateSurface fn.body = false
 
+structure InternalHelperSummaryContract where
+  post : Nat → Verity.ContractState → List Nat → Bool → Option Nat → Verity.ContractState → Prop
+
 structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : FunctionSpec) : Prop where
   present : callee ∈ spec.functions
   internal : callee.isInternal = true
@@ -575,6 +578,7 @@ structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : Fun
   foreign : stmtListTouchesUnsupportedForeignSurface callee.body = false
   lowLevel : stmtListTouchesUnsupportedLowLevelSurface callee.body = false
   effects : SupportedBodyEffectInterface callee
+  contract : InternalHelperSummaryContract
   noLocalObligations : callee.localObligations = []
 
 structure SupportedInternalHelperWitness
@@ -690,6 +694,16 @@ theorem SupportedBodyHelperInterface.summaryOfCall
     (hmem : calleeName ∈ helperCallNames fn) :
     ∃ witness : SupportedInternalHelperWitness spec calleeName, True :=
   hHelpers.summaries calleeName hmem
+
+theorem SupportedBodyHelperInterface.summaryContractOfCall
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn)
+    {calleeName : String}
+    (hmem : calleeName ∈ helperCallNames fn) :
+    ∃ witness : SupportedInternalHelperWitness spec calleeName,
+      InternalHelperSummaryContract := by
+  obtain ⟨witness, _⟩ := hHelpers.summaryOfCall hmem
+  exact ⟨witness, witness.summary.contract⟩
 
 theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
     (stmts : List Stmt) :

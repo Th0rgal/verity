@@ -242,8 +242,9 @@ now sits under the post-generic widening/completeness plan in
 - helper calls now have an explicit summary inventory under `calls.helpers`, and
   `SourceSemantics.lean` now exposes a dedicated helper-aware source semantics
   target (`evalExprWithHelpers` / `execStmtListWithHelpers` /
-  `interpretInternalFunctionFuel`) that future helper-summary composition lemmas
-  can connect to
+  `interpretInternalFunctionFuel`), while `SupportedSpec.lean` now attaches a
+  reusable `InternalHelperSummaryContract` interface directly to helper-summary
+  witnesses
 - widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem

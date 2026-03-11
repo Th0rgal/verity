@@ -899,5 +899,4 @@ example :
       { sender := 9, functionSelector := 0x55555555, args := [] }
       Verity.defaultState).success = false := by
   decide
-
 end Compiler.Proofs.IRGeneration
