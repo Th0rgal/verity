@@ -125,11 +125,10 @@ The next compiled-side substep is therefore precise rather than implicit: first
 prove conservative extension for `interpretIRWithInternals` on
 `runtimeContractOfFunctions` contracts over that subset, then generalize or
 retarget the broader theorem stack from legacy `interpretIR` to the richer
-helper-aware IR target. The repo now also records that the current helper-aware
-compiled semantics is still exposed only through opaque `partial def`
-executables, so the first conservative-extension theorem needs a
-theorem-friendly total or inductive mirror of that target rather than proving
-directly against the executable surface. The compiled-side blocker is tracked in
+helper-aware IR target. `IRInterpreter.lean` now makes that compiled-side target
+available as total fuel-indexed helper-aware IR semantics, so the next proof
+step can target that execution surface directly rather than first mirroring it.
+The compiled-side blocker is tracked in
 [#1638](https://github.com/Th0rgal/verity/issues/1638).
 
 The remaining work tracked in

@@ -163,16 +163,16 @@ def build_catalog() -> dict:
                     ),
                 },
                 "compiled_target_proof_surface": {
-                    "status": "executable_target_still_opaque_partial_defs",
+                    "status": "helper_aware_ir_target_now_total_fuel_indexed_defs",
                     "source": (
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "evalIRExprWithInternals"
                     ),
                     "required_follow_on": (
-                        "replace or mirror the current helper-aware compiled "
-                        "semantics with a theorem-friendly total/inductive surface "
-                        "before the conservative-extension proof can be carried "
-                        "through statement/body/contract retargeting"
+                        "prove the first conservative-extension theorem directly "
+                        "against the now-total helper-aware compiled semantics "
+                        "surface, then carry that through statement/body/contract "
+                        "retargeting"
                     ),
                 },
                 "decreasing_rank_measure": (
@@ -233,21 +233,6 @@ def build_catalog() -> dict:
                             "runtime-contract subset before the public theorem "
                             "stack can safely retarget from interpretIR to "
                             "interpretIRWithInternals"
-                        ),
-                    },
-                    {
-                        "name": "opaque_helper_ir_semantics_surface",
-                        "source": (
-                            "Compiler.Proofs.IRGeneration.IRInterpreter."
-                            "evalIRExprWithInternals"
-                        ),
-                        "status": (
-                            "the helper-aware compiled semantics currently exists "
-                            "only as opaque partial defs, so the first "
-                            "conservative-extension theorem still needs a "
-                            "theorem-friendly total or inductive mirror of that "
-                            "execution target rather than proving directly against "
-                            "the executable surface"
                         ),
                     },
                     {

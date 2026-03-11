@@ -27,12 +27,6 @@ open Verity.Core
 open Compiler.Proofs
 
 /-! Size measures for termination proofs. -/
-/-!
-The helper-aware compiled semantics below is currently kept as executable
-`partial def`s. That is sufficient for runtime tests and for pinning the future
-theorem target, but the first conservative-extension proof tracked in `#1638`
-will likely need a theorem-friendly total or inductive mirror of this surface.
--/
 mutual
 def exprSize : YulExpr → Nat
   | .call _ args => exprsSize args + 2
@@ -42,6 +36,58 @@ def exprsSize : List YulExpr → Nat
   | [] => 0
   | e :: es => exprSize e + exprsSize es + 1
 end
+
+private theorem exprSize_lt_exprsSize_cons (e : YulExpr) (es : List YulExpr) :
+    exprSize e < exprsSize (e :: es) := by
+  simp [exprsSize]
+  omega
+
+private theorem exprsSize_tail_lt_exprsSize_cons (e : YulExpr) (es : List YulExpr) :
+    exprsSize es < exprsSize (e :: es) := by
+  simp [exprsSize]
+  omega
+
+private theorem exprsSize_lt_exprSize_call (func : String) (args : List YulExpr) :
+    exprsSize args < exprSize (.call func args) := by
+  simp [exprSize]
+
+private theorem pairLex_same_fst {a b c : Nat} (h : b < c) :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y) (a, b) (a, c) := by
+  rw [Prod.lex_iff]
+  exact Or.inr ⟨rfl, h⟩
+
+private theorem pairLex_lt_fst {a a' b c : Nat} (h : a < a') :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y) (a, b) (a', c) := by
+  rw [Prod.lex_iff]
+  exact Or.inl h
+
+private theorem exprs_head_measure_decreases (fuel : Nat) (e : YulExpr) (es : List YulExpr) :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y)
+      (fuel, exprSize e) (fuel, exprsSize (e :: es)) := by
+  rw [Prod.lex_iff]
+  exact Or.inr ⟨rfl, exprSize_lt_exprsSize_cons e es⟩
+
+private theorem exprs_tail_measure_decreases (fuel : Nat) (e : YulExpr) (es : List YulExpr) :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y)
+      (fuel, exprsSize es) (fuel, exprsSize (e :: es)) := by
+  rw [Prod.lex_iff]
+  exact Or.inr ⟨rfl, exprsSize_tail_lt_exprsSize_cons e es⟩
+
+private theorem expr_call_measure_decreases (fuel : Nat) (func : String) (args : List YulExpr) :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y)
+      (fuel, exprsSize args + 1) (fuel, exprSize (.call func args)) := by
+  rw [Prod.lex_iff]
+  simp [exprSize]
+
+private theorem pairLex_same_fst_succ (a b : Nat) :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y) (a, b) (a, b + 1) := by
+  rw [Prod.lex_iff]
+  omega
+
+private theorem internal_call_measure_decreases (fuel measure : Nat) :
+    Prod.Lex (fun x y => x < y) (fun x y => x < y) (fuel, 0) (fuel.succ, measure + 1) := by
+  rw [Prod.lex_iff]
+  exact Or.inl (Nat.lt_succ_self fuel)
 
 /-! ## Execution State for IR -/
 
@@ -263,10 +309,9 @@ mutual
 
 /-- Evaluate a list of Yul expressions in the helper-aware IR context, threading
 stateful internal helper effects left-to-right. -/
-partial def evalIRExprsWithInternals
-    (contract : IRContract) (fuel : Nat) (state : IRState) (exprs : List YulExpr) :
-    IRValuesEvalResult :=
-  match exprs with
+def evalIRExprsWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) :
+    List YulExpr → IRValuesEvalResult
   | [] => .values [] state
   | e :: es =>
       match evalIRExprWithInternals contract fuel state e with
@@ -279,15 +324,18 @@ partial def evalIRExprsWithInternals
       | .stop state' => .stop state'
       | .return value state' => .return value state'
       | .revert state' => .revert state'
+termination_by exprs => (fuel, exprsSize exprs)
+decreasing_by
+  any_goals exact exprs_head_measure_decreases fuel e es
+  any_goals exact exprs_tail_measure_decreases fuel e es
 
 /-- Execute a contract-local helper call, propagating control-flow effects and
 restoring the caller's local variable frame on all non-revert exits. -/
-partial def execIRInternalFunctionWithInternals
-    (contract : IRContract) (fuel : Nat) (callerState : IRState)
-    (helper : IRInternalFunctionDef) (args : List Nat) : IRValuesEvalResult :=
-  match fuel with
-  | 0 => .revert callerState
-  | Nat.succ fuel' =>
+def execIRInternalFunctionWithInternals
+    (contract : IRContract) :
+    Nat → IRState → IRInternalFunctionDef → List Nat → IRValuesEvalResult
+  | 0, callerState, _helper, _args => .revert callerState
+  | Nat.succ fuel', callerState, helper, args =>
       if helper.params.length = args.length then
         let paramBindings := helper.params.zip args
         let retBindings := helper.rets.map (fun name => (name, 0))
@@ -307,17 +355,23 @@ partial def execIRInternalFunctionWithInternals
             .revert callerState
       else
         .revert callerState
+termination_by fuel => (fuel, 0)
+decreasing_by all_goals simp_wf; all_goals omega
 
 /-- Evaluate a Yul call in the helper-aware IR context. Builtins remain pure, while
 internal helper calls execute through `IRContract.internalFunctions`. -/
-partial def evalIRCallWithInternals
-    (contract : IRContract) (fuel : Nat) (state : IRState) (func : String)
-    (args : List YulExpr) : IRValuesEvalResult :=
-  match evalIRExprsWithInternals contract fuel state args with
+def evalIRCallWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) (func : String) :
+    List YulExpr → IRValuesEvalResult
+  | args =>
+    match evalIRExprsWithInternals contract fuel state args with
   | .values argVals state' =>
       match findInternalFunction? contract func with
       | some helper =>
-          execIRInternalFunctionWithInternals contract fuel state' helper argVals
+          match fuel with
+          | 0 => .revert state'
+          | Nat.succ fuel' =>
+              execIRInternalFunctionWithInternals contract fuel' state' helper argVals
       | none =>
           match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
               Compiler.Proofs.YulGeneration.defaultBuiltinBackend
@@ -329,12 +383,15 @@ partial def evalIRCallWithInternals
   | .stop state' => .stop state'
   | .return value state' => .return value state'
   | .revert state' => .revert state'
+termination_by args => (fuel, exprsSize args + 1)
+decreasing_by
+  any_goals exact pairLex_same_fst_succ fuel (exprsSize args)
+  any_goals exact internal_call_measure_decreases fuel' _
 
-/-- Evaluate a single expression in the helper-aware IR context. -/
-partial def evalIRExprWithInternals
-    (contract : IRContract) (fuel : Nat) (state : IRState) (expr : YulExpr) :
-    IRExprEvalResult :=
-  match expr with
+ /-- Evaluate a single expression in the helper-aware IR context. -/
+def evalIRExprWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) :
+    YulExpr → IRExprEvalResult
   | .lit n => .value n state
   | .hex n => .value n state
   | .str _ => .revert state
@@ -349,17 +406,17 @@ partial def evalIRExprWithInternals
       | .stop state' => .stop state'
       | .return value state' => .return value state'
       | .revert state' => .revert state'
+termination_by expr => (fuel, exprSize expr)
+decreasing_by
+  exact expr_call_measure_decreases fuel func args
 
 /-- Execute a single Yul statement in the helper-aware IR context. -/
-partial def execIRStmtWithInternals
-    (contract : IRContract) (fuel : Nat) (state : IRState) (stmt : YulStmt) :
-    IRExecResultWithInternals :=
-  match stmt with
-  | .funcDef _ _ _ _ => .continue state
-  | _ =>
-    match fuel with
-    | 0 => .revert state
-    | Nat.succ fuel =>
+def execIRStmtWithInternals
+    (contract : IRContract) :
+    Nat → IRState → YulStmt → IRExecResultWithInternals
+  | _, state, .funcDef _ _ _ _ => .continue state
+  | 0, state, _ => .revert state
+  | Nat.succ fuel, state, stmt =>
       match stmt with
       | .comment _ => .continue state
       | .let_ name value =>
@@ -488,12 +545,13 @@ partial def execIRStmtWithInternals
       | .block stmts =>
           execIRStmtsWithInternals contract fuel state stmts
       | .funcDef _ _ _ _ => .continue state
+termination_by fuel => (fuel, 0)
+decreasing_by all_goals simp_wf; all_goals omega
 
 /-- Execute a list of statements in the helper-aware IR context. -/
-partial def execIRStmtsWithInternals
-    (contract : IRContract) (fuel : Nat) (state : IRState) (stmts : List YulStmt) :
-    IRExecResultWithInternals :=
-  match stmts with
+def execIRStmtsWithInternals
+    (contract : IRContract) (fuel : Nat) (state : IRState) :
+    List YulStmt → IRExecResultWithInternals
   | [] => .continue state
   | stmt :: rest =>
       match fuel with
@@ -505,6 +563,8 @@ partial def execIRStmtsWithInternals
           | .stop state' => .stop state'
           | .revert state' => .revert state'
           | .leave state' => .leave state'
+termination_by stmts => (fuel, stmts.length)
+decreasing_by all_goals simp_wf; all_goals omega
 
 end
 

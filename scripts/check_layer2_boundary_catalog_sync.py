@@ -51,7 +51,7 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
             "macro-lowered image of `verity_contract`",
             "helper-free `SupportedStmtList` witness",
             "legacy-compatible external-body Yul subset",
-            "opaque `partial def` executables",
+            "total fuel-indexed helper-aware IR semantics",
         ],
         "ROADMAP": [
             "`artifacts/layer2_boundary_catalog.json`",
@@ -59,7 +59,7 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
             "`calls.helperCompatibility` can disappear",
             "`execIRFunctionWithInternals` / `interpretIRWithInternals`",
             "conservative extension of `interpretIR`",
-            "opaque `partial def` executables",
+            "total fuel-indexed helper-aware IR semantics",
             "[#1638]",
         ],
         "VERIFICATION_STATUS": [
@@ -68,7 +68,7 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
             "`calls.helperCompatibility` gate",
             "helper-aware body theorem does not yet consume helper-summary soundness/rank evidence",
             "legacy-compatible external-body Yul subset",
-            "opaque `partial def` executables",
+            "total fuel-indexed helper-aware IR semantics",
             "[#1638]",
         ],
         "COMPILER_PROOFS_README": [
@@ -77,7 +77,7 @@ def expected_snippets(catalog: dict) -> dict[str, list[str]]:
             "`calls.helpers`",
             "summary-soundness evidence",
             "legacy-compatible external-body Yul subset",
-            "opaque `partial def` executables",
+            "total fuel-indexed helper-aware IR semantics",
             "[#1638]",
         ],
     }

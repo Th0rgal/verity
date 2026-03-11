@@ -52,7 +52,6 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
                 "legacy_stmt_fragment_witness",
                 "ir_internal_call_semantics",
                 "legacy_ir_target_compatibility_subset",
-                "opaque_helper_ir_semantics_surface",
                 "summary_soundness_not_yet_consumed",
             ],
         )
@@ -60,7 +59,7 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_proof_surface"
             ]["status"],
-            "executable_target_still_opaque_partial_defs",
+            "helper_aware_ir_target_now_total_fuel_indexed_defs",
         )
         self.assertEqual(
             [step["rank"] for step in catalog["ranked_next_steps"]],
