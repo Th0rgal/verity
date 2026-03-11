@@ -958,6 +958,20 @@ private def requireSupportedReturnArrayType
   | _ =>
       throwErrorAt stx s!"{context} requires an Array value, got {renderValueType ty}"
 
+private def requireSupportedArrayElementSourceType
+    (stx : Syntax)
+    (context : String)
+    (ty : ValueType) : CommandElabM ValueType := do
+  match ty with
+  | .array elemTy =>
+      if isSingleWordStaticValueType elemTy then
+        pure elemTy
+      else
+        throwErrorAt stx
+          s!"{context} currently supports only arrays with single-word static elements on the compilation-model path, got {renderValueType ty}"
+  | _ =>
+      throwErrorAt stx s!"{context} requires an Array parameter, got {renderValueType ty}"
+
 private def directParamNameWithType?
     (params : Array ParamDecl)
     (stx : Term) : Option (String × ValueType) :=
@@ -1239,10 +1253,8 @@ private partial def inferPureExprType
       | none => throwErrorAt name "unknown array value"
   | `(term| arrayElement $name:term $index:term) => do
       requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
-      match lookupNamedValueType? constDecls immutableDecls params locals (← expectStringOrIdent name) with
-      | some (.array elemTy) => pure elemTy
-      | some ty => throwErrorAt name s!"arrayElement expects an Array value, got {renderValueType ty}"
-      | none => throwErrorAt name "unknown array value"
+      let sourceTy ← requireDirectParamRef name "arrayElement" params
+      requireSupportedArrayElementSourceType name "arrayElement" sourceTy
   | `(term| mulDivDown $a $b $c) | `(term| mulDivUp $a $b $c) => do
       for arg in [a, b, c] do
         requireWordLikeType arg "mulDiv" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg visitingConstants)

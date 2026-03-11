@@ -236,6 +236,28 @@ verity_contract BytesArrayReturnUnsupported where
   function echo (calls : Array Bytes) : Array Bytes := do
     returnArray calls
 
+/--
+error: arrayElement currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.string)
+-/
+#guard_msgs in
+verity_contract StringArrayElementUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function first (messages : Array String) : String := do
+    return (arrayElement messages 0)
+
+/--
+error: arrayElement currently supports only arrays with single-word static elements on the compilation-model path, got Verity.Macro.ValueType.array (Verity.Macro.ValueType.bytes)
+-/
+#guard_msgs in
+verity_contract BytesArrayElementUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function first (calls : Array Bytes) : Bytes := do
+    return (arrayElement calls 0)
+
 #check_contract StringSmoke
 #check_contract StringEqSmoke
 #check_contract BytesEqSmoke
