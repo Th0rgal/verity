@@ -15,7 +15,12 @@ Machine-readable version: [`artifacts/interpreter_feature_matrix.json`](../artif
 | **YulSemantics** | `Compiler/Proofs/YulGeneration/Semantics.lean` | `execYulFuel` | Layer-3 Yul execution semantics |
 | **EVMYulLean bridge** | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | `evalBuiltinCallViaEvmYulLean` | Pure builtin evaluation via EVMYulLean UInt256 |
 
-The `SpecInterpreter` has been removed. EDSL semantics are now defined directly in `Verity/Core.lean` via the `Contract` monad and composed with IR/Yul layers through `SemanticBridge` proofs.
+The old `SpecInterpreter` module has been removed. Source semantics now live in
+`Verity/Core.lean`, with the supported whole-contract Layer-2 source-side model
+assembled in `Compiler/Proofs/IRGeneration/SourceSemantics.lean`. This matrix
+keeps the legacy `Spec (basic)` / `Spec (fuel)` column names, and the
+machine-readable artifact keeps `SpecInterpreter_*` keys, for compatibility
+with the existing sync scripts and boundary checks.
 
 ---
 
@@ -159,5 +164,5 @@ Proof-boundary features split across two buckets. Partially modeled features cur
 
 ---
 
-**Last Updated**: 2026-03-08
+**Last Updated**: 2026-03-11
 **Machine-readable artifact**: `artifacts/interpreter_feature_matrix.json`
