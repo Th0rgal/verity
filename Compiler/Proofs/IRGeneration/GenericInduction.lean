@@ -1,4 +1,5 @@
 import Compiler.CompilationModel.Compile
+import Compiler.CompilationModel.ValidationCalls
 import Compiler.Proofs.IRGeneration.FunctionBody
 
 namespace Compiler.Proofs.IRGeneration
@@ -845,6 +846,57 @@ private theorem compatValue_not_mem_scope_of_reservedPrefix
     hscopeReserved "__compat_value" hmem
   exact hreserved (by native_decide)
 
+private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
+    {spec : CompilationModel}
+    {name : String}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hmem : name ∈ spec.fields.map (·.name)) :
+    ¬ name.startsWith "__" := by
+  have hfield :
+      ∃ field, field ∈ spec.fields ∧ field.name = name := by
+    induction spec.fields with
+    | nil =>
+        cases hmem
+    | cons field rest ih =>
+        simp at hmem
+        rcases hmem with rfl | hmem
+        · exact ⟨field, by simp, rfl⟩
+        · rcases ih hmem with ⟨found, hfoundMem, hfoundName⟩
+          exact ⟨found, by simp [hfoundMem], hfoundName⟩
+  rcases hfield with ⟨field, hfieldMem, hfieldName⟩
+  subst hfieldName
+  exact CompilationModel.validateIdentifierShapes_field_avoidReservedCompilerPrefix
+    hvalidate hfieldMem
+
+private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {scope : List String}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hscopeNames :
+      ∀ name, name ∈ scope →
+        name ∈
+          (fn.params.map (·.name) ++
+            collectStmtListBindNames fn.body ++
+            collectStmtListAssignedNames fn.body ++
+            spec.fields.map (·.name))) :
+    scopeAvoidsReservedCompilerPrefix scope := by
+  intro name hmem
+  have hname := hscopeNames name hmem
+  repeat
+    rw [List.mem_append] at hname
+  rcases hname with hparam | hrest
+  · exact CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+      hvalidate hfn hparam
+  rcases hrest with hlocal | hrest
+  · exact CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+      hvalidate hfn hlocal
+  rcases hrest with hassign | hfield
+  · exact CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
+      hvalidate hfn hassign
+  · exact validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix hvalidate hfield
+
 theorem compiledStmtStep_setStorage_singleSlot
     {fields : List Field}
     {scope : List String}
@@ -1010,6 +1062,69 @@ theorem compiledStmtStep_setStorage_aliasSlots
             hexact (compatValue_not_mem_scope_of_reservedPrefix hscopeReserved)
         simpa [slots, IRState.setVar] using
           bindingsExactlyMatchIRVarsOnScope_writeUintSlots hexactSet
+
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hscopeNames :
+      ∀ name, name ∈ scope →
+        name ∈
+          (fn.params.map (·.name) ++
+            collectStmtListBindNames fn.body ++
+            collectStmtListAssignedNames fn.body ++
+            spec.fields.map (·.name)))
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope)
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR, CompiledStmtStep spec.fields scope (.setStorage fieldName value) compiledIR := by
+  by_cases halias : f.aliasSlots = []
+  · refine ⟨[YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, valueIR])], ?_⟩
+    apply compiledStmtStep_setStorage_singleSlot
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := ?_)
+      (halias := halias)
+      (hunpacked := hunpacked)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := hnotAddr)
+      (hnotDyn := hnotDyn)
+      (hvalueIR := hvalueIR)
+    simpa [halias] using hwriteSlots
+  · refine
+      ⟨[YulStmt.block
+          ([YulStmt.let_ "__compat_value" valueIR] ++
+            (slot :: f.aliasSlots).map (fun writeSlot =>
+              YulStmt.expr
+                (YulExpr.call "sstore" [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))],
+        ?_⟩
+    apply compiledStmtStep_setStorage_aliasSlots
+      (hcore := hcore)
+      (hinScope := hinScope)
+      (hfind := hfind)
+      (hwriteSlots := hwriteSlots)
+      (halias := halias)
+      (hscopeReserved := scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
+        hvalidate hfn hscopeNames)
+      (hunpacked := hunpacked)
+      (hnoConflict := hnoConflict)
+      (hnotAddr := hnotAddr)
+      (hnotDyn := hnotDyn)
+      (hvalueIR := hvalueIR)
 
 private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
     {fields : List Field}
