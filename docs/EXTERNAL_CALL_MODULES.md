@@ -181,55 +181,23 @@ surface is merely `assumed` or fully `unchecked`. The localized usage-site
 section mirrors the same boundary at the constructor/function level, including
 low-level mechanics, linked external/module `proofStatus`, and per-site axioms.
 
-For machine-readable audit trails, `verity-compiler --trust-report <path>` now
-emits per-contract JSON that includes:
-- first-class low-level call / returndata mechanics used by the spec
-- not-modeled raw event-emission mechanics used by the spec (`rawLog`)
-- axiomatized primitives used directly by the spec (for example `keccak256`)
-- linked external assumptions with `status`
-- ECM assumption entries (`module`, `assumption`) plus per-module `status`
-- explicit `proofStatus.proved` / `proofStatus.assumed` / `proofStatus.unchecked`
-  buckets for foreign trust surfaces
-- `usageSites` entries that localize those mechanics and assumptions to the
-  constructor or individual function that introduced them
-- `notModeledProxyUpgradeability` entries that isolate `delegatecall` as the
-  current proxy / upgradeability proof gap tracked under issue `#1420`
-- `partiallyModeledLinearMemoryMechanics` entries that isolate the current
-  linear-memory proof gap (`mload`, `mstore`, `calldatacopy`,
-  `returndataCopy`, `returndataOptionalBoolAt`) at both contract and
-  usage-site granularity
-- `partiallyModeledRuntimeIntrospection` entries that isolate the current
-  runtime-introspection proof gap (`blockNumber`, `contractAddress`,
-  `chainid`) at both contract and usage-site granularity
-- `hasUncheckedDependencies` so CI/reporting layers can fail or warn on
-  contracts that are not eligible for full-verification claims
+For machine-readable audit trails, `verity-compiler --trust-report <path>` emits per-contract JSON covering:
+- ECM assumption entries (`module`, `assumption`, `status`)
+- Linked external assumptions with `status`
+- Axiomatized primitives (e.g. `keccak256`)
+- Low-level call / returndata mechanics
+- Raw event emission (`rawLog`)
+- Proof-gap categories: `notModeledProxyUpgradeability`, `partiallyModeledLinearMemoryMechanics`, `partiallyModeledRuntimeIntrospection`
+- `proofStatus.proved` / `proofStatus.assumed` / `proofStatus.unchecked` buckets
+- `usageSites` localizing each surface to the constructor or function that introduced it
+- `hasUncheckedDependencies` for CI gating
 
-For verification-oriented compiles, `verity-compiler --deny-unchecked-dependencies`
-turns that report into a hard gate: compilation exits nonzero if any selected
-contract still depends on an `unchecked` linked external or ECM module, and the
-failure now cites the exact constructor/function usage site that introduced the
-unchecked dependency. For proof-strict runs that require fully proved foreign
-surfaces, `verity-compiler --deny-assumed-dependencies` fails closed on both
-`assumed` and `unchecked` linked externals / ECM modules and localizes the
-diagnostic to the exact usage site. For primitive-proof-strict runs,
-`verity-compiler --deny-axiomatized-primitives` fails closed when any selected
-contract still uses axiomatized primitives such as `keccak256`, again citing
-the exact constructor/function usage site. For memory-proof-strict runs,
-`verity-compiler --deny-linear-memory-mechanics` fails closed when any selected
-contract still uses partially modeled linear-memory mechanics, again citing the
-exact constructor/function usage site. For event-proof-strict runs,
-`verity-compiler --deny-event-emission` fails closed when any selected contract
-still uses raw `rawLog` event emission, again citing the exact
-constructor/function usage site. For low-level-proof-strict runs,
-`verity-compiler --deny-low-level-mechanics` fails closed when any selected
-contract still uses first-class low-level call / returndata mechanics, again
-citing the exact constructor/function usage site. For proxy-proof-strict runs,
-`verity-compiler --deny-proxy-upgradeability` fails closed when any selected
-contract still uses `delegatecall`, again citing the exact constructor/function
-usage site. For runtime-proof-strict runs,
-`verity-compiler --deny-runtime-introspection` fails closed when any selected
-contract still uses partially modeled runtime-introspection primitives, again
-citing the exact constructor/function usage site.
+**Fail-closed flags**: a set of `--deny-*` flags lets you reject specific trust surfaces at compile time. Each flag fails the build and reports the exact usage site. See the [full flag table in VERIFICATION_STATUS.md](./VERIFICATION_STATUS.md#solidity-interop-support-matrix-issue-586) for the complete list. The most relevant for ECM users:
+
+| Flag | Rejects |
+|------|---------|
+| `--deny-unchecked-dependencies` | Any `unchecked` linked external or ECM module |
+| `--deny-assumed-dependencies` | Any `assumed` or `unchecked` linked external or ECM module |
 
 ## Trust Model
 
