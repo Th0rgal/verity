@@ -1021,6 +1021,50 @@ private def requireSupportedLocalBindingType
     throwErrorAt stx
       s!"{context} currently cannot bind dynamic values ({renderValueType ty}) to local variables on the compilation-model path; use the parameter directly"
 
+private def customErrorRequiresDirectParamRef : ValueType → Bool
+  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => false
+  | _ => true
+
+private def directParamRefName? (stx : Term) : Option String :=
+  match stripParens stx with
+  | `(term| $id:ident) => some (toString id.getId)
+  | _ => none
+
+private def validateDirectParamCustomErrorArg
+    (arg : Term)
+    (fnName errorName : String)
+    (params : Array ParamDecl)
+    (expectedTy : ValueType)
+    (argIdx : Nat) : CommandElabM Unit := do
+  match directParamRefName? arg with
+  | some name =>
+      match params.find? (·.name == name) with
+      | some param =>
+          unless param.ty == expectedTy do
+            throwErrorAt arg
+              s!"custom error '{errorName}' arg {argIdx + 1} in function '{fnName}' expects direct parameter reference of type {renderValueType expectedTy}, got parameter '{name}' of type {renderValueType param.ty}"
+      | none =>
+          throwErrorAt arg
+            s!"custom error '{errorName}' arg {argIdx + 1} in function '{fnName}' references unknown parameter '{name}' on the compilation-model path"
+  | none =>
+      throwErrorAt arg
+        s!"custom error '{errorName}' arg {argIdx + 1} in function '{fnName}' currently requires direct parameter reference of type {renderValueType expectedTy} on the compilation-model path"
+
+private def validateCustomErrorCall
+    (fnName errorName : String)
+    (params : Array ParamDecl)
+    (errorDecls : Array ErrorDecl)
+    (args : Array Term) : CommandElabM Unit := do
+  let errorDecl ←
+    match errorDecls.find? (·.name == errorName) with
+    | some decl => pure decl
+    | none => throwError s!"unknown custom error '{errorName}'"
+  unless errorDecl.params.size == args.size do
+    throwError s!"custom error '{errorName}' expects {errorDecl.params.size} args, got {args.size}"
+  for ((expectedTy, arg), argIdx) in errorDecl.params.zip args |>.zipIdx do
+    if customErrorRequiresDirectParamRef expectedTy then
+      validateDirectParamCustomErrorArg arg fnName errorName params expectedTy argIdx
+
 mutual
 private partial def inferPureExprType
     (fields : Array StorageFieldDecl)
@@ -2166,39 +2210,45 @@ private def lookupFunctionByNameAndArity
 
 mutual
 private partial def validateDoSeqExprTypes
+    (ownerName : String)
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
+    (errorDecls : Array ErrorDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (doSeq : DoSeq) : CommandElabM Unit := do
   match doSeq with
   | `(doSeq| $[$elems:doElem]*) =>
-      let _ ← validateDoElemsExprTypes fields constDecls immutableDecls externalDecls functions params locals elems
+      let _ ← validateDoElemsExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals elems
       pure ()
   | _ => throwErrorAt doSeq "unsupported branch body; expected do-sequence"
 
 private partial def validateDoElemsExprTypes
+    (ownerName : String)
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
+    (errorDecls : Array ErrorDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
     (elems : Array (TSyntax `doElem)) : CommandElabM (Array TypedLocal) := do
   let mut branchLocals := locals
   for elem in elems do
-    branchLocals ← validateDoElemExprTypes fields constDecls immutableDecls externalDecls functions params branchLocals elem
+    branchLocals ← validateDoElemExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params branchLocals elem
   pure branchLocals
 
 private partial def validateDoElemExprTypes
+    (ownerName : String)
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
+    (errorDecls : Array ErrorDecl)
     (functions : Array FunctionDecl)
     (params : Array ParamDecl)
     (locals : Array TypedLocal)
@@ -2268,15 +2318,15 @@ private partial def validateDoElemExprTypes
           pure locals
       | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
           requireBoolType cond "if condition" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals cond)
-          validateDoSeqExprTypes fields constDecls immutableDecls externalDecls functions params locals thenBranch
-          validateDoSeqExprTypes fields constDecls immutableDecls externalDecls functions params locals elseBranch
+          validateDoSeqExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals thenBranch
+          validateDoSeqExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals elseBranch
           pure locals
       | `(doElem| forEach $name:term $count:term $body:term) =>
           requireWordLikeType count "forEach count" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals count)
           match stripParens body with
           | `(term| do $[$inner:doElem]*) =>
               let _ ← validateDoElemsExprTypes
-                fields constDecls immutableDecls externalDecls functions params
+                ownerName fields constDecls immutableDecls externalDecls errorDecls functions params
                 (locals.push (← expectStringOrIdent name, .uint256))
                 inner
               pure locals
@@ -2285,21 +2335,27 @@ private partial def validateDoElemExprTypes
           requireBoolType cond "requireError condition" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals cond)
           for arg in args.getElems do
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+          validateCustomErrorCall ownerName (toString errorName.getId)
+            params errorDecls args.getElems
           pure locals
       | `(doElem| revert $errorName:ident($args,*)) =>
           for arg in args.getElems do
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+          validateCustomErrorCall ownerName (toString errorName.getId)
+            params errorDecls args.getElems
           pure locals
       | `(doElem| revertError $errorName:ident($args,*)) =>
           for arg in args.getElems do
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg
+          validateCustomErrorCall ownerName (toString errorName.getId)
+            params errorDecls args.getElems
           pure locals
       | `(doElem| tryCatch $attempt:term $handler:term) => do
           requireWordLikeType attempt "tryCatch attempt"
             (← inferPureExprType fields constDecls immutableDecls externalDecls params locals attempt)
           let (payloadName?, catchElems) ← parseTryCatchHandler handler
           validateTryCatchHandlerDoesNotUsePayload handler payloadName? catchElems
-          let _ ← validateDoElemsExprTypes fields constDecls immutableDecls externalDecls functions params locals catchElems
+          let _ ← validateDoElemsExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals catchElems
           pure locals
       | `(doElem| $stmt:term) =>
           validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls params locals stmt
@@ -2393,6 +2449,7 @@ end
 
 private def validateFunctionBodyExprTypes
     (fields : Array StorageFieldDecl)
+    (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
@@ -2400,7 +2457,7 @@ private def validateFunctionBodyExprTypes
     (fn : FunctionDecl) : CommandElabM Unit := do
   match fn.body with
   | `(term| do $[$elems:doElem]*) =>
-      let _ ← validateDoElemsExprTypes fields constDecls immutableDecls externalDecls functions fn.params #[] elems
+      let _ ← validateDoElemsExprTypes fn.name fields constDecls immutableDecls externalDecls errorDecls functions fn.params #[] elems
       pure ()
   | _ => throwErrorAt fn.body "function body must be a do block"
 
@@ -2412,6 +2469,7 @@ private def validateConstantExprTypes
 
 private def validateConstructorBodyExprTypes
     (fields : Array StorageFieldDecl)
+    (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
@@ -2419,7 +2477,7 @@ private def validateConstructorBodyExprTypes
     (ctor : ConstructorDecl) : CommandElabM Unit := do
   match ctor.body with
   | `(term| do $[$elems:doElem]*) =>
-      let _ ← validateDoElemsExprTypes fields constDecls immutableDecls externalDecls functions ctor.params #[] elems
+      let _ ← validateDoElemsExprTypes "constructor" fields constDecls immutableDecls externalDecls errorDecls functions ctor.params #[] elems
       pure ()
   | _ => throwErrorAt ctor.body "constructor body must be a do block"
 
@@ -3465,6 +3523,7 @@ private def validateLocalObligationDecls
 
 def validateFunctionDeclsPublic
     (fields : Array StorageFieldDecl)
+    (errorDecls : Array ErrorDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
@@ -3473,11 +3532,11 @@ def validateFunctionDeclsPublic
   match ctor with
   | some ctor =>
       validateLocalObligationDecls "constructor" ctor.localObligations
-      validateConstructorBodyExprTypes fields constDecls immutableDecls externalDecls functions ctor
+      validateConstructorBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions ctor
   | none => pure ()
   for fn in functions do
     validateLocalObligationDecls s!"function '{fn.name}'" fn.localObligations
-    validateFunctionBodyExprTypes fields constDecls immutableDecls externalDecls functions fn
+    validateFunctionBodyExprTypes fields errorDecls constDecls immutableDecls externalDecls functions fn
 
 def mkFunctionCommandsPublic
     (fields : Array StorageFieldDecl)

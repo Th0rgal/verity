@@ -75,6 +75,34 @@ def checkSecondMessageExecutableBranchesOnCondition : Bool :=
 
 example : checkSecondMessageExecutableBranchesOnCondition = true := by decide
 
+/--
+error: custom error 'BadMessage' arg 1 in function 'checkMessage' currently requires direct parameter reference of type Verity.Macro.ValueType.string on the compilation-model path
+-/
+#guard_msgs in
+verity_contract StringErrorExprUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  errors
+    error BadMessage(String)
+
+  function checkMessage (ok : Bool, _message : String) : Unit := do
+    requireError ok BadMessage(ite ok _message _message)
+
+/--
+error: custom error 'BadMessages' arg 1 in function 'checkBatch' currently requires direct parameter reference of type Verity.Macro.ValueType.array (Verity.Macro.ValueType.string) on the compilation-model path
+-/
+#guard_msgs in
+verity_contract StringArrayErrorExprUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  errors
+    error BadMessages(Array String)
+
+  function checkBatch (ok : Bool, messages : Array String) : Unit := do
+    requireError ok BadMessages(ite ok messages messages)
+
 #check_contract StringErrorSmoke
 
 end Contracts

@@ -19,7 +19,7 @@ def elabVerityContract : CommandElab := fun stx => do
   validateConstantDeclsPublic constDecls
   validateImmutableDeclsPublic fields constDecls immutableDecls ctor
   validateExternalDeclsPublic externalDecls
-  validateFunctionDeclsPublic fields constDecls immutableDecls externalDecls ctor functions
+  validateFunctionDeclsPublic fields errorDecls constDecls immutableDecls externalDecls ctor functions
 
   elabCommand (← `(namespace $contractName))
   try
