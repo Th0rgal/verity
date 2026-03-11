@@ -522,28 +522,34 @@ private def ensureNonReservedYulIdentifier (kind name : String) : Except String 
   if name.startsWith "__" then
     throw s!"Compilation error: {kind} '{name}' uses reserved compiler prefix '__' ({issue756Ref}). Rename it."
 
+def validateFunctionIdentifiers (fn : FunctionSpec) : Except String Unit := do
+  ensureContractIdentifier "function" fn.name
+  for p in fn.params do
+    ensureContractIdentifier "function parameter" p.name
+    ensureNonReservedYulIdentifier "function parameter" p.name
+  for localName in collectStmtListBindNames fn.body do
+    ensureContractIdentifier "local binder" localName
+    ensureNonReservedYulIdentifier "local binder" localName
+
+def validateConstructorIdentifiers (ctor : ConstructorSpec) : Except String Unit := do
+  for p in ctor.params do
+    ensureContractIdentifier "constructor parameter" p.name
+    ensureNonReservedYulIdentifier "constructor parameter" p.name
+  for localName in collectStmtListBindNames ctor.body do
+    ensureContractIdentifier "local binder" localName
+    ensureNonReservedYulIdentifier "local binder" localName
+
 def validateIdentifierShapes (spec : CompilationModel) : Except String Unit := do
   ensureContractIdentifier "contract" spec.name
   for field in spec.fields do
     ensureContractIdentifier "field" field.name
     ensureNonReservedYulIdentifier "field" field.name
   for fn in spec.functions do
-    ensureContractIdentifier "function" fn.name
-    for p in fn.params do
-      ensureContractIdentifier "function parameter" p.name
-      ensureNonReservedYulIdentifier "function parameter" p.name
-    for localName in collectStmtListBindNames fn.body do
-      ensureContractIdentifier "local binder" localName
-      ensureNonReservedYulIdentifier "local binder" localName
+    validateFunctionIdentifiers fn
   match spec.constructor with
   | none => pure ()
   | some ctor =>
-      for p in ctor.params do
-        ensureContractIdentifier "constructor parameter" p.name
-        ensureNonReservedYulIdentifier "constructor parameter" p.name
-      for localName in collectStmtListBindNames ctor.body do
-        ensureContractIdentifier "local binder" localName
-        ensureNonReservedYulIdentifier "local binder" localName
+      validateConstructorIdentifiers ctor
   for eventDef in spec.events do
     ensureContractIdentifier "event" eventDef.name
     for p in eventDef.params do
