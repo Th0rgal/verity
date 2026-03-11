@@ -1,8 +1,9 @@
-import Compiler.CompileDriverBase
+import Compiler.CompileDriver
 import Compiler.ModuleInput
+import Compiler.ParityPacks
 
 /-!
-## Baseline CLI Argument Parsing
+## CLI Argument Parsing
 
 Supports:
 - `--link <path>` : Link external Yul library (can be specified multiple times)
@@ -18,8 +19,17 @@ private structure CLIArgs where
   modules : List String := []
   libs : List String := []
   verbose : Bool := false
-  backendProfile : Compiler.Base.BackendProfile := .semantic
-  mappingSlotScratchBase : Nat := 0
+  backendProfile : Compiler.BackendProfile := .semantic
+  backendProfileExplicit : Bool := false
+  parityPackId : Option String := none
+  patchEnabled : Bool := false
+  patchMaxIterations : Nat := 2
+  patchMaxIterationsExplicit : Bool := false
+  patchReportPath : Option String := none
+  trustReportPath : Option String := none
+  assumptionReportPath : Option String := none
+  layoutReportPath : Option String := none
+  layoutCompatibilityReportPath : Option String := none
   denyUncheckedDependencies : Bool := false
   denyAssumedDependencies : Bool := false
   denyAxiomatizedPrimitives : Bool := false
@@ -30,34 +40,46 @@ private structure CLIArgs where
   denyRuntimeIntrospection : Bool := false
   denyProxyUpgradeability : Bool := false
   denyLayoutIncompatibility : Bool := false
-  trustReportPath : Option String := none
-  assumptionReportPath : Option String := none
-  layoutReportPath : Option String := none
-  layoutCompatibilityReportPath : Option String := none
+  mappingSlotScratchBase : Nat := 0
+  mappingSlotScratchBaseExplicit : Bool := false
 
-private def parseBackendProfile (raw : String) : Option Compiler.Base.BackendProfile :=
+private def profileForcesPatches (profile : Compiler.BackendProfile) : Bool :=
+  match profile with
+  | .solidityParity => true
+  | _ => false
+
+private def packForcesPatches (cfg : CLIArgs) : Bool :=
+  match cfg.parityPackId with
+  | some packId =>
+      match Compiler.findParityPack? packId with
+      | some pack => pack.forcePatches
+      | none => false
+  | none => false
+
+private def patchEnabledFor (cfg : CLIArgs) : Bool :=
+  cfg.patchEnabled || profileForcesPatches cfg.backendProfile || packForcesPatches cfg
+
+private def parseBackendProfile (raw : String) : Option Compiler.BackendProfile :=
   match raw with
   | "semantic" => some .semantic
   | "solidity-parity-ordering" => some .solidityParityOrdering
+  | "solidity-parity" => some .solidityParity
   | _ => none
 
-private def backendProfileString (profile : Compiler.Base.BackendProfile) : String :=
+private def backendProfileString (profile : Compiler.BackendProfile) : String :=
   match profile with
   | .semantic => "semantic"
   | .solidityParityOrdering => "solidity-parity-ordering"
   | .solidityParity => "solidity-parity"
-
-private def patchedCompilerHint : String :=
-  "Patch-enabled compilation moved to `verity-compiler-patched`."
 
 private def parseArgs (args : List String) : IO CLIArgs := do
   let rec go (remaining : List String) (cfg : CLIArgs) : IO CLIArgs :=
     match remaining with
     | [] => pure { cfg with libs := cfg.libs.reverse, modules := cfg.modules.reverse }
     | "--help" :: _ | "-h" :: _ => do
-        IO.println "Verity Compiler"
+        IO.println "Verity Compiler (patched)"
         IO.println ""
-        IO.println "Usage: verity-compiler [options]"
+        IO.println "Usage: verity-compiler-patched [options]"
         IO.println ""
         IO.println "Options:"
         IO.println "  --link <path>      Link external Yul library (can be used multiple times)"
@@ -66,7 +88,11 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --abi-output <dir> Output ABI JSON artifacts (one <Contract>.abi.json per spec)"
         IO.println "  --manifest <path>  Manifest file with one Lean module per line"
         IO.println "  --module <name>    Import a Lean module and compile its canonical `<Module>.spec`"
-        IO.println "  --backend-profile <semantic|solidity-parity-ordering>"
+        IO.println "  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>"
+        IO.println "  --parity-pack <id> Versioned parity-pack tuple (see docs/PARITY_PACKS.md)"
+        IO.println "  --enable-patches   Enable deterministic Yul patch pass"
+        IO.println "  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)"
+        IO.println "  --patch-report <path>       Write TSV patch coverage report"
         IO.println "  --trust-report <path>       Write JSON trust-surface report"
         IO.println "  --assumption-report <path>  Write JSON assumption inventory report"
         IO.println "  --layout-report <path>      Write JSON storage-layout report"
@@ -87,10 +113,10 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         IO.println "  --help             Show this help message"
         IO.println "  -h                 Short form of --help"
         IO.println ""
-        IO.println patchedCompilerHint
         IO.println "Example:"
-        IO.println "  verity-compiler --manifest packages/verity-examples/contracts.manifest -o artifacts/yul"
-        IO.println "  verity-compiler --module Contracts.Counter.Counter -o artifacts/yul"
+        IO.println "  verity-compiler-patched --manifest packages/verity-examples/contracts.manifest -o artifacts/yul"
+        IO.println "  verity-compiler-patched --module Contracts.Counter.Counter -o artifacts/yul"
+        IO.println "  verity-compiler-patched --enable-patches --patch-report artifacts/patch-report.tsv"
         throw (IO.userError "help")
     | "--link" :: path :: rest =>
         go rest { cfg with libs := path :: cfg.libs }
@@ -116,26 +142,54 @@ private def parseArgs (args : List String) : IO CLIArgs := do
     | ["--module"] =>
         throw (IO.userError "Missing value for --module")
     | "--backend-profile" :: raw :: rest =>
-        match raw with
-        | "solidity-parity" =>
-            throw (IO.userError
-              s!"Backend profile `solidity-parity` requires `verity-compiler-patched`. {patchedCompilerHint}")
-        | _ =>
-            match parseBackendProfile raw with
-            | some profile => go rest { cfg with backendProfile := profile }
-            | none =>
-                throw (IO.userError
-                  s!"Invalid value for --backend-profile: {raw} (expected semantic or solidity-parity-ordering)")
+        if cfg.parityPackId.isSome then
+          throw (IO.userError "Cannot combine --backend-profile with --parity-pack")
+        else
+          match parseBackendProfile raw with
+          | some profile => go rest { cfg with backendProfile := profile, backendProfileExplicit := true }
+          | none =>
+              throw (IO.userError s!"Invalid value for --backend-profile: {raw} (expected semantic, solidity-parity-ordering, or solidity-parity)")
     | ["--backend-profile"] =>
         throw (IO.userError "Missing value for --backend-profile")
-    | "--enable-patches" :: _ =>
-        throw (IO.userError s!"`--enable-patches` requires `verity-compiler-patched`. {patchedCompilerHint}")
-    | "--patch-max-iterations" :: _ =>
-        throw (IO.userError s!"`--patch-max-iterations` requires `verity-compiler-patched`. {patchedCompilerHint}")
-    | "--patch-report" :: _ =>
-        throw (IO.userError s!"`--patch-report` requires `verity-compiler-patched`. {patchedCompilerHint}")
-    | "--parity-pack" :: _ =>
-        throw (IO.userError s!"`--parity-pack` requires `verity-compiler-patched`. {patchedCompilerHint}")
+    | "--parity-pack" :: raw :: rest =>
+        if cfg.parityPackId.isSome then
+          throw (IO.userError "Cannot specify --parity-pack more than once")
+        else if cfg.backendProfileExplicit then
+          throw (IO.userError "Cannot combine --parity-pack with --backend-profile")
+        else
+          match Compiler.findParityPack? raw with
+          | some pack =>
+              if !pack.proofCompositionValid then
+                throw (IO.userError
+                  s!"Parity pack '{pack.id}' is missing valid proof composition metadata")
+              else
+                go rest {
+                  cfg with
+                    parityPackId := some pack.id
+                    backendProfile := pack.backendProfile
+                    patchEnabled := cfg.patchEnabled || pack.forcePatches
+                    patchMaxIterations :=
+                      if cfg.patchMaxIterationsExplicit then cfg.patchMaxIterations else pack.defaultPatchMaxIterations
+                    mappingSlotScratchBase :=
+                      if cfg.mappingSlotScratchBaseExplicit then cfg.mappingSlotScratchBase else 0x200
+               }
+          | none =>
+              throw (IO.userError
+                s!"Invalid value for --parity-pack: {raw} (supported: {String.intercalate ", " Compiler.supportedParityPackIds})")
+    | ["--parity-pack"] =>
+        throw (IO.userError "Missing value for --parity-pack")
+    | "--enable-patches" :: rest =>
+        go rest { cfg with patchEnabled := true }
+    | "--patch-max-iterations" :: raw :: rest =>
+        match raw.toNat? with
+        | some n => go rest { cfg with patchEnabled := true, patchMaxIterations := n, patchMaxIterationsExplicit := true }
+        | none => throw (IO.userError s!"Invalid value for --patch-max-iterations: {raw}")
+    | ["--patch-max-iterations"] =>
+        throw (IO.userError "Missing value for --patch-max-iterations")
+    | "--patch-report" :: path :: rest =>
+        go rest { cfg with patchEnabled := true, patchReportPath := some path }
+    | ["--patch-report"] =>
+        throw (IO.userError "Missing value for --patch-report")
     | "--trust-report" :: path :: rest =>
         go rest { cfg with trustReportPath := some path }
     | ["--trust-report"] =>
@@ -174,7 +228,7 @@ private def parseArgs (args : List String) : IO CLIArgs := do
         go rest { cfg with denyLayoutIncompatibility := true }
     | "--mapping-slot-scratch-base" :: raw :: rest =>
         match raw.toNat? with
-        | some n => go rest { cfg with mappingSlotScratchBase := n }
+        | some n => go rest { cfg with mappingSlotScratchBase := n, mappingSlotScratchBaseExplicit := true }
         | none => throw (IO.userError s!"Invalid value for --mapping-slot-scratch-base: {raw}")
     | ["--mapping-slot-scratch-base"] =>
         throw (IO.userError "Missing value for --mapping-slot-scratch-base")
@@ -193,6 +247,7 @@ unsafe def main (args : List String) : IO Unit := do
       | .error err => throw (IO.userError err)
     if rawModules.isEmpty then
       throw (IO.userError "No compiler input provided. Use --manifest and/or --module.")
+    let patchEnabled := patchEnabledFor cfg
     if cfg.verbose then
       IO.println s!"Output directory: {cfg.outDir}"
       IO.println "Input mode: manifest/modules"
@@ -202,8 +257,30 @@ unsafe def main (args : List String) : IO Unit := do
       if !rawModules.isEmpty then
         IO.println s!"Modules: {String.intercalate ", " rawModules}"
       IO.println s!"Backend profile: {backendProfileString cfg.backendProfile}"
+      match cfg.parityPackId with
+      | some packId =>
+          IO.println s!"Parity pack: {packId}"
+          match Compiler.findParityPack? packId with
+          | some pack =>
+              IO.println s!"  target solc: {pack.compat.solcVersion}+commit.{pack.compat.solcCommit}"
+              IO.println s!"  optimizer runs: {pack.compat.optimizerRuns}"
+              IO.println s!"  viaIR: {pack.compat.viaIR}"
+              IO.println s!"  evmVersion: {pack.compat.evmVersion}"
+              IO.println s!"  metadataMode: {pack.compat.metadataMode}"
+              IO.println s!"  rewriteBundle: {pack.rewriteBundleId}"
+          | none => pure ()
+      | none => pure ()
       match cfg.abiOutDir with
       | some dir => IO.println s!"ABI output directory: {dir}"
+      | none => pure ()
+      if patchEnabled then
+        IO.println s!"Patch pass: enabled (max iterations = {cfg.patchMaxIterations})"
+      if !cfg.libs.isEmpty then
+        IO.println s!"External libraries: {cfg.libs.length}"
+        for lib in cfg.libs do
+          IO.println s!"  - {lib}"
+      match cfg.patchReportPath with
+      | some path => IO.println s!"Patch report: {path}"
       | none => pure ()
       match cfg.trustReportPath with
       | some path => IO.println s!"Trust report: {path}"
@@ -217,20 +294,60 @@ unsafe def main (args : List String) : IO Unit := do
       match cfg.layoutCompatibilityReportPath with
       | some path => IO.println s!"Layout compatibility report: {path}"
       | none => pure ()
+      if cfg.denyLinearMemoryMechanics then
+        IO.println "Linear memory mechanics: denied"
+      if cfg.denyEventEmission then
+        IO.println "Event emission: denied"
+      if cfg.denyLowLevelMechanics then
+        IO.println "Low-level mechanics: denied"
+      if cfg.denyRuntimeIntrospection then
+        IO.println "Runtime introspection: denied"
+      if cfg.denyProxyUpgradeability then
+        IO.println "Proxy / upgradeability: denied"
+      if cfg.denyLayoutIncompatibility then
+        IO.println "Layout incompatibility: denied"
+      if cfg.denyAssumedDependencies then
+        IO.println "Assumed dependencies: denied"
+      if cfg.denyAxiomatizedPrimitives then
+        IO.println "Axiomatized primitives: denied"
+      if cfg.denyUncheckedDependencies then
+        IO.println "Unchecked dependencies: denied"
       IO.println s!"Mapping slot scratch base: {cfg.mappingSlotScratchBase}"
       IO.println ""
-    let options : Compiler.Base.YulEmitOptions := {
+    let packRequiredProofRefs :=
+      match cfg.parityPackId with
+      | some packId =>
+          match Compiler.findParityPack? packId with
+          | some pack => pack.requiredProofRefs
+          | none => []
+      | none => []
+    let packRewriteBundleId :=
+      match cfg.parityPackId with
+      | some packId =>
+          match Compiler.findParityPack? packId with
+          | some pack => pack.rewriteBundleId
+          | none => Compiler.Yul.foundationRewriteBundleId
+      | none => Compiler.Yul.foundationRewriteBundleId
+    let options : Compiler.YulEmitOptions := {
       backendProfile := cfg.backendProfile
+      patchConfig := {
+        enabled := patchEnabled
+        maxIterations := cfg.patchMaxIterations
+        packId := cfg.parityPackId.getD ""
+        rewriteBundleId := packRewriteBundleId
+        requiredProofRefs := packRequiredProofRefs
+      }
       mappingSlotScratchBase := cfg.mappingSlotScratchBase
     }
-    Compiler.Base.compileModulesWithOptions
-      cfg.outDir rawModules cfg.verbose cfg.libs options none cfg.trustReportPath
+    compileModulesWithOptions
+      cfg.outDir rawModules cfg.verbose cfg.libs options cfg.patchReportPath cfg.trustReportPath
       cfg.assumptionReportPath cfg.abiOutDir cfg.denyUncheckedDependencies cfg.denyAssumedDependencies
       cfg.denyAxiomatizedPrimitives cfg.denyLocalObligations cfg.denyLinearMemoryMechanics cfg.denyEventEmission
       cfg.denyLowLevelMechanics cfg.denyRuntimeIntrospection cfg.denyProxyUpgradeability cfg.layoutReportPath
       cfg.layoutCompatibilityReportPath cfg.denyLayoutIncompatibility
   catch e =>
     if e.toString == "help" then
+      -- Help was shown, exit cleanly
       return ()
     else
       throw e

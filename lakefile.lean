@@ -53,6 +53,9 @@ lean_lib «PrintAxioms» where
 lean_exe «verity-compiler» where
   root := `Compiler.Main
 
+lean_exe «verity-compiler-patched» where
+  root := `Compiler.MainPatched
+
 lean_exe «difftest-interpreter» where
   root := `Contracts.Interpreter
 

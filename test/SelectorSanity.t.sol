@@ -46,16 +46,17 @@ contract SelectorSanityTest is YulTestBase {
     }
 
     function _yulPath(string memory contractName) internal view returns (string memory) {
-        string memory yulDir = vm.envOr("DIFFTEST_YUL_DIR", string("artifacts/yul"));
-        return string.concat(yulDir, "/", contractName, ".yul");
+        return string.concat(_yulDir(), "/", contractName, ".yul");
     }
 
     function _assertSelector(string memory path, string memory signature) internal {
         string memory yul = vm.readFile(path);
         bytes4 selector = bytes4(keccak256(bytes(signature)));
-        string memory needle = string.concat("case 0x", _bytes4ToHex(selector));
+        string memory selectorHex = _bytes4ToHex(selector);
+        string memory needle = string.concat("case 0x", selectorHex);
+        string memory compactNeedle = string.concat("case 0x", _trimLeadingZeroHex(selectorHex));
         assertTrue(
-            _contains(yul, needle),
+            _contains(yul, needle) || _contains(yul, compactNeedle),
             string.concat("Missing selector for ", signature, " in ", path)
         );
     }
@@ -93,5 +94,18 @@ contract SelectorSanityTest is YulTestBase {
             }
         }
         return false;
+    }
+
+    function _trimLeadingZeroHex(string memory hexValue) internal pure returns (string memory) {
+        bytes memory raw = bytes(hexValue);
+        uint256 start = 0;
+        while (start + 1 < raw.length && raw[start] == "0") {
+            start++;
+        }
+        bytes memory out = new bytes(raw.length - start);
+        for (uint256 i = 0; i < out.length; i++) {
+            out[i] = raw[start + i];
+        }
+        return string(out);
     }
 }

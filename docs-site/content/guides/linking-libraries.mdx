@@ -304,16 +304,14 @@ cat artifacts/yul/*.yul
 
 ```bash
 lake exe verity-compiler [options]
+lake exe verity-compiler-patched [patch-options]
 
 Options:
   --link <path>      Link external Yul library (can be used multiple times)
   --output <dir>     Output directory (default: artifacts/yul)
   -o <dir>           Short form of --output
   --abi-output <dir> Output ABI JSON artifacts (<Contract>.abi.json)
-  --backend-profile <semantic|solidity-parity-ordering|solidity-parity>
-  --enable-patches   Enable deterministic Yul patch pass
-  --patch-max-iterations <n>  Max patch-pass fixpoint iterations (default: 2)
-  --patch-report <path>       Write TSV patch coverage report
+  --backend-profile <semantic|solidity-parity-ordering>
   --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)
   --verbose          Enable verbose output
   -v                 Short form of --verbose
@@ -323,7 +321,13 @@ Options:
 `--backend-profile` controls deterministic output-shape normalization:
 - `semantic`: default behavior.
 - `solidity-parity-ordering`: sort dispatch `case` blocks by selector.
-- `solidity-parity`: `solidity-parity-ordering` plus deterministic patch pass enabled.
+
+Patch-enabled generation moved to `verity-compiler-patched`:
+
+```bash
+lake exe verity-compiler-patched --backend-profile solidity-parity
+lake exe verity-compiler-patched --enable-patches --patch-report artifacts/patch-report.tsv
+```
 
 **Examples**:
 ```bash

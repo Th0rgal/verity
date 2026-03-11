@@ -192,9 +192,17 @@ lake build
 # Compile contracts to Yul
 lake exe verity-compiler --manifest packages/verity-examples/contracts.manifest
 lake exe verity-compiler --module Contracts.Counter.Counter  # specific contract
+lake exe verity-compiler-patched --enable-patches --manifest packages/verity-examples/contracts.manifest
 
 # Run Foundry tests
 FOUNDRY_PROFILE=difftest forge test
+```
+
+To reuse trusted CI-built compiler artifacts locally instead of rebuilding Lean native code:
+
+```bash
+scripts/fetch_prebuilt_compiler_artifacts.sh main
+FOUNDRY_PROFILE=difftest DIFFTEST_YUL_DIR=compiler/yul forge test
 ```
 
 **Scaffold a new contract**:
