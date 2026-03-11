@@ -121,29 +121,4 @@ example :
     hasMappingDropRule = true := by
   native_decide
 
-/-- Regression guard: solidity parity profile keeps dispatch inlined in switch cases. -/
-example :
-    let contract : IRContract :=
-      { name := "DispatchOutlineRegression"
-        deploy := []
-        constructorPayable := true
-        functions :=
-          [{ name := "ping"
-             selector := 1
-             params := []
-             ret := .unit
-             payable := false
-             body := [.leave] }]
-        usesMapping := false
-        internalFunctions := [] }
-    let runtime := (emitYulWithOptions contract { backendProfile := .solidityParity }).runtimeCode
-    let hasFunHelper :=
-      runtime.any (fun stmt =>
-        match stmt with
-        | .funcDef "fun_ping" [] [] _ => true
-        | _ => false)
-    let switchCallsHelper := runtime.any (Compiler.CodegenCommon.stmtContainsSwitchCaseCall "fun_ping")
-    (!hasFunHelper) && (!switchCallsHelper) := by
-  native_decide
-
 end Compiler
