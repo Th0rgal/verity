@@ -1123,10 +1123,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/IRGeneration/SourceSemantics.lean
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummarySound
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummaryPreservesWorldOnSuccess
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_obeys_summary
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_preserves_world
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_obeys_summary
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperInterface.summarySoundOfCall
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperInterface.exprCallSummaryPreservesWorld
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
@@ -1143,6 +1147,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/IRGeneration/SupportedSpec.lean
 #print axioms Compiler.Proofs.IRGeneration.helperCallNames_nodup
+#print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_nodup
+#print axioms Compiler.Proofs.IRGeneration.stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
+#print axioms Compiler.Proofs.IRGeneration.stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames
+#print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_subset_helperCallNames
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.returnsSupported
@@ -1150,6 +1158,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryOfCall
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryContractOfCall
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.calleeRank_lt
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.exprSummaryPreservesWorld
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_featureOr
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedCallSurface_eq_featureOr
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyCallInterface.surfaceClosed
@@ -1295,4 +1304,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1161 theorems/lemmas (928 public, 233 private)
+-- Total: 1170 theorems/lemmas (937 public, 233 private)
