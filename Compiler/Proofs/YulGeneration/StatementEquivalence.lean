@@ -18,27 +18,17 @@ Individual statement proofs compose via `execIRStmtsFuel_equiv_execYulStmtsFuel_
 (Equivalence.lean) to complete the `hbody` hypothesis in `Preservation.lean`.
 -/
 
-/-! ### Expression Equivalence (Now Proven — Previously Axioms)
+/-! ### Expression Equivalence
 
-With the IR expression evaluators refactored to be total and structurally
-identical to the Yul evaluators, these are now **proven theorems**.
-
-Previously these were axioms:
-  axiom evalIRExpr_eq_evalYulExpr : ...
-  axiom evalIRExprs_eq_evalYulExprs : ...
-
-Eliminated by making `evalIRExpr`/`evalIRExprs`/`evalIRCall` total (using
-`termination_by` with `exprSize`/`exprsSize`) and restructuring `evalIRCall`
-to evaluate all arguments first (matching `evalYulCall`). See Issue #148.
+IR and Yul expression evaluators are total and structurally identical,
+so equivalence follows by mutual structural induction on expression size.
 -/
 
 open Compiler.Proofs.YulGeneration in
 mutual
 
 /-- IR and Yul expression evaluation are identical when states are aligned.
-
-PROVEN (previously axiom #1). Both evaluators are now total with identical
-structure — the proof proceeds by mutual structural induction on expression size. -/
+Proved by mutual structural induction on expression size. -/
 theorem evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
     evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr := by
   match expr with
@@ -55,9 +45,7 @@ decreasing_by
   simp [exprSize, exprsSize]
 
 /-- List version: IR and Yul list evaluation are identical when states are aligned.
-
-PROVEN (previously axiom #2). Follows from `evalIRExpr_eq_evalYulExpr` by
-structural induction on the expression list. -/
+Follows from `evalIRExpr_eq_evalYulExpr` by structural induction on the list. -/
 theorem evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
     evalIRExprs irState exprs = evalYulExprs (yulStateOfIR selector irState) exprs := by
   match exprs with

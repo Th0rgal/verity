@@ -11,9 +11,6 @@
   All functions in this module are **total** (no `partial` annotations):
   - Expression evaluators use structural recursion on expression size (exprSize/exprsSize)
   - Statement executors use an explicit fuel parameter
-
-  This eliminates 3 axioms that were previously needed to bridge partial and total definitions.
-  See Issue #148 for the full motivation.
 -/
 
 import Compiler.IR

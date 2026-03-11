@@ -257,11 +257,10 @@ theorem execYulStmtFuel_for
       | other => other := by
   rfl
 
-/-! ## Backward-Compatible Aliases
+/-! ## Fuel-Parametric Aliases
 
-Since `execIRStmt` and `execIRStmts` in IRInterpreter.lean are now total
-(fuel-parametric), the previously separate `execIRStmtFuel`/`execIRStmtsFuel`
-definitions are now just aliases. This preserves the API for downstream proofs.
+`execIRStmtFuel`/`execIRStmtsFuel` are aliases for the total IR executors
+in IRInterpreter.lean. Downstream proofs use these names.
 -/
 
 abbrev execIRStmtFuel := @execIRStmt
@@ -476,18 +475,10 @@ theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv stmt_equiv
       selector fn args initialState)
 
-/-! ## Fuel Adequacy (Now Trivial)
+/-! ## Fuel Adequacy
 
-Since `execIRStmt`/`execIRStmts` are now total (fuel-based) and
-`execIRStmtFuel`/`execIRStmtsFuel` are aliases for them, the adequacy
-relationship is trivially `rfl`. No axiom needed.
-
-Previously this required:
-  axiom execIRStmtsFuel_adequate : ...
-  axiom supported_function_execIRFunction_eq_fuel : ...
-Both axioms have been **eliminated** by making the IR interpreter total.
-The `ir_yul_function_equiv_from_state_of_stmt_equiv` theorem now composes
-the full proof chain without any external adequacy hypothesis.
+The IR executors are total (fuel-parametric) and the fuel aliases
+resolve by `rfl`. No axiom needed.
 -/
 
 def execIRFunctionFuel_adequate_goal
@@ -495,7 +486,7 @@ def execIRFunctionFuel_adequate_goal
   execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
     execIRFunction fn args initialState
 
-/-- Fuel adequacy is now trivially true (aliases). -/
+/-- Fuel adequacy holds by `rfl` (fuel aliases resolve to total executors). -/
 theorem execIRFunctionFuel_adequate
     (fn : IRFunction) (args : List Nat) (initialState : IRState) :
     execIRFunctionFuel_adequate_goal fn args initialState := by
