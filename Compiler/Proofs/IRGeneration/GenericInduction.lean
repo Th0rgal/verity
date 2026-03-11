@@ -71,6 +71,183 @@ inductive StmtListGenericCore (fields : List Field) : List String → List Stmt 
       StmtListGenericCore fields (stmtNextScope scope stmt) rest →
       StmtListGenericCore fields scope (stmt :: rest)
 
+/-- Structural scope discipline for statement prefixes used to justify that the
+generic induction scope only contains validated source identifiers. -/
+inductive StmtListScopeDiscipline (fieldNames : List String) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListScopeDiscipline fieldNames scope []
+  | letVar {scope : List String} {name : String} {value : Expr} {rest : List Stmt} :
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.letVar name value)) rest →
+      StmtListScopeDiscipline fieldNames scope (.letVar name value :: rest)
+  | assignVar {scope : List String} {name : String} {value : Expr} {rest : List Stmt} :
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.assignVar name value)) rest →
+      StmtListScopeDiscipline fieldNames scope (.assignVar name value :: rest)
+  | require {scope : List String} {cond : Expr} {message : String} {rest : List Stmt} :
+      FunctionBody.ExprCompileCore cond →
+      FunctionBody.exprBoundNamesInScope cond scope →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.require cond message)) rest →
+      StmtListScopeDiscipline fieldNames scope (.require cond message :: rest)
+  | return_ {scope : List String} {value : Expr} {rest : List Stmt} :
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.return value)) rest →
+      StmtListScopeDiscipline fieldNames scope (.return value :: rest)
+  | stop {scope : List String} {rest : List Stmt} :
+      StmtListScopeDiscipline fieldNames scope rest →
+      StmtListScopeDiscipline fieldNames scope (.stop :: rest)
+  | setStorage {scope : List String} {fieldName : String} {value : Expr} {rest : List Stmt} :
+      fieldName ∈ fieldNames →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.setStorage fieldName value)) rest →
+      StmtListScopeDiscipline fieldNames scope (.setStorage fieldName value :: rest)
+  | setStorageAddr {scope : List String} {fieldName : String} {value : Expr} {rest : List Stmt} :
+      fieldName ∈ fieldNames →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.setStorageAddr fieldName value)) rest →
+      StmtListScopeDiscipline fieldNames scope (.setStorageAddr fieldName value :: rest)
+  | ite {scope : List String} {cond : Expr} {thenBranch elseBranch rest : List Stmt} :
+      FunctionBody.ExprCompileCore cond →
+      FunctionBody.exprBoundNamesInScope cond scope →
+      StmtListScopeDiscipline fieldNames scope thenBranch →
+      StmtListScopeDiscipline fieldNames scope elseBranch →
+      StmtListScopeDiscipline fieldNames (stmtNextScope scope (.ite cond thenBranch elseBranch)) rest →
+      StmtListScopeDiscipline fieldNames scope (.ite cond thenBranch elseBranch :: rest)
+
+private theorem collectExprNames_mem_exprBoundNames_of_core
+    {expr : Expr}
+    (hcore : FunctionBody.ExprCompileCore expr) :
+    ∀ name, name ∈ collectExprNames expr → name ∈ FunctionBody.exprBoundNames expr := by
+  induction hcore with
+  | literal value =>
+      intro name hmem
+      simp at hmem
+  | param name0 =>
+      intro name hmem
+      simpa [collectExprNames, FunctionBody.exprBoundNames] using hmem
+  | localVar name0 =>
+      intro name hmem
+      simpa [collectExprNames, FunctionBody.exprBoundNames] using hmem
+  | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid =>
+      intro name hmem
+      simp at hmem
+  | add hL hR ihL ihR
+  | sub hL hR ihL ihR
+  | mul hL hR ihL ihR
+  | div hL hR ihL ihR
+  | mod hL hR ihL ihR
+  | eq hL hR ihL ihR
+  | lt hL hR ihL ihR
+  | gt hL hR ihL ihR
+  | ge hL hR ihL ihR
+  | le hL hR ihL ihR
+  | logicalAnd hL hR ihL ihR
+  | logicalOr hL hR ihL ihR =>
+      intro name hmem
+      rcases List.mem_append.mp hmem with hmem | hmem
+      · exact List.mem_append.mpr <| Or.inl <| ihL _ hmem
+      · exact List.mem_append.mpr <| Or.inr <| ihR _ hmem
+  | logicalNot h ih =>
+      intro name hmem
+      simpa [collectExprNames, FunctionBody.exprBoundNames] using ih _ hmem
+
+private theorem stmtListScopeDiscipline_scope_names
+    {fieldNames : List String}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hdisc : StmtListScopeDiscipline fieldNames scope stmts) :
+    ∀ name, name ∈ List.foldl stmtNextScope scope stmts →
+      name ∈
+        (scope ++ collectStmtListBindNames stmts ++
+          collectStmtListAssignedNames stmts ++ fieldNames) := by
+  induction hdisc with
+  | nil =>
+      intro name hmem
+      simpa using hmem
+  | letVar hcore hinScope hrest ih =>
+      intro other hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hname | htail
+      · exact Or.inr <| Or.inl hname
+      rcases htail with hvalue | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · exact Or.inr <| Or.inr htail
+  | assignVar hcore hinScope hrest ih =>
+      intro other hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hname | htail
+      · exact Or.inr <| Or.inr <| Or.inl hname
+      rcases htail with hvalue | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · exact Or.inr <| Or.inr <| Or.inr htail
+  | require hcore hinScope hrest ih =>
+      intro other hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hcond | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hcond)
+      · exact Or.inr htail
+  | return_ hcore hinScope hrest ih =>
+      intro other hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hvalue | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · exact Or.inr htail
+  | stop hrest ih =>
+      intro other hmem
+      simpa [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] using ih other hmem
+  | setStorage hfield hcore hinScope hrest ih =>
+      intro other hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hfieldMem | htail
+      · exact Or.inr <| Or.inr <| Or.inr <| by simpa using hfieldMem
+      rcases htail with hvalue | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · exact Or.inr htail
+  | setStorageAddr hfield hcore hinScope hrest ih =>
+      intro other hmem
+      have htail := ih other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hfieldMem | htail
+      · exact Or.inr <| Or.inr <| Or.inr <| by simpa using hfieldMem
+      rcases htail with hvalue | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hvalue)
+      · exact Or.inr htail
+  | ite hcore hinScope hthen helse hrest ihThen ihElse ihRest =>
+      intro other hmem
+      have htail := ihRest other hmem
+      simp [stmtNextScope, collectStmtNames, collectStmtListBindNames,
+        collectStmtListAssignedNames] at htail ⊢
+      rcases htail with hcond | htail
+      · exact Or.inl <| hinScope _ (collectExprNames_mem_exprBoundNames_of_core hcore _ hcond)
+      rcases htail with hthenMem | htail
+      · have hthenNames :=
+          ihThen other (by
+            simpa using (List.mem_append.mpr (Or.inl hthenMem)))
+        simpa [collectStmtListBindNames, collectStmtListAssignedNames] using hthenNames
+      rcases htail with helseMem | htail
+      · have helseNames :=
+          ihElse other (by
+            simpa using (List.mem_append.mpr (Or.inl helseMem)))
+        simpa [collectStmtListBindNames, collectStmtListAssignedNames] using helseNames
+      · exact Or.inr htail
+
 theorem compiledStmtStep_letVar
     {fields : List Field}
     {scope : List String}
@@ -1125,6 +1302,59 @@ theorem compiledStmtStep_setStorage_of_validateIdentifierShapes
       (hnotAddr := hnotAddr)
       (hnotDyn := hnotDyn)
       (hvalueIR := hvalueIR)
+
+theorem compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {prefix suffix : List Stmt}
+    {fieldName : String}
+    {value : Expr}
+    {valueIR : YulExpr}
+    {f : Field}
+    {slot : Nat}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hprefix :
+      StmtListScopeDiscipline
+        (spec.fields.map (·.name))
+        (fn.params.map (·.name))
+        prefix)
+    (hbody : fn.body = prefix ++ .setStorage fieldName value :: suffix)
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope :
+      FunctionBody.exprBoundNamesInScope
+        value
+        (List.foldl stmtNextScope (fn.params.map (·.name)) prefix))
+    (hfind : findFieldWithResolvedSlot spec.fields fieldName = some (f, slot))
+    (hwriteSlots : findFieldWriteSlots spec.fields fieldName = some (slot :: f.aliasSlots))
+    (hunpacked : f.packedBits = none)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false)
+    (hvalueIR : CompilationModel.compileExpr spec.fields .calldata value = Except.ok valueIR) :
+    ∃ compiledIR,
+      CompiledStmtStep spec.fields
+        (List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
+        (.setStorage fieldName value)
+        compiledIR := by
+  apply compiledStmtStep_setStorage_of_validateIdentifierShapes
+    (scope := List.foldl stmtNextScope (fn.params.map (·.name)) prefix)
+    (hvalidate := hvalidate)
+    (hfn := hfn)
+    (hscopeNames := ?_)
+    (hcore := hcore)
+    (hinScope := hinScope)
+    (hfind := hfind)
+    (hwriteSlots := hwriteSlots)
+    (hunpacked := hunpacked)
+    (hnoConflict := hnoConflict)
+    (hnotAddr := hnotAddr)
+    (hnotDyn := hnotDyn)
+    (hvalueIR := hvalueIR)
+  intro name hmem
+  have hscopeNames := stmtListScopeDiscipline_scope_names hprefix name hmem
+  rw [hbody] at hscopeNames
+  simpa [collectStmtListBindNames, collectStmtListAssignedNames, hbody] using hscopeNames
 
 private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
     {fields : List Field}
