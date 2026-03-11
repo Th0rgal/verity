@@ -68,7 +68,14 @@ incrementally:
   patterns.
 
 Each time a new pattern is proved, this axiom's scope shrinks. The goal is to
-eliminate it entirely.
+eliminate it entirely. The exact-state setup proof is already done, and the
+compiler now bypasses this axiom for both `StmtListCompileCore` and
+`StmtListTerminalCore` bodies.
+
+The terminal `ite` branch-entry blocker described in issue `#1564` is now
+discharged: the remaining gap is no longer about entering checked terminal
+branches, but about proving the broader non-terminal supported statement shapes
+such as storage writes and mapping writes.
 
 **Technical note on fuel:**
 The proof system uses a "fuel" counter to bound how many steps the interpreter
@@ -163,7 +170,10 @@ scoped to contracts that use the module.
 All 15 arithmetic operations (add, sub, mul, div, mod, lt, gt, eq, iszero,
 and, or, xor, not, shl, shr) are **proven correct** — not assumed. The proofs
 show that Verity's arithmetic matches EVM arithmetic (wrapping at 2^256) for
-*all* possible inputs, not just test cases. See
+*all* possible inputs, not just test cases. The EVMYulLean bridge currently has
+universal equivalence lemmas for 15 of them (`add`, `sub`, `mul`, `div`,
+`mod`, `lt`, `gt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`),
+with no remaining pure builtins relying only on concrete bridge checks. See
 [`docs/ARITHMETIC_PROFILE.md`](docs/ARITHMETIC_PROFILE.md) for the full
 specification.
 
