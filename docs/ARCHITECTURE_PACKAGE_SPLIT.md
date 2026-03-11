@@ -27,29 +27,15 @@ This enforces one dependency direction:
 
 No reverse imports are allowed.
 
-## Current coupling that must be removed
+## Current package boundaries
 
-The repo has made substantial progress since this RFC was written:
-
-- The compiler no longer relies on a baked-in contract/spec registry for CLI input.
-- Split-package builds are checked independently in CI.
-- Compiler-to-contract import boundaries are enforced and currently pass on `main`.
-
-The remaining package-split work is now narrower and lives on the compiler-owned
-bridge surface:
+CI enforces import-direction checks and package-glob ownership checks on `main`. Current export surfaces:
 
 - `verity-edsl` exports only `Verity.*` modules.
 - `verity-examples` exports only `Contracts.*` modules.
-- `verity-compiler` exports `Compiler.*` plus a small, explicit `Verity.*`
-  bridge surface (`Verity.Macro` and proof automation helpers) that still sits
-  above compiler types.
+- `verity-compiler` exports `Compiler.*` plus a small `Verity.*` bridge surface (`Verity.Macro` and proof automation helpers) that still sits above compiler types.
 
-The typed-IR compiler, lowering, correctness, and test modules now live under
-`Compiler/`, which matches the package split more closely. CI now enforces both
-import-direction checks and package-glob ownership checks, so the remaining work
-is structural: move the shared interface types out of `Compiler` and then shrink
-or eliminate the temporary `Verity.*` bridge surface carried by
-`verity-compiler`.
+**Remaining work**: move the shared interface types out of `Compiler`, then shrink or eliminate the temporary `Verity.*` bridge surface in `verity-compiler`.
 
 ## Package responsibilities
 
