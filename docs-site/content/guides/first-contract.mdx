@@ -97,11 +97,11 @@ Open `Contracts/TipJar/Spec.lean`:
   Specifies deposit and balance-check behavior for a simple tip ledger.
 -/
 
-import Verity.Core
 import Verity.Specs.Common
+import Verity.Macro
 import Verity.EVM.Uint256
 
-namespace Verity.Specs.TipJar
+namespace Contracts.TipJar.Spec
 
 open Verity
 open Verity.EVM.Uint256
@@ -119,7 +119,7 @@ def tip_spec (amount : Uint256) (s s' : ContractState) : Prop :=
 def getBalance_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
   result = s.storageMap 0 addr
 
-end Verity.Specs.TipJar
+end Contracts.TipJar.Spec
 ```
 
 **Key Concepts**:
@@ -140,10 +140,9 @@ Open `Contracts/TipJar/Invariants.lean`:
   Properties that hold across all operations.
 -/
 
-import Verity.Core
 import Verity.Specs.Common
 
-namespace Verity.Specs.TipJar
+namespace Contracts.TipJar.Invariants
 
 open Verity
 
@@ -155,7 +154,7 @@ def uint_storage_unchanged (s s' : ContractState) : Prop :=
 def addr_storage_unchanged (s s' : ContractState) : Prop :=
   s'.storageAddr = s.storageAddr
 
-end Verity.Specs.TipJar
+end Contracts.TipJar.Invariants
 ```
 
 ---
@@ -180,12 +179,11 @@ Open `Contracts/TipJar/TipJar.lean`:
   Pattern: Simple balance ledger
 -/
 
-import Verity.Core
-import Verity.EVM.Uint256
+import Contracts.Common
 
-namespace Verity.Examples.TipJar
+namespace Contracts.TipJar
 
-open Verity
+open Verity hiding pure bind
 open Verity.EVM.Uint256
 
 -- Storage layout: tips mapping at slot 0
@@ -212,7 +210,7 @@ def exampleUsage : Contract Uint256 := do
 }).getValue?
 -- Expected output: some 100
 
-end Verity.Examples.TipJar
+end Contracts.TipJar
 ```
 
 **EDSL API reference** (from `Verity/Core.lean`):
@@ -239,7 +237,7 @@ end Verity.Examples.TipJar
 ### 3.2 Test the EDSL Implementation
 
 ```bash
-lake build Verity.Examples.TipJar
+lake build Contracts.TipJar
 ```
 
 If successful, the `#eval` block evaluates and prints `some 100`.
@@ -261,17 +259,16 @@ Open `Contracts/TipJar/Proofs/Basic.lean`:
   Prove that the EDSL implementation matches the formal specification.
 -/
 
-import Verity.Core
-import Verity.EVM.Uint256
-import Verity.Examples.TipJar
-import Verity.Specs.TipJar.Spec
+import Contracts.TipJar.Spec
+import Contracts.TipJar.Invariants
+import Verity.Proofs.Stdlib.Automation
 
-namespace Verity.Proofs.TipJar
+namespace Contracts.TipJar.Proofs
 
 open Verity
 open Verity.EVM.Uint256
-open Verity.Examples.TipJar
-open Verity.Specs.TipJar
+open Contracts.TipJar
+open Contracts.TipJar.Spec
 
 -- tip: implementation matches spec
 theorem tip_meets_spec (s : ContractState) (amount : Uint256) :
@@ -305,7 +302,7 @@ theorem tip_getBalance_roundtrip (amount : Uint256) (s : ContractState) :
     ((getBalance s.sender).run s').fst = add (s.storageMap 0 s.sender) amount := by
   simp [tip, getBalance, tips, msgSender, getMapping, setMapping, bind]
 
-end Verity.Proofs.TipJar
+end Contracts.TipJar.Proofs
 ```
 
 ### 4.2 Common Proof Patterns
@@ -641,9 +638,8 @@ import Contracts.TipJar.Proofs.Correctness
 
 **Solution**: Check your imports and `open` statements:
 ```lean
-import Verity.Core
-import Verity.EVM.Uint256
-import Verity.Examples.TipJar
+import Contracts.TipJar.Spec
+import Contracts.TipJar.TipJar
 
 open Verity
 open Verity.EVM.Uint256
