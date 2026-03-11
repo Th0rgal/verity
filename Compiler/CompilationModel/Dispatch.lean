@@ -283,4 +283,17 @@ def compile (spec : CompilationModel) (selectors : List Nat) : Except String IRC
   validateCompileInputs spec selectors
   compileValidatedCore spec selectors
 
+theorem validateCompileInputs_identifierShapes_ok
+    {spec : CompilationModel}
+    {selectors : List Nat}
+    (hvalidate : validateCompileInputs spec selectors = Except.ok ()) :
+    validateIdentifierShapes spec = Except.ok () := by
+  unfold validateCompileInputs at hvalidate
+  cases hshapes : validateIdentifierShapes spec with
+  | error err =>
+      simp [hshapes] at hvalidate
+      cases hvalidate
+  | ok _ =>
+      simp
+
 end Compiler.CompilationModel

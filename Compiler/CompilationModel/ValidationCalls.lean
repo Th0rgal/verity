@@ -577,4 +577,257 @@ def validateIdentifierShapes (spec : CompilationModel) : Except String Unit := d
   for ext in spec.externals do
     ensureContractIdentifier "external declaration" ext.name
 
+private theorem ensureNonReservedYulIdentifier_ok
+    {kind name : String}
+    (hvalidate : ensureNonReservedYulIdentifier kind name = Except.ok ()) :
+    ¬ name.startsWith "__" := by
+  by_cases hreserved : name.startsWith "__"
+  · simp [ensureNonReservedYulIdentifier, hreserved] at hvalidate
+  · exact hreserved
+
+private theorem validateContractIdentifiers_ok_of_mem
+    {kind name : String}
+    {names : List String}
+    (hvalidate : validateContractIdentifiers kind names = Except.ok ())
+    (hmem : name ∈ names) :
+    ¬ name.startsWith "__" := by
+  induction names with
+  | nil =>
+      cases hmem
+  | cons head tail ih =>
+      cases hcontract : ensureContractIdentifier kind head with
+      | error err =>
+          simp [validateContractIdentifiers, hcontract] at hvalidate
+          cases hvalidate
+      | ok _ =>
+          cases hreserved : ensureNonReservedYulIdentifier kind head with
+          | error err =>
+              simp [validateContractIdentifiers, hcontract, hreserved] at hvalidate
+              cases hvalidate
+          | ok _ =>
+              have htail : validateContractIdentifiers kind tail = Except.ok () := by
+                simpa [validateContractIdentifiers, hcontract, hreserved] using hvalidate
+              simp at hmem
+              rcases hmem with rfl | hmem
+              · exact ensureNonReservedYulIdentifier_ok hreserved
+              · exact ih htail hmem
+
+private theorem validateFieldIdentifiers_ok_of_mem
+    {fields : List Field}
+    {field : Field}
+    (hvalidate : validateFieldIdentifiers fields = Except.ok ())
+    (hmem : field ∈ fields) :
+    ¬ field.name.startsWith "__" := by
+  induction fields with
+  | nil =>
+      cases hmem
+  | cons head tail ih =>
+      cases hcontract : ensureContractIdentifier "field" head.name with
+      | error err =>
+          simp [validateFieldIdentifiers, hcontract] at hvalidate
+          cases hvalidate
+      | ok _ =>
+          cases hreserved : ensureNonReservedYulIdentifier "field" head.name with
+          | error err =>
+              simp [validateFieldIdentifiers, hcontract, hreserved] at hvalidate
+              cases hvalidate
+          | ok _ =>
+              have htail : validateFieldIdentifiers tail = Except.ok () := by
+                simpa [validateFieldIdentifiers, hcontract, hreserved] using hvalidate
+              simp at hmem
+              rcases hmem with rfl | hmem
+              · exact ensureNonReservedYulIdentifier_ok hreserved
+              · exact ih htail hmem
+
+private theorem validateFunctionYulIdentifiers_params_ok_of_mem
+    {fn : FunctionSpec}
+    {name : String}
+    (hvalidate : validateFunctionYulIdentifiers fn = Except.ok ())
+    (hmem : name ∈ fn.params.map (·.name)) :
+    ¬ name.startsWith "__" := by
+  have hparams :
+      validateContractIdentifiers "function parameter" (fn.params.map (·.name)) = Except.ok () := by
+    unfold validateFunctionYulIdentifiers at hvalidate
+    cases hparams : validateContractIdentifiers "function parameter" (fn.params.map (·.name)) with
+    | error err =>
+        simp [hparams] at hvalidate
+        cases hvalidate
+    | ok unit =>
+        cases unit
+        simpa using hparams
+  exact validateContractIdentifiers_ok_of_mem hparams hmem
+
+private theorem validateFunctionYulIdentifiers_locals_ok_of_mem
+    {fn : FunctionSpec}
+    {name : String}
+    (hvalidate : validateFunctionYulIdentifiers fn = Except.ok ())
+    (hmem : name ∈ collectStmtListBindNames fn.body) :
+    ¬ name.startsWith "__" := by
+  have hparams :
+      validateContractIdentifiers "function parameter" (fn.params.map (·.name)) = Except.ok () := by
+    unfold validateFunctionYulIdentifiers at hvalidate
+    cases hparams : validateContractIdentifiers "function parameter" (fn.params.map (·.name)) with
+    | error err =>
+        simp [hparams] at hvalidate
+        cases hvalidate
+    | ok unit =>
+        cases unit
+        simpa using hparams
+  have hlocals :
+      validateContractIdentifiers "local binder" (collectStmtListBindNames fn.body) = Except.ok () := by
+    unfold validateFunctionYulIdentifiers at hvalidate
+    simpa [hparams] using hvalidate
+  exact validateContractIdentifiers_ok_of_mem hlocals hmem
+
+private theorem validateFunctionIdentifierList_ok_of_mem
+    {functions : List FunctionSpec}
+    {fn : FunctionSpec}
+    (hvalidate : validateFunctionIdentifierList functions = Except.ok ())
+    (hmem : fn ∈ functions) :
+    validateFunctionIdentifiers fn = Except.ok () := by
+  induction functions with
+  | nil =>
+      cases hmem
+  | cons head tail ih =>
+      cases hhead : validateFunctionIdentifiers head with
+      | error err =>
+          simp [validateFunctionIdentifierList, hhead] at hvalidate
+          cases hvalidate
+      | ok _ =>
+          have htail : validateFunctionIdentifierList tail = Except.ok () := by
+            simpa [validateFunctionIdentifierList, hhead] using hvalidate
+          simp at hmem
+          rcases hmem with rfl | hmem
+          · simp [hhead]
+          · exact ih htail hmem
+
+theorem validateFunctionIdentifiers_params_avoidReservedCompilerPrefix
+    {fn : FunctionSpec}
+    {name : String}
+    (hvalidate : validateFunctionIdentifiers fn = Except.ok ())
+    (hmem : name ∈ fn.params.map (·.name)) :
+    ¬ name.startsWith "__" := by
+  have hyul :
+      validateFunctionYulIdentifiers fn = Except.ok () := by
+    unfold validateFunctionIdentifiers at hvalidate
+    cases hname : ensureContractIdentifier "function" fn.name with
+    | error err =>
+        simp [hname] at hvalidate
+        cases hvalidate
+    | ok _ =>
+        simpa [validateFunctionIdentifiers, hname] using hvalidate
+  exact validateFunctionYulIdentifiers_params_ok_of_mem hyul hmem
+
+theorem validateFunctionIdentifiers_locals_avoidReservedCompilerPrefix
+    {fn : FunctionSpec}
+    {name : String}
+    (hvalidate : validateFunctionIdentifiers fn = Except.ok ())
+    (hmem : name ∈ collectStmtListBindNames fn.body) :
+    ¬ name.startsWith "__" := by
+  have hyul :
+      validateFunctionYulIdentifiers fn = Except.ok () := by
+    unfold validateFunctionIdentifiers at hvalidate
+    cases hname : ensureContractIdentifier "function" fn.name with
+    | error err =>
+        simp [hname] at hvalidate
+        cases hvalidate
+    | ok _ =>
+        simpa [validateFunctionIdentifiers, hname] using hvalidate
+  exact validateFunctionYulIdentifiers_locals_ok_of_mem hyul hmem
+
+theorem validateIdentifierShapes_field_avoidReservedCompilerPrefix
+    {spec : CompilationModel}
+    {field : Field}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hmem : field ∈ spec.fields) :
+    ¬ field.name.startsWith "__" := by
+  have hreserved :
+      validateReservedCompilerIdentifiers spec = Except.ok () := by
+    unfold validateIdentifierShapes at hvalidate
+    cases hcontract : ensureContractIdentifier "contract" spec.name with
+    | error err =>
+        simp [hcontract] at hvalidate
+        cases hvalidate
+    | ok _ =>
+        cases hreserved : validateReservedCompilerIdentifiers spec with
+        | error err =>
+            simp [hcontract, hreserved] at hvalidate
+            cases hvalidate
+        | ok unit =>
+            cases unit
+            simpa using hreserved
+  have hfields :
+      validateFieldIdentifiers spec.fields = Except.ok () := by
+    unfold validateReservedCompilerIdentifiers at hreserved
+    cases hfields : validateFieldIdentifiers spec.fields with
+    | error err =>
+        simp [hfields] at hreserved
+        cases hreserved
+    | ok unit =>
+        cases unit
+        simpa using hfields
+  exact validateFieldIdentifiers_ok_of_mem hfields hmem
+
+theorem validateIdentifierShapes_functionIdentifiers_ok
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hmem : fn ∈ spec.functions) :
+    validateFunctionIdentifiers fn = Except.ok () := by
+  have hreserved :
+      validateReservedCompilerIdentifiers spec = Except.ok () := by
+    unfold validateIdentifierShapes at hvalidate
+    cases hcontract : ensureContractIdentifier "contract" spec.name with
+    | error err =>
+        simp [hcontract] at hvalidate
+        cases hvalidate
+    | ok _ =>
+        cases hreserved : validateReservedCompilerIdentifiers spec with
+        | error err =>
+            simp [hcontract, hreserved] at hvalidate
+            cases hvalidate
+        | ok unit =>
+            cases unit
+            simpa using hreserved
+  have hfunctions :
+      validateFunctionIdentifierList spec.functions = Except.ok () := by
+    unfold validateReservedCompilerIdentifiers at hreserved
+    cases hfields : validateFieldIdentifiers spec.fields with
+    | error err =>
+        simp [hfields] at hreserved
+        cases hreserved
+    | ok _ =>
+        cases hfunctions : validateFunctionIdentifierList spec.functions with
+        | error err =>
+            simp [hfields, hfunctions] at hreserved
+            cases hreserved
+        | ok unit =>
+            cases unit
+            simpa using hfunctions
+  exact validateFunctionIdentifierList_ok_of_mem hfunctions hmem
+
+theorem validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {name : String}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hmem : name ∈ fn.params.map (·.name)) :
+    ¬ name.startsWith "__" := by
+  exact validateFunctionIdentifiers_params_avoidReservedCompilerPrefix
+    (validateIdentifierShapes_functionIdentifiers_ok hvalidate hfn)
+    hmem
+
+theorem validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    {name : String}
+    (hvalidate : validateIdentifierShapes spec = Except.ok ())
+    (hfn : fn ∈ spec.functions)
+    (hmem : name ∈ collectStmtListBindNames fn.body) :
+    ¬ name.startsWith "__" := by
+  exact validateFunctionIdentifiers_locals_avoidReservedCompilerPrefix
+    (validateIdentifierShapes_functionIdentifiers_ok hvalidate hfn)
+    hmem
+
 end Compiler.CompilationModel
