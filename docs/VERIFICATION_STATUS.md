@@ -10,7 +10,7 @@ EDSL contracts (Lean)
 CompilationModel (declarative compiler-facing model)
     ↓ Layer 2: CompilationModel → IR [PARTIAL GENERIC, 2 AXIOMS, CONTRACT BRIDGES ACTIVE]
 Intermediate Representation (IR)
-    ↓ Layer 3: IR → Yul [GENERIC SURFACE, 1 AXIOM]
+    ↓ Layer 3: IR → Yul [GENERIC SURFACE, EXPLICIT BRIDGE HYPOTHESIS]
 Yul (EVM Assembly)
     ↓ (Trusted: solc compiler)
 EVM Bytecode
@@ -101,7 +101,7 @@ Key files:
 
 ## Layer 3: IR → Yul — GENERIC, WITH EXPLICIT AXIOM BOUNDARY
 
-**What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 1 documented bridge axiom in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean). The checked contract-level theorem surface now explicitly requires dispatch-guard safety for each selected function case: word-level zero `msg.value` on non-payable paths and a non-wrapping calldata-width bound for each case guard.
+**What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 1 documented bridge hypothesis in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean). The checked contract-level theorem surface now explicitly requires dispatch-guard safety for each selected function case: word-level zero `msg.value` on non-payable paths and a non-wrapping calldata-width bound for each case guard.
 
 All 8 Yul statement types proven equivalent to IR counterparts. Universal dispatcher theorem:
 
@@ -190,7 +190,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 
-3 documented axioms remain.
+2 documented Lean axioms remain. The Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
 
 ## Differential Testing
 

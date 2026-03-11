@@ -17,14 +17,14 @@ See `TRUST_ASSUMPTIONS.md` for the full trust boundary.
   `Compiler/TypedIRCompilerCorrectness.lean` and
   `Compiler/Proofs/IRGeneration/SupportedFragment.lean`. A generic whole-contract
   theorem surface now also exists in `Compiler/Proofs/IRGeneration/Contract.lean`,
-  but its function-level closure still depends on 2 narrower documented Layer-2
-  axioms in `Compiler.Proofs.IRGeneration.Function`. The initial-state
+  but its function-level closure still depends on 1 narrower documented Layer-2
+  axiom in `Compiler.Proofs.IRGeneration.Function`. The initial-state
   normalization step is now proved under an explicit transaction-context
   normalization hypothesis. Active end-to-end examples still rely on
   contract-specific theorems in `Contracts/Proofs/SemanticBridge.lean`.
 - **Layer 3: IR -> Yul**. Yul semantics, equivalence, and preservation proofs
   live in `Compiler/Proofs/YulGeneration/`. The proof surface is generic, but the
-  current full dispatch-preservation path still uses 1 documented bridge axiom.
+  current full dispatch-preservation path still uses 1 documented bridge hypothesis.
 
 ## Key Modules
 

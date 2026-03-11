@@ -67,6 +67,39 @@ class Layer2BoundarySyncTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("still over-claims the Layer 2 boundary", output)
 
+    def test_detects_stale_axiom_count_language(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            self._write_fixture_tree(root, use_expected=True, add_forbidden=False)
+            target = root / check.TARGETS["ROOT_README"].relative_to(check.ROOT)
+            target.write_text(
+                target.read_text(encoding="utf-8").replace(
+                    "There are currently 2 documented Lean axioms in total: 1 selector axiom and 1 generic non-core Layer 2 axiom.",
+                    "There are currently 3 documented Lean axioms in total: 1 selector axiom, 1 generic non-core Layer 2 axiom, and 1 Layer 3 dispatch bridge axiom.",
+                ),
+                encoding="utf-8",
+            )
+
+            old_root = check.ROOT
+            old_targets = check.TARGETS
+            check.ROOT = root
+            check.TARGETS = {
+                label: root / path.relative_to(old_root)
+                for label, path in old_targets.items()
+            }
+            try:
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    rc = check.main()
+                output = stdout.getvalue() + stderr.getvalue()
+            finally:
+                check.ROOT = old_root
+                check.TARGETS = old_targets
+
+        self.assertEqual(rc, 1)
+        self.assertIn("There are currently 3 documented Lean axioms in total", output)
+
     def test_compiler_proofs_readme_stale_axiom_wording_is_forbidden(self) -> None:
         forbidden = check.forbidden_snippets()
         self.assertIn("COMPILER_PROOFS_README", forbidden)

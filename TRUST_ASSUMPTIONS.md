@@ -10,13 +10,13 @@ EDSL (Lean)
 CompilationModel
   ↓ [Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges]
 IR
-  ↓ [Layer 3: GENERIC SURFACE, 1 axiom — IR → Yul]
+  ↓ [Layer 3: GENERIC SURFACE, explicit bridge hypothesis — IR → Yul]
 Yul
   ↓ [trusted — solc]
 EVM Bytecode
 ```
 
-The repository has no `sorry`, but it still has 3 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
+The repository has no `sorry`, but it still has 2 documented Lean axioms. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
 
 ## What's Verified
 
@@ -25,7 +25,7 @@ The repository has no `sorry`, but it still has 3 documented Lean axioms. See [A
   contract-specific specification theorems in `Contracts/<Name>/Proofs/` are a
   separate proof layer about human-readable contract behavior.
 - **Layer 2**: A generic whole-contract theorem surface exists for supported `CompilationModel`s, and `supported_function_correct` is now a real theorem. The initial-state normalization step is proved, but whole-contract Layer 2 preservation still relies on contract-specific bridge theorems. The theorem surface still depends on 1 documented sub-axiom for generic body simulation, and it makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains.
-- **Layer 3**: IR → Yul preservation is generic at the proof surface, but the current full dispatch-preservation path still depends on 1 documented bridge axiom. The checked contract-level theorem surface now makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
+- **Layer 3**: IR → Yul preservation is generic at the proof surface, but the current full dispatch-preservation path still depends on 1 documented bridge hypothesis. The checked contract-level theorem surface now makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
 - **Cross-layer**: [`Contracts/Proofs/SemanticBridge.lean`](Contracts/Proofs/SemanticBridge.lean) has zero `sorry`, but it is a manual bridge layer for a subset of contracts rather than a fully generic replacement for Layers 1-3.
 
 Current theorem totals, property-test coverage, and proof status live in [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md).
@@ -39,7 +39,7 @@ Current theorem totals, property-test coverage, and proof status live in [docs/V
 
 ### 2. Lean Axioms
 - **Role**: Bridge remaining proof obligations not yet fully discharged.
-- **Status**: 3 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom, 1 generic non-core Layer 2 axiom, and 1 Layer 3 dispatch bridge axiom.
+- **Status**: 2 documented axioms in [AXIOMS.md](AXIOMS.md): 1 selector axiom and 1 generic non-core Layer 2 axiom. The Layer 3 dispatch bridge remains an explicit theorem hypothesis rather than a Lean axiom.
 - **Mitigation**: CI axiom reporting and location checks enforce explicit tracking.
 
 ### 3. Keccak-based Selector Computation
