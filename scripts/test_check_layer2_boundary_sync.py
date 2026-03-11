@@ -67,6 +67,14 @@ class Layer2BoundarySyncTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("still over-claims the Layer 2 boundary", output)
 
+    def test_compiler_proofs_readme_stale_axiom_wording_is_forbidden(self) -> None:
+        forbidden = check.forbidden_snippets()
+        self.assertIn("COMPILER_PROOFS_README", forbidden)
+        self.assertIn(
+            "it still depends on 2 documented axioms in `Compiler.Proofs.IRGeneration.Function`",
+            forbidden["COMPILER_PROOFS_README"],
+        )
+
     def test_repository_docs_are_currently_in_sync(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()

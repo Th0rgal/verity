@@ -49,10 +49,9 @@ no separate verified EDSL-lowering boundary module in the active pipeline.
 This branch now includes the generic compiler-level theorem
 `Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics`, rooted at
 successful `CompilationModel.compile` for an explicit supported whole-contract
-fragment. The theorem shape is in place, but there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract. It is not fully closed yet because it still depends on 2 documented axioms in
-`Compiler.Proofs.IRGeneration.Function`, with the remaining trust boundary split
-into generic body simulation and
-`execIRFunctionFuel`/`execIRFunction` bridging.
+fragment. The theorem shape is in place, but there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract. It is not fully closed yet because it still depends on 1 documented axiom in
+`Compiler.Proofs.IRGeneration.Function`, with the remaining trust boundary now
+narrowed to generic body simulation.
 
 Tracking:
 - issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)

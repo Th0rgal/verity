@@ -209,10 +209,9 @@ theorem compile_preserves_semantics_of_compiled_functions
     (hparamsSupported := hparamsSupported)
     (hfunction := hfunction)
 
-/-- TODO(#1510): derive the compiled runtime function table directly from
+/-- Derive the compiled runtime function table directly from
 `CompilationModel.compile = Except.ok ir` and `SupportedSpec`, without any
-intermediate `List.Forall₂` hypothesis supplied by callers. This must remain
-fully generic over supported contracts. -/
+intermediate `List.Forall₂` hypothesis supplied by callers. -/
 theorem compile_ok_yields_compiled_functions
     (model : CompilationModel)
     (selectors : List Nat)
@@ -236,10 +235,9 @@ theorem compile_ok_yields_compiled_functions
       (ir := ir)
       (hcore := hcompile)
 
-/-- TODO(#1510): close the function layer generically from `SupportedSpec`
-and successful `compileFunctionSpec`, with no residual body-level premises
-such as `hsource`, `hbodyExec`, or `hmatch`. This theorem must be reusable for
-arbitrary supported contracts, not for one pre-aligned compiled function list. -/
+/-- Generic function-level closure from `SupportedSpec` and successful
+`compileFunctionSpec`, with no residual body-level premises such as `hsource`,
+`hbodyExec`, or `hmatch`. -/
 theorem compileFunctionSpec_correct_generic
     (model : CompilationModel)
     (selectors : List Nat)

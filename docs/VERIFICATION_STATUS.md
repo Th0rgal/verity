@@ -64,7 +64,7 @@ Tracking:
 - a whole-contract theorem surface, [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile` output
 
 **What is not fully discharged yet**:
-- the generic whole-contract theorem surface is now assembled by theorem, but it still depends on 2 documented Layer-2 axioms in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)
+- the generic whole-contract theorem surface is now assembled by theorem, but it still depends on 1 documented Layer-2 axiom in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)
 - the hardest remaining closure step is the generic body-simulation axiom `supported_function_body_correct_from_exact_state`, tracked separately in [#1564](https://github.com/Th0rgal/verity/issues/1564)
 - active end-to-end contract examples still rely on manual bridge theorems in [`Contracts/Proofs/SemanticBridge.lean`](../Contracts/Proofs/SemanticBridge.lean)
 - the repo does not yet have a closed generic proof that directly composes source whole-function semantics, parameter loading, supported statement compilation, and the exact `compileStmtList`/IR execution path used by `CompilationModel.compile`; there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.
@@ -72,7 +72,7 @@ Tracking:
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem shape
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
-- Still axiomatized: generic supported body simulation and the `execIRFunctionFuel` to `execIRFunction` bridge
+- Still axiomatized: generic supported body simulation
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
 - Contract-specific today: the concrete EDSL→compiled-IR bridges used for current end-to-end examples
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
@@ -190,7 +190,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 0 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 
-4 documented axioms remain.
+3 documented axioms remain.
 
 ## Differential Testing
 

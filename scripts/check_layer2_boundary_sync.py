@@ -28,10 +28,13 @@ def expected_snippets() -> dict[str, list[str]]:
         "COMPILER_PROOFS_README": [
             "there is not yet a single generic theorem saying `CompilationModel.compile` preserves semantics for every supported full contract.",
             "`Contracts/Proofs/SemanticBridge.lean`: contract-level bridge theorems",
+            "it still depends on 1 documented axiom in `Compiler.Proofs.IRGeneration.Function`",
         ],
         "VERIFICATION_STATUS": [
             "## Layer 2: CompilationModel → IR — PARTIAL GENERIC",
             "there is not yet a single compiler-level theorem quantified over arbitrary supported `CompilationModel` programs and successful `CompilationModel.compile` output.",
+            "it still depends on 1 documented Layer-2 axiom in [`Function.lean`](../Compiler/Proofs/IRGeneration/Function.lean)",
+            "Still axiomatized: generic supported body simulation",
         ],
         "ROADMAP": [
             "🟡 **Layer 2 Partial Generic**",
@@ -40,14 +43,19 @@ def expected_snippets() -> dict[str, list[str]]:
         "ROOT_README": [
             "Layer 2: CompilationModel → IR        [PARTIAL GENERIC, CONTRACT BRIDGES ACTIVE]",
             "Layer 2 currently combines a generic supported-statement theorem with contract-specific full-contract bridges.",
+            "its non-core function-level closure still depends on 1 documented axiom",
+            "There are currently 3 documented Lean axioms in total: 1 selector axiom, 1 generic non-core Layer 2 axiom, and 1 Layer 3 dispatch bridge axiom.",
         ],
         "TRUST_ASSUMPTIONS": [
             "Layer 2: PARTIAL GENERIC — CompilationModel → IR + contract bridges",
             "whole-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
+            "The theorem surface still depends on 1 documented sub-axiom for generic body simulation",
+            "it still has 3 documented Lean axioms",
         ],
         "DOCS_SITE_COMPILER": [
             "**Layer 2 boundary today**",
             "full-contract Layer 2 preservation still relies on contract-specific bridge theorems.",
+            "the remaining non-core closure still depends on 1 documented axiom.",
         ],
         "DOCS_SITE_RESEARCH": [
             "Partial generic coverage only.",
@@ -56,14 +64,21 @@ def expected_snippets() -> dict[str, list[str]]:
         "LLMS": [
             "partial generic CompilationModel -> IR boundary",
             "generic supported-statement theorem plus contract-specific full-contract bridges.",
+            "3 documented axioms",
         ],
     }
 
 
 def forbidden_snippets() -> dict[str, list[str]]:
     return {
+        "COMPILER_PROOFS_README": [
+            "it still depends on 2 documented axioms in `Compiler.Proofs.IRGeneration.Function`",
+            "generic body simulation and `execIRFunctionFuel`/`execIRFunction` bridging",
+        ],
         "VERIFICATION_STATUS": [
             "## Layer 2: CompilationModel → IR — COMPLETE",
+            "it still depends on 2 documented Layer-2 axioms",
+            "Still axiomatized: generic supported body simulation and the `execIRFunctionFuel` to `execIRFunction` bridge",
         ],
         "ROADMAP": [
             "✅ **Layer 2 Complete**",
@@ -71,19 +86,25 @@ def forbidden_snippets() -> dict[str, list[str]]:
         "ROOT_README": [
             "Layer 2: CompilationModel → IR        [PROVEN]",
             "| 2 | CompilationModel → IR preserves behavior |",
+            "depends on 2 documented axioms",
+            "There are currently 4 documented Lean axioms in total",
         ],
         "TRUST_ASSUMPTIONS": [
             "FULLY VERIFIED — CompilationModel → IR",
             "All three layers are proven in Lean",
+            "2 documented sub-axioms for generic body simulation and the `execIRFunctionFuel`/`execIRFunction` bridge",
+            "4 documented Lean axioms",
         ],
         "DOCS_SITE_COMPILER": [
             "**Layer 2 framework proof**: `CompilationModel -> IR` preserves semantics.",
+            "depends on 2 documented axioms.",
         ],
         "DOCS_SITE_RESEARCH": [
             "Complete for all 7 contracts",
         ],
         "LLMS": [
             "CompilationModel -> IR preservation",
+            "4 documented axioms",
         ],
     }
 
