@@ -25,16 +25,10 @@ def stmtStepMatchesIRExec
       FunctionBody.bindingsBounded runtime.bindings ∧
       FunctionBody.scopeNamesPresent nextScope runtime.bindings
   | .stop runtime, .stop state =>
-      FunctionBody.runtimeStateMatchesIR fields runtime state ∧
-      FunctionBody.bindingsExactlyMatchIRVarsOnScope nextScope runtime.bindings state ∧
-      FunctionBody.bindingsBounded runtime.bindings ∧
-      FunctionBody.scopeNamesPresent nextScope runtime.bindings
+      FunctionBody.runtimeStateMatchesIR fields runtime state
   | .return value runtime, .return value' state =>
       value = value' ∧
-      FunctionBody.runtimeStateMatchesIR fields runtime state ∧
-      FunctionBody.bindingsExactlyMatchIRVarsOnScope nextScope runtime.bindings state ∧
-      FunctionBody.bindingsBounded runtime.bindings ∧
-      FunctionBody.scopeNamesPresent nextScope runtime.bindings
+      FunctionBody.runtimeStateMatchesIR fields runtime state
   | .revert, .revert _ => True
   | _, _ => False
 
@@ -263,7 +257,7 @@ theorem compiledStmtStep_return
     refine ⟨_, _, ?_⟩
     · simp [SourceSemantics.execStmt]
     · simpa [hwholeFuel, compiledIR, retVal, retState] using hwhole
-    · refine ⟨rfl, ?_, hexact, hbounded, hscope⟩
+    · refine ⟨rfl, ?_⟩
       exact FunctionBody.runtimeStateMatchesIR_setMemory hruntime 0 retVal
 
 theorem compiledStmtStep_stop
@@ -288,8 +282,269 @@ theorem compiledStmtStep_stop
     · simpa [compiledIR, hwholeFuel] using
         (FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
           (state := state) (tailIR := []) (extraFuel := wholeExtraFuel))
-    · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using
-        And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
+    · simpa [stmtStepMatchesIRExec, stmtNextScope, collectStmtNames] using hruntime
+
+private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
+    {fields : List Field}
+    {scope : List String}
+    {sourceResult : SourceSemantics.StmtResult}
+    {irExec : IRExecResult}
+    (hmatch : FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec)
+    (hnotContinue : ∀ next, sourceResult ≠ .continue next) :
+    stmtStepMatchesIRExec fields scope sourceResult irExec := by
+  cases sourceResult <;> cases irExec <;> simp [stmtStepMatchesIRExec] at hmatch ⊢
+  case continue runtime =>
+    exact False.elim (hnotContinue runtime rfl)
+
+theorem compiledStmtStep_ite
+    {fields : List Field}
+    {scope : List String}
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hcond : FunctionBody.ExprCompileCore cond)
+    (hinScope : FunctionBody.exprBoundNamesInScope cond scope)
+    (hthen : FunctionBody.StmtListTerminalCore scope thenBranch)
+    (helse : FunctionBody.StmtListTerminalCore scope elseBranch) :
+    ∃ compiledIR, CompiledStmtStep fields scope (.ite cond thenBranch elseBranch) compiledIR := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcond with ⟨condIR, hcondIR⟩
+  rcases FunctionBody.compileStmtList_terminal_core_ok
+      (fields := fields)
+      (scope := scope)
+      (inScopeNames := scope)
+      (stmts := thenBranch)
+      hthen with
+    ⟨thenIR, hthenIR⟩
+  rcases FunctionBody.compileStmtList_terminal_core_ok
+      (fields := fields)
+      (scope := scope)
+      (inScopeNames := scope)
+      (stmts := elseBranch)
+      helse with
+    ⟨elseIR, helseIR⟩
+  have helseNonempty : elseBranch.isEmpty = false := by
+    cases elseBranch with
+    | nil =>
+        exfalso
+        exact FunctionBody.stmtListTerminalCore_ne_nil helse rfl
+    | cons =>
+        simp
+  let tempName :=
+    CompilationModel.pickFreshName "__ite_cond"
+      (scope ++ collectExprNames cond ++
+        collectStmtListNames thenBranch ++ collectStmtListNames elseBranch)
+  let compiledIR :=
+    [YulStmt.block
+      [ YulStmt.let_ tempName condIR
+      , YulStmt.if_ (YulExpr.ident tempName) thenIR
+      , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]]
+  refine ⟨compiledIR, ?_⟩
+  refine
+    { compileOk := ?_
+      preserves := ?_ }
+  · unfold compiledIR tempName
+    unfold CompilationModel.compileStmt
+    rw [hcondIR, hthenIR, helseIR]
+    simp [helseNonempty]
+  · intro runtime state extraFuel hexact hscope hbounded hruntime hslack
+    let slack := sizeOf compiledIR - compiledIR.length
+    let wholeExtraFuel := extraFuel - slack
+    have hwholeFuel :
+        sizeOf compiledIR + wholeExtraFuel + 1 =
+          compiledIR.length + extraFuel + 1 := by
+      dsimp [wholeExtraFuel, slack, compiledIR]
+      have : slack ≤ extraFuel := by
+        simpa [slack, compiledIR] using hslack
+      omega
+    have hpresent : FunctionBody.exprBoundNamesPresent cond runtime.bindings :=
+      FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope
+    let condValue := SourceSemantics.evalExpr fields runtime cond
+    have hcondEval :
+        evalIRExpr state condIR = some condValue := by
+      have heval :=
+        FunctionBody.eval_compileExpr_core_of_scope
+          hcond hexact hinScope hbounded hpresent hruntime
+      rw [hcondIR] at heval
+      simpa [condValue] using heval
+    by_cases hcondZero : condValue = 0
+    · let branchExtraFuel :=
+        sizeOf compiledIR - (sizeOf elseIR + 5) + wholeExtraFuel
+      rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
+          (fields := fields)
+          (runtime := runtime)
+          (state := state.setVar tempName condValue)
+          (scope := scope)
+          (inScopeNames := scope)
+          (stmts := elseBranch)
+          (extraFuel := branchExtraFuel)
+          helse
+          FunctionBody.scopeNamesIncluded_refl
+          hscope
+          (FunctionBody.bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
+            (scope := scope)
+            (inScopeNames := scope)
+            (cond := cond)
+            (thenBranch := thenBranch)
+            (elseBranch := elseBranch)
+            (value := condValue)
+            hexact
+            FunctionBody.scopeNamesIncluded_refl)
+          hbounded
+          (FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime) with
+        ⟨elseIR', helseIR', helseSem⟩
+      rw [helseIR] at helseIR'
+      injection helseIR' with helseEq
+      subst helseEq
+      have hsourceEq :
+          SourceSemantics.execStmtList fields runtime
+            (.ite cond thenBranch elseBranch :: []) =
+            SourceSemantics.execStmtList fields runtime elseBranch :=
+        FunctionBody.execStmtList_terminal_core_ite_else_eq
+          (fields := fields)
+          (runtime := runtime)
+          (scope := scope)
+          (cond := cond)
+          (thenBranch := thenBranch)
+          (elseBranch := elseBranch)
+          (rest := [])
+          helse
+          (by simp [condValue, hcondZero])
+      have hbodyMatch :
+          FunctionBody.stmtResultMatchesIRExec
+            fields
+            (SourceSemantics.execStmtList fields runtime elseBranch)
+            (execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR) := by
+        have hmatch :=
+          FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_else
+            (fields := fields)
+            (runtime := runtime)
+            (state := state)
+            (scope := scope)
+            (cond := cond)
+            (thenBranch := thenBranch)
+            (elseBranch := elseBranch)
+            (rest := [])
+            (extraFuel := wholeExtraFuel)
+            (tempName := tempName)
+            (condIR := condIR)
+            (thenIR := thenIR)
+            (elseIR := elseIR)
+            (tailIR := [])
+            (condValue := condValue)
+            (irExec := execIRStmts
+              (sizeOf elseIR + branchExtraFuel)
+              (state.setVar tempName condValue)
+              elseIR)
+            helse
+            helseSem
+            (by simp [condValue, hcondZero])
+            hcondEval
+            hcondZero
+            (by
+              simpa [compiledIR, branchExtraFuel, tempName, condValue] using rfl)
+        rw [hsourceEq] at hmatch
+        simpa [hwholeFuel, compiledIR] using hmatch
+      refine ⟨_, _, ?_⟩
+      · simp [SourceSemantics.execStmt, condValue, hcondZero]
+      · rfl
+      · exact terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
+          hbodyMatch
+          (FunctionBody.execStmtList_terminal_core_not_continue
+            (fields := fields)
+            (runtime := runtime)
+            (scope := scope)
+            (stmts := elseBranch)
+            helse)
+    · let branchExtraFuel :=
+        sizeOf compiledIR - (sizeOf thenIR + 5) + wholeExtraFuel
+      rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
+          (fields := fields)
+          (runtime := runtime)
+          (state := state.setVar tempName condValue)
+          (scope := scope)
+          (inScopeNames := scope)
+          (stmts := thenBranch)
+          (extraFuel := branchExtraFuel)
+          hthen
+          FunctionBody.scopeNamesIncluded_refl
+          hscope
+          (FunctionBody.bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
+            (scope := scope)
+            (inScopeNames := scope)
+            (cond := cond)
+            (thenBranch := thenBranch)
+            (elseBranch := elseBranch)
+            (value := condValue)
+            hexact
+            FunctionBody.scopeNamesIncluded_refl)
+          hbounded
+          (FunctionBody.runtimeStateMatchesIR_setVar_irrelevant hruntime) with
+        ⟨thenIR', hthenIR', hthenSem⟩
+      rw [hthenIR] at hthenIR'
+      injection hthenIR' with hthenEq
+      subst hthenEq
+      have hsourceEq :
+          SourceSemantics.execStmtList fields runtime
+            (.ite cond thenBranch elseBranch :: []) =
+            SourceSemantics.execStmtList fields runtime thenBranch :=
+        FunctionBody.execStmtList_terminal_core_ite_then_eq
+          (fields := fields)
+          (runtime := runtime)
+          (scope := scope)
+          (cond := cond)
+          (thenBranch := thenBranch)
+          (elseBranch := elseBranch)
+          (rest := [])
+          hthen
+          (by simp [condValue, hcondZero])
+      have hbodyMatch :
+          FunctionBody.stmtResultMatchesIRExec
+            fields
+            (SourceSemantics.execStmtList fields runtime thenBranch)
+            (execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR) := by
+        have hmatch :=
+          FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_then
+            (fields := fields)
+            (runtime := runtime)
+            (state := state)
+            (scope := scope)
+            (cond := cond)
+            (thenBranch := thenBranch)
+            (elseBranch := elseBranch)
+            (rest := [])
+            (extraFuel := wholeExtraFuel)
+            (tempName := tempName)
+            (condIR := condIR)
+            (thenIR := thenIR)
+            (elseIR := elseIR)
+            (tailIR := [])
+            (condValue := condValue)
+            (irExec := execIRStmts
+              (sizeOf thenIR + branchExtraFuel + 1)
+              (state.setVar tempName condValue)
+              thenIR)
+            hthen
+            hthenSem
+            (by simp [condValue, hcondZero])
+            hcondEval
+            (by
+              intro hzero
+              exact hcondZero hzero)
+            (by
+              simpa [compiledIR, branchExtraFuel, tempName, condValue, Nat.add_assoc,
+                Nat.add_left_comm, Nat.add_comm] using rfl)
+        rw [hsourceEq] at hmatch
+        simpa [hwholeFuel, compiledIR] using hmatch
+      refine ⟨_, _, ?_⟩
+      · simp [SourceSemantics.execStmt, condValue, hcondZero]
+      · rfl
+      · exact terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
+          hbodyMatch
+          (FunctionBody.execStmtList_terminal_core_not_continue
+            (fields := fields)
+            (runtime := runtime)
+            (scope := scope)
+            (stmts := thenBranch)
+            hthen)
 
 theorem stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
     {fields : List Field}
@@ -488,7 +743,7 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
         rw [hfullExec]
         exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hheadMatch
       ·
-        rcases hheadMatch with ⟨rfl, hruntime', _, _, _⟩
+        rcases hheadMatch with ⟨rfl, hruntime'⟩
         have hheadExec' :
             execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
               .return ‹Nat› ‹IRState› := by
