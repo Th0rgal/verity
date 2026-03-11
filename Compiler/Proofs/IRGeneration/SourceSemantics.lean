@@ -1,5 +1,6 @@
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.MappingSlot
 import Compiler.CompilationModel.LayoutValidation
 
 namespace Compiler.Proofs.IRGeneration
@@ -35,6 +36,11 @@ def fieldUsesAddressStorage (field : Field) : Bool :=
   | .address => true
   | _ => false
 
+def fieldUsesDynamicArrayStorage (field : Field) : Bool :=
+  match field.ty with
+  | .dynamicArray _ => true
+  | _ => false
+
 private def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option Field :=
   let rec go (remaining : List Field) (idx : Nat) : Option Field :=
     match remaining with
@@ -47,14 +53,41 @@ private def findResolvedFieldAtSlot (fields : List Field) (slot : Nat) : Option 
           go rest (idx + 1)
   go fields 0
 
+private def findDynamicArrayElementAtSlot
+    (fields : List Field) (world : Verity.ContractState) (targetSlot : Nat) : Option Nat :=
+  let rec scanElements (baseSlot : Nat) : List Verity.Core.Uint256 → Nat → Option Nat
+    | [], _ => none
+    | value :: rest, idx =>
+        if Compiler.Proofs.solidityMappingSlot baseSlot idx = targetSlot then
+          some value.val
+        else
+          scanElements baseSlot rest (idx + 1)
+  let rec go (remaining : List Field) (idx : Nat) : Option Nat :=
+    match remaining with
+    | [] => none
+    | field :: rest =>
+        let resolvedSlot := field.slot.getD idx
+        match field.ty with
+        | .dynamicArray _ =>
+            match scanElements resolvedSlot (world.storageArray resolvedSlot) 0 with
+            | some value => some value
+            | none => go rest (idx + 1)
+        | _ => go rest (idx + 1)
+  go fields 0
+
 def encodeStorageAt (fields : List Field) (world : Verity.ContractState) (slot : Nat) : Nat :=
   match findResolvedFieldAtSlot fields slot with
   | some field =>
       if fieldUsesAddressStorage field then
         (world.storageAddr slot).val
+      else if fieldUsesDynamicArrayStorage field then
+        (world.storageArray slot).length
       else
         (world.storage slot).val
-  | none => (world.storage slot).val
+  | none =>
+      match findDynamicArrayElementAtSlot fields world slot with
+      | some value => value
+      | none => (world.storage slot).val
 
 def encodeStorage (spec : CompilationModel) (world : Verity.ContractState) : Nat → Nat :=
   encodeStorageAt (effectiveFields spec) world
@@ -103,119 +136,227 @@ inductive StmtResult where
   | return (value : Nat) (state : RuntimeState)
   | revert
 
-def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Nat
-  | .literal n => wordNormalize n
-  | .param name => lookupValue state.bindings name
+private def storageArraySetAt : List Verity.Core.Uint256 → Nat → Verity.Core.Uint256 → Option (List Verity.Core.Uint256)
+  | [], _, _ => none
+  | _ :: rest, 0, value => some (value :: rest)
+  | head :: rest, idx + 1, value => do
+      let updatedRest ← storageArraySetAt rest idx value
+      some (head :: updatedRest)
+
+private def storageArrayDropLast? : List Verity.Core.Uint256 → Option (List Verity.Core.Uint256)
+  | [] => none
+  | [_] => some []
+  | head :: rest => do
+      let updatedRest ← storageArrayDropLast? rest
+      some (head :: updatedRest)
+
+private def writeStorageArray (world : Verity.ContractState) (slot : Nat)
+    (values : List Verity.Core.Uint256) : Verity.ContractState :=
+  { world with
+    storageArray := fun s => if s == slot then values else world.storageArray s }
+
+def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
+  | .literal n => some (wordNormalize n)
+  | .param name => some (lookupValue state.bindings name)
   | .storage fieldName =>
       match findFieldWithResolvedSlot fields fieldName with
-      | some (_, slot) => (state.world.storage slot).val
-      | none => 0
+      | some (_, slot) => some (state.world.storage slot).val
+      | none => none
   | .storageAddr fieldName =>
       match findFieldWithResolvedSlot fields fieldName with
-      | some (_, slot) => (state.world.storageAddr slot).val
-      | none => 0
-  | .caller => state.world.sender.val
-  | .contractAddress => state.world.thisAddress.val
-  | .chainid => state.world.chainId.val
-  | .msgValue => state.world.msgValue.val
-  | .blockTimestamp => state.world.blockTimestamp.val
-  | .blockNumber => state.world.blockNumber.val
-  | .localVar name => lookupValue state.bindings name
-  | .add a b => (((evalExpr fields state a : Verity.Core.Uint256) +
-      (evalExpr fields state b : Verity.Core.Uint256)) : Verity.Core.Uint256).val
-  | .sub a b => (((evalExpr fields state a : Verity.Core.Uint256) -
-      (evalExpr fields state b : Verity.Core.Uint256)) : Verity.Core.Uint256).val
-  | .mul a b => (((evalExpr fields state a : Verity.Core.Uint256) *
-      (evalExpr fields state b : Verity.Core.Uint256)) : Verity.Core.Uint256).val
-  | .div a b => (((evalExpr fields state a : Verity.Core.Uint256) /
-      (evalExpr fields state b : Verity.Core.Uint256)) : Verity.Core.Uint256).val
-  | .mod a b => (((evalExpr fields state a : Verity.Core.Uint256) %
-      (evalExpr fields state b : Verity.Core.Uint256)) : Verity.Core.Uint256).val
-  | .bitAnd a b =>
-      (Verity.Core.Uint256.and (evalExpr fields state a) (evalExpr fields state b)).val
-  | .bitOr a b =>
-      (Verity.Core.Uint256.or (evalExpr fields state a) (evalExpr fields state b)).val
-  | .bitXor a b =>
-      (Verity.Core.Uint256.xor (evalExpr fields state a) (evalExpr fields state b)).val
-  | .bitNot a =>
-      (Verity.Core.Uint256.not (evalExpr fields state a)).val
-  | .eq a b => boolWord (decide (evalExpr fields state a = evalExpr fields state b))
-  | .ge a b => boolWord (decide (evalExpr fields state b ≤ evalExpr fields state a))
-  | .gt a b => boolWord (decide (evalExpr fields state b < evalExpr fields state a))
-  | .lt a b => boolWord (decide (evalExpr fields state a < evalExpr fields state b))
-  | .le a b => boolWord (decide (evalExpr fields state a ≤ evalExpr fields state b))
-  | .logicalAnd a b =>
-      boolWord (decide (evalExpr fields state a != 0) &&
-        decide (evalExpr fields state b != 0))
-  | .logicalOr a b =>
-      boolWord (decide (evalExpr fields state a != 0) ||
-        decide (evalExpr fields state b != 0))
-  | .logicalNot a => boolWord (decide (evalExpr fields state a = 0))
-  | .min a b =>
-      let lhs := evalExpr fields state a
-      let rhs := evalExpr fields state b
-      if lhs ≤ rhs then lhs else rhs
-  | .max a b =>
-      let lhs := evalExpr fields state a
-      let rhs := evalExpr fields state b
-      if rhs ≤ lhs then lhs else rhs
-  | .wMulDown a b =>
-      let lhs : Verity.Core.Uint256 := evalExpr fields state a
-      let rhs : Verity.Core.Uint256 := evalExpr fields state b
+      | some (_, slot) => some (state.world.storageAddr slot).val
+      | none => none
+  | .storageArrayLength fieldName =>
+      match findFieldWithResolvedSlot fields fieldName with
+      | some ({ ty := .dynamicArray _, .. }, slot) => some (state.world.storageArray slot).length
+      | _ => none
+  | .storageArrayElement fieldName index => do
+      let idx ← evalExpr fields state index
+      match findFieldWithResolvedSlot fields fieldName with
+      | some ({ ty := .dynamicArray _, .. }, slot) =>
+          match (state.world.storageArray slot)[idx]? with
+          | some value => some value.val
+          | none => none
+      | _ => none
+  | .caller => some state.world.sender.val
+  | .contractAddress => some state.world.thisAddress.val
+  | .chainid => some state.world.chainId.val
+  | .msgValue => some state.world.msgValue.val
+  | .blockTimestamp => some state.world.blockTimestamp.val
+  | .blockNumber => some state.world.blockNumber.val
+  | .localVar name => some (lookupValue state.bindings name)
+  | .add a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs + rhs).val
+  | .sub a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs - rhs).val
+  | .mul a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs * rhs).val
+  | .div a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs / rhs).val
+  | .mod a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      pure (lhs % rhs).val
+  | .bitAnd a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Uint256.and lhs rhs).val
+  | .bitOr a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Uint256.or lhs rhs).val
+  | .bitXor a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (Verity.Core.Uint256.xor lhs rhs).val
+  | .bitNot a => do
+      let value ← evalExpr fields state a
+      pure (Verity.Core.Uint256.not value).val
+  | .eq a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs = rhs)))
+  | .ge a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (rhs ≤ lhs)))
+  | .gt a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (rhs < lhs)))
+  | .lt a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs < rhs)))
+  | .le a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs ≤ rhs)))
+  | .logicalAnd a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs != 0) && decide (rhs != 0)))
+  | .logicalOr a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (boolWord (decide (lhs != 0) || decide (rhs != 0)))
+  | .logicalNot a => do
+      let value ← evalExpr fields state a
+      pure (boolWord (decide (value = 0)))
+  | .min a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (if lhs ≤ rhs then lhs else rhs)
+  | .max a b => do
+      let lhs ← evalExpr fields state a
+      let rhs ← evalExpr fields state b
+      pure (if rhs ≤ lhs then lhs else rhs)
+  | .wMulDown a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
       let wad : Verity.Core.Uint256 := 1000000000000000000
-      ((lhs * rhs) / wad).val
-  | .wDivUp a b =>
-      let lhs : Verity.Core.Uint256 := evalExpr fields state a
-      let rhs : Verity.Core.Uint256 := evalExpr fields state b
+      pure ((lhs * rhs) / wad).val
+  | .wDivUp a b => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
       let wad : Verity.Core.Uint256 := 1000000000000000000
-      (((lhs * wad) + (rhs - 1)) / rhs).val
-  | .mulDivDown a b c =>
-      let lhs : Verity.Core.Uint256 := evalExpr fields state a
-      let rhs : Verity.Core.Uint256 := evalExpr fields state b
-      let denom : Verity.Core.Uint256 := evalExpr fields state c
-      ((lhs * rhs) / denom).val
-  | .mulDivUp a b c =>
-      let lhs : Verity.Core.Uint256 := evalExpr fields state a
-      let rhs : Verity.Core.Uint256 := evalExpr fields state b
-      let denom : Verity.Core.Uint256 := evalExpr fields state c
-      (((lhs * rhs) + (denom - 1)) / denom).val
-  | .ite cond thenVal elseVal =>
-      if evalExpr fields state cond != 0 then
+      pure (((lhs * wad) + (rhs - 1)) / rhs).val
+  | .mulDivDown a b c => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      let denom : Verity.Core.Uint256 := ← evalExpr fields state c
+      pure ((lhs * rhs) / denom).val
+  | .mulDivUp a b c => do
+      let lhs : Verity.Core.Uint256 := ← evalExpr fields state a
+      let rhs : Verity.Core.Uint256 := ← evalExpr fields state b
+      let denom : Verity.Core.Uint256 := ← evalExpr fields state c
+      pure (((lhs * rhs) + (denom - 1)) / denom).val
+  | .ite cond thenVal elseVal => do
+      let condVal ← evalExpr fields state cond
+      if condVal != 0 then
         evalExpr fields state thenVal
       else
         evalExpr fields state elseVal
-  | .shl shift value =>
-      (Verity.Core.Uint256.shl (evalExpr fields state shift) (evalExpr fields state value)).val
-  | .shr shift value =>
-      (Verity.Core.Uint256.shr (evalExpr fields state shift) (evalExpr fields state value)).val
-  | _ => 0
+  | .shl shift value => do
+      let shiftVal ← evalExpr fields state shift
+      let wordVal ← evalExpr fields state value
+      pure (Verity.Core.Uint256.shl shiftVal wordVal).val
+  | .shr shift value => do
+      let shiftVal ← evalExpr fields state shift
+      let wordVal ← evalExpr fields state value
+      pure (Verity.Core.Uint256.shr shiftVal wordVal).val
+  | _ => none
 
 mutual
   def execStmt (fields : List Field) : RuntimeState → Stmt → StmtResult
     | state, .letVar name value =>
-        .continue { state with bindings := bindValue state.bindings name (evalExpr fields state value) }
+        match evalExpr fields state value with
+        | some resolved =>
+            .continue { state with bindings := bindValue state.bindings name resolved }
+        | none => .revert
     | state, .assignVar name value =>
-        .continue { state with bindings := bindValue state.bindings name (evalExpr fields state value) }
+        match evalExpr fields state value with
+        | some resolved =>
+            .continue { state with bindings := bindValue state.bindings name resolved }
+        | none => .revert
     | state, .setStorage fieldName value =>
-        match findFieldWriteSlots fields fieldName with
-        | some slots =>
-            .continue { state with world := writeUintSlots state.world slots (evalExpr fields state value) }
+        match findFieldWriteSlots fields fieldName, evalExpr fields state value with
+        | some slots, some resolved =>
+            .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | state, .storageArrayPush fieldName value =>
+        match findFieldWithResolvedSlot fields fieldName, evalExpr fields state value with
+        | some ({ ty := .dynamicArray _, .. }, slot), some resolved =>
+            let updated := state.world.storageArray slot ++ [resolved]
+            .continue { state with world := writeStorageArray state.world slot updated }
+        | _, _ => .revert
+    | state, .storageArrayPop fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some ({ ty := .dynamicArray _, .. }, slot) =>
+            match storageArrayDropLast? (state.world.storageArray slot) with
+            | some updated =>
+                .continue { state with world := writeStorageArray state.world slot updated }
+            | none => .revert
+        | _ => .revert
+    | state, .setStorageArrayElement fieldName index value =>
+        match findFieldWithResolvedSlot fields fieldName, evalExpr fields state index, evalExpr fields state value with
+        | some ({ ty := .dynamicArray _, .. }, slot), some idx, some resolved =>
+            match storageArraySetAt (state.world.storageArray slot) idx resolved with
+            | some updated =>
+                .continue { state with world := writeStorageArray state.world slot updated }
+            | none => .revert
         | none => .revert
     | state, .setStorageAddr fieldName value =>
-        match findFieldWriteSlots fields fieldName with
-        | some slots =>
-            .continue { state with world := writeAddressSlots state.world slots (evalExpr fields state value) }
-        | none => .revert
+        match findFieldWriteSlots fields fieldName, evalExpr fields state value with
+        | some slots, some resolved =>
+            .continue { state with world := writeAddressSlots state.world slots resolved }
+        | _, _ => .revert
     | state, .require cond _ =>
-        if evalExpr fields state cond != 0 then .continue state else .revert
+        match evalExpr fields state cond with
+        | some resolved =>
+            if resolved != 0 then .continue state else .revert
+        | none => .revert
     | state, .return value =>
-        .return (evalExpr fields state value) state
+        match evalExpr fields state value with
+        | some resolved => .return resolved state
+        | none => .revert
     | state, .stop => .stop state
     | state, .ite cond thenBranch elseBranch =>
-        if evalExpr fields state cond != 0 then
-          execStmtList fields state thenBranch
-        else
-          execStmtList fields state elseBranch
+        match evalExpr fields state cond with
+        | some resolved =>
+            if resolved != 0 then
+              execStmtList fields state thenBranch
+            else
+              execStmtList fields state elseBranch
+        | none => .revert
     | _, _ => .revert
 
   def execStmtList (fields : List Field) : RuntimeState → List Stmt → StmtResult
@@ -317,6 +458,83 @@ example :
       [0xd09de08a, 0x2baeceb7, 0xa87d942c]
       { sender := 9, functionSelector := 0xa87d942c, args := [] }
       { Verity.defaultState with storage := fun slot => if slot = 0 then 42 else 0 }).returnValue = some 42 := by
+  decide
+
+private def storageArraySourceSpec : CompilationModel :=
+  { name := "StorageArraySource"
+    fields := [{ name := "queue", ty := .dynamicArray .uint256, «slot» := some 7 }]
+    constructor := none
+    functions :=
+      [ { name := "length"
+          params := []
+          returnType := some .uint256
+          body := [Stmt.return (Expr.storageArrayLength "queue")] }
+      , { name := "first"
+          params := []
+          returnType := some .uint256
+          body := [Stmt.return (Expr.storageArrayElement "queue" (.literal 0))] }
+      , { name := "push"
+          params := [{ name := "value", ty := .uint256 }]
+          returnType := none
+          body := [Stmt.storageArrayPush "queue" (.param "value"), .stop] }
+      , { name := "write0"
+          params := [{ name := "value", ty := .uint256 }]
+          returnType := none
+          body := [Stmt.setStorageArrayElement "queue" (.literal 0) (.param "value"), .stop] }
+      , { name := "pop"
+          params := []
+          returnType := none
+          body := [Stmt.storageArrayPop "queue", .stop] } ] }
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x11111111, args := [] }
+      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).returnValue = some 2 := by
+  decide
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x22222222, args := [] }
+      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).returnValue = some 11 := by
+  decide
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x33333333, args := [23] }
+      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
+        (Compiler.Proofs.solidityMappingSlot 7 2) = 23 := by
+  decide
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x44444444, args := [29] }
+      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
+        (Compiler.Proofs.solidityMappingSlot 7 0) = 29 := by
+  decide
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x55555555, args := [] }
+      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage 7 = 1 := by
+  decide
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x22222222, args := [] }
+      Verity.defaultState).success = false := by
+  decide
+
+example :
+    (sourceContractSemantics storageArraySourceSpec
+      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
+      { sender := 9, functionSelector := 0x55555555, args := [] }
+      Verity.defaultState).success = false := by
   decide
 
 end Compiler.Proofs.IRGeneration

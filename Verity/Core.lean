@@ -48,6 +48,7 @@ structure ContractState where
   storageMap : Nat → Address → Uint256  -- Mapping storage (Address → Uint256)
   storageMapUint : Nat → Uint256 → Uint256  -- Uint256-keyed mapping storage (#154)
   storageMap2 : Nat → Address → Address → Uint256  -- Double mapping storage (#154)
+  storageArray : Nat → List Uint256  -- Dynamic-array storage grouped by base slot (#1571)
   sender : Address
   thisAddress : Address
   msgValue : Uint256
@@ -66,6 +67,7 @@ def defaultState : ContractState where
   storageMap := fun _ _ => 0
   storageMapUint := fun _ _ => 0
   storageMap2 := fun _ _ _ => 0
+  storageArray := fun _ => []
   sender := 0
   thisAddress := 0
   msgValue := 0
@@ -355,6 +357,107 @@ def setMappingUintAddr (s : StorageSlot (Uint256 → Uint256)) (key : Uint256) (
     (value : Address) (state : ContractState) :
   (setMappingUintAddr s key value).run state =
     (setMappingUint s key (addressToWord value)).run state := rfl
+
+private def storageArraySetAt : List Uint256 → Nat → Uint256 → Option (List Uint256)
+  | [], _, _ => none
+  | _ :: rest, 0, value => some (value :: rest)
+  | head :: rest, idx + 1, value => do
+      let updatedRest ← storageArraySetAt rest idx value
+      some (head :: updatedRest)
+
+private def storageArrayDropLast? : List Uint256 → Option (List Uint256)
+  | [] => none
+  | [_] => some []
+  | head :: rest => do
+      let updatedRest ← storageArrayDropLast? rest
+      some (head :: updatedRest)
+
+-- Storage dynamic-array operations (#1571)
+def getStorageArrayLength (s : StorageSlot (List Uint256)) : Contract Uint256 :=
+  fun state => ContractResult.success (((state.storageArray s.slot).length : Nat) : Uint256) state
+
+def getStorageArrayElement (s : StorageSlot (List Uint256)) (index : Uint256) : Contract Uint256 :=
+  fun state =>
+    match (state.storageArray s.slot)[index.val]? with
+    | some value => ContractResult.success value state
+    | none => ContractResult.revert "Storage array index out of bounds" state
+
+def pushStorageArray (s : StorageSlot (List Uint256)) (value : Uint256) : Contract Unit :=
+  fun state =>
+    let current := state.storageArray s.slot
+    ContractResult.success () { state with
+      storageArray := fun slot => if slot == s.slot then current ++ [value] else state.storageArray slot
+    }
+
+def popStorageArray (s : StorageSlot (List Uint256)) : Contract Unit :=
+  fun state =>
+    match storageArrayDropLast? (state.storageArray s.slot) with
+    | some updated =>
+        ContractResult.success () { state with
+          storageArray := fun slot => if slot == s.slot then updated else state.storageArray slot
+        }
+    | none => ContractResult.revert "Storage array pop on empty array" state
+
+def setStorageArrayElement (s : StorageSlot (List Uint256)) (index value : Uint256) : Contract Unit :=
+  fun state =>
+    match storageArraySetAt (state.storageArray s.slot) index.val value with
+    | some updated =>
+        ContractResult.success () { state with
+          storageArray := fun slot => if slot == s.slot then updated else state.storageArray slot
+        }
+    | none => ContractResult.revert "Storage array index out of bounds" state
+
+@[simp] theorem getStorageArrayLength_run (s : StorageSlot (List Uint256)) (state : ContractState) :
+  (getStorageArrayLength s).run state =
+    ContractResult.success (((state.storageArray s.slot).length : Nat) : Uint256) state := rfl
+
+@[simp] theorem getStorageArrayElement_run_some (s : StorageSlot (List Uint256)) (index : Uint256)
+    (state : ContractState) (value : Uint256)
+    (h : (state.storageArray s.slot)[index.val]? = some value) :
+    (getStorageArrayElement s index).run state = ContractResult.success value state := by
+  simp [Contract.run, getStorageArrayElement, h]
+
+@[simp] theorem getStorageArrayElement_run_none (s : StorageSlot (List Uint256)) (index : Uint256)
+    (state : ContractState)
+    (h : (state.storageArray s.slot)[index.val]? = none) :
+    (getStorageArrayElement s index).run state =
+      ContractResult.revert "Storage array index out of bounds" state := by
+  simp [Contract.run, getStorageArrayElement, h]
+
+@[simp] theorem pushStorageArray_run (s : StorageSlot (List Uint256)) (value : Uint256)
+    (state : ContractState) :
+  (pushStorageArray s value).run state = ContractResult.success () { state with
+    storageArray := fun slot => if slot == s.slot then state.storageArray s.slot ++ [value] else state.storageArray slot
+  } := rfl
+
+@[simp] theorem popStorageArray_run_some (s : StorageSlot (List Uint256)) (state : ContractState)
+    (updated : List Uint256)
+    (h : storageArrayDropLast? (state.storageArray s.slot) = some updated) :
+    (popStorageArray s).run state = ContractResult.success () { state with
+      storageArray := fun slot => if slot == s.slot then updated else state.storageArray slot
+    } := by
+  simp [Contract.run, popStorageArray, h]
+
+@[simp] theorem popStorageArray_run_none (s : StorageSlot (List Uint256)) (state : ContractState)
+    (h : storageArrayDropLast? (state.storageArray s.slot) = none) :
+    (popStorageArray s).run state =
+      ContractResult.revert "Storage array pop on empty array" state := by
+  simp [Contract.run, popStorageArray, h]
+
+@[simp] theorem setStorageArrayElement_run_some (s : StorageSlot (List Uint256))
+    (index value : Uint256) (state : ContractState) (updated : List Uint256)
+    (h : storageArraySetAt (state.storageArray s.slot) index.val value = some updated) :
+    (setStorageArrayElement s index value).run state = ContractResult.success () { state with
+      storageArray := fun slot => if slot == s.slot then updated else state.storageArray slot
+    } := by
+  simp [Contract.run, setStorageArrayElement, h]
+
+@[simp] theorem setStorageArrayElement_run_none (s : StorageSlot (List Uint256))
+    (index value : Uint256) (state : ContractState)
+    (h : storageArraySetAt (state.storageArray s.slot) index.val value = none) :
+    (setStorageArrayElement s index value).run state =
+      ContractResult.revert "Storage array index out of bounds" state := by
+  simp [Contract.run, setStorageArrayElement, h]
 
 -- Event emission (#153)
 def emitEvent (name : String) (args : List Uint256) (indexedArgs : List Uint256 := []) : Contract Unit :=
