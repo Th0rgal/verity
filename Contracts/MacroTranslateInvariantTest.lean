@@ -288,6 +288,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.MappingChainSmoke.spec
   , Contracts.Smoke.MixedMappingChainSmoke.spec
   , Contracts.Smoke.Bytes32Smoke.spec
+  , Contracts.Smoke.StorageArraySmoke.spec
   , Contracts.Smoke.MappingWordSmoke.spec
   , Contracts.Smoke.StorageWordsSmoke.spec
   , Contracts.Smoke.CustomErrorSmoke.spec
@@ -348,6 +349,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("MappingChainSmoke", ["setApproval(address,address,address,uint256)", "getApproval(address,address,address)"])
   , ("MixedMappingChainSmoke", ["setApproval(address,uint256,address,uint256)", "getApproval(address,uint256,address)"])
   , ("Bytes32Smoke", ["setDigest(bytes32)", "getDigest()"])
+  , ("StorageArraySmoke", ["size()", "push(uint256)"])
   , ("MappingWordSmoke", ["setWord1(uint256,uint256)", "getWord1(uint256)", "isWord1NonZero(uint256)"])
   , ("StorageWordsSmoke", ["extSloadsLike(bytes32[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
@@ -408,6 +410,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("MappingChainSmoke", ["0xd5264fdd", "0xf7531281"])
   , ("MixedMappingChainSmoke", ["0xd3bf29a3", "0xa75ac7f0"])
   , ("Bytes32Smoke", ["0xed9fdc05", "0xae0d3e27"])
+  , ("StorageArraySmoke", ["0x949d225d", "0x959ac484"])
   , ("MappingWordSmoke", ["0x60ab11c4", "0x8f8a322f", "0xea3aded7"])
   , ("StorageWordsSmoke", ["0x764fa434"])
   , ("CustomErrorSmoke", ["0x6279e43c"])

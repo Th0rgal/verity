@@ -1343,6 +1343,69 @@ def echoRecipientsExecutableRoundTrips : Bool :=
 
 example : echoRecipientsExecutableRoundTrips = true := by native_decide
 
+verity_contract MacroStorageDynamicArray where
+  storage
+    queue : Array Uint256 := slot 7
+
+  function size () : Uint256 := do
+    let size ← getStorageArrayLength queue
+    return size
+
+  function firstValue () : Uint256 := do
+    let first ← getStorageArrayElement queue 0
+    return first
+
+  function pushValue (value : Uint256) : Unit := do
+    pushStorageArray queue value
+
+  function setValue0 (value : Uint256) : Unit := do
+    setStorageArrayElement queue 0 value
+
+  function popValue () : Unit := do
+    popStorageArray queue
+
+def storageDynamicArrayLengthUsesStorageExpr : Bool :=
+  match MacroStorageDynamicArray.size_modelBody with
+  | [Stmt.letVar "size" (Expr.storageArrayLength "queue"),
+      Stmt.return (Expr.localVar "size")] =>
+      true
+  | _ => false
+
+example : storageDynamicArrayLengthUsesStorageExpr = true := by native_decide
+
+def storageDynamicArrayElementUsesStorageExpr : Bool :=
+  match MacroStorageDynamicArray.firstValue_modelBody with
+  | [Stmt.letVar "first" (Expr.storageArrayElement "queue" (Expr.literal 0)),
+      Stmt.return (Expr.localVar "first")] =>
+      true
+  | _ => false
+
+example : storageDynamicArrayElementUsesStorageExpr = true := by native_decide
+
+def storageDynamicArrayPushUsesStorageStmt : Bool :=
+  match MacroStorageDynamicArray.pushValue_modelBody with
+  | [Stmt.storageArrayPush "queue" (Expr.param "value"), Stmt.stop] =>
+      true
+  | _ => false
+
+example : storageDynamicArrayPushUsesStorageStmt = true := by native_decide
+
+def storageDynamicArraySetUsesStorageStmt : Bool :=
+  match MacroStorageDynamicArray.setValue0_modelBody with
+  | [Stmt.setStorageArrayElement "queue" (Expr.literal 0) (Expr.param "value"), Stmt.stop] =>
+      true
+  | _ => false
+
+example : storageDynamicArraySetUsesStorageStmt = true := by native_decide
+
+def storageDynamicArrayPopUsesStorageStmt : Bool :=
+  match MacroStorageDynamicArray.popValue_modelBody with
+  | [Stmt.storageArrayPop "queue", Stmt.stop] =>
+      true
+  | _ => false
+
+example : storageDynamicArrayPopUsesStorageStmt = true := by native_decide
+
 end MacroDynamicArraySmoke
 
 namespace MacroEventTraceSmoke

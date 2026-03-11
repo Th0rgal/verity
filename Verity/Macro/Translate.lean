@@ -43,6 +43,7 @@ structure StructMemberDecl where
 
 inductive StorageType where
   | scalar (ty : ValueType)
+  | dynamicArray (elemTy : Compiler.CompilationModel.StorageArrayElemType)
   | mappingAddressToUint256
   | mapping2AddressToAddressToUint256
   | mappingUintToUint256
@@ -196,6 +197,13 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
         }
     | _ => throwErrorAt stx "invalid struct member declaration"
 
+  let storageArrayElemTypeFromValueType (elemTy : ValueType) : CommandElabM Compiler.CompilationModel.StorageArrayElemType :=
+    match elemTy with
+    | .uint256 => pure .uint256
+    | _ =>
+        throwErrorAt ty
+          s!"storage dynamic arrays currently support only Uint256 elements on the macro path, got {reprStr (ValueType.array elemTy)}"
+
   let (arrowArgs, arrowResult) ← collectArrowChainTypes ty
   if !arrowArgs.isEmpty then
     match arrowResult with
@@ -222,9 +230,7 @@ private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
   | _ => do
       let vt ← valueTypeFromSyntax ty
       match vt with
-      | .array elemTy =>
-          throwErrorAt ty
-            s!"storage dynamic arrays are not supported yet (issue #1571); field uses {reprStr (ValueType.array elemTy)}"
+      | .array elemTy => pure (.dynamicArray (← storageArrayElemTypeFromValueType elemTy))
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
       | _ => pure (.scalar vt)
 
@@ -270,6 +276,11 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
+  | .dynamicArray .uint256 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.uint256)
+  | .dynamicArray .address => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.address)
+  | .dynamicArray .bool => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.bool)
+  | .dynamicArray .uint8 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.uint8)
+  | .dynamicArray .bytes32 => `(Compiler.CompilationModel.FieldType.dynamicArray Compiler.CompilationModel.StorageArrayElemType.bytes32)
   | .mappingAddressToUint256 =>
       `(Compiler.CompilationModel.FieldType.mappingTyped
           (Compiler.CompilationModel.MappingType.simple Compiler.CompilationModel.MappingKeyType.address))
@@ -1323,6 +1334,7 @@ private partial def inferBindSourceType
       | .scalar .uint256 => pure .uint256
       | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
+      | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | _ => throwErrorAt rhs s!"field '{f.name}' is a mapping; use getMapping/getMapping2/getMappingN"
@@ -1332,9 +1344,25 @@ private partial def inferBindSourceType
       | .scalar .address => pure .address
       | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
+      | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | _ => throwErrorAt rhs s!"field '{f.name}' is a mapping; use getMapping/getMapping2/getMappingN"
+  | `(term| getStorageArrayLength $field:ident) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray _ => pure .uint256
+      | _ => throwErrorAt rhs s!"field '{f.name}' is not a storage dynamic array"
+  | `(term| getStorageArrayElement $field:ident $index:term) => do
+      requireWordLikeType index "storage array index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index)
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray .uint256 => pure .uint256
+      | .dynamicArray .address => pure .address
+      | .dynamicArray .bool => pure .bool
+      | .dynamicArray .uint8 => pure .uint8
+      | .dynamicArray .bytes32 => pure .bytes32
+      | _ => throwErrorAt rhs s!"field '{f.name}' is not a storage dynamic array"
   | `(term| getMapping $field:ident $key:term) | `(term| getMappingUint $field:ident $key:term)
     | `(term| getMappingWord $field:ident $key:term $_wordOffset:num) => do
       requireWordLikeType key "mapping key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key)
@@ -1349,6 +1377,8 @@ private partial def inferBindSourceType
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
   | `(term| getMappingAddr $field:ident $key:term) | `(term| getMappingUintAddr $field:ident $key:term) => do
       requireWordLikeType key "mapping key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key)
@@ -1363,6 +1393,8 @@ private partial def inferBindSourceType
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
   | `(term| getMapping2 $field:ident $key1:term $key2:term) => do
       requireWordLikeType key1 "mapping key" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals key1)
@@ -1443,7 +1475,7 @@ private partial def inferBindSourceType
       | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
   | _ =>
       throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall"
+        "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover/ecmCall"
 
 private partial def inferTupleSourceTypes?
     (fields : Array StorageFieldDecl)
@@ -2081,6 +2113,7 @@ private def translateBindSource
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
       | .scalar .address => throwErrorAt rhs s!"field '{f.name}' is Address; use getStorageAddr"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
+      | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | _ => throwErrorAt rhs s!"field '{f.name}' is a mapping; use getMapping/getMapping2/getMappingN"
@@ -2091,9 +2124,24 @@ private def translateBindSource
       | .scalar .uint256 => throwErrorAt rhs s!"field '{f.name}' is Uint256; use getStorage"
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; use getStorage"
       | .scalar .unit => throwErrorAt rhs "invalid field type"
+      | .dynamicArray _ => throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | _ => throwErrorAt rhs s!"field '{f.name}' is a mapping; use getMapping/getMapping2/getMappingN"
+  | `(term| getStorageArrayLength $field:ident) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray _ =>
+          `(Compiler.CompilationModel.Expr.storageArrayLength $(strTerm f.name))
+      | _ => throwErrorAt rhs s!"field '{f.name}' is not a storage dynamic array"
+  | `(term| getStorageArrayElement $field:ident $index:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray _ =>
+          `(Compiler.CompilationModel.Expr.storageArrayElement
+              $(strTerm f.name)
+              $(← translatePureExpr fields constDecls immutableDecls params locals index))
+      | _ => throwErrorAt rhs s!"field '{f.name}' is not a storage dynamic array"
   | `(term| getMapping $field:ident $key:term) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
@@ -2105,6 +2153,8 @@ private def translateBindSource
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
@@ -2119,6 +2169,8 @@ private def translateBindSource
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
@@ -2133,6 +2185,8 @@ private def translateBindSource
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
@@ -2147,6 +2201,8 @@ private def translateBindSource
           throwErrorAt rhs s!"field '{f.name}' is a double mapping; use getMapping2"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember/structMember2"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
@@ -2164,6 +2220,8 @@ private def translateBindSource
           throwErrorAt rhs s!"field '{f.name}' is a struct-valued mapping; use structMember"
       | .mappingStruct2 _ _ _ =>
           throwErrorAt rhs s!"field '{f.name}' is a nested struct mapping; use structMember2"
+      | .dynamicArray _ =>
+          throwErrorAt rhs s!"field '{f.name}' is a storage dynamic array; use getStorageArrayLength/getStorageArrayElement"
       | .scalar _ => throwErrorAt rhs s!"field '{f.name}' is not a mapping"
       | .mappingChain _ =>
           throwErrorAt rhs s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use getMappingN"
@@ -2441,6 +2499,15 @@ private partial def validateEffectStmtExprTypes
     | `(term| require $value:term $_msg) =>
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
       pure ()
+  | `(term| pushStorageArray $_field:ident $value:term) => do
+      let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
+      pure ()
+  | `(term| popStorageArray $_field:ident) =>
+      pure ()
+  | `(term| setStorageArrayElement $_field:ident $index:term $value:term) => do
+      let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals index
+      let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value
+      pure ()
   | `(term| setMapping $_field:ident $key:term $value:term) | `(term| setMappingAddr $_field:ident $key:term $value:term)
     | `(term| setMappingUint $_field:ident $key:term $value:term) | `(term| setMappingUintAddr $_field:ident $key:term $value:term)
     | `(term| setMappingWord $_field:ident $key:term $_wordOffset:num $value:term)
@@ -2667,6 +2734,8 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .mappingChain _ =>
           throwErrorAt stx s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use setMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt stx s!"field '{f.name}' is a struct-valued mapping; use setStructMember/setStructMember2"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
@@ -2684,6 +2753,8 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .mappingChain _ =>
           throwErrorAt stx s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use setMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt stx s!"field '{f.name}' is a struct-valued mapping; use setStructMember/setStructMember2"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
@@ -2701,6 +2772,8 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .mappingChain _ =>
           throwErrorAt stx s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use setMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt stx s!"field '{f.name}' is a struct-valued mapping; use setStructMember/setStructMember2"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
@@ -2718,6 +2791,8 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a double mapping; use setMapping2"
       | .mappingChain _ =>
           throwErrorAt stx s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use setMappingN"
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
           throwErrorAt stx s!"field '{f.name}' is a struct-valued mapping; use setStructMember/setStructMember2"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
@@ -2736,6 +2811,8 @@ private def translateEffectStmt
           throwErrorAt stx s!"field '{f.name}' is a struct-valued mapping; use setStructMember"
       | .mappingStruct2 _ _ _ =>
           throwErrorAt stx s!"field '{f.name}' is a nested struct mapping; use setStructMember2"
+      | .dynamicArray _ =>
+          throwErrorAt stx s!"field '{f.name}' is a storage dynamic array; use pushStorageArray/popStorageArray/setStorageArrayElement"
       | .scalar _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
       | .mappingChain _ =>
           throwErrorAt stx s!"field '{f.name}' uses {storageTypeMappingDepth? f.ty |>.getD 0} mapping keys; use setMappingN"
@@ -2770,6 +2847,29 @@ private def translateEffectStmt
           | .mappingStruct _ _ | .mappingStruct2 _ _ _ =>
               throwErrorAt stx s!"field '{f.name}' is a struct-valued mapping; use setStructMember/setStructMember2"
           | _ => throwErrorAt stx s!"field '{f.name}' is not a mapping"
+  | `(term| pushStorageArray $field:ident $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray _ =>
+          `(Compiler.CompilationModel.Stmt.storageArrayPush
+              $(strTerm f.name)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
+      | _ => throwErrorAt stx s!"field '{f.name}' is not a storage dynamic array"
+  | `(term| popStorageArray $field:ident) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray _ =>
+          `(Compiler.CompilationModel.Stmt.storageArrayPop $(strTerm f.name))
+      | _ => throwErrorAt stx s!"field '{f.name}' is not a storage dynamic array"
+  | `(term| setStorageArrayElement $field:ident $index:term $value:term) =>
+      let f ← lookupStorageField fields (toString field.getId)
+      match f.ty with
+      | .dynamicArray _ =>
+          `(Compiler.CompilationModel.Stmt.setStorageArrayElement
+              $(strTerm f.name)
+              $(← translatePureExpr fields constDecls immutableDecls params locals index)
+              $(← translatePureExpr fields constDecls immutableDecls params locals value))
+      | _ => throwErrorAt stx s!"field '{f.name}' is not a storage dynamic array"
   | `(term| require $cond $msg) =>
       `(Compiler.CompilationModel.Stmt.require
           $(← translatePureExpr fields constDecls immutableDecls params locals cond)
@@ -3236,6 +3336,11 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar (.array _) => throwError "storage field cannot be Array; use mapping encodings"
     | .scalar (.tuple _) => throwError "storage field cannot be Tuple; use mapping encodings"
     | .scalar .unit => throwError "storage field cannot be Unit"
+    | .dynamicArray .uint256 => `(List Uint256)
+    | .dynamicArray .address => `(List Uint256)
+    | .dynamicArray .bool => `(List Uint256)
+    | .dynamicArray .uint8 => `(List Uint256)
+    | .dynamicArray .bytes32 => `(List Uint256)
     | .mappingAddressToUint256 => `(Address → Uint256)
     | .mapping2AddressToAddressToUint256 => `(Address → Address → Uint256)
     | .mappingUintToUint256 => `(Uint256 → Uint256)
