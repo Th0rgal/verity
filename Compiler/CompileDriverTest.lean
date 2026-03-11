@@ -316,6 +316,11 @@ private def memoryTrustSurfaceSpec : CompilationModel := {
       params := []
       returnType := none
       returns := [ParamType.uint256]
+      localObligations := [
+        { name := "memory_layout_safety"
+          obligation := "Linear memory operations preserve intended layout"
+          proofStatus := .assumed }
+      ]
       body := [
         Stmt.mstore (Expr.literal 0) (Expr.literal 1),
         Stmt.calldatacopy (Expr.literal 32) (Expr.literal 4) (Expr.literal 32),
@@ -336,6 +341,11 @@ private def memoryOnlyTrustSurfaceSpec : CompilationModel := {
       params := []
       returnType := none
       returns := [ParamType.uint256]
+      localObligations := [
+        { name := "memory_layout_safety"
+          obligation := "Linear memory operations preserve intended layout"
+          proofStatus := .assumed }
+      ]
       body := [
         Stmt.mstore (Expr.literal 0) (Expr.literal 1),
         Stmt.calldatacopy (Expr.literal 32) (Expr.literal 4) (Expr.literal 32),
@@ -407,6 +417,11 @@ private def lowLevelOnlyTrustSurfaceSpec : CompilationModel := {
       params := [{ name := "target", ty := ParamType.address }]
       returnType := none
       returns := [ParamType.uint256]
+      localObligations := [
+        { name := "low_level_call_safety"
+          obligation := "Callee behavior is assumption-backed"
+          proofStatus := .assumed }
+      ]
       body := [
         Stmt.letVar "ok"
           (Expr.call
