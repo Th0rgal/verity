@@ -1054,25 +1054,18 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | sub lhs rhs ihL ihR
   | mul lhs rhs ihL ihR
   | div lhs rhs ihL ihR
-  | sdiv lhs rhs ihL ihR
   | mod lhs rhs ihL ihR
-  | smod lhs rhs ihL ihR
-  | bitAnd lhs rhs ihL ihR
-  | bitOr lhs rhs ihL ihR
-  | bitXor lhs rhs ihL ihR
   | eq lhs rhs ihL ihR
   | ge lhs rhs ihL ihR
   | gt lhs rhs ihL ihR
-  | sgt lhs rhs ihL ihR
   | lt lhs rhs ihL ihR
-  | slt lhs rhs ihL ihR
   | le lhs rhs ihL ihR
   | logicalAnd lhs rhs ihL ihR
-  | logicalOr lhs rhs ihL ihR
-  | min lhs rhs ihL ihR
-  | max lhs rhs ihL ihR
-  | wMulDown lhs rhs ihL ihR
-  | wDivUp lhs rhs ihL ihR =>
+  | logicalOr lhs rhs ihL ihR =>
+      have hcoreL : exprTouchesUnsupportedCoreSurface lhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hcoreR : exprTouchesUnsupportedCoreSurface rhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
       have hstateL : exprTouchesUnsupportedStateSurface lhs = false := by
         simpa [exprTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).1
       have hstateR : exprTouchesUnsupportedStateSurface rhs = false := by
@@ -1082,10 +1075,22 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       have hcallsR : exprTouchesUnsupportedCallSurface rhs = false := by
         simpa [exprTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).2
       have hleft : exprTouchesUnsupportedContractSurface lhs = false :=
-        ihL rfl hstateL hcallsL
+        ihL hcoreL hstateL hcallsL
       have hright : exprTouchesUnsupportedContractSurface rhs = false :=
-        ihR rfl hstateR hcallsR
+        ihR hcoreR hstateR hcallsR
       simp [exprTouchesUnsupportedContractSurface, hleft, hright]
+  | sdiv lhs rhs ihL ihR
+  | smod lhs rhs ihL ihR
+  | bitAnd lhs rhs ihL ihR
+  | bitOr lhs rhs ihL ihR
+  | bitXor lhs rhs ihL ihR
+  | sgt lhs rhs ihL ihR
+  | slt lhs rhs ihL ihR
+  | min lhs rhs ihL ihR
+  | max lhs rhs ihL ihR
+  | wMulDown lhs rhs ihL ihR
+  | wDivUp lhs rhs ihL ihR =>
+      cases hcore
   | bitNot expr ih
   | logicalNot expr ih =>
       have hstate' : exprTouchesUnsupportedStateSurface expr = false := by
