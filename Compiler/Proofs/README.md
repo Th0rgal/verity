@@ -74,7 +74,9 @@ What exists today:
 
 What does not exist yet:
 - A first-class migration of every existing example contract onto the generic
-  Layer 2 theorem surface
+  Layer 2 theorem surface. The first direct instantiation now exists for the
+  supported demo model in
+  `Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics`.
 - Broader supported-fragment coverage for features still intentionally outside
   the current whole-contract theorem
 

@@ -203,7 +203,7 @@ Use this checklist in the PR description and keep it current:
 - [x] Prove `compileFunctionSpec` correctness
 - [x] Prove selector-dispatch correctness
 - [x] Prove generic whole-contract `CompilationModel.compile` correctness
-- [ ] Refactor one existing contract proof into theorem instantiation
+- [x] Refactor one existing contract proof into theorem instantiation
 - [x] Update Layer 2 documentation boundaries
 
 ## Current Proof Status
@@ -213,6 +213,7 @@ The generic whole-contract theorem exists and its proof chain is complete:
 - **`compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile`. No contract-specific bridge premise.
 - **`compileFunctionSpec_correct_generic`** in the same file, per-function correctness.
 - **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean), selector-dispatch preservation.
+- **`counter_supported_spec_compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), the first direct consumer instantiating the generic theorem for an existing supported demo model, with no contract-specific body-simulation premise.
 
 The proof chain no longer depends on `supported_function_body_correct_from_exact_state`; that axiom has been deleted. The only remaining documented project axiom is the selector-level `keccak256_first_4_bytes` assumption in [`Compiler/Selector.lean`](../Compiler/Selector.lean), as tracked in [AXIOMS.md](../AXIOMS.md).
 

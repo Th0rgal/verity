@@ -361,6 +361,34 @@ theorem compile_preserves_semantics
     (hparamsSupported := hparamsSupported)
     (hfunction := hfunction)
 
+/-- First direct consumer of the generic Layer 2 theorem surface: the existing
+supported single-function demo model can now obtain whole-contract correctness
+by instantiating `compile_preserves_semantics`, with no contract-specific body
+bridge premise. -/
+theorem counter_supported_spec_compile_preserves_semantics
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile :
+      CompilationModel.compile counterSupportedSpecModel [0xa87d942c] = Except.ok ir) :
+    FunctionBody.sourceResultMatchesIRResult
+      (SourceSemantics.interpretContract
+        counterSupportedSpecModel [0xa87d942c] tx initialWorld)
+      (interpretIR ir tx
+        (FunctionBody.initialIRStateForTx counterSupportedSpecModel tx initialWorld)) := by
+  exact compile_preserves_semantics
+    (model := counterSupportedSpecModel)
+    (selectors := [0xa87d942c])
+    (hSupported := counter_supported_spec)
+    (ir := ir)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hcompile := hcompile)
+
 end Contract
 
 end Compiler.Proofs.IRGeneration
