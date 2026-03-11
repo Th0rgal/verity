@@ -91,6 +91,7 @@ sub-interface in
 `Compiler/Proofs/IRGeneration/SupportedSpec.lean`, and its follow-on widening
 work is now split into:
 - a positive direct-callee summary inventory already attached to `calls.helpers`
+- a spec-aware helper source semantics target in `Compiler/Proofs/IRGeneration/SourceSemantics.lean`
 - a temporary legacy fail-closed check that keeps the current theorem boundary unchanged
 
 The remaining work tracked in

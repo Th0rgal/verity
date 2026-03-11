@@ -58,7 +58,7 @@ Tracking:
 
 **What is not yet covered**:
 - the supported whole-contract fragment is still intentionally narrower than the full `CompilationModel` surface; unsupported features remain documented at the boundary instead of being claimed as proved
-- the body-level supported-fragment witness is now decomposed into feature-local interfaces (`core`, `state`, `calls`, `effects`) in [`SupportedSpec.lean`](../Compiler/Proofs/IRGeneration/SupportedSpec.lean), and the `calls` interface is further split into `helpers`, `foreign`, and `lowLevel`; `calls.helpers` now inventories direct helper callees through positive summary witnesses, but helper reuse, low-level calls, and richer observables are still outside the proved generic theorem until those interfaces are consumed by actual composition lemmas
+- the body-level supported-fragment witness is now decomposed into feature-local interfaces (`core`, `state`, `calls`, `effects`) in [`SupportedSpec.lean`](../Compiler/Proofs/IRGeneration/SupportedSpec.lean), and the `calls` interface is further split into `helpers`, `foreign`, and `lowLevel`; `calls.helpers` now inventories direct helper callees through positive summary witnesses, and [`SourceSemantics.lean`](../Compiler/Proofs/IRGeneration/SourceSemantics.lean) now exposes a helper-aware source execution target for those summaries, but helper reuse, low-level calls, and richer observables are still outside the proved generic theorem until those interfaces are consumed by actual composition lemmas
 
 **Intended end-state claim**:
 - "whole EDSL" means the proof-complete macro-lowered image of `verity_contract`, not all arbitrary Lean-produced `CompilationModel` terms
@@ -67,7 +67,7 @@ Tracking:
 ### What is not fully migrated yet
 
 - The generic theorem surface is in place, but the supported whole-contract fragment is still narrower than the full `CompilationModel` / EDSL surface.
-- The contract/body support witness is no longer one undifferentiated exclusion bit, and helper calls now have an explicit summary inventory boundary, but the remaining excluded surfaces are still real proof gaps until the corresponding feature-local interfaces are consumed by positive theorem interfaces.
+- The contract/body support witness is no longer one undifferentiated exclusion bit, and helper calls now have both an explicit summary inventory boundary and a dedicated source-semantics target, but the remaining excluded surfaces are still real proof gaps until the corresponding feature-local interfaces are consumed by positive theorem interfaces.
 - Contracts and features outside `SupportedSpec` still rely on explicit trust-surface documentation, targeted testing, or future fragment-widening work rather than a claim of full generic compile-preservation.
 
 **Current boundary**:

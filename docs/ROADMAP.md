@@ -162,7 +162,7 @@ Execution priorities:
 2. Split `SupportedSpec` into persistent global invariants plus feature-local proof interfaces.
    Current status: the top-level witness is split into invariants vs surface, and the body witness is now split into `core` / `state` / `calls` / `effects` interfaces in `Compiler/Proofs/IRGeneration/SupportedSpec.lean`. The `calls` interface is further split into `helpers` / `foreign` / `lowLevel`, and `calls.helpers` now carries an explicit per-callee helper-summary inventory in addition to the temporary fail-closed compatibility check, so helper-proof work no longer shares one exclusion bit with unrelated low-level or external-call mechanics.
 3. Add compositional helper-call proof reuse across callers.
-   Next structural blocker: replace the temporary `calls.helpers.legacySurfaceClosed` compatibility check with real helper-call source/IR semantics and summary-composition lemmas, reusing the new summary inventory instead of adding another widening-specific side condition.
+   Current unblocker: `Compiler/Proofs/IRGeneration/SourceSemantics.lean` now has a spec-aware helper execution target (`evalExprWithHelpers`, `execStmtListWithHelpers`, `interpretInternalFunctionFuel`). The next structural blocker is to connect `calls.helpers` to that semantics with real summary-composition lemmas so `calls.helpers.legacySurfaceClosed` can disappear instead of remaining the final gate.
 4. Add low-level call / returndata / proxy-upgradeability proof modeling.
 5. Extend preserved observables to events/logs and typed errors.
 6. Widen storage/layout-rich whole-contract coverage, then constructor / `fallback` / `receive`.

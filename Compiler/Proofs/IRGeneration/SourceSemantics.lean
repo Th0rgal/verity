@@ -126,6 +126,21 @@ def bindValue (bindings : List (String × Nat)) (name : String) (value : Nat) :
 def lookupValue (bindings : List (String × Nat)) (name : String) : Nat :=
   bindings.find? (fun entry => entry.1 == name) |>.map Prod.snd |>.getD 0
 
+def bindInternalArgs (params : List Param) (args : List Nat) :
+    Option (List (String × Nat)) :=
+  match params, args with
+  | [], [] => some []
+  | param :: restParams, arg :: restArgs => do
+      let bindings ← bindInternalArgs restParams restArgs
+      pure ((param.name, arg) :: bindings)
+  | _, _ => none
+
+private def findUniqueInternalFunction? (spec : CompilationModel) (calleeName : String) :
+    Option FunctionSpec :=
+  match spec.functions.filter (fun fn => fn.isInternal && fn.name == calleeName) with
+  | [fn] => some fn
+  | _ => none
+
 structure RuntimeState where
   world : Verity.ContractState
   bindings : List (String × Nat)
@@ -375,6 +390,11 @@ structure SourceContractResult where
   finalStorage : Nat → Nat
   events : List (List Nat)
 
+structure InternalFunctionResult where
+  success : Bool
+  returnValue : Option Nat
+  world : Verity.ContractState
+
 def revertedResult (spec : CompilationModel) (initialWorld : Verity.ContractState) :
     SourceContractResult :=
   { success := false
@@ -388,6 +408,18 @@ def successResult (spec : CompilationModel) (world : Verity.ContractState) (ret 
     returnValue := ret
     finalStorage := encodeStorage spec world
     events := encodeEvents world.events }
+
+def revertedInternalResult (initialWorld : Verity.ContractState) :
+    InternalFunctionResult :=
+  { success := false
+    returnValue := none
+    world := initialWorld }
+
+def successInternalResult (world : Verity.ContractState) (ret : Option Nat) :
+    InternalFunctionResult :=
+  { success := true
+    returnValue := ret
+    world := world }
 
 def bindSupportedParams (params : List Param) (args : List Nat) :
     Option (List (String × Nat)) :=
@@ -434,6 +466,337 @@ def interpretContract (spec : CompilationModel) (selectors : List Nat)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   match findFunctionBySelector spec selectors tx.functionSelector with
   | some fn => interpretFunction spec fn tx initialWorld
+  | none => revertedResult spec (withTransactionContext initialWorld tx)
+
+mutual
+  /-- Spec-aware source semantics for the next helper-proof step.
+  This is additive: the current generic theorem still reasons about the
+  helper-free `interpretFunction` / `interpretContract` path above. -/
+  def evalExprWithHelpers
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState) : Expr → Option Nat
+    | .literal n => some (wordNormalize n)
+    | .param name => some (lookupValue state.bindings name)
+    | .storage fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some (_, slot) => some (state.world.storage slot).val
+        | none => none
+    | .storageAddr fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some (_, slot) => some (state.world.storageAddr slot).val
+        | none => none
+    | .storageArrayLength fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some ({ ty := .dynamicArray _, .. }, slot) => some (state.world.storageArray slot).length
+        | _ => none
+    | .storageArrayElement fieldName index => do
+        let idx ← evalExprWithHelpers spec fields fuel state index
+        match findFieldWithResolvedSlot fields fieldName with
+        | some ({ ty := .dynamicArray _, .. }, slot) =>
+            match (state.world.storageArray slot)[idx]? with
+            | some value => some value.val
+            | none => none
+        | _ => none
+    | .caller => some state.world.sender.val
+    | .contractAddress => some state.world.thisAddress.val
+    | .chainid => some state.world.chainId.val
+    | .msgValue => some state.world.msgValue.val
+    | .blockTimestamp => some state.world.blockTimestamp.val
+    | .blockNumber => some state.world.blockNumber.val
+    | .localVar name => some (lookupValue state.bindings name)
+    | .add a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        pure (lhs + rhs).val
+    | .sub a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        pure (lhs - rhs).val
+    | .mul a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        pure (lhs * rhs).val
+    | .div a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        pure (lhs / rhs).val
+    | .mod a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        pure (lhs % rhs).val
+    | .bitAnd a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Uint256.and lhs rhs).val
+    | .bitOr a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Uint256.or lhs rhs).val
+    | .bitXor a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (Verity.Core.Uint256.xor lhs rhs).val
+    | .bitNot a => do
+        let value ← evalExprWithHelpers spec fields fuel state a
+        pure (Verity.Core.Uint256.not value).val
+    | .eq a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (lhs = rhs)))
+    | .ge a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (rhs ≤ lhs)))
+    | .gt a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (rhs < lhs)))
+    | .lt a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (lhs < rhs)))
+    | .le a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (lhs ≤ rhs)))
+    | .logicalAnd a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (lhs != 0) && decide (rhs != 0)))
+    | .logicalOr a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (boolWord (decide (lhs != 0) || decide (rhs != 0)))
+    | .logicalNot a => do
+        let value ← evalExprWithHelpers spec fields fuel state a
+        pure (boolWord (decide (value = 0)))
+    | .min a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (if lhs ≤ rhs then lhs else rhs)
+    | .max a b => do
+        let lhs ← evalExprWithHelpers spec fields fuel state a
+        let rhs ← evalExprWithHelpers spec fields fuel state b
+        pure (if rhs ≤ lhs then lhs else rhs)
+    | .wMulDown a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        let wad : Verity.Core.Uint256 := 1000000000000000000
+        pure ((lhs * rhs) / wad).val
+    | .wDivUp a b => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        let wad : Verity.Core.Uint256 := 1000000000000000000
+        pure (((lhs * wad) + (rhs - 1)) / rhs).val
+    | .mulDivDown a b c => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        let denom : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state c
+        pure ((lhs * rhs) / denom).val
+    | .mulDivUp a b c => do
+        let lhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state a
+        let rhs : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state b
+        let denom : Verity.Core.Uint256 := ← evalExprWithHelpers spec fields fuel state c
+        pure (((lhs * rhs) + (denom - 1)) / denom).val
+    | .ite cond thenVal elseVal => do
+        let condVal ← evalExprWithHelpers spec fields fuel state cond
+        if condVal != 0 then
+          evalExprWithHelpers spec fields fuel state thenVal
+        else
+          evalExprWithHelpers spec fields fuel state elseVal
+    | .shl shift value => do
+        let shiftVal ← evalExprWithHelpers spec fields fuel state shift
+        let wordVal ← evalExprWithHelpers spec fields fuel state value
+        pure (Verity.Core.Uint256.shl shiftVal wordVal).val
+    | .shr shift value => do
+        let shiftVal ← evalExprWithHelpers spec fields fuel state shift
+        let wordVal ← evalExprWithHelpers spec fields fuel state value
+        pure (Verity.Core.Uint256.shr shiftVal wordVal).val
+    | .internalCall calleeName args =>
+        match fuel with
+        | 0 => none
+        | fuel + 1 => do
+            let argVals ← evalExprListWithHelpers spec fields (fuel + 1) state args
+            let callee ← findUniqueInternalFunction? spec calleeName
+            let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
+            if hresult.success then hresult.returnValue else none
+    | _ => none
+
+  def evalExprListWithHelpers
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState) : List Expr → Option (List Nat)
+    | [] => some []
+    | expr :: rest => do
+        let value ← evalExprWithHelpers spec fields fuel state expr
+        let values ← evalExprListWithHelpers spec fields fuel state rest
+        pure (value :: values)
+
+  def execStmtWithHelpers
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat) : RuntimeState → Stmt → StmtResult
+    | state, .letVar name value =>
+        match evalExprWithHelpers spec fields fuel state value with
+        | some resolved =>
+            .continue { state with bindings := bindValue state.bindings name resolved }
+        | none => .revert
+    | state, .assignVar name value =>
+        match evalExprWithHelpers spec fields fuel state value with
+        | some resolved =>
+            .continue { state with bindings := bindValue state.bindings name resolved }
+        | none => .revert
+    | state, .setStorage fieldName value =>
+        match findFieldWriteSlots fields fieldName, evalExprWithHelpers spec fields fuel state value with
+        | some slots, some resolved =>
+            .continue { state with world := writeUintSlots state.world slots resolved }
+        | _, _ => .revert
+    | state, .storageArrayPush fieldName value =>
+        match findFieldWithResolvedSlot fields fieldName, evalExprWithHelpers spec fields fuel state value with
+        | some ({ ty := .dynamicArray _, .. }, slot), some resolved =>
+            let updated := state.world.storageArray slot ++ [resolved]
+            .continue { state with world := writeStorageArray state.world slot updated }
+        | _, _ => .revert
+    | state, .storageArrayPop fieldName =>
+        match findFieldWithResolvedSlot fields fieldName with
+        | some ({ ty := .dynamicArray _, .. }, slot) =>
+            match storageArrayDropLast? (state.world.storageArray slot) with
+            | some updated =>
+                .continue { state with world := writeStorageArray state.world slot updated }
+            | none => .revert
+        | _ => .revert
+    | state, .setStorageArrayElement fieldName index value =>
+        match findFieldWithResolvedSlot fields fieldName,
+            evalExprWithHelpers spec fields fuel state index,
+            evalExprWithHelpers spec fields fuel state value with
+        | some ({ ty := .dynamicArray _, .. }, slot), some idx, some resolved =>
+            match storageArraySetAt (state.world.storageArray slot) idx resolved with
+            | some updated =>
+                .continue { state with world := writeStorageArray state.world slot updated }
+            | none => .revert
+        | _, _, _ => .revert
+    | state, .setStorageAddr fieldName value =>
+        match findFieldWriteSlots fields fieldName, evalExprWithHelpers spec fields fuel state value with
+        | some slots, some resolved =>
+            .continue { state with world := writeAddressSlots state.world slots resolved }
+        | _, _ => .revert
+    | state, .require cond _ =>
+        match evalExprWithHelpers spec fields fuel state cond with
+        | some resolved =>
+            if resolved != 0 then .continue state else .revert
+        | none => .revert
+    | state, .return value =>
+        match evalExprWithHelpers spec fields fuel state value with
+        | some resolved => .return resolved state
+        | none => .revert
+    | state, .stop => .stop state
+    | state, .ite cond thenBranch elseBranch =>
+        match evalExprWithHelpers spec fields fuel state cond with
+        | some resolved =>
+            if resolved != 0 then
+              execStmtListWithHelpers spec fields fuel state thenBranch
+            else
+              execStmtListWithHelpers spec fields fuel state elseBranch
+        | none => .revert
+    | state, .internalCall calleeName args =>
+        match fuel with
+        | 0 => .revert
+        | fuel + 1 =>
+            match evalExprListWithHelpers spec fields (fuel + 1) state args,
+                findUniqueInternalFunction? spec calleeName with
+            | some argVals, some callee =>
+                let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
+                if hresult.success then
+                  .continue { state with world := hresult.world }
+                else
+                  .revert
+            | _, _ => .revert
+    | state, .internalCallAssign names calleeName args =>
+        match fuel with
+        | 0 => .revert
+        | fuel + 1 =>
+            match evalExprListWithHelpers spec fields (fuel + 1) state args,
+                findUniqueInternalFunction? spec calleeName with
+            | some argVals, some callee =>
+                let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
+                if hresult.success then
+                  match names, hresult.returnValue with
+                  | [name], some value =>
+                      .continue {
+                        world := hresult.world
+                        bindings := bindValue state.bindings name value
+                      }
+                  | _, _ => .revert
+                else
+                  .revert
+            | _, _ => .revert
+    | _, _ => .revert
+
+  def execStmtListWithHelpers
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat) : RuntimeState → List Stmt → StmtResult
+    | state, [] => .continue state
+    | state, stmt :: rest =>
+        match execStmtWithHelpers spec fields fuel state stmt with
+        | .continue next => execStmtListWithHelpers spec fields fuel next rest
+        | .stop next => .stop next
+        | .return value next => .return value next
+        | .revert => .revert
+
+  def interpretInternalFunctionFuel
+      (spec : CompilationModel)
+      (fuel : Nat)
+      (fn : FunctionSpec)
+      (initialWorld : Verity.ContractState)
+      (args : List Nat) : InternalFunctionResult :=
+    let fields := effectiveFields spec
+    match bindInternalArgs fn.params args with
+    | none => revertedInternalResult initialWorld
+    | some bindings =>
+        match execStmtListWithHelpers spec fields fuel { world := initialWorld, bindings := bindings } fn.body with
+        | .continue state => successInternalResult state.world none
+        | .stop state => successInternalResult state.world none
+        | .return value state => successInternalResult state.world (some value)
+        | .revert => revertedInternalResult initialWorld
+termination_by
+  evalExprWithHelpers _ _ fuel _ expr => (fuel, sizeOf expr)
+  evalExprListWithHelpers _ _ fuel _ exprs => (fuel, sizeOf exprs)
+  execStmtWithHelpers _ _ fuel _ stmt => (fuel, sizeOf stmt)
+  execStmtListWithHelpers _ _ fuel _ stmts => (fuel, sizeOf stmts)
+  interpretInternalFunctionFuel _ fuel fn _ _ => (fuel, sizeOf fn.body + 1)
+decreasing_by
+  all_goals simp_wf
+  all_goals omega
+
+def interpretFunctionWithHelpers
+    (spec : CompilationModel)
+    (fuel : Nat)
+    (fn : FunctionSpec)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState) : SourceContractResult :=
+  let worldWithTx := withTransactionContext initialWorld tx
+  let fields := effectiveFields spec
+  match bindSupportedParams fn.params tx.args with
+  | none => revertedResult spec worldWithTx
+  | some bindings =>
+      match execStmtListWithHelpers spec fields fuel { world := worldWithTx, bindings := bindings } fn.body with
+      | .continue state => successResult spec state.world none
+      | .stop state => successResult spec state.world none
+      | .return value state => successResult spec state.world (some value)
+      | .revert => revertedResult spec worldWithTx
+
+def interpretContractWithHelpers
+    (spec : CompilationModel)
+    (selectors : List Nat)
+    (fuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState) : SourceContractResult :=
+  match findFunctionBySelector spec selectors tx.functionSelector with
+  | some fn => interpretFunctionWithHelpers spec fuel fn tx initialWorld
   | none => revertedResult spec (withTransactionContext initialWorld tx)
 
 end SourceSemantics

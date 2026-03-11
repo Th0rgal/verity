@@ -239,9 +239,11 @@ now sits under the post-generic widening/completeness plan in
 - keep shrinking the body-level `SupportedSpec` witness by replacing the new
   `core` / `state` / `calls` / `effects` interfaces with positive proof
   interfaces
-- helper calls now have an explicit summary inventory under `calls.helpers`; the
-  next step is to replace its temporary fail-closed compatibility check by
-  actual helper-summary composition lemmas
+- helper calls now have an explicit summary inventory under `calls.helpers`, and
+  `SourceSemantics.lean` now exposes a dedicated helper-aware source semantics
+  target (`evalExprWithHelpers` / `execStmtListWithHelpers` /
+  `interpretInternalFunctionFuel`) that future helper-summary composition lemmas
+  can connect to
 - widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem

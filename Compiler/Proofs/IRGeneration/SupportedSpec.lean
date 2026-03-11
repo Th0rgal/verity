@@ -69,7 +69,7 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _ => false
+  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _ => true
 
 /-- Stateful expression surfaces not yet carried by the generic Layer 2 body
 interface. These are the next storage/layout-style widening targets. -/
