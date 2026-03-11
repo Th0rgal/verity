@@ -2278,7 +2278,7 @@ private def translateBindSource
           $(← translatePureExpr fields constDecls immutableDecls params locals offset))
   | _ =>
       throwErrorAt rhs
-        "unsupported bind source; expected getStorage/getStorageAddr/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover"
+        "unsupported bind source; expected getStorage/getStorageAddr/getStorageArrayLength/getStorageArrayElement/getMapping/getMappingAddr/getMappingUint/getMappingUintAddr/getMappingWord/getMapping2/getMappingN/structMember/structMember2/msgSender/msgValue/tload/ecrecover"
 
 private def translateSafeRequireBind
     (fields : Array StorageFieldDecl)
@@ -3337,10 +3337,10 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar (.tuple _) => throwError "storage field cannot be Tuple; use mapping encodings"
     | .scalar .unit => throwError "storage field cannot be Unit"
     | .dynamicArray .uint256 => `(List Uint256)
-    | .dynamicArray .address => `(List Uint256)
-    | .dynamicArray .bool => `(List Uint256)
-    | .dynamicArray .uint8 => `(List Uint256)
-    | .dynamicArray .bytes32 => `(List Uint256)
+    | .dynamicArray .address => throwError "storage dynamic arrays currently support only Uint256 elements on the macro path"
+    | .dynamicArray .bool => throwError "storage dynamic arrays currently support only Uint256 elements on the macro path"
+    | .dynamicArray .uint8 => throwError "storage dynamic arrays currently support only Uint256 elements on the macro path"
+    | .dynamicArray .bytes32 => throwError "storage dynamic arrays currently support only Uint256 elements on the macro path"
     | .mappingAddressToUint256 => `(Address → Uint256)
     | .mapping2AddressToAddressToUint256 => `(Address → Address → Uint256)
     | .mappingUintToUint256 => `(Uint256 → Uint256)
