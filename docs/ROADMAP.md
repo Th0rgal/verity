@@ -160,9 +160,9 @@ exclusion list.
 Execution priorities:
 1. Define the theorem target precisely as the proof-complete macro-lowered `verity_contract` image, not arbitrary Lean-generated `CompilationModel` terms.
 2. Split `SupportedSpec` into persistent global invariants plus feature-local proof interfaces.
-   Current status: the top-level witness is split into invariants vs surface, and the body witness is now split into `core` / `state` / `calls` / `effects` interfaces in `Compiler/Proofs/IRGeneration/SupportedSpec.lean`. The `calls` interface is further split into `helpers` / `foreign` / `lowLevel`, so helper-summary work no longer shares one exclusion bit with unrelated low-level or external-call mechanics.
+   Current status: the top-level witness is split into invariants vs surface, and the body witness is now split into `core` / `state` / `calls` / `effects` interfaces in `Compiler/Proofs/IRGeneration/SupportedSpec.lean`. The `calls` interface is further split into `helpers` / `foreign` / `lowLevel`, and `calls.helpers` now carries an explicit per-callee helper-summary inventory in addition to the temporary fail-closed compatibility check, so helper-proof work no longer shares one exclusion bit with unrelated low-level or external-call mechanics.
 3. Add compositional helper-call proof reuse across callers.
-   Next structural blocker: replace the current `calls.helpers` helper-call exclusion with a reusable helper-summary theorem interface rather than another widening-specific side condition.
+   Next structural blocker: replace the temporary `calls.helpers.legacySurfaceClosed` compatibility check with real helper-call source/IR semantics and summary-composition lemmas, reusing the new summary inventory instead of adding another widening-specific side condition.
 4. Add low-level call / returndata / proxy-upgradeability proof modeling.
 5. Extend preserved observables to events/logs and typed errors.
 6. Widen storage/layout-rich whole-contract coverage, then constructor / `fallback` / `receive`.

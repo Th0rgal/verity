@@ -89,7 +89,11 @@ helper-spec/helper-theorem reuse boundary across callers. The compositional
 internal-call proof gap now sits inside the `calls.helpers` body-support
 sub-interface in
 `Compiler/Proofs/IRGeneration/SupportedSpec.lean`, and its follow-on widening
-work is tracked in
+work is now split into:
+- a positive direct-callee summary inventory already attached to `calls.helpers`
+- a temporary legacy fail-closed check that keeps the current theorem boundary unchanged
+
+The remaining work tracked in
 [#1630](https://github.com/Th0rgal/verity/issues/1630).
 
 ## Build

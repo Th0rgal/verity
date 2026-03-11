@@ -3126,13 +3126,13 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
           htailSurface)
 
 theorem SupportedBodyInterface.genericCore
-    {fields : List Field}
+    {spec : CompilationModel}
     {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface fields fn)
-    (hnoConflict : firstFieldWriteSlotConflict fields = none) :
-    StmtListGenericCore fields (fn.params.map (·.name)) fn.body :=
+    (hBody : SupportedBodyInterface spec fn)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
+    StmtListGenericCore spec.fields (fn.params.map (·.name)) fn.body :=
   stmtListGenericCore_of_supportedStmtList_of_surface
-    (fields := fields)
+    (fields := spec.fields)
     (scope := fn.params.map (·.name))
     (stmts := fn.body)
     hnoConflict

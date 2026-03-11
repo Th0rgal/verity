@@ -424,6 +424,130 @@ def stmtListTouchesUnsupportedEffectSurface : List Stmt → Bool
       stmtTouchesUnsupportedEffectSurface stmt ||
         stmtListTouchesUnsupportedEffectSurface rest
 
+mutual
+  /-- Collect direct internal-helper callee names mentioned by an expression. This
+  inventory is used to define a compositional helper-summary interface without yet
+  changing the current generic theorem's fail-closed helper boundary. -/
+  def exprInternalHelperCallNames : Expr → List String
+    | .internalCall calleeName args =>
+        calleeName :: exprListInternalHelperCallNames args
+    | .mapping _ key | .mappingWord _ key _ | .mappingPackedWord _ key _ _
+    | .mappingUint _ key | .structMember _ key _ | .arrayElement _ key
+    | .storageArrayElement _ key | .mload key | .tload key | .calldataload key
+    | .extcodesize key | .returndataOptionalBoolAt key =>
+        exprInternalHelperCallNames key
+    | .mappingChain _ keys =>
+        exprListInternalHelperCallNames keys
+    | .mapping2 _ key1 key2 | .mapping2Word _ key1 key2 _
+    | .structMember2 _ key1 key2 _ =>
+        exprInternalHelperCallNames key1 ++ exprInternalHelperCallNames key2
+    | .call gas target value inOffset inSize outOffset outSize =>
+        exprInternalHelperCallNames gas ++ exprInternalHelperCallNames target ++
+          exprInternalHelperCallNames value ++ exprInternalHelperCallNames inOffset ++
+          exprInternalHelperCallNames inSize ++ exprInternalHelperCallNames outOffset ++
+          exprInternalHelperCallNames outSize
+    | .staticcall gas target inOffset inSize outOffset outSize =>
+        exprInternalHelperCallNames gas ++ exprInternalHelperCallNames target ++
+          exprInternalHelperCallNames inOffset ++ exprInternalHelperCallNames inSize ++
+          exprInternalHelperCallNames outOffset ++ exprInternalHelperCallNames outSize
+    | .delegatecall gas target inOffset inSize outOffset outSize =>
+        exprInternalHelperCallNames gas ++ exprInternalHelperCallNames target ++
+          exprInternalHelperCallNames inOffset ++ exprInternalHelperCallNames inSize ++
+          exprInternalHelperCallNames outOffset ++ exprInternalHelperCallNames outSize
+    | .keccak256 offset size =>
+        exprInternalHelperCallNames offset ++ exprInternalHelperCallNames size
+    | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
+    | .bitAnd a b | .bitOr a b | .bitXor a b | .shl a b | .shr a b | .sar a b
+    | .signextend a b | .eq a b | .ge a b | .gt a b | .sgt a b | .lt a b
+    | .slt a b | .le a b | .logicalAnd a b | .logicalOr a b | .wMulDown a b
+    | .wDivUp a b | .min a b | .max a b =>
+        exprInternalHelperCallNames a ++ exprInternalHelperCallNames b
+    | .mulDivDown a b c | .mulDivUp a b c =>
+        exprInternalHelperCallNames a ++ exprInternalHelperCallNames b ++
+          exprInternalHelperCallNames c
+    | .bitNot a | .logicalNot a =>
+        exprInternalHelperCallNames a
+    | .ite cond thenVal elseVal =>
+        exprInternalHelperCallNames cond ++ exprInternalHelperCallNames thenVal ++
+          exprInternalHelperCallNames elseVal
+    | .externalCall _ args =>
+        exprListInternalHelperCallNames args
+    | _ =>
+        []
+  termination_by e => sizeOf e
+  decreasing_by all_goals simp_wf; all_goals omega
+
+  def exprListInternalHelperCallNames : List Expr → List String
+    | [] => []
+    | expr :: rest =>
+        exprInternalHelperCallNames expr ++ exprListInternalHelperCallNames rest
+  termination_by es => sizeOf es
+  decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+  /-- Collect direct internal-helper callee names mentioned by a statement list. -/
+  def stmtInternalHelperCallNames : Stmt → List String
+    | .letVar _ value | .assignVar _ value | .setStorage _ value | .setStorageAddr _ value
+    | .storageArrayPush _ value | .return value | .require value _ =>
+        exprInternalHelperCallNames value
+    | .setStorageArrayElement _ index value =>
+        exprInternalHelperCallNames index ++ exprInternalHelperCallNames value
+    | .requireError cond _ args =>
+        exprInternalHelperCallNames cond ++ exprListInternalHelperCallNames args
+    | .revertError _ args | .emit _ args | .returnValues args
+    | .externalCallBind _ _ args | .ecm _ args =>
+        exprListInternalHelperCallNames args
+    | .mstore offset value | .tstore offset value =>
+        exprInternalHelperCallNames offset ++ exprInternalHelperCallNames value
+    | .calldatacopy destOffset sourceOffset size
+    | .returndataCopy destOffset sourceOffset size =>
+        exprInternalHelperCallNames destOffset ++ exprInternalHelperCallNames sourceOffset ++
+          exprInternalHelperCallNames size
+    | .setMapping _ key value | .setMappingWord _ key _ value
+    | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+    | .setStructMember _ key _ value =>
+        exprInternalHelperCallNames key ++ exprInternalHelperCallNames value
+    | .setMappingChain _ keys value =>
+        exprListInternalHelperCallNames keys ++ exprInternalHelperCallNames value
+    | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+    | .setStructMember2 _ key1 key2 _ value =>
+        exprInternalHelperCallNames key1 ++ exprInternalHelperCallNames key2 ++
+          exprInternalHelperCallNames value
+    | .ite cond thenBranch elseBranch =>
+        exprInternalHelperCallNames cond ++ stmtListInternalHelperCallNames thenBranch ++
+          stmtListInternalHelperCallNames elseBranch
+    | .forEach _ count body =>
+        exprInternalHelperCallNames count ++ stmtListInternalHelperCallNames body
+    | .internalCall calleeName args =>
+        calleeName :: exprListInternalHelperCallNames args
+    | .internalCallAssign _ calleeName args =>
+        calleeName :: exprListInternalHelperCallNames args
+    | .rawLog topics dataOffset dataSize =>
+        exprListInternalHelperCallNames topics ++ exprInternalHelperCallNames dataOffset ++
+          exprInternalHelperCallNames dataSize
+    | .storageArrayPop _ | .returnArray _ | .returnBytes _ | .returnStorageWords _
+    | .revertReturndata | .stop =>
+        []
+  termination_by s => sizeOf s
+  decreasing_by all_goals simp_wf; all_goals omega
+
+  def stmtListInternalHelperCallNames : List Stmt → List String
+    | [] => []
+    | stmt :: rest =>
+        stmtInternalHelperCallNames stmt ++ stmtListInternalHelperCallNames rest
+  termination_by stmts => sizeOf stmts
+  decreasing_by all_goals simp_wf; all_goals omega
+end
+
+/-- Deduplicated direct helper-callee inventory for a function body. -/
+def helperCallNames (fn : FunctionSpec) : List String :=
+  (stmtListInternalHelperCallNames fn.body).eraseDups
+
+theorem helperCallNames_nodup (fn : FunctionSpec) :
+    (helperCallNames fn).Nodup := by
+  simpa [helperCallNames] using List.nodup_eraseDups (stmtListInternalHelperCallNames fn.body)
+
 /-- Compatibility scan retained for the existing generic-induction library.
 Its meaning is now derived from smaller feature-local interfaces rather than a
 single undifferentiated exclusion bag. -/
@@ -439,8 +563,39 @@ structure SupportedBodyCoreInterface (fn : FunctionSpec) : Prop where
 structure SupportedBodyStateInterface (fn : FunctionSpec) : Prop where
   surfaceClosed : stmtListTouchesUnsupportedStateSurface fn.body = false
 
-structure SupportedBodyCallInterface (fn : FunctionSpec) : Prop where
-  helpers : stmtListTouchesUnsupportedHelperSurface fn.body = false
+structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : FunctionSpec) : Prop where
+  present : callee ∈ spec.functions
+  internal : callee.isInternal = true
+  nonSpecialEntrypoint : isInteropEntrypointName callee.name = false
+  params : SupportedParamProfile callee.params
+  returns : SupportedReturnProfile callee
+  stmtList : SupportedStmtList spec.fields callee.body
+  core : SupportedBodyCoreInterface callee
+  state : SupportedBodyStateInterface callee
+  foreign : stmtListTouchesUnsupportedForeignSurface callee.body = false
+  lowLevel : stmtListTouchesUnsupportedLowLevelSurface callee.body = false
+  effects : SupportedBodyEffectInterface callee
+  noLocalObligations : callee.localObligations = []
+
+structure SupportedInternalHelperWitness
+    (spec : CompilationModel) (calleeName : String) : Prop where
+  callee : FunctionSpec
+  summary : SupportedInternalHelperSummary spec callee
+  nameEq : callee.name = calleeName
+
+/-- Helper-call boundary for the current generic theorem.
+It already inventories helper callees via positive summary witnesses, but it
+still carries a legacy fail-closed surface check so the generic theorem shape
+and trusted boundary remain unchanged until helper semantics are modeled. -/
+structure SupportedBodyHelperInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+  callNamesNodup : (helperCallNames fn).Nodup
+  summaries :
+    ∀ calleeName, calleeName ∈ helperCallNames fn →
+      ∃ witness : SupportedInternalHelperWitness spec calleeName, True
+  legacySurfaceClosed : stmtListTouchesUnsupportedHelperSurface fn.body = false
+
+structure SupportedBodyCallInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+  helpers : SupportedBodyHelperInterface spec fn
   foreign : stmtListTouchesUnsupportedForeignSurface fn.body = false
   lowLevel : stmtListTouchesUnsupportedLowLevelSurface fn.body = false
 
@@ -451,23 +606,23 @@ structure SupportedBodyEffectInterface (fn : FunctionSpec) : Prop where
 syntactic support inventory local to the body witness instead of baking it
 directly into the top-level `SupportedSpec` inventory. Each sub-interface is a
 feature-local place to hang future widening work. -/
-structure SupportedBodyInterface (fields : List Field) (fn : FunctionSpec) : Prop where
-  stmtList : SupportedStmtList fields fn.body
+structure SupportedBodyInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+  stmtList : SupportedStmtList spec.fields fn.body
   core : SupportedBodyCoreInterface fn
   state : SupportedBodyStateInterface fn
-  calls : SupportedBodyCallInterface fn
+  calls : SupportedBodyCallInterface spec fn
   effects : SupportedBodyEffectInterface fn
   noLocalObligations : fn.localObligations = []
 
 /-- Supported external function for the first whole-contract Layer 2 theorem.
 This lifts the raw `SupportedStmtList` witness to the function boundary and
 makes the whole-contract scope auditable without proof-internal inspection. -/
-structure SupportedFunction (fields : List Field) (fn : FunctionSpec) : Prop where
+structure SupportedFunction (spec : CompilationModel) (fn : FunctionSpec) : Prop where
   nonInternal : fn.isInternal = false
   nonSpecialEntrypoint : isInteropEntrypointName fn.name = false
   params : SupportedParamProfile fn.params
   returns : SupportedReturnProfile fn
-  body : SupportedBodyInterface fields fn
+  body : SupportedBodyInterface spec fn
 
 /-- Whole-contract invariants that should remain global preconditions for the
 current generic theorem, independent of feature-local proof interfaces. -/
@@ -500,27 +655,41 @@ structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop 
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
   functions :
-    ∀ fn, fn ∈ spec.functions → SupportedFunction spec.fields fn
+    ∀ fn, fn ∈ spec.functions → SupportedFunction spec fn
 
 theorem SupportedFunction.paramNamesNodup
-    {fields : List Field} {fn : FunctionSpec}
-    (hSupported : SupportedFunction fields fn) :
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hSupported : SupportedFunction spec fn) :
     (fn.params.map (·.name)).Nodup :=
   hSupported.params.namesNodup
 
 theorem SupportedFunction.paramsSupported
-    {fields : List Field} {fn : FunctionSpec}
-    (hSupported : SupportedFunction fields fn) :
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hSupported : SupportedFunction spec fn) :
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
   hSupported.params.supported
 
 theorem SupportedFunction.returnsSupported
-    {fields : List Field} {fn : FunctionSpec}
-    (hSupported : SupportedFunction fields fn) :
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hSupported : SupportedFunction spec fn) :
     ∃ resolvedReturns,
       functionReturns fn = Except.ok resolvedReturns ∧
         SupportedExternalReturnProfile resolvedReturns :=
   hSupported.returns.resolved
+
+theorem SupportedBodyHelperInterface.surfaceClosed
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn) :
+    stmtListTouchesUnsupportedHelperSurface fn.body = false :=
+  hHelpers.legacySurfaceClosed
+
+theorem SupportedBodyHelperInterface.summaryOfCall
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn)
+    {calleeName : String}
+    (hmem : calleeName ∈ helperCallNames fn) :
+    ∃ witness : SupportedInternalHelperWitness spec calleeName, True :=
+  hHelpers.summaries calleeName hmem
 
 theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
     (stmts : List Stmt) :
@@ -558,15 +727,15 @@ theorem stmtListTouchesUnsupportedCallSurface_eq_featureOr
         ih, Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
 
 theorem SupportedBodyCallInterface.surfaceClosed
-    {fn : FunctionSpec}
-    (hCalls : SupportedBodyCallInterface fn) :
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hCalls : SupportedBodyCallInterface spec fn) :
     stmtListTouchesUnsupportedCallSurface fn.body = false := by
   rw [stmtListTouchesUnsupportedCallSurface_eq_featureOr]
-  simp [hCalls.helpers, hCalls.foreign, hCalls.lowLevel]
+  simp [hCalls.helpers.surfaceClosed, hCalls.foreign, hCalls.lowLevel]
 
 theorem SupportedBodyInterface.surfaceClosed
-    {fields : List Field} {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface fields fn) :
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hBody : SupportedBodyInterface spec fn) :
     stmtListTouchesUnsupportedContractSurface fn.body = false := by
   rw [stmtListTouchesUnsupportedContractSurface_eq_featureOr]
   simp [hBody.core.surfaceClosed, hBody.state.surfaceClosed, hBody.calls.surfaceClosed,
@@ -637,7 +806,7 @@ theorem SupportedSpec.supportedFunctionOfSelectorDispatched
     (hSupported : SupportedSpec spec selectors)
     {fn : FunctionSpec}
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
-    SupportedFunction spec.fields fn := by
+    SupportedFunction spec fn := by
   have hfiltered : fn ∈ spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name) := by
     simpa [selectorDispatchedFunctions] using hfn
   have hmem : fn ∈ spec.functions := (List.mem_filter.mp hfiltered).1
@@ -775,7 +944,7 @@ private theorem counter_noReceive :
 
 private theorem counter_supported_function :
     ∀ fn, fn ∈ counterSupportedSpecModel.functions →
-      SupportedFunction counterSupportedSpecModel.fields fn := by
+      SupportedFunction counterSupportedSpecModel fn := by
   intro fn hfn
   simp [counterSupportedSpecModel] at hfn
   rcases hfn with rfl
@@ -796,9 +965,14 @@ private theorem counter_supported_function :
           core := { surfaceClosed := by decide }
           state := { surfaceClosed := by decide }
           calls :=
-            { helpers := by decide
-              foreign := by decide
-              lowLevel := by decide }
+            { helpers :=
+                { callNamesNodup := helperCallNames_nodup _
+                  summaries := by
+                    intro calleeName hmem
+                    simp [helperCallNames] at hmem
+                  legacySurfaceClosed := by decide }
+               foreign := by decide
+               lowLevel := by decide }
           effects := { surfaceClosed := by decide }
           noLocalObligations := rfl } }
 
@@ -879,9 +1053,14 @@ theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecM
           core := { surfaceClosed := by decide }
           state := { surfaceClosed := by decide }
           calls :=
-            { helpers := by decide
-              foreign := by decide
-              lowLevel := by decide }
+            { helpers :=
+                { callNamesNodup := helperCallNames_nodup _
+                  summaries := by
+                    intro calleeName hmem
+                    simp [helperCallNames] at hmem
+                  legacySurfaceClosed := by decide }
+               foreign := by decide
+               lowLevel := by decide }
           effects := { surfaceClosed := by decide }
           noLocalObligations := rfl } }
 
