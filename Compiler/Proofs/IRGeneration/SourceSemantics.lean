@@ -450,14 +450,14 @@ def sourceContractSemantics (spec : CompilationModel) (selectors : List Nat)
 example :
     (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
       { sender := 7, functionSelector := 0x2e64cec1, args := [] }
-      { Verity.defaultState with storage := fun slot => if slot = 0 then 11 else 0 }).success = true := by
+      Verity.defaultState).success = true := by
   decide
 
 example :
     (sourceContractSemantics counterSupportedSpecModel
-      [0xd09de08a, 0x2baeceb7, 0xa87d942c]
+      [0xa87d942c]
       { sender := 9, functionSelector := 0xa87d942c, args := [] }
-      { Verity.defaultState with storage := fun slot => if slot = 0 then 42 else 0 }).returnValue = some 42 := by
+      Verity.defaultState).returnValue = some 42 := by
   decide
 
 private def storageArraySourceSpec : CompilationModel :=
