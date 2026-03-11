@@ -284,6 +284,9 @@ now sits under the post-generic widening/completeness plan in
   while the public theorem stack still targets legacy `execIRFunction` / `interpretIR`
   even though `IRInterpreter.lean` now defines helper-aware compiled-side targets
   (`execIRFunctionWithInternals`, `interpretIRWithInternals`) for internal-helper composition;
+  those helper-aware IR semantics are still encoded as opaque `partial def` executables, so the first compiled-side
+  retarget step also needs a theorem-friendly total or inductive mirror of that execution target rather
+  than proving directly against the executable surface;
   the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)
 - widen the supported whole-contract fragment without reintroducing axioms
 
@@ -305,7 +308,10 @@ The first theorem does not need to cover everything. It may explicitly leave out
   constructor used by the current theorem stack; the remaining work is proving
   those semantics conservatively extend legacy `interpretIR` first on that
   runtime-contract target over the subset, then retargeting the proof stack to
-  those semantics and consuming helper-summary soundness/rank evidence
+  those semantics and consuming helper-summary soundness/rank evidence. Because
+  the current helper-aware interpreter is still an opaque `partial def`, that
+  retarget also needs a theorem-friendly total or inductive surface for the
+  compiled-side semantics
 - dynamic ABI cases outside the current typed path
 
 If a feature is out of scope, say so in the supported-fragment witness and docs.

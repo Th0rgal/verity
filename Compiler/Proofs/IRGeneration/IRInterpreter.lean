@@ -27,6 +27,12 @@ open Verity.Core
 open Compiler.Proofs
 
 /-! Size measures for termination proofs. -/
+/-!
+The helper-aware compiled semantics below is currently kept as executable
+`partial def`s. That is sufficient for runtime tests and for pinning the future
+theorem target, but the first conservative-extension proof tracked in `#1638`
+will likely need a theorem-friendly total or inductive mirror of this surface.
+-/
 mutual
 def exprSize : YulExpr → Nat
   | .call _ args => exprsSize args + 2
@@ -864,6 +870,12 @@ noncomputable def interpretIRWithInternals
         finalStorage := initialState.storage
         finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
         events := initialState.events }
+
+@[simp] theorem findInternalFunction?_eq_none_of_internalFunctions_nil
+    (contract : IRContract) (name : String)
+    (hinternal : contract.internalFunctions = []) :
+    findInternalFunction? contract name = none := by
+  simp [findInternalFunction?, hinternal]
 
 private def shortCalldataRegressionContract : IRContract :=
   { name := "ShortCalldataRegression"
