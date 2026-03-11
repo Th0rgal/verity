@@ -58,7 +58,7 @@ verity_contract StringStorageUnsupported where
     pure ()
 
 /--
-error: equality is currently supported only for Bool and word-like values (Uint256, Uint8, Address, Bytes32); got Verity.Macro.ValueType.string and Verity.Macro.ValueType.string
+ error: equality is currently supported only for Bool and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got Verity.Macro.ValueType.string and Verity.Macro.ValueType.string
 -/
 #guard_msgs in
 verity_contract StringEqUnsupported where
@@ -83,7 +83,7 @@ verity_contract StringLogicalUnsupported where
       return 0
 
 /--
-error: equality is currently supported only for Bool and word-like values (Uint256, Uint8, Address, Bytes32); got Verity.Macro.ValueType.string and Verity.Macro.ValueType.string
+ error: equality is currently supported only for Bool and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got Verity.Macro.ValueType.string and Verity.Macro.ValueType.string
 -/
 #guard_msgs in
 verity_contract StringImmutableEqUnsupported where

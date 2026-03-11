@@ -7,6 +7,7 @@ namespace Compiler.CompilationModel
 mutual
   def isDynamicParamType : ParamType → Bool
     | ParamType.uint256 => false
+    | ParamType.int256 => false
     | ParamType.uint8 => false
     | ParamType.address => false
     | ParamType.bool => false
@@ -30,6 +31,7 @@ end
 mutual
   def paramHeadSize : ParamType → Nat
     | ParamType.uint256 => 32
+    | ParamType.int256 => 32
     | ParamType.uint8 => 32
     | ParamType.address => 32
     | ParamType.bool => 32

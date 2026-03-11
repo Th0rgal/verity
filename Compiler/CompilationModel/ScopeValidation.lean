@@ -11,7 +11,7 @@ def findParamType (params : List Param) (name : String) : Option ParamType :=
 
 partial def staticParamBindingNames (name : String) (ty : ParamType) : List String :=
   match ty with
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 =>
       [name]
   | ParamType.fixedArray elemTy n =>
       (List.range n).flatMap (fun i => staticParamBindingNames s!"{name}_{i}" elemTy)
@@ -28,17 +28,18 @@ def dynamicParamBindingNames (name : String) : List String :=
   [s!"{name}_offset", s!"{name}_length", s!"{name}_data_offset"]
 
 mutual
-def isDynamicParamTypeForScope : ParamType → Bool
-  | ParamType.uint256 => false
-  | ParamType.uint8 => false
-  | ParamType.address => false
-  | ParamType.bool => false
-  | ParamType.bytes32 => false
-  | ParamType.string => true
-  | ParamType.array _ => true
-  | ParamType.bytes => true
-  | ParamType.fixedArray elemTy _ => isDynamicParamTypeForScope elemTy
-  | ParamType.tuple elemTys => paramTypeListAnyDynamicForScope elemTys
+  def isDynamicParamTypeForScope : ParamType → Bool
+    | ParamType.uint256 => false
+    | ParamType.int256 => false
+    | ParamType.uint8 => false
+    | ParamType.address => false
+    | ParamType.bool => false
+    | ParamType.bytes32 => false
+    | ParamType.string => true
+    | ParamType.array _ => true
+    | ParamType.bytes => true
+    | ParamType.fixedArray elemTy _ => isDynamicParamTypeForScope elemTy
+    | ParamType.tuple elemTys => paramTypeListAnyDynamicForScope elemTys
 termination_by ty => sizeOf ty
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -50,7 +51,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 def isScalarParamTypeForScope : ParamType → Bool
-  | ParamType.uint256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
+  | ParamType.uint256 | ParamType.int256 | ParamType.uint8 | ParamType.address | ParamType.bool | ParamType.bytes32 => true
   | _ => false
 
 def paramBindingNames (param : Param) : List String :=

@@ -345,7 +345,9 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StorageWordsSmoke", ["extSloadsLike(bytes32[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
   , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
-      "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()"])
+      "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
+      "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "castToInt(uint256)",
+      "castToUint(int256)", "minusOne()"])
   , ("StatelessSmoke", ["echoWord(uint256)", "whoAmI()"])
   , ("MutabilitySmoke", ["deposit()", "currentOwner()"])
   , ("SpecialEntrypointSmoke", ["getReceiveCount()", "getFallbackCount()"])
@@ -398,7 +400,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageWordsSmoke", ["0x764fa434"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
-      "0xcc634d7f", "0x7c4ab1e5"])
+      "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0xf6814165", "0xae1a9a3e", "0x6622d274"])
   , ("StatelessSmoke", ["0x26534f53", "0xda91254c"])
   , ("MutabilitySmoke", ["0xd0e30db0", "0xb387ef92"])
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
@@ -466,6 +468,11 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let arithmeticShift? := functions.find? (·.name == "arithmeticShift")
   let signExtended? := functions.find? (·.name == "signExtended")
   let shiftedMask? := functions.find? (·.name == "shiftedMask")
+  let signedDivSurface? := functions.find? (·.name == "signedDivSurface")
+  let signedModSurface? := functions.find? (·.name == "signedModSurface")
+  let castToInt? := functions.find? (·.name == "castToInt")
+  let castToUint? := functions.find? (·.name == "castToUint")
+  let minusOne? := functions.find? (·.name == "minusOne")
   let signedDiv := signedDiv?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedMod := signedMod?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedLt := signedLt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
@@ -473,6 +480,11 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let arithmeticShift := arithmeticShift?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signExtended := signExtended?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let shiftedMask := shiftedMask?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signedDivSurface := signedDivSurface?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let signedModSurface := signedModSurface?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let castToInt := castToInt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let castToUint := castToUint?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let minusOne := minusOne?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: signedMod body uses Expr.smod"
@@ -487,6 +499,16 @@ private def checkSignedBuiltinSmoke : IO Unit := do
     (bodyUsesSignedBuiltin signExtended.body "Expr.signextend")
   expectTrue "SignedBuiltinSmoke: shiftedMask body inlines Expr.sar"
     (bodyUsesSignedBuiltin shiftedMask.body "Expr.sar")
+  expectTrue "SignedBuiltinSmoke: signedDivSurface lowers Int256 div to Expr.sdiv"
+    (bodyUsesSignedBuiltin signedDivSurface.body "Expr.sdiv")
+  expectTrue "SignedBuiltinSmoke: signedModSurface lowers Int256 mod to Expr.smod"
+    (bodyUsesSignedBuiltin signedModSurface.body "Expr.smod")
+  expectTrue "SignedBuiltinSmoke: castToInt stays word-level in the model"
+    (!bodyUsesSignedBuiltin castToInt.body "Expr.sdiv")
+  expectTrue "SignedBuiltinSmoke: castToUint stays word-level in the model"
+    (!bodyUsesSignedBuiltin castToUint.body "Expr.sdiv")
+  expectTrue "SignedBuiltinSmoke: minusOne preserves Int256 constants as raw words"
+    (!minusOne.body.isEmpty)
 
 private def checkSpecialEntrypointSmoke : IO Unit := do
   let functions := Contracts.Smoke.SpecialEntrypointSmoke.spec.functions

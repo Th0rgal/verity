@@ -18,6 +18,7 @@ abbrev DoSeq := TSyntax `Lean.Parser.Term.doSeq
 
 inductive ValueType where
   | uint256
+  | int256
   | uint8
   | address
   | bytes32
@@ -121,6 +122,7 @@ private def natFromSyntax (stx : Syntax) : CommandElabM Nat :=
 private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := do
   match ty with
   | `(term| Uint256) => pure .uint256
+  | `(term| Int256) => pure .int256
   | `(term| Uint8) => pure .uint8
   | `(term| Address) => pure .address
   | `(term| Bytes32) => pure .bytes32
@@ -139,7 +141,7 @@ private partial def valueTypeFromSyntax (ty : Term) : CommandElabM ValueType := 
         throwErrorAt ty "tuple types must have at least 2 elements"
       pure (.tuple elems.toList)
   | `(term| Unit) => pure .unit
-  | _ => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], or Unit"
+  | _ => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], or Unit"
 
 private def storageTypeFromSyntax (ty : Term) : CommandElabM StorageType := do
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
@@ -200,6 +202,7 @@ private def modelStructMemberTerm (member : StructMemberDecl) : CommandElabM Ter
 private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   match ty with
   | .scalar .uint256 => `(Compiler.CompilationModel.FieldType.uint256)
+  | .scalar .int256 => throwError "storage fields cannot be Int256; use Uint256 encoding"
   | .scalar .uint8 => throwError "storage fields cannot be Uint8; use Uint256 encoding"
   | .scalar .address => `(Compiler.CompilationModel.FieldType.address)
   | .scalar .bytes32 => throwError "storage fields cannot be Bytes32; use Uint256 encoding"
@@ -233,6 +236,7 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
 private partial def modelParamTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
   | .uint256 => `(Compiler.CompilationModel.ParamType.uint256)
+  | .int256 => `(Compiler.CompilationModel.ParamType.int256)
   | .uint8 => `(Compiler.CompilationModel.ParamType.uint8)
   | .address => `(Compiler.CompilationModel.ParamType.address)
   | .bytes32 => `(Compiler.CompilationModel.ParamType.bytes32)
@@ -250,6 +254,7 @@ private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
   | .unit => `(none)
   | .uint256 => `(some Compiler.CompilationModel.FieldType.uint256)
+  | .int256 => `(none)
   | .uint8 => `(none)
   | .address => `(some Compiler.CompilationModel.FieldType.address)
   | .bytes32 => `(none)
@@ -263,6 +268,7 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
   | .unit => `([])
   | .uint256 => `([Compiler.CompilationModel.ParamType.uint256])
+  | .int256 => `([Compiler.CompilationModel.ParamType.int256])
   | .uint8 => `([Compiler.CompilationModel.ParamType.uint8])
   | .address => `([Compiler.CompilationModel.ParamType.address])
   | .bytes32 => `([Compiler.CompilationModel.ParamType.bytes32])
@@ -287,6 +293,7 @@ private partial def mkTupleContractType (elemTys : List ValueType) : CommandElab
 private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :=
   match ty with
   | .uint256 => `(Uint256)
+  | .int256 => `(Int256)
   | .uint8 => `(Uint256)
   | .address => `(Address)
   | .bytes32 => `(Uint256)
@@ -535,7 +542,7 @@ def immutableStorageFieldDecl
     ident := immutableSlotIdent imm
     name := immutableHiddenName imm
     ty := match imm.ty with
-      | .uint256 | .uint8 | .bytes32 | .bool => .scalar .uint256
+      | .uint256 | .int256 | .uint8 | .bytes32 | .bool => .scalar .uint256
       | .address => .scalar .address
       | _ => .scalar imm.ty
     slotNum := immutableSlotIndex fields idx
@@ -543,10 +550,10 @@ def immutableStorageFieldDecl
 
 private def validateImmutableType (imm : ImmutableDecl) : CommandElabM Unit :=
   match imm.ty with
-  | .uint256 | .uint8 | .address | .bytes32 | .bool => pure ()
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => pure ()
   | _ =>
       throwErrorAt imm.ident
-        s!"contract immutables currently support only Uint256, Uint8, Address, Bytes32, and Bool; '{imm.name}' uses unsupported type"
+        s!"contract immutables currently support only Uint256, Int256, Uint8, Address, Bytes32, and Bool; '{imm.name}' uses unsupported type"
 
 private def validateImmutableBodyType
     (imm : ImmutableDecl)
@@ -560,7 +567,7 @@ private def validateImmutableBodyType
     discard <| Lean.Elab.Term.elabTerm wrappedBody none
 
 private def externalExecutableWordType? : ValueType → Bool
-  | .uint256 | .uint8 | .address | .bytes32 | .bool => true
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => true
   | _ => false
 
 private def validateExternalExecutableType
@@ -570,7 +577,7 @@ private def validateExternalExecutableType
     (role : String) : CommandElabM Unit := do
   if !externalExecutableWordType? ty then
     throwErrorAt extIdent
-      s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Uint8, Address, Bytes32, and Bool"
+      s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool"
 
 private partial def stripParens (stx : Term) : Term :=
   match stx with
@@ -704,6 +711,8 @@ private def mkImmutableBoundBody
         match imm.ty with
         | .uint256 | .uint8 | .bytes32 =>
             pure #[← `(doElem| let $(imm.ident) ← getStorage $(slotField.ident))]
+        | .int256 =>
+            pure #[← `(doElem| let $(imm.ident) := toInt256 (← getStorage $(slotField.ident)))]
         | .bool =>
             let rawName := mkIdent (Name.mkSimple s!"__verity_immutable_raw_{imm.name}")
             pure #[
@@ -833,9 +842,30 @@ private def lookupVarExpr (params : Array ParamDecl) (locals : Array String) (na
 
 private abbrev TypedLocal := String × ValueType
 
-private def isWordLikeValueType : ValueType → Bool
-  | .uint256 | .uint8 | .address | .bytes32 => true
+private def isSignedWordValueType : ValueType → Bool
+  | .int256 => true
   | _ => false
+
+private def isWordLikeValueType : ValueType → Bool
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 => true
+  | _ => false
+
+private def classifyWordArithmeticResultType
+    (stx : Syntax)
+    (context : String)
+    (lhsTy rhsTy : ValueType) : CommandElabM ValueType := do
+  unless isWordLikeValueType lhsTy do
+    throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {reprStr lhsTy}"
+  unless isWordLikeValueType rhsTy do
+    throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {reprStr rhsTy}"
+  if isSignedWordValueType lhsTy || isSignedWordValueType rhsTy then
+    if lhsTy == .int256 && rhsTy == .int256 then
+      pure .int256
+    else
+      throwErrorAt stx
+        s!"{context} requires explicit casts when mixing Int256 with non-Int256 words; got {reprStr lhsTy} and {reprStr rhsTy}"
+  else
+    pure .uint256
 
 private def lookupTypedLocalType? (locals : Array TypedLocal) (name : String) : Option ValueType :=
   locals.findSome? fun localTy =>
@@ -861,7 +891,7 @@ private def renderValueType (ty : ValueType) : String :=
 
 private def requireWordLikeType (stx : Syntax) (context : String) (ty : ValueType) : CommandElabM Unit := do
   unless isWordLikeValueType ty do
-    throwErrorAt stx s!"{context} requires a word-like value (Uint256, Uint8, Address, or Bytes32), got {renderValueType ty}"
+    throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {renderValueType ty}"
 
 private def requireBoolType (stx : Syntax) (context : String) (ty : ValueType) : CommandElabM Unit := do
   unless ty == .bool do
@@ -872,7 +902,7 @@ private def requireEqComparableTypes (stx : Syntax) (lhsTy rhsTy : ValueType) : 
   let bothBool := lhsTy == .bool && rhsTy == .bool
   unless bothWordLike || bothBool do
     throwErrorAt stx
-      s!"equality is currently supported only for Bool and word-like values (Uint256, Uint8, Address, Bytes32); got {renderValueType lhsTy} and {renderValueType rhsTy}"
+      s!"equality is currently supported only for Bool and word-like values (Uint256, Int256, Uint8, Address, Bytes32); got {renderValueType lhsTy} and {renderValueType rhsTy}"
 
 private def requireSameOrWordLikeTypes (stx : Syntax) (context : String) (lhsTy rhsTy : ValueType) : CommandElabM Unit := do
   unless lhsTy == rhsTy || (isWordLikeValueType lhsTy && isWordLikeValueType rhsTy) do
@@ -925,6 +955,12 @@ private partial def inferPureExprType
       unless ty == .address do
         throwErrorAt a s!"addressToWord requires Address, got {renderValueType ty}"
       pure .uint256
+  | `(term| toInt256 $a:term) => do
+      requireWordLikeType a "toInt256" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
+      pure .int256
+  | `(term| toUint256 $a:term) => do
+      requireWordLikeType a "toUint256" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
+      pure .uint256
   | `(term| boolToWord $a:term) =>
       requireBoolType a "boolToWord" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       pure .uint256
@@ -940,21 +976,28 @@ private partial def inferPureExprType
   | `(term| $n:num) =>
       pure .uint256
   | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b)
-    | `(term| div $a $b) | `(term| sdiv $a $b) | `(term| mod $a $b) | `(term| smod $a $b) | `(term| bitAnd $a $b)
+    | `(term| bitAnd $a $b)
     | `(term| bitOr $a $b) | `(term| bitXor $a $b) | `(term| and $a $b)
     | `(term| or $a $b) | `(term| xor $a $b) | `(term| min $a $b)
     | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b) => do
-      requireWordLikeType a "word arithmetic" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
-      requireWordLikeType b "word arithmetic" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants)
-      pure .uint256
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
+      classifyWordArithmeticResultType stx "word arithmetic" lhsTy rhsTy
+  | `(term| div $a $b) | `(term| $a / $b) | `(term| mod $a $b) | `(term| $a % $b)
+    | `(term| sdiv $a $b) | `(term| smod $a $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
+      classifyWordArithmeticResultType stx "division/modulo" lhsTy rhsTy
   | `(term| bitNot $a) | `(term| not $a) => do
-      requireWordLikeType a "bitwise not" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
-      pure .uint256
+      let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      requireWordLikeType a "bitwise not" ty
+      pure (if ty == .int256 then .int256 else .uint256)
   | `(term| shl $shift $value) | `(term| shr $shift $value) | `(term| sar $shift $value)
     | `(term| signextend $shift $value) => do
       requireWordLikeType shift "shift" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals shift visitingConstants)
-      requireWordLikeType value "shift" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals value visitingConstants)
-      pure .uint256
+      let valueTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value visitingConstants
+      requireWordLikeType value "shift" valueTy
+      pure (if valueTy == .int256 then .int256 else .uint256)
   | `(term| slt $a $b) | `(term| sgt $a $b) => do
       requireWordLikeType a "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       requireWordLikeType b "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants)
@@ -965,8 +1008,9 @@ private partial def inferPureExprType
       requireEqComparableTypes stx lhsTy rhsTy
       pure .bool
   | `(term| $a >= $b) | `(term| $a > $b) | `(term| $a < $b) | `(term| $a <= $b) => do
-      requireWordLikeType a "ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
-      requireWordLikeType b "ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants)
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
+      discard <| classifyWordArithmeticResultType stx "ordering comparison" lhsTy rhsTy
       pure .bool
   | `(term| $a && $b) | `(term| $a || $b) => do
       requireBoolType a "logical operator" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
@@ -1263,6 +1307,8 @@ private partial def validateConstantBody
   | `(term| isZeroAddress $a:term) => validateConstantBody constDecls a visiting
   | `(term| wordToAddress $a:term) => validateConstantBody constDecls a visiting
   | `(term| addressToWord $a:term) => validateConstantBody constDecls a visiting
+  | `(term| toInt256 $a:term) => validateConstantBody constDecls a visiting
+  | `(term| toUint256 $a:term) => validateConstantBody constDecls a visiting
   | `(term| boolToWord $a:term) => validateConstantBody constDecls a visiting
   | `(term| $id:ident) =>
       let name := toString id.getId
@@ -1373,6 +1419,8 @@ partial def translatePureExpr
           (Compiler.CompilationModel.Expr.literal 0))
   | `(term| wordToAddress $a:term) => translatePureExpr fields constDecls immutableDecls params locals a visitingConstants
   | `(term| addressToWord $a:term) => translatePureExpr fields constDecls immutableDecls params locals a visitingConstants
+  | `(term| toInt256 $a:term) => translatePureExpr fields constDecls immutableDecls params locals a visitingConstants
+  | `(term| toUint256 $a:term) => translatePureExpr fields constDecls immutableDecls params locals a visitingConstants
   | `(term| boolToWord $a:term) =>
       `(Compiler.CompilationModel.Expr.ite
           $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
@@ -1384,7 +1432,7 @@ partial def translatePureExpr
         lookupVarExpr params locals name
       else if let some imm := immutableDecls.find? (fun imm => imm.name == name) then
         match imm.ty with
-        | .uint256 | .uint8 | .bytes32 | .bool =>
+        | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
             `(Compiler.CompilationModel.Expr.storage $(strTerm (immutableHiddenName imm)))
         | .address => `(Compiler.CompilationModel.Expr.storageAddr $(strTerm (immutableHiddenName imm)))
         | _ => throwErrorAt stx s!"immutable '{name}' uses unsupported type"
@@ -1394,9 +1442,21 @@ partial def translatePureExpr
   | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| mul $a $b) => `(Compiler.CompilationModel.Expr.mul $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
-  | `(term| div $a $b) => `(Compiler.CompilationModel.Expr.div $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| div $a $b) | `(term| $a / $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants
+      if lhsTy == .int256 && rhsTy == .int256 then
+        `(Compiler.CompilationModel.Expr.sdiv $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+      else
+        `(Compiler.CompilationModel.Expr.div $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sdiv $a $b) => `(Compiler.CompilationModel.Expr.sdiv $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
-  | `(term| mod $a $b) => `(Compiler.CompilationModel.Expr.mod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| mod $a $b) | `(term| $a % $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants
+      if lhsTy == .int256 && rhsTy == .int256 then
+        `(Compiler.CompilationModel.Expr.smod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+      else
+        `(Compiler.CompilationModel.Expr.mod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| smod $a $b) => `(Compiler.CompilationModel.Expr.smod $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| bitAnd $a $b) => `(Compiler.CompilationModel.Expr.bitAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| bitOr $a $b) => `(Compiler.CompilationModel.Expr.bitOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
@@ -1412,12 +1472,42 @@ partial def translatePureExpr
           (Compiler.CompilationModel.Expr.eq
             $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
             $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
-  | `(term| $a >= $b) => `(Compiler.CompilationModel.Expr.ge $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
-  | `(term| $a > $b) => `(Compiler.CompilationModel.Expr.gt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a >= $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants
+      if lhsTy == .int256 && rhsTy == .int256 then
+        `(Compiler.CompilationModel.Expr.logicalNot
+            (Compiler.CompilationModel.Expr.slt
+              $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+              $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
+      else
+        `(Compiler.CompilationModel.Expr.ge $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a > $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants
+      if lhsTy == .int256 && rhsTy == .int256 then
+        `(Compiler.CompilationModel.Expr.sgt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+      else
+        `(Compiler.CompilationModel.Expr.gt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sgt $a $b) => `(Compiler.CompilationModel.Expr.sgt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
-  | `(term| $a < $b) => `(Compiler.CompilationModel.Expr.lt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a < $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants
+      if lhsTy == .int256 && rhsTy == .int256 then
+        `(Compiler.CompilationModel.Expr.slt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+      else
+        `(Compiler.CompilationModel.Expr.lt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| slt $a $b) => `(Compiler.CompilationModel.Expr.slt $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
-  | `(term| $a <= $b) => `(Compiler.CompilationModel.Expr.le $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| $a <= $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params (locals.map (fun name => (name, .uint256))) b visitingConstants
+      if lhsTy == .int256 && rhsTy == .int256 then
+        `(Compiler.CompilationModel.Expr.logicalNot
+            (Compiler.CompilationModel.Expr.sgt
+              $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants)
+              $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants)))
+      else
+        `(Compiler.CompilationModel.Expr.le $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a && $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| $a || $b) => `(Compiler.CompilationModel.Expr.logicalOr $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| logicalAnd $a $b) => `(Compiler.CompilationModel.Expr.logicalAnd $(← translatePureExpr fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExpr fields constDecls immutableDecls params locals b visitingConstants))
@@ -2660,7 +2750,7 @@ private def immutableInitStmtTerms
     let slotField := immutableStorageFieldDecl fields imm idx
     let valueExpr ← translatePureExpr fields constDecls #[] ctorParams #[] imm.body
     match imm.ty with
-    | .uint256 | .uint8 | .bytes32 | .bool =>
+    | .uint256 | .int256 | .uint8 | .bytes32 | .bool =>
         `(Compiler.CompilationModel.Stmt.setStorage $(strTerm slotField.name) $valueExpr)
     | .address =>
         `(Compiler.CompilationModel.Stmt.setStorageAddr $(strTerm slotField.name) $valueExpr)
@@ -2725,6 +2815,7 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
   let storageTy ←
     match field.ty with
     | .scalar .uint256 => `(Uint256)
+    | .scalar .int256 => throwError "storage field cannot be Int256; use Uint256 encoding"
     | .scalar .uint8 => throwError "storage field cannot be Uint8; use Uint256 encoding"
     | .scalar .address => `(Address)
     | .scalar .bytes32 => throwError "storage field cannot be Bytes32; use Uint256 encoding"

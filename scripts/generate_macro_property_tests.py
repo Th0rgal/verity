@@ -273,6 +273,8 @@ def _sol_type(lean_ty: str) -> str:
     ty = _normalize_type(lean_ty)
     if ty == "Uint256":
         return "uint256"
+    if ty == "Int256":
+        return "int256"
     if ty == "Uint8":
         return "uint8"
     if ty == "Address":
@@ -310,6 +312,8 @@ def _example_value(lean_ty: str) -> str:
     ty = _normalize_type(lean_ty)
     if ty == "Uint256":
         return "uint256(1)"
+    if ty == "Int256":
+        return "int256(1)"
     if ty == "Uint8":
         return "uint8(27)"
     if ty == "Address":
@@ -352,7 +356,7 @@ def _fn_camel(name: str) -> str:
 
 def _return_shape_assertion(lean_ty: str, fn_name: str) -> str:
     ty = _normalize_type(lean_ty)
-    if ty in {"Uint256", "Uint8", "Address", "Bool", "Bytes32"}:
+    if ty in {"Uint256", "Int256", "Uint8", "Address", "Bool", "Bytes32"}:
         return (
             f'        assertEq(ret.length, 32, "{fn_name} ABI return length mismatch (expected 32 bytes)");'
         )
@@ -376,7 +380,7 @@ def _return_shape_assertion(lean_ty: str, fn_name: str) -> str:
 
 def _storage_word_expr(lean_ty: str, value_expr: str) -> str:
     ty = _normalize_type(lean_ty)
-    if ty in {"Uint256", "Uint8"}:
+    if ty in {"Uint256", "Int256", "Uint8"}:
         return f"bytes32(uint256({value_expr}))"
     if ty == "Bool":
         return f"bytes32(uint256({value_expr} ? 1 : 0))"
@@ -389,7 +393,7 @@ def _storage_word_expr(lean_ty: str, value_expr: str) -> str:
 
 def _literal_expr(value: str, lean_ty: str) -> str | None:
     ty = _normalize_type(lean_ty)
-    if ty in {"Uint256", "Uint8"} and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
+    if ty in {"Uint256", "Int256", "Uint8"} and re.fullmatch(r"(0x[0-9A-Fa-f]+|[0-9]+)", value):
         return value
     if ty == "Bool" and value in {"true", "false"}:
         return value

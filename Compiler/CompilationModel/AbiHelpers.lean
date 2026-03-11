@@ -45,6 +45,7 @@ def revertWithMessage (message : String) : List YulStmt :=
 mutual
   def paramTypeToSolidityString : ParamType → String
     | ParamType.uint256 => "uint256"
+    | ParamType.int256 => "int256"
     | ParamType.uint8 => "uint8"
     | ParamType.address => "address"
     | ParamType.bool => "bool"
