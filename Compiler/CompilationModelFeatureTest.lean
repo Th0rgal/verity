@@ -1257,6 +1257,9 @@ verity_contract MacroDynamicArray where
   function echoRecipients (recipients : Array Address) : Array Address := do
     returnArray recipients
 
+  function echoFlags (flags : Array Bool) : Array Bool := do
+    returnArray flags
+
 def countRecipientsModelUsesArrayLength : Bool :=
   match MacroDynamicArray.countRecipients_modelBody with
   | [Stmt.letVar "count" (Expr.arrayLength "recipients"),
@@ -1290,6 +1293,14 @@ def echoRecipientsModelUsesReturnArray : Bool :=
   | _ => false
 
 example : echoRecipientsModelUsesReturnArray = true := by native_decide
+
+def echoFlagsModelUsesReturnArray : Bool :=
+  match MacroDynamicArray.echoFlags_modelBody with
+  | [Stmt.returnArray "flags"] =>
+      true
+  | _ => false
+
+example : echoFlagsModelUsesReturnArray = true := by native_decide
 
 def countRecipientsExecutableUsesRuntimeHelper : Bool :=
   match MacroDynamicArray.countRecipients #[(11 : Address), (17 : Address)] Verity.defaultState with
