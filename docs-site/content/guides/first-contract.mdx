@@ -49,24 +49,24 @@ python3 scripts/generate_contract.py TipJar \
 ```
 
 This creates all required files:
-- `Verity/Specs/TipJar/Spec.lean` — formal specification
-- `Verity/Specs/TipJar/Invariants.lean` — state invariants
-- `Verity/Specs/TipJar/Proofs.lean` — compilation correctness proof re-export
-- `Verity/Examples/TipJar.lean` — EDSL implementation
-- `Verity/Proofs/TipJar/Basic.lean` — basic correctness proofs (EDSL matches spec)
-- `Verity/Proofs/TipJar/Correctness.lean` — advanced correctness proofs
+- `Contracts/TipJar/Spec.lean` — formal specification
+- `Contracts/TipJar/Invariants.lean` — state invariants
+- `Contracts/TipJar/SpecProofs.lean` — compilation correctness proof re-export
+- `Contracts/TipJar/TipJar.lean` — EDSL implementation
+- `Contracts/TipJar/Proofs/Basic.lean` — basic correctness proofs (EDSL matches spec)
+- `Contracts/TipJar/Proofs/Correctness.lean` — advanced correctness proofs
 - `test/PropertyTipJar.t.sol` — Foundry tests
 
 ### 1.2 Or Create Files Manually
 
 ```bash
-mkdir -p Verity/Specs/TipJar Verity/Proofs/TipJar
-touch Verity/Specs/TipJar/Spec.lean
-touch Verity/Specs/TipJar/Invariants.lean
-touch Verity/Specs/TipJar/Proofs.lean
-touch Verity/Examples/TipJar.lean
-touch Verity/Proofs/TipJar/Basic.lean
-touch Verity/Proofs/TipJar/Correctness.lean
+mkdir -p Contracts/TipJar/Proofs
+touch Contracts/TipJar/Spec.lean
+touch Contracts/TipJar/Invariants.lean
+touch Contracts/TipJar/SpecProofs.lean
+touch Contracts/TipJar/TipJar.lean
+touch Contracts/TipJar/Proofs/Basic.lean
+touch Contracts/TipJar/Proofs/Correctness.lean
 touch test/PropertyTipJar.t.sol
 ```
 
@@ -88,7 +88,7 @@ Specifications describe **what** the contract should do, not **how** it does it.
 
 ### 2.1 Create the Spec File
 
-Open `Verity/Specs/TipJar/Spec.lean`:
+Open `Contracts/TipJar/Spec.lean`:
 
 ```lean
 /-
@@ -131,7 +131,7 @@ end Verity.Specs.TipJar
 
 ### 2.2 Create Invariants File
 
-Open `Verity/Specs/TipJar/Invariants.lean`:
+Open `Contracts/TipJar/Invariants.lean`:
 
 ```lean
 /-
@@ -166,7 +166,7 @@ Now we implement the contract using the EDSL. Every function in the EDSL is a `C
 
 ### 3.1 Create EDSL Implementation
 
-Open `Verity/Examples/TipJar.lean`:
+Open `Contracts/TipJar/TipJar.lean`:
 
 ```lean
 /-
@@ -252,7 +252,7 @@ This is where formal verification happens. We prove that our implementation matc
 
 ### 4.1 Write Contract Specification Proofs
 
-Open `Verity/Proofs/TipJar/Basic.lean`:
+Open `Contracts/TipJar/Proofs/Basic.lean`:
 
 ```lean
 /-
@@ -346,7 +346,7 @@ See [Proof Debugging Handbook](/guides/debugging-proofs) for common errors and f
 lake build
 
 # Check for incomplete proofs
-grep -r "sorry" Verity/Specs/TipJar/ Verity/Proofs/TipJar/
+grep -r "sorry" Contracts/TipJar/
 ```
 
 **Goal**: Zero `sorry` statements before moving to testing.
@@ -423,7 +423,7 @@ import "./yul/YulTestBase.sol";
 
 /**
  * @title PropertyTipJarTest
- * @notice Property tests matching Lean theorems from Verity/Proofs/TipJar/Basic.lean
+ * @notice Property tests matching Lean theorems from Contracts/TipJar/Proofs/Basic.lean
  *
  * Tests 4 proven theorems:
  * 1. tip_meets_spec - Tip increases sender balance by amount
@@ -595,7 +595,7 @@ python3 scripts/report_property_coverage.py --format=markdown
 lake build
 
 # 2. No incomplete proofs
-grep -r "sorry" Verity/Specs/TipJar/ Verity/Proofs/TipJar/
+grep -r "sorry" Contracts/TipJar/
 
 # 3. Yul generates and compiles
 lake build verity-compiler
@@ -618,14 +618,13 @@ python3 scripts/generate_verification_status.py --check
 
 ### 7.2 Add to Module Exports
 
-Update `Verity/All.lean` to include all your new contract modules:
+Register your contract in the build by adding imports to the appropriate `All.lean` or lakefile target:
 ```lean
-import Verity.Examples.TipJar
-import Verity.Specs.TipJar.Spec
-import Verity.Specs.TipJar.Invariants
-import Verity.Specs.TipJar.Proofs
-import Verity.Proofs.TipJar.Basic
-import Verity.Proofs.TipJar.Correctness
+import Contracts.TipJar.Spec
+import Contracts.TipJar.Invariants
+import Contracts.TipJar.TipJar
+import Contracts.TipJar.Proofs.Basic
+import Contracts.TipJar.Proofs.Correctness
 ```
 
 > **Tip**: The scaffold generator prints these exact lines when you run it — copy them directly.
@@ -690,8 +689,8 @@ python3 scripts/check_selectors.py
 ## Next Steps
 
 1. **Add more properties**: Think of edge cases (zero amount, same sender/receiver)
-2. **Add access control**: Look at `Verity/Examples/Owned.lean` for the `require` + owner pattern
-3. **Add more functions**: Try adding a `withdraw` with balance checks (see `Verity/Examples/Ledger.lean`)
+2. **Add access control**: Look at `Contracts/OwnedCounter/OwnedCounter.lean` for the `require` + owner pattern
+3. **Add more functions**: Try adding a `withdraw` with balance checks (see `Contracts/Ledger/Ledger.lean`)
 4. **Study existing contracts**: `SimpleStorage` (simplest), `Counter` (arithmetic), `Ledger` (mappings), `OwnedCounter` (composition)
 
 ### Learning Resources
