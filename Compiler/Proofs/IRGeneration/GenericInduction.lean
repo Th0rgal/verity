@@ -295,6 +295,19 @@ private theorem encodeStorageAt_writeUintSlots_singleton_other
       SourceSemantics.encodeStorageAt fields world query := by
   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintSlots, hneq]
 
+private theorem encodeStorageAt_writeUintSlots_other
+    {fields : List Field}
+    {world : Verity.ContractState}
+    {slots : List Nat}
+    {query value : Nat}
+    (hnotMem : query ∉ slots) :
+    SourceSemantics.encodeStorageAt fields
+      (SourceSemantics.writeUintSlots world slots value)
+      query =
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintSlots,
+    List.contains_eq_false.mpr hnotMem]
+
 private def findResolvedFieldAtSlotCopy (fields : List Field) (slot : Nat) : Option Field :=
   let rec go (remaining : List Field) (idx : Nat) : Option Field :=
     match remaining with
@@ -364,6 +377,32 @@ private theorem encodeStorageAt_eq_storage_of_resolvedSlot
     SourceSemantics.encodeStorageAt fields world slot = (world.storage slot).val := by
   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hnotAddr, hnotDyn]
 
+private def abstractStoreStorageOrMappingMany
+    (storage : Nat → Nat) (slots : List Nat) (value : Nat) : Nat → Nat :=
+  match slots with
+  | [] => storage
+  | slot :: rest =>
+      abstractStoreStorageOrMappingMany
+        (Compiler.Proofs.abstractStoreStorageOrMapping storage slot value)
+        rest
+        value
+
+private theorem abstractStoreStorageOrMappingMany_eq
+    {storage : Nat → Nat}
+    {slots : List Nat}
+    {value query : Nat} :
+    abstractStoreStorageOrMappingMany storage slots value query =
+      if slots.contains query then value else storage query := by
+  induction slots generalizing storage with
+  | nil =>
+      simp [abstractStoreStorageOrMappingMany]
+  | cons slot rest ih =>
+      by_cases hEq : query = slot
+      · subst hEq
+        simp [abstractStoreStorageOrMappingMany, Compiler.Proofs.abstractStoreStorageOrMapping_eq]
+      · simp [abstractStoreStorageOrMappingMany, ih,
+          Compiler.Proofs.abstractStoreStorageOrMapping_eq, hEq]
+
 private theorem runtimeStateMatchesIR_writeUintSlot
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -390,6 +429,32 @@ private theorem runtimeStateMatchesIR_writeUintSlot
   · rw [Compiler.Proofs.abstractStoreStorageOrMapping_eq, hstorage]
     simp [hEq, encodeStorageAt_writeUintSlots_singleton_other]
 
+private theorem runtimeStateMatchesIR_writeUintSlots
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {slots : List Nat}
+    {value : Nat}
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    {f : Field}
+    (hresolved : ∀ slot ∈ slots, findResolvedFieldAtSlotCopy fields slot = some f)
+    (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
+    (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
+    FunctionBody.runtimeStateMatchesIR fields
+      { runtime with world := SourceSemantics.writeUintSlots runtime.world slots value }
+      { state with
+          storage := abstractStoreStorageOrMappingMany state.storage slots value } := by
+  rcases hruntime with
+    ⟨hstorage, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  refine ⟨?_, hsender, hmsgValue, hthis, htimestamp, hblock, hchain, hret, hevents⟩
+  funext query
+  by_cases hmem : query ∈ slots
+  · rw [abstractStoreStorageOrMappingMany_eq, hstorage,
+      encodeStorageAt_eq_storage_of_resolvedSlot (hresolved query hmem) hnotAddr hnotDyn]
+    simp [SourceSemantics.writeUintSlots, List.contains_eq_true.mpr hmem]
+  · rw [abstractStoreStorageOrMappingMany_eq, hstorage]
+    simp [List.contains_eq_false.mpr hmem, encodeStorageAt_writeUintSlots_other hmem]
+
 private theorem bindingsExactlyMatchIRVarsOnScope_writeUintSlot
     {scope : List String}
     {bindings : List (String × Nat)}
@@ -402,6 +467,86 @@ private theorem bindingsExactlyMatchIRVarsOnScope_writeUintSlot
   intro name hname
   simpa [IRState.getVar, Compiler.Proofs.abstractStoreStorageOrMapping_eq] using
     hexact name hname
+
+private theorem bindingsExactlyMatchIRVarsOnScope_writeUintSlots
+    {scope : List String}
+    {bindings : List (String × Nat)}
+    {state : IRState}
+    {slots : List Nat}
+    {value : Nat}
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope bindings state) :
+    FunctionBody.bindingsExactlyMatchIRVarsOnScope scope bindings
+      { state with
+          storage := abstractStoreStorageOrMappingMany state.storage slots value } := by
+  intro name hname
+  simpa [IRState.getVar, abstractStoreStorageOrMappingMany_eq] using
+    hexact name hname
+
+private theorem execIRStmts_sstore_lit_ident_slots_continue
+    (fuel : Nat)
+    (state : IRState)
+    (slots : List Nat)
+    (name : String)
+    (value : Nat)
+    (hvalue : IRState.getVar state name = value) :
+    execIRStmts (slots.length + fuel + 1) state
+      (slots.map (fun slot =>
+        YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident name]))) =
+      .continue
+        { state with
+            storage := abstractStoreStorageOrMappingMany state.storage slots value } := by
+  induction slots generalizing state fuel with
+  | nil =>
+      simp [execIRStmts, abstractStoreStorageOrMappingMany]
+  | cons slot rest ih =>
+      let nextState :=
+        { state with
+            storage := Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot value }
+      have hstmt :
+          execIRStmt (rest.length + fuel + 1) state
+            (YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident name])) =
+              .continue nextState := by
+        apply execIRStmt_sstore_lit_expr_succ_of_eval
+        simpa [evalIRExpr, IRState.getVar, hvalue]
+      have hvalueNext : IRState.getVar nextState name = value := by
+        simpa [nextState, IRState.getVar] using hvalue
+      have htail :=
+        ih (fuel := fuel) (state := nextState) (name := name) (value := value) hvalueNext
+      simpa [execIRStmts, abstractStoreStorageOrMappingMany, nextState] using htail
+
+private theorem execIRStmts_let_then_sstore_lit_ident_slots_continue
+    (fuel : Nat)
+    (state : IRState)
+    (slots : List Nat)
+    (tempName : String)
+    (valueIR : YulExpr)
+    (value : Nat)
+    (hvalue : evalIRExpr state valueIR = some value) :
+    execIRStmts (slots.length + fuel + 2) state
+      (YulStmt.let_ tempName valueIR ::
+        slots.map (fun slot =>
+          YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit slot, YulExpr.ident tempName]))) =
+      .continue
+        { state.setVar tempName value with
+            storage :=
+              abstractStoreStorageOrMappingMany
+                (state.setVar tempName value).storage
+                slots
+                value } := by
+  have hlet :
+      execIRStmt (slots.length + fuel + 1) state
+        (YulStmt.let_ tempName valueIR) =
+          .continue (state.setVar tempName value) := by
+    simp [execIRStmt, hvalue]
+  have hslots :=
+    execIRStmts_sstore_lit_ident_slots_continue
+      fuel
+      (state.setVar tempName value)
+      slots
+      tempName
+      value
+      (by simp [IRState.getVar])
+  simpa [execIRStmts, hlet] using hslots
 
 theorem compiledStmtStep_setStorage_singleSlot
     {fields : List Field}
