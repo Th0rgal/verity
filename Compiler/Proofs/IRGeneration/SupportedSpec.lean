@@ -625,6 +625,7 @@ structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : Fun
   present : callee ∈ spec.functions
   internal : callee.isInternal = true
   nonSpecialEntrypoint : isInteropEntrypointName callee.name = false
+  helperRank : Nat
   params : SupportedParamProfile callee.params
   returns : SupportedReturnProfile callee
   stmtList : SupportedStmtList spec.fields callee.body
@@ -647,10 +648,14 @@ It already inventories helper callees via positive summary witnesses, but it
 still carries a legacy fail-closed surface check so the generic theorem shape
 and trusted boundary remain unchanged until helper semantics are modeled. -/
 structure SupportedBodyHelperInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+  helperRank : Nat
   callNamesNodup : (helperCallNames fn).Nodup
-  summaries :
+  summaryOf :
     ∀ calleeName, calleeName ∈ helperCallNames fn →
-      ∃ witness : SupportedInternalHelperWitness spec calleeName, True
+      SupportedInternalHelperWitness spec calleeName
+  calleeRanksDecrease :
+    ∀ calleeName (hmem : calleeName ∈ helperCallNames fn),
+      (summaryOf calleeName hmem).summary.helperRank < helperRank
   legacySurfaceClosed : stmtListTouchesUnsupportedHelperSurface fn.body = false
 
 structure SupportedBodyCallInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
@@ -747,18 +752,24 @@ theorem SupportedBodyHelperInterface.summaryOfCall
     (hHelpers : SupportedBodyHelperInterface spec fn)
     {calleeName : String}
     (hmem : calleeName ∈ helperCallNames fn) :
-    ∃ witness : SupportedInternalHelperWitness spec calleeName, True :=
-  hHelpers.summaries calleeName hmem
+    SupportedInternalHelperWitness spec calleeName :=
+  hHelpers.summaryOf calleeName hmem
 
 theorem SupportedBodyHelperInterface.summaryContractOfCall
     {spec : CompilationModel} {fn : FunctionSpec}
     (hHelpers : SupportedBodyHelperInterface spec fn)
     {calleeName : String}
     (hmem : calleeName ∈ helperCallNames fn) :
-    ∃ witness : SupportedInternalHelperWitness spec calleeName,
-      InternalHelperSummaryContract := by
-  obtain ⟨witness, _⟩ := hHelpers.summaryOfCall hmem
-  exact ⟨witness, witness.summary.contract⟩
+    InternalHelperSummaryContract :=
+  (hHelpers.summaryOfCall hmem).summary.contract
+
+theorem SupportedBodyHelperInterface.calleeRank_lt
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn)
+    {calleeName : String}
+    (hmem : calleeName ∈ helperCallNames fn) :
+    (hHelpers.summaryOfCall hmem).summary.helperRank < hHelpers.helperRank :=
+  hHelpers.calleeRanksDecrease calleeName hmem
 
 theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
     (stmts : List Stmt) :
@@ -1035,8 +1046,12 @@ private theorem counter_supported_function :
           state := { surfaceClosed := by decide }
           calls :=
             { helpers :=
-                { callNamesNodup := helperCallNames_nodup _
-                  summaries := by
+                { helperRank := 0
+                  callNamesNodup := helperCallNames_nodup _
+                  summaryOf := by
+                    intro calleeName hmem
+                    simp [helperCallNames] at hmem
+                  calleeRanksDecrease := by
                     intro calleeName hmem
                     simp [helperCallNames] at hmem
                   legacySurfaceClosed := by decide }
@@ -1116,8 +1131,12 @@ private theorem simpleStorage_supported_function :
           state := { surfaceClosed := by decide }
           calls :=
             { helpers :=
-                { callNamesNodup := helperCallNames_nodup _
-                  summaries := by
+                { helperRank := 0
+                  callNamesNodup := helperCallNames_nodup _
+                  summaryOf := by
+                    intro calleeName hmem
+                    simp [helperCallNames] at hmem
+                  calleeRanksDecrease := by
                     intro calleeName hmem
                     simp [helperCallNames] at hmem
                   legacySurfaceClosed := by decide }

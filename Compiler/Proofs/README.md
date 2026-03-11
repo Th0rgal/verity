@@ -93,6 +93,8 @@ work is now split into:
 - a positive direct-callee summary inventory already attached to `calls.helpers`
 - a spec-aware helper source semantics target in `Compiler/Proofs/IRGeneration/SourceSemantics.lean`
 - a reusable helper-summary contract API attached directly to those witnesses
+- a strictly decreasing helper-rank interface for direct callees, so future
+  helper composition can target a well-founded measure instead of raw fuel
 - feature-local `state` / `calls` / `effects` scans that recurse through nested
   `ite` / `forEach` bodies, so the interface inventory is whole-body rather than
   top-level only
