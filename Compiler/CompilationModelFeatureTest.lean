@@ -10,6 +10,7 @@ import Contracts.Common
 import Contracts.Counter.Counter
 import Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
+import Contracts.StringArrayErrorSmoke
 import Contracts.StringArrayEventSmoke
 
 namespace Compiler.CompilationModelFeatureTest
@@ -2430,6 +2431,21 @@ set_option maxRecDepth 4096 in
     | .ok _ => true
     | .error _ => false
   expectTrue "string[] event emission compiles for indexed and unindexed params" stringArrayEventsCompile
+  let stringArrayErrorsCompile :=
+    match Compiler.CompilationModel.compile Contracts.StringArrayErrorSmoke.spec
+        (selectorsFor Contracts.StringArrayErrorSmoke.spec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "string[] custom errors compile for direct param refs and multi-dynamic heads"
+    stringArrayErrorsCompile
+  let stringArrayErrorAbi := Compiler.ABI.emitContractABIJson Contracts.StringArrayErrorSmoke.spec
+  expectTrue "string[] custom error ABI uses Solidity string[] type"
+    ((contains stringArrayErrorAbi "\"name\": \"BadMessages\"") &&
+      (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"string[]\"}]") &&
+      (contains stringArrayErrorAbi "\"name\": \"TaggedMessages\"") &&
+      (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"uint256\"}, {\"name\": \"\", \"type\": \"string[]\"}]") &&
+      (contains stringArrayErrorAbi "\"name\": \"SecondMessages\"") &&
+      (contains stringArrayErrorAbi "\"inputs\": [{\"name\": \"\", \"type\": \"string[]\"}, {\"name\": \"\", \"type\": \"string[]\"}]"))
   let addressArrayReturnCompiled :=
     match Compiler.CompilationModel.compile addressArrayReturnSpec (selectorsFor addressArrayReturnSpec) with
     | .ok _ => true
