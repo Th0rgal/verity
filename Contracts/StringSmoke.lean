@@ -117,6 +117,30 @@ verity_contract StringLogicalUnsupported where
     else
       return 0
 
+/--
+error: local binding 'alias' currently cannot bind dynamic values (Verity.Macro.ValueType.string) to local variables on the compilation-model path; use the parameter directly
+-/
+#guard_msgs in
+verity_contract StringLocalAliasUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function same (lhs : String, rhs : String) : Bool := do
+    let alias := lhs
+    return (alias == rhs)
+
+/--
+error: local binding 'alias' currently cannot bind dynamic values (Verity.Macro.ValueType.bytes) to local variables on the compilation-model path; use the parameter directly
+-/
+#guard_msgs in
+verity_contract BytesLocalAliasUnsupported where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function same (lhs : Bytes, rhs : Bytes) : Bool := do
+    let alias := lhs
+    return (alias == rhs)
+
 #check_contract StringSmoke
 #check_contract StringEqSmoke
 
