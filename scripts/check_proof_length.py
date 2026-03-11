@@ -209,6 +209,15 @@ ALLOWLIST: set[str] = {
     "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
     "exec_compileStmtList_generic_sizeOf_extraFuel_step",
     "supported_function_body_correct_from_exact_state_generic",
+    # Issue #1630 / PR #1633 — helper-aware source-semantics compatibility:
+    # this mutual-recursion theorem centralizes the constructor-by-constructor
+    # collapse from helper-aware expression evaluation back to the legacy
+    # helper-free semantics under the temporary fail-closed helper boundary.
+    # Splitting it further is follow-up cleanup once helper-summary composition
+    # replaces the compatibility path; for now keeping the recursion in one
+    # theorem avoids duplicating the structural cases across the paired list/stmt
+    # compatibility lemmas introduced by the new proof interface inventory.
+    "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
     "firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs",
 }
 
