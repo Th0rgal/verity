@@ -175,22 +175,9 @@ ECM axiom report:
     [ecrecover] evm_ecrecover_precompile
 ```
 
-This makes the trust boundary explicit and auditable. A team choosing which
-modules to use is choosing which trust assumptions to accept, and whether the
-surface is merely `assumed` or fully `unchecked`. The localized usage-site
-section mirrors the same boundary at the constructor/function level, including
-low-level mechanics, linked external/module `proofStatus`, and per-site axioms.
+Each assumption is tagged `proved`, `assumed`, or `unchecked`, and localized to the constructor or function that introduced it.
 
-For machine-readable audit trails, `verity-compiler --trust-report <path>` emits per-contract JSON covering:
-- ECM assumption entries (`module`, `assumption`, `status`)
-- Linked external assumptions with `status`
-- Axiomatized primitives (e.g. `keccak256`)
-- Low-level call / returndata mechanics
-- Raw event emission (`rawLog`)
-- Proof-gap categories: `notModeledProxyUpgradeability`, `partiallyModeledLinearMemoryMechanics`, `partiallyModeledRuntimeIntrospection`
-- `proofStatus.proved` / `proofStatus.assumed` / `proofStatus.unchecked` buckets
-- `usageSites` localizing each surface to the constructor or function that introduced it
-- `hasUncheckedDependencies` for CI gating
+For a machine-readable version, run `verity-compiler --trust-report <path>`. The JSON covers ECM assumptions, linked externals, axiomatized primitives, low-level mechanics, proof-gap categories, and a `hasUncheckedDependencies` flag for CI gating. See [VERIFICATION_STATUS.md](./VERIFICATION_STATUS.md#solidity-interop-support-matrix-issue-586) for the full trust-report schema.
 
 **Fail-closed flags**: a set of `--deny-*` flags lets you reject specific trust surfaces at compile time. Each flag fails the build and reports the exact usage site. See the [full flag table in VERIFICATION_STATUS.md](./VERIFICATION_STATUS.md#solidity-interop-support-matrix-issue-586) for the complete list. The most relevant for ECM users:
 
