@@ -1091,7 +1091,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | wMulDown lhs rhs ihL ihR
   | wDivUp lhs rhs ihL ihR =>
       cases hcore
-  | bitNot expr ih
+  | bitNot expr ih =>
+      cases hcore
   | logicalNot expr ih =>
       have hstate' : exprTouchesUnsupportedStateSurface expr = false := by
         simpa [exprTouchesUnsupportedStateSurface] using hstate
