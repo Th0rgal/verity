@@ -60,10 +60,21 @@ Then call `onlyOwner` at function start.
 
 ### try/catch
 
-Not first-class yet (see issue `#1161`).
-Use low-level call result checks plus explicit error flow.
-Those low-level call mechanics compile, but they are still outside the current proof-interpreter semantics; treat them as an explicit trust boundary for now (see issue `#1332`).
-Treat `delegatecall` even more strictly: it is also tracked as a dedicated proxy / upgradeability boundary, so archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the verified subset (see issue `#1420`).
+Partial support exists today via low-level `tryCatch` sugar in `verity_contract`:
+
+```lean
+tryCatch (call gas target value inOffset inSize outOffset outSize) (do
+  setStorage lastFailure 1)
+```
+
+This lowers to a low-level call result check plus an `ite` on the returned success word, so it works for raw `call` / `staticcall` / `delegatecall`-style expressions that already return `0` on failure.
+
+What is still missing under issue `#1161`:
+
+- Solidity-style first-class `try/catch` over higher-level external-call helpers / ECMs
+- catch-payload decoding on the compilation-model path; the handler binder must currently be ignored (`_`) and returndata must be read explicitly if needed
+
+Those low-level call mechanics still sit outside the current proof-interpreter semantics, so treat them as an explicit trust boundary for now (see issue `#1332`). Treat `delegatecall` even more strictly: it is also tracked as a dedicated proxy / upgradeability boundary, so archive `--trust-report` and use `--deny-proxy-upgradeability` when proxy semantics must remain outside the verified subset (see issue `#1420`).
 
 ### Manual ABI / memory plumbing
 
