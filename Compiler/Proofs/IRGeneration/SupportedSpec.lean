@@ -25,6 +25,20 @@ def SupportedExternalReturnProfile : List ParamType → Prop
 def selectorDispatchedFunctions (spec : CompilationModel) : List FunctionSpec :=
   spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
 
+/-- Parameter-profile interface for selector-dispatched entrypoints covered by the
+current whole-contract theorem. -/
+structure SupportedParamProfile (params : List Param) : Prop where
+  namesNodup : (params.map (·.name)).Nodup
+  supported : ∀ param ∈ params, SupportedExternalParamType param.ty
+
+/-- Return-profile interface for selector-dispatched entrypoints covered by the
+current whole-contract theorem. -/
+structure SupportedReturnProfile (fn : FunctionSpec) : Prop where
+  resolved :
+    ∃ resolvedReturns,
+      functionReturns fn = Except.ok resolvedReturns ∧
+        SupportedExternalReturnProfile resolvedReturns
+
 /-- Expression forms intentionally outside the first generic whole-contract theorem.
 These are contract-surface features that would otherwise keep proof burden in
 client-side bridge theorems instead of compiler-structure lemmas. -/
@@ -84,31 +98,38 @@ mutual
           stmtListTouchesUnsupportedContractSurface rest
 end
 
+/-- Body-level interface for the initial theorem boundary. This keeps the current
+syntactic exclusion scan local to the body-support witness instead of baking it
+directly into the top-level `SupportedSpec` inventory. -/
+structure SupportedBodyInterface (fields : List Field) (fn : FunctionSpec) : Prop where
+  stmtList : SupportedStmtList fields fn.body
+  surfaceClosed : stmtListTouchesUnsupportedContractSurface fn.body = false
+  noLocalObligations : fn.localObligations = []
+
 /-- Supported external function for the first whole-contract Layer 2 theorem.
 This lifts the raw `SupportedStmtList` witness to the function boundary and
 makes the whole-contract scope auditable without proof-internal inspection. -/
 structure SupportedFunction (fields : List Field) (fn : FunctionSpec) : Prop where
   nonInternal : fn.isInternal = false
   nonSpecialEntrypoint : isInteropEntrypointName fn.name = false
-  paramNamesNodup : (fn.params.map (·.name)).Nodup
-  params : ∀ param ∈ fn.params, SupportedExternalParamType param.ty
-  returns :
-    ∃ resolvedReturns,
-      functionReturns fn = Except.ok resolvedReturns ∧
-        SupportedExternalReturnProfile resolvedReturns
-  body : SupportedStmtList fields fn.body
-  bodySurface : stmtListTouchesUnsupportedContractSurface fn.body = false
-  noLocalObligations : fn.localObligations = []
+  params : SupportedParamProfile fn.params
+  returns : SupportedReturnProfile fn
+  body : SupportedBodyInterface fields fn
 
-/-- Whole-contract support witness for the first generic Layer 2 theorem.
-The initial scope is deliberately narrow: selector-dispatched external entrypoints only,
-no constructor, no fallback/receive, no foreign/linking surface, and every function body
-must already live inside the explicit supported statement fragment. -/
-structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop where
+/-- Whole-contract invariants that should remain global preconditions for the
+current generic theorem, independent of feature-local proof interfaces. -/
+structure SupportedSpecInvariants (spec : CompilationModel) (selectors : List Nat) : Prop where
   normalizedFields :
     applySlotAliasRanges spec.fields spec.slotAliasRanges = spec.fields
   noPackedFields :
     ∀ field ∈ spec.fields, field.packedBits = none
+  selectorCount : selectors.length = (selectorDispatchedFunctions spec).length
+  selectorsDistinct : firstDuplicateSelector selectors = none
+
+/-- Whole-contract surfaces intentionally still outside the initial theorem,
+kept separate from global normalization/dispatch invariants so future widening
+can replace these by dedicated proof interfaces feature-by-feature. -/
+structure SupportedSpecSurface (spec : CompilationModel) : Prop where
   noConstructor : spec.constructor = none
   noEvents : spec.events = []
   noErrors : spec.errors = []
@@ -117,10 +138,96 @@ structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop 
     ∀ fn ∈ spec.functions, fn.name != "fallback"
   noReceive :
     ∀ fn ∈ spec.functions, fn.name != "receive"
-  selectorCount : selectors.length = (selectorDispatchedFunctions spec).length
-  selectorsDistinct : firstDuplicateSelector selectors = none
+
+/-- Whole-contract support witness for the first generic Layer 2 theorem.
+The initial scope is deliberately narrow: selector-dispatched external entrypoints only,
+no constructor, no fallback/receive, no foreign/linking surface, and every function body
+must already live inside the explicit supported statement fragment. -/
+structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop where
+  invariants : SupportedSpecInvariants spec selectors
+  surface : SupportedSpecSurface spec
   functions :
     ∀ fn, fn ∈ spec.functions → SupportedFunction spec.fields fn
+
+theorem SupportedFunction.paramNamesNodup
+    {fields : List Field} {fn : FunctionSpec}
+    (hSupported : SupportedFunction fields fn) :
+    (fn.params.map (·.name)).Nodup :=
+  hSupported.params.namesNodup
+
+theorem SupportedFunction.paramsSupported
+    {fields : List Field} {fn : FunctionSpec}
+    (hSupported : SupportedFunction fields fn) :
+    ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+  hSupported.params.supported
+
+theorem SupportedFunction.returnsSupported
+    {fields : List Field} {fn : FunctionSpec}
+    (hSupported : SupportedFunction fields fn) :
+    ∃ resolvedReturns,
+      functionReturns fn = Except.ok resolvedReturns ∧
+        SupportedExternalReturnProfile resolvedReturns :=
+  hSupported.returns.resolved
+
+theorem SupportedSpec.normalizedFields
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    applySlotAliasRanges spec.fields spec.slotAliasRanges = spec.fields :=
+  hSupported.invariants.normalizedFields
+
+theorem SupportedSpec.noPackedFields
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    ∀ field ∈ spec.fields, field.packedBits = none :=
+  hSupported.invariants.noPackedFields
+
+theorem SupportedSpec.selectorCount
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    selectors.length = (selectorDispatchedFunctions spec).length :=
+  hSupported.invariants.selectorCount
+
+theorem SupportedSpec.selectorsDistinct
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    firstDuplicateSelector selectors = none :=
+  hSupported.invariants.selectorsDistinct
+
+theorem SupportedSpec.noConstructor
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    spec.constructor = none :=
+  hSupported.surface.noConstructor
+
+theorem SupportedSpec.noEvents
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    spec.events = [] :=
+  hSupported.surface.noEvents
+
+theorem SupportedSpec.noErrors
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    spec.errors = [] :=
+  hSupported.surface.noErrors
+
+theorem SupportedSpec.noExternals
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    spec.externals = [] :=
+  hSupported.surface.noExternals
+
+theorem SupportedSpec.noFallback
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    ∀ fn ∈ spec.functions, fn.name != "fallback" :=
+  hSupported.surface.noFallback
+
+theorem SupportedSpec.noReceive
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    ∀ fn ∈ spec.functions, fn.name != "receive" :=
+  hSupported.surface.noReceive
 
 theorem SupportedSpec.supportedFunctionOfSelectorDispatched
     {spec : CompilationModel} {selectors : List Nat}
@@ -139,7 +246,7 @@ theorem SupportedSpec.selectorFunctionParamsSupported
     {fn : FunctionSpec}
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
-  (hSupported.supportedFunctionOfSelectorDispatched hfn).params
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).paramsSupported
 
 theorem SupportedSpec.selectorFunctionParamNamesNodup
     {spec : CompilationModel} {selectors : List Nat}
@@ -155,7 +262,7 @@ theorem SupportedSpec.selectorFunctionBodySupported
     {fn : FunctionSpec}
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
     SupportedStmtList spec.fields fn.body :=
-  (hSupported.supportedFunctionOfSelectorDispatched hfn).body
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).body.stmtList
 
 theorem SupportedSpec.selectorFunctionReturnsSupported
     {spec : CompilationModel} {selectors : List Nat}
@@ -165,7 +272,7 @@ theorem SupportedSpec.selectorFunctionReturnsSupported
     ∃ resolvedReturns,
       functionReturns fn = Except.ok resolvedReturns ∧
         SupportedExternalReturnProfile resolvedReturns :=
-  (hSupported.supportedFunctionOfSelectorDispatched hfn).returns
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).returnsSupported
 
 @[simp] theorem stmtListTouchesUnsupportedContractSurface_nil :
     stmtListTouchesUnsupportedContractSurface [] = false := rfl
@@ -247,34 +354,38 @@ private theorem counter_supported_function :
   refine
     { nonInternal := rfl
       nonSpecialEntrypoint := rfl
-      paramNamesNodup := by decide
-      params := by intro param hparam; cases hparam
-      returns := ⟨[.uint256], rfl, trivial⟩
-      body := by
-        refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 42], ?_⟩
-        simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
-          Verity.Core.Free.SupportedStmtFragment.toStmts,
-          Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
-          Verity.Core.Free.RequireFamilyClausesTail.toStmts]
-      bodySurface := by decide
-      noLocalObligations := rfl }
+      params :=
+        { namesNodup := by decide
+          supported := by intro param hparam; cases hparam }
+      returns := { resolved := ⟨[.uint256], rfl, trivial⟩ }
+      body :=
+        { stmtList := by
+            refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 42], ?_⟩
+            simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
+              Verity.Core.Free.SupportedStmtFragment.toStmts,
+              Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
+              Verity.Core.Free.RequireFamilyClausesTail.toStmts]
+          surfaceClosed := by decide
+          noLocalObligations := rfl } }
 
 theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
     [0xa87d942c] := by
   refine
-    { normalizedFields := by
-        rfl
-      noPackedFields := counter_noPackedFields
-      noConstructor := rfl
-      noEvents := rfl
-      noErrors := rfl
-      noExternals := rfl
-      noFallback := counter_noFallback
-      noReceive := counter_noReceive
-      selectorCount := by
-        decide
-      selectorsDistinct := by
-        decide
+    { invariants :=
+        { normalizedFields := by
+            rfl
+          noPackedFields := counter_noPackedFields
+          selectorCount := by
+            decide
+          selectorsDistinct := by
+            decide }
+      surface :=
+        { noConstructor := rfl
+          noEvents := rfl
+          noErrors := rfl
+          noExternals := rfl
+          noFallback := counter_noFallback
+          noReceive := counter_noReceive }
       functions := counter_supported_function }
 
 def simpleStorageSupportedSpecModel : CompilationModel :=
@@ -290,27 +401,29 @@ def simpleStorageSupportedSpecModel : CompilationModel :=
 theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
     [0x2e64cec1] := by
   refine
-    { normalizedFields := by
-        rfl
-      noPackedFields := by
-        intro field hfield
-        simp [simpleStorageSupportedSpecModel] at hfield
-      noConstructor := rfl
-      noEvents := rfl
-      noErrors := rfl
-      noExternals := rfl
-      noFallback := by
-        intro fn hfn
-        simp [simpleStorageSupportedSpecModel] at hfn
-        rcases hfn with rfl <;> decide
-      noReceive := by
-        intro fn hfn
-        simp [simpleStorageSupportedSpecModel] at hfn
-        rcases hfn with rfl <;> decide
-      selectorCount := by
-        decide
-      selectorsDistinct := by
-        decide
+    { invariants :=
+        { normalizedFields := by
+            rfl
+          noPackedFields := by
+            intro field hfield
+            simp [simpleStorageSupportedSpecModel] at hfield
+          selectorCount := by
+            decide
+          selectorsDistinct := by
+            decide }
+      surface :=
+        { noConstructor := rfl
+          noEvents := rfl
+          noErrors := rfl
+          noExternals := rfl
+          noFallback := by
+            intro fn hfn
+            simp [simpleStorageSupportedSpecModel] at hfn
+            rcases hfn with rfl <;> decide
+          noReceive := by
+            intro fn hfn
+            simp [simpleStorageSupportedSpecModel] at hfn
+            rcases hfn with rfl <;> decide }
       functions := ?_ }
   intro fn hfn
   simp [simpleStorageSupportedSpecModel] at hfn
@@ -318,16 +431,18 @@ theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecM
   refine
     { nonInternal := rfl
       nonSpecialEntrypoint := rfl
-      paramNamesNodup := by decide
-      params := by intro param hparam; cases hparam
-      returns := ⟨[.uint256], rfl, trivial⟩
-      body := by
-        refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 11], ?_⟩
-        simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
-          Verity.Core.Free.SupportedStmtFragment.toStmts,
-          Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
-          Verity.Core.Free.RequireFamilyClausesTail.toStmts]
-      bodySurface := by decide
-      noLocalObligations := rfl }
+      params :=
+        { namesNodup := by decide
+          supported := by intro param hparam; cases hparam }
+      returns := { resolved := ⟨[.uint256], rfl, trivial⟩ }
+      body :=
+        { stmtList := by
+            refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 11], ?_⟩
+            simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
+              Verity.Core.Free.SupportedStmtFragment.toStmts,
+              Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
+              Verity.Core.Free.RequireFamilyClausesTail.toStmts]
+          surfaceClosed := by decide
+          noLocalObligations := rfl } }
 
 end Compiler.Proofs.IRGeneration

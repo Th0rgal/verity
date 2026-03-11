@@ -1373,13 +1373,8 @@ theorem supported_function_correct
               (SourceSemantics.effectiveFields model)
               (fn.params.map (·.name))
               fn.body :=
-          stmtListGenericCore_of_supportedStmtList_of_surface
-            (fields := SourceSemantics.effectiveFields model)
-            (scope := fn.params.map (·.name))
-            (stmts := fn.body)
+          hsupportedFn.body.genericCore
             (by simpa [SourceSemantics.effectiveFields] using hnoConflict)
-            hsupportedFn.body
-            hsupportedFn.bodySurface
         exact supported_function_body_correct_from_exact_state_generic
           model fn bodyStmts tx initialWorld
           (ParamLoading.applyBindingsToIRState

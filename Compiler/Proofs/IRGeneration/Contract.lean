@@ -115,7 +115,7 @@ theorem supported_params_of_supportedSpec
   intro fn hfn param hparam
   have hfnModel : fn ∈ model.functions := by
     exact List.mem_of_mem_filter hfn
-  exact (hSupported.functions fn hfnModel).params param hparam
+  exact (hSupported.functions fn hfnModel).paramsSupported param hparam
 
 theorem interpretIR_eq_runtimeContractOfFunctions
     (ir : IRContract)

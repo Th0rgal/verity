@@ -47,7 +47,8 @@ Internal helper calls are supported operationally in `CompilationModel` and the 
 ## Layer 2: CompilationModel → IR — GENERIC WHOLE-CONTRACT THEOREM
 
 Tracking:
-- Follow-on widening and migration work: [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- Theorem-shape milestone: [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- Follow-on widening/completeness work: [#1630](https://github.com/Th0rgal/verity/issues/1630)
 - Axiom-elimination work completed in: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 - Proof decomposition plan: [GENERIC_LAYER2_PLAN.md](./GENERIC_LAYER2_PLAN.md)
 
@@ -57,6 +58,10 @@ Tracking:
 
 **What is not yet covered**:
 - the supported whole-contract fragment is still intentionally narrower than the full `CompilationModel` surface; unsupported features remain documented at the boundary instead of being claimed as proved
+
+**Intended end-state claim**:
+- "whole EDSL" means the proof-complete macro-lowered image of `verity_contract`, not all arbitrary Lean-produced `CompilationModel` terms
+- the widening target is to prove the generic theorem for that frontend image, or for a `CompilationModel` subset that the frontend lowering is proved to land inside
 
 ### What is not fully migrated yet
 
@@ -184,4 +189,4 @@ See [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md) for the full trust model a
 
 ---
 
-**Last Updated**: 2026-03-09
+**Last Updated**: 2026-03-11

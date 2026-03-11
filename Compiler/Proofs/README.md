@@ -47,8 +47,9 @@ fragment. The former exact-state body-simulation axiom in
 `Compiler.Proofs.IRGeneration.Function` has now been eliminated.
 
 Tracking:
-- issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
+- theorem shape: [#1510](https://github.com/Th0rgal/verity/issues/1510)
 - axiom elimination: [#1618](https://github.com/Th0rgal/verity/issues/1618)
+- completeness/generalization: [#1630](https://github.com/Th0rgal/verity/issues/1630)
 - plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
 
 ## Current Layer 2 Boundary
@@ -65,6 +66,10 @@ What exists today:
 What does not exist yet:
 - Broader supported-fragment coverage for features still intentionally outside
   the current whole-contract theorem
+
+Target claim:
+- "whole EDSL" should be read as coverage of the macro-lowered `verity_contract`
+  image, not arbitrary Lean terms that can construct `CompilationModel` values
 
 Current supported-fragment scope for the generic theorem:
 - Included: the explicit whole-contract supported fragment captured by

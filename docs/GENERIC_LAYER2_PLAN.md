@@ -3,6 +3,7 @@
 Tracking:
 - umbrella issue: [#1510](https://github.com/Th0rgal/verity/issues/1510)
 - axiom-elimination milestone: [#1618](https://github.com/Th0rgal/verity/issues/1618)
+- post-generic-completeness milestone: [#1630](https://github.com/Th0rgal/verity/issues/1630)
 
 ## Objective
 
@@ -29,6 +30,21 @@ The exact relation may differ, but the theorem must:
 - mention successful `CompilationModel.compile`
 - be reusable for arbitrary in-scope contracts
 - avoid any `post`/`hpost`/contract-specific bridge premise
+
+## Theorem Target Domain
+
+The defensible end-state claim is **not** "all arbitrary Lean EDSL terms compile with a
+proof-complete Layer 2 theorem". Arbitrary Lean escape hatches can still construct
+`CompilationModel` values outside the frontend's intended macro-lowered surface.
+
+The precise target for the widening work tracked in [#1630](https://github.com/Th0rgal/verity/issues/1630) is:
+
+- prove the generic whole-contract theorem for a proof-complete `CompilationModel` subset
+- prove that the macro-lowered image of `verity_contract` lands inside that subset
+
+That is the mechanically checkable meaning of a future "whole EDSL is formally proven"
+claim. Stronger claims about arbitrary Lean-produced `CompilationModel` values should not
+be made unless the theorem domain itself expands to cover them.
 
 ## Why The Current Architecture Cannot Satisfy The Goal
 
@@ -217,8 +233,8 @@ compiled-function-table witness is derived directly from
 `CompilationModel.compile = Except.ok ir`.
 
 The main objective of issue #1618 is therefore complete. Remaining Layer 2 work
-under [#1510](https://github.com/Th0rgal/verity/issues/1510) is follow-on
-adoption and breadth work:
+now sits under the post-generic widening/completeness plan in
+[#1630](https://github.com/Th0rgal/verity/issues/1630):
 
 - widen the supported whole-contract fragment without reintroducing axioms
 

@@ -7,7 +7,7 @@
 ## Current Status
 
 - ✅ **Layer 1 Complete**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for the current theorem totals and contract coverage table
-- 🟢 **Layer 2 Generic Theorem**: the generic whole-contract `CompilationModel.compile` theorem is proved for the current supported fragment; remaining work in [#1510](https://github.com/Th0rgal/verity/issues/1510) is widening the fragment and migrating legacy bridge consumers
+- 🟢 **Layer 2 Generic Theorem**: the generic whole-contract `CompilationModel.compile` theorem is proved for the current supported fragment; theorem-shape work is complete under [#1510](https://github.com/Th0rgal/verity/issues/1510), and widening/completeness work now follows the ranked plan in [#1630](https://github.com/Th0rgal/verity/issues/1630)
 - ✅ **Layer 3 Complete**: All 8 statement equivalence proofs + universal dispatcher (PR #42)
 - ✅ **Property Testing**: see [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md) for current coverage totals and exclusions
 - ✅ **Differential Testing**: Production-ready with 70k+ tests
@@ -150,6 +150,20 @@ Key: the default path is `execStmtsFuel` (fuel-based), which supports the full c
 ---
 
 ## Remaining Work Streams
+
+### 🟡 **Layer 2 Completeness Track** (Issue #1630)
+**What**: turn the current explicit supported fragment into a proof-complete target for the
+macro-lowered EDSL image, using compositional proof interfaces instead of an ever-growing
+exclusion list.
+**Status**: generic theorem shape complete; completeness/generalization work active
+
+Execution priorities:
+1. Define the theorem target precisely as the proof-complete macro-lowered `verity_contract` image, not arbitrary Lean-generated `CompilationModel` terms.
+2. Split `SupportedSpec` into persistent global invariants plus feature-local proof interfaces.
+3. Add compositional helper-call proof reuse across callers.
+4. Add low-level call / returndata / proxy-upgradeability proof modeling.
+5. Extend preserved observables to events/logs and typed errors.
+6. Widen storage/layout-rich whole-contract coverage, then constructor / `fallback` / `receive`.
 
 ### 🟡 **Trust Reduction** (2 Remaining Components)
 **What**: Eliminate or verify remaining trusted components

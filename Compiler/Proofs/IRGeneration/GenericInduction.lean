@@ -3125,6 +3125,20 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
             (Verity.Core.Free.SupportedStmtFragment.toStmts fragment))
           htailSurface)
 
+theorem SupportedBodyInterface.genericCore
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hBody : SupportedBodyInterface fields fn)
+    (hnoConflict : firstFieldWriteSlotConflict fields = none) :
+    StmtListGenericCore fields (fn.params.map (·.name)) fn.body :=
+  stmtListGenericCore_of_supportedStmtList_of_surface
+    (fields := fields)
+    (scope := fn.params.map (·.name))
+    (stmts := fn.body)
+    hnoConflict
+    hBody.stmtList
+    hBody.surfaceClosed
+
 private theorem exprBoundNamesInScope_of_scopeNamesIncluded
     {expr : Expr}
     {scope largerScope : List String}
