@@ -183,6 +183,18 @@ def writeAddressKeyedMapping2Slots
           else
             world.storageMap2 baseSlot addr1 addr2 }
 
+def writeAddressKeyedMapping2WordSlots
+    (world : Verity.ContractState) (slots : List Nat) (key1 key2 wordOffset value : Nat) :
+    Verity.ContractState :=
+  let word : Verity.Core.Uint256 := value
+  let targets := slots.map (fun slot =>
+    Compiler.Proofs.abstractMappingSlot
+      (Compiler.Proofs.abstractMappingSlot slot key1)
+      key2 + wordOffset)
+  { world with
+    storage := fun slot =>
+      if targets.contains slot then word else world.storage slot }
+
 def decodeSupportedParamWord (ty : ParamType) (word : Nat) : Option Nat :=
   let word := wordNormalize word
   match ty with
@@ -451,6 +463,23 @@ mutual
                       slots
                       resolvedKey1
                       resolvedKey2
+                      resolved }
+        | _, _, _, _ => .revert
+    | state, .setMapping2Word fieldName key1 key2 wordOffset value =>
+        match findFieldWriteSlots fields fieldName,
+            evalExpr fields state key1,
+            evalExpr fields state key2,
+            evalExpr fields state value with
+        | some slots@(_ :: _), some resolvedKey1, some resolvedKey2, some resolved =>
+            .continue
+              { state with
+                  world :=
+                    writeAddressKeyedMapping2WordSlots
+                      state.world
+                      slots
+                      resolvedKey1
+                      resolvedKey2
+                      wordOffset
                       resolved }
         | _, _, _, _ => .revert
     | state, .setMappingUint fieldName key value =>
@@ -836,6 +865,23 @@ mutual
                       slots
                       resolvedKey1
                       resolvedKey2
+                      resolved }
+        | _, _, _, _ => .revert
+    | state, .setMapping2Word fieldName key1 key2 wordOffset value =>
+        match findFieldWriteSlots fields fieldName,
+            evalExprWithHelpers spec fields fuel state key1,
+            evalExprWithHelpers spec fields fuel state key2,
+            evalExprWithHelpers spec fields fuel state value with
+        | some slots@(_ :: _), some resolvedKey1, some resolvedKey2, some resolved =>
+            .continue
+              { state with
+                  world :=
+                    writeAddressKeyedMapping2WordSlots
+                      state.world
+                      slots
+                      resolvedKey1
+                      resolvedKey2
+                      wordOffset
                       resolved }
         | _, _, _, _ => .revert
     | state, .setMappingUint fieldName key value =>

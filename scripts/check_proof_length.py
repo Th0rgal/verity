@@ -88,6 +88,7 @@ ALLOWLIST: set[str] = {
     "compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves",
+    "compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves",
     # Tier-4 runtime-helper-table packaging: these theorems intentionally keep
     # the witness-to-lookup extraction and the final IR characterization in one
     # place so later helper-rank induction can consume a single structured seam
