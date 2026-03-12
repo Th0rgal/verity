@@ -1439,6 +1439,19 @@ private theorem supportedStmtList_setMappingWordSingle_helperSurfaceClosed
     exprCompileCore_helperSurfaceClosed hkey,
     exprCompileCore_helperSurfaceClosed hvalue]
 
+private theorem supportedStmtList_setStructMemberSingle_helperSurfaceClosed
+    {fieldName memberName : String}
+    {key value : Expr}
+    (hkey : FunctionBody.ExprCompileCore key)
+    (hvalue : FunctionBody.ExprCompileCore value) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.setStructMember fieldName key memberName value] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey,
+    exprCompileCore_helperSurfaceClosed hvalue]
+
 private theorem supportedStmtList_setMapping2Single_helperSurfaceClosed
     {fieldName : String}
     {key1 key2 value : Expr}
@@ -1518,6 +1531,8 @@ theorem SupportedStmtList.helperSurfaceClosed
   | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot => exact supportedStmtList_setMappingSingle_helperSurfaceClosed hkey hvalue
   | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
       exact supportedStmtList_setMappingWordSingle_helperSurfaceClosed hkey hvalue
+  | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
+      exact supportedStmtList_setStructMemberSingle_helperSurfaceClosed hkey hvalue
   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot => exact supportedStmtList_setMapping2Single_helperSurfaceClosed hkey1 hkey2 hvalue
   | rawLogLiterals htopics => exact supportedStmtList_rawLogLiterals_helperSurfaceClosed
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>

@@ -423,6 +423,20 @@ mutual
                   world := writeAddressKeyedMappingWordSlots
                     state.world slots resolvedKey wordOffset resolved }
         | _, _, _ => .revert
+    | state, .setStructMember fieldName key memberName value =>
+        match findFieldWriteSlots fields fieldName,
+            findStructMembers fields fieldName,
+            evalExpr fields state key,
+            evalExpr fields state value with
+        | some slots@(_ :: _), some members, some resolvedKey, some resolved =>
+            match findStructMember members memberName with
+            | some { wordOffset := wordOffset, packed := none, .. } =>
+                .continue
+                  { state with
+                      world := writeAddressKeyedMappingWordSlots
+                        state.world slots resolvedKey wordOffset resolved }
+            | _ => .revert
+        | _, _, _, _ => .revert
     | state, .setMapping2 fieldName key1 key2 value =>
         match findFieldWriteSlots fields fieldName,
             evalExpr fields state key1,
@@ -794,6 +808,20 @@ mutual
                   world := writeAddressKeyedMappingWordSlots
                     state.world slots resolvedKey wordOffset resolved }
         | _, _, _ => .revert
+    | state, .setStructMember fieldName key memberName value =>
+        match findFieldWriteSlots fields fieldName,
+            findStructMembers fields fieldName,
+            evalExprWithHelpers spec fields fuel state key,
+            evalExprWithHelpers spec fields fuel state value with
+        | some slots@(_ :: _), some members, some resolvedKey, some resolved =>
+            match findStructMember members memberName with
+            | some { wordOffset := wordOffset, packed := none, .. } =>
+                .continue
+                  { state with
+                      world := writeAddressKeyedMappingWordSlots
+                        state.world slots resolvedKey wordOffset resolved }
+            | _ => .revert
+        | _, _, _, _ => .revert
     | state, .setMapping2 fieldName key1 key2 value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key1,
