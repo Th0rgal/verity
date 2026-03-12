@@ -252,12 +252,21 @@ ALLOWLIST: set[str] = {
     "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir",
     "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir",
     "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal",
+    "compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed",
     # Issue #1638 / PR #1639 — compiled-side helper retarget seam:
     # this theorem is the one list-composition proof that shows the open helper
     # blocker lives at single-statement compatibility rather than list plumbing.
     # Its length comes from the constructor-by-constructor composition over the
     # legacy-compatible Yul stmt-list fragment.
     "execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility",
+    # Issue #1638 / PR #1639 follow-up — closing the helper-free conservative-
+    # extension theorem on the legacy-compatible runtime subset currently
+    # requires one explicit constructor-by-constructor `sstore` split and one
+    # explicit expr-statement case split over dedicated builtin statement
+    # forms. These are the final closed helper-free semantic proofs; splitting
+    # them further would mostly duplicate the same reduced-form branches.
+    "execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal",
+    "execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal",
     # Issue #1630 / PR #1633 — feature-interface compatibility bridge:
     # this private theorem is the one place that folds the split `core` / `state`
     # / `calls` booleans back into the legacy `exprTouchesUnsupportedContractSurface`

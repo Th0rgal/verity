@@ -632,6 +632,40 @@ theorem compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal
       tx
       (FunctionBody.initialIRStateForTx model tx initialWorld))
 
+/-- Direct helper-aware whole-contract theorem on the current legacy-compatible
+runtime-contract boundary. The helper-aware compiled-side conservative-extension
+goal is now closed in `IRInterpreter.lean`, so theorem users no longer need to
+thread it as an extra hypothesis. -/
+theorem compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir)
+    (hlegacyIR : LegacyCompatibleRuntimeContract ir) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (interpretIRWithInternals ir 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (ir := ir)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hcompile := hcompile)
+    (hlegacyIR := hlegacyIR)
+    (hhelperIRGoal := interpretIRWithInternalsZeroConservativeExtensionGoal_closed ir)
+
 /-- First direct consumer of the generic Layer 2 theorem surface: the existing
 supported single-function demo model can now obtain whole-contract correctness
 by instantiating `compile_preserves_semantics`, with no contract-specific body

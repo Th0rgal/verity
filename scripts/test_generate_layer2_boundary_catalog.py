@@ -53,19 +53,13 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
             ]["status"],
-            "full_interface_reduces_to_stmt_subgoals",
+            "helper_free_conservative_extension_goal_closed",
         )
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
             ]["remaining_stmt_compatibility_surface"],
-            [
-                "special_expr_stmt_sstore",
-                "special_expr_stmt_mstore",
-                "special_expr_stmt_return",
-                "special_expr_stmt_revert",
-                "nested_if_block_stmt_transport",
-            ],
+            [],
         )
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"][
@@ -128,6 +122,13 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
+            ]["stmt_subgoal_closed_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
             ]["expr_stmt_dedicated_builtin_classifier"],
             "Compiler.Proofs.IRGeneration.IRInterpreter."
             "exprStmtUsesDedicatedBuiltinSemantics",
@@ -170,7 +171,7 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
             ]["status"],
-            "full_interface_reduces_to_stmt_subgoals",
+            "helper_free_conservative_extension_goal_closed",
         )
         self.assertEqual(
             [step["rank"] for step in catalog["ranked_next_steps"]],

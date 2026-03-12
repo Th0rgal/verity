@@ -681,6 +681,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed
 #print axioms Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
@@ -694,6 +695,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal
+#print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed
 
 -- Compiler/Proofs/IRGeneration/Function.lean
 -- #print axioms Compiler.Proofs.IRGeneration.Function.yulStmtList_length_le_sizeOf  -- private
@@ -1123,6 +1125,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_return_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_stop_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionExprInterfaces
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_of_exprCompatibility
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
@@ -1139,6 +1143,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtSubgoals
+#print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed
+#print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionInterfaces_closed
+#print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionGoal_closed
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_sender
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_calldata
 
@@ -1356,4 +1363,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1222 theorems/lemmas (978 public, 244 private)
+-- Total: 1229 theorems/lemmas (985 public, 244 private)

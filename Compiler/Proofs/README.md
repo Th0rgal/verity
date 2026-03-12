@@ -151,7 +151,8 @@ interface is now already discharged in `IRInterpreter.lean` via
 `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`,
 `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper
 theorem `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`. The
-next compiled-side substep is therefore more precise than before:
+helper-free conservative-extension goal is now closed rather than merely
+decomposed:
 `IRInterpreter.lean` now also factors the shared transaction setup through
 `applyIRTransactionContext` and encodes the selected-function cut as
 `InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal` over
@@ -164,21 +165,24 @@ the contract-level lift is no longer part of the open blocker. It also proves
 `interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtCompatibility`,
 `interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility`, and
 `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`,
-so stmt-list compatibility, function compatibility, the dispatch-local theorem,
-and the contract-level theorem all reduce to a named stmt-subgoal interface.
+plus the closed corollaries
+`interpretIRWithInternalsZeroConservativeExtensionGoal_closed` and
+`interpretIRWithInternalsZeroConservativeExtensionInterfaces_closed`, so
+stmt-list compatibility, function compatibility, the dispatch-local theorem,
+and the contract-level theorem no longer remain open on the helper-free subset.
 `IRInterpreter.lean` now also proves
 `execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility` and
 `execIRStmtWithInternals_eq_execIRStmt_of_exprCompatibility`, so the structural
 `if` / `block` transport is already discharged and the named stmt-subgoal
-interface has shrunk to the residual expr-statement compatibility surface for
-`runtimeContractOfFunctions`-style contracts over the subset. `IRInterpreter.lean`
-now classifies dedicated expr-statement builtin cases through
+interface is itself discharged for `runtimeContractOfFunctions`-style contracts
+over the subset. `IRInterpreter.lean` now classifies dedicated expr-statement
+builtin cases through
 `exprStmtUsesDedicatedBuiltinSemantics` and already exposes direct helper-free
 lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`, so
-the remaining assembly is the residual expr-statement compatibility surface
-itself. After that, the
-broader theorem stack can instantiate the already-defined helper-aware wrapper
-theorems rather than requiring another theorem-interface refactor.
+the broader theorem stack can instantiate the already-defined helper-aware
+wrapper theorems rather than requiring another theorem-interface refactor.
+`Contract.lean` now also exposes the direct closed helper-aware wrapper
+`compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`.
 The helper-aware compiled target remains available as total fuel-indexed
 helper-aware IR semantics throughout that retargeting work.
 The compiled-side blocker is tracked in

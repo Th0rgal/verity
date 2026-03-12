@@ -417,6 +417,57 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
         tx
         (FunctionBody.initialIRStateForTx model tx initialWorld))
 
+/-- Direct helper-aware dispatch theorem on the current legacy-compatible
+runtime-contract boundary. The compiled-side conservative-extension theorem is
+now closed in `IRInterpreter.lean`, so callers no longer need to supply it as
+an extra premise. -/
+theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (irFns : List IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        irFns)
+    (hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+    (hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)))
+    (hlegacyBodies :
+      ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (irFns := irFns)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := hfunction)
+    (hlegacyBodies := hlegacyBodies)
+    (hhelperIRGoal :=
+      interpretIRWithInternalsZeroConservativeExtensionGoal_closed
+        (runtimeContractOfFunctions model.name irFns))
+
 end Dispatch
 
 end Compiler.Proofs.IRGeneration

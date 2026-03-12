@@ -316,24 +316,28 @@ now sits under the post-generic widening/completeness plan in
   so stmt-list compatibility, function compatibility, the dispatch-local cut, and the
   contract-level lift are all reduced to stmt compatibility rather than
   remaining independent proof tasks;
-  the remaining compiled-side proof step is therefore to fill
-  `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`,
-  where `IRInterpreter.lean` now classifies the dedicated expr-statement builtin
-  cases via `exprStmtUsesDedicatedBuiltinSemantics` and already provides direct
-  helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot
-  `sstore`, leaving the remaining assembly as the residual expr-statement
-  compatibility surface itself,
-  after which the conservative-extension goal from legacy `interpretIR` to
-  `interpretIRWithInternals` on that subset follows by composition,
-  and `Function.lean`, `Dispatch.lean`, and `Contract.lean` now already expose
-  helper-aware wrapper theorems that consume those conservative-extension equalities
-  directly instead of requiring another public-theorem refactor; `Dispatch.lean`
-  and `Contract.lean` now also expose `_goal` variants such as
-  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`, so the
-  public theorem seam can consume the named conservative-extension goal itself
-  rather than only a manually restated equality;
+  `IRInterpreter.lean` now goes one step further and closes that stmt-subgoal
+  interface outright: it proves
+  `interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed`,
+  `interpretIRWithInternalsZeroConservativeExtensionInterfaces_closed`, and
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. The helper-free
+  conservative-extension goal is now closed, and the already-exposed `_goal`
+  wrapper surface such as
+  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal` remains
+  available for theorem consumers that want the named goal form explicitly.
+  The dedicated expr-statement builtin classifier
+  `exprStmtUsesDedicatedBuiltinSemantics` and the direct helper-free lemmas for
+  `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore` are now part
+  of a finished helper-free conservative-extension proof rather than a remaining
+  checklist item. `Function.lean`, `Dispatch.lean`, and `Contract.lean` already
+  exposed helper-aware wrapper theorems that consume those conservative-extension
+  equalities directly; `Dispatch.lean` and `Contract.lean` now also expose
+  closed wrapper variants such as
+  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`, so the
+  public theorem seam no longer needs an extra compiled-side goal premise on the
+  helper-free runtime subset;
   those helper-aware IR semantics are now available as total fuel-indexed helper-aware IR semantics, and the first compiled-side
-  retarget step now has an explicit compositional proof surface rather than one large monolithic goal;
+  retarget step is no longer open on the helper-free runtime subset;
   the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)
 - widen the supported whole-contract fragment without reintroducing axioms
 
@@ -354,12 +358,15 @@ The first theorem does not need to cover everything. It may explicitly leave out
   `InterpretIRWithInternalsZeroConservativeExtensionGoal`.
   `Dispatch.runtimeContractOfFunctions` now also has an explicit
   `internalFunctions = []` lemma documenting the exact helper-free runtime
-  constructor used by the current theorem stack; the remaining work is proving
-  those semantics conservatively extend legacy `interpretIR` first on that
-  runtime-contract target over the subset, then retargeting the proof stack to
-  those semantics and consuming helper-summary soundness/rank evidence. The
-  helper-aware interpreter is now a total fuel-indexed helper-aware IR semantics
-  surface, so that retarget no longer needs a separate mirror layer first
+  constructor used by the current theorem stack, and
+  `IRInterpreter.lean` now proves the corresponding helper-free conservative-
+  extension theorem directly as
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. The remaining
+  work is therefore to derive the explicit legacy-compatibility witness from
+  supported compile outputs and then consume helper-summary soundness/rank
+  evidence so `calls.helperCompatibility` can disappear. The helper-aware
+  interpreter remains a total fuel-indexed helper-aware IR semantics surface
+  for that follow-on retarget
 - dynamic ABI cases outside the current typed path
 
 If a feature is out of scope, say so in the supported-fragment witness and docs.

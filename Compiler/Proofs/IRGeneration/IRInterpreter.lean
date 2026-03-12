@@ -1264,6 +1264,176 @@ theorem interpretIRWithInternalsZeroConservativeExtensionExprInterfaces
   exact ⟨evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract,
     evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract⟩
 
+/-- Helper-free helper-aware execution preserves legacy `sstore` statement
+semantics on both plain storage slots and mapping-slot addressing. -/
+theorem execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal
+    (contract : IRContract)
+    (hinternal : contract.internalFunctions = [])
+    (fuel : Nat) (state : IRState)
+    (slotExpr valExpr : YulExpr) :
+    execIRStmtWithInternals contract fuel state
+      (YulStmt.expr (YulExpr.call "sstore" [slotExpr, valExpr])) =
+        match execIRStmt fuel state
+          (YulStmt.expr (YulExpr.call "sstore" [slotExpr, valExpr])) with
+        | .continue next => .continue next
+        | .return value next => .return value next
+        | .stop next => .stop next
+        | .revert next => .revert next := by
+  cases fuel with
+  | zero =>
+      simp [execIRStmtWithInternals, execIRStmt]
+  | succ fuel =>
+      cases slotExpr with
+      | lit n =>
+          cases hslot : evalIRExpr state (.lit n) <;>
+            cases hval : evalIRExpr state valExpr <;>
+              simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                hslot, hval]
+      | hex n =>
+          cases hslot : evalIRExpr state (.hex n) <;>
+            cases hval : evalIRExpr state valExpr <;>
+              simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                hslot, hval]
+      | str s =>
+          cases hslot : evalIRExpr state (.str s) <;>
+            cases hval : evalIRExpr state valExpr <;>
+              simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                hslot, hval]
+      | ident name =>
+          cases hslot : evalIRExpr state (.ident name) <;>
+            cases hval : evalIRExpr state valExpr <;>
+              simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                hslot, hval]
+      | call func args =>
+          cases args with
+          | nil =>
+              cases hslot : evalIRExpr state (.call func []) <;>
+                cases hval : evalIRExpr state valExpr <;>
+                  simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                    evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                    hslot, hval]
+          | cons arg rest =>
+              cases rest with
+              | nil =>
+                  cases hslot : evalIRExpr state (.call func [arg]) <;>
+                    cases hval : evalIRExpr state valExpr <;>
+                      simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                        evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                        hslot, hval]
+              | cons arg2 rest =>
+                  cases rest with
+                  | nil =>
+                      by_cases hfunc : func = "mappingSlot"
+                      · subst hfunc
+                        cases hbase : evalIRExpr state arg <;>
+                          cases hkey : evalIRExpr state arg2 <;>
+                            cases hval : evalIRExpr state valExpr <;>
+                              simp [execIRStmtWithInternals, execIRStmt,
+                                evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                                hbase, hkey, hval]
+                      · cases hslot : evalIRExpr state (.call func [arg, arg2]) <;>
+                          cases hval : evalIRExpr state valExpr <;>
+                            simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                              evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                              hslot, hval, hfunc]
+                  | cons arg3 rest =>
+                      cases hslot : evalIRExpr state (.call func (arg :: arg2 :: arg3 :: rest)) <;>
+                        cases hval : evalIRExpr state valExpr <;>
+                          simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
+                            evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
+                            hslot, hval]
+
+/-- The remaining expr-statement helper-free conservative-extension seam is now
+closed: dedicated builtin statement forms are handled by direct lemmas, and all
+other expr statements collapse to the already-proved helper-free evaluator
+equality. -/
+theorem execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal
+    (contract : IRContract) :
+    contract.internalFunctions = [] →
+      ∀ fuel state expr,
+        execIRStmtWithInternals contract fuel state (.expr expr) =
+          match execIRStmt fuel state (.expr expr) with
+          | .continue next => .continue next
+          | .return value next => .return value next
+          | .stop next => .stop next
+          | .revert next => .revert next
+  | hinternal, fuel, state, expr => by
+      cases fuel with
+      | zero =>
+          simp [execIRStmtWithInternals, execIRStmt]
+      | succ fuel =>
+          cases expr with
+          | lit n =>
+              cases hlit : evalIRExpr state (.lit n) <;>
+                simp [execIRStmtWithInternals, execIRStmt,
+                  evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                  hlit]
+          | hex n =>
+              cases hhex : evalIRExpr state (.hex n) <;>
+                simp [execIRStmtWithInternals, execIRStmt,
+                  evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                  hhex]
+          | str s =>
+              cases hstr : evalIRExpr state (.str s) <;>
+                simp [execIRStmtWithInternals, execIRStmt,
+                  evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                  hstr]
+          | ident name =>
+              cases hident : state.getVar name <;>
+                simp [execIRStmtWithInternals, execIRStmt, evalIRExpr,
+                  evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                  hident]
+          | call func args =>
+              cases args with
+              | nil =>
+                  by_cases hstop : func = "stop"
+                  · subst hstop
+                    simpa using execIRStmtWithInternals_eq_execIRStmt_stop_of_no_internal
+                      contract hinternal (Nat.succ fuel) state
+                  · cases hcall : evalIRExpr state (.call func []) <;>
+                      simp [execIRStmtWithInternals, execIRStmt,
+                        evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                        hstop, hcall]
+              | cons arg rest =>
+                  cases rest with
+                  | nil =>
+                      cases hcall : evalIRExpr state (.call func [arg]) <;>
+                        simp [execIRStmtWithInternals, execIRStmt,
+                          evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                          hcall]
+                  | cons arg2 rest =>
+                      cases rest with
+                      | nil =>
+                          by_cases hsstore : func = "sstore"
+                          · subst hsstore
+                            simpa using execIRStmtWithInternals_eq_execIRStmt_sstore_of_no_internal
+                              contract hinternal (Nat.succ fuel) state arg arg2
+                          · by_cases hmstore : func = "mstore"
+                            · subst hmstore
+                              simpa using execIRStmtWithInternals_eq_execIRStmt_mstore_of_no_internal
+                                contract hinternal (Nat.succ fuel) state arg arg2
+                            · by_cases hrevert : func = "revert"
+                              · subst hrevert
+                                simpa using execIRStmtWithInternals_eq_execIRStmt_revert_of_no_internal
+                                  contract hinternal (Nat.succ fuel) state arg arg2
+                              · by_cases hreturn : func = "return"
+                                · subst hreturn
+                                  simpa using execIRStmtWithInternals_eq_execIRStmt_return_of_no_internal
+                                    contract hinternal (Nat.succ fuel) state arg arg2
+                                · cases hcall : evalIRExpr state (.call func [arg, arg2]) <;>
+                                    simp [execIRStmtWithInternals, execIRStmt,
+                                      evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                                      hsstore, hmstore, hrevert, hreturn, hcall]
+                      | cons arg3 rest =>
+                          cases hcall : evalIRExpr state (.call func (arg :: arg2 :: arg3 :: rest)) <;>
+                            simp [execIRStmtWithInternals, execIRStmt,
+                              evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
+                              hcall]
+
 /-- Statement-list compatibility is also derivable from expression-statement
 compatibility alone on the legacy-compatible external subset. This collapses the
 remaining compiled-side helper-free retarget seam to one semantic field instead
@@ -1879,6 +2049,32 @@ theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtSubgoals
     InterpretIRWithInternalsZeroConservativeExtensionGoal contract := by
   apply interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility
   exact execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals contract hsubgoals
+
+/-- The remaining helper-free compiled-side stmt blocker is now closed on the
+current runtime subset: the expr-statement compatibility field is discharged by
+direct builtin lemmas plus the already-proved evaluator equality. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed
+    (contract : IRContract) :
+    InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals contract := by
+  refine
+    { exprCompatibility := ?_ }
+  exact execIRStmtWithInternals_eq_execIRStmt_expr_of_no_internal contract
+
+/-- The full helper-free conservative-extension interface is now closed on the
+current runtime subset. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionInterfaces_closed
+    (contract : IRContract) :
+    InterpretIRWithInternalsZeroConservativeExtensionInterfaces contract := by
+  exact interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals
+    contract (interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed contract)
+
+/-- The first compiled-side helper-aware retarget theorem is now proved on the
+current helper-free runtime-contract boundary. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionGoal_closed
+    (contract : IRContract) :
+    InterpretIRWithInternalsZeroConservativeExtensionGoal contract := by
+  exact interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtSubgoals
+    contract (interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed contract)
 
 @[simp] theorem applyIRTransactionContext_sender
     (tx : IRTransaction) (initialState : IRState) :

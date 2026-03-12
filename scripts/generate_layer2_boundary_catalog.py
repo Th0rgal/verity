@@ -46,6 +46,10 @@ def build_catalog() -> dict:
                 "Compiler.Proofs.IRGeneration.Contract."
                 "compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal"
             ),
+            "helper_ir_closed_variant": (
+                "Compiler.Proofs.IRGeneration.Contract."
+                "compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed"
+            ),
             "source_semantics": (
                 "Compiler.Proofs.IRGeneration.SourceSemantics.supportedSourceContractSemantics"
             ),
@@ -159,14 +163,8 @@ def build_catalog() -> dict:
                 "compiled_side_blocker_issue": 1638,
                 "compiled_target_compatibility_subset": {
                     "name": "legacy_compatible_external_body_yul_subset",
-                    "status": "full_interface_reduces_to_stmt_subgoals",
-                    "remaining_stmt_compatibility_surface": [
-                        "special_expr_stmt_sstore",
-                        "special_expr_stmt_mstore",
-                        "special_expr_stmt_return",
-                        "special_expr_stmt_revert",
-                        "nested_if_block_stmt_transport",
-                    ],
+                    "status": "helper_free_conservative_extension_goal_closed",
+                    "remaining_stmt_compatibility_surface": [],
                     "source": (
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "LegacyCompatibleExternalStmtList"
@@ -205,6 +203,10 @@ def build_catalog() -> dict:
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals"
                     ),
+                    "stmt_subgoal_closed_surface": (
+                        "Compiler.Proofs.IRGeneration.IRInterpreter."
+                        "interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed"
+                    ),
                     "expr_stmt_dedicated_builtin_classifier": (
                         "Compiler.Proofs.IRGeneration.IRInterpreter."
                         "exprStmtUsesDedicatedBuiltinSemantics"
@@ -217,24 +219,15 @@ def build_catalog() -> dict:
                         "special_expr_stmt_mapping_slot_sstore",
                     ],
                     "required_goal": (
-                        "finish the now-explicit zero-helper-fuel conservative-"
-                        "extension path for helper-free runtime contracts with "
-                        "legacy-compatible external bodies: expr and expr-list "
-                        "compatibility are proved, the shared transaction-"
-                        "context step is factored through applyIRTransactionContext, "
-                        "and IRInterpreter.lean now also proves that the full "
-                        "helper-free conservative-extension interface object, "
-                        "stmt-list compatibility, function compatibility, the "
-                        "dispatch-local selected-function theorem, and the "
-                        "contract-level goal all reduce to stmt compatibility via "
-                        "interpretIRWithInternalsZeroConservativeExtensionInterfaces_"
-                        "of_stmtCompatibility, "
-                        "execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility, "
-                        "execIRFunctionWithInternals_eq_execIRFunction_of_stmtCompatibility, "
-                        "interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_"
-                        "of_stmtCompatibility, and "
-                        "interpretIRWithInternalsZeroConservativeExtensionGoal_"
-                        "of_stmtCompatibility"
+                        "the zero-helper-fuel conservative-extension path for "
+                        "helper-free runtime contracts with legacy-compatible "
+                        "external bodies is now closed in IRInterpreter.lean: "
+                        "the remaining stmt-subgoal object is discharged by "
+                        "interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed, "
+                        "and the full helper-free conservative-extension "
+                        "interface and contract-level goal are closed by "
+                        "interpretIRWithInternalsZeroConservativeExtensionInterfaces_closed "
+                        "and interpretIRWithInternalsZeroConservativeExtensionGoal_closed"
                     ),
                 },
                 "compiled_target_proof_surface": {
@@ -244,13 +237,14 @@ def build_catalog() -> dict:
                         "evalIRExprWithInternals"
                     ),
                     "required_follow_on": (
-                        "prove the first conservative-extension theorem directly "
-                        "against the now-total helper-aware compiled semantics "
-                        "surface, then instantiate the already-exposed helper-"
-                        "aware wrappers in Function.lean / Dispatch.lean / "
-                        "Contract.lean, which now accept either the raw "
-                        "conservative-extension equality or the named goal "
-                        "surface plus an explicit legacy-compatibility witness"
+                        "consume the now-closed helper-free conservative-"
+                        "extension theorem through the helper-aware wrappers "
+                        "in Function.lean / Dispatch.lean / Contract.lean, "
+                        "derive the required legacy-compatibility witnesses "
+                        "from supported compile outputs instead of carrying "
+                        "them manually, and then thread helper-summary "
+                        "soundness/rank evidence so calls.helperCompatibility "
+                        "can disappear"
                     ),
                 },
                 "decreasing_rank_measure": (
@@ -260,45 +254,19 @@ def build_catalog() -> dict:
                     "SupportedBodyCallInterface.helperCompatibility"
                 ),
                 "next_required_proof_step": (
-                    "next fill the named stmt-subgoal interface "
-                    "InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals "
-                    "for helper-free runtime contracts already built by "
-                    "Dispatch.runtimeContractOfFunctions. That interface now "
-                    "packages the remaining stmt seam as the residual expr-"
-                    "statement compatibility surface alone: "
-                    "IRInterpreter.lean already proves the structural lift "
-                    "from that one field to full stmt compatibility via "
-                    "execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility "
-                    "and execIRStmtWithInternals_eq_execIRStmt_of_exprCompatibility "
-                    "on the legacy-compatible external-body Yul subset. The full interface "
-                    "object plus the stmt-list, function, dispatch-local, and "
-                    "contract-level helper-free conservative-extension theorems "
-                    "then follow by the composition lemmas "
-                    "execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals, "
-                    "interpretIRWithInternalsZeroConservativeExtensionInterfaces_"
-                    "of_stmtSubgoals, "
-                    "execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility, "
-                    "execIRFunctionWithInternals_eq_execIRFunction_of_stmtCompatibility, "
-                    "interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_"
-                    "of_stmtCompatibility, and "
-                    "interpretIRWithInternalsZeroConservativeExtensionGoal_"
-                    "of_stmtSubgoals on the legacy-compatible external-body "
-                    "Yul subset generated by the current supported fragment. "
-                    "The remaining semantic work is no longer generic "
-                    "expr/list plumbing: `IRInterpreter.lean` now explicitly "
-                    "classifies dedicated expr-statement builtin cases through "
-                    "`exprStmtUsesDedicatedBuiltinSemantics`, and already has "
-                    "direct helper-free lemmas for `stop`, `mstore`, "
-                    "`revert`, `return`, and mapping-slot `sstore`, so the "
-                    "open assembly is the remaining expr-statement "
-                    "compatibility surface itself, "
-                    "then discharge the conservative-extension equalities "
-                    "consumed by the already-defined helper-aware wrapper "
-                    "theorems in Function.lean / Dispatch.lean / Contract.lean, "
-                    "and finally consume "
-                    "helper-summary soundness/rank evidence in the body/IR "
-                    "composition interface so helperCompatibility can "
-                    "disappear"
+                    "the helper-free compiled-side conservative-extension goal "
+                    "is now closed on LegacyCompatibleRuntimeContract via "
+                    "interpretIRWithInternalsZeroConservativeExtensionGoal_closed, "
+                    "and Dispatch.lean / Contract.lean now expose direct "
+                    "helper-aware closed wrappers "
+                    "(interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed "
+                    "and compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed). "
+                    "The highest-leverage next step is therefore no longer "
+                    "stmt compatibility; it is to derive the explicit legacy-"
+                    "compatibility witness from supported compile outputs and "
+                    "then consume helper-summary soundness/rank evidence in the "
+                    "body/IR composition interface so calls.helperCompatibility "
+                    "can disappear"
                 ),
                 "blocking_seams": [
                     {
@@ -339,18 +307,13 @@ def build_catalog() -> dict:
                             "LegacyCompatibleRuntimeContract, and "
                             "InterpretIRWithInternalsZeroConservativeExtensionGoal "
                             "now encodes the exact first compiled-side retarget "
-                            "theorem. IRInterpreter.lean now also packages the "
-                            "expected expr/stmt/stmt-list/function sub-lemmas as "
-                            "InterpretIRWithInternalsZeroConservativeExtensionInterfaces; "
-                            "expr and expr-list compatibility are already "
-                            "proved, and the repo now also proves that stmt-"
-                            "list compatibility, function compatibility, the "
-                            "dispatch-local selected-function theorem, and the "
-                            "top-level contract theorem all reduce to stmt "
-                            "compatibility. Contract.lean and Dispatch.lean now "
-                            "also expose helper-aware wrapper theorems that "
-                            "consume the resulting conservative-extension "
-                            "equalities directly"
+                            "theorem, and IRInterpreter.lean now closes it on "
+                            "that helper-free runtime subset via "
+                            "interpretIRWithInternalsZeroConservativeExtensionGoal_closed. "
+                            "Dispatch.lean and Contract.lean now also expose "
+                            "direct helper-aware closed wrappers that consume "
+                            "that closed theorem on an explicit "
+                            "legacy-compatibility witness"
                         ),
                     },
                     {
