@@ -4713,21 +4713,6 @@ theorem SupportedBodyInterface.helperFreeStepInterface
     hBody.stmtList
     hBody.surfaceClosed
 
-/-- The supported-body surface also derives the weaker exact-seam compiled
-compatibility witness that only constrains helper-free statement heads. -/
-theorem SupportedBodyInterface.compiledHelperFreeLegacyCompatible
-    {spec : CompilationModel}
-    {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface spec fn)
-    (hnoPacked : ∀ field ∈ spec.fields, field.packedBits = none) :
-    StmtListHelperFreeCompiledLegacyCompatible spec.fields (fn.params.map (·.name)) fn.body :=
-  stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface
-    (fields := spec.fields)
-    (scope := fn.params.map (·.name))
-    (stmts := fn.body)
-    hnoPacked
-    hBody.surfaceClosed
-
 private theorem exprBoundNamesInScope_of_scopeNamesIncluded
     {expr : Expr}
     {scope largerScope : List String}
