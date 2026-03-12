@@ -4670,6 +4670,72 @@ private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface
     (ihPrefix (Bool.or_eq_false.mp hsplit).1)
     (ihSuffix (Bool.or_eq_false.mp hsplit).2)
 
+private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {rest : List Stmt}
+    (clause : RequireLiteralGuardFamilyClause)
+    (ihRest : stmtListTouchesUnsupportedContractSurface rest = false →
+      StmtListGenericCore fields scope rest)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface (clause.toStmt :: rest) = false) :
+    StmtListGenericCore fields scope (clause.toStmt :: rest) := by
+  have hsplit :
+      stmtTouchesUnsupportedContractSurface clause.toStmt ||
+        stmtListTouchesUnsupportedContractSurface rest = false := by
+    simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
+  exact stmtListGenericCore_append
+    (by
+      simpa using stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
+        (fields := fields) (scope := scope) clause)
+    (by
+      simpa using ihRest (Bool.or_eq_false.mp hsplit).2)
+
+private theorem false_of_supportedStmtList_ite_surface
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hsurface :
+      stmtTouchesUnsupportedContractSurface
+        (Stmt.ite cond thenBranch elseBranch) = false) :
+    False := by
+  simp [stmtTouchesUnsupportedContractSurface] at hsurface
+
+private theorem stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {value : Expr}
+    {slot : Nat}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hfind : findFieldWithResolvedSlot fields fieldName =
+      some ({ name := fieldName, ty := FieldType.uint256 }, slot))
+    (hcore : FunctionBody.ExprCompileCore value)
+    (hinScope : FunctionBody.exprBoundNamesInScope value scope) :
+    StmtListGenericCore fields scope [Stmt.setStorage fieldName value] :=
+  stmtListGenericCore_singleton_setStorage_singleSlot
+    (fields := fields)
+    (scope := scope)
+    (hnoConflict := hnoConflict)
+    (hfind := hfind)
+    (hcore := hcore)
+    (hinScope := hinScope)
+
+private theorem false_of_supportedStmtList_legacyTail_surface
+    {fields : List Field}
+    {tail : SupportedStmtLegacyTail fields}
+    {rest : List Stmt}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface (tail.toStmts ++ rest) = false) :
+    False := by
+  have hsplit :
+      stmtListTouchesUnsupportedContractSurface tail.toStmts ||
+        stmtListTouchesUnsupportedContractSurface rest = false := by
+    simpa [stmtListTouchesUnsupportedContractSurface_append] using hsurface
+  exact false_of_supportedStmtLegacyTail_of_surface
+    (fields := fields)
+    tail
+    (Bool.or_eq_false.mp hsplit).1
+
 theorem stmtListGenericCore_of_supportedStmtList_of_surface
     {fields : List Field}
     {scope : List String}
@@ -4684,36 +4750,34 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
   | terminalCore hterminal =>
       exact stmtListGenericCore_of_stmtListTerminalCore hterminal
   | setStorageSingleSlot hcore hinScope hfind =>
-      exact stmtListGenericCore_singleton_setStorage_singleSlot
+      exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
+        (fields := fields)
+        hnoConflict
+        hfind
+        hcore
+        hinScope
+  | requireClause clause hrest ih =>
+      exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface
         (fields := fields)
         (scope := scope)
-        (hnoConflict := hnoConflict)
-        (hfind := hfind)
-        (hcore := hcore)
-        (hinScope := hinScope)
-  | requireClause clause hrest ih =>
-      have hsplit :
-          stmtTouchesUnsupportedContractSurface clause.toStmt ||
-            stmtListTouchesUnsupportedContractSurface rest = false := by
+        clause
+        ih
+        hsurface
+  | ite hcond hscope hthen helse ihThen ihElse =>
+      have hhead :
+          stmtTouchesUnsupportedContractSurface
+            (Stmt.ite cond thenBranch elseBranch) = false := by
         simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
-      exact stmtListGenericCore_append
-        (by
-          simpa using stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
-            (fields := fields) (scope := scope) clause)
-        (by
-          simpa using ih (Bool.or_eq_false.mp hsplit).2)
+      exact False.elim (false_of_supportedStmtList_ite_surface hhead)
   | append hprefix hsuffix ihPrefix ihSuffix =>
       exact stmtListGenericCore_of_supportedStmtList_append_of_surface hprefix hsuffix ihPrefix ihSuffix hsurface
   | @legacyTail _ _ tail rest htail ih =>
-      have hsplit :
-          stmtListTouchesUnsupportedContractSurface tail.toStmts ||
-            stmtListTouchesUnsupportedContractSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedContractSurface_append] using hsurface
       exact False.elim
-        (false_of_supportedStmtLegacyTail_of_surface
+        (false_of_supportedStmtList_legacyTail_surface
           (fields := fields)
-          tail
-          (Bool.or_eq_false.mp hsplit).1)
+          (tail := tail)
+          (rest := rest)
+          hsurface)
 
 /-- The current supported statement-list witness already suffices for the
 weaker helper-free source-step interface consumed by the exact helper-aware

@@ -1169,6 +1169,30 @@ private theorem supportedStmtLegacyTail_helperSurfaceClosed
       stmtTouchesUnsupportedHelperSurface,
       exprTouchesUnsupportedHelperSurface]
 
+private theorem exprCompileCore_helperSurfaceClosed
+    {expr : Expr}
+    (hcore : FunctionBody.ExprCompileCore expr) :
+    exprTouchesUnsupportedHelperSurface expr = false := by
+  induction hcore with
+  | literal | param | localVar | caller | contractAddress | msgValue
+    | blockTimestamp | blockNumber | chainid =>
+      simp [exprTouchesUnsupportedHelperSurface]
+  | add _ _ ihL ihR
+    | sub _ _ ihL ihR
+    | mul _ _ ihL ihR
+    | div _ _ ihL ihR
+    | mod _ _ ihL ihR
+    | eq _ _ ihL ihR
+    | lt _ _ ihL ihR
+    | gt _ _ ihL ihR
+    | ge _ _ ihL ihR
+    | le _ _ ihL ihR
+    | logicalAnd _ _ ihL ihR
+    | logicalOr _ _ ihL ihR =>
+      simp [exprTouchesUnsupportedHelperSurface, ihL, ihR]
+  | logicalNot _ ih =>
+      simp [exprTouchesUnsupportedHelperSurface, ih]
+
 private theorem stmtListCompileCore_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
@@ -1248,6 +1272,12 @@ theorem SupportedStmtList.helperSurfaceClosed
         stmtTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface,
         ih]
+  | ite hcond hscope hthen helse ihThen ihElse =>
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcond,
+        ihThen, ihElse]
   | append hprefix hsuffix ihPrefix ihSuffix =>
       simp [stmtListTouchesUnsupportedHelperSurface_append, ihPrefix, ihSuffix]
   | legacyTail tail htail ih =>

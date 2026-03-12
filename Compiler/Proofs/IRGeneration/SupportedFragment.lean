@@ -18,70 +18,11 @@ open Verity.Core.Free
 
 /-- Residual exact-source tails not yet absorbed by the compositional
 `SupportedStmtList` grammar. Everything left here still depends on unsupported
-contract-surface features such as `ite`, mapping access, or event emission. -/
+contract-surface features such as mapping access or event emission. -/
 inductive SupportedStmtLegacyTail (fields : List Field) : Type where
   | rawLogLiterals
       (topics : List Nat) (dataOffset dataSize : Nat)
       (htopics : topics.length ≤ 4)
-  | iteEqSetStorageLiterals
-      (fieldName : String) (slot : Nat)
-      (n m thenVal elseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqSetStorageThenReturnLiteral
-      (fieldName : String) (slot : Nat)
-      (n m thenVal elseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqReturnThenSetStorageLiteral
-      (fieldName : String) (slot : Nat)
-      (n m thenVal elseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqReturnLiterals
-      (n m thenVal elseVal : Nat)
-  | iteEqThenIteEqReturnLiterals
-      (n m p q thenVal elseVal outerElseVal : Nat)
-  | iteEqThenIteEqSetStorageLiteralsThenReturnLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqReturnLiteralsThenSetStorageLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqReturnLiteralsThenSetStorageLiteralThenReturnLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseWriteVal outerElseRetVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqSetStorageThenReturnLiteralThenReturnLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqSetStorageThenReturnLiteralThenSetStorageLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
-  | iteEqThenIteEqReturnThenSetStorageLiteralThenSetStorageLiteral
-      (fieldName : String) (slot : Nat)
-      (n m p q thenVal elseVal outerElseVal : Nat)
-      (hfind : findFieldWithResolvedSlot fields fieldName =
-        some ({ name := fieldName, ty := FieldType.uint256 }, slot))
   | returnMappingCaller
       (fieldName : String) (slot : Nat)
       (hSlot : findFieldSlot fields fieldName = some slot)
@@ -159,85 +100,6 @@ def SupportedStmtLegacyTail.toStmts
   match tail with
   | .rawLogLiterals topics dataOffset dataSize _ =>
       [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)]
-  | .iteEqSetStorageLiterals fieldName _ n m thenVal elseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.setStorage fieldName (Expr.literal thenVal)]
-          [Stmt.setStorage fieldName (Expr.literal elseVal)]]
-  | .iteEqSetStorageThenReturnLiteral fieldName _ n m thenVal elseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.setStorage fieldName (Expr.literal thenVal)]
-          [Stmt.return (Expr.literal elseVal)]]
-  | .iteEqReturnThenSetStorageLiteral fieldName _ n m thenVal elseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.return (Expr.literal thenVal)]
-          [Stmt.setStorage fieldName (Expr.literal elseVal)]]
-  | .iteEqReturnLiterals n m thenVal elseVal =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.return (Expr.literal thenVal)]
-          [Stmt.return (Expr.literal elseVal)]]
-  | .iteEqThenIteEqReturnLiterals n m p q thenVal elseVal outerElseVal =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.return (Expr.literal thenVal)]
-            [Stmt.return (Expr.literal elseVal)]]
-          [Stmt.return (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqSetStorageLiteralsThenReturnLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.setStorage fieldName (Expr.literal thenVal)]
-            [Stmt.setStorage fieldName (Expr.literal elseVal)]]
-          [Stmt.return (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqReturnLiteralsThenSetStorageLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.return (Expr.literal thenVal)]
-            [Stmt.return (Expr.literal elseVal)]]
-          [Stmt.setStorage fieldName (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqReturnLiteralsThenSetStorageLiteralThenReturnLiteral
-      fieldName _ n m p q thenVal elseVal outerElseWriteVal outerElseRetVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.return (Expr.literal thenVal)]
-            [Stmt.return (Expr.literal elseVal)]]
-          [Stmt.setStorage fieldName (Expr.literal outerElseWriteVal),
-           Stmt.return (Expr.literal outerElseRetVal)]]
-  | .iteEqThenIteEqSetStorageLiteralsThenSetStorageLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.setStorage fieldName (Expr.literal thenVal)]
-            [Stmt.setStorage fieldName (Expr.literal elseVal)]]
-          [Stmt.setStorage fieldName (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqSetStorageThenReturnLiteralThenReturnLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.setStorage fieldName (Expr.literal thenVal)]
-            [Stmt.return (Expr.literal elseVal)]]
-          [Stmt.return (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqSetStorageThenReturnLiteralThenSetStorageLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.setStorage fieldName (Expr.literal thenVal)]
-            [Stmt.return (Expr.literal elseVal)]]
-          [Stmt.setStorage fieldName (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqReturnThenSetStorageLiteralThenReturnLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.return (Expr.literal thenVal)]
-            [Stmt.setStorage fieldName (Expr.literal elseVal)]]
-          [Stmt.return (Expr.literal outerElseVal)]]
-  | .iteEqThenIteEqReturnThenSetStorageLiteralThenSetStorageLiteral
-      fieldName _ n m p q thenVal elseVal outerElseVal _ =>
-      [Stmt.ite (Expr.eq (Expr.literal n) (Expr.literal m))
-          [Stmt.ite (Expr.eq (Expr.literal p) (Expr.literal q))
-            [Stmt.return (Expr.literal thenVal)]
-            [Stmt.setStorage fieldName (Expr.literal elseVal)]]
-          [Stmt.setStorage fieldName (Expr.literal outerElseVal)]]
   | .returnMappingCaller fieldName _ _ =>
       [Stmt.return (Expr.mapping fieldName Expr.caller)]
   | .letMappingParamReturnLocal fieldName paramName tmp _ _ =>
@@ -349,6 +211,15 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       {rest : List Stmt} :
       SupportedStmtList fields scope rest →
       SupportedStmtList fields scope (clause.toStmt :: rest)
+  | ite
+      {scope : List String}
+      {cond : Expr}
+      {thenBranch elseBranch : List Stmt} :
+      FunctionBody.ExprCompileCore cond →
+      FunctionBody.exprBoundNamesInScope cond scope →
+      SupportedStmtList fields scope thenBranch →
+      SupportedStmtList fields scope elseBranch →
+      SupportedStmtList fields scope [Stmt.ite cond thenBranch elseBranch]
   | append
       {scope : List String}
       {prefix suffix : List Stmt} :
