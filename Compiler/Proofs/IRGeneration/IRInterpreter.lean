@@ -3080,6 +3080,246 @@ theorem execIRStmtWithInternals_letMany_call_internal
   rw [evalIRCallWithInternals_of_internal_function contract fuel state func args helper argVals
     state' hargs hfind]
 
+/-! ## Internal function execution characterization
+
+Unfolding and decomposition theorems for `execIRInternalFunctionWithInternals`.
+These are needed because the function is defined via well-founded recursion in the
+mutual block and cannot be trivially `rfl`-unfolded. -/
+
+/-- When fuel > 0 and params match, `execIRInternalFunctionWithInternals` prepares
+the callee state, executes the body, and extracts return values or propagates
+control flow. -/
+theorem execIRInternalFunctionWithInternals_succ_of_params_match
+    (contract : IRContract) (fuel : Nat) (callerState : IRState)
+    (helper : IRInternalFunctionDef) (args : List Nat)
+    (hlen : helper.params.length = args.length) :
+    execIRInternalFunctionWithInternals contract (fuel + 1) callerState helper args =
+      let calleeState := prepareInternalCalleeState callerState helper args
+      match execIRStmtsWithInternals contract fuel calleeState helper.body with
+      | .continue finalState =>
+          .values (internalReturnValues finalState helper.rets)
+            (restoreCallerVars callerState finalState)
+      | .leave finalState =>
+          .values (internalReturnValues finalState helper.rets)
+            (restoreCallerVars callerState finalState)
+      | .stop finalState =>
+          .stop (restoreCallerVars callerState finalState)
+      | .return value finalState =>
+          .return value (restoreCallerVars callerState finalState)
+      | .revert _ =>
+          .revert callerState := by
+  simp only [execIRInternalFunctionWithInternals, if_pos hlen]
+
+/-- When fuel > 0 but params don't match, `execIRInternalFunctionWithInternals`
+reverts with the caller state. -/
+theorem execIRInternalFunctionWithInternals_succ_of_params_mismatch
+    (contract : IRContract) (fuel : Nat) (callerState : IRState)
+    (helper : IRInternalFunctionDef) (args : List Nat)
+    (hlen : helper.params.length ≠ args.length) :
+    execIRInternalFunctionWithInternals contract (fuel + 1) callerState helper args =
+      .revert callerState := by
+  simp only [execIRInternalFunctionWithInternals, if_neg hlen]
+
+/-- At fuel 0, `execIRInternalFunctionWithInternals` always reverts. -/
+theorem execIRInternalFunctionWithInternals_zero
+    (contract : IRContract) (callerState : IRState)
+    (helper : IRInternalFunctionDef) (args : List Nat) :
+    execIRInternalFunctionWithInternals contract 0 callerState helper args =
+      .revert callerState := by
+  simp only [execIRInternalFunctionWithInternals]
+
+/-- `restoreCallerVars` preserves storage (world state). -/
+@[simp] theorem restoreCallerVars_storage
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).storage =
+      calleeState.storage := by
+  simp [restoreCallerVars]
+
+/-- `restoreCallerVars` restores the caller's variable frame. -/
+@[simp] theorem restoreCallerVars_vars
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).vars =
+      callerState.vars := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_sender
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).sender =
+      calleeState.sender := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_msgValue
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).msgValue =
+      calleeState.msgValue := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_thisAddress
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).thisAddress =
+      calleeState.thisAddress := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_blockTimestamp
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).blockTimestamp =
+      calleeState.blockTimestamp := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_blockNumber
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).blockNumber =
+      calleeState.blockNumber := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_chainId
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).chainId =
+      calleeState.chainId := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_returnValue
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).returnValue =
+      calleeState.returnValue := by
+  simp [restoreCallerVars]
+
+@[simp] theorem restoreCallerVars_events
+    (callerState calleeState : IRState) :
+    (restoreCallerVars callerState calleeState).events =
+      calleeState.events := by
+  simp [restoreCallerVars]
+
+/-- `IRState.setVar` only modifies the `vars` field, preserving all other fields. -/
+@[simp] theorem IRState.setVar_storage (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).storage = s.storage := rfl
+
+@[simp] theorem IRState.setVar_sender (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).sender = s.sender := rfl
+
+@[simp] theorem IRState.setVar_msgValue (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).msgValue = s.msgValue := rfl
+
+@[simp] theorem IRState.setVar_thisAddress (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).thisAddress = s.thisAddress := rfl
+
+@[simp] theorem IRState.setVar_blockTimestamp (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).blockTimestamp = s.blockTimestamp := rfl
+
+@[simp] theorem IRState.setVar_blockNumber (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).blockNumber = s.blockNumber := rfl
+
+@[simp] theorem IRState.setVar_chainId (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).chainId = s.chainId := rfl
+
+@[simp] theorem IRState.setVar_returnValue (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).returnValue = s.returnValue := rfl
+
+@[simp] theorem IRState.setVar_events (s : IRState) (name : String) (value : Nat) :
+    (s.setVar name value).events = s.events := rfl
+
+private theorem setVars_field_preservation {f : IRState → α}
+    (hsetVar : ∀ s name value, f (s.setVar name value) = f s)
+    (s : IRState) (bindings : List (String × Nat)) :
+    f (s.setVars bindings) = f s := by
+  induction bindings generalizing s with
+  | nil => rfl
+  | cons hd tl ih =>
+    show f (IRState.setVars (s.setVar hd.1 hd.2) tl) = f s
+    rw [ih, hsetVar]
+
+@[simp] theorem IRState.setVars_storage (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).storage = s.storage :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_sender (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).sender = s.sender :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_msgValue (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).msgValue = s.msgValue :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_thisAddress (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).thisAddress = s.thisAddress :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_blockTimestamp (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).blockTimestamp = s.blockTimestamp :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_blockNumber (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).blockNumber = s.blockNumber :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_chainId (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).chainId = s.chainId :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_returnValue (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).returnValue = s.returnValue :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.setVars_events (s : IRState) (bindings : List (String × Nat)) :
+    (s.setVars bindings).events = s.events :=
+  setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+/-- `prepareInternalCalleeState` preserves storage from the caller. -/
+@[simp] theorem prepareInternalCalleeState_storage
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).storage =
+      callerState.storage := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves sender from the caller. -/
+@[simp] theorem prepareInternalCalleeState_sender
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).sender =
+      callerState.sender := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves msgValue from the caller. -/
+@[simp] theorem prepareInternalCalleeState_msgValue
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).msgValue =
+      callerState.msgValue := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves thisAddress from the caller. -/
+@[simp] theorem prepareInternalCalleeState_thisAddress
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).thisAddress =
+      callerState.thisAddress := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves blockTimestamp from the caller. -/
+@[simp] theorem prepareInternalCalleeState_blockTimestamp
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).blockTimestamp =
+      callerState.blockTimestamp := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves blockNumber from the caller. -/
+@[simp] theorem prepareInternalCalleeState_blockNumber
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).blockNumber =
+      callerState.blockNumber := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves chainId from the caller. -/
+@[simp] theorem prepareInternalCalleeState_chainId
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).chainId =
+      callerState.chainId := by
+  simp [prepareInternalCalleeState]
+
+/-- `prepareInternalCalleeState` preserves events from the caller. -/
+@[simp] theorem prepareInternalCalleeState_events
+    (callerState : IRState) (helper : IRInternalFunctionDef) (args : List Nat) :
+    (prepareInternalCalleeState callerState helper args).events =
+      callerState.events := by
+  simp [prepareInternalCalleeState]
+
 /-! ## Internal function lookup bridge
 
 These theorems connect `SupportedCompiledInternalHelperWitness.presentInRuntime`
