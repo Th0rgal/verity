@@ -590,7 +590,8 @@
       "generated-yul-patched",
       "static-gas-report",
       "static-gas-report-patched",
-      "patch-coverage-report"
+      "patch-coverage-report",
+      "verity-compiler-binaries"
     ],
     "foundry-gas-calibration": [
       "static-gas-report"
@@ -602,7 +603,8 @@
       "compiler/yul-patched",
       null,
       null,
-      "compiler"
+      "compiler",
+      "compiler/bin"
     ],
     "foundry-gas-calibration": [
       null
