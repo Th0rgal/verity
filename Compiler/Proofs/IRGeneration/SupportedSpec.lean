@@ -1190,8 +1190,13 @@ theorem SupportedStmtList.helperSurfaceClosed
     {stmts : List Stmt}
     (hSupported : SupportedStmtList fields stmts) :
     stmtListTouchesUnsupportedHelperSurface stmts = false := by
-  rcases hSupported with ⟨fragments, rfl⟩
-  exact supportedStmtFragments_helperSurfaceClosed fragments
+  induction hSupported with
+  | nil =>
+      simp [stmtListTouchesUnsupportedHelperSurface]
+  | cons fragment htail ih =>
+      simpa [stmtListTouchesUnsupportedHelperSurface,
+        supportedStmtFragment_helperSurfaceClosed, ih]
+        using (supportedStmtFragment_helperSurfaceClosed fragment)
 
 theorem exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {expr : Expr}
@@ -2161,9 +2166,10 @@ private theorem counter_supported_function :
       returns := { resolved := ⟨[.uint256], rfl, trivial⟩ }
       body :=
         { stmtList := by
-            refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 42], ?_⟩
-            simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
-              Verity.Core.Free.SupportedStmtFragment.toStmts,
+            refine .cons
+              (Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 42)
+              .nil
+            simp [Verity.Core.Free.SupportedStmtFragment.toStmts,
               Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
               Verity.Core.Free.RequireFamilyClausesTail.toStmts]
           helperSurfaceClosed := by decide
@@ -2251,9 +2257,10 @@ private theorem simpleStorage_supported_function :
       returns := { resolved := ⟨[.uint256], rfl, trivial⟩ }
       body :=
         { stmtList := by
-            refine ⟨[Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 11], ?_⟩
-            simp [Verity.Core.Free.supportedStmtFragmentsToStmts,
-              Verity.Core.Free.SupportedStmtFragment.toStmts,
+            refine .cons
+              (Verity.Core.Free.SupportedStmtFragment.requireClausesThenReturnLiteral [] 11)
+              .nil
+            simp [Verity.Core.Free.SupportedStmtFragment.toStmts,
               Verity.Core.Free.RequireFamilyClausesTailProgram.toStmts,
               Verity.Core.Free.RequireFamilyClausesTail.toStmts]
           helperSurfaceClosed := by decide

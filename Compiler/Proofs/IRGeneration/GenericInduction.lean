@@ -4623,27 +4623,21 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
     (hSupported : SupportedStmtList fields stmts)
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
     StmtListGenericCore fields scope stmts := by
-  rcases hSupported with ⟨fragments, hfragments⟩
-  rw [← hfragments] at hsurface ⊢
-  induction fragments generalizing scope with
+  induction hSupported generalizing scope with
   | nil =>
-      simpa [Verity.Core.Free.supportedStmtFragmentsToStmts] using
-        (StmtListGenericCore.nil (fields := fields) (scope := scope))
-  | cons fragment rest ih =>
+      simpa using (StmtListGenericCore.nil (fields := fields) (scope := scope))
+  | @cons fragment rest htail ih =>
       have hsplit :
           stmtListTouchesUnsupportedContractSurface
               (Verity.Core.Free.SupportedStmtFragment.toStmts fragment) ||
-            stmtListTouchesUnsupportedContractSurface
-              (Verity.Core.Free.supportedStmtFragmentsToStmts rest) = false := by
-        simpa [Verity.Core.Free.supportedStmtFragmentsToStmts,
-          stmtListTouchesUnsupportedContractSurface_append] using hsurface
+            stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface_append] using hsurface
       have hheadSurface :
           stmtListTouchesUnsupportedContractSurface
             (Verity.Core.Free.SupportedStmtFragment.toStmts fragment) = false :=
         (Bool.or_eq_false.mp hsplit).1
       have htailSurface :
-          stmtListTouchesUnsupportedContractSurface
-            (Verity.Core.Free.supportedStmtFragmentsToStmts rest) = false :=
+          stmtListTouchesUnsupportedContractSurface rest = false :=
         (Bool.or_eq_false.mp hsplit).2
       exact stmtListGenericCore_append
         (stmtListGenericCore_of_supportedStmtFragment_of_surface

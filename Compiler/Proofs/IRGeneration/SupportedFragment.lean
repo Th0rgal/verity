@@ -13,8 +13,30 @@ namespace Compiler.Proofs.IRGeneration
 
 open Verity.Core.Free
 
-/-- Alias for the current generic supported statement fragment witness. -/
-abbrev SupportedStmtList := Verity.Core.Free.SupportedStmtList
+/-- Proof-layer compositional witness for lists assembled from the legacy
+supported statement fragments. This removes the raw existential list encoding
+from the public IR-generation interfaces while staying definitionally aligned
+with the current core fragment inventory. -/
+inductive SupportedStmtList (fields : List CompilationModel.Field) : List CompilationModel.Stmt → Prop where
+  | nil : SupportedStmtList fields []
+  | cons
+      (fragment : SupportedStmtFragment fields)
+      {rest : List CompilationModel.Stmt} :
+      SupportedStmtList fields rest →
+      SupportedStmtList fields (fragment.toStmts ++ rest)
+
+theorem SupportedStmtList.toLegacy
+    {fields : List CompilationModel.Field}
+    {stmts : List CompilationModel.Stmt}
+    (hSupported : SupportedStmtList fields stmts) :
+    Verity.Core.Free.SupportedStmtList fields stmts := by
+  induction hSupported with
+  | nil =>
+      refine ⟨[], by simp [Verity.Core.Free.supportedStmtFragmentsToStmts]⟩
+  | @cons fragment rest htail ih =>
+      rcases ih with ⟨fragments, hfragments⟩
+      refine ⟨fragment :: fragments, ?_⟩
+      simp [Verity.Core.Free.supportedStmtFragmentsToStmts, hfragments]
 
 /-- Current generic Layer-2 theorem: for any raw statement list admitted by the
 supported statement fragment witness, the compiled and source semantics agree.
@@ -28,8 +50,9 @@ theorem supported_stmt_list_preserves_semantics
     (init : TExecState)
     (stmts : List CompilationModel.Stmt)
     (hSupported : SupportedStmtList fields stmts) :
-    Verity.Core.Free.execCompiledSupportedStmtList fields init stmts hSupported =
-      Verity.Core.Free.execSourceSupportedStmtList fields init stmts hSupported :=
-  Verity.Core.Free.compile_supported_stmt_list_direct_semantics fields init stmts hSupported
+    Verity.Core.Free.execCompiledSupportedStmtList fields init stmts hSupported.toLegacy =
+      Verity.Core.Free.execSourceSupportedStmtList fields init stmts hSupported.toLegacy :=
+  Verity.Core.Free.compile_supported_stmt_list_direct_semantics fields init stmts
+    hSupported.toLegacy
 
 end Compiler.Proofs.IRGeneration
