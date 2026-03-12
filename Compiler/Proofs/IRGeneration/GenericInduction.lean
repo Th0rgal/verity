@@ -148,6 +148,7 @@ structure CompiledStmtStepWithHelpersAndHelperIR
       (state : IRState)
       (helperFuel : Nat)
       (extraFuel : Nat),
+      0 < helperFuel →
       FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
       FunctionBody.scopeNamesPresent scope runtime.bindings →
       FunctionBody.bindingsBounded runtime.bindings →
@@ -1072,7 +1073,7 @@ theorem CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
       runtimeContract spec fields scope stmt compiledIR where
   compileOk := hstep.compileOk
   preserves := by
-    intro runtime state helperFuel extraFuel hexact hscope hbounded hruntime hslack
+    intro runtime state helperFuel extraFuel _ hexact hscope hbounded hruntime hslack
     rcases hstep.preserves runtime state helperFuel extraFuel
         hexact hscope hbounded hruntime hslack with
       ⟨sourceResult, irExec, hsource, hir, hmatch⟩
@@ -1114,7 +1115,7 @@ theorem CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint
       runtimeContract spec fields scope stmt compiledIR where
   compileOk := hstep.compileOk
   preserves := by
-    intro runtime state helperFuel extraFuel hexact hscope hbounded hruntime hslack
+    intro runtime state helperFuel extraFuel _ hexact hscope hbounded hruntime hslack
     rcases hstep.preserves runtime state helperFuel extraFuel
         hexact hscope hbounded hruntime hslack with
       ⟨sourceResult, irExec, hsource, hir, hmatch⟩
@@ -5460,6 +5461,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     {stmts : List Stmt}
     (helperFuel : Nat)
     (extraFuel : Nat)
+    (hfuelPos : 0 < helperFuel)
     (hgeneric :
       StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts)
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
@@ -5510,7 +5512,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
         dsimp [headExtraFuel]
         omega
       rcases hstep.preserves runtime state helperFuel headExtraFuel
-          hexact hscope hbounded hruntime hheadSlack with
+          hfuelPos hexact hscope hbounded hruntime hheadSlack with
         ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
       refine ⟨bodyIR, hbodyCompile, ?_⟩
       cases sourceHead <;> cases irHead <;>
@@ -5525,7 +5527,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
             (state := _)
             (inScopeNames := collectStmtNames stmt ++ inScopeNames)
             (extraFuel := tailExtraFuel')
-            hnextIncluded hscope' hexact' hbounded' hruntime'
+            hfuelPos hnextIncluded hscope' hexact' hbounded' hruntime'
         rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
         rw [htailCompile] at htailCompile'
         injection htailCompile' with htailEq
@@ -5712,6 +5714,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
     {stmts : List Stmt}
     (helperFuel : Nat)
     (extraFuel : Nat)
+    (hfuelPos : 0 < helperFuel)
     (hgeneric :
       StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts)
     (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
@@ -5737,6 +5740,7 @@ theorem exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
       (stmts := stmts)
       (helperFuel := helperFuel)
       (extraFuel := extraFuel)
+      hfuelPos
       hgeneric
       hincluded
       hscope
@@ -5948,6 +5952,7 @@ private theorem
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6003,6 +6008,7 @@ private theorem
       (stmts := fn.body)
       (helperFuel := helperFuel)
       (extraFuel := sizeSlack)
+      hfuelPos
       hgeneric
       FunctionBody.scopeNamesIncluded_refl
       hscope
@@ -6220,6 +6226,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps_an
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6251,7 +6258,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_steps_an
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir_raw
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge for the future helper-rich theorem
@@ -6272,6 +6279,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6328,7 +6336,7 @@ theorem supported_function_body_correct_from_exact_state_generic_helper_surface_
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge over the split helper-positive
@@ -6347,6 +6355,7 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6411,7 +6420,7 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge over the fully split genuine-helper
@@ -6430,6 +6439,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6518,7 +6528,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Body-level exact helper-aware bridge over the fully split genuine-helper
@@ -6537,6 +6547,7 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6617,7 +6628,7 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Disjoint-based body-level exact helper-aware bridge over the fully split
@@ -6637,6 +6648,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6728,7 +6740,7 @@ theorem supported_function_body_correct_from_exact_state_generic_finer_split_int
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
 
 /-- Current-fragment wrapper that lands directly in the exact helper-aware
@@ -6748,6 +6760,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (bindings : List (String × Nat))
     (extraFuel : Nat)
     (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
     (hnormalized : SourceSemantics.effectiveFields model = model.fields)
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
@@ -6799,7 +6812,7 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
-      hextraFuel hnormalized hnoEvents hnoErrors hgenericExact
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hgenericExact
       (stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
         (runtimeContract := runtimeContract)
         (spec := model)
