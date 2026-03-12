@@ -89,6 +89,16 @@ ALLOWLIST: set[str] = {
     "compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves",
+    # Tier-2 `setStructMember2` singleton mapping-write bridge: mirrors the
+    # existing `setMapping2Word` proof shape but keeps the struct-member layout
+    # witness and the concrete post-state alignment in one theorem so the
+    # alternate mapping-write seam can consume a single compiled-step boundary.
+    "compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves",
+    # Tier-2 singleton supported-list packaging for `setStructMember2`: long
+    # only because it threads the struct-member layout witness into the same
+    # constructor-to-compiled-step pattern already used by the other write
+    # families; further decomposition would just split out mechanical plumbing.
+    "stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety",
     # Tier-4 runtime-helper-table packaging: these theorems intentionally keep
     # the witness-to-lookup extraction and the final IR characterization in one
     # place so later helper-rank induction can consume a single structured seam
@@ -179,6 +189,11 @@ ALLOWLIST: set[str] = {
     # witness family and threading slot-safety/no-conflict assumptions through
     # the per-function generic closure.
     "compile_preserves_semantics_except_mapping_writes",
+    # Tier-1 supported-fragment grammar declaration: the inductive is long
+    # because it enumerates the currently admitted singleton heads plus the
+    # compositional constructors in one place; splitting it would not reduce
+    # maintenance or proof complexity.
+    "SupportedStmtList",
     # Tier-2 exact helper-aware singleton mapping-write bridge pieces: one
     # theorem exhaustively unfolds the double-mapping compile shape to recover a
     # legacy-compatible Yul witness, and the other packages the alternate

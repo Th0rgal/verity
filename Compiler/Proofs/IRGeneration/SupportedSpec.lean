@@ -398,7 +398,8 @@ all existing unsupported stateful forms remain excluded except for the proved
 singleton mapping-write heads. -/
 def stmtTouchesUnsupportedStateSurfaceExceptMappingWrites : Stmt → Bool
   | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMapping2 _ _ _ _
-  | .setMapping2Word _ _ _ _ _
+  | .setMapping2Word _ _ _ _ _ | .setStructMember _ _ _ _
+  | .setStructMember2 _ _ _ _ _
   | .setMappingUint _ _ _ => false
   | stmt => stmtTouchesUnsupportedStateSurface stmt
 
@@ -1485,6 +1486,21 @@ private theorem supportedStmtList_setMapping2WordSingle_helperSurfaceClosed
     exprCompileCore_helperSurfaceClosed hkey2,
     exprCompileCore_helperSurfaceClosed hvalue]
 
+private theorem supportedStmtList_setStructMember2Single_helperSurfaceClosed
+    {fieldName memberName : String}
+    {key1 key2 value : Expr}
+    (hkey1 : FunctionBody.ExprCompileCore key1)
+    (hkey2 : FunctionBody.ExprCompileCore key2)
+    (hvalue : FunctionBody.ExprCompileCore value) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.setStructMember2 fieldName key1 key2 memberName value] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey1,
+    exprCompileCore_helperSurfaceClosed hkey2,
+    exprCompileCore_helperSurfaceClosed hvalue]
+
 private theorem supportedStmtList_rawLogLiterals_helperSurfaceClosed
     {topics : List Nat}
     {dataOffset dataSize : Nat} :
@@ -1554,6 +1570,8 @@ theorem SupportedStmtList.helperSurfaceClosed
   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot => exact supportedStmtList_setMapping2Single_helperSurfaceClosed hkey1 hkey2 hvalue
   | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
       exact supportedStmtList_setMapping2WordSingle_helperSurfaceClosed hkey1 hkey2 hvalue
+  | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
+      exact supportedStmtList_setStructMember2Single_helperSurfaceClosed hkey1 hkey2 hvalue
   | rawLogLiterals htopics => exact supportedStmtList_rawLogLiterals_helperSurfaceClosed
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
       exact supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed

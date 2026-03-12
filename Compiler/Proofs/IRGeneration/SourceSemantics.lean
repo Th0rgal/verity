@@ -482,6 +482,21 @@ mutual
                       wordOffset
                       resolved }
         | _, _, _, _ => .revert
+    | state, .setStructMember2 fieldName key1 key2 memberName value =>
+        match findFieldWriteSlots fields fieldName,
+            findStructMembers fields fieldName,
+            evalExpr fields state key1,
+            evalExpr fields state key2,
+            evalExpr fields state value with
+        | some slots@(_ :: _), some members, some resolvedKey1, some resolvedKey2, some resolved =>
+            match findStructMember members memberName with
+            | some { wordOffset := wordOffset, packed := none, .. } =>
+                .continue
+                  { state with
+                      world := writeAddressKeyedMapping2WordSlots
+                        state.world slots resolvedKey1 resolvedKey2 wordOffset resolved }
+            | _ => .revert
+        | _, _, _, _, _ => .revert
     | state, .setMappingUint fieldName key value =>
         match findFieldWriteSlots fields fieldName,
             evalExpr fields state key,
@@ -884,6 +899,21 @@ mutual
                       wordOffset
                       resolved }
         | _, _, _, _ => .revert
+    | state, .setStructMember2 fieldName key1 key2 memberName value =>
+        match findFieldWriteSlots fields fieldName,
+            findStructMembers fields fieldName,
+            evalExprWithHelpers spec fields fuel state key1,
+            evalExprWithHelpers spec fields fuel state key2,
+            evalExprWithHelpers spec fields fuel state value with
+        | some slots@(_ :: _), some members, some resolvedKey1, some resolvedKey2, some resolved =>
+            match findStructMember members memberName with
+            | some { wordOffset := wordOffset, packed := none, .. } =>
+                .continue
+                  { state with
+                      world := writeAddressKeyedMapping2WordSlots
+                        state.world slots resolvedKey1 resolvedKey2 wordOffset resolved }
+            | _ => .revert
+        | _, _, _, _, _ => .revert
     | state, .setMappingUint fieldName key value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key,

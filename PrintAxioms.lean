@@ -1171,6 +1171,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_aliasSlots
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
@@ -1208,6 +1210,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStructMemberSingle_of_slotSafety  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setMapping2Single_of_slotSafety  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setMapping2WordSingle_of_slotSafety  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setStructMember2Single_of_slotSafety  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_singleton_stmt_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_returnMapping_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letStorageField_surface  -- private
@@ -1220,6 +1223,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setStructMemberSingle_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMapping2Single_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMapping2WordSingle_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setStructMember2Single_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_rawLogLiterals_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface  -- private
@@ -1501,6 +1505,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setStructMemberSingle_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMapping2Single_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMapping2WordSingle_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setStructMember2Single_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_rawLogLiterals_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed  -- private
@@ -1718,4 +1723,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1587 theorems/lemmas (1214 public, 373 private)
+-- Total: 1592 theorems/lemmas (1215 public, 377 private)

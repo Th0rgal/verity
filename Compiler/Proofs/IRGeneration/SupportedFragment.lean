@@ -176,6 +176,23 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       FunctionBody.exprBoundNamesInScope value scope →
       findFieldSlot fields fieldName = some slot →
       SupportedStmtList fields scope [Stmt.setMapping2Word fieldName key1 key2 wordOffset value]
+  | setStructMember2Single
+      {scope : List String}
+      {fieldName memberName : String}
+      {key1 key2 value : Expr}
+      {slot wordOffset : Nat}
+      {members : List StructMember} :
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      findStructMembers fields fieldName = some members →
+      findStructMember members memberName =
+        some { name := memberName, wordOffset := wordOffset, packed := none } →
+      SupportedStmtList fields scope [Stmt.setStructMember2 fieldName key1 key2 memberName value]
   | rawLogLiterals
       {scope : List String}
       {topics : List Nat}
