@@ -353,7 +353,8 @@ The first theorem does not need to cover everything. It may explicitly leave out
   `IRInterpreter.lean` now defines helper-aware compiled-side targets
   (`execIRFunctionWithInternals`, `interpretIRWithInternals`) that can execute
   `IRContract.internalFunctions`, and it now also formalizes the intended
-  helper-free compatibility subset as `LegacyCompatibleExternalStmtList`.
+  helper-free compatibility subset as `LegacyCompatibleExternalStmtList` plus
+  the weaker contract-level witness `LegacyCompatibleExternalBodies`.
   The exact first theorem cut is now machine-checkable as
   `InterpretIRWithInternalsZeroConservativeExtensionGoal`.
   `Dispatch.runtimeContractOfFunctions` now also has an explicit
@@ -362,9 +363,12 @@ The first theorem does not need to cover everything. It may explicitly leave out
   `IRInterpreter.lean` now proves the corresponding helper-free conservative-
   extension theorem directly as
   `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. The remaining
-  work is therefore to derive the explicit legacy-compatibility witness from
-  supported compile outputs and then consume helper-summary soundness/rank
-  evidence so `calls.helperCompatibility` can disappear. The helper-aware
+  work is therefore to stop treating that helper-free runtime-contract witness
+  as if it were the same thing as the weaker external-body witness derivable
+  from supported compile outputs. The next retarget step must bridge compiled
+  helper tables without requiring `internalFunctions = []`, and then consume
+  helper-summary soundness/rank evidence so `calls.helperCompatibility` can
+  disappear. The helper-aware
   interpreter remains a total fuel-indexed helper-aware IR semantics surface
   for that follow-on retarget
 - dynamic ABI cases outside the current typed path

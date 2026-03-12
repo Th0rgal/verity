@@ -311,6 +311,13 @@ inductive LegacyCompatibleExternalStmtList : List YulStmt → Prop
 abbrev LegacyCompatibleExternalStmt (stmt : YulStmt) : Prop :=
   LegacyCompatibleExternalStmtList [stmt]
 
+/-- Weaker compiled-side witness: only the externally callable function bodies
+remain inside the current legacy-compatible Yul subset. This is the witness that
+is plausibly derivable from supported external compile outputs even when the full
+compiled contract still carries internal helper definitions. -/
+def LegacyCompatibleExternalBodies (contract : IRContract) : Prop :=
+  ∀ fn ∈ contract.functions, LegacyCompatibleExternalStmtList fn.body
+
 mutual
 
 /-- Evaluate a list of Yul expressions in the helper-aware IR context, threading
@@ -991,12 +998,22 @@ external bodies. Encoding that shape as a proposition keeps the remaining
 conservative-extension step machine-checkable instead of prose-only. -/
 def LegacyCompatibleRuntimeContract (contract : IRContract) : Prop :=
   contract.internalFunctions = [] ∧
-    ∀ fn ∈ contract.functions, LegacyCompatibleExternalStmtList fn.body
+    LegacyCompatibleExternalBodies contract
+
+theorem legacyCompatibleExternalBodies_of_legacyCompatibleRuntimeContract
+    (contract : IRContract) :
+    LegacyCompatibleRuntimeContract contract →
+      LegacyCompatibleExternalBodies contract := by
+  intro hlegacy
+  exact hlegacy.2
 
 /-- Exact first conservative-extension theorem target for the helper-aware IR
 interpreter: on helper-free runtime contracts with legacy-compatible external
 bodies, zero-helper-fuel helper-aware interpretation should coincide with the
-current public `interpretIR` target. -/
+current public `interpretIR` target. This is intentionally stronger than the
+eventual whole-contract retarget domain for full compile outputs: compiled
+contracts may still carry `internalFunctions` even when their external runtime
+bodies remain inside `LegacyCompatibleExternalBodies`. -/
 def InterpretIRWithInternalsZeroConservativeExtensionGoal
     (contract : IRContract) : Prop :=
   LegacyCompatibleRuntimeContract contract →

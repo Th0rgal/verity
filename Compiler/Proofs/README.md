@@ -140,9 +140,15 @@ current public theorem stack still runs through the helper-free runtime
 constructor `Dispatch.runtimeContractOfFunctions`, which now has an explicit
 `internalFunctions = []` lemma. The intended compiled-side compatibility subset
 is now explicit in `IRInterpreter.lean` as the legacy-compatible external-body
-Yul subset `LegacyCompatibleExternalStmtList`, and the exact first compiled-side
+Yul subset `LegacyCompatibleExternalStmtList` together with the weaker contract-
+level witness `LegacyCompatibleExternalBodies`, and the exact first compiled-side
 retarget theorem is now encoded there as
 `InterpretIRWithInternalsZeroConservativeExtensionGoal`.
+That theorem still packages the stronger helper-free runtime-contract shape
+`LegacyCompatibleRuntimeContract`, so the next whole-contract helper retarget is
+not merely "derive one witness from `CompilationModel.compile`". The external-
+body witness is plausibly derivable from supported compile outputs; the stronger
+`internalFunctions = []` side of `LegacyCompatibleRuntimeContract` is not.
 `IRInterpreter.lean` now also packages the expected proof decomposition as
 `InterpretIRWithInternalsZeroConservativeExtensionInterfaces`, which splits that
 goal into expr / stmt / stmt-list / function compatibility lemmas before they

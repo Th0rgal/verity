@@ -1117,6 +1117,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_stop_succ_succ
 #print axioms Compiler.Proofs.IRGeneration.execIRStmts_single_block_stop_length_insufficient
 #print axioms Compiler.Proofs.IRGeneration.findInternalFunction?_eq_none_of_internalFunctions_nil
+#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalBodies_of_legacyCompatibleRuntimeContract
 #print axioms Compiler.Proofs.IRGeneration.evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_sstore_mappingSlot_succ_of_no_internal
@@ -1363,4 +1364,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1229 theorems/lemmas (985 public, 244 private)
+-- Total: 1230 theorems/lemmas (986 public, 244 private)
