@@ -99,8 +99,10 @@ work is now split into:
 - a positive direct-callee summary inventory already attached to `calls.helpers`
 - a spec-aware helper source semantics target in `Compiler/Proofs/IRGeneration/SourceSemantics.lean`
 - a reusable helper-summary contract API attached directly to those witnesses
-- an explicit helper-summary proof wrapper (`SupportedFunctionHelperProofs` /
-  `SupportedSpecHelperProofs`) that defines the future compositional theorem input
+- a reusable global helper-summary proof catalog
+  (`SupportedHelperSummaryProofCatalog`) plus the theorem-level wrapper
+  `SupportedSpecHelperProofs`, so each internal helper summary can be proved
+  once and reused across every caller that references it
 - matching helper-proof-carrying theorem variants in `Function.lean`,
   `Dispatch.lean`, and `Contract.lean`, so the public Layer 2 theorem family
   already exposes that input without changing the current trusted boundary

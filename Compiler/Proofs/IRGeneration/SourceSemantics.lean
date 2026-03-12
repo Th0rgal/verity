@@ -954,6 +954,33 @@ theorem SupportedBodyHelperInterface.exprCallSummaryPreservesWorld
       (hHelpers.summaryContractOfCall hcall) :=
   hHelpers.exprSummaryPreservesWorld hmem
 
+/-- Reusable global helper-summary proof inventory. This is the proof-carrying
+counterpart to the positive helper witness inventory in `SupportedSpec.lean`:
+each internal helper summary is proved once and can then be reused across every
+caller that references the same witness. -/
+structure SupportedHelperSummaryProofCatalog
+    (spec : CompilationModel) : Prop where
+  sound :
+    ∀ calleeName (witness : SupportedInternalHelperWitness spec calleeName),
+      InternalHelperSummarySound spec witness.callee witness.summary.contract
+
+theorem SupportedHelperSummaryProofCatalog.soundOfWitness
+    {spec : CompilationModel}
+    (hCatalog : SupportedHelperSummaryProofCatalog spec)
+    {calleeName : String}
+    (witness : SupportedInternalHelperWitness spec calleeName) :
+    InternalHelperSummarySound spec witness.callee witness.summary.contract :=
+  hCatalog.sound calleeName witness
+
+theorem SupportedBodyHelperSummariesSound_of_proofCatalog
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn)
+    (hCatalog : SupportedHelperSummaryProofCatalog spec) :
+    SupportedBodyHelperSummariesSound spec fn hHelpers := by
+  intro calleeName hmem
+  exact hCatalog.soundOfWitness (hHelpers.summaryOfCall hmem)
+
 structure SupportedFunctionHelperProofs
     (spec : CompilationModel)
     (fn : FunctionSpec)
@@ -965,10 +992,23 @@ structure SupportedSpecHelperProofs
     (spec : CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec spec selectors) : Prop where
-  functionProofs :
-    ∀ fn (hfn : fn ∈ selectorDispatchedFunctions spec),
-      SupportedFunctionHelperProofs spec fn
-        (hSupported.supportedFunctionOfSelectorDispatched hfn)
+  helperCatalog :
+    SupportedHelperSummaryProofCatalog spec
+
+theorem SupportedSpecHelperProofs.functionProofs
+    {spec : CompilationModel}
+    {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    (hProofs : SupportedSpecHelperProofs spec selectors hSupported)
+    (fn : FunctionSpec)
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    SupportedFunctionHelperProofs spec fn
+      (hSupported.supportedFunctionOfSelectorDispatched hfn) := by
+  refine
+    { summariesSound :=
+        SupportedBodyHelperSummariesSound_of_proofCatalog
+          (hHelpers := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers)
+          hProofs.helperCatalog }
 
 theorem SupportedSpecHelperProofs.functionSummariesSound
     {spec : CompilationModel}

@@ -261,11 +261,13 @@ now sits under the post-generic widening/completeness plan in
   `SupportedBodyHelperSummariesSound` plus direct-call consumption lemmas for
   `Expr.internalCall`, `Stmt.internalCall`, and `Stmt.internalCallAssign`, so
   helper summaries are now a proof-carrying source-semantics interface rather
-  than just an inventory placeholder. `SourceSemantics.lean` now also exposes
-  dedicated `SupportedFunctionHelperProofs` / `SupportedSpecHelperProofs`
-  wrappers, so future helper composition has an explicit theorem-level slot for
-  summary-soundness evidence instead of needing an ad hoc extra hypothesis, and
-  `Contract.lean` now mirrors that at the public theorem surface via
+  than just an inventory placeholder. `SourceSemantics.lean` now also exposes a
+  reusable global helper-summary proof catalog
+  (`SupportedHelperSummaryProofCatalog`) and derives the theorem-level wrapper
+  `SupportedSpecHelperProofs` from that catalog, so each internal helper
+  summary can be proved once and reused across every caller instead of being
+  replumbed per external function, and `Contract.lean` now mirrors that at the
+  public theorem surface via
   helper-proof-carrying variants such as
   `compile_preserves_semantics_with_helper_proofs`; the
   feature-local `state` / `calls` / `effects` scans recurse through nested `ite` / `forEach` bodies so those

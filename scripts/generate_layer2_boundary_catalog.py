@@ -164,6 +164,7 @@ def build_catalog() -> dict:
                 "inventory_source": "SupportedBodyHelperInterface.summaryOf",
                 "proof_contract": "InternalHelperSummaryContract",
                 "proof_soundness_slot": "SupportedSpecHelperProofs",
+                "reusable_proof_catalog": "SupportedHelperSummaryProofCatalog",
                 "compiled_side_blocker_issue": 1638,
                 "compiled_target_compatibility_subset": {
                     "name": "legacy_compatible_external_body_yul_subset",
