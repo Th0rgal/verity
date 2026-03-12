@@ -1110,6 +1110,7 @@ structure SupportedSpecInvariants (spec : CompilationModel) (selectors : List Na
     ∀ field ∈ spec.fields, field.packedBits = none
   selectorCount : selectors.length = (selectorDispatchedFunctions spec).length
   selectorsDistinct : firstDuplicateSelector selectors = none
+  functionNamesNodup : (spec.functions.map (·.name)).Nodup
 
 /-- Whole-contract surfaces intentionally still outside the initial theorem,
 kept separate from global normalization/dispatch invariants so future widening
@@ -1947,6 +1948,12 @@ theorem SupportedSpec.selectorsDistinct
     firstDuplicateSelector selectors = none :=
   hSupported.invariants.selectorsDistinct
 
+theorem SupportedSpec.functionNamesNodup
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    (spec.functions.map (·.name)).Nodup :=
+  hSupported.invariants.functionNamesNodup
+
 theorem SupportedSpec.noConstructor
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors) :
@@ -2190,6 +2197,8 @@ theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
           selectorCount := by
             decide
           selectorsDistinct := by
+            decide
+          functionNamesNodup := by
             decide }
       surface :=
         { noConstructor := rfl
@@ -2277,6 +2286,8 @@ theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecM
           selectorCount := by
             decide
           selectorsDistinct := by
+            decide
+          functionNamesNodup := by
             decide }
       surface :=
         { noConstructor := rfl

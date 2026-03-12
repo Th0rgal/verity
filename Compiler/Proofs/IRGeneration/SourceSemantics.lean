@@ -930,6 +930,155 @@ theorem execStmtWithHelpers_internalCallAssign_obeys_summary
       (hsound := hsound)
       (hargs := hargs)
 
+/-- Bridge from `SupportedInternalHelperWitness` conditions to
+`findUniqueInternalFunction?` success.  The uniqueness premise
+(`(spec.functions.map (·.name)).Nodup`) ensures the filter in
+`findUniqueInternalFunction?` produces exactly one match. -/
+private theorem findUniqueInternalFunction?_of_witness
+    {spec : CompilationModel}
+    {calleeName : String}
+    (witness : SupportedInternalHelperWitness spec calleeName)
+    (hnodup : (spec.functions.map (·.name)).Nodup) :
+    findUniqueInternalFunction? spec calleeName = some witness.callee := by
+  unfold findUniqueInternalFunction?
+  have hmem := witness.summary.present
+  have hinternal := witness.summary.internal
+  have hname := witness.nameEq
+  -- Show that witness.callee passes the filter predicate
+  have hpass : (fun fn => fn.isInternal && fn.name == calleeName) witness.callee = true := by
+    simp [hinternal, hname, BEq.beq, decide_eq_true_eq]
+  -- The filter contains witness.callee
+  have hin_filter : witness.callee ∈ spec.functions.filter (fun fn => fn.isInternal && fn.name == calleeName) :=
+    List.mem_filter.mpr ⟨hmem, hpass⟩
+  -- Any element in the filter equals witness.callee (by name-nodup + name equality)
+  have hfilter_eq : ∀ fn ∈ spec.functions.filter (fun fn => fn.isInternal && fn.name == calleeName),
+      fn = witness.callee := by
+    intro fn hfn
+    have ⟨hfn_mem, hfn_pred⟩ := List.mem_filter.mp hfn
+    simp [Bool.and_eq_true, BEq.beq, decide_eq_true_eq] at hfn_pred
+    have hfn_name : fn.name = calleeName := hfn_pred.2
+    have hname_eq : fn.name = witness.callee.name := by
+      rw [hfn_name, hname]
+    exact List.inj_on_of_nodup_map hnodup hfn_mem hmem hname_eq
+  -- The filter of spec.functions is Nodup (sublist of a Nodup list)
+  have hfilt_nodup : (spec.functions.filter (fun fn => fn.isInternal && fn.name == calleeName)).Nodup :=
+    List.Nodup.filter _ (List.Nodup.of_map _ hnodup)
+  -- The filter is nonempty, Nodup, and all elements equal witness.callee → it's [witness.callee]
+  match hfilt : spec.functions.filter (fun fn => fn.isInternal && fn.name == calleeName) with
+  | [fn] =>
+      have hmem_single := hfilt ▸ hin_filter
+      simp [List.mem_cons, List.not_mem_nil] at hmem_single
+      subst hmem_single; rfl
+  | [] => exact absurd (hfilt ▸ hin_filter) (List.not_mem_nil _)
+  | fn₁ :: fn₂ :: _ =>
+      exfalso
+      have hnd := hfilt ▸ hfilt_nodup
+      have h1 := hfilter_eq fn₁ (by rw [hfilt]; exact List.mem_cons_self _ _)
+      have h2 := hfilter_eq fn₂ (by rw [hfilt]; exact List.mem_cons.mpr (Or.inr (List.mem_cons_self _ _)))
+      rw [h1, h2] at hnd
+      exact absurd (List.mem_cons_self _ _) ((List.nodup_cons.mp hnd).1)
+
+/-- Public characterization of `execStmtWithHelpers` for `Stmt.internalCallAssign`
+when the callee is identified by a `SupportedInternalHelperWitness` and function
+names are unique.  This avoids exposing the private `findUniqueInternalFunction?`
+while giving external proofs full access to the semantic structure. -/
+theorem execStmtWithHelpers_internalCallAssign_of_witness
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {state : RuntimeState}
+    {names : List String}
+    {calleeName : String}
+    {args : List Expr}
+    (witness : SupportedInternalHelperWitness spec calleeName)
+    (hnodup : (spec.functions.map (·.name)).Nodup) :
+    execStmtWithHelpers spec fields (fuel + 1) state
+      (Stmt.internalCallAssign names calleeName args) =
+    match evalExprListWithHelpers spec fields (fuel + 1) state args with
+    | some argVals =>
+        let hresult := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
+        if hresult.success then
+          match names, hresult.returnValue with
+          | [name], some value =>
+              .continue {
+                world := hresult.world
+                bindings := bindValue state.bindings name value
+              }
+          | _, _ => .revert
+        else
+          .revert
+    | none => .revert := by
+  have hfind := findUniqueInternalFunction?_of_witness witness hnodup
+  simp only [execStmtWithHelpers, hfind]
+
+/-- Version of `execStmtWithHelpers_internalCallAssign_obeys_summary` that takes
+a `SupportedInternalHelperWitness` instead of the private `findUniqueInternalFunction?`
+hypothesis, enabling use from files that cannot reference the private definition. -/
+theorem execStmtWithHelpers_internalCallAssign_obeys_summary_of_witness
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {state : RuntimeState}
+    {names : List String}
+    {calleeName : String}
+    {args : List Expr}
+    (witness : SupportedInternalHelperWitness spec calleeName)
+    (hnodup : (spec.functions.map (·.name)).Nodup)
+    (hsound : InternalHelperSummarySound spec witness.callee witness.summary.contract)
+    {argVals : List Nat}
+    (hargs : evalExprListWithHelpers spec fields fuel state args = some argVals) :
+    let result := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
+    witness.summary.contract.post fuel state.world argVals
+      result.success result.returnValue result.world :=
+  execStmtWithHelpers_internalCallAssign_obeys_summary
+    (hfind := findUniqueInternalFunction?_of_witness witness hnodup)
+    (hsound := hsound)
+    (hargs := hargs)
+
+/-- Public characterization of `execStmtWithHelpers` for `Stmt.internalCall`
+(void call) via a `SupportedInternalHelperWitness` and function-name uniqueness. -/
+theorem execStmtWithHelpers_internalCall_of_witness
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {state : RuntimeState}
+    {calleeName : String}
+    {args : List Expr}
+    (witness : SupportedInternalHelperWitness spec calleeName)
+    (hnodup : (spec.functions.map (·.name)).Nodup) :
+    execStmtWithHelpers spec fields (fuel + 1) state
+      (Stmt.internalCall calleeName args) =
+    match evalExprListWithHelpers spec fields (fuel + 1) state args with
+    | some argVals =>
+        let hresult := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
+        if hresult.success then
+          .continue { state with world := hresult.world }
+        else
+          .revert
+    | none => .revert := by
+  have hfind := findUniqueInternalFunction?_of_witness witness hnodup
+  simp [execStmtWithHelpers, hfind]
+
+/-- Public characterization of `evalExprWithHelpers` for `Expr.internalCall`
+(expression-position helper call) via a `SupportedInternalHelperWitness` and
+function-name uniqueness. -/
+theorem evalExprWithHelpers_internalCall_of_witness
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fuel : Nat}
+    {state : RuntimeState}
+    {calleeName : String}
+    {args : List Expr}
+    (witness : SupportedInternalHelperWitness spec calleeName)
+    (hnodup : (spec.functions.map (·.name)).Nodup) :
+    evalExprWithHelpers spec fields (fuel + 1) state
+      (Expr.internalCall calleeName args) =
+    (do let argVals ← evalExprListWithHelpers spec fields (fuel + 1) state args
+        let hresult := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
+        if hresult.success then hresult.returnValue else none) := by
+  have hfind := findUniqueInternalFunction?_of_witness witness hnodup
+  simp [evalExprWithHelpers, hfind]
+
 theorem SupportedBodyHelperInterface.summarySoundOfCall
     {spec : CompilationModel}
     {fn : FunctionSpec}
