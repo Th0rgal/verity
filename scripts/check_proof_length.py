@@ -110,6 +110,7 @@ ALLOWLIST: set[str] = {
     # isolates the `CompilationModel.compile` field-normalization boundary so later
     # compile-facing theorems can reuse the existing function correctness theorem
     # without re-proving slot-alias normalization at each call site.
+    "compileFunctionSpec_correct_of_body_normalized_extraFuel",
     # Generic Layer 2 dispatch assembly theorem (Issue #1510 / PR #1554):
     # intentionally keeps selector lookup, arity shortfall, and revert packaging
     # in one compiler-facing theorem so later whole-contract correctness can
@@ -147,6 +148,11 @@ ALLOWLIST: set[str] = {
     "exec_compileStmtList_terminal_core_sizeOf_extraFuel",
     "initialIRStateForTx_matches_runtime",
     "exec_compiledFunctionIR_of_body_extraFuel",
+    # Tier-2 function-level mapping-write bridge: currently long because it
+    # packages param prebinding, helper-surface collapse, alternate body
+    # interface wiring, and final function-adequacy assembly into one reusable
+    # theorem for the first non-vacuous singleton mapping-write path.
+    "supported_function_correct_with_body_interface_except_mapping_writes",
     "supported_function_body_correct_from_exact_state_core",
     "supported_function_body_correct_from_exact_state_core_extraFuel",
     "supported_function_body_correct_from_exact_state_terminal_core_extraFuel",
