@@ -1308,6 +1308,26 @@ inductive YulStmtListCallsDisjointFromInternalTable
       YulStmtListCallsDisjointFromInternalTable contract body →
       YulStmtListCallsDisjointFromInternalTable contract rest →
       YulStmtListCallsDisjointFromInternalTable contract (.funcDef name params rets body :: rest)
+  | switch_ (expr : YulExpr)
+      (cases : List (Nat × List YulStmt))
+      (defaultCase : Option (List YulStmt))
+      (rest : List YulStmt) :
+      yulExprCallsDisjointFromInternalTable contract expr →
+      (∀ c ∈ cases, YulStmtListCallsDisjointFromInternalTable contract c.2) →
+      (∀ body, defaultCase = some body →
+        YulStmtListCallsDisjointFromInternalTable contract body) →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract
+        (.switch expr cases defaultCase :: rest)
+  | for_ (init : List YulStmt) (cond : YulExpr)
+      (post body rest : List YulStmt) :
+      YulStmtListCallsDisjointFromInternalTable contract init →
+      yulExprCallsDisjointFromInternalTable contract cond →
+      YulStmtListCallsDisjointFromInternalTable contract post →
+      YulStmtListCallsDisjointFromInternalTable contract body →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract
+        (.for_ init cond post body :: rest)
 
 /-- Single-statement wrapper: the singleton list is disjoint. -/
 abbrev YulStmtCallsDisjointFromInternalTable
@@ -1702,6 +1722,135 @@ theorem execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint
               simp [execIRStmtWithInternals, execIRStmt]
             rw [execIRStmtsWithInternals, execIRStmts, hhead]
             cases hstep : execIRStmt fuel state (.funcDef name params rets body) <;>
+              simp [ihRest]
+    | switch_ expr cases defaultCase rest hexpr_d hcases_d hdefault_d hrest
+        ihCases ihDefault ihRest =>
+        cases fuel with
+        | zero =>
+            simp [execIRStmtsWithInternals, execIRStmts]
+        | succ fuel =>
+            have hhead :
+                execIRStmtWithInternals contract fuel state (.switch expr cases defaultCase) =
+                  match execIRStmt fuel state (.switch expr cases defaultCase) with
+                  | .continue next => .continue next
+                  | .return value next => .return value next
+                  | .stop next => .stop next
+                  | .revert next => .revert next := by
+              cases fuel with
+              | zero =>
+                  simp [execIRStmtWithInternals, execIRStmt]
+              | succ fuel =>
+                  simp only [execIRStmtWithInternals, execIRStmt]
+                  rw [evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint contract fuel state
+                    expr hexpr_d]
+                  cases hval : evalIRExpr state expr with
+                  | none =>
+                      simp
+                  | some switchValue =>
+                      cases hfind : cases.find? (·.1 == switchValue) with
+                      | some match_ =>
+                          obtain ⟨matchVal, matchBody⟩ := match_
+                          simp only [hfind]
+                          have hmem : (matchVal, matchBody) ∈ cases :=
+                            List.mem_of_find?_eq_some hfind
+                          exact ihCases (matchVal, matchBody) hmem fuel state
+                      | none =>
+                          simp only [hfind]
+                          cases hdef : defaultCase with
+                          | none =>
+                              simp
+                          | some defBody =>
+                              exact ihDefault defBody hdef fuel state
+            rw [execIRStmtsWithInternals, execIRStmts, hhead]
+            cases hstep : execIRStmt fuel state (.switch expr cases defaultCase) <;>
+              simp [ihRest]
+    | for_ init cond post body rest hinit_d hcond_d hpost_d hbody_d hrest
+        ihInit ihPost ihBody ihRest =>
+        cases fuel with
+        | zero =>
+            simp [execIRStmtsWithInternals, execIRStmts]
+        | succ fuel =>
+            -- The for_ single-statement equivalence needs inner induction on fuel
+            -- because the loop recurses: execIRStmtWithInternals ... (.for_ [] cond post body).
+            -- Under disjointness, init/body/post all satisfy the stmt-list conservative
+            -- extension, and the recursive call uses [] for init (trivially disjoint).
+            have hhead :
+                execIRStmtWithInternals contract fuel state (.for_ init cond post body) =
+                  match execIRStmt fuel state (.for_ init cond post body) with
+                  | .continue next => .continue next
+                  | .return value next => .return value next
+                  | .stop next => .stop next
+                  | .revert next => .revert next := by
+              -- We prove this by strong induction on fuel, using the stmt-list IHs.
+              -- First, prove the general for_ equivalence for arbitrary init under
+              -- the assumption that init/cond/post/body are all disjoint.
+              suffices hgen : ∀ (f : Nat) (s : IRState) (initStmts : List YulStmt),
+                  (∀ f' s', execIRStmtsWithInternals contract f' s' initStmts =
+                    match execIRStmts f' s' initStmts with
+                    | .continue n => .continue n | .return v n => .return v n
+                    | .stop n => .stop n | .revert n => .revert n) →
+                  execIRStmtWithInternals contract f s (.for_ initStmts cond post body) =
+                    match execIRStmt f s (.for_ initStmts cond post body) with
+                    | .continue next => .continue next
+                    | .return value next => .return value next
+                    | .stop next => .stop next
+                    | .revert next => .revert next by
+                exact hgen fuel state init (ihInit · ·)
+              intro f
+              induction f with
+              | zero =>
+                  intro s initStmts _
+                  simp [execIRStmtWithInternals, execIRStmt]
+              | succ f ihFuel =>
+                  intro s initStmts hInitEq
+                  simp only [execIRStmtWithInternals, execIRStmt]
+                  -- Rewrite init execution
+                  rw [hInitEq]
+                  cases hInitStep : execIRStmts f s initStmts with
+                  | «continue» s' =>
+                      simp only []
+                      -- Rewrite cond evaluation
+                      rw [evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
+                        contract f s' cond hcond_d]
+                      cases hCondVal : evalIRExpr s' cond with
+                      | none =>
+                          simp
+                      | some condValue =>
+                          by_cases hnonzero : condValue ≠ 0
+                          · simp only [if_pos hnonzero]
+                            -- Rewrite body execution
+                            rw [ihBody f s']
+                            cases hBodyStep : execIRStmts f s' body with
+                            | «continue» s'' =>
+                                simp only []
+                                -- Rewrite post execution
+                                rw [ihPost f s'']
+                                cases hPostStep : execIRStmts f s'' post with
+                                | «continue» s''' =>
+                                    simp only []
+                                    -- Recursive call with [] init
+                                    have hNilEq : ∀ f' s',
+                                        execIRStmtsWithInternals contract f' s' [] =
+                                          match execIRStmts f' s' [] with
+                                          | .continue n => .continue n
+                                          | .return v n => .return v n
+                                          | .stop n => .stop n
+                                          | .revert n => .revert n := by
+                                      intro f' s'
+                                      simp [execIRStmtsWithInternals, execIRStmts]
+                                    exact ihFuel s''' [] hNilEq
+                                | «return» v s''' => simp
+                                | stop s''' => simp
+                                | revert s''' => simp
+                            | «return» v s'' => simp
+                            | stop s'' => simp
+                            | revert s'' => simp
+                          · simp only [if_neg hnonzero]
+                  | «return» v s' => simp
+                  | stop s' => simp
+                  | revert s' => simp
+            rw [execIRStmtsWithInternals, execIRStmts, hhead]
+            cases hstep : execIRStmt fuel state (.for_ init cond post body) <;>
               simp [ihRest]
 
 /-- Backward-compatible bridge: `YulStmtListCallsDisjointFromInternalTable` holds
