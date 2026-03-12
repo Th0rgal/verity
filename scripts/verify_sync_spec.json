@@ -51,8 +51,10 @@
     "changes",
     "checks",
     "build",
+    "build-audits",
     "macro-fuzz",
     "build-compiler",
+    "compiler-audits",
     "compiler-regressions",
     "lean-profile",
     "foundry-gas-calibration",
@@ -68,17 +70,31 @@
       "changes",
       "checks"
     ],
+    "build-audits": [
+      "changes",
+      "checks",
+      "build"
+    ],
     "macro-fuzz": [
       "changes",
-      "checks"
+      "checks",
+      "build"
     ],
     "build-compiler": [
       "changes",
-      "checks"
+      "checks",
+      "build"
+    ],
+    "compiler-audits": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler"
     ],
     "compiler-regressions": [
       "changes",
       "checks",
+      "build",
       "build-compiler"
     ],
     "lean-profile": [
@@ -103,8 +119,10 @@
     "failure-hints": [
       "checks",
       "build",
+      "build-audits",
       "macro-fuzz",
       "build-compiler",
+      "compiler-audits",
       "compiler-regressions",
       "foundry-gas-calibration",
       "foundry",
@@ -116,9 +134,11 @@
     "changes": null,
     "checks": null,
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
-    "macro-fuzz": "needs.checks.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
-    "build-compiler": "needs.checks.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    "compiler-regressions": "needs.checks.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
+    "macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
+    "build-compiler": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-regressions": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "lean-profile": "github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'",
     "foundry-gas-calibration": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
     "foundry": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
@@ -130,8 +150,10 @@
     "changes": "blacksmith-2vcpu-ubuntu-2404",
     "checks": "blacksmith-2vcpu-ubuntu-2404",
     "build": "blacksmith-8vcpu-ubuntu-2404",
+    "build-audits": "blacksmith-4vcpu-ubuntu-2404",
     "macro-fuzz": "blacksmith-8vcpu-ubuntu-2404",
     "build-compiler": "blacksmith-16vcpu-ubuntu-2404",
+    "compiler-audits": "blacksmith-8vcpu-ubuntu-2404",
     "compiler-regressions": "blacksmith-16vcpu-ubuntu-2404",
     "lean-profile": "blacksmith-8vcpu-ubuntu-2404",
     "foundry-gas-calibration": "blacksmith-4vcpu-ubuntu-2404",
@@ -143,9 +165,11 @@
   "expected_job_timeouts": {
     "changes": 5,
     "checks": 5,
-    "build": 45,
+    "build": 25,
+    "build-audits": 20,
     "macro-fuzz": 20,
-    "build-compiler": 90,
+    "build-compiler": 60,
+    "compiler-audits": 45,
     "compiler-regressions": 60,
     "lean-profile": 45,
     "foundry-gas-calibration": 15,
@@ -226,6 +250,29 @@
         }
       }
     ],
+    "build-audits": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake"
+        }
+      },
+      {
+        "name": "Upload axiom dependency report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "axiom-dependency-report",
+          "path": "axiom-report.md\naxiom-report-raw.log"
+        }
+      }
+    ],
     "macro-fuzz": [
       {
         "uses": "actions/checkout@v4",
@@ -260,16 +307,39 @@
         }
       },
       {
-        "name": "Setup solc",
-        "uses": "./.github/actions/setup-solc"
-      },
-      {
         "name": "Save Lake compiler cache",
         "uses": "actions/cache/save@v4",
         "if": "success() && steps.setup-lean.outputs.cache-hit != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
+        }
+      }
+    ],
+    "compiler-audits": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler"
+        }
+      },
+      {
+        "name": "Setup solc",
+        "uses": "./.github/actions/setup-solc"
+      },
+      {
+        "name": "Upload parity-pack identity report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "parity-pack-identity-report",
+          "path": "compiler/parity-pack-identity-report.json"
         }
       }
     ],
@@ -412,18 +482,29 @@
   ],
   "expected_checks_other_commands": [],
   "expected_build_commands": [
+    "check_lean_warning_regression.py --log lake-build.log"
+  ],
+  "required_build_run_commands": [],
+  "expected_build_audit_commands": [
     "check_split_package_builds.py",
-    "check_lean_warning_regression.py --log lake-build.log",
     "check_macro_roundtrip_fuzz_coverage.py",
     "check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY",
     "report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY",
     "check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY"
   ],
-  "required_build_run_commands": [
+  "required_build_audit_run_commands": [
     "lake build PrintAxioms",
     "lake env lean PrintAxioms.lean"
   ],
-  "expected_build_compiler_commands": [
+  "expected_build_compiler_commands": [],
+  "required_build_compiler_run_commands": [
+    "verity-compiler-patched",
+    "--output compiler/yul",
+    "--output compiler/yul-patched",
+    "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
+    "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv"
+  ],
+  "expected_compiler_audit_commands": [
     "generate_yul_identity_diff_report.py --verity-dir compiler/yul-parity-pack --solc-dir compiler/yul-parity-reference --output compiler/parity-pack-identity-report.json",
     "check_parity_pack_metrics.py --report compiler/parity-pack-identity-report.json --max-only-in-verity 0 --max-only-in-solidity 0 --max-hash-mismatch 0 --format markdown >> \"$GITHUB_STEP_SUMMARY\"",
     "check_gas.py coverage --dir compiler/yul --dir compiler/yul-patched",
@@ -433,14 +514,9 @@
     "check_gas.py report",
     "check_patch_gas_delta.py --baseline-report gas-report-static.tsv --patched-report gas-report-static-patched.tsv --min-improved-contracts 0 --summary-markdown patch-gas-delta-summary.md >> \"$GITHUB_STEP_SUMMARY\""
   ],
-  "required_build_compiler_run_commands": [
-    "verity-compiler-patched",
-    "--output compiler/yul",
-    "--output compiler/yul-patched",
+  "required_compiler_audit_run_commands": [
     "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
-    "--backend-profile solidity-parity",
-    "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
-    "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv"
+    "--backend-profile solidity-parity"
   ],
   "expected_foundry": {
     "shards": 8,
@@ -469,7 +545,7 @@
     "command": "python3 scripts/check_gas.py calibration --static-report gas-report-static.tsv"
   },
   "expected_uploaded_artifacts": {
-    "build": [
+    "build-audits": [
       "axiom-dependency-report"
     ],
     "build-compiler": [
@@ -479,7 +555,9 @@
       "verity-compiler-binaries",
       "static-gas-report",
       "static-gas-report-patched",
-      "patch-coverage-report",
+      "patch-coverage-report"
+    ],
+    "compiler-audits": [
       "parity-pack-identity-report"
     ],
     "lean-profile": [
@@ -487,7 +565,7 @@
     ]
   },
   "expected_uploaded_artifact_paths": {
-    "build": [
+    "build-audits": [
       "axiom-report.md\naxiom-report-raw.log"
     ],
     "build-compiler": [
@@ -497,7 +575,9 @@
       "compiler/bin",
       "gas-report-static.tsv",
       "gas-report-static-patched.tsv",
-      "compiler/patch-report.tsv",
+      "compiler/patch-report.tsv"
+    ],
+    "compiler-audits": [
       "compiler/parity-pack-identity-report.json"
     ],
     "lean-profile": [
@@ -505,11 +585,25 @@
     ]
   },
   "expected_downloaded_artifacts": {
+    "compiler-audits": [
+      "generated-yul",
+      "generated-yul-patched",
+      "static-gas-report",
+      "static-gas-report-patched",
+      "patch-coverage-report"
+    ],
     "foundry-gas-calibration": [
       "static-gas-report"
     ]
   },
   "expected_downloaded_artifact_paths": {
+    "compiler-audits": [
+      "compiler/yul",
+      "compiler/yul-patched",
+      null,
+      null,
+      "compiler"
+    ],
     "foundry-gas-calibration": [
       null
     ]

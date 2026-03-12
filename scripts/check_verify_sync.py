@@ -1087,6 +1087,18 @@ def _missing_required_run_commands(run_commands: list[str], required_commands: l
 
 def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors: list[str] = []
+    def safe_python_commands(job_name: str) -> list[str]:
+        try:
+            return snapshot.python_commands(job_name, include_args=True)
+        except ValueError:
+            return []
+
+    def safe_run_commands(job_name: str) -> list[str]:
+        try:
+            return snapshot.run_commands(job_name)
+        except ValueError:
+            return []
+
     expected_checks = spec["expected_checks_commands"]
     checks_run_cmds = snapshot.run_commands("checks")
     if expected_checks == ["make check"]:
@@ -1115,21 +1127,37 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors.extend(
         _compare_lists(
             "build python scripts",
-            snapshot.python_commands("build", include_args=True),
+            safe_python_commands("build"),
             "spec build scripts",
             spec["expected_build_commands"],
         )
     )
     errors.extend(
         _compare_lists(
+            "build-audits python scripts",
+            safe_python_commands("build-audits"),
+            "spec build-audits scripts",
+            spec.get("expected_build_audit_commands", []),
+        )
+    )
+    errors.extend(
+        _compare_lists(
             "build-compiler python scripts",
-            snapshot.python_commands("build-compiler", include_args=True),
+            safe_python_commands("build-compiler"),
             "spec build-compiler scripts",
             spec["expected_build_compiler_commands"],
         )
     )
+    errors.extend(
+        _compare_lists(
+            "compiler-audits python scripts",
+            safe_python_commands("compiler-audits"),
+            "spec compiler-audits scripts",
+            spec.get("expected_compiler_audit_commands", []),
+        )
+    )
     missing_build_run = _missing_required_run_commands(
-        snapshot.run_commands("build"),
+        safe_run_commands("build"),
         spec.get("required_build_run_commands", []),
     )
     if missing_build_run:
@@ -1137,14 +1165,34 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
             "build job is missing required run commands: " + ", ".join(missing_build_run)
         )
 
+    missing_build_audit_run = _missing_required_run_commands(
+        safe_run_commands("build-audits"),
+        spec.get("required_build_audit_run_commands", []),
+    )
+    if missing_build_audit_run:
+        errors.append(
+            "build-audits job is missing required run commands: "
+            + ", ".join(missing_build_audit_run)
+        )
+
     missing_build_compiler_run = _missing_required_run_commands(
-        snapshot.run_commands("build-compiler"),
+        safe_run_commands("build-compiler"),
         spec.get("required_build_compiler_run_commands", []),
     )
     if missing_build_compiler_run:
         errors.append(
             "build-compiler job is missing required run commands: "
             + ", ".join(missing_build_compiler_run)
+        )
+
+    missing_compiler_audit_run = _missing_required_run_commands(
+        safe_run_commands("compiler-audits"),
+        spec.get("required_compiler_audit_run_commands", []),
+    )
+    if missing_compiler_audit_run:
+        errors.append(
+            "compiler-audits job is missing required run commands: "
+            + ", ".join(missing_compiler_audit_run)
         )
     return CheckResult("python-commands", errors)
 

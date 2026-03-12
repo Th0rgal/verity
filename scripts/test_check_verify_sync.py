@@ -327,9 +327,13 @@ class VerifySyncTests(unittest.TestCase):
         *,
         expected_checks_commands: list[str],
         expected_build_commands: list[str],
+        expected_build_audit_commands: list[str] | None = None,
         expected_build_compiler_commands: list[str],
+        expected_compiler_audit_commands: list[str] | None = None,
         required_build_run_commands: list[str] | None = None,
+        required_build_audit_run_commands: list[str] | None = None,
         required_build_compiler_run_commands: list[str] | None = None,
+        required_compiler_audit_run_commands: list[str] | None = None,
     ) -> tuple[int, str, str]:
         with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as td:
             root = Path(td)
@@ -342,9 +346,13 @@ class VerifySyncTests(unittest.TestCase):
                         "expected_checks_commands": expected_checks_commands,
                         "expected_checks_other_commands": [],
                         "expected_build_commands": expected_build_commands,
+                        "expected_build_audit_commands": expected_build_audit_commands or [],
                         "expected_build_compiler_commands": expected_build_compiler_commands,
+                        "expected_compiler_audit_commands": expected_compiler_audit_commands or [],
                         "required_build_run_commands": required_build_run_commands or [],
+                        "required_build_audit_run_commands": required_build_audit_run_commands or [],
                         "required_build_compiler_run_commands": required_build_compiler_run_commands or [],
+                        "required_compiler_audit_run_commands": required_compiler_audit_run_commands or [],
                     }
                 ),
                 encoding="utf-8",
@@ -1435,9 +1443,11 @@ class VerifySyncTests(unittest.TestCase):
           build:
             runs-on: ubuntu-latest
             steps:
-              - run: python3 scripts/check_split_package_builds.py
               - run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
-              - run: lake exe compiler-main-test
+          build-audits:
+            runs-on: ubuntu-latest
+            steps:
+              - run: python3 scripts/check_split_package_builds.py
           build-compiler:
             runs-on: ubuntu-latest
             steps:
@@ -1446,21 +1456,17 @@ class VerifySyncTests(unittest.TestCase):
         rc, _, err = self._run_python_commands_check(
             workflow,
             expected_checks_commands=["make check"],
-            expected_build_commands=[
-                "check_split_package_builds.py",
-                "check_lean_warning_regression.py --log lake-build.log",
-            ],
+            expected_build_commands=["check_lean_warning_regression.py --log lake-build.log"],
+            expected_build_audit_commands=["check_split_package_builds.py"],
             expected_build_compiler_commands=["check_gas.py report"],
-            required_build_run_commands=[
-                "lake exe macro-roundtrip-fuzz",
+            required_build_audit_run_commands=[
                 "lake build PrintAxioms",
                 "lake env lean PrintAxioms.lean",
             ],
         )
         self.assertEqual(rc, 1)
         self.assertIn(
-            "build job is missing required run commands: "
-            "lake exe macro-roundtrip-fuzz, "
+            "build-audits job is missing required run commands: "
             "lake build PrintAxioms, "
             "lake env lean PrintAxioms.lean",
             err,
@@ -1477,12 +1483,12 @@ class VerifySyncTests(unittest.TestCase):
           build:
             runs-on: ubuntu-latest
             steps:
-              - run: python3 scripts/check_split_package_builds.py
               - run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
+          build-audits:
+            runs-on: ubuntu-latest
+            steps:
+              - run: python3 scripts/check_split_package_builds.py
               - run: |
-                  lake exe compiler-main-test
-                  lake build Compiler.CompilationModelFeatureTest
-                  lake exe macro-roundtrip-fuzz
                   lake build PrintAxioms
                   lake env lean PrintAxioms.lean 2>&1 | tee axiom-report-raw.log
               - run: python3 scripts/check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY
@@ -1494,14 +1500,13 @@ class VerifySyncTests(unittest.TestCase):
         rc, out, err = self._run_python_commands_check(
             workflow,
             expected_checks_commands=["make check"],
-            expected_build_commands=[
+            expected_build_commands=["check_lean_warning_regression.py --log lake-build.log"],
+            expected_build_audit_commands=[
                 "check_split_package_builds.py",
-                "check_lean_warning_regression.py --log lake-build.log",
                 "check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY",
             ],
             expected_build_compiler_commands=["check_gas.py report"],
-            required_build_run_commands=[
-                "lake exe macro-roundtrip-fuzz",
+            required_build_audit_run_commands=[
                 "lake build PrintAxioms",
                 "lake env lean PrintAxioms.lean",
             ],
@@ -1520,44 +1525,47 @@ class VerifySyncTests(unittest.TestCase):
           build:
             runs-on: ubuntu-latest
             steps:
-              - run: python3 scripts/check_split_package_builds.py
+              - run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
           build-compiler:
             runs-on: ubuntu-latest
             steps:
               - run: lake build difftest-interpreter
-              - run: |
-                  ./.lake/build/bin/verity-compiler \
-                    --manifest packages/verity-examples/contracts.manifest \
-                    --output compiler/yul
+              - run: ./.lake/build/bin/verity-compiler --manifest packages/verity-examples/contracts.manifest --output compiler/yul
+          compiler-audits:
+            runs-on: ubuntu-latest
+            steps:
               - run: python3 scripts/check_gas.py report
         """
         rc, _, err = self._run_python_commands_check(
             workflow,
             expected_checks_commands=["make check"],
-            expected_build_commands=["check_split_package_builds.py"],
-            expected_build_compiler_commands=["check_gas.py report"],
+            expected_build_commands=["check_lean_warning_regression.py --log lake-build.log"],
+            expected_build_compiler_commands=[],
+            expected_compiler_audit_commands=["check_gas.py report"],
             required_build_compiler_run_commands=[
-                "lake exe compiler-main-test",
-                "lake build Compiler.CompilationModelFeatureTest",
                 "lake build difftest-interpreter",
                 "--output compiler/yul",
                 "--output compiler/yul-patched",
-                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
-                "--backend-profile solidity-parity",
                 "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
                 "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            ],
+            required_compiler_audit_run_commands=[
+                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
+                "--backend-profile solidity-parity",
             ],
         )
         self.assertEqual(rc, 1)
         self.assertIn(
             "build-compiler job is missing required run commands: "
-            "lake exe compiler-main-test, "
-            "lake build Compiler.CompilationModelFeatureTest, "
             "--output compiler/yul-patched, "
-            "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai, "
-            "--backend-profile solidity-parity, "
             "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv, "
             "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            err,
+        )
+        self.assertIn(
+            "compiler-audits job is missing required run commands: "
+            "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai, "
+            "--backend-profile solidity-parity",
             err,
         )
 
@@ -1572,42 +1580,40 @@ class VerifySyncTests(unittest.TestCase):
           build:
             runs-on: ubuntu-latest
             steps:
-              - run: python3 scripts/check_split_package_builds.py
+              - run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
           build-compiler:
             runs-on: ubuntu-latest
             steps:
-              - run: lake exe compiler-main-test
-              - run: lake build Compiler.CompilationModelFeatureTest
               - run: lake build difftest-interpreter
               - run: |
                   ./.lake/build/bin/verity-compiler \
                     --manifest packages/verity-examples/contracts.manifest \
                     --enable-patches \
                     --output compiler/yul-patched
-              - run: |
-                  ./.lake/build/bin/verity-compiler \
-                    --manifest packages/verity-examples/contracts.manifest \
-                    --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai \
-                    --backend-profile solidity-parity
               - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
               - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+          compiler-audits:
+            runs-on: ubuntu-latest
+            steps:
+              - run: ./.lake/build/bin/verity-compiler-patched --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai --backend-profile solidity-parity
               - run: python3 scripts/check_gas.py report
         """
         rc, _, err = self._run_python_commands_check(
             workflow,
             expected_checks_commands=["make check"],
-            expected_build_commands=["check_split_package_builds.py"],
-            expected_build_compiler_commands=["check_gas.py report"],
+            expected_build_commands=["check_lean_warning_regression.py --log lake-build.log"],
+            expected_build_compiler_commands=[],
+            expected_compiler_audit_commands=["check_gas.py report"],
             required_build_compiler_run_commands=[
-                "lake exe compiler-main-test",
-                "lake build Compiler.CompilationModelFeatureTest",
                 "lake build difftest-interpreter",
                 "--output compiler/yul",
                 "--output compiler/yul-patched",
-                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
-                "--backend-profile solidity-parity",
                 "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
                 "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            ],
+            required_compiler_audit_run_commands=[
+                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
+                "--backend-profile solidity-parity",
             ],
         )
         self.assertEqual(rc, 1)
@@ -1627,36 +1633,38 @@ class VerifySyncTests(unittest.TestCase):
           build:
             runs-on: ubuntu-latest
             steps:
-              - run: python3 scripts/check_split_package_builds.py
+              - run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
           build-compiler:
             runs-on: ubuntu-latest
             steps:
-              - run: lake exe compiler-main-test
-              - run: lake build Compiler.CompilationModelFeatureTest
               - run: lake build difftest-interpreter
               - run: ./.lake/build/bin/verity-compiler --manifest packages/verity-examples/contracts.manifest --output compiler/yul
               - run: ./.lake/build/bin/verity-compiler --manifest packages/verity-examples/contracts.manifest --enable-patches --output compiler/yul-patched
+              - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+              - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+          compiler-audits:
+            runs-on: ubuntu-latest
+            steps:
               - run: ./.lake/build/bin/verity-compiler --manifest packages/verity-examples/contracts.manifest --parity-pack solc-0.8.33-o200-viair-false-evm-shanghai --output compiler/yul-parity-pack
               - run: ./.lake/build/bin/verity-compiler --manifest packages/verity-examples/contracts.manifest --backend-profile solidity-parity --output compiler/yul-parity-reference
               - run: python3 scripts/check_gas.py report
-              - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
-              - run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
         """
         rc, out, err = self._run_python_commands_check(
             workflow,
             expected_checks_commands=["make check"],
-            expected_build_commands=["check_split_package_builds.py"],
-            expected_build_compiler_commands=["check_gas.py report"],
+            expected_build_commands=["check_lean_warning_regression.py --log lake-build.log"],
+            expected_build_compiler_commands=[],
+            expected_compiler_audit_commands=["check_gas.py report"],
             required_build_compiler_run_commands=[
-                "lake exe compiler-main-test",
-                "lake build Compiler.CompilationModelFeatureTest",
                 "lake build difftest-interpreter",
                 "--output compiler/yul",
                 "--output compiler/yul-patched",
-                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
-                "--backend-profile solidity-parity",
                 "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
                 "lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv",
+            ],
+            required_compiler_audit_run_commands=[
+                "--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai",
+                "--backend-profile solidity-parity",
             ],
         )
         self.assertEqual(rc, 0, err)
@@ -1866,7 +1874,7 @@ class VerifySyncTests(unittest.TestCase):
         workflow = """
         name: verify
         jobs:
-          build:
+          build-audits:
             runs-on: ubuntu-latest
             steps:
               - uses: actions/upload-artifact@v4
@@ -1888,7 +1896,7 @@ class VerifySyncTests(unittest.TestCase):
         rc, _, err = self._run_artifacts_check(
             workflow,
             expected_uploaded_artifacts={
-                "build": ["axiom-dependency-report"],
+                "build-audits": ["axiom-dependency-report"],
                 "build-compiler": ["generated-yul", "static-gas-report"],
             },
             expected_downloaded_artifacts={
@@ -1924,7 +1932,7 @@ class VerifySyncTests(unittest.TestCase):
         workflow = """
         name: verify
         jobs:
-          build:
+          build-audits:
             runs-on: ubuntu-latest
             steps:
               - uses: actions/upload-artifact@v4
@@ -1937,20 +1945,20 @@ class VerifySyncTests(unittest.TestCase):
         rc, _, err = self._run_artifacts_check(
             workflow,
             expected_uploaded_artifacts={
-                "build": ["axiom-dependency-report"],
+                "build-audits": ["axiom-dependency-report"],
             },
             expected_downloaded_artifacts={},
             expected_uploaded_artifact_paths={
-                "build": ["axiom-report.md\naxiom-report-raw.log"],
+                "build-audits": ["axiom-report.md\naxiom-report-raw.log"],
             },
         )
         self.assertEqual(rc, 1)
         self.assertIn(
-            "build upload artifact paths does not match spec build upload artifact paths.",
+            "build-audits upload artifact paths does not match spec build-audits upload artifact paths.",
             err,
         )
         self.assertIn(
-            "idx 0: build upload artifact paths=\"'axiom-report.md\\\\nunexpected.log'\", spec build upload artifact paths=\"'axiom-report.md\\\\naxiom-report-raw.log'\"",
+            "idx 0: build-audits upload artifact paths=\"'axiom-report.md\\\\nunexpected.log'\", spec build-audits upload artifact paths=\"'axiom-report.md\\\\naxiom-report-raw.log'\"",
             err,
         )
 
@@ -2040,7 +2048,7 @@ class VerifySyncTests(unittest.TestCase):
         workflow = """
         name: verify
         jobs:
-          build:
+          build-audits:
             runs-on: ubuntu-latest
             steps:
               - uses: actions/upload-artifact@v4
@@ -2081,7 +2089,7 @@ class VerifySyncTests(unittest.TestCase):
         rc, out, err = self._run_artifacts_check(
             workflow,
             expected_uploaded_artifacts={
-                "build": ["axiom-dependency-report"],
+                "build-audits": ["axiom-dependency-report"],
                 "build-compiler": ["generated-yul", "static-gas-report"],
                 "lean-profile": ["lean-perf-queue"],
             },
@@ -2089,7 +2097,7 @@ class VerifySyncTests(unittest.TestCase):
                 "foundry-gas-calibration": ["static-gas-report", "generated-yul"],
             },
             expected_uploaded_artifact_paths={
-                "build": ["axiom-report.md\naxiom-report-raw.log"],
+                "build-audits": ["axiom-report.md\naxiom-report-raw.log"],
                 "build-compiler": ["compiler/yul", "gas-report-static.tsv"],
                 "lean-profile": ["lean-perf-queue.md"],
             },

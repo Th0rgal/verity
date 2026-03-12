@@ -166,7 +166,7 @@ jobs:
 
   build:
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 45
+    timeout-minutes: 25
     needs: [changes, checks]
     if: needs.checks.result == 'success' && needs.changes.outputs.build == 'true'
     env:
@@ -187,11 +187,35 @@ jobs:
           set -o pipefail
           lake build 2>&1 | tee lake-build.log
 
-      - name: Build split Lake packages independently
-        run: python3 scripts/check_split_package_builds.py
-
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
+
+      - name: Save Lake packages cache
+        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+
+  build-audits:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    needs: [changes, checks, build]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'
+    env:
+      LEAN_NUM_THREADS: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake
+
+      - name: Build split Lake packages independently
+        run: python3 scripts/check_split_package_builds.py
 
       - name: Check macro round-trip fuzz coverage
         run: python3 scripts/check_macro_roundtrip_fuzz_coverage.py
@@ -245,13 +269,6 @@ jobs:
       - name: Generate storage layout report
         run: python3 scripts/check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY
 
-      - name: Save Lake packages cache
-        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .lake
-          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-
       - name: Upload axiom dependency report
         uses: actions/upload-artifact@v4
         with:
@@ -263,8 +280,8 @@ jobs:
   macro-fuzz:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 20
-    needs: [changes, checks]
-    if: needs.checks.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    needs: [changes, checks, build]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     env:
       LEAN_NUM_THREADS: 8
     steps:
@@ -283,9 +300,9 @@ jobs:
 
   build-compiler:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: 90
-    needs: [changes, checks]
-    if: needs.checks.result == 'success' && needs.changes.outputs.compiler == 'true'
+    timeout-minutes: 60
+    needs: [changes, checks, build]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
       LEAN_NUM_THREADS: 12
     steps:
@@ -325,6 +342,116 @@ jobs:
             --output compiler/yul-patched \
             --link examples/external-libs/PoseidonT3.yul \
             --link examples/external-libs/PoseidonT4.yul
+
+      - name: Save static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+
+      - name: Save patched static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+
+      - name: Package compiler binaries
+        run: |
+          mkdir -p compiler/bin
+          cp ./.lake/build/bin/verity-compiler compiler/bin/
+          cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
+          cp ./.lake/build/bin/difftest-interpreter compiler/bin/
+
+      - name: Save Lake compiler cache
+        if: success() && steps.setup-lean.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .lake
+          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+
+      - name: Upload generated Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul
+          path: compiler/yul
+
+      - name: Upload patched Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul-patched
+          path: compiler/yul-patched
+
+      - name: Upload difftest interpreter
+        uses: actions/upload-artifact@v4
+        with:
+          name: difftest-interpreter
+          path: .lake/build/bin/difftest-interpreter
+
+      - name: Upload compiler binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
+
+      - name: Upload static gas report
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-gas-report
+          path: gas-report-static.tsv
+
+      - name: Upload patched static gas report
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-gas-report-patched
+          path: gas-report-static-patched.tsv
+
+      - name: Upload patch coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-coverage-report
+          path: compiler/patch-report.tsv
+
+  compiler-audits:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
+    env:
+      LEAN_NUM_THREADS: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+
+      - name: Download generated Yul
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-yul
+          path: compiler/yul
+
+      - name: Download patched Yul
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-yul-patched
+          path: compiler/yul-patched
+
+      - name: Download static gas report
+        uses: actions/download-artifact@v4
+        with:
+          name: static-gas-report
+
+      - name: Download patched static gas report
+        uses: actions/download-artifact@v4
+        with:
+          name: static-gas-report-patched
+
+      - name: Download patch coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: patch-coverage-report
+          path: compiler
+
+      - name: Setup solc
+        uses: ./.github/actions/setup-solc
 
       - name: Generate parity-pack Yul (pinned solc tuple)
         if: github.event_name != 'pull_request'
@@ -379,9 +506,6 @@ jobs:
       - name: Check selector hashing against specs
         run: python3 scripts/check_selectors.py --check-fixtures
 
-      - name: Setup solc
-        uses: ./.github/actions/setup-solc
-
       - name: Check generated Yul invariants
         run: |
           python3 scripts/check_yul.py \
@@ -391,19 +515,6 @@ jobs:
 
       - name: Check static gas report invariants
         run: python3 scripts/check_gas.py report
-
-      - name: Save static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
-
-      - name: Save patched static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
-
-      - name: Package compiler binaries
-        run: |
-          mkdir -p compiler/bin
-          cp ./.lake/build/bin/verity-compiler compiler/bin/
-          cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
-          cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
       - name: Check static gas patch delta non-regression
         run: |
@@ -439,55 +550,6 @@ jobs:
               print(f"| `{patch}` | {total} | {contracts[patch]} |")
           PY
 
-      - name: Save Lake compiler cache
-        if: success() && steps.setup-lean.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .lake
-          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-
-      - name: Upload generated Yul
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
-      - name: Upload patched Yul
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-yul-patched
-          path: compiler/yul-patched
-
-      - name: Upload difftest interpreter
-        uses: actions/upload-artifact@v4
-        with:
-          name: difftest-interpreter
-          path: .lake/build/bin/difftest-interpreter
-
-      - name: Upload compiler binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: verity-compiler-binaries
-          path: compiler/bin
-
-      - name: Upload static gas report
-        uses: actions/upload-artifact@v4
-        with:
-          name: static-gas-report
-          path: gas-report-static.tsv
-
-      - name: Upload patched static gas report
-        uses: actions/upload-artifact@v4
-        with:
-          name: static-gas-report-patched
-          path: gas-report-static-patched.tsv
-
-      - name: Upload patch coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: patch-coverage-report
-          path: compiler/patch-report.tsv
-
       - name: Upload parity-pack identity report
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
@@ -498,8 +560,8 @@ jobs:
   compiler-regressions:
     runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 60
-    needs: [changes, checks, build-compiler]
-    if: needs.checks.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
+    needs: [changes, checks, build, build-compiler]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
       LEAN_NUM_THREADS: 12
     steps:
@@ -664,7 +726,7 @@ jobs:
 
   failure-hints:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [checks, build, macro-fuzz, build-compiler, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, build-audits, macro-fuzz, build-compiler, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read
