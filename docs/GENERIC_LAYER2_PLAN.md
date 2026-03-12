@@ -287,19 +287,21 @@ now sits under the post-generic widening/completeness plan in
   `SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal`, with
   goal wrappers `supported_function_body_correct_from_exact_state_generic_with_helpers_goal`
   and `supported_function_correct_with_helper_proofs_goal`; the exact future
+  current helper-aware legacy-compiled-body target is now exposed as
+  `SupportedFunctionBodyWithHelpersIRPreservationGoal`, while the exact future
   helper-rich body target is now exposed separately as
-  `SupportedFunctionBodyWithHelpersIRPreservationGoal`, feeding
+  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`, feeding
   `supported_function_correct_with_helper_proofs_body_goal`
 - the remaining helper blocker is now pinned down more precisely in
   [`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json):
   callers still derive generic body proofs through the helper-free `SupportedStmtList` witness,
   the generic body theorem now already targets the helper-aware source semantics family under the current fail-closed helper gate,
   but summary-soundness/rank evidence is still not consumed inside a direct
-  proof of `SupportedFunctionBodyWithHelpersIRPreservationGoal`; more
+  proof of `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; more
   precisely, that evidence is not yet consumed through the genuinely new
   helper-call cases in `CompiledStmtStepWithHelpers` /
   `StmtListGenericWithHelpers` and then into a proof of
-  `SupportedFunctionBodyWithHelpersIRPreservationGoal`; the older
+  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; the older
   conservative-extension goal remains only the abstract helper-free discharge
   path,
   `IRInterpreter.lean` now formalizes the intended legacy-compatible external-body Yul subset as
@@ -397,7 +399,7 @@ The first theorem does not need to cover everything. It may explicitly leave out
   on today’s theorem domain is therefore no longer the helper-free compiled-side
   witness, but consuming helper-summary soundness/rank evidence through
   helper-aware `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers`
-  proofs and then into `SupportedFunctionBodyWithHelpersIRPreservationGoal`
+  proofs and then into `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`
   while widening or
   replacing the helper-excluding `SupportedStmtList` fragment, which now
   discharges helper-freedom via `SupportedStmtList.helperSurfaceClosed`. The

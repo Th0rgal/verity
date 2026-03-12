@@ -2,6 +2,7 @@ import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ScopeValidation
 import Compiler.CompilationModel.ValidationCalls
 import Compiler.Proofs.IRGeneration.FunctionBody
+import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.SupportedSpec
 
 namespace Compiler.Proofs.IRGeneration
@@ -4123,11 +4124,10 @@ private theorem supported_function_body_correct_from_exact_state_generic_helper_
   · simpa [hfuel] using rfl
   · simpa [hfuel, sizeSlack] using hgenericSem
 
-/-- Exact helper-aware body/IR preservation target for the non-core generic
-body theorem. This is the future source-side seam for helper-rich bodies: prove
-the helper-aware source body semantics directly against the compiled IR body,
-rather than trying to collapse helper-aware source semantics back to the legacy
-helper-free source semantics. -/
+/-- Transitional helper-aware body/IR preservation target for the non-core
+generic body theorem. This already moves the source side onto helper-aware
+semantics, but the compiled side still runs through legacy `execIRStmts`, so it
+only matches the current helper-free compiled-body boundary. -/
 def SupportedFunctionBodyWithHelpersIRPreservationGoal
     (model : CompilationModel)
     (fn : FunctionSpec)
@@ -4149,6 +4149,95 @@ def SupportedFunctionBodyWithHelpersIRPreservationGoal
     execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
     FunctionBody.stmtResultMatchesIRExec
       (SourceSemantics.effectiveFields model) sourceResult irExec
+
+/-- Helper-aware compiled-side counterpart of
+`FunctionBody.stmtResultMatchesIRExec`. `leave` is not accepted at the external
+body boundary. -/
+def stmtResultMatchesIRExecWithInternals
+    (fields : List Field)
+    (sourceResult : SourceSemantics.StmtResult) :
+    IRExecResultWithInternals → Prop
+  | .continue state =>
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult (.continue state)
+  | .return value state =>
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult (.return value state)
+  | .stop state =>
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult (.stop state)
+  | .revert state =>
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult (.revert state)
+  | .leave _ => False
+
+/-- Exact future helper-aware body theorem target: helper-aware source semantics
+against helper-aware compiled-body semantics. This is the body-level theorem
+shape needed once helper-rich statements enter the proved domain, because raw
+`execIRStmts` rejects Yul constructs such as `letMany` that represent internal
+helper calls. -/
+def SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat) : Prop :=
+  ∃ sourceResult irExec,
+    SourceSemantics.execStmtListWithHelpers
+      model
+      (SourceSemantics.effectiveFields model)
+      helperFuel
+      { world := SourceSemantics.withTransactionContext initialWorld tx
+        bindings := bindings }
+      fn.body = sourceResult ∧
+    execIRStmtsWithInternals runtimeContract
+      (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
+    stmtResultMatchesIRExecWithInternals
+      (SourceSemantics.effectiveFields model) sourceResult irExec
+
+/-- The current helper-free compiled-body goal is a conservative special case of
+the exact helper-aware compiled-body target whenever the runtime contract has no
+internal helper table and the compiled body stays inside the already-closed
+legacy-compatible external Yul subset. -/
+theorem supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goal
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hbody :
+      SupportedFunctionBodyWithHelpersIRPreservationGoal
+        model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel)
+    (hlegacyBody : LegacyCompatibleExternalStmtList bodyStmts)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  refine ⟨sourceResult, match irExec with
+      | .continue next => .continue next
+      | .return value next => .return value next
+      | .stop next => .stop next
+      | .revert next => .revert next, hsource, ?_, ?_⟩
+  · have hcompat :=
+      execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility runtimeContract
+        (execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
+          runtimeContract
+          (interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed
+            runtimeContract))
+        hinternal
+        (bodyStmts.length + extraFuel + 1)
+        state
+        bodyStmts
+        hlegacyBody
+    simpa [hbodyExec] using hcompat
+  · cases irExec <;> simpa [stmtResultMatchesIRExecWithInternals] using hmatch
 
 /-- Exact helper-aware body theorem for a helper-aware generic statement
 induction witness. This is the induction-level target needed to replace the

@@ -274,6 +274,10 @@ def build_catalog() -> dict:
                         "Compiler.Proofs.IRGeneration.GenericInduction."
                         "SupportedFunctionBodyWithHelpersIRPreservationGoal"
                     ),
+                    "direct_body_goal_helper_ir": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal"
+                    ),
                     "body_goal_wrapper": (
                         "Compiler.Proofs.IRGeneration.GenericInduction."
                         "supported_function_body_correct_from_exact_state_"
@@ -288,10 +292,13 @@ def build_catalog() -> dict:
                         "supported_function_correct_with_helper_proofs_goal"
                     ),
                     "status": (
-                        "the exact future source-side helper seam is now the "
-                        "direct helper-aware body/IR goal "
+                        "the current helper-aware source-side seam is the "
+                        "legacy-compiled-body goal "
                         "SupportedFunctionBodyWithHelpersIRPreservationGoal, "
-                        "and GenericInduction.lean now exposes the helper-aware "
+                        "while the exact future helper-rich body target is now "
+                        "the helper-aware compiled-body goal "
+                        "SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal; "
+                        "GenericInduction.lean now exposes the helper-aware "
                         "statement-step/list induction interfaces "
                         "CompiledStmtStepWithHelpers / "
                         "StmtListGenericWithHelpers, the fail-closed lifting "

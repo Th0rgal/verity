@@ -207,8 +207,11 @@ longer a helper-free compiled-side witness on today’s theorem domain, but
  end-to-end consumption of helper-summary soundness/rank evidence through the
  genuinely new helper-call cases in helper-aware
  `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers` proofs and then
- through the now-explicit direct helper-aware body/IR target
- `SupportedFunctionBodyWithHelpersIRPreservationGoal`, which now feeds
+ through the now-explicit legacy-compiled-body helper target
+ `SupportedFunctionBodyWithHelpersIRPreservationGoal`, while the exact future
+ helper-rich body target is the helper-aware compiled-body goal
+ `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; the current
+ function wrapper still feeds through
 `supported_function_correct_with_helper_proofs_body_goal`, while widening or
 replacing the helper-excluding `SupportedStmtList` fragment whose current
 closure is now recorded as `SupportedStmtList.helperSurfaceClosed`. The older
