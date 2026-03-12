@@ -1120,6 +1120,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_sstore_mappingSlot_succ_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionExprInterfaces
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_of_exprIfBlockCompatibility
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility
 #print axioms Compiler.Proofs.IRGeneration.execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_of_stmtListCompatibility
@@ -1131,6 +1132,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.execIRFunctionWithInternals_eq_execIRFunction_of_stmtCompatibility
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtCompatibility
 #print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility
+#print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals
+#print axioms Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtSubgoals
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_sender
 #print axioms Compiler.Proofs.IRGeneration.applyIRTransactionContext_calldata
 
@@ -1348,4 +1351,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1214 theorems/lemmas (970 public, 244 private)
+-- Total: 1217 theorems/lemmas (973 public, 244 private)

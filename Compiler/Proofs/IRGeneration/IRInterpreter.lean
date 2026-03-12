@@ -1229,6 +1229,63 @@ theorem execIRStmtWithInternals_eq_execIRStmt_of_exprIfBlockCompatibility
       cases hrest
       simp [execIRStmtWithInternals, execIRStmt]
 
+/-- The remaining single-statement helper-free conservative-extension seam is now
+packaged as an explicit three-part interface: the real semantic work sits in
+`YulStmt.expr`, while `if` and `block` only need recursive transport over the
+same legacy-compatible subset. -/
+structure InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals
+    (contract : IRContract) where
+  exprCompatibility :
+    contract.internalFunctions = [] →
+      ∀ fuel state expr,
+        execIRStmtWithInternals contract fuel state (.expr expr) =
+          match execIRStmt fuel state (.expr expr) with
+          | .continue next => .continue next
+          | .return value next => .return value next
+          | .stop next => .stop next
+          | .revert next => .revert next
+  ifCompatibility :
+    contract.internalFunctions = [] →
+      ∀ fuel state cond body,
+        LegacyCompatibleExternalStmtList body →
+          execIRStmtWithInternals contract fuel state (.if_ cond body) =
+            match execIRStmt fuel state (.if_ cond body) with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next
+  blockCompatibility :
+    contract.internalFunctions = [] →
+      ∀ fuel state body,
+        LegacyCompatibleExternalStmtList body →
+          execIRStmtWithInternals contract fuel state (.block body) =
+            match execIRStmt fuel state (.block body) with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next
+
+/-- The old prose-only description of the remaining stmt blocker is now a real
+proof interface object. Filling these three fields is sufficient to recover the
+full single-statement compatibility theorem. -/
+theorem execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
+    (contract : IRContract)
+    (hsubgoals :
+      InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals contract) :
+    contract.internalFunctions = [] →
+      ∀ fuel state stmt,
+        LegacyCompatibleExternalStmt stmt →
+          execIRStmtWithInternals contract fuel state stmt =
+            match execIRStmt fuel state stmt with
+            | .continue next => .continue next
+            | .return value next => .return value next
+            | .stop next => .stop next
+            | .revert next => .revert next := by
+  exact execIRStmtWithInternals_eq_execIRStmt_of_exprIfBlockCompatibility
+    contract hsubgoals.exprCompatibility hsubgoals.ifCompatibility
+    hsubgoals.blockCompatibility
+
+
 /-- Statement-list compatibility is mechanically derivable from single-statement
 compatibility: once the head step is known to coincide, the remaining list proof
 is just tail composition on the same fuel/state. This isolates the compiled-side
@@ -1593,6 +1650,27 @@ theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibili
     InterpretIRWithInternalsZeroConservativeExtensionGoal contract := by
   apply interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtListCompatibility
   exact execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility contract hstmt
+
+/-- The new stmt-subgoal object plugs directly into the already-existing helper-
+free conservative-extension interface builder. This keeps the remaining proof
+surface compositional instead of rediscovering the same assembly later. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals
+    (contract : IRContract)
+    (hsubgoals :
+      InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals contract) :
+    InterpretIRWithInternalsZeroConservativeExtensionInterfaces contract := by
+  apply interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtCompatibility
+  exact execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals contract hsubgoals
+
+/-- The contract-level helper-free conservative-extension goal also now reduces
+to the named stmt-subgoal object. -/
+theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtSubgoals
+    (contract : IRContract)
+    (hsubgoals :
+      InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals contract) :
+    InterpretIRWithInternalsZeroConservativeExtensionGoal contract := by
+  apply interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility
+  exact execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals contract hsubgoals
 
 @[simp] theorem applyIRTransactionContext_sender
     (tx : IRTransaction) (initialState : IRState) :

@@ -296,10 +296,12 @@ now sits under the post-generic widening/completeness plan in
   `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`,
   `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper theorem
   `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`;
-  `IRInterpreter.lean` now also proves
-  `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtCompatibility`,
+  `IRInterpreter.lean` now also packages the remaining stmt seam as the named
+  interface `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`,
+  and proves `execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals` plus
+  `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`,
   so the full helper-free conservative-extension interface object is assembled
-  from those expr lemmas plus a single stmt theorem;
+  from a compositional Lean subgoal object rather than only a prose checklist;
   `IRInterpreter.lean` now also proves
   `execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility`,
   `execIRFunctionWithInternals_eq_execIRFunction_of_stmtCompatibility`,
@@ -308,7 +310,8 @@ now sits under the post-generic widening/completeness plan in
   so stmt-list compatibility, function compatibility, the dispatch-local cut, and the
   contract-level lift are all reduced to stmt compatibility rather than
   remaining independent proof tasks;
-  the remaining compiled-side proof step is therefore the stmt theorem itself,
+  the remaining compiled-side proof step is therefore to fill
+  `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`,
   concentrated in the special expression-statement cases (`sstore`, `mstore`,
   `return`, `revert`) plus nested `if`/`block` transport on that subset,
   after which the conservative-extension goal from legacy `interpretIR` to

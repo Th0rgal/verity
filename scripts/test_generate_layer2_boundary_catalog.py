@@ -53,7 +53,7 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
             ]["status"],
-            "full_interface_reduces_to_stmt",
+            "full_interface_reduces_to_stmt_subgoals",
         )
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"][
@@ -112,6 +112,20 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             "of_stmtCompatibility",
         )
         self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["stmt_subgoal_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["stmt_subgoal_builder_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals",
+        )
+        self.assertEqual(
             catalog["current_out_of_scope_surfaces"][0]["status"],
             "blocked_at_body_ir_composition_seam",
         )
@@ -137,7 +151,7 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             catalog["supported_spec_split"]["helper_boundary"][
                 "compiled_target_compatibility_subset"
             ]["status"],
-            "full_interface_reduces_to_stmt",
+            "full_interface_reduces_to_stmt_subgoals",
         )
         self.assertEqual(
             [step["rank"] for step in catalog["ranked_next_steps"]],

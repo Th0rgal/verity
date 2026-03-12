@@ -117,6 +117,13 @@ work is now split into:
   in `IRInterpreter.lean`, which assembles the full helper-free conservative-
   extension interface object from the already-proved expr / expr-list lemmas
   plus one stmt theorem
+- a named remaining stmt-subgoal interface
+  `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals` in
+  `IRInterpreter.lean`, together with
+  `execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals` and
+  `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`,
+  so the open compiled-side seam is now a compositional Lean object rather than
+  only a prose checklist
 - a dedicated world-preservation hook for expression-position helper callees
 - a strictly decreasing helper-rank interface for direct callees, so future
   helper composition can target a well-founded measure instead of raw fuel
@@ -151,13 +158,16 @@ next compiled-side substep is therefore more precise than before:
 `LegacyCompatibleRuntimeDispatch`, and now also proves
 `interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal` so that
 the contract-level lift is no longer part of the open blocker. It also proves
+`execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals`,
 `execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility`,
 `execIRFunctionWithInternals_eq_execIRFunction_of_stmtCompatibility`,
 `interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtCompatibility`,
-and `interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility`,
+`interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility`, and
+`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`,
 so stmt-list compatibility, function compatibility, the dispatch-local theorem,
-and the contract-level theorem all reduce to stmt compatibility. That leaves
-the remaining proof work as the stmt theorem for
+and the contract-level theorem all reduce to a named stmt-subgoal interface.
+That leaves the remaining proof work as the fields of
+`InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals` for
 `runtimeContractOfFunctions`-style contracts over the subset, concentrated in
 the special expression-statement cases (`sstore`, `mstore`, `return`,
 `revert`) plus nested `if`/`block` transport. After that, the
