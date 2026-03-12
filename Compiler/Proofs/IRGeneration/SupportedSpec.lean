@@ -1159,13 +1159,12 @@ def SupportedFunction.helperFuel
     (hSupported : SupportedFunction spec fn) : Nat :=
   hSupported.body.calls.helpers.helperRank
 
-private theorem requireFamilyClausesTail_helperSurfaceClosed
+private theorem supportedStmtLegacyTail_helperSurfaceClosed
     {fields : List Field}
-    (tail : RequireFamilyClausesTail fields) :
+    (tail : SupportedStmtLegacyTail fields) :
     stmtListTouchesUnsupportedHelperSurface tail.toStmts = false := by
   cases tail <;>
-    simp [RequireFamilyClausesTail.toStmts,
-      RequireLiteralGuardFamilyClause.toStmt,
+    simp [SupportedStmtLegacyTail.toStmts,
       stmtListTouchesUnsupportedHelperSurface,
       stmtTouchesUnsupportedHelperSurface,
       exprTouchesUnsupportedHelperSurface]
@@ -1253,8 +1252,8 @@ theorem SupportedStmtList.helperSurfaceClosed
       simp [stmtListTouchesUnsupportedHelperSurface_append, ihPrefix, ihSuffix]
   | legacyTail tail htail ih =>
       simpa [stmtListTouchesUnsupportedHelperSurface,
-        requireFamilyClausesTail_helperSurfaceClosed, ih]
-        using (requireFamilyClausesTail_helperSurfaceClosed tail)
+        supportedStmtLegacyTail_helperSurfaceClosed, ih]
+        using (supportedStmtLegacyTail_helperSurfaceClosed tail)
 
 theorem exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {expr : Expr}
