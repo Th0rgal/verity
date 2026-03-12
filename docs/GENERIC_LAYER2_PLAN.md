@@ -266,8 +266,13 @@ now sits under the post-generic widening/completeness plan in
   (`SupportedHelperSummaryProofCatalog`) and derives the theorem-level wrapper
   `SupportedSpecHelperProofs` from that catalog, so each internal helper
   summary can be proved once and reused across every caller instead of being
-  replumbed per external function, and `Contract.lean` now mirrors that at the
-  public theorem surface via
+  replumbed per external function. `GenericInduction.lean` now also exposes the
+  helper-aware induction interfaces `CompiledStmtStepWithHelpers` /
+  `StmtListGenericWithHelpers` plus the induction-level body theorem
+  `supported_function_body_correct_from_exact_state_generic_helper_steps`, so
+  the remaining helper work now has an explicit statement-induction goal
+  surface instead of only a body/function wrapper target, and `Contract.lean`
+  now mirrors that at the public theorem surface via
   helper-proof-carrying variants such as
   `compile_preserves_semantics_with_helper_proofs`; the
   feature-local `state` / `calls` / `effects` scans recurse through nested `ite` / `forEach` bodies so those
@@ -286,6 +291,9 @@ now sits under the post-generic widening/completeness plan in
   callers still derive generic body proofs through the helper-free `SupportedStmtList` witness,
   the generic body theorem now already targets the helper-aware source semantics family under the current fail-closed helper gate,
   but summary-soundness/rank evidence is still not consumed inside a direct
+  proof of `SupportedFunctionBodyWithHelpersIRPreservationGoal`; more
+  precisely, that evidence is not yet consumed through
+  `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers` and then into a
   proof of `SupportedFunctionBodyWithHelpersIRPreservationGoal`; the older
   conservative-extension goal remains only the current helper-free discharge
   path,
@@ -383,7 +391,9 @@ The first theorem does not need to cover everything. It may explicitly leave out
   without any extra caller-supplied compiled-side premise. The remaining work
   on today’s theorem domain is therefore no longer the helper-free compiled-side
   witness, but consuming helper-summary soundness/rank evidence through
-  `SupportedFunctionBodyWithHelpersIRPreservationGoal` while widening or
+  helper-aware `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers`
+  proofs and then into `SupportedFunctionBodyWithHelpersIRPreservationGoal`
+  while widening or
   replacing the helper-excluding `SupportedStmtList` fragment, which now
   discharges helper-freedom via `SupportedStmtList.helperSurfaceClosed`. The
   helper-free collapse goal

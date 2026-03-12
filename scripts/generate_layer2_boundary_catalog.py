@@ -257,6 +257,19 @@ def build_catalog() -> dict:
                         "Compiler.Proofs.IRGeneration.SourceSemantics."
                         "ExecStmtListWithHelpersConservativeExtensionGoal"
                     ),
+                    "induction_step_interface": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "CompiledStmtStepWithHelpers"
+                    ),
+                    "induction_list_interface": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "StmtListGenericWithHelpers"
+                    ),
+                    "induction_body_theorem": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "supported_function_body_correct_from_exact_state_"
+                        "generic_helper_steps"
+                    ),
                     "direct_body_goal": (
                         "Compiler.Proofs.IRGeneration.GenericInduction."
                         "SupportedFunctionBodyWithHelpersIRPreservationGoal"
@@ -278,6 +291,12 @@ def build_catalog() -> dict:
                         "the exact future source-side helper seam is now the "
                         "direct helper-aware body/IR goal "
                         "SupportedFunctionBodyWithHelpersIRPreservationGoal, "
+                        "and GenericInduction.lean now exposes the helper-aware "
+                        "statement-step/list induction interfaces "
+                        "CompiledStmtStepWithHelpers / "
+                        "StmtListGenericWithHelpers plus the body theorem "
+                        "supported_function_body_correct_from_exact_state_"
+                        "generic_helper_steps that consumes them; "
                         "which feeds the function-level theorem "
                         "supported_function_correct_with_helper_proofs_body_goal; "
                         "the legacy conservative-extension goal remains only "
@@ -291,7 +310,7 @@ def build_catalog() -> dict:
                 "current_fail_closed_gate": (
                     "SupportedBodyInterface.stmtList"
                 ),
-                "next_required_proof_step": (
+                    "next_required_proof_step": (
                     "the helper-free compiled-side conservative-extension goal "
                     "is now closed on LegacyCompatibleRuntimeContract via "
                     "interpretIRWithInternalsZeroConservativeExtensionGoal_closed, "
@@ -302,13 +321,14 @@ def build_catalog() -> dict:
                     "whole-contract theorem "
                     "compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported. "
                     "The immediate blocker on today’s theorem domain is "
-                    "therefore no longer a helper-free compiled-side witness, "
-                    "but consuming helper-summary soundness/rank evidence in "
-                    "a direct proof of "
-                    "SupportedFunctionBodyWithHelpersIRPreservationGoal while "
-                    "widening or replacing the helper-excluding "
-                    "SupportedStmtList fragment that currently proves "
-                    "SupportedStmtList.helperSurfaceClosed. The longer-term "
+                        "therefore no longer a helper-free compiled-side witness, "
+                        "but consuming helper-summary soundness/rank evidence in "
+                        "helper-aware CompiledStmtStepWithHelpers / "
+                        "StmtListGenericWithHelpers proofs and then into a direct "
+                        "proof of SupportedFunctionBodyWithHelpersIRPreservationGoal "
+                        "while widening or replacing the helper-excluding "
+                        "SupportedStmtList fragment that currently proves "
+                        "SupportedStmtList.helperSurfaceClosed. The longer-term "
                     "widening step still needs a weaker compiled-side retarget "
                     "boundary so helper tables can remain present without "
                     "affecting helper-free external execution once helper-rich "

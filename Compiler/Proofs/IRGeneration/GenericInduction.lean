@@ -64,6 +64,33 @@ structure CompiledStmtStep
         execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR = irExec ∧
         stmtStepMatchesIRExec fields (stmtNextScope scope stmt) sourceResult irExec
 
+/-- Helper-aware single-step result relation for the future generic statement
+induction path. The post-state shape is unchanged; only the source-side head step
+is evaluated in the helper-aware semantics family. -/
+structure CompiledStmtStepWithHelpers
+    (spec : CompilationModel)
+    (fields : List Field)
+    (scope : List String)
+    (stmt : Stmt)
+    (compiledIR : List YulStmt) : Prop where
+  compileOk :
+    CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+      Except.ok compiledIR
+  preserves :
+    ∀ (runtime : SourceSemantics.RuntimeState)
+      (state : IRState)
+      (helperFuel : Nat)
+      (extraFuel : Nat),
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf compiledIR - compiledIR.length ≤ extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime stmt = sourceResult ∧
+        execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR = irExec ∧
+        stmtStepMatchesIRExec fields (stmtNextScope scope stmt) sourceResult irExec
+
 /-- Statement lists whose heads all admit a generic compiled-step proof. -/
 inductive StmtListGenericCore (fields : List Field) : List String → List Stmt → Prop where
   | nil {scope : List String} :
@@ -72,6 +99,20 @@ inductive StmtListGenericCore (fields : List Field) : List String → List Stmt 
       CompiledStmtStep fields scope stmt compiledIR →
       StmtListGenericCore fields (stmtNextScope scope stmt) rest →
       StmtListGenericCore fields scope (stmt :: rest)
+
+/-- Statement lists whose heads all admit a helper-aware generic compiled-step
+proof. This is the exact induction-level seam needed to consume helper-summary
+soundness and decreasing-rank evidence without reusing the helper-free
+`SupportedStmtList` witness. -/
+inductive StmtListGenericWithHelpers
+    (spec : CompilationModel)
+    (fields : List Field) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListGenericWithHelpers spec fields scope []
+  | cons {scope : List String} {stmt : Stmt} {compiledIR : List YulStmt} {rest : List Stmt} :
+      CompiledStmtStepWithHelpers spec fields scope stmt compiledIR →
+      StmtListGenericWithHelpers spec fields (stmtNextScope scope stmt) rest →
+      StmtListGenericWithHelpers spec fields scope (stmt :: rest)
 
 /-- Structural scope discipline for statement prefixes used to justify that the
 generic induction scope only contains validated source identifiers. -/
@@ -3337,6 +3378,28 @@ theorem compileStmtList_ok_of_stmtListGenericCore
       exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
         hstep.compileOk htail
 
+theorem compileStmtList_ok_of_stmtListGenericWithHelpers
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
+  induction hgeneric generalizing inScopeNames with
+  | nil =>
+      exact ⟨[], by simp [CompilationModel.compileStmtList]⟩
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      rcases ih
+          (inScopeNames := collectStmtNames stmt ++ inScopeNames)
+          (scopeNamesIncluded_stmtNextScope hincluded) with
+        ⟨tailIR, htail⟩
+      refine ⟨compiledIR ++ tailIR, ?_⟩
+      exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+        hstep.compileOk htail
+
 theorem stmtStepMatchesIRExec_of_included
     {fields : List Field}
     {scope largerScope : List String}
@@ -3593,6 +3656,163 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel_step
         rw [hfullExec]
         simp [stmtStepMatchesIRExec]
 
+theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
+    {spec : CompilationModel}
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (helperFuel : Nat)
+    (extraFuel : Nat)
+    (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
+      let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
+      stmtStepMatchesIRExec
+        fields
+        (List.foldl stmtNextScope scope stmts)
+        sourceResult
+        irExec := by
+  induction hgeneric generalizing runtime state inScopeNames extraFuel with
+  | nil =>
+      refine ⟨[], by simp [CompilationModel.compileStmtList], ?_⟩
+      exact And.intro hruntime <| And.intro hexact <| And.intro hbounded hscope
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      have hnextIncluded :
+          FunctionBody.scopeNamesIncluded
+            (stmtNextScope scope stmt)
+            (collectStmtNames stmt ++ inScopeNames) :=
+        scopeNamesIncluded_stmtNextScope hincluded
+      rcases ih
+          (runtime := runtime)
+          (state := state)
+          (inScopeNames := collectStmtNames stmt ++ inScopeNames)
+          (extraFuel := 0)
+          hnextIncluded hscope hexact hbounded hruntime with
+        ⟨tailIR, htailCompile, htailSem⟩
+      let bodyIR := compiledIR ++ tailIR
+      have hbodyCompile :
+          CompilationModel.compileStmtList
+            fields [] [] .calldata [] false inScopeNames (stmt :: rest) =
+              Except.ok bodyIR := by
+        exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
+          hstep.compileOk htailCompile
+      let headExtraFuel := sizeOf bodyIR - compiledIR.length + extraFuel
+      have hheadSlack :
+          sizeOf compiledIR - compiledIR.length ≤ headExtraFuel := by
+        have hsize : sizeOf compiledIR ≤ sizeOf bodyIR := by
+          simpa [bodyIR] using yulStmtList_sizeOf_append_left_le compiledIR tailIR
+        dsimp [headExtraFuel]
+        omega
+      rcases hstep.preserves runtime state helperFuel headExtraFuel
+          hexact hscope hbounded hruntime hheadSlack with
+        ⟨sourceHead, irHead, hsourceHead, hheadExec, hheadMatch⟩
+      refine ⟨bodyIR, hbodyCompile, ?_⟩
+      cases sourceHead <;> cases irHead <;> simp [stmtStepMatchesIRExec] at hheadMatch
+      ·
+        rcases hheadMatch with ⟨hruntime', hexact', hbounded', hscope'⟩
+        let tailExtraFuel' :=
+          sizeOf bodyIR - compiledIR.length - sizeOf tailIR + extraFuel
+        have htailSem' :=
+          ih
+            (runtime := _)
+            (state := _)
+            (inScopeNames := collectStmtNames stmt ++ inScopeNames)
+            (extraFuel := tailExtraFuel')
+            hnextIncluded hscope' hexact' hbounded' hruntime'
+        rcases htailSem' with ⟨tailIR', htailCompile', htailSem''⟩
+        rw [htailCompile] at htailCompile'
+        injection htailCompile' with htailEq
+        subst htailEq
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .continue ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              execIRStmts (sizeOf tailIR + tailExtraFuel' + 1) ‹IRState› tailIR := by
+          rw [execIRStmts_append_of_continue
+              (fuel := sizeOf bodyIR + extraFuel + 1)
+              (state := state)
+              (next := ‹IRState›)
+              (head := compiledIR)
+              (tail := tailIR)
+              hheadExec']
+          dsimp [tailExtraFuel']
+          omega
+        rw [show SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime (stmt :: rest) =
+            SourceSemantics.execStmtListWithHelpers spec fields helperFuel
+              ‹SourceSemantics.RuntimeState› rest by
+              simp [SourceSemantics.execStmtListWithHelpers, hsourceHead]]
+        rw [hfullExec]
+        simpa [tailExtraFuel', bodyIR, List.foldl] using htailSem''
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .stop ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .stop ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .stop ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        simpa [List.foldl] using hheadMatch
+      ·
+        rcases hheadMatch with ⟨rfl, hruntime'⟩
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .return ‹Nat› ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .return ‹Nat› ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .return ‹Nat› ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        exact ⟨rfl, hruntime'⟩
+      ·
+        have hheadExec' :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state compiledIR =
+              .revert ‹IRState› := by
+          simpa [headExtraFuel, bodyIR] using hheadExec
+        have hfullExec :
+            execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR =
+              .revert ‹IRState› := by
+          exact execIRStmts_append_of_not_continue
+            (fuel := sizeOf bodyIR + extraFuel + 1)
+            (state := state)
+            (head := compiledIR)
+            (tail := tailIR)
+            (irExec := .revert ‹IRState›)
+            hheadExec'
+            (by intro next hcontra; simp at hcontra)
+        rw [SourceSemantics.execStmtListWithHelpers, hsourceHead]
+        rw [hfullExec]
+        simp [stmtStepMatchesIRExec]
+
 theorem exec_compileStmtList_generic_sizeOf_extraFuel
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
@@ -3619,6 +3839,47 @@ theorem exec_compileStmtList_generic_sizeOf_extraFuel
       (scope := scope)
       (inScopeNames := inScopeNames)
       (stmts := stmts)
+      (extraFuel := extraFuel)
+      hgeneric
+      hincluded
+      hscope
+      hexact
+      hbounded
+      hruntime with
+    ⟨bodyIR, hcompile, hstep⟩
+  refine ⟨bodyIR, hcompile, ?_⟩
+  exact stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec hstep
+
+theorem exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
+    {spec : CompilationModel}
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope inScopeNames : List String}
+    {stmts : List Stmt}
+    (helperFuel : Nat)
+    (extraFuel : Nat)
+    (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
+    (hincluded : FunctionBody.scopeNamesIncluded scope inScopeNames)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state) :
+    ∃ bodyIR,
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
+      let sourceResult := SourceSemantics.execStmtListWithHelpers spec fields helperFuel runtime stmts
+      let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
+      FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
+  rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
+      (spec := spec)
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (inScopeNames := inScopeNames)
+      (stmts := stmts)
+      (helperFuel := helperFuel)
       (extraFuel := extraFuel)
       hgeneric
       hincluded
@@ -3716,6 +3977,103 @@ theorem supported_function_body_correct_from_exact_state_generic
   · simpa [hfuel] using rfl
   · simpa [hfuel, sizeSlack] using hgenericSem
 
+/-- Exact helper-aware body theorem for a helper-aware generic statement
+induction witness. This is the induction-level target needed to replace the
+current helper-free `SupportedStmtList` gate with compositional helper-step
+proofs. -/
+private theorem supported_function_body_correct_from_exact_state_generic_helper_steps_raw
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hgeneric :
+      StmtListGenericWithHelpers
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    ∃ sourceResult irExec,
+      SourceSemantics.execStmtListWithHelpers
+        model
+        (SourceSemantics.effectiveFields model)
+        helperFuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body = sourceResult ∧
+      execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
+      FunctionBody.stmtResultMatchesIRExec
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] [] .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (inScopeNames := fn.params.map (·.name))
+      (stmts := fn.body)
+      (helperFuel := helperFuel)
+      (extraFuel := sizeSlack)
+      hgeneric
+      FunctionBody.scopeNamesIncluded_refl
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyGenericCompile, hgenericSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyGenericCompile
+    injection hbodyGenericCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    omega
+  refine ⟨_, _, rfl, ?_, ?_⟩
+  · simpa [hfuel] using rfl
+  · simpa [hfuel, sizeSlack] using hgenericSem
+
 /-- Exact helper-aware body/IR preservation target for the non-core generic
 body theorem. This is the future source-side seam for helper-rich bodies: prove
 the helper-aware source body semantics directly against the compiled IR body,
@@ -3742,6 +4100,51 @@ def SupportedFunctionBodyWithHelpersIRPreservationGoal
     execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
     FunctionBody.stmtResultMatchesIRExec
       (SourceSemantics.effectiveFields model) sourceResult irExec
+
+/-- Exact helper-aware body theorem for a helper-aware generic statement
+induction witness. This is the induction-level target needed to replace the
+current helper-free `SupportedStmtList` gate with compositional helper-step
+proofs. -/
+theorem supported_function_body_correct_from_exact_state_generic_helper_steps
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hgeneric :
+      StmtListGenericWithHelpers
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    SupportedFunctionBodyWithHelpersIRPreservationGoal
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  exact supported_function_body_correct_from_exact_state_generic_helper_steps_raw
+    model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+    hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+    hbounded hstateRuntime hstateBindings
 
 /-- Goal-based helper-aware wrapper around the generic body/IR preservation
 theorem. This keeps the current helper-free collapse available as a corollary,

@@ -250,6 +250,15 @@ ALLOWLIST: set[str] = {
     # non-core function proof while preserving the compiler-facing API shape.
     # Its length comes from one-time transport/fuel assembly that was already
     # present in the surrounding wrapper; splitting further is follow-up cleanup.
+    # Issue #1630 / PR #1639 follow-up — helper-aware induction seam:
+    # these two theorems are the list-composition and body-level transports that
+    # expose the new helper-aware generic induction interfaces
+    # `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers`. Their length
+    # comes from spelling out the existing stmt-list composition once for the
+    # helper-aware semantics family; decomposition is follow-up cleanup once real
+    # helper-step proofs begin consuming summary soundness/rank evidence.
+    "exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step",
+    "supported_function_body_correct_from_exact_state_generic_helper_steps_raw",
     "supported_function_correct_with_helper_proofs_body_goal",
     # Issue #1638 / PR #1639 — helper-aware compiled-target retarget wrappers:
     # these theorems preserve the public Layer 2 theorem signatures while

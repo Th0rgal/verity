@@ -103,6 +103,12 @@ work is now split into:
   (`SupportedHelperSummaryProofCatalog`) plus the theorem-level wrapper
   `SupportedSpecHelperProofs`, so each internal helper summary can be proved
   once and reused across every caller that references it
+- helper-aware generic statement-induction interfaces
+  `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers` plus the
+  induction-level body theorem
+  `supported_function_body_correct_from_exact_state_generic_helper_steps`, so
+  future helper-summary/rank proofs have an explicit induction target instead of
+  only a body/function wrapper seam
 - matching helper-proof-carrying theorem variants in `Function.lean`,
   `Dispatch.lean`, and `Contract.lean`, so the public Layer 2 theorem family
   already exposes that input without changing the current trusted boundary
@@ -198,9 +204,10 @@ successful `CompilationModel.compile`. The helper-aware compiled target remains
 available as total fuel-indexed helper-aware IR semantics throughout the later
 fragment-widening retargeting work. The remaining blocker is therefore no
 longer a helper-free compiled-side witness on today’s theorem domain, but
-end-to-end consumption of helper-summary soundness/rank evidence through the
-now-explicit direct helper-aware body/IR target
-`SupportedFunctionBodyWithHelpersIRPreservationGoal`, which now feeds
+ end-to-end consumption of helper-summary soundness/rank evidence through
+ helper-aware `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers`
+ proofs and then through the now-explicit direct helper-aware body/IR target
+ `SupportedFunctionBodyWithHelpersIRPreservationGoal`, which now feeds
 `supported_function_correct_with_helper_proofs_body_goal`, while widening or
 replacing the helper-excluding `SupportedStmtList` fragment whose current
 closure is now recorded as `SupportedStmtList.helperSurfaceClosed`. The older
