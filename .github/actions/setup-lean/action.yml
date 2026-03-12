@@ -48,8 +48,24 @@ runs:
         python3 scripts/prune_lake_cache.py
 
     - name: Fetch mathlib compiled cache
+      id: fetch-mathlib-cache
       shell: bash
       run: lake exe cache get
+      continue-on-error: true
+
+    - name: Retry mathlib compiled cache fetch on transient failures
+      if: steps.fetch-mathlib-cache.outcome != 'success'
+      shell: bash
+      run: |
+        set -u
+        for delay in 5 15; do
+          echo "::warning::lake exe cache get failed; retrying in ${delay}s"
+          sleep "${delay}"
+          if lake exe cache get; then
+            exit 0
+          fi
+        done
+        echo "::warning::Unable to download Lean compiled cache after retries; continuing with source builds."
 
 outputs:
   cache-hit:
