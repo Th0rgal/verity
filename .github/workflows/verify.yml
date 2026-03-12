@@ -155,12 +155,6 @@ jobs:
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 
-      - name: Run compiler CLI regression module
-        run: stdbuf -oL -eL lake exe compiler-main-test
-
-      - name: Run CompilationModel feature regression module
-        run: lake build Compiler.CompilationModelFeatureTest
-
       - name: Run macro round-trip fuzz harness
         run: lake exe macro-roundtrip-fuzz
 
@@ -249,6 +243,12 @@ jobs:
         run: |
           set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
           stdbuf -oL -eL lake build "$@" verity-compiler verity-compiler-patched
+
+      - name: Run compiler CLI regression module
+        run: stdbuf -oL -eL lake exe compiler-main-test
+
+      - name: Run CompilationModel feature regression module
+        run: lake build Compiler.CompilationModelFeatureTest
 
       - name: Build difftest interpreter
         run: lake build difftest-interpreter

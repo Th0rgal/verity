@@ -344,8 +344,6 @@
     "check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY"
   ],
   "required_build_run_commands": [
-    "lake exe compiler-main-test",
-    "lake build Compiler.CompilationModelFeatureTest",
     "lake exe macro-roundtrip-fuzz",
     "lake build PrintAxioms",
     "lake env lean PrintAxioms.lean"
@@ -361,6 +359,8 @@
     "check_patch_gas_delta.py --baseline-report gas-report-static.tsv --patched-report gas-report-static-patched.tsv --min-improved-contracts 0 --summary-markdown patch-gas-delta-summary.md >> \"$GITHUB_STEP_SUMMARY\""
   ],
   "required_build_compiler_run_commands": [
+    "lake exe compiler-main-test",
+    "lake build Compiler.CompilationModelFeatureTest",
     "lake build difftest-interpreter",
     "verity-compiler-patched",
     "--output compiler/yul",

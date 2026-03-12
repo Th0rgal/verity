@@ -45,9 +45,7 @@ runs:
       if: steps.cache-lake.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        lake update
-        rm -rf .lake/build
-        find .lake/packages -type d -path '*/.lake/build' -prune -exec rm -rf {} +
+        python3 scripts/prune_lake_cache.py
 
     - name: Fetch mathlib compiled cache
       shell: bash
