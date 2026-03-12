@@ -1452,6 +1452,8 @@ class VerifySyncTests(unittest.TestCase):
             ],
             expected_build_compiler_commands=["check_gas.py report"],
             required_build_run_commands=[
+                "lake exe compiler-main-test",
+                "lake build Compiler.CompilationModelFeatureTest",
                 "lake exe macro-roundtrip-fuzz",
                 "lake build PrintAxioms",
                 "lake env lean PrintAxioms.lean",
@@ -1460,6 +1462,7 @@ class VerifySyncTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn(
             "build job is missing required run commands: "
+            "lake build Compiler.CompilationModelFeatureTest, "
             "lake exe macro-roundtrip-fuzz, "
             "lake build PrintAxioms, "
             "lake env lean PrintAxioms.lean",
@@ -1501,6 +1504,8 @@ class VerifySyncTests(unittest.TestCase):
             ],
             expected_build_compiler_commands=["check_gas.py report"],
             required_build_run_commands=[
+                "lake exe compiler-main-test",
+                "lake build Compiler.CompilationModelFeatureTest",
                 "lake exe macro-roundtrip-fuzz",
                 "lake build PrintAxioms",
                 "lake env lean PrintAxioms.lean",
