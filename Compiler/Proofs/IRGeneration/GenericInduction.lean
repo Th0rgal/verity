@@ -3126,13 +3126,13 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
           htailSurface)
 
 theorem SupportedBodyInterface.genericCore
-    {fields : List Field}
+    {spec : CompilationModel}
     {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface fields fn)
-    (hnoConflict : firstFieldWriteSlotConflict fields = none) :
-    StmtListGenericCore fields (fn.params.map (·.name)) fn.body :=
+    (hBody : SupportedBodyInterface spec fn)
+    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
+    StmtListGenericCore spec.fields (fn.params.map (·.name)) fn.body :=
   stmtListGenericCore_of_supportedStmtList_of_surface
-    (fields := fields)
+    (fields := spec.fields)
     (scope := fn.params.map (·.name))
     (stmts := fn.body)
     hnoConflict
@@ -3715,5 +3715,84 @@ theorem supported_function_body_correct_from_exact_state_generic
   refine ⟨_, _, rfl, ?_, ?_⟩
   · simpa [hfuel] using rfl
   · simpa [hfuel, sizeSlack] using hgenericSem
+
+/-- Helper-aware wrapper around the generic body/IR preservation theorem.
+Under the current fail-closed helper gate, the source-side helper interpreter
+collapses definitionally to the legacy helper-free semantics, so the theorem
+stack can already target the helper-aware semantics family without widening the
+supported fragment or changing the trusted boundary. -/
+theorem supported_function_body_correct_from_exact_state_generic_with_helpers
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false)
+    (hgeneric :
+      StmtListGenericCore
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    ∃ sourceResult irExec,
+      SourceSemantics.execStmtListWithHelpers
+        model
+        (SourceSemantics.effectiveFields model)
+        helperFuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body = sourceResult ∧
+      execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
+      FunctionBody.stmtResultMatchesIRExec
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  rcases supported_function_body_correct_from_exact_state_generic
+      model fn bodyStmts tx initialWorld state bindings extraFuel hextraFuel
+      hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope hbounded
+      hstateRuntime hstateBindings with
+    ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  have hhelperEq :
+      SourceSemantics.execStmtListWithHelpers
+          model
+          (SourceSemantics.effectiveFields model)
+          helperFuel
+          { world := SourceSemantics.withTransactionContext initialWorld tx
+            bindings := bindings }
+          fn.body =
+        SourceSemantics.execStmtList
+          (SourceSemantics.effectiveFields model)
+          { world := SourceSemantics.withTransactionContext initialWorld tx
+            bindings := bindings }
+          fn.body :=
+    SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (fuel := helperFuel)
+      (state := { world := SourceSemantics.withTransactionContext initialWorld tx
+                  bindings := bindings })
+      (stmts := fn.body)
+      hhelperSurface
+  refine ⟨sourceResult, irExec, ?_, hbodyExec, hmatch⟩
+  simpa [hhelperEq] using hsource
 
 end Compiler.Proofs.IRGeneration

@@ -1,0 +1,227 @@
+{
+  "current_out_of_scope_surfaces": [
+    {
+      "issue": 1630,
+      "name": "helper_composition",
+      "status": "blocked_at_body_ir_composition_seam"
+    },
+    {
+      "issue": 1630,
+      "name": "low_level_calls_and_returndata",
+      "status": "not_in_generic_theorem"
+    },
+    {
+      "issue": 1630,
+      "name": "proxy_upgradeability_delegatecall",
+      "status": "not_in_generic_theorem"
+    },
+    {
+      "issue": 1630,
+      "name": "events_and_typed_errors",
+      "status": "not_in_generic_theorem"
+    },
+    {
+      "issue": 1630,
+      "name": "storage_layout_rich_features",
+      "status": "partially_outside_generic_theorem"
+    },
+    {
+      "issue": 1630,
+      "name": "constructors_fallback_receive",
+      "status": "not_in_generic_theorem"
+    },
+    {
+      "issue": 1630,
+      "name": "local_obligations",
+      "status": "explicitly_excluded_from_supported_fragment"
+    }
+  ],
+  "current_theorem": {
+    "helper_proof_ready_variant": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs",
+    "layer2_axioms": [],
+    "remaining_global_hypotheses": [
+      "CompilationModel.compile spec selectors = Except.ok ir",
+      "Function.TxContextNormalized tx",
+      "Function.TxCalldataSizeFitsEvm tx"
+    ],
+    "source_semantics": "Compiler.Proofs.IRGeneration.SourceSemantics.supportedSourceContractSemantics",
+    "supported_spec": "Compiler.Proofs.IRGeneration.SupportedSpec",
+    "theorem": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics",
+    "trusted_boundary_change": "none"
+  },
+  "description": "Machine-readable Layer 2 proof-boundary catalog for the generic CompilationModel -> IR theorem.",
+  "ranked_next_steps": [
+    {
+      "name": "replace exclusions with compositional interfaces",
+      "rank": "P1",
+      "status": "in_progress"
+    },
+    {
+      "name": "internal helper compositional proof reuse at the body/IR seam, starting with compiled-side IR helper semantics (#1638)",
+      "rank": "P2",
+      "status": "next_structural_blocker"
+    },
+    {
+      "name": "low-level calls, returndata, and proxy modeling",
+      "rank": "P3",
+      "status": "pending"
+    },
+    {
+      "name": "events, logs, and typed errors",
+      "rank": "P4",
+      "status": "pending"
+    },
+    {
+      "name": "storage and layout rich whole-contract coverage",
+      "rank": "P5",
+      "status": "pending"
+    },
+    {
+      "name": "constructor, fallback, and receive semantics",
+      "rank": "P6",
+      "status": "pending"
+    },
+    {
+      "name": "local obligations as proof-carrying extensions",
+      "rank": "P7",
+      "status": "pending"
+    }
+  ],
+  "schema_version": 1,
+  "supported_spec_split": {
+    "body_interfaces": [
+      {
+        "kind": "feature_local_interface",
+        "name": "core",
+        "source": "SupportedBodyCoreInterface.surfaceClosed"
+      },
+      {
+        "kind": "feature_local_interface",
+        "name": "state",
+        "source": "SupportedBodyStateInterface.surfaceClosed"
+      },
+      {
+        "kind": "feature_local_interface",
+        "name": "calls",
+        "source": "SupportedBodyCallInterface"
+      },
+      {
+        "kind": "feature_local_interface",
+        "name": "effects",
+        "source": "SupportedBodyEffectInterface.surfaceClosed"
+      }
+    ],
+    "function_interfaces": [
+      {
+        "kind": "feature_local_interface",
+        "name": "params",
+        "source": "SupportedFunction.params"
+      },
+      {
+        "kind": "feature_local_interface",
+        "name": "returns",
+        "source": "SupportedFunction.returns"
+      },
+      {
+        "kind": "feature_local_interface",
+        "name": "body",
+        "source": "SupportedFunction.body"
+      }
+    ],
+    "global_invariants": [
+      {
+        "kind": "global_precondition",
+        "name": "normalizedFields",
+        "source": "SupportedSpecInvariants.normalizedFields"
+      },
+      {
+        "kind": "global_precondition",
+        "name": "noPackedFields",
+        "source": "SupportedSpecInvariants.noPackedFields"
+      },
+      {
+        "kind": "global_precondition",
+        "name": "selectorCount",
+        "source": "SupportedSpecInvariants.selectorCount"
+      },
+      {
+        "kind": "global_precondition",
+        "name": "selectorsDistinct",
+        "source": "SupportedSpecInvariants.selectorsDistinct"
+      }
+    ],
+    "global_surface_exclusions": [
+      {
+        "kind": "temporary_surface_boundary",
+        "name": "constructor",
+        "source": "SupportedSpecSurface.noConstructor"
+      },
+      {
+        "kind": "temporary_surface_boundary",
+        "name": "events",
+        "source": "SupportedSpecSurface.noEvents"
+      },
+      {
+        "kind": "temporary_surface_boundary",
+        "name": "errors",
+        "source": "SupportedSpecSurface.noErrors"
+      },
+      {
+        "kind": "temporary_surface_boundary",
+        "name": "externals",
+        "source": "SupportedSpecSurface.noExternals"
+      },
+      {
+        "kind": "temporary_surface_boundary",
+        "name": "fallback",
+        "source": "SupportedSpecSurface.noFallback"
+      },
+      {
+        "kind": "temporary_surface_boundary",
+        "name": "receive",
+        "source": "SupportedSpecSurface.noReceive"
+      }
+    ],
+    "helper_boundary": {
+      "blocking_seams": [
+        {
+          "name": "legacy_stmt_fragment_witness",
+          "source": "SupportedBodyInterface.stmtList",
+          "status": "callers still derive generic body proofs through SupportedStmtList, which excludes helper-call forms"
+        },
+        {
+          "name": "ir_internal_call_semantics",
+          "source": "Compiler.Proofs.IRGeneration.IRInterpreter.execIRFunction",
+          "status": "IR execution still runs only the compiled external function body and does not model internal helper call composition"
+        },
+        {
+          "name": "summary_soundness_not_yet_consumed",
+          "source": "GenericInduction.supported_function_body_correct_from_exact_state_generic_with_helpers",
+          "status": "the helper-aware body theorem exists, but helper summary-soundness/rank evidence is not yet threaded through that body proof"
+        }
+      ],
+      "compiled_side_blocker_issue": 1638,
+      "current_fail_closed_gate": "SupportedBodyCallInterface.helperCompatibility",
+      "decreasing_rank_measure": "SupportedBodyHelperInterface.calleeRanksDecrease",
+      "inventory_source": "SupportedBodyHelperInterface.summaryOf",
+      "next_required_proof_step": "define helper-aware IR internal-call semantics, then consume helper-summary soundness/rank evidence in the body/IR composition interface so helperCompatibility can disappear",
+      "proof_contract": "InternalHelperSummaryContract",
+      "proof_soundness_slot": "SupportedSpecHelperProofs"
+    }
+  },
+  "theorem_target": {
+    "excludes_arbitrary_lean_compilation_models": true,
+    "generic_theorem_domain": "supported_compilation_model_subset",
+    "intended_claim": "proof_complete_macro_lowered_verity_contract_image",
+    "issue_refs": {
+      "completeness": 1630,
+      "helper_ir_semantics": 1638,
+      "theorem_shape": 1510
+    },
+    "source_refs": [
+      "docs/GENERIC_LAYER2_PLAN.md",
+      "docs/ROADMAP.md",
+      "docs/VERIFICATION_STATUS.md"
+    ]
+  }
+}

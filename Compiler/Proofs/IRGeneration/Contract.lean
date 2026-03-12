@@ -256,14 +256,15 @@ theorem compileFunctionSpec_correct_generic
       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
     FunctionBody.sourceResultMatchesIRResult
-      (SourceSemantics.interpretFunction model fn tx initialWorld)
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
   have hfnModel : fn ∈ model.functions := List.mem_of_mem_filter hfn
   rcases Function.compileFunctionSpec_ok_components
       model.fields model.events model.errors sel fn irFn hcompileFn with
     ⟨returns, bodyStmts, hvalidate, hreturns, hbodyCompile, hirFn⟩
   subst hirFn
-  exact Function.supported_function_correct
+  have hcorrect :=
+    Function.supported_function_correct
     (model := model)
     (selectors := selectors)
     (hSupported := hSupported)
@@ -284,12 +285,65 @@ theorem compileFunctionSpec_correct_generic
     (hcompile := by simpa using hcompileFn)
     (hbind := hbind)
     (hcalldataSizeFits := hcalldataSizeFits)
+  simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+    (hSupported := hSupported) hfn tx initialWorld] using hcorrect
+
+/-- Helper-proof-carrying function-level generic theorem.
+This is the proof-ready theorem surface for the next helper-composition step.
+Today the additional helper-proof argument is compatibility-redundant because
+the body proof still closes helpers through `calls.helperCompatibility`. -/
+theorem compileFunctionSpec_correct_generic_with_helper_proofs
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, hvalidate, hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  exact Function.supported_function_correct_with_helper_proofs
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (hvalidateInputs := hvalidateInputs)
+    (fn := fn)
+    (selector := sel)
+    (returns := returns)
+    (bodyStmts := bodyStmts)
+    (irFn := Function.compiledFunctionIR sel fn returns bodyStmts)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (bindings := bindings)
+    (hfn := hfn)
+    (hvalidate := hvalidate)
+    (hreturns := hreturns)
+    (hbodyCompile := hbodyCompile)
+    (hcompile := by simpa using hcompileFn)
+    (hbind := hbind)
+    (htxNormalized := htxNormalized)
+    (hcalldataSizeFits := hcalldataSizeFits)
 
 /-- Primary whole-contract Layer 2 theorem: compilation preserves semantics
 for any supported `CompilationModel`. No contract-specific bridge premise.
-The proof chain is complete; it transitively depends on 1 documented axiom
-(`supported_function_body_correct_from_exact_state` in Function.lean).
-See AXIOMS.md. -/
+Layer 2 itself is axiom-free; the remaining documented project axiom is the
+selector-level `keccak256_first_4_bytes` assumption tracked in `AXIOMS.md`. -/
 theorem compile_preserves_semantics
     (model : CompilationModel)
     (selectors : List Nat)
@@ -301,7 +355,7 @@ theorem compile_preserves_semantics
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
-      (SourceSemantics.interpretContract model selectors tx initialWorld)
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
     unfold CompilationModel.compile at hcompile
@@ -350,7 +404,8 @@ theorem compile_preserves_semantics
       (hfn := hfn)
       (hcompileFn := hcompileFn)
       (hbind := hbind)
-  exact compile_preserves_semantics_of_compiled_functions
+  have hcontract :=
+    compile_preserves_semantics_of_compiled_functions
     (model := model)
     (selectors := selectors)
     (ir := ir)
@@ -360,6 +415,92 @@ theorem compile_preserves_semantics
     (hcompiled := hcompiled)
     (hparamsSupported := hparamsSupported)
     (hfunction := hfunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hcontract
+
+/-- Helper-proof-carrying whole-contract Layer 2 theorem.
+This theorem family is the intended stable public interface for the helper
+composition step tracked by `#1630`: callers can already pass explicit
+summary-soundness evidence today, and once the body proof consumes it this
+theorem can strengthen without another theorem-shape rewrite. The current proof
+still reduces through the legacy helper-closed path, so the trusted boundary is
+unchanged. -/
+theorem compile_preserves_semantics_with_helper_proofs
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    exact compileFunctionSpec_correct_generic_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (hvalidateInputs := hvalidateInputs)
+      (fn := fn)
+      (sel := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
+      (bindings := bindings)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+  exact compile_preserves_semantics_of_compiled_functions
+    (model := model)
+    (selectors := selectors)
+    (ir := ir)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (_hcompile := hcompile)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := by
+      intro fn sel irFn bindings hfn hcompileFn hbind
+      simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+        (hSupported := hSupported) hfn tx initialWorld] using
+        hfunction fn sel irFn bindings hfn hcompileFn hbind)
 
 /-- First direct consumer of the generic Layer 2 theorem surface: the existing
 supported single-function demo model can now obtain whole-contract correctness
@@ -374,8 +515,8 @@ theorem counter_supported_spec_compile_preserves_semantics
     (hcompile :
       CompilationModel.compile counterSupportedSpecModel [0xa87d942c] = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
-      (SourceSemantics.interpretContract
-        counterSupportedSpecModel [0xa87d942c] tx initialWorld)
+      (supportedSourceContractSemantics
+        counterSupportedSpecModel [0xa87d942c] counter_supported_spec tx initialWorld)
       (interpretIR ir tx
         (FunctionBody.initialIRStateForTx counterSupportedSpecModel tx initialWorld)) := by
   exact compile_preserves_semantics

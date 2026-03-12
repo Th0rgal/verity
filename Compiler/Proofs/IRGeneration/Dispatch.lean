@@ -239,6 +239,65 @@ theorem interpretContract_correct_of_compiled_functions
           FunctionBody.initialIRStateForTx, FunctionBody.encodeStorage_withTransactionContext,
           FunctionBody.encodeEvents_withTransactionContext]
 
+/-- Helper-proof-carrying wrapper for the dispatch theorem.
+The current proof still reduces helper-aware source semantics to the legacy
+helper-free semantics via `calls.helperCompatibility`, so the additional helper
+proof slot is present to stabilize the theorem boundary rather than to widen the
+proved fragment today. -/
+theorem interpretContract_correct_of_compiled_functions_with_helper_proofs
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (_hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (irFns : List IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        irFns)
+    (hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+    (hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld))) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (interpretIR (runtimeContractOfFunctions model.name irFns) tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacyFunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+      (hSupported := hSupported) hfn tx initialWorld] using
+      hfunction fn sel irFn bindings hfn hcompileFn hbind
+  have hlegacy :=
+    interpretContract_correct_of_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (irFns := irFns)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hlegacyFunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hlegacy
+
 end Dispatch
 
 end Compiler.Proofs.IRGeneration

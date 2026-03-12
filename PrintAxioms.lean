@@ -39,6 +39,7 @@ import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.Proofs.IRGeneration.GenericInduction
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.ParamLoading
+import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedFragment
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.MappingSlot
@@ -674,7 +675,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_of_compiled_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
+#print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
@@ -683,6 +686,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.Dispatch.find_compiledFunction_some_of_forall₂  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Dispatch.find_compiledFunction_none_of_forall₂  -- private
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions
+#print axioms Compiler.Proofs.IRGeneration.Dispatch.interpretContract_correct_of_compiled_functions_with_helper_proofs
 
 -- Compiler/Proofs/IRGeneration/Function.lean
 -- #print axioms Compiler.Proofs.IRGeneration.Function.yulStmtList_length_le_sizeOf  -- private
@@ -715,6 +719,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_supported_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs
 
 -- Compiler/Proofs/IRGeneration/FunctionBody.lean
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.lookupValue_eq_of_lookupBinding?_some
@@ -1081,6 +1086,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel_step
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic
+#print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers
 
 -- Compiler/Proofs/IRGeneration/IRInterpreter.lean
 #print axioms Compiler.Proofs.IRGeneration.execIRStmt_stop_succ
@@ -1120,13 +1126,51 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported_then_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genParamLoads_supported_then
 
+-- Compiler/Proofs/IRGeneration/SourceSemantics.lean
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummarySound
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.helperSummaryPreservesWorldOnSuccess
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_obeys_summary
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_preserves_world
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_obeys_summary
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperInterface.summarySoundOfCall
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperInterface.exprCallSummaryPreservesWorld
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findFunctionBySelector_mem_selectorDispatchedFunctions
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
+#print axioms Compiler.Proofs.IRGeneration.sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_supportedSpec
+#print axioms Compiler.Proofs.IRGeneration.supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+#print axioms Compiler.Proofs.IRGeneration.supportedSourceContractSemantics_eq_sourceContractSemantics
+
 -- Compiler/Proofs/IRGeneration/SupportedFragment.lean
 #print axioms Compiler.Proofs.IRGeneration.supported_stmt_list_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/SupportedSpec.lean
+#print axioms Compiler.Proofs.IRGeneration.helperCallNames_nodup
+#print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_nodup
+#print axioms Compiler.Proofs.IRGeneration.stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
+#print axioms Compiler.Proofs.IRGeneration.stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames
+#print axioms Compiler.Proofs.IRGeneration.exprHelperCallNames_subset_helperCallNames
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunction.returnsSupported
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperCompatibility.surfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryOfCall
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryContractOfCall
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.calleeRank_lt
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.exprSummaryPreservesWorld
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_featureOr
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedCallSurface_eq_featureOr
+-- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyCallInterface.surfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.surfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.normalizedFields
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noPackedFields
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.selectorCount
@@ -1158,6 +1202,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.counter_noReceive  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.counter_supported_function  -- private
 #print axioms Compiler.Proofs.IRGeneration.counter_supported_spec
+-- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_noPackedFields  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_noFallback  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_noReceive  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.simpleStorage_supported_function  -- private
 #print axioms Compiler.Proofs.IRGeneration.simpleStorage_supported_spec
 
 -- Compiler/Proofs/MappingSlot.lean
@@ -1264,4 +1312,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1133 theorems/lemmas (904 public, 229 private)
+-- Total: 1178 theorems/lemmas (943 public, 235 private)

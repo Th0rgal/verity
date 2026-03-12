@@ -51,6 +51,7 @@ Tracking:
 - axiom elimination: [#1618](https://github.com/Th0rgal/verity/issues/1618)
 - completeness/generalization: [#1630](https://github.com/Th0rgal/verity/issues/1630)
 - plan: [`docs/GENERIC_LAYER2_PLAN.md`](../../docs/GENERIC_LAYER2_PLAN.md)
+- machine-readable boundary catalog: [`artifacts/layer2_boundary_catalog.json`](../../artifacts/layer2_boundary_catalog.json)
 
 ## Current Layer 2 Boundary
 
@@ -79,6 +80,11 @@ Current supported-fragment scope for the generic theorem:
   externals, and other features intentionally excluded from the current
   supported fragment
 
+The `SupportedSpec` split is now explicit and auditable in the machine-readable
+catalog: global invariants, temporary surface exclusions, feature-local body
+interfaces, and the current `calls.helpers` helper boundary all appear in
+`artifacts/layer2_boundary_catalog.json`.
+
 Negative boundary example:
 - A contract whose proof depends on linked external assumptions is outside the
   current supported fragment and still needs an explicit trust argument today.
@@ -86,8 +92,36 @@ Negative boundary example:
 Internal helper calls are part of the supported `CompilationModel` execution
 surface, but the proof library does not yet provide a first-class
 helper-spec/helper-theorem reuse boundary across callers. The compositional
-internal-call proof gap is tracked in
-[#1335](https://github.com/Th0rgal/verity/issues/1335).
+internal-call proof gap now sits inside the `calls.helpers` body-support
+sub-interface in
+`Compiler/Proofs/IRGeneration/SupportedSpec.lean`, and its follow-on widening
+work is now split into:
+- a positive direct-callee summary inventory already attached to `calls.helpers`
+- a spec-aware helper source semantics target in `Compiler/Proofs/IRGeneration/SourceSemantics.lean`
+- a reusable helper-summary contract API attached directly to those witnesses
+- an explicit helper-summary proof wrapper (`SupportedFunctionHelperProofs` /
+  `SupportedSpecHelperProofs`) that defines the future compositional theorem input
+- matching helper-proof-carrying theorem variants in `Function.lean`,
+  `Dispatch.lean`, and `Contract.lean`, so the public Layer 2 theorem family
+  already exposes that input without changing the current trusted boundary
+- a dedicated world-preservation hook for expression-position helper callees
+- a strictly decreasing helper-rank interface for direct callees, so future
+  helper composition can target a well-founded measure instead of raw fuel
+- feature-local `state` / `calls` / `effects` scans that recurse through nested
+  `ite` / `forEach` bodies, so the interface inventory is whole-body rather than
+  top-level only
+- a temporary legacy fail-closed check that keeps the current theorem boundary unchanged
+
+The exact blocker for removing that temporary helper gate is now machine-readable
+in `artifacts/layer2_boundary_catalog.json`: callers still derive body closure
+through the helper-free `SupportedStmtList`, summary-soundness evidence still is
+not threaded through the helper-aware body/IR preservation proof, and the
+current `execIRFunction` semantics does not yet model internal helper call
+composition. The compiled-side blocker is tracked in
+[#1638](https://github.com/Th0rgal/verity/issues/1638).
+
+The remaining work tracked in
+[#1630](https://github.com/Th0rgal/verity/issues/1630).
 
 ## Build
 

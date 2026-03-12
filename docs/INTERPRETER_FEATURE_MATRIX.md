@@ -160,7 +160,7 @@ Proof-boundary features split across two buckets. Partially modeled features cur
 
 2. **Low-level calls**: `call`/`staticcall`/`delegatecall` and `externalCallBind`/`ecm` are compiler-only features validated by Foundry testing, not modeled in proof interpreters. `delegatecall` additionally remains a dedicated proxy / upgradeability trust boundary; use `--trust-report` / `--deny-proxy-upgradeability` when those semantics must stay outside the selected verification envelope (issue [#1420](https://github.com/Th0rgal/verity/issues/1420)).
 
-3. **Internal helper compositional proofs**: `Stmt.internalCall` / `Expr.internalCall` execute in the fuel-based interpreter path, but helper-level theorem reuse across callers is not yet surfaced as a first-class proof interface. The current gap is tracked in [#1335](https://github.com/Th0rgal/verity/issues/1335).
+3. **Internal helper compositional proofs**: `Stmt.internalCall` / `Expr.internalCall` execute in the fuel-based interpreter path, but helper-level theorem reuse across callers is not yet surfaced as a first-class proof interface. The current proof-level gap is tracked under the Layer 2 completeness roadmap in [#1630](https://github.com/Th0rgal/verity/issues/1630), with the interface/boundary refactor in [#1633](https://github.com/Th0rgal/verity/pull/1633).
 
 ---
 

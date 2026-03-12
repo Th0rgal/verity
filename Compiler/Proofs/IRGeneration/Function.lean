@@ -1302,6 +1302,65 @@ theorem supported_function_correct
       simpa [compiledFunctionIR, List.length_append, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm,
         hfuelEq'] using hfuel
     simpa [hadequacy] using hfuel'
+
+/-- Helper-proof-carrying variant of `supported_function_correct`.
+This does not yet widen the generic theorem: the current body proof still
+discharges helper closure through `calls.helperCompatibility`, so the helper
+proof slot is compatibility-redundant for now. Keeping the slot explicit here
+stabilizes the function-level theorem surface before helper composition is
+threaded through the body/IR proof. -/
+theorem supported_function_correct_with_helper_proofs
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (_hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (htxNormalized : TxContextNormalized tx)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    supported_function_correct
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hvalidateInputs := hvalidateInputs)
+      (fn := fn)
+      (selector := selector)
+      (returns := returns)
+      (bodyStmts := bodyStmts)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (bindings := bindings)
+      (hfn := hfn)
+      (hvalidate := hvalidate)
+      (hreturns := hreturns)
+      (hbodyCompile := hbodyCompile)
+      (hcompile := hcompile)
+      (hbind := hbind)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+  simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+    (hSupported := hSupported) hfn tx initialWorld] using hlegacy
   · -- Non-core path: mirror the core path's extraFuel strategy so that
     -- we bridge to `sizeOf`-style fuel and discharge via
     -- `execIRFunctionFuel_adequate`, eliminating the former
@@ -1375,14 +1434,15 @@ theorem supported_function_correct
               fn.body :=
           hsupportedFn.body.genericCore
             (by simpa [SourceSemantics.effectiveFields] using hnoConflict)
-        exact supported_function_body_correct_from_exact_state_generic
-          model fn bodyStmts tx initialWorld
+        exact supported_function_body_correct_from_exact_state_generic_with_helpers
+          model fn bodyStmts hSupported.helperFuel tx initialWorld
           (ParamLoading.applyBindingsToIRState
             (prebindRawArgs initialState fn.params) bindings)
           bindings extraFuel hbodyExtraFuelLower
           (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
           hSupported.noEvents
           hSupported.noErrors
+          hsupportedFn.body.calls.helperCompatibility.surfaceClosed
           hgeneric
           hbodyCompile
           hscope

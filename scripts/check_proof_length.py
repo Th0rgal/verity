@@ -209,6 +209,38 @@ ALLOWLIST: set[str] = {
     "stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded",
     "exec_compileStmtList_generic_sizeOf_extraFuel_step",
     "supported_function_body_correct_from_exact_state_generic",
+    # Issue #1630 / helper-semantics retarget follow-up:
+    # this theorem is the helper-aware wrapper around the existing generic body
+    # proof while helper-summary soundness/rank evidence is still threaded only
+    # partway through the stack. Its length comes from preserving the generic
+    # body theorem surface during the semantics retarget, not from novel proof
+    # complexity in the wrapper itself.
+    "supported_function_body_correct_from_exact_state_generic_with_helpers",
+    # Issue #1630 / PR #1633 — helper-aware source-semantics compatibility:
+    # this mutual-recursion theorem centralizes the constructor-by-constructor
+    # collapse from helper-aware expression evaluation back to the legacy
+    # helper-free semantics under the temporary fail-closed helper boundary.
+    # Splitting it further is follow-up cleanup once helper-summary composition
+    # replaces the compatibility path; for now keeping the recursion in one
+    # theorem avoids duplicating the structural cases across the paired list/stmt
+    # compatibility lemmas introduced by the new proof interface inventory.
+    "evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed",
+    # Issue #1630 / PR #1633 follow-up — helper-proof theorem-surface adapters:
+    # these declarations are intentionally long because they mirror the existing
+    # generic Layer 2 theorem signatures while adding the explicit helper-proof
+    # slot. The proof bodies are thin wrappers around the existing theorems; the
+    # line count comes from preserving the stable public API shape, not from
+    # proof complexity.
+    "supported_function_correct_with_helper_proofs",
+    "interpretContract_correct_of_compiled_functions_with_helper_proofs",
+    "compileFunctionSpec_correct_generic_with_helper_proofs",
+    "compile_preserves_semantics_with_helper_proofs",
+    # Issue #1630 / PR #1633 — feature-interface compatibility bridge:
+    # this private theorem is the one place that folds the split `core` / `state`
+    # / `calls` booleans back into the legacy `exprTouchesUnsupportedContractSurface`
+    # predicate while the generic body proof still consumes the old boundary.
+    # Decomposing it now would only spread the temporary compatibility transport.
+    "exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
     "firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs",
 }
 

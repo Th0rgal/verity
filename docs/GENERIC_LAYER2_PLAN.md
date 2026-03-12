@@ -46,6 +46,11 @@ That is the mechanically checkable meaning of a future "whole EDSL is formally p
 claim. Stronger claims about arbitrary Lean-produced `CompilationModel` values should not
 be made unless the theorem domain itself expands to cover them.
 
+The machine-readable boundary companion for this theorem target now lives in
+[`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json).
+It records the exact target claim, the `SupportedSpec` split, the current helper
+fail-closed gate, and the ranked follow-on blockers.
+
 ## Why The Current Architecture Cannot Satisfy The Goal
 
 The current proof boundary stops too low and too late:
@@ -216,7 +221,7 @@ Use this checklist in the PR description and keep it current:
 
 The generic whole-contract theorem exists and its proof chain is complete:
 
-- **`compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile`. No contract-specific bridge premise.
+- **`compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile`. No contract-specific bridge premise. The theorem now targets the canonical helper-aware source semantics induced by `SupportedSpec.helperFuel`, so future helper-summary composition can extend the existing theorem surface instead of replacing it.
 - **`compileFunctionSpec_correct_generic`** in the same file, per-function correctness.
 - **`interpretContract_correct_of_compiled_functions`** in [`Dispatch.lean`](../Compiler/Proofs/IRGeneration/Dispatch.lean), selector-dispatch preservation.
 - **`counter_supported_spec_compile_preserves_semantics`** in [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean), the first direct consumer instantiating the generic theorem for an existing supported demo model, with no contract-specific body-simulation premise.
@@ -227,15 +232,53 @@ The proof chain no longer depends on `supported_function_body_correct_from_exact
 
 This theorem is now quantified over a whole `CompilationModel`, selectors, a
 `SupportedSpec` witness, and successful `CompilationModel.compile`, with no
-contract-specific semantic bridge premise and no Layer 2 axiom. The function
-closure is discharged generically from the supported statement fragment, and the
-compiled-function-table witness is derived directly from
-`CompilationModel.compile = Except.ok ir`.
+contract-specific semantic bridge premise and no Layer 2 axiom. The source side
+is already phrased in the helper-aware semantics family via the canonical fuel
+computed from `SupportedSpec.helperFuel`; on the current fragment that helper-aware
+semantics is proved equal to the legacy helper-free semantics, so the trusted
+boundary is unchanged while the future helper-composition target is now the
+current theorem surface. The function closure is discharged generically from the
+supported statement fragment, and the compiled-function-table witness is derived
+directly from `CompilationModel.compile = Except.ok ir`.
 
 The main objective of issue #1618 is therefore complete. Remaining Layer 2 work
 now sits under the post-generic widening/completeness plan in
 [#1630](https://github.com/Th0rgal/verity/issues/1630):
 
+- keep shrinking the body-level `SupportedSpec` witness by replacing the new
+  `core` / `state` / `calls` / `effects` interfaces with positive proof
+  interfaces
+- helper calls now have an explicit summary inventory under `calls.helpers`, and
+  `SourceSemantics.lean` now exposes a dedicated helper-aware source semantics
+  target (`evalExprWithHelpers` / `execStmtListWithHelpers` /
+  `interpretInternalFunctionFuel`), while `SupportedSpec.lean` now attaches a
+  reusable `InternalHelperSummaryContract` interface and a strictly decreasing
+  helper-rank measure directly to helper-summary witnesses. Expression-position
+  helper callees are now tracked separately and must prove world preservation on
+  success, which keeps the current helper-aware expression semantics honest
+  without constraining statement-position helper summaries the same way.
+  `SourceSemantics` now also defines `InternalHelperSummarySound` /
+  `SupportedBodyHelperSummariesSound` plus direct-call consumption lemmas for
+  `Expr.internalCall`, `Stmt.internalCall`, and `Stmt.internalCallAssign`, so
+  helper summaries are now a proof-carrying source-semantics interface rather
+  than just an inventory placeholder. `SourceSemantics.lean` now also exposes
+  dedicated `SupportedFunctionHelperProofs` / `SupportedSpecHelperProofs`
+  wrappers, so future helper composition has an explicit theorem-level slot for
+  summary-soundness evidence instead of needing an ad hoc extra hypothesis, and
+  `Contract.lean` now mirrors that at the public theorem surface via
+  helper-proof-carrying variants such as
+  `compile_preserves_semantics_with_helper_proofs`; the
+  feature-local `state` / `calls` / `effects` scans recurse through nested `ite` / `forEach` bodies so those
+  boundaries are control-flow complete rather than top-level-only, and
+  compatibility lemmas still prove that the helper-aware semantics collapses to
+  the existing helper-free semantics on the current `SupportedSpec` fragment
+- the remaining helper blocker is now pinned down more precisely in
+  [`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json):
+  callers still derive generic body proofs through the helper-free `SupportedStmtList` witness,
+  the generic body theorem now already targets the helper-aware source semantics family under the current fail-closed helper gate,
+  but summary-soundness/rank evidence is still not consumed inside that body proof,
+  and the current IR function semantics has no first-class internal-helper composition;
+  the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)
 - widen the supported whole-contract fragment without reintroducing axioms
 
 ## Non-Goals For The First Generic Theorem
