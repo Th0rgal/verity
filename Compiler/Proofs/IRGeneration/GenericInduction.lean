@@ -7040,4 +7040,73 @@ theorem compiledStmtStepWithHelpersAndHelperIR_internalCallAssign
   rw [hFuelEq]
   exact ⟨_, _, rfl, rfl, hMatch⟩
 
+/-- Generic `CompiledStmtStepWithHelpersAndHelperIR` constructor for
+`Stmt.internalCall` (void internal helper calls).  Analogous to
+`compiledStmtStepWithHelpersAndHelperIR_internalCallAssign` but for the
+void-call case where the compiled IR is `[.expr (.call yulName argExprs)]`.
+
+The caller supplies a `bridge` hypothesis that ties the source-level
+`execStmtWithHelpers` result to the IR-level `execIRStmtsWithInternals` result
+on the singleton IR list with `irFuel + 3` fuel. -/
+theorem compiledStmtStepWithHelpersAndHelperIR_internalCall
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {calleeName : String} {args : List Expr}
+    {compiledIR : List YulStmt}
+    {argExprs : List YulExpr}
+    (hcompile : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      (Stmt.internalCall calleeName args) = Except.ok compiledIR)
+    (hargCompile : CompilationModel.compileExprList fields .calldata args = Except.ok argExprs)
+    -- End-to-end source↔IR alignment bridge.
+    (bridge :
+      ∀ (runtime : SourceSemantics.RuntimeState)
+        (state : IRState)
+        (helperFuel : Nat)
+        (irFuel : Nat),
+        0 < helperFuel →
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+        FunctionBody.scopeNamesPresent scope runtime.bindings →
+        FunctionBody.bindingsBounded runtime.bindings →
+        FunctionBody.runtimeStateMatchesIR fields runtime state →
+        stmtStepMatchesIRExecWithInternals fields
+          (stmtNextScope scope (Stmt.internalCall calleeName args))
+          (SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
+            (Stmt.internalCall calleeName args))
+          (execIRStmtsWithInternals runtimeContract (irFuel + 3) state
+            [YulStmt.expr (YulExpr.call
+              (CompilationModel.internalFunctionYulName calleeName) argExprs)])) :
+    CompiledStmtStepWithHelpersAndHelperIR
+      runtimeContract spec fields scope
+      (Stmt.internalCall calleeName args)
+      compiledIR := by
+  refine {
+    compileOk := hcompile
+    preserves := ?_ }
+  intro runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hslack
+  -- Obtain the shape of the compiled IR
+  obtain ⟨argExprs', hargOk, hshape⟩ := compileStmt_internalCall_shape hcompile
+  have hArgEq : argExprs' = argExprs := by
+    simp [hargCompile] at hargOk; exact hargOk.symm
+  subst hArgEq
+  rw [hshape]
+  -- Fuel arithmetic: compiledIR = singleton, so .length = 1
+  have hlenOne : ([YulStmt.expr
+    (YulExpr.call (CompilationModel.internalFunctionYulName calleeName)
+      argExprs)] : List YulStmt).length = 1 := rfl
+  have hExtraPos : 1 ≤ extraFuel := by
+    have hsz : sizeOf ([YulStmt.expr
+      (YulExpr.call (CompilationModel.internalFunctionYulName calleeName)
+        argExprs)] : List YulStmt) ≥ 2 := by simp; omega
+    rw [hshape] at hslack; rw [hlenOne] at hslack; omega
+  set irFuel := extraFuel - 1 with hirFuel
+  have hMatch := bridge runtime state helperFuel irFuel hfuelPos hexact hscope hbounded hruntime
+  have hFuelEq : ([YulStmt.expr
+    (YulExpr.call (CompilationModel.internalFunctionYulName calleeName) argExprs)]).length +
+    extraFuel + 1 = irFuel + 3 := by
+    rw [hlenOne, hirFuel]; omega
+  rw [hFuelEq]
+  exact ⟨_, _, rfl, rfl, hMatch⟩
+
 end Compiler.Proofs.IRGeneration
