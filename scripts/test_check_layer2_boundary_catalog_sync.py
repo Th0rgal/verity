@@ -53,8 +53,9 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
                 "`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`\n"
                 "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`\n"
                 "total fuel-indexed helper-aware IR semantics\n"
-                "direct helper-free lemmas for `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
-                "full `expr` compatibility theorem plus nested `if`/`block` transport\n"
+                "`exprStmtUsesDedicatedBuiltinSemantics`\n"
+                "direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
+                "residual expr-statement compatibility surface plus nested `if`/`block` transport\n"
                 "`InterpretIRWithInternalsZeroConservativeExtensionInterfaces`\n"
             ),
             "ROADMAP": (
@@ -70,8 +71,9 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
                 "`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`\n"
                 "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`\n"
                 "total fuel-indexed helper-aware IR semantics\n"
-                "direct helper-free lemmas for `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
-                "full `expr` compatibility theorem plus nested `if`/`block` transport\n"
+                "`exprStmtUsesDedicatedBuiltinSemantics`\n"
+                "direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
+                "residual expr-statement compatibility surface plus nested `if`/`block` transport\n"
                 "`InterpretIRWithInternalsZeroConservativeExtensionInterfaces`\n"
                 "[#1638]\n"
             ),
@@ -88,8 +90,9 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
                 "`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`\n"
                 "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`\n"
                 "total fuel-indexed helper-aware IR semantics\n"
-                "direct helper-free lemmas for `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
-                "full `expr` compatibility theorem plus nested `if`/`block` transport\n"
+                "`exprStmtUsesDedicatedBuiltinSemantics`\n"
+                "direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
+                "residual expr-statement compatibility surface plus nested `if`/`block` transport\n"
                 "`InterpretIRWithInternalsZeroConservativeExtensionInterfaces`\n"
                 "[#1638]\n"
             ),
@@ -106,8 +109,9 @@ class Layer2BoundaryCatalogSyncTests(unittest.TestCase):
                 "`interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`\n"
                 "`compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal`\n"
                 "total fuel-indexed helper-aware IR semantics\n"
-                "direct helper-free lemmas for `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
-                "full `expr` compatibility theorem plus nested `if`/`block` transport\n"
+                "`exprStmtUsesDedicatedBuiltinSemantics`\n"
+                "direct helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`\n"
+                "residual expr-statement compatibility surface plus nested `if`/`block` transport\n"
                 "`InterpretIRWithInternalsZeroConservativeExtensionInterfaces`\n"
                 "[#1638]\n"
             ),

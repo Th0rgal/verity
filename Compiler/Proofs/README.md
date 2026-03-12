@@ -169,9 +169,11 @@ and the contract-level theorem all reduce to a named stmt-subgoal interface.
 That leaves the remaining proof work as the fields of
 `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals` for
 `runtimeContractOfFunctions`-style contracts over the subset. `IRInterpreter.lean`
-now already exposes direct helper-free lemmas for `mstore`, `revert`, `return`,
-and mapping-slot `sstore`, so the remaining assembly is the full `expr`
-compatibility theorem plus nested `if`/`block` transport. After that, the
+now classifies dedicated expr-statement builtin cases through
+`exprStmtUsesDedicatedBuiltinSemantics` and already exposes direct helper-free
+lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`, so
+the remaining assembly is the residual expr-statement compatibility surface
+plus nested `if`/`block` transport. After that, the
 broader theorem stack can instantiate the already-defined helper-aware wrapper
 theorems rather than requiring another theorem-interface refactor.
 The helper-aware compiled target remains available as total fuel-indexed

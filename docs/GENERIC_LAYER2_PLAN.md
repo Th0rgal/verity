@@ -312,10 +312,11 @@ now sits under the post-generic widening/completeness plan in
   remaining independent proof tasks;
   the remaining compiled-side proof step is therefore to fill
   `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`,
-  where `IRInterpreter.lean` now already provides direct helper-free lemmas for
-  `mstore`, `revert`, `return`, and mapping-slot `sstore`, leaving the remaining
-  assembly as the full `expr` compatibility theorem plus nested `if`/`block`
-  transport on that subset,
+  where `IRInterpreter.lean` now classifies the dedicated expr-statement builtin
+  cases via `exprStmtUsesDedicatedBuiltinSemantics` and already provides direct
+  helper-free lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot
+  `sstore`, leaving the remaining assembly as the residual expr-statement
+  compatibility surface plus nested `if`/`block` transport on that subset,
   after which the conservative-extension goal from legacy `interpretIR` to
   `interpretIRWithInternals` on that subset follows by composition,
   and `Function.lean`, `Dispatch.lean`, and `Contract.lean` now already expose

@@ -1130,6 +1130,17 @@ theorem execIRStmtWithInternals_sstore_mappingSlot_succ_of_no_internal
     evalIRExprWithInternals_eq_evalIRExpr_of_no_internal contract hinternal,
     hbase, hkey, hval]
 
+/-- Expression statements that do not fall through the ordinary
+`evalIRExprWithInternals` / `evalIRExpr` path and therefore need dedicated
+compatibility lemmas on the helper-free compiled-side retarget track. -/
+def exprStmtUsesDedicatedBuiltinSemantics : YulExpr → Bool
+  | .call "sstore" [_, _] => true
+  | .call "mstore" [_, _] => true
+  | .call "stop" [] => true
+  | .call "revert" [_, _] => true
+  | .call "return" [_, _] => true
+  | _ => false
+
 /-- Helper-free helper-aware execution also preserves legacy `mstore` semantics.
 This isolates `mstore` as a closed compiled-side subcase rather than leaving it
 implicit inside the larger stmt-compatibility theorem. -/
@@ -1217,6 +1228,22 @@ theorem execIRStmtWithInternals_eq_execIRStmt_return_of_no_internal
                 simp [execIRStmtWithInternals, execIRStmt, evalIRExprs,
                   evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal contract hinternal,
                   hoffset, hsize, h32]
+
+/-- Helper-free helper-aware execution preserves legacy `stop` statement
+semantics. -/
+theorem execIRStmtWithInternals_eq_execIRStmt_stop_of_no_internal
+    (contract : IRContract)
+    (_hinternal : contract.internalFunctions = [])
+    (fuel : Nat) (state : IRState) :
+    execIRStmtWithInternals contract fuel state
+      (YulStmt.expr (YulExpr.call "stop" [])) =
+        match execIRStmt fuel state
+          (YulStmt.expr (YulExpr.call "stop" [])) with
+        | .continue next => .continue next
+        | .return value next => .return value next
+        | .stop next => .stop next
+        | .revert next => .revert next := by
+  cases fuel <;> simp [execIRStmtWithInternals, execIRStmt]
 
 /-- The helper-free conservative-extension interface is now discharged for the
 expression layer: both single-expression and expression-list helper-aware

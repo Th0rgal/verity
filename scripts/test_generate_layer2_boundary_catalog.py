@@ -126,6 +126,25 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             "execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals",
         )
         self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["expr_stmt_dedicated_builtin_classifier"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "exprStmtUsesDedicatedBuiltinSemantics",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["closed_expr_stmt_subcases"],
+            [
+                "special_expr_stmt_stop",
+                "special_expr_stmt_mstore",
+                "special_expr_stmt_return",
+                "special_expr_stmt_revert",
+                "special_expr_stmt_mapping_slot_sstore",
+            ],
+        )
+        self.assertEqual(
             catalog["current_out_of_scope_surfaces"][0]["status"],
             "blocked_at_body_ir_composition_seam",
         )
