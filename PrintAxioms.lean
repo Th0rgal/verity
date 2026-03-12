@@ -707,6 +707,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
+#print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs
@@ -1670,4 +1671,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1539 theorems/lemmas (1199 public, 340 private)
+-- Total: 1540 theorems/lemmas (1200 public, 340 private)

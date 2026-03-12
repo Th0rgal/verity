@@ -351,6 +351,7 @@ ALLOWLIST: set[str] = {
     # follow-up cleanup once the remaining stmt-level conservative-extension
     # theorem lands and the helper-aware path becomes the default theorem stack.
     "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir",
+    "compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint",
     "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir",
     "interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal",
     "compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed",

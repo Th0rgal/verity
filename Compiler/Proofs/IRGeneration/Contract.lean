@@ -1204,6 +1204,60 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
       (hbind := hbind)
   simpa [hhelperIR] using hlegacy
 
+/-- Structured helper-aware compiled-side wrapper for the generic function
+theorem. This replaces the raw function-level conservative-extension equality
+premise by the compiled-body disjointness witness that proves it. -/
+theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hbodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract irFn.body) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (hvalidateInputs := hvalidateInputs)
+    (runtimeContract := runtimeContract)
+    (fn := fn)
+    (sel := sel)
+    (irFn := irFn)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (bindings := bindings)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hfn := hfn)
+    (hcompileFn := hcompileFn)
+    (hbind := hbind)
+    (hhelperIR :=
+      execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+        runtimeContract
+        irFn
+        tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        hbodyDisjoint)
+
 /-- Primary whole-contract Layer 2 theorem: compilation preserves semantics
 for any supported `CompilationModel`. No contract-specific bridge premise.
 Layer 2 itself is axiom-free; the remaining documented project axiom is the
