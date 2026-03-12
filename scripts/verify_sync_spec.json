@@ -78,7 +78,8 @@
     ],
     "compiler-regressions": [
       "changes",
-      "checks"
+      "checks",
+      "build-compiler"
     ],
     "lean-profile": [
       "changes"
@@ -117,7 +118,7 @@
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
     "macro-fuzz": "needs.checks.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
     "build-compiler": "needs.checks.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    "compiler-regressions": "needs.checks.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-regressions": "needs.checks.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "lean-profile": "github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'",
     "foundry-gas-calibration": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
     "foundry": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
@@ -433,7 +434,6 @@
     "check_patch_gas_delta.py --baseline-report gas-report-static.tsv --patched-report gas-report-static-patched.tsv --min-improved-contracts 0 --summary-markdown patch-gas-delta-summary.md >> \"$GITHUB_STEP_SUMMARY\""
   ],
   "required_build_compiler_run_commands": [
-    "lake build difftest-interpreter",
     "verity-compiler-patched",
     "--output compiler/yul",
     "--output compiler/yul-patched",

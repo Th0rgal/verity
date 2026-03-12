@@ -308,9 +308,6 @@ jobs:
             verity-compiler-patched \
             difftest-interpreter
 
-      - name: Build difftest interpreter
-        run: lake build difftest-interpreter
-
       - name: Generate Yul (all contracts + CryptoHash with linked libraries)
         run: |
           ./.lake/build/bin/verity-compiler \
@@ -501,8 +498,8 @@ jobs:
   compiler-regressions:
     runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 60
-    needs: [changes, checks]
-    if: needs.checks.result == 'success' && needs.changes.outputs.compiler == 'true'
+    needs: [changes, checks, build-compiler]
+    if: needs.checks.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
       LEAN_NUM_THREADS: 12
     steps:
