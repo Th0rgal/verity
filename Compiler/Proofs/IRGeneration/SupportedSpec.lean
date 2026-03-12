@@ -176,6 +176,46 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
 
+/-- Narrow helper-effect surface used by the exact helper-aware induction seam:
+this tracks only genuine internal-helper execution, not the broader set of
+still-unsupported expression shapes that currently share the coarse
+`exprTouchesUnsupportedHelperSurface` approximation. -/
+def exprTouchesInternalHelperSurface : Expr → Bool
+  | .internalCall _ _ => true
+  | .literal _ | .param _ | .caller | .contractAddress
+  | .chainid | .msgValue | .blockTimestamp | .blockNumber
+  | .localVar _ | .storage _ | .storageAddr _
+  | .constructorArg _ | .blobbasefee | .mload _ | .tload _
+  | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
+  | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
+  | .storageArrayLength _ | .externalCall _ _ => false
+  | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _ => false
+  | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
+  | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
+  | .ge a b | .gt a b | .sgt a b | .lt a b | .slt a b | .le a b
+  | .logicalAnd a b | .logicalOr a b =>
+      exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
+  | .min a b | .max a b | .wMulDown a b | .wDivUp a b =>
+      exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
+      exprTouchesInternalHelperSurface b
+  | .mappingChain _ keys =>
+      keys.any exprTouchesInternalHelperSurface
+  | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
+  | .structMember _ a _ => exprTouchesInternalHelperSurface a
+  | .ite cond thenVal elseVal =>
+      exprTouchesInternalHelperSurface cond ||
+        exprTouchesInternalHelperSurface thenVal ||
+        exprTouchesInternalHelperSurface elseVal
+  | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
+      exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
+  | .mulDivDown a b c | .mulDivUp a b c =>
+      exprTouchesInternalHelperSurface a ||
+        exprTouchesInternalHelperSurface b ||
+        exprTouchesInternalHelperSurface c
+  | .shl a b | .shr a b | .sar a b | .signextend a b =>
+      exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
+
 /-- Foreign-call/library-hook surfaces still outside the current generic
 whole-contract theorem. -/
 def exprTouchesUnsupportedForeignSurface : Expr → Bool
@@ -399,6 +439,35 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
       exprTouchesUnsupportedHelperSurface count ||
         stmtListTouchesUnsupportedHelperSurface body
 
+/-- Narrow helper-effect surface used by the exact helper-aware induction seam:
+this isolates heads that genuinely execute internal helpers, leaving residual
+non-helper unsupported cases to be tracked separately. -/
+def stmtTouchesInternalHelperSurface : Stmt → Bool
+  | .letVar _ value | .assignVar _ value | .setStorage _ value =>
+      exprTouchesInternalHelperSurface value
+  | .require cond _ | .return cond =>
+      exprTouchesInternalHelperSurface cond
+  | .internalCall _ _ | .internalCallAssign _ _ _ => true
+  | .stop | .setStorageAddr _ _
+  | .mstore _ _ | .tstore _ _ | .calldatacopy _ _ _
+  | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
+  | .ecm _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _
+  | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
+  | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
+  | .storageArrayPush _ _ | .storageArrayPop _
+  | .setStorageArrayElement _ _ _ | .requireError _ _ _
+  | .revertError _ _ | .returnValues _ | .returnArray _
+  | .returnBytes _ | .returnStorageWords _ | .emit _ _
+  | .rawLog _ _ _ => false
+  | .ite cond thenBranch elseBranch =>
+      exprTouchesInternalHelperSurface cond ||
+        stmtListTouchesInternalHelperSurface thenBranch ||
+        stmtListTouchesInternalHelperSurface elseBranch
+  | .forEach _ count body =>
+      exprTouchesInternalHelperSurface count ||
+        stmtListTouchesInternalHelperSurface body
+
 def stmtTouchesUnsupportedForeignSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
       exprTouchesUnsupportedForeignSurface value
@@ -489,6 +558,14 @@ def stmtListTouchesUnsupportedHelperSurface : List Stmt → Bool
   | stmt :: rest =>
       stmtTouchesUnsupportedHelperSurface stmt ||
         stmtListTouchesUnsupportedHelperSurface rest
+
+/-- List-level narrow helper-effect surface used to target only genuine
+internal-helper execution in the exact helper-aware induction seam. -/
+def stmtListTouchesInternalHelperSurface : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesInternalHelperSurface stmt ||
+        stmtListTouchesInternalHelperSurface rest
 
 def stmtListTouchesUnsupportedForeignSurface : List Stmt → Bool
   | [] => false
@@ -785,6 +862,16 @@ example :
   decide
 
 example :
+    exprTouchesInternalHelperSurface
+      (.mappingChain "balances" [Expr.literal 1]) = false := by
+  decide
+
+example :
+    exprTouchesInternalHelperSurface
+      (.mappingChain "balances" [Expr.internalCall "helper" []]) = true := by
+  decide
+
+example :
     exprTouchesUnsupportedCallSurface
       (.mappingChain "balances" [Expr.internalCall "helper" []]) = true := by
   decide
@@ -967,6 +1054,81 @@ theorem SupportedStmtList.helperSurfaceClosed
     stmtListTouchesUnsupportedHelperSurface stmts = false := by
   rcases hSupported with ⟨fragments, rfl⟩
   exact supportedStmtFragments_helperSurfaceClosed fragments
+
+theorem exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+    {expr : Expr}
+    (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
+    exprTouchesInternalHelperSurface expr = false := by
+  induction expr with
+  | literal | param | storage | storageAddr | constructorArg | caller
+    | contractAddress | chainid | msgValue | blockTimestamp | blockNumber
+    | localVar | blobbasefee | mload | tload | calldatasize | calldataload
+    | returndataSize | extcodesize | returndataOptionalBoolAt | arrayLength
+    | storageArrayLength | externalCall | call | staticcall | delegatecall
+    | internalCall =>
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at *
+  | add lhs rhs ihL ihR | sub lhs rhs ihL ihR | mul lhs rhs ihL ihR
+    | div lhs rhs ihL ihR | sdiv lhs rhs ihL ihR | mod lhs rhs ihL ihR
+    | smod lhs rhs ihL ihR | bitAnd lhs rhs ihL ihR | bitOr lhs rhs ihL ihR
+    | bitXor lhs rhs ihL ihR | eq lhs rhs ihL ihR | ge lhs rhs ihL ihR
+    | gt lhs rhs ihL ihR | sgt lhs rhs ihL ihR | lt lhs rhs ihL ihR
+    | slt lhs rhs ihL ihR | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR
+    | logicalOr lhs rhs ihL ihR | min lhs rhs ihL ihR | max lhs rhs ihL ihR
+    | wMulDown lhs rhs ihL ihR | wDivUp lhs rhs ihL ihR
+    | mapping2 _ lhs rhs ihL ihR | structMember2 _ lhs rhs _ ihL ihR =>
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        ihL, ihR, Bool.or_eq_false] at *
+  | logicalNot expr ih | bitNot expr ih | mapping _ expr ih | mappingUint _ expr ih
+    | arrayElement _ expr ih | storageArrayElement _ expr ih
+    | mappingWord _ expr _ ih | mappingPackedWord _ expr _ _ ih
+    | structMember _ expr _ ih | shl expr _ ih | shr expr _ ih
+    | sar expr _ ih | signextend expr _ ih =>
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface, ih] at *
+  | ite cond thenVal elseVal ihCond ihThen ihElse =>
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        ihCond, ihThen, ihElse, Bool.or_eq_false] at *
+  | mulDivDown a b c ihA ihB ihC | mulDivUp a b c ihA ihB ihC =>
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        ihA, ihB, ihC, Bool.or_eq_false] at *
+  | keccak256 a b ihA ihB =>
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        ihA, ihB, Bool.or_eq_false] at *
+  | mappingChain _ keys ih =>
+      induction keys with
+      | nil =>
+          simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface]
+      | cons key rest ihKeys =>
+          simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at hsurface ⊢
+          constructor
+          · exact ih hsurface.1
+          · exact ihKeys hsurface.2
+
+theorem stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+    stmtTouchesInternalHelperSurface stmt = false := by
+  cases stmt <;>
+    simp [stmtTouchesUnsupportedHelperSurface, stmtTouchesInternalHelperSurface,
+      exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed] at *
+
+theorem stmtListTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    stmtListTouchesInternalHelperSurface stmts = false := by
+  induction stmts with
+  | nil =>
+      simp [stmtListTouchesUnsupportedHelperSurface, stmtListTouchesInternalHelperSurface]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedHelperSurface, stmtListTouchesInternalHelperSurface,
+        stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed, ih] at hsurface ⊢
+
+theorem SupportedStmtList.internalHelperSurfaceClosed
+    {fields : List Field}
+    {stmts : List Stmt}
+    (hSupported : SupportedStmtList fields stmts) :
+    stmtListTouchesInternalHelperSurface stmts = false := by
+  exact stmtListTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+    hSupported.helperSurfaceClosed
 
 theorem SupportedBodyHelperInterface.summaryOfCall
     {spec : CompilationModel} {fn : FunctionSpec}

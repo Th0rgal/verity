@@ -1052,6 +1052,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_core
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible
@@ -1279,6 +1282,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtFragment_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtFragments_helperSurfaceClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.internalHelperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryOfCall
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.summaryContractOfCall
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyHelperInterface.calleeRank_lt
@@ -1445,4 +1452,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1311 theorems/lemmas (1028 public, 283 private)
+-- Total: 1318 theorems/lemmas (1035 public, 283 private)

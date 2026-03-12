@@ -122,17 +122,20 @@ work is now split into:
   so already-proved helper-free cases can also be reused inside the exact
   helper-aware compiled seam on legacy-compatible compiled bodies
 - a weaker exact-seam compiled compatibility witness
-  `StmtListHelperFreeCompiledLegacyCompatible` plus the list-local exact helper
-  step interface `StmtListHelperSurfaceStepInterface` and the bridge theorem
-  `stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
-  so future helper-rich bodies only need new exact proofs at helper-surface-
-  positive heads while helper-free heads keep reusing the legacy generic step
-  library
+  `StmtListHelperFreeCompiledLegacyCompatible` plus the split exact step
+  interfaces `StmtListInternalHelperSurfaceStepInterface` and
+  `StmtListResidualHelperSurfaceStepInterface`, bridged through
+  `stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface`
+  and
+  `stmtListGenericWithHelpersAndHelperIR_of_core_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
+  so future helper-rich bodies only need genuinely new helper proofs at
+  internal-helper heads while residual non-helper coarse-surface cases are kept
+  separate from helper-summary work
 - a matching weaker source-side reuse witness
   `StmtListHelperFreeStepInterface` plus the direct split bridges
-  `stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`
+  `stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`
   and
-  `supported_function_body_correct_from_exact_state_generic_helper_surface_steps_and_helper_ir`,
+  `supported_function_body_correct_from_exact_state_generic_internal_helper_surface_steps_and_helper_ir`,
   so helper-rich bodies no longer need the whole list to satisfy
   `StmtListGenericCore` before they can target the exact helper-aware compiled
   body theorem
@@ -244,8 +247,8 @@ available as total fuel-indexed helper-aware IR semantics throughout the later
 fragment-widening retargeting work. The remaining blocker is therefore no
 longer a helper-free compiled-side witness on today’s theorem domain, but
  end-to-end consumption of helper-summary soundness/rank evidence through the
- genuinely new helper-surface-positive cases in the exact helper-aware compiled
- seam, via `StmtListHelperSurfaceStepInterface`, past the transitional
+ genuinely new internal-helper cases in the exact helper-aware compiled
+ seam, via `StmtListInternalHelperSurfaceStepInterface`, past the transitional
  legacy-compiled-body goal `SupportedFunctionBodyWithHelpersIRPreservationGoal`,
  and then through the exact helper-rich body target
  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; the current
