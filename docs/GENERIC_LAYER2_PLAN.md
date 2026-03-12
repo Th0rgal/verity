@@ -292,20 +292,23 @@ now sits under the post-generic widening/completeness plan in
   widening via `StmtListHelperFreeCompiledLegacyCompatible`,
   `StmtListInternalHelperSurfaceStepInterface`,
   `StmtListResidualHelperSurfaceStepInterface`, and the finer genuine-helper
-  cut `StmtListDirectInternalHelperStepInterface`,
+  cut `StmtListDirectInternalHelperCallStepInterface`,
+  `StmtListDirectInternalHelperAssignStepInterface`,
+  and the compatibility wrapper `StmtListDirectInternalHelperStepInterface`,
   `StmtListExprInternalHelperStepInterface`,
   `StmtListStructuralInternalHelperStepInterface`, assembled through
   `stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface`
   and then
-  `stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
+  `stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
   so only genuine internal-helper heads need genuinely new helper-specific exact
   step proofs while residual non-helper coarse-surface heads are kept separate,
-  and the genuine-helper work itself is now cut along direct-helper,
-  expression-helper, and structural-recursion lines. On today's
+  and the genuine-helper work itself is now cut along direct-helper-call,
+  direct-helper-assign, expression-helper, and structural-recursion lines. On today's
   boundary the source-side reuse seam is now split the same way via
   `StmtListHelperFreeStepInterface`,
   `stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
-  and
+  `supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir`,
+  and the coarser compatibility wrapper
   `supported_function_body_correct_from_exact_state_generic_split_internal_helper_surface_steps_and_helper_ir`,
   so future helper-rich bodies no longer need the whole list to satisfy
   `StmtListGenericCore` before they can land in the exact helper-aware body

@@ -317,6 +317,41 @@ inductive StmtListInternalHelperSurfaceStepInterface
 /-- Exact step interface for direct statement-position internal-helper heads.
 These are the cases that should consume the statement-level helper-summary
 soundness lemmas from `SourceSemantics.lean` directly. -/
+inductive StmtListDirectInternalHelperCallStepInterface
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope []
+  | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
+      (stmtTouchesDirectInternalHelperCallSurface stmt = true →
+        ∃ compiledIR,
+          CompiledStmtStepWithHelpersAndHelperIR
+            runtimeContract spec fields scope stmt compiledIR) →
+      StmtListDirectInternalHelperCallStepInterface
+        runtimeContract spec fields (stmtNextScope scope stmt) rest →
+      StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope (stmt :: rest)
+
+/-- Exact step interface for direct statement-position helper-return binding
+heads. These are the cases that should consume the `Stmt.internalCallAssign`
+summary shape directly instead of sharing one bucket with void helper calls. -/
+inductive StmtListDirectInternalHelperAssignStepInterface
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope []
+  | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
+      (stmtTouchesDirectInternalHelperAssignSurface stmt = true →
+        ∃ compiledIR,
+          CompiledStmtStepWithHelpersAndHelperIR
+            runtimeContract spec fields scope stmt compiledIR) →
+      StmtListDirectInternalHelperAssignStepInterface
+        runtimeContract spec fields (stmtNextScope scope stmt) rest →
+      StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope (stmt :: rest)
+
+/-- Coarser direct statement-position helper interface retained as the assembly
+point for the two direct helper proof shapes above. -/
 inductive StmtListDirectInternalHelperStepInterface
     (runtimeContract : IRContract)
     (spec : CompilationModel)
@@ -737,6 +772,86 @@ theorem stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed
 
 /-- Helper-surface-closed statement lists also satisfy the direct
 statement-position internal-helper interface vacuously. -/
+theorem stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
+      have hstmtDirect : stmtTouchesDirectInternalHelperCallSurface stmt = false :=
+        stmtTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtDirect] at hhelper
+      cases hhelper
+
+/-- Helper-surface-closed statement lists also satisfy the direct helper-return
+binding interface vacuously. -/
+theorem stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
+      have hstmtDirect : stmtTouchesDirectInternalHelperAssignSurface stmt = false :=
+        stmtTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtDirect] at hhelper
+      cases hhelper
+
+/-- Assemble the coarser direct helper interface from the two source-summary
+shapes it still contains: void helper statements and helper-return bindings. -/
+theorem stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts) :
+    StmtListDirectInternalHelperStepInterface runtimeContract spec fields scope stmts := by
+  induction hcall generalizing hassign with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadCall htailCall ih =>
+      cases hassign with
+      | cons hheadAssign htailAssign =>
+          refine .cons ?_ (ih htailAssign)
+          intro hdirect
+          have hsplit := stmtTouchesDirectInternalHelperSurface_eq_split stmt
+          by_cases hcallStmt : stmtTouchesDirectInternalHelperCallSurface stmt = true
+          · exact hheadCall hcallStmt
+          · have hassignStmt : stmtTouchesDirectInternalHelperAssignSurface stmt = true := by
+              rw [hsplit] at hdirect
+              rw [hcallStmt] at hdirect
+              simpa using hdirect
+            exact hheadAssign hassignStmt
+
+/-- Helper-surface-closed statement lists also satisfy the direct
+statement-position internal-helper interface vacuously. -/
 theorem stmtListDirectInternalHelperStepInterface_of_helperSurfaceClosed
     {runtimeContract : IRContract}
     {spec : CompilationModel}
@@ -745,20 +860,22 @@ theorem stmtListDirectInternalHelperStepInterface_of_helperSurfaceClosed
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
     StmtListDirectInternalHelperStepInterface runtimeContract spec fields scope stmts := by
-  induction stmts generalizing scope with
-  | nil =>
-      exact .nil
-  | cons stmt rest ih =>
-      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
-      have hstmtDirect : stmtTouchesDirectInternalHelperSurface stmt = false :=
-        stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
-      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
-      refine .cons ?_ (ih hrestSurface)
-      intro hhelper
-      rw [hstmtDirect] at hhelper
-      cases hhelper
+  exact
+    stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+      (stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fields := fields)
+        (scope := scope)
+        (stmts := stmts)
+        hsurface)
+      (stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fields := fields)
+        (scope := scope)
+        (stmts := stmts)
+        hsurface)
 
 /-- Helper-surface-closed statement lists also satisfy the expression-position
 internal-helper interface vacuously. -/
@@ -1058,6 +1175,45 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_int
 interfaces: direct helper statements, expression-position helper heads, and
 recursive structural heads are tracked separately, so future summary/rank proofs
 can target the exact source-side obligation they discharge. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface runtimeContract spec fields scope stmts)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (hhelperFree := hhelperFree)
+      (hdirect :=
+        stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+          hcall
+          hassign)
+      (hexpr := hexpr)
+      (hstruct := hstruct)
+      (hresidual := hresidual)
+      (hlegacy := hlegacy)
+      hnoInternalFunctions
+
+/-- Exact helper-aware list bridge over the fully split helper-positive
+interfaces: direct helper statements, expression-position helper heads, and
+recursive structural heads are tracked separately, so future summary/rank proofs
+can target the exact source-side obligation they discharge. -/
 theorem stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
     {runtimeContract : IRContract}
     {spec : CompilationModel}
@@ -1138,6 +1294,44 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_internalHelperSurfaceStepI
       (spec := spec)
       (hhelperFree := stmtListHelperFreeStepInterface_of_core hgeneric)
       (hinternal := hinternal)
+      (hresidual := hresidual)
+      (hlegacy := hlegacy)
+      hnoInternalFunctions
+
+/-- Legacy-core exact helper-aware list bridge over the fully split
+helper-positive interfaces. This keeps `StmtListGenericCore` reusable for
+helper-free heads while future helper-rich work targets direct helper
+statements, expression-position helper heads, and recursive structural heads
+separately. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface runtimeContract spec fields scope stmts)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hlegacy : StmtListHelperFreeCompiledLegacyCompatible fields scope stmts)
+    (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (hhelperFree := stmtListHelperFreeStepInterface_of_core hgeneric)
+      (hcall := hcall)
+      (hassign := hassign)
+      (hexpr := hexpr)
+      (hstruct := hstruct)
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       hnoInternalFunctions
@@ -6009,6 +6203,113 @@ theorem supported_function_body_correct_from_exact_state_generic_internal_helper
 interfaces: direct helper statements, expression-position helper heads, and
 recursive structural heads are supplied separately, so the next helper-rich
 proof step can land at the exact source-side obligation it discharges. -/
+theorem supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hhelperFree :
+      StmtListHelperFreeStepInterface
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hlegacy :
+      StmtListHelperFreeCompiledLegacyCompatible
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state)
+    (hnoInternalFunctions : runtimeContract.internalFunctions = []) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      (hcall := hcall)
+      (hassign := hassign)
+      (hexpr := hexpr)
+      (hstruct := hstruct)
+      (hresidual := hresidual)
+      (hlegacy := hlegacy)
+      hnoInternalFunctions
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
+
+/-- Body-level exact helper-aware bridge over the fully split genuine-helper
+interfaces: direct helper statements, expression-position helper heads, and
+recursive structural heads are supplied separately, so the next helper-rich
+proof step can land at the exact source-side obligation it discharges. -/
 theorem supported_function_body_correct_from_exact_state_generic_split_internal_helper_surface_steps_and_helper_ir
     (runtimeContract : IRContract)
     (model : CompilationModel)
@@ -6169,11 +6470,18 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
         fn.body :=
     stmtListHelperFreeStepInterface_of_core hgeneric
   exact
-    supported_function_body_correct_from_exact_state_generic_split_internal_helper_surface_steps_and_helper_ir
+    supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
       hextraFuel hnormalized hnoEvents hnoErrors hgenericExact
-      (stmtListDirectInternalHelperStepInterface_of_helperSurfaceClosed
+      (stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hhelperSurface)
+      (stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
         (runtimeContract := runtimeContract)
         (spec := model)
         (fields := SourceSemantics.effectiveFields model)

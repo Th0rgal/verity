@@ -279,6 +279,12 @@ ALLOWLIST: set[str] = {
     "stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible",
     "supported_function_body_correct_from_exact_state_generic_helper_surface_steps_and_helper_ir",
     "supported_function_body_correct_from_exact_state_generic_internal_helper_surface_steps_and_helper_ir",
+    # Issue #1630 / PR #1639 follow-up — finer direct-helper split:
+    # this wrapper keeps the exact helper-aware body target centralized while
+    # threading distinct direct-helper-call and direct-helper-assign interfaces
+    # through the same transport layer instead of duplicating the surrounding
+    # body-goal plumbing in later helper-summary proof PRs.
+    "supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir",
     # Issue #1630 / PR #1639 follow-up — helper-positive seam split by proof
     # obligation shape: this body-level bridge preserves the public exact target
     # while threading direct-helper, expression-helper, structural-helper, and

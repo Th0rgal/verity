@@ -126,6 +126,8 @@ work is now split into:
   interfaces `StmtListInternalHelperSurfaceStepInterface` and
   `StmtListResidualHelperSurfaceStepInterface`, where the genuine-helper side is
   now further split into
+  `StmtListDirectInternalHelperCallStepInterface`,
+  `StmtListDirectInternalHelperAssignStepInterface`,
   `StmtListDirectInternalHelperStepInterface`,
   `StmtListExprInternalHelperStepInterface`, and
   `StmtListStructuralInternalHelperStepInterface`, assembled through
@@ -137,7 +139,8 @@ work is now split into:
   so future helper-rich bodies only need genuinely new helper proofs at
   internal-helper heads while residual non-helper coarse-surface cases are kept
   separate from helper-summary work, and the genuine-helper proof work itself is
-  now cut along direct-helper, expression-helper, and structural-recursion lines
+  now cut along direct-helper-call, direct-helper-assign, expression-helper,
+  and structural-recursion lines
 - a matching weaker source-side reuse witness
   `StmtListHelperFreeStepInterface` plus the direct split bridges
   `stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`
@@ -256,6 +259,8 @@ longer a helper-free compiled-side witness on today’s theorem domain, but
   end-to-end consumption of helper-summary soundness/rank evidence through the
   genuinely new internal-helper cases in the exact helper-aware compiled
   seam, now cut into
+  `StmtListDirectInternalHelperCallStepInterface`,
+  `StmtListDirectInternalHelperAssignStepInterface`,
   `StmtListDirectInternalHelperStepInterface`,
   `StmtListExprInternalHelperStepInterface`, and
   `StmtListStructuralInternalHelperStepInterface`, past the transitional

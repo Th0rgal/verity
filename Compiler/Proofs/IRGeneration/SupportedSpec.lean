@@ -472,7 +472,22 @@ def stmtTouchesInternalHelperSurface : Stmt → Bool
 exact helper seam that should consume the existing statement-level helper
 summary lemmas from `SourceSemantics.lean`. -/
 def stmtTouchesDirectInternalHelperSurface : Stmt → Bool
-  | .internalCall _ _ | .internalCallAssign _ _ _ => true
+  | .internalCall _ _ =>
+      true
+  | .internalCallAssign _ _ _ =>
+      true
+  | _ => false
+
+/-- Direct helper statements with no source-level return binding. These match
+the `Stmt.internalCall` source-summary shape exactly. -/
+def stmtTouchesDirectInternalHelperCallSurface : Stmt → Bool
+  | .internalCall _ _ => true
+  | _ => false
+
+/-- Direct helper statements that bind helper returns into source locals. These
+match the `Stmt.internalCallAssign` source-summary shape exactly. -/
+def stmtTouchesDirectInternalHelperAssignSurface : Stmt → Bool
+  | .internalCallAssign _ _ _ => true
   | _ => false
 
 /-- Expression-position internal helper execution at the current statement head.
@@ -630,6 +645,18 @@ def stmtListTouchesDirectInternalHelperSurface : List Stmt → Bool
   | stmt :: rest =>
       stmtTouchesDirectInternalHelperSurface stmt ||
         stmtListTouchesDirectInternalHelperSurface rest
+
+def stmtListTouchesDirectInternalHelperCallSurface : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesDirectInternalHelperCallSurface stmt ||
+        stmtListTouchesDirectInternalHelperCallSurface rest
+
+def stmtListTouchesDirectInternalHelperAssignSurface : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesDirectInternalHelperAssignSurface stmt ||
+        stmtListTouchesDirectInternalHelperAssignSurface rest
 
 def stmtListTouchesExprInternalHelperSurface : List Stmt → Bool
   | [] => false
@@ -1199,6 +1226,35 @@ theorem stmtTouchesInternalHelperSurface_eq_split
       stmtTouchesExprInternalHelperSurface,
       stmtTouchesStructuralInternalHelperSurface]
 
+theorem stmtTouchesDirectInternalHelperSurface_eq_split
+    (stmt : Stmt) :
+    stmtTouchesDirectInternalHelperSurface stmt =
+      (stmtTouchesDirectInternalHelperCallSurface stmt ||
+        stmtTouchesDirectInternalHelperAssignSurface stmt) := by
+  cases stmt <;>
+    simp [stmtTouchesDirectInternalHelperSurface,
+      stmtTouchesDirectInternalHelperCallSurface,
+      stmtTouchesDirectInternalHelperAssignSurface]
+
+theorem stmtTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+    stmtTouchesDirectInternalHelperCallSurface stmt = false := by
+  have hdirect := stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface
+  rw [stmtTouchesDirectInternalHelperSurface_eq_split] at hdirect
+  cases hcall : stmtTouchesDirectInternalHelperCallSurface stmt <;>
+    simp [hcall] at hdirect ⊢
+
+theorem stmtTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceClosed
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+    stmtTouchesDirectInternalHelperAssignSurface stmt = false := by
+  have hdirect := stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface
+  rw [stmtTouchesDirectInternalHelperSurface_eq_split] at hdirect
+  cases hcall : stmtTouchesDirectInternalHelperCallSurface stmt <;>
+    cases hassign : stmtTouchesDirectInternalHelperAssignSurface stmt <;>
+      simp [hcall, hassign] at hdirect ⊢
+
 theorem stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {stmt : Stmt}
     (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
@@ -1252,6 +1308,32 @@ theorem stmtListTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClos
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtListTouchesDirectInternalHelperSurface,
         stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed, ih] at hsurface ⊢
+
+theorem stmtListTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    stmtListTouchesDirectInternalHelperCallSurface stmts = false := by
+  induction stmts with
+  | nil =>
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesDirectInternalHelperCallSurface]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesDirectInternalHelperCallSurface,
+        stmtTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed, ih] at hsurface ⊢
+
+theorem stmtListTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceClosed
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    stmtListTouchesDirectInternalHelperAssignSurface stmts = false := by
+  induction stmts with
+  | nil =>
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesDirectInternalHelperAssignSurface]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedHelperSurface,
+        stmtListTouchesDirectInternalHelperAssignSurface,
+        stmtTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceClosed, ih] at hsurface ⊢
 
 theorem stmtListTouchesExprInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {stmts : List Stmt}
