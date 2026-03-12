@@ -349,11 +349,13 @@ interfaces of their own. -/
 def stmtTouchesUnsupportedCoreSurface : Stmt → Bool
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
       exprTouchesUnsupportedCoreSurface value
+  | .setStorageAddr _ value =>
+      exprTouchesUnsupportedCoreSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedCoreSurface cond
   | .stop => false
   | .ite _ _ _ | .forEach _ _ _ => true
-  | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
+  | .mstore _ _ | .tstore _ _
   | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
   | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
@@ -601,7 +603,8 @@ def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   match stmt with
   | .letVar _ value | .assignVar _ value | .setStorage _ value =>
       exprTouchesUnsupportedContractSurface value
-  | .setStorageAddr _ _ => true
+  | .setStorageAddr _ value =>
+      exprTouchesUnsupportedContractSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedContractSurface cond
   | .mstore _ _ | .tstore _ _ => true
