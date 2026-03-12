@@ -1039,6 +1039,15 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/IRGeneration/GenericInduction.lean
 #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStep.withHelpers_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_require  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_return  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_stop  -- private
+#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+#print axioms Compiler.Proofs.IRGeneration.stmtListCompiledLegacyCompatible_of_supportedContractSurface
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible
@@ -1109,6 +1118,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtFragment_of_surface  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.genericCore
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.compiledLegacyCompatible
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded  -- private
@@ -1139,6 +1149,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_steps_raw  -- private
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goal
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_steps
+#print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers_goal
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers
 
@@ -1429,4 +1440,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1295 theorems/lemmas (1017 public, 278 private)
+-- Total: 1306 theorems/lemmas (1023 public, 283 private)

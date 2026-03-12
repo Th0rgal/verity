@@ -121,6 +121,15 @@ work is now split into:
   `stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible`,
   so already-proved helper-free cases can also be reused inside the exact
   helper-aware compiled seam on legacy-compatible compiled bodies
+- a derivation of that compiled-side witness from the existing supported-body
+  surface via
+  `stmtListCompiledLegacyCompatible_of_supportedContractSurface` and
+  `SupportedBodyInterface.compiledLegacyCompatible`, plus the current-fragment
+  exact body wrapper
+  `supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir`,
+  so today's supported fragment no longer needs a caller-supplied
+  `StmtListCompiledLegacyCompatible` proof just to reach the exact helper-aware
+  compiled body goal
 - matching helper-proof-carrying theorem variants in `Function.lean`,
   `Dispatch.lean`, and `Contract.lean`, so the public Layer 2 theorem family
   already exposes that input without changing the current trusted boundary
@@ -166,8 +175,9 @@ retarget theorem is now encoded there as
 `InterpretIRWithInternalsZeroConservativeExtensionGoal`.
 That theorem still packages the stronger helper-free runtime-contract shape
 `LegacyCompatibleRuntimeContract`, so the next whole-contract helper retarget is
-not merely "derive one witness from `CompilationModel.compile`". The external-
-body witness is plausibly derivable from supported compile outputs; the stronger
+not merely "derive one witness from `CompilationModel.compile`". On today's
+fragment the external-body witness is now already derivable from the supported
+body interface; the stronger
 `internalFunctions = []` side of `LegacyCompatibleRuntimeContract` is not.
 `IRInterpreter.lean` now also packages the expected proof decomposition as
 `InterpretIRWithInternalsZeroConservativeExtensionInterfaces`, which splits that

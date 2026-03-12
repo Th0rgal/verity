@@ -244,6 +244,246 @@ inductive StmtListCompiledLegacyCompatible
       StmtListCompiledLegacyCompatible fields (stmtNextScope scope stmt) rest →
       StmtListCompiledLegacyCompatible fields scope (stmt :: rest)
 
+/-- The current helper-free compiled theorem target already accepts the scalar
+storage write emitted by `compileSetStorage` when packed-field writes are
+excluded. -/
+theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
+    {fields : List Field}
+    {fieldName : String}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hcompile :
+      CompilationModel.compileSetStorage fields .calldata fieldName value =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileSetStorage at hcompile
+  by_cases hmapping : isMapping fields fieldName
+  · simp [hmapping] at hcompile
+  · simp [hmapping] at hcompile
+    rcases hfind : findFieldWithResolvedSlot fields fieldName with _ | ⟨f, slot⟩
+    · simp [hfind] at hcompile
+    · simp [hfind] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr
+      · simp [hvalue] at hcompile
+      · simp [hvalue] at hcompile
+        have hunpacked : f.packedBits = none :=
+          hnoPacked f (field_mem_of_findFieldWithResolvedSlot_some hfind)
+        rw [hunpacked] at hcompile
+        cases halias : f.aliasSlots with
+        | nil =>
+            simp [halias] at hcompile
+            injection hcompile with hbody
+            subst hbody
+            exact LegacyCompatibleExternalStmtList.expr
+              (YulExpr.call "sstore" [YulExpr.lit slot, valueExpr])
+              []
+              LegacyCompatibleExternalStmtList.nil
+        | cons alias rest =>
+            simp [halias] at hcompile
+            injection hcompile with hbody
+            subst hbody
+            apply LegacyCompatibleExternalStmtList.block
+            · apply LegacyCompatibleExternalStmtList.let_
+              exact legacyCompatibleExternalStmtList_of_exprStmtExprs
+                (((slot :: alias :: rest).map
+                  (fun writeSlot =>
+                    YulExpr.call "sstore"
+                      [YulExpr.lit writeSlot, YulExpr.ident "__compat_value"])))
+            · exact LegacyCompatibleExternalStmtList.nil
+
+private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
+    {fields : List Field}
+    {inScopeNames : List String}
+    {name : String}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames (.letVar name value) =
+          Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
+  · simp [hvalue] at hcompile
+  · simp [hvalue] at hcompile
+    injection hcompile with hbody
+    subst hbody
+    exact LegacyCompatibleExternalStmtList.let_ name valueIR [] LegacyCompatibleExternalStmtList.nil
+
+private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
+    {fields : List Field}
+    {inScopeNames : List String}
+    {name : String}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames (.assignVar name value) =
+          Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
+  · simp [hvalue] at hcompile
+  · simp [hvalue] at hcompile
+    injection hcompile with hbody
+    subst hbody
+    exact LegacyCompatibleExternalStmtList.assign name valueIR [] LegacyCompatibleExternalStmtList.nil
+
+private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
+    {fields : List Field}
+    {inScopeNames : List String}
+    {cond : Expr}
+    {message : String}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames (.require cond message) =
+          Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hcond : CompilationModel.compileExpr fields .calldata cond with _ | condIR
+  · simp [hcond] at hcompile
+  · simp [hcond] at hcompile
+    injection hcompile with hbody
+    subst hbody
+    apply LegacyCompatibleExternalStmtList.if_
+    · exact LegacyCompatibleExternalStmtList.expr
+        (YulExpr.call "iszero" [condIR])
+        []
+        LegacyCompatibleExternalStmtList.nil
+    · exact legacyCompatibleExternalStmtList_revertMessage message
+    · exact LegacyCompatibleExternalStmtList.nil
+
+private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
+    {fields : List Field}
+    {inScopeNames : List String}
+    {value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames (.return value) =
+          Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueIR
+  · simp [hvalue] at hcompile
+  · simp [hvalue] at hcompile
+    injection hcompile with hbody
+    subst hbody
+    exact LegacyCompatibleExternalStmtList.expr
+      (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])
+      []
+      (LegacyCompatibleExternalStmtList.expr
+        (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+        []
+        LegacyCompatibleExternalStmtList.nil)
+
+private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
+    {fields : List Field}
+    {inScopeNames : List String}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames .stop =
+          Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  injection hcompile with hbody
+  subst hbody
+  exact LegacyCompatibleExternalStmtList.expr
+    (YulExpr.call "stop" [])
+    []
+    LegacyCompatibleExternalStmtList.nil
+
+/-- On the current supported contract surface, successful single-statement
+compilation stays inside the legacy helper-free external Yul subset. This is
+the compiled-side compatibility fact needed to reuse already-proved helper-free
+cases inside the exact helper-aware compiled seam. -/
+theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmt : Stmt}
+    {bodyIR : List YulStmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtTouchesUnsupportedContractSurface stmt = false)
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  cases stmt <;> simp [stmtTouchesUnsupportedContractSurface] at hsurface
+  case letVar =>
+    exact legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar hcompile
+  case assignVar =>
+    exact legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar hcompile
+  case setStorage =>
+    unfold CompilationModel.compileStmt at hcompile
+    exact legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields hnoPacked hcompile
+  case require =>
+    exact legacyCompatibleExternalStmtList_of_compileStmt_ok_require hcompile
+  case return =>
+    exact legacyCompatibleExternalStmtList_of_compileStmt_ok_return hcompile
+  case stop =>
+    exact legacyCompatibleExternalStmtList_of_compileStmt_ok_stop hcompile
+  all_goals
+    cases hsurface
+
+/-- On the current supported contract surface, successful statement-list
+compilation stays inside the legacy helper-free external Yul subset. -/
+theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmts : List Stmt}
+    {bodyIR : List YulStmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
+    (hcompile :
+      CompilationModel.compileStmtList
+        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  induction stmts generalizing inScopeNames bodyIR with
+  | nil =>
+      simpa [CompilationModel.compileStmtList] using hcompile
+  | cons stmt rest ih =>
+      have hstmtSurface : stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1
+      have hrestSurface : stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2
+      rcases FunctionBody.compileStmtList_cons_ok_inv
+          (fields := fields)
+          (inScopeNames := inScopeNames)
+          (stmt := stmt)
+          (rest := rest)
+          hcompile with
+        ⟨headIR, tailIR, hhead, htail, hbody⟩
+      subst hbody
+      exact legacyCompatibleExternalStmtList_append
+        (legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+          hnoPacked hstmtSurface hhead)
+        (ih hnoPacked hrestSurface htail)
+
+/-- Derive the compiled-side legacy-compatibility witness needed by the exact
+helper-aware induction seam from the existing supported contract-surface scan. -/
+theorem stmtListCompiledLegacyCompatible_of_supportedContractSurface
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
+    StmtListCompiledLegacyCompatible fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hstmtSurface : stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).1
+      have hrestSurface : stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using (Bool.or_eq_false.mp hsurface).2
+      refine .cons ?_ (ih hrestSurface)
+      intro compiledIR hcompile
+      exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+        hnoPacked hstmtSurface hcompile
+
 /-- Lift an existing helper-free generic statement-list proof into the
 helper-aware induction world when the whole list is helper-surface closed. This
 is the current fail-closed bridge from the legacy generic library to the new
@@ -3426,6 +3666,22 @@ theorem SupportedBodyInterface.genericCore
     hBody.stmtList
     hBody.surfaceClosed
 
+/-- The current supported-body interface is already strong enough to derive the
+compiled-side legacy-compatibility witness needed by the exact helper-aware
+induction seam. -/
+theorem SupportedBodyInterface.compiledLegacyCompatible
+    {spec : CompilationModel}
+    {fn : FunctionSpec}
+    (hBody : SupportedBodyInterface spec fn)
+    (hnoPacked : ∀ field ∈ spec.fields, field.packedBits = none) :
+    StmtListCompiledLegacyCompatible spec.fields (fn.params.map (·.name)) fn.body :=
+  stmtListCompiledLegacyCompatible_of_supportedContractSurface
+    (fields := spec.fields)
+    (scope := fn.params.map (·.name))
+    (stmts := fn.body)
+    hnoPacked
+    hBody.surfaceClosed
+
 private theorem exprBoundNamesInScope_of_scopeNamesIncluded
     {expr : Expr}
     {scope largerScope : List String}
@@ -4942,6 +5198,84 @@ theorem
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
       hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
       hbounded hstateRuntime hstateBindings
+
+/-- Current-fragment wrapper that lands directly in the exact helper-aware
+compiled body goal. This keeps the existing helper-free step library reusable,
+but removes the need for callers to supply a separate
+`StmtListCompiledLegacyCompatible` witness when the body already lies on the
+current supported contract surface. -/
+theorem supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
+    (hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false)
+    (hcontractSurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
+    (hgeneric :
+      StmtListGenericCore
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hlegacy :
+      StmtListCompiledLegacyCompatible
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body := by
+    simpa [hnormalized] using
+      (stmtListCompiledLegacyCompatible_of_supportedContractSurface
+        (fields := model.fields)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hnoPacked
+        hcontractSurface)
+  have hgenericExact :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_compiledLegacyCompatible
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hgeneric := hgeneric)
+      (hsurface := hhelperSurface)
+      (hlegacy := hlegacy)
+      hinternal
+  exact supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+    runtimeContract
+    model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+    hextraFuel hnormalized hnoEvents hnoErrors hgenericExact hbodyCompile
+    hscope hbounded hstateRuntime hstateBindings
 
 /-- Goal-based helper-aware wrapper around the generic body/IR preservation
 theorem. This keeps the current helper-free collapse available as a corollary,

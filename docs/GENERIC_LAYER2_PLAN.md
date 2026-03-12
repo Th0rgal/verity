@@ -288,7 +288,12 @@ now sits under the post-generic widening/completeness plan in
   `stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible`
   plus the witness interface `StmtListCompiledLegacyCompatible`, so the
   already-proved helper-free cases can also lift into the exact helper-aware
-  compiled seam whenever callers supply legacy-compatible compiled bodies.
+  compiled seam. On today's supported fragment that witness is now derived
+  directly via `stmtListCompiledLegacyCompatible_of_supportedContractSurface` /
+  `SupportedBodyInterface.compiledLegacyCompatible`, and the current-fragment
+  wrapper `supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir`
+  now lands in the exact helper-aware compiled body goal without a
+  caller-supplied compiled-side witness.
   `Contract.lean` now mirrors that at the public theorem surface via
   helper-proof-carrying variants such as
   `compile_preserves_semantics_with_helper_proofs`; the
@@ -315,10 +320,10 @@ now sits under the post-generic widening/completeness plan in
   helper-call cases in `CompiledStmtStepWithHelpersAndHelperIR` /
   `StmtListGenericWithHelpersAndHelperIR` and then into a proof of
   `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; helper-free
-  cases now already lift into that exact seam once a
-  `StmtListCompiledLegacyCompatible` witness is available, so the genuinely new
-  remaining work is helper-call reasoning plus widening/proving that compiled
-  compatibility witness beyond today’s fragment; the older conservative-extension
+  cases on today’s fragment now already lift into that exact seam
+  automatically, so the genuinely new remaining work is helper-call reasoning
+  plus widening/proving the compiled compatibility witness beyond today's
+  fragment; the older conservative-extension
   goal remains only the abstract helper-free discharge path,
   `IRInterpreter.lean` now formalizes the intended legacy-compatible external-body Yul subset as
   `LegacyCompatibleExternalStmtList`,
