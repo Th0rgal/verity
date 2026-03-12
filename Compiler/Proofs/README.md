@@ -115,6 +115,12 @@ work is now split into:
   `supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir`,
   so future helper-rich proofs can target `execIRStmtsWithInternals` directly
   instead of trying to consume helper-call cases through legacy `execIRStmts`
+- a compiled-side fail-closed lifting witness/interface
+  `StmtListCompiledLegacyCompatible` plus the exact-seam lifting lemmas
+  `CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible` /
+  `stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible`,
+  so already-proved helper-free cases can also be reused inside the exact
+  helper-aware compiled seam on legacy-compatible compiled bodies
 - matching helper-proof-carrying theorem variants in `Function.lean`,
   `Dispatch.lean`, and `Contract.lean`, so the public Layer 2 theorem family
   already exposes that input without changing the current trusted boundary

@@ -278,6 +278,19 @@ def build_catalog() -> dict:
                         "Compiler.Proofs.IRGeneration.GenericInduction."
                         "StmtListGenericWithHelpersAndHelperIR"
                     ),
+                    "compiled_legacy_compatibility_interface": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "StmtListCompiledLegacyCompatible"
+                    ),
+                    "induction_step_interface_helper_ir_lift": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible"
+                    ),
+                    "induction_list_interface_helper_ir_lift": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "stmtListGenericWithHelpersAndHelperIR_of_withHelpers_"
+                        "and_compiledLegacyCompatible"
+                    ),
                     "induction_body_theorem_helper_ir": (
                         "Compiler.Proofs.IRGeneration.GenericInduction."
                         "supported_function_body_correct_from_exact_state_"
@@ -328,6 +341,16 @@ def build_catalog() -> dict:
                         "supported_function_body_correct_from_exact_state_"
                         "generic_helper_steps_and_helper_ir targeting "
                         "SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal; "
+                        "it now also exposes the compiled-side fail-closed "
+                        "lifting witness/interface "
+                        "StmtListCompiledLegacyCompatible plus the lifting "
+                        "lemmas "
+                        "CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible / "
+                        "stmtListGenericWithHelpersAndHelperIR_of_withHelpers_"
+                        "and_compiledLegacyCompatible, so already-proved "
+                        "helper-free cases can be reused in the exact "
+                        "helper-aware compiled seam whenever callers supply "
+                        "legacy-compatible compiled bodies; "
                         "which feeds the function-level theorem "
                         "supported_function_correct_with_helper_proofs_body_goal; "
                         "the legacy conservative-extension goal remains only "
@@ -364,9 +387,13 @@ def build_catalog() -> dict:
                         "SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal "
                         "while widening or replacing the helper-excluding "
                         "SupportedStmtList fragment that currently proves "
-                        "SupportedStmtList.helperSurfaceClosed; the already-proved "
-                        "helper-free cases now lift into the earlier "
-                        "helper-aware source seam automatically. "
+                        "SupportedStmtList.helperSurfaceClosed and while "
+                        "proving or deriving the required "
+                        "StmtListCompiledLegacyCompatible witness beyond "
+                        "today's fragment; the already-proved helper-free "
+                        "cases now lift into the earlier helper-aware source "
+                        "seam automatically and into the exact compiled seam "
+                        "once that compiled-side witness is available. "
                         "The longer-term "
                         "widening step still needs a weaker compiled-side retarget "
                         "boundary so helper tables can remain present without "

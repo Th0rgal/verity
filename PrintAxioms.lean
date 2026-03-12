@@ -1040,6 +1040,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- Compiler/Proofs/IRGeneration/GenericInduction.lean
 #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStep.withHelpers_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_compiledLegacyCompatible
 -- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_findFieldWithResolvedSlot_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_compileSetStorage_ok  -- private
@@ -1426,4 +1429,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1292 theorems/lemmas (1014 public, 278 private)
+-- Total: 1295 theorems/lemmas (1017 public, 278 private)

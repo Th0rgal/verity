@@ -227,6 +227,23 @@ inductive StmtListGenericWithHelpersAndHelperIR
         runtimeContract spec fields (stmtNextScope scope stmt) rest →
       StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope (stmt :: rest)
 
+/-- Compiled-side compatibility witness for lifting existing helper-free generic
+statement proofs into the exact helper-aware compiled induction seam. This
+records that each compiled head stays inside the already-closed
+legacy-compatible external Yul subset, without coupling the witness to any
+particular statement-step proof object. -/
+inductive StmtListCompiledLegacyCompatible
+    (fields : List Field) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListCompiledLegacyCompatible fields scope []
+  | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
+      (∀ compiledIR,
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+          Except.ok compiledIR →
+          LegacyCompatibleExternalStmtList compiledIR) →
+      StmtListCompiledLegacyCompatible fields (stmtNextScope scope stmt) rest →
+      StmtListCompiledLegacyCompatible fields scope (stmt :: rest)
+
 /-- Lift an existing helper-free generic statement-list proof into the
 helper-aware induction world when the whole list is helper-surface closed. This
 is the current fail-closed bridge from the legacy generic library to the new
@@ -247,6 +264,101 @@ theorem stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
       exact .cons
         (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
         (ih hsurface.2)
+
+/-- Any helper-aware generic statement-step proof already closes the exact
+helper-aware compiled-side step goal when the compiled head stays inside the
+legacy-compatible external Yul subset and the runtime contract has no internal
+helper table. This is the compiled-side fail-closed bridge from the current
+theorem domain to the exact helper-aware induction seam. -/
+theorem CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmt : Stmt}
+    {compiledIR : List YulStmt}
+    (hstep : CompiledStmtStepWithHelpers spec fields scope stmt compiledIR)
+    (hlegacy : LegacyCompatibleExternalStmtList compiledIR)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    CompiledStmtStepWithHelpersAndHelperIR
+      runtimeContract spec fields scope stmt compiledIR where
+  compileOk := hstep.compileOk
+  preserves := by
+    intro runtime state helperFuel extraFuel hexact hscope hbounded hruntime hslack
+    rcases hstep.preserves runtime state helperFuel extraFuel
+        hexact hscope hbounded hruntime hslack with
+      ⟨sourceResult, irExec, hsource, hir, hmatch⟩
+    refine ⟨sourceResult,
+      match irExec with
+      | .continue next => .continue next
+      | .return value next => .return value next
+      | .stop next => .stop next
+      | .revert next => .revert next,
+      hsource, ?_, ?_⟩
+    · have hcompat :=
+        execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility runtimeContract
+          (execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
+            runtimeContract
+            (interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed
+              runtimeContract))
+          hinternal
+          (compiledIR.length + extraFuel + 1)
+          state
+          compiledIR
+          hlegacy
+      simpa [hir] using hcompat
+    · cases irExec <;> simpa [stmtStepMatchesIRExecWithInternals] using hmatch
+
+/-- Lift helper-aware statement-list proofs into the exact helper-aware compiled
+induction seam on the current legacy-compatible compiled subset. This isolates
+future helper-summary work to the genuinely new helper-call cases: already
+proved helper-free cases can be reused directly once callers supply the
+compiled-side legacy-compatibility witness. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
+    (hlegacy : StmtListCompiledLegacyCompatible fields scope stmts)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hgeneric generalizing hlegacy with
+  | nil =>
+      exact .nil
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      cases hlegacy with
+      | cons hhead htail =>
+          exact .cons
+            (hstep.withHelperIR_of_legacyCompatible (hhead compiledIR hstep.compileOk) hinternal)
+            (ih htail)
+
+/-- Combined fail-closed lifting bridge from the existing helper-free generic
+statement library to the exact helper-aware compiled induction seam. The only
+additional input beyond the already-proved helper-free cases is a
+compiled-side legacy-compatibility witness for the statement list. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_compiledLegacyCompatible
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
+    (hlegacy : StmtListCompiledLegacyCompatible fields scope stmts)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible
+    (runtimeContract := runtimeContract)
+    (spec := spec)
+    (hgeneric :=
+      stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
+        (spec := spec)
+        (hgeneric := hgeneric)
+        hsurface)
+    (hlegacy := hlegacy)
+    hinternal
 
 /-- Structural scope discipline for statement prefixes used to justify that the
 generic induction scope only contains validated source identifiers. -/

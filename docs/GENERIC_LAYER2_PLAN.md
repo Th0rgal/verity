@@ -283,6 +283,12 @@ now sits under the post-generic widening/completeness plan in
   theorem
   `supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir`,
   so future helper-rich proofs can target `execIRStmtsWithInternals` directly.
+  It now also exposes the compiled-side fail-closed bridge
+  `CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible` /
+  `stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible`
+  plus the witness interface `StmtListCompiledLegacyCompatible`, so the
+  already-proved helper-free cases can also lift into the exact helper-aware
+  compiled seam whenever callers supply legacy-compatible compiled bodies.
   `Contract.lean` now mirrors that at the public theorem surface via
   helper-proof-carrying variants such as
   `compile_preserves_semantics_with_helper_proofs`; the
@@ -308,9 +314,12 @@ now sits under the post-generic widening/completeness plan in
   precisely, that evidence is not yet consumed through the genuinely new
   helper-call cases in `CompiledStmtStepWithHelpersAndHelperIR` /
   `StmtListGenericWithHelpersAndHelperIR` and then into a proof of
-  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; the older
-  conservative-extension goal remains only the abstract helper-free discharge
-  path,
+  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; helper-free
+  cases now already lift into that exact seam once a
+  `StmtListCompiledLegacyCompatible` witness is available, so the genuinely new
+  remaining work is helper-call reasoning plus widening/proving that compiled
+  compatibility witness beyond today’s fragment; the older conservative-extension
+  goal remains only the abstract helper-free discharge path,
   `IRInterpreter.lean` now formalizes the intended legacy-compatible external-body Yul subset as
   `LegacyCompatibleExternalStmtList`,
   and `IRInterpreter.lean` now also encodes the exact first compiled-side retarget theorem as
