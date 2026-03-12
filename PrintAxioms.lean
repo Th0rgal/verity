@@ -1114,11 +1114,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_copy  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_eq_storage_of_resolvedSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.abstractStoreStorageOrMappingMany_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeUintSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeUintSlots  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeUintKeyedMappingSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeAddressKeyedMappingSlot  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.runtimeStateMatchesIR_writeAddressKeyedMapping2Slot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.bindingsExactlyMatchIRVarsOnScope_writeUintSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.bindingsExactlyMatchIRVarsOnScope_writeMappingSlot  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.bindingsExactlyMatchIRVarsOnScope_writeUintSlots  -- private
@@ -1133,6 +1136,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety
+-- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves  -- private
+#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_aliasSlots
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
@@ -1619,4 +1624,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1488 theorems/lemmas (1161 public, 327 private)
+-- Total: 1493 theorems/lemmas (1162 public, 331 private)
