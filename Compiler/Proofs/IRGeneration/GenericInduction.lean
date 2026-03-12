@@ -5280,6 +5280,50 @@ private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surfac
     (by
       simpa using ihRest (Bool.or_eq_false.mp hsplit).2)
 
+private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope prefix suffix : List Stmt}
+    (hprefix : SupportedStmtList fields scope prefix)
+    (hsuffix : SupportedStmtList fields (List.foldl stmtNextScope scope prefix) suffix)
+    (ihPrefix :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites prefix = false →
+        StmtListGenericCore fields scope prefix)
+    (ihSuffix :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites suffix = false →
+        StmtListGenericCore fields (List.foldl stmtNextScope scope prefix) suffix)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (prefix ++ suffix) = false) :
+    StmtListGenericCore fields scope (prefix ++ suffix) := by
+  have hsplit :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites prefix ||
+        stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites suffix = false := by
+    simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
+  exact stmtListGenericCore_append
+    (ihPrefix (Bool.or_eq_false.mp hsplit).1)
+    (ihSuffix (Bool.or_eq_false.mp hsplit).2)
+
+private theorem stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {rest : List Stmt}
+    (clause : RequireLiteralGuardFamilyClause)
+    (ihRest :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false →
+        StmtListGenericCore fields scope rest)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites (clause.toStmt :: rest) = false) :
+    StmtListGenericCore fields scope (clause.toStmt :: rest) := by
+  have hsplit :
+      stmtTouchesUnsupportedContractSurfaceExceptMappingWrites clause.toStmt ||
+        stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false := by
+    simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface
+  exact stmtListGenericCore_append
+    (by
+      simpa using stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
+        (fields := fields) (scope := scope) clause)
+    (by
+      simpa using ihRest (Bool.or_eq_false.mp hsplit).2)
+
 private theorem false_of_supportedStmtList_ite_surface
     {cond : Expr}
     {thenBranch elseBranch : List Stmt}
@@ -5321,6 +5365,193 @@ private theorem stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of
     (hfind := hfind)
     (hcore := hcore)
     (hinScope := hinScope)
+
+/-- Extra Tier 2 assumptions needed to turn the singleton mapping-write
+constructors in `SupportedStmtList` into real compiled-step proofs. These are
+kept separate from the surface predicate because the remaining obligation is a
+layout-specific slot-safety fact, not a syntactic fragment question. -/
+structure SupportedStmtListMappingWriteSlotSafety (fields : List Field) : Prop where
+  setMappingUintSingle :
+    ∀ {scope : List String}
+      {fieldName : String}
+      {key value : Expr}
+      {slot : Nat},
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      isMapping fields fieldName = true ∧
+      findFieldWriteSlots fields fieldName = some [slot] ∧
+      (∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+  setMappingSingle :
+    ∀ {scope : List String}
+      {fieldName : String}
+      {key value : Expr}
+      {slot : Nat},
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      isMapping fields fieldName = true ∧
+      findFieldWriteSlots fields fieldName = some [slot] ∧
+      (∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none)
+  setMapping2Single :
+    ∀ {scope : List String}
+      {fieldName : String}
+      {key1 key2 value : Expr}
+      {slot : Nat},
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      isMapping2 fields fieldName = true ∧
+      findFieldWriteSlots fields fieldName = some [slot] ∧
+      (∀ runtime keyNat1 keyNat2,
+        SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+        SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot
+              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+              keyNat2) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot
+              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+              keyNat2) = none)
+
+private theorem stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {slot : Nat}
+    {key value : Expr}
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hmapping : isMapping fields fieldName = true)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none) :
+    StmtListGenericCore fields scope [Stmt.setMappingUint fieldName key value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
+  exact compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
+    (hmapping := hmapping)
+    (hcoreKey := hcoreKey)
+    (hinScopeKey := hinScopeKey)
+    (hcoreValue := hcoreValue)
+    (hinScopeValue := hinScopeValue)
+    (hwriteSlots := hwriteSlots)
+    (hslotSafety := hslotSafety)
+    (hkeyIR := hkeyIR)
+    (hvalueIR := hvalueIR)
+
+private theorem stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {slot : Nat}
+    {key value : Expr}
+    (hcoreKey : FunctionBody.ExprCompileCore key)
+    (hinScopeKey : FunctionBody.exprBoundNamesInScope key scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hmapping : isMapping fields fieldName = true)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat,
+        SourceSemantics.evalExpr fields runtime key = some keyNat →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot slot keyNat) = none) :
+    StmtListGenericCore fields scope [Stmt.setMapping fieldName key value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey with
+    ⟨keyIR, hkeyIR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
+  exact compiledStmtStep_setMapping_singleSlot_of_slotSafety
+    (hmapping := hmapping)
+    (hcoreKey := hcoreKey)
+    (hinScopeKey := hinScopeKey)
+    (hcoreValue := hcoreValue)
+    (hinScopeValue := hinScopeValue)
+    (hwriteSlots := hwriteSlots)
+    (hslotSafety := hslotSafety)
+    (hkeyIR := hkeyIR)
+    (hvalueIR := hvalueIR)
+
+private theorem stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
+    {fields : List Field}
+    {scope : List String}
+    {fieldName : String}
+    {slot : Nat}
+    {key1 key2 value : Expr}
+    (hcoreKey1 : FunctionBody.ExprCompileCore key1)
+    (hinScopeKey1 : FunctionBody.exprBoundNamesInScope key1 scope)
+    (hcoreKey2 : FunctionBody.ExprCompileCore key2)
+    (hinScopeKey2 : FunctionBody.exprBoundNamesInScope key2 scope)
+    (hcoreValue : FunctionBody.ExprCompileCore value)
+    (hinScopeValue : FunctionBody.exprBoundNamesInScope value scope)
+    (hmapping2 : isMapping2 fields fieldName = true)
+    (hwriteSlots : findFieldWriteSlots fields fieldName = some [slot])
+    (hslotSafety :
+      ∀ runtime keyNat1 keyNat2,
+        SourceSemantics.evalExpr fields runtime key1 = some keyNat1 →
+        SourceSemantics.evalExpr fields runtime key2 = some keyNat2 →
+          findResolvedFieldAtSlotCopy fields
+            (Compiler.Proofs.abstractMappingSlot
+              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+              keyNat2) = none ∧
+          findDynamicArrayElementAtSlotCopy fields runtime.world
+            (Compiler.Proofs.abstractMappingSlot
+              (Compiler.Proofs.abstractMappingSlot slot keyNat1)
+              keyNat2) = none) :
+    StmtListGenericCore fields scope [Stmt.setMapping2 fieldName key1 key2 value] := by
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey1 with
+    ⟨key1IR, hkey1IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreKey2 with
+    ⟨key2IR, hkey2IR⟩
+  rcases FunctionBody.compileExpr_core_ok (fields := fields) hcoreValue with
+    ⟨valueIR, hvalueIR⟩
+  refine StmtListGenericCore.cons ?_ StmtListGenericCore.nil
+  exact compiledStmtStep_setMapping2_singleSlot_of_slotSafety
+    (hmapping2 := hmapping2)
+    (hcoreKey1 := hcoreKey1)
+    (hinScopeKey1 := hinScopeKey1)
+    (hcoreKey2 := hcoreKey2)
+    (hinScopeKey2 := hinScopeKey2)
+    (hcoreValue := hcoreValue)
+    (hinScopeValue := hinScopeValue)
+    (hwriteSlots := hwriteSlots)
+    (hslotSafety := hslotSafety)
+    (hkey1IR := hkey1IR)
+    (hkey2IR := hkey2IR)
+    (hvalueIR := hvalueIR)
 
 private theorem false_of_supportedStmtList_singleton_stmt_surface
     {stmt : Stmt}
@@ -5530,6 +5761,167 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
   | append hprefix hsuffix ihPrefix ihSuffix =>
       exact stmtListGenericCore_of_supportedStmtList_append_of_surface hprefix hsuffix ihPrefix ihSuffix hsurface
 
+theorem stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hsafety : SupportedStmtListMappingWriteSlotSafety fields)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    StmtListGenericCore fields scope stmts := by
+  induction hSupported with
+  | compileCore hcore =>
+      exact stmtListGenericCore_of_stmtListCompileCore hcore
+  | terminalCore hterminal =>
+      exact stmtListGenericCore_of_stmtListTerminalCore hterminal
+  | setStorageSingleSlot hcore hinScope hfind =>
+      exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | letStorageField hfind =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.storage fieldName)] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurfaceBase)
+  | returnMapping hkey hscope hslot =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface [Stmt.return (Expr.mapping fieldName key)] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurfaceBase)
+  | letMapping hkey hscope hslot =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mapping fieldName key)] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_letMapping_surface hsurfaceBase)
+  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurfaceBase)
+  | letMappingUint hkey hscope hslot =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurfaceBase)
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      rcases hsafety.setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot with
+        ⟨hmapping, hwriteSlots, hslotSafety⟩
+      exact stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety
+        (fields := fields)
+        (scope := scope)
+        (hcoreKey := hkey)
+        (hinScopeKey := hscopeKey)
+        (hcoreValue := hvalue)
+        (hinScopeValue := hscopeValue)
+        (hmapping := hmapping)
+        (hwriteSlots := hwriteSlots)
+        (hslotSafety := hslotSafety)
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      rcases hsafety.setMappingSingle hkey hscopeKey hvalue hscopeValue hslot with
+        ⟨hmapping, hwriteSlots, hslotSafety⟩
+      exact stmtListGenericCore_singleton_setMappingSingle_of_slotSafety
+        (fields := fields)
+        (scope := scope)
+        (hcoreKey := hkey)
+        (hinScopeKey := hscopeKey)
+        (hcoreValue := hvalue)
+        (hinScopeValue := hscopeValue)
+        (hmapping := hmapping)
+        (hwriteSlots := hwriteSlots)
+        (hslotSafety := hslotSafety)
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      rcases hsafety.setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot with
+        ⟨hmapping2, hwriteSlots, hslotSafety⟩
+      exact stmtListGenericCore_singleton_setMapping2Single_of_slotSafety
+        (fields := fields)
+        (scope := scope)
+        (hcoreKey1 := hkey1)
+        (hinScopeKey1 := hscope1)
+        (hcoreKey2 := hkey2)
+        (hinScopeKey2 := hscope2)
+        (hcoreValue := hvalue)
+        (hinScopeValue := hscopeValue)
+        (hmapping2 := hmapping2)
+        (hwriteSlots := hwriteSlots)
+        (hslotSafety := hslotSafety)
+  | rawLogLiterals htopics =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface
+            [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_rawLogLiterals_surface hsurfaceBase)
+  | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface
+            [ Stmt.letVar senderVar Expr.caller
+            , Stmt.letVar ownerVar (Expr.storage ownerField)
+            , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+            , Stmt.require
+                (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
+            , Stmt.setStorage ownerField (Expr.param paramName)
+            , Stmt.stop
+            ] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim
+        (false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface
+          hsurfaceBase)
+  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
+      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface
+            [ Stmt.letVar senderVar Expr.caller
+            , Stmt.letVar ownerVar (Expr.storage ownerField)
+            , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
+            , Stmt.letVar targetVar (Expr.storage targetField)
+            , Stmt.require
+                (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
+            , Stmt.setStorage targetField (Expr.param paramName)
+            , Stmt.stop
+            ] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim
+        (false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
+          hsurfaceBase)
+  | requireClause clause hrest ih =>
+      exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface_exceptMappingWrites
+        (fields := fields) (scope := scope) clause ih hsurface
+  | ite hcond hscope hthen helse ihThen ihElse =>
+      have hsurfaceBase :
+          stmtListTouchesUnsupportedContractSurface [Stmt.ite cond thenBranch elseBranch] = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+          stmtListTouchesUnsupportedContractSurface,
+          stmtTouchesUnsupportedContractSurface] using hsurface
+      exact False.elim (false_of_supportedStmtList_ite_list_surface hsurfaceBase)
+  | append hprefix hsuffix ihPrefix ihSuffix =>
+      exact stmtListGenericCore_of_supportedStmtList_append_of_surface_exceptMappingWrites
+        hprefix hsuffix ihPrefix ihSuffix hsurface
+
 /-- The current supported statement-list witness already suffices for the
 weaker helper-free source-step interface consumed by the exact helper-aware
 seam. This keeps helper-free reuse derivable directly from the proof-layer
@@ -5550,6 +5942,26 @@ theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
       (stmts := stmts)
       hnoConflict
       hSupported
+      hsurface)
+
+theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields scope stmts)
+    (hsafety : SupportedStmtListMappingWriteSlotSafety fields)
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    StmtListHelperFreeStepInterface fields scope stmts :=
+  stmtListHelperFreeStepInterface_of_core
+    (stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
+      (fields := fields)
+      (scope := scope)
+      (stmts := stmts)
+      hnoConflict
+      hSupported
+      hsafety
       hsurface)
 
 /-- The supported-body interface also derives the weaker source-side reuse

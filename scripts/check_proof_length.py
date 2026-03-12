@@ -86,6 +86,11 @@ ALLOWLIST: set[str] = {
     "compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves",
     "compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves",
+    # Tier-2 supported-list bridge with explicit mapping slot-safety hypotheses:
+    # long because it keeps the constructor-by-constructor migration from
+    # contradiction to construction in one theorem while the broader supported
+    # surface still uses the stricter fail-closed predicate.
+    "stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites",
     # Generic Layer 2 param-loading list theorem (Issue #1510 / PR #1554):
     # centralizes the scalar-head induction for `genParamLoadBodyFrom`; further
     # decomposition is possible later, but keeping the recursion in one place

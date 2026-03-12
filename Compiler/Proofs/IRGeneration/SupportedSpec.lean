@@ -609,6 +609,15 @@ def stmtTouchesUnsupportedContractSurface (stmt : Stmt) : Bool :=
   | .emit _ _ | .internalCall _ _ | .internalCallAssign _ _ _
   | .rawLog _ _ _ | .externalCallBind _ _ _ | .ecm _ _ => true
 
+/-- Weaker contract-surface gate used by the Tier 2 singleton mapping-write
+bridge: ordinary unsupported contract effects remain excluded, but the three
+singleton mapping-write heads already covered by dedicated compiled-step
+theorems are admitted. -/
+def stmtTouchesUnsupportedContractSurfaceExceptMappingWrites (stmt : Stmt) : Bool :=
+  match stmt with
+  | .setMapping _ _ _ | .setMapping2 _ _ _ _ | .setMappingUint _ _ _ => false
+  | _ => stmtTouchesUnsupportedContractSurface stmt
+
 def stmtListTouchesUnsupportedCoreSurface : List Stmt → Bool
   | [] => false
   | stmt :: rest =>
@@ -688,6 +697,14 @@ def stmtListTouchesUnsupportedEffectSurface : List Stmt → Bool
   | stmt :: rest =>
       stmtTouchesUnsupportedEffectSurface stmt ||
         stmtListTouchesUnsupportedEffectSurface rest
+
+/-- List-level weakening of `stmtListTouchesUnsupportedContractSurface` used by
+the Tier 2 singleton mapping-write bridge. -/
+def stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites : List Stmt → Bool
+  | [] => false
+  | stmt :: rest =>
+      stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt ||
+        stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest
 
 mutual
   /-- Collect direct internal-helper callee names mentioned by an expression. This
