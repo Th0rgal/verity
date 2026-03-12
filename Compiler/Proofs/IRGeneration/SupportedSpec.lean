@@ -1003,7 +1003,6 @@ structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : Fun
   helperRank : Nat
   params : SupportedParamProfile callee.params
   returns : SupportedReturnProfile callee
-  stmtList : SupportedStmtList spec.fields callee.body
   core : SupportedBodyCoreInterface callee
   state : SupportedBodyStateInterface callee
   foreign : stmtListTouchesUnsupportedForeignSurface callee.body = false
@@ -2040,14 +2039,6 @@ theorem SupportedSpec.selectorFunctionParamNamesNodup
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
     (fn.params.map (·.name)).Nodup :=
   (hSupported.supportedFunctionOfSelectorDispatched hfn).paramNamesNodup
-
-theorem SupportedSpec.selectorFunctionBodySupported
-    {spec : CompilationModel} {selectors : List Nat}
-    (hSupported : SupportedSpec spec selectors)
-    {fn : FunctionSpec}
-    (hfn : fn ∈ selectorDispatchedFunctions spec) :
-    SupportedStmtList spec.fields fn.body :=
-  (hSupported.supportedFunctionOfSelectorDispatched hfn).body.stmtList
 
 theorem SupportedSpec.selectorFunctionReturnsSupported
     {spec : CompilationModel} {selectors : List Nat}
