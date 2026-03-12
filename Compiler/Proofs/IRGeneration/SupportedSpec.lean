@@ -1,5 +1,6 @@
 import Compiler.Proofs.IRGeneration.SupportedFragment
 import Compiler.CompilationModel.AbiHelpers
+import Compiler.CompilationModel.UsageAnalysis
 import Compiler.CompilationModel.SelectorInteropHelpers
 import Compiler.TypedIRCompilerCorrectness
 
@@ -1224,6 +1225,249 @@ theorem SupportedBodyInterface.surfaceClosed
     hBody.state.surfaceClosed
     hBody.calls.surfaceClosed
     hBody.effects.surfaceClosed
+
+private theorem exprUsesArrayElement_eq_false_of_coreClosed
+    {expr : Expr}
+    (hcore : exprTouchesUnsupportedCoreSurface expr = false) :
+    exprUsesArrayElement expr = false := by
+  induction expr with
+  | literal | param | constructorArg | storage | storageAddr
+    | localVar | caller | contractAddress | chainid | msgValue
+    | blockTimestamp | blockNumber | blobbasefee
+    | calldatasize | returndataSize | arrayLength | storageArrayLength =>
+      simp [exprUsesArrayElement]
+  | dynamicBytesEq =>
+      cases hcore
+  | bitNot expr ih =>
+      cases hcore
+  | logicalNot expr ih =>
+      simpa [exprTouchesUnsupportedCoreSurface, exprUsesArrayElement] using ih hcore
+  | add lhs rhs ihL ihR | sub lhs rhs ihL ihR | mul lhs rhs ihL ihR
+    | div lhs rhs ihL ihR | mod lhs rhs ihL ihR | eq lhs rhs ihL ihR
+    | ge lhs rhs ihL ihR | gt lhs rhs ihL ihR | lt lhs rhs ihL ihR
+    | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR | logicalOr lhs rhs ihL ihR =>
+      have hleft : exprTouchesUnsupportedCoreSurface lhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hright : exprTouchesUnsupportedCoreSurface rhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+      simp [exprUsesArrayElement, ihL hleft, ihR hright]
+  | sdiv | smod | bitAnd | bitOr | bitXor | sgt | slt | min | max
+    | wMulDown | wDivUp | shl | shr | sar | signextend | mulDivDown
+    | mulDivUp | mapping | mappingWord | mappingPackedWord | mappingUint
+    | mappingChain | structMember | arrayElement | storageArrayElement
+    | call | staticcall | delegatecall | externalCall | internalCall
+    | mapping2 | mapping2Word | structMember2 | mload | tload
+    | calldataload | extcodesize | returndataOptionalBoolAt | keccak256
+    | ite =>
+      cases hcore
+
+private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
+    {expr : Expr}
+    (hcore : exprTouchesUnsupportedCoreSurface expr = false) :
+    exprUsesStorageArrayElement expr = false := by
+  induction expr with
+  | literal | param | constructorArg | storage | storageAddr
+    | localVar | caller | contractAddress | chainid | msgValue
+    | blockTimestamp | blockNumber | blobbasefee
+    | calldatasize | returndataSize | arrayLength | storageArrayLength
+    | arrayElement =>
+      simp [exprUsesStorageArrayElement]
+  | dynamicBytesEq =>
+      cases hcore
+  | bitNot expr ih =>
+      cases hcore
+  | logicalNot expr ih =>
+      simpa [exprTouchesUnsupportedCoreSurface, exprUsesStorageArrayElement] using ih hcore
+  | add lhs rhs ihL ihR | sub lhs rhs ihL ihR | mul lhs rhs ihL ihR
+    | div lhs rhs ihL ihR | mod lhs rhs ihL ihR | eq lhs rhs ihL ihR
+    | ge lhs rhs ihL ihR | gt lhs rhs ihL ihR | lt lhs rhs ihL ihR
+    | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR | logicalOr lhs rhs ihL ihR =>
+      have hleft : exprTouchesUnsupportedCoreSurface lhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hright : exprTouchesUnsupportedCoreSurface rhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+      simp [exprUsesStorageArrayElement, ihL hleft, ihR hright]
+  | sdiv | smod | bitAnd | bitOr | bitXor | sgt | slt | min | max
+    | wMulDown | wDivUp | shl | shr | sar | signextend | mulDivDown
+    | mulDivUp | mapping | mappingWord | mappingPackedWord | mappingUint
+    | mappingChain | structMember | storageArrayElement
+    | call | staticcall | delegatecall | externalCall | internalCall
+    | mapping2 | mapping2Word | structMember2 | mload | tload
+    | calldataload | extcodesize | returndataOptionalBoolAt | keccak256
+    | ite =>
+      cases hcore
+
+private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
+    {expr : Expr}
+    (hcore : exprTouchesUnsupportedCoreSurface expr = false) :
+    exprUsesDynamicBytesEq expr = false := by
+  induction expr with
+  | literal | param | constructorArg | storage | storageAddr
+    | localVar | caller | contractAddress | chainid | msgValue
+    | blockTimestamp | blockNumber | blobbasefee
+    | calldatasize | returndataSize | arrayLength | storageArrayLength =>
+      simp [exprUsesDynamicBytesEq]
+  | dynamicBytesEq =>
+      cases hcore
+  | bitNot expr ih =>
+      cases hcore
+  | logicalNot expr ih =>
+      simpa [exprTouchesUnsupportedCoreSurface, exprUsesDynamicBytesEq] using ih hcore
+  | add lhs rhs ihL ihR | sub lhs rhs ihL ihR | mul lhs rhs ihL ihR
+    | div lhs rhs ihL ihR | mod lhs rhs ihL ihR | eq lhs rhs ihL ihR
+    | ge lhs rhs ihL ihR | gt lhs rhs ihL ihR | lt lhs rhs ihL ihR
+    | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR | logicalOr lhs rhs ihL ihR =>
+      have hleft : exprTouchesUnsupportedCoreSurface lhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hright : exprTouchesUnsupportedCoreSurface rhs = false := by
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+      simp [exprUsesDynamicBytesEq, ihL hleft, ihR hright]
+  | sdiv | smod | bitAnd | bitOr | bitXor | sgt | slt | min | max
+    | wMulDown | wDivUp | shl | shr | sar | signextend | mulDivDown
+    | mulDivUp | mapping | mappingWord | mappingPackedWord | mappingUint
+    | mappingChain | structMember | arrayElement | storageArrayElement
+    | call | staticcall | delegatecall | externalCall | internalCall
+    | mapping2 | mapping2Word | structMember2 | mload | tload
+    | calldataload | extcodesize | returndataOptionalBoolAt | keccak256
+    | ite =>
+      cases hcore
+
+private theorem stmtUsesArrayElement_eq_false_of_coreClosed
+    {stmt : Stmt}
+    (hcore : stmtTouchesUnsupportedCoreSurface stmt = false) :
+    stmtUsesArrayElement stmt = false := by
+  cases stmt <;> simp [stmtTouchesUnsupportedCoreSurface, stmtUsesArrayElement] at *
+  case letVar name value | assignVar name value | setStorage field value
+    | return value | require value message =>
+      exact exprUsesArrayElement_eq_false_of_coreClosed hcore
+  case stop =>
+      rfl
+
+private theorem stmtUsesStorageArrayElement_eq_false_of_coreClosed
+    {stmt : Stmt}
+    (hcore : stmtTouchesUnsupportedCoreSurface stmt = false) :
+    stmtUsesStorageArrayElement stmt = false := by
+  cases stmt <;> simp [stmtTouchesUnsupportedCoreSurface, stmtUsesStorageArrayElement] at *
+  case letVar name value | assignVar name value | setStorage field value
+    | return value | require value message =>
+      exact exprUsesStorageArrayElement_eq_false_of_coreClosed hcore
+  case stop =>
+      rfl
+
+private theorem stmtUsesDynamicBytesEq_eq_false_of_coreClosed
+    {stmt : Stmt}
+    (hcore : stmtTouchesUnsupportedCoreSurface stmt = false) :
+    stmtUsesDynamicBytesEq stmt = false := by
+  cases stmt <;> simp [stmtTouchesUnsupportedCoreSurface, stmtUsesDynamicBytesEq] at *
+  case letVar name value | assignVar name value | setStorage field value
+    | return value | require value message =>
+      exact exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore
+  case stop =>
+      rfl
+
+private theorem stmtListUsesArrayElement_eq_false_of_coreClosed
+    {stmts : List Stmt}
+    (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false) :
+    stmtListUsesArrayElement stmts = false := by
+  induction stmts with
+  | nil =>
+      rfl
+  | cons stmt rest ih =>
+      have hstmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hrest : stmtListTouchesUnsupportedCoreSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+      simp [stmtListUsesArrayElement, stmtUsesArrayElement_eq_false_of_coreClosed hstmt, ih hrest]
+
+private theorem stmtListUsesStorageArrayElement_eq_false_of_coreClosed
+    {stmts : List Stmt}
+    (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false) :
+    stmtListUsesStorageArrayElement stmts = false := by
+  induction stmts with
+  | nil =>
+      rfl
+  | cons stmt rest ih =>
+      have hstmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hrest : stmtListTouchesUnsupportedCoreSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+      simp [stmtListUsesStorageArrayElement,
+        stmtUsesStorageArrayElement_eq_false_of_coreClosed hstmt, ih hrest]
+
+private theorem stmtListUsesDynamicBytesEq_eq_false_of_coreClosed
+    {stmts : List Stmt}
+    (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false) :
+    stmtListUsesDynamicBytesEq stmts = false := by
+  induction stmts with
+  | nil =>
+      rfl
+  | cons stmt rest ih =>
+      have hstmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+      have hrest : stmtListTouchesUnsupportedCoreSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+      simp [stmtListUsesDynamicBytesEq,
+        stmtUsesDynamicBytesEq_eq_false_of_coreClosed hstmt, ih hrest]
+
+private theorem listAny_eq_false_of_mem_eq_false
+    {α : Type} (f : α → Bool) :
+    ∀ (xs : List α), (∀ x ∈ xs, f x = false) → xs.any f = false
+  | [], _ => rfl
+  | x :: xs, hmem => by
+      have hx : f x = false := hmem x (by simp)
+      have hxs : ∀ y ∈ xs, f y = false := by
+        intro y hy
+        exact hmem y (by simp [hy])
+      simp [List.any_cons, hx, listAny_eq_false_of_mem_eq_false f xs hxs]
+
+theorem SupportedSpec.noInternalFunctions
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    ∀ fn ∈ spec.functions, fn.isInternal = false := by
+  intro fn hmem
+  exact (hSupported.functions fn hmem).nonInternal
+
+theorem SupportedSpec.contractUsesArrayElement_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    contractUsesArrayElement spec = false := by
+  have hctor : constructorUsesArrayElement spec.constructor = false := by
+    simp [SupportedSpec.noConstructor hSupported]
+  have hfunctions :
+      spec.functions.any functionUsesArrayElement = false := by
+    apply listAny_eq_false_of_mem_eq_false
+    intro fn hmem
+    exact stmtListUsesArrayElement_eq_false_of_coreClosed
+      ((hSupported.functions fn hmem).body.core.surfaceClosed)
+  simp [contractUsesArrayElement, hctor, hfunctions]
+
+theorem SupportedSpec.contractUsesStorageArrayElement_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    contractUsesStorageArrayElement spec = false := by
+  have hctor : constructorUsesStorageArrayElement spec.constructor = false := by
+    simp [SupportedSpec.noConstructor hSupported]
+  have hfunctions :
+      spec.functions.any functionUsesStorageArrayElement = false := by
+    apply listAny_eq_false_of_mem_eq_false
+    intro fn hmem
+    exact stmtListUsesStorageArrayElement_eq_false_of_coreClosed
+      ((hSupported.functions fn hmem).body.core.surfaceClosed)
+  simp [contractUsesStorageArrayElement, hctor, hfunctions]
+
+theorem SupportedSpec.contractUsesDynamicBytesEq_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    contractUsesDynamicBytesEq spec = false := by
+  have hctor : (spec.constructor.map (fun ctor => ctor.body.any stmtUsesDynamicBytesEq) |>.getD false) = false := by
+    simp [SupportedSpec.noConstructor hSupported]
+  have hfunctions :
+      spec.functions.any (fun fn => fn.body.any stmtUsesDynamicBytesEq) = false := by
+    apply listAny_eq_false_of_mem_eq_false
+    intro fn hmem
+    exact stmtListUsesDynamicBytesEq_eq_false_of_coreClosed
+      ((hSupported.functions fn hmem).body.core.surfaceClosed)
+  simp [contractUsesDynamicBytesEq, hctor, hfunctions]
 
 theorem SupportedSpec.normalizedFields
     {spec : CompilationModel} {selectors : List Nat}

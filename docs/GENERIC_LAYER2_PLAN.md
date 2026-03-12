@@ -365,10 +365,14 @@ The first theorem does not need to cover everything. It may explicitly leave out
   `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. The remaining
   work is therefore to stop treating that helper-free runtime-contract witness
   as if it were the same thing as the weaker external-body witness derivable
-  from supported compile outputs. The next retarget step must bridge compiled
-  helper tables without requiring `internalFunctions = []`, and then consume
-  helper-summary soundness/rank evidence so `calls.helperCompatibility` can
-  disappear. The helper-aware
+  from supported compile outputs. On the current `SupportedSpec` fragment,
+  successful `CompilationModel.compile` now already proves
+  `ir.internalFunctions = []`, so the immediate compiled-side blocker for
+  today’s theorem domain is the external-body witness rather than the raw
+  helper-table field itself. The longer-term widening step still needs to
+  bridge compiled helper tables without requiring `internalFunctions = []`,
+  and then consume helper-summary soundness/rank evidence so
+  `calls.helperCompatibility` can disappear. The helper-aware
   interpreter remains a total fuel-indexed helper-aware IR semantics surface
   for that follow-on retarget
 - dynamic ABI cases outside the current typed path

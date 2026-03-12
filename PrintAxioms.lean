@@ -669,11 +669,15 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.pickUniqueFunctionByName_eq_ok_none_of_absent  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compiled_functions_forall₂_of_mapM_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_compiled_functions  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_all_nonInternal  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_supported  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_internalFunctions_nil  -- private
 #print axioms Compiler.Proofs.IRGeneration.Contract.supported_params_of_supportedSpec
 #print axioms Compiler.Proofs.IRGeneration.Contract.interpretIR_eq_runtimeContractOfFunctions
 #print axioms Compiler.Proofs.IRGeneration.Contract.interpretContract_correct_of_ir_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_of_compiled_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
@@ -1223,6 +1227,20 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyCallInterface.surfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.surfaceClosed
+-- #print axioms Compiler.Proofs.IRGeneration.exprUsesArrayElement_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprUsesStorageArrayElement_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprUsesDynamicBytesEq_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtUsesArrayElement_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtUsesStorageArrayElement_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtUsesDynamicBytesEq_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListUsesArrayElement_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListUsesStorageArrayElement_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListUsesDynamicBytesEq_eq_false_of_coreClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.listAny_eq_false_of_mem_eq_false  -- private
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noInternalFunctions
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.contractUsesArrayElement_eq_false
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.contractUsesStorageArrayElement_eq_false
+#print axioms Compiler.Proofs.IRGeneration.SupportedSpec.contractUsesDynamicBytesEq_eq_false
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.normalizedFields
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.noPackedFields
 #print axioms Compiler.Proofs.IRGeneration.SupportedSpec.selectorCount
@@ -1364,4 +1382,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1230 theorems/lemmas (986 public, 244 private)
+-- Total: 1248 theorems/lemmas (991 public, 257 private)
