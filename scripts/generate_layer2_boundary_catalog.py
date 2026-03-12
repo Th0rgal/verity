@@ -250,6 +250,29 @@ def build_catalog() -> dict:
                         "inside the theorem domain"
                     ),
                 },
+                "source_helper_goal_surface": {
+                    "source": (
+                        "Compiler.Proofs.IRGeneration.SourceSemantics."
+                        "ExecStmtListWithHelpersConservativeExtensionGoal"
+                    ),
+                    "body_goal_wrapper": (
+                        "Compiler.Proofs.IRGeneration.GenericInduction."
+                        "supported_function_body_correct_from_exact_state_"
+                        "generic_with_helpers_goal"
+                    ),
+                    "function_goal_wrapper": (
+                        "Compiler.Proofs.IRGeneration.Function."
+                        "supported_function_correct_with_helper_proofs_goal"
+                    ),
+                    "status": (
+                        "the remaining source-side helper-composition seam is "
+                        "now an explicit goal surface consumed by the body- "
+                        "and function-level helper-aware theorems; the legacy "
+                        "helperCompatibility gate is retained only as the "
+                        "current way to discharge that goal on today’s "
+                        "supported fragment"
+                    ),
+                },
                 "decreasing_rank_measure": (
                     "SupportedBodyHelperInterface.calleeRanksDecrease"
                 ),
@@ -330,14 +353,15 @@ def build_catalog() -> dict:
                     {
                         "name": "summary_soundness_not_yet_consumed",
                         "source": (
-                            "GenericInduction."
-                            "supported_function_body_correct_from_exact_state_"
-                            "generic_with_helpers"
+                            "SourceSemantics."
+                            "ExecStmtListWithHelpersConservativeExtensionGoal"
                         ),
                         "status": (
-                            "the helper-aware body theorem exists, but helper "
-                            "summary-soundness/rank evidence is not yet "
-                            "threaded through that body proof"
+                            "the source-side helper-composition seam is now "
+                            "an explicit conservative-extension goal consumed "
+                            "by GenericInduction/Function goal wrappers, but "
+                            "helper summary-soundness/rank evidence is not "
+                            "yet threaded through a proof of that goal"
                         ),
                     },
                 ],

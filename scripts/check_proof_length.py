@@ -239,6 +239,8 @@ ALLOWLIST: set[str] = {
     # slot. The proof bodies are thin wrappers around the existing theorems; the
     # line count comes from preserving the stable public API shape, not from
     # proof complexity.
+    "supported_function_body_correct_from_exact_state_generic_with_helpers_goal",
+    "supported_function_correct_with_helper_proofs_goal",
     "supported_function_correct_with_helper_proofs",
     "interpretContract_correct_of_compiled_functions_with_helper_proofs",
     "compileFunctionSpec_correct_generic_with_helper_proofs",

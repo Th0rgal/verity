@@ -1143,7 +1143,7 @@ mutual
           (stmts := elseBranch) hElse,
         execStmtWithHelpers, execStmt, stmtTouchesUnsupportedHelperSurface]
 
-  theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (spec : CompilationModel)
       (fields : List Field)
       (fuel : Nat)
@@ -1163,6 +1163,36 @@ mutual
             (stmt := stmt) hStmt]
         cases hstep : execStmt fields state stmt <;> simp [hstep, ih hRest]
 end
+
+/-- Exact source-side helper-composition target for a statement list: the
+helper-aware source semantics should conservatively extend the legacy
+helper-free semantics on the given runtime state. Future helper-summary/rank
+consumption should target this proposition directly rather than the temporary
+syntactic helper-surface gate. -/
+def ExecStmtListWithHelpersConservativeExtensionGoal
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fuel : Nat)
+    (state : RuntimeState)
+    (stmts : List Stmt) : Prop :=
+  execStmtListWithHelpers spec fields fuel state stmts =
+    execStmtList fields state stmts
+
+theorem execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fuel : Nat)
+    (state : RuntimeState)
+    (stmts : List Stmt)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+    ExecStmtListWithHelpersConservativeExtensionGoal spec fields fuel state stmts :=
+  execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+    (spec := spec)
+    (fields := fields)
+    (fuel := fuel)
+    (state := state)
+    (stmts := stmts)
+    hsurface
 
 theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     (spec : CompilationModel)

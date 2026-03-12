@@ -271,12 +271,17 @@ now sits under the post-generic widening/completeness plan in
   feature-local `state` / `calls` / `effects` scans recurse through nested `ite` / `forEach` bodies so those
   boundaries are control-flow complete rather than top-level-only, and
   compatibility lemmas still prove that the helper-aware semantics collapses to
-  the existing helper-free semantics on the current `SupportedSpec` fragment
+  the existing helper-free semantics on the current `SupportedSpec` fragment.
+  That source-side seam is now named directly as
+  `SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal`, with
+  goal wrappers `supported_function_body_correct_from_exact_state_generic_with_helpers_goal`
+  and `supported_function_correct_with_helper_proofs_goal`
 - the remaining helper blocker is now pinned down more precisely in
   [`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json):
   callers still derive generic body proofs through the helper-free `SupportedStmtList` witness,
   the generic body theorem now already targets the helper-aware source semantics family under the current fail-closed helper gate,
-  but summary-soundness/rank evidence is still not consumed inside that body proof,
+  but summary-soundness/rank evidence is still not consumed inside a proof of
+  that named source-side goal,
   `IRInterpreter.lean` now formalizes the intended legacy-compatible external-body Yul subset as
   `LegacyCompatibleExternalStmtList`,
   and `IRInterpreter.lean` now also encodes the exact first compiled-side retarget theorem as
@@ -370,7 +375,8 @@ The first theorem does not need to cover everything. It may explicitly leave out
   `compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported`
   without any extra caller-supplied compiled-side premise. The remaining work
   on today’s theorem domain is therefore no longer the helper-free compiled-side
-  witness, but consuming helper-summary soundness/rank evidence so
+  witness, but consuming helper-summary soundness/rank evidence through
+  `SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal` so
   `calls.helperCompatibility` can disappear. The longer-term widening step still
   needs a weaker compiled-side retarget boundary that can tolerate helper tables
   without requiring `internalFunctions = []` once helper-rich features move

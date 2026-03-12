@@ -1303,13 +1303,11 @@ theorem supported_function_correct
         hfuelEq'] using hfuel
     simpa [hadequacy] using hfuel'
 
-/-- Helper-proof-carrying variant of `supported_function_correct`.
-This does not yet widen the generic theorem: the current body proof still
-discharges helper closure through `calls.helperCompatibility`, so the helper
-proof slot is compatibility-redundant for now. Keeping the slot explicit here
-stabilizes the function-level theorem surface before helper composition is
-threaded through the body/IR proof. -/
-theorem supported_function_correct_with_helper_proofs
+/-- Goal-based helper-proof-carrying variant of `supported_function_correct`.
+This factors the remaining helper-composition seam into an explicit source-side
+body goal, so future helper-summary/rank proofs can plug in here without
+another function-level theorem rewrite. -/
+theorem supported_function_correct_with_helper_proofs_goal
     (model : CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
@@ -1333,6 +1331,14 @@ theorem supported_function_correct_with_helper_proofs
       compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
     (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
     (htxNormalized : TxContextNormalized tx)
+    (hbodyHelperGoal :
+      SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal
+        model
+        (SourceSemantics.effectiveFields model)
+        hSupported.helperFuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body)
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
@@ -1442,7 +1448,7 @@ theorem supported_function_correct_with_helper_proofs
           (by simpa [SourceSemantics.effectiveFields] using hSupported.normalizedFields)
           hSupported.noEvents
           hSupported.noErrors
-          hsupportedFn.body.calls.helperCompatibility.surfaceClosed
+          hbodyHelperGoal
           hgeneric
           hbodyCompile
           hscope
@@ -1513,6 +1519,60 @@ theorem supported_function_correct_with_helper_proofs
       simpa [compiledFunctionIR, List.length_append, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm,
         hfuelEq'] using hfuel
     simpa [hadequacy] using hfuel'
+
+/-- Helper-proof-carrying variant of `supported_function_correct`.
+This still closes the source-side helper seam through the temporary
+`calls.helperCompatibility` gate, but now only as a wrapper around the explicit
+goal-based theorem surface. -/
+theorem supported_function_correct_with_helper_proofs
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (htxNormalized : TxContextNormalized tx)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hsupportedFn := hSupported.supportedFunctionOfSelectorDispatched hfn
+  have hbodyHelperGoal :
+      SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal
+        model
+        (SourceSemantics.effectiveFields model)
+        hSupported.helperFuel
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        fn.body :=
+    SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
+      (spec := model)
+      (fields := SourceSemantics.effectiveFields model)
+      (fuel := hSupported.helperFuel)
+      (state := { world := SourceSemantics.withTransactionContext initialWorld tx
+                  bindings := bindings })
+      (stmts := fn.body)
+      hsupportedFn.body.calls.helperCompatibility.surfaceClosed
+  exact supported_function_correct_with_helper_proofs_goal
+    model selectors hSupported hHelperProofs hvalidateInputs fn selector returns
+    bodyStmts irFn tx initialWorld bindings hfn hvalidate hreturns hbodyCompile
+    hcompile hbind htxNormalized hbodyHelperGoal hcalldataSizeFits
 
 end Function
 

@@ -752,6 +752,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_supported_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs
 
 -- Compiler/Proofs/IRGeneration/FunctionBody.lean
@@ -1119,6 +1120,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel_step
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic
+#print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers_goal
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_with_helpers
 
 -- Compiler/Proofs/IRGeneration/IRInterpreter.lean
@@ -1216,6 +1218,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findFunctionBySelector_mem_selectorDispatchedFunctions
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
@@ -1402,4 +1405,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1268 theorems/lemmas (995 public, 273 private)
+-- Total: 1271 theorems/lemmas (998 public, 273 private)

@@ -196,9 +196,14 @@ successful `CompilationModel.compile`. The helper-aware compiled target remains
 available as total fuel-indexed helper-aware IR semantics throughout the later
 fragment-widening retargeting work. The remaining blocker is therefore no
 longer a helper-free compiled-side witness on today’s theorem domain, but
-end-to-end consumption of helper-summary soundness/rank evidence and, for later
-widening beyond the current fragment, the weaker compiled-side boundary tracked
-in [#1638](https://github.com/Th0rgal/verity/issues/1638).
+end-to-end consumption of helper-summary soundness/rank evidence through the
+now-explicit source-side conservative-extension goal
+`SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal`, which is
+already threaded into the goal wrappers
+`supported_function_body_correct_from_exact_state_generic_with_helpers_goal`
+and `supported_function_correct_with_helper_proofs_goal`; for later widening
+beyond the current fragment, the weaker compiled-side boundary tracked in
+[#1638](https://github.com/Th0rgal/verity/issues/1638) still remains.
 
 The remaining work tracked in
 [#1630](https://github.com/Th0rgal/verity/issues/1630).
