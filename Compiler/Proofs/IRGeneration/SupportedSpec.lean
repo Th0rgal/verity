@@ -1352,6 +1352,17 @@ private theorem supportedStmtList_letStorageField_helperSurfaceClosed
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface]
 
+private theorem supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed
+    {fieldName : String}
+    {value : Expr}
+    (hvalue : FunctionBody.ExprCompileCore value) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.setStorageAddr fieldName value] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hvalue]
+
 private theorem supportedStmtList_letMapping_helperSurfaceClosed
     {tmp fieldName : String}
     {key : Expr}
@@ -1481,6 +1492,8 @@ theorem SupportedStmtList.helperSurfaceClosed
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface]
+  | setStorageAddrSingleSlot hcore hinScope hfind =>
+      exact supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed hcore
   | letStorageField hfind => exact supportedStmtList_letStorageField_helperSurfaceClosed
   | returnMapping hkey hscope hslot => exact supportedStmtList_returnMapping_helperSurfaceClosed hkey
   | letMapping hkey hscope hslot => exact supportedStmtList_letMapping_helperSurfaceClosed hkey

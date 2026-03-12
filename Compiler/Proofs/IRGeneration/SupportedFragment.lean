@@ -43,6 +43,16 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.uint256 }, slot) →
       SupportedStmtList fields scope [Stmt.setStorage fieldName value]
+  | setStorageAddrSingleSlot
+      {scope : List String}
+      {fieldName : String}
+      {value : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.address }, slot) →
+      SupportedStmtList fields scope [Stmt.setStorageAddr fieldName value]
   | letStorageField
       {scope : List String}
       {tmp : String}
