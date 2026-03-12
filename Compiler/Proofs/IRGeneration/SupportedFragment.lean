@@ -43,35 +43,6 @@ inductive SupportedStmtLegacyTail (fields : List Field) : Type where
       (hne_tv_p : targetVar ≠ paramName)
       (hne_tv_sv : targetVar ≠ senderVar)
       (hne_tv_ov : targetVar ≠ ownerVar)
-  | letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-      (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
-      (ownerSlot mappingSlot : Nat) (writeVal : Nat) (msg1 msg2 : String)
-      (hOwner : findFieldWithResolvedSlot fields ownerField =
-        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
-      (hMapping : findFieldSlot fields mappingField = some mappingSlot)
-      (hne_sv_kp : senderVar ≠ keyParam)
-      (hne_ov_kp : ownerVar ≠ keyParam)
-      (hne_ov_sv : ownerVar ≠ senderVar)
-      (hne_cv_kp : currentVar ≠ keyParam)
-  | letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-      (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
-      (ownerSlot mappingSlot : Nat) (bound writeVal : Nat) (msg1 msg2 msg3 : String)
-      (hOwner : findFieldWithResolvedSlot fields ownerField =
-        some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
-      (hMapping : findFieldSlot fields mappingField = some mappingSlot)
-      (hne_sv_kp : senderVar ≠ keyParam)
-      (hne_ov_kp : ownerVar ≠ keyParam)
-      (hne_ov_sv : ownerVar ≠ senderVar)
-      (hne_cv_kp : currentVar ≠ keyParam)
-  | letCallerLetMapping2IteParamReqSetMapping2Stop
-      (mappingField senderVar currentVar authParam boolParam msg1 msg2 : String) (mappingSlot : Nat)
-      (hMapping : findFieldSlot fields mappingField = some mappingSlot)
-      (hne_sv_bp : senderVar ≠ boolParam)
-      (hne_sv_ap : senderVar ≠ authParam)
-      (hne_cv_bp : currentVar ≠ boolParam)
-      (hne_cv_ap : currentVar ≠ authParam)
-      (hne_cv_sv : currentVar ≠ senderVar)
-      (hne_bp_ap : boolParam ≠ authParam)
 
 def SupportedStmtLegacyTail.toStmts
     {fields : List Field} (tail : SupportedStmtLegacyTail fields) : List Stmt :=
@@ -95,40 +66,6 @@ def SupportedStmtLegacyTail.toStmts
       , Stmt.letVar targetVar (Expr.storage targetField)
       , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar targetVar))) msg2
       , Stmt.setStorage targetField (Expr.param paramName)
-      , Stmt.stop
-      ]
-  | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-      ownerField mappingField senderVar ownerVar currentVar keyParam _ _ writeVal msg1 msg2
-      _ _ _ _ _ _ =>
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar currentVar (Expr.mapping mappingField (Expr.param keyParam))
-      , Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg2
-      , Stmt.setMapping mappingField (Expr.param keyParam) (Expr.literal writeVal)
-      , Stmt.stop
-      ]
-  | .letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-      ownerField mappingField senderVar ownerVar currentVar keyParam _ _ bound writeVal msg1 msg2 msg3
-      _ _ _ _ _ _ =>
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar currentVar (Expr.mappingUint mappingField (Expr.param keyParam))
-      , Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg2
-      , Stmt.require (Expr.lt (Expr.param keyParam) (Expr.literal bound)) msg3
-      , Stmt.setMappingUint mappingField (Expr.param keyParam) (Expr.literal writeVal)
-      , Stmt.stop
-      ]
-  | .letCallerLetMapping2IteParamReqSetMapping2Stop
-      mappingField senderVar currentVar authParam boolParam msg1 msg2 _ _ _ _ _ _ _ _ =>
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar currentVar (Expr.mapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam))
-      , Stmt.ite (Expr.param boolParam)
-          [ Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg1
-          , Stmt.setMapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam) (Expr.literal 1) ]
-          [ Stmt.require (Expr.logicalNot (Expr.eq (Expr.localVar currentVar) (Expr.literal 0))) msg2
-          , Stmt.setMapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam) (Expr.literal 0) ]
       , Stmt.stop
       ]
 
@@ -160,6 +97,14 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.uint256 }, slot) →
       SupportedStmtList fields scope [Stmt.setStorage fieldName value]
+  | letStorageField
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {field : Field}
+      {slot : Nat} :
+      findFieldWithResolvedSlot fields fieldName = some (field, slot) →
+      SupportedStmtList fields scope [Stmt.letVar tmp (Expr.storage fieldName)]
   | returnMapping
       {scope : List String}
       {fieldName : String}
@@ -212,6 +157,17 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       FunctionBody.exprBoundNamesInScope value scope →
       findFieldSlot fields fieldName = some slot →
       SupportedStmtList fields scope [Stmt.setMappingUint fieldName key value]
+  | setMappingSingle
+      {scope : List String}
+      {fieldName : String}
+      {key value : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.setMapping fieldName key value]
   | setMapping2Single
       {scope : List String}
       {fieldName : String}

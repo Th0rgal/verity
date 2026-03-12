@@ -4756,6 +4756,18 @@ private theorem false_of_supportedStmtList_returnMapping_surface
       exprTouchesUnsupportedContractSurface])
     hsurface
 
+private theorem false_of_supportedStmtList_letStorageField_surface
+    {tmp fieldName : String}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.storage fieldName)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.storage fieldName))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
 private theorem false_of_supportedStmtList_letMapping_surface
     {tmp fieldName : String}
     {key : Expr}
@@ -4808,6 +4820,19 @@ private theorem false_of_supportedStmtList_setMappingUintSingle_surface
       exprTouchesUnsupportedContractSurface])
     hsurface
 
+private theorem false_of_supportedStmtList_setMappingSingle_surface
+    {fieldName : String}
+    {key value : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.setMapping fieldName key value] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.setMapping fieldName key value)
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
 private theorem false_of_supportedStmtList_setMapping2Single_surface
     {fieldName : String}
     {key1 key2 value : Expr}
@@ -4853,6 +4878,8 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
   | setStorageSingleSlot hcore hinScope hfind =>
       exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
         (fields := fields) hnoConflict hfind hcore hinScope
+  | letStorageField hfind =>
+      exact False.elim (false_of_supportedStmtList_letStorageField_surface hsurface)
   | returnMapping hkey hscope hslot =>
       exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
   | letMapping hkey hscope hslot =>
@@ -4863,6 +4890,8 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
       exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurface)
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingSingle_surface hsurface)
   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
       exact False.elim (false_of_supportedStmtList_setMapping2Single_surface hsurface)
   | requireClause clause hrest ih =>

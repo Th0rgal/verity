@@ -1262,6 +1262,14 @@ private theorem supportedStmtList_returnMapping_helperSurfaceClosed
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey]
 
+private theorem supportedStmtList_letStorageField_helperSurfaceClosed
+    {tmp fieldName : String} :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.letVar tmp (Expr.storage fieldName)] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface]
+
 private theorem supportedStmtList_letMapping_helperSurfaceClosed
     {tmp fieldName : String}
     {key : Expr}
@@ -1310,6 +1318,19 @@ private theorem supportedStmtList_setMappingUintSingle_helperSurfaceClosed
     exprCompileCore_helperSurfaceClosed hkey,
     exprCompileCore_helperSurfaceClosed hvalue]
 
+private theorem supportedStmtList_setMappingSingle_helperSurfaceClosed
+    {fieldName : String}
+    {key value : Expr}
+    (hkey : FunctionBody.ExprCompileCore key)
+    (hvalue : FunctionBody.ExprCompileCore value) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.setMapping fieldName key value] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey,
+    exprCompileCore_helperSurfaceClosed hvalue]
+
 private theorem supportedStmtList_setMapping2Single_helperSurfaceClosed
     {fieldName : String}
     {key1 key2 value : Expr}
@@ -1340,6 +1361,8 @@ theorem SupportedStmtList.helperSurfaceClosed
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface]
+  | letStorageField hfind =>
+      exact supportedStmtList_letStorageField_helperSurfaceClosed
   | returnMapping hkey hscope hslot =>
       exact supportedStmtList_returnMapping_helperSurfaceClosed hkey
   | letMapping hkey hscope hslot =>
@@ -1350,6 +1373,8 @@ theorem SupportedStmtList.helperSurfaceClosed
       exact supportedStmtList_letMappingUint_helperSurfaceClosed hkey
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
       exact supportedStmtList_setMappingUintSingle_helperSurfaceClosed hkey hvalue
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact supportedStmtList_setMappingSingle_helperSurfaceClosed hkey hvalue
   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
       exact supportedStmtList_setMapping2Single_helperSurfaceClosed hkey1 hkey2 hvalue
   | requireClause clause hrest ih =>
