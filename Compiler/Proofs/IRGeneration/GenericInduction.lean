@@ -6811,7 +6811,6 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     (hnoEvents : model.events = [])
     (hnoErrors : model.errors = [])
     (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
-    (hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false)
     (hcontractSurface : stmtListTouchesUnsupportedContractSurface fn.body = false)
     (hhelperFree :
       StmtListHelperFreeStepInterface
@@ -6836,6 +6835,9 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false :=
+    stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+      hcontractSurface
   have hdisjoint :
       StmtListHelperFreeCompiledCallsDisjoint
         runtimeContract

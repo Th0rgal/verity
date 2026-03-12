@@ -1633,6 +1633,37 @@ private theorem stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   all_goals
     cases hcore
 
+private theorem stmtListFeatureClosed_cons_inv
+    (stmt : Stmt)
+    (rest : List Stmt)
+    (hcore : stmtListTouchesUnsupportedCoreSurface (stmt :: rest) = false)
+    (hstate : stmtListTouchesUnsupportedStateSurface (stmt :: rest) = false)
+    (hcalls : stmtListTouchesUnsupportedCallSurface (stmt :: rest) = false)
+    (heffects : stmtListTouchesUnsupportedEffectSurface (stmt :: rest) = false) :
+    stmtTouchesUnsupportedCoreSurface stmt = false ∧
+    stmtListTouchesUnsupportedCoreSurface rest = false ∧
+    stmtTouchesUnsupportedStateSurface stmt = false ∧
+    stmtListTouchesUnsupportedStateSurface rest = false ∧
+    stmtTouchesUnsupportedCallSurface stmt = false ∧
+    stmtListTouchesUnsupportedCallSurface rest = false ∧
+    stmtTouchesUnsupportedEffectSurface stmt = false ∧
+    stmtListTouchesUnsupportedEffectSurface rest = false := by
+  constructor
+  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+  constructor
+  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+  constructor
+  · simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).1
+  constructor
+  · simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).2
+  constructor
+  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).1
+  constructor
+  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).2
+  constructor
+  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).1
+  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).2
+
 theorem stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
     (stmts : List Stmt)
     (hcore : stmtListTouchesUnsupportedCoreSurface stmts = false)
@@ -1644,22 +1675,9 @@ theorem stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | nil =>
       simp [stmtListTouchesUnsupportedContractSurface]
   | cons stmt rest ih =>
-      have hcoreStmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
-      have hcoreRest : stmtListTouchesUnsupportedCoreSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
-      have hstateStmt : stmtTouchesUnsupportedStateSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).1
-      have hstateRest : stmtListTouchesUnsupportedStateSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).2
-      have hcallsStmt : stmtTouchesUnsupportedCallSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).1
-      have hcallsRest : stmtListTouchesUnsupportedCallSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).2
-      have heffectsStmt : stmtTouchesUnsupportedEffectSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).1
-      have heffectsRest : stmtListTouchesUnsupportedEffectSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).2
+      rcases stmtListFeatureClosed_cons_inv stmt rest hcore hstate hcalls heffects with
+        ⟨hcoreStmt, hcoreRest, hstateStmt, hstateRest,
+          hcallsStmt, hcallsRest, heffectsStmt, heffectsRest⟩
       have hstmt :
           stmtTouchesUnsupportedContractSurface stmt = false :=
         stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed stmt
@@ -1668,6 +1686,98 @@ theorem stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
           stmtListTouchesUnsupportedContractSurface rest = false :=
         ih hcoreRest hstateRest hcallsRest heffectsRest
       simp [stmtListTouchesUnsupportedContractSurface, hstmt, hrest]
+
+private theorem
+    exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_mappingChain
+    {fieldName : String}
+    {keys : List Expr}
+    (ih :
+      ∀ key ∈ keys,
+        exprTouchesUnsupportedContractSurface key = false →
+          exprTouchesUnsupportedHelperSurface key = false)
+    (hsurface : exprTouchesUnsupportedContractSurface (.mappingChain fieldName keys) = false) :
+    exprTouchesUnsupportedHelperSurface (.mappingChain fieldName keys) = false := by
+  induction keys with
+  | nil =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface] at *
+  | cons key rest ihKeys =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface] at hsurface ⊢
+      constructor
+      · exact ih key (by simp) hsurface.1
+      · exact ihKeys (fun next hnext hnextSurface => ih next (by simp [hnext]) hnextSurface) hsurface.2
+
+theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+    {expr : Expr}
+    (hsurface : exprTouchesUnsupportedContractSurface expr = false) :
+    exprTouchesUnsupportedHelperSurface expr = false := by
+  induction expr with
+  | literal | param | caller | contractAddress | chainid | msgValue
+    | blockTimestamp | blockNumber | localVar | storage | storageAddr
+    | constructorArg | blobbasefee | mload | tload | calldatasize
+    | calldataload | returndataSize | extcodesize | returndataOptionalBoolAt
+    | arrayLength | storageArrayLength | externalCall | call | staticcall
+    | delegatecall | internalCall =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface] at *
+  | add lhs rhs ihL ihR | sub lhs rhs ihL ihR | mul lhs rhs ihL ihR
+    | div lhs rhs ihL ihR | sdiv lhs rhs ihL ihR | mod lhs rhs ihL ihR
+    | smod lhs rhs ihL ihR | bitAnd lhs rhs ihL ihR | bitOr lhs rhs ihL ihR
+    | bitXor lhs rhs ihL ihR | eq lhs rhs ihL ihR | ge lhs rhs ihL ihR
+    | gt lhs rhs ihL ihR | sgt lhs rhs ihL ihR | lt lhs rhs ihL ihR
+    | slt lhs rhs ihL ihR | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR
+    | logicalOr lhs rhs ihL ihR | min lhs rhs ihL ihR | max lhs rhs ihL ihR
+    | wMulDown lhs rhs ihL ihR | wDivUp lhs rhs ihL ihR
+    | mapping2 _ lhs rhs ihL ihR | mapping2Word _ lhs rhs _ ihL ihR
+    | structMember2 _ lhs rhs _ ihL ihR =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface, ihL, ihR, Bool.or_eq_false] at *
+  | logicalNot expr ih | bitNot expr ih | mapping _ expr ih | mappingUint _ expr ih
+    | arrayElement _ expr ih | storageArrayElement _ expr ih
+    | mappingWord _ expr _ ih | mappingPackedWord _ expr _ _ ih
+    | structMember _ expr _ ih | shl expr _ ih | shr expr _ ih
+    | sar expr _ ih | signextend expr _ ih =>
+      simp [exprTouchesUnsupportedContractSurface, exprTouchesUnsupportedHelperSurface, ih] at *
+  | ite cond thenVal elseVal ihCond ihThen ihElse =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface, ihCond, ihThen, ihElse,
+        Bool.or_eq_false] at *
+  | mulDivDown a b c ihA ihB ihC | mulDivUp a b c ihA ihB ihC =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface, ihA, ihB, ihC,
+        Bool.or_eq_false] at *
+  | keccak256 a b ihA ihB =>
+      simp [exprTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedHelperSurface, ihA, ihB, Bool.or_eq_false] at *
+  | mappingChain fieldName keys ih =>
+      exact
+        exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_mappingChain
+          (fieldName := fieldName)
+          (keys := keys)
+          (ih := fun key hkey => ih key hkey)
+          hsurface
+
+theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedContractSurface stmt = false) :
+    stmtTouchesUnsupportedHelperSurface stmt = false := by
+  cases stmt <;>
+    simp [stmtTouchesUnsupportedContractSurface, stmtTouchesUnsupportedHelperSurface,
+      exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed] at *
+
+theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
+    stmtListTouchesUnsupportedHelperSurface stmts = false := by
+  induction stmts with
+  | nil =>
+      simp [stmtListTouchesUnsupportedContractSurface,
+        stmtListTouchesUnsupportedHelperSurface]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurface,
+        stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed, ih] at hsurface ⊢
 
 theorem SupportedBodyCallInterface.surfaceClosed
     {spec : CompilationModel} {fn : FunctionSpec}

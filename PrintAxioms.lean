@@ -1424,7 +1424,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedCallSurface_eq_featureOr
 -- #print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListFeatureClosed_cons_inv  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
+#print axioms Compiler.Proofs.IRGeneration.exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyCallInterface.surfaceClosed
 -- #print axioms Compiler.Proofs.IRGeneration.exprUsesArrayElement_eq_false_of_coreClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprUsesStorageArrayElement_eq_false_of_coreClosed  -- private
@@ -1581,4 +1585,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1447 theorems/lemmas (1157 public, 290 private)
+-- Total: 1451 theorems/lemmas (1160 public, 291 private)
