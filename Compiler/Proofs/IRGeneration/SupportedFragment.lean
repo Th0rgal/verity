@@ -23,28 +23,6 @@ inductive SupportedStmtLegacyTail (fields : List Field) : Type where
   | rawLogLiterals
       (topics : List Nat) (dataOffset dataSize : Nat)
       (htopics : topics.length ≤ 4)
-  | returnMappingCaller
-      (fieldName : String) (slot : Nat)
-      (hSlot : findFieldSlot fields fieldName = some slot)
-  | letMappingParamReturnLocal
-      (fieldName paramName tmp : String) (slot : Nat)
-      (hSlot : findFieldSlot fields fieldName = some slot)
-  | letMapping2ParamsReturnLocal
-      (fieldName p1 p2 tmp : String) (slot : Nat)
-      (hSlot : findFieldSlot fields fieldName = some slot)
-      (hp : p1 ≠ p2)
-  | letCallerSetMapping2Stop
-      (fieldName senderVar p1 p2 : String) (slot : Nat)
-      (hSlot : findFieldSlot fields fieldName = some slot)
-      (h1 : senderVar ≠ p2) (h2 : senderVar ≠ p1) (h3 : p2 ≠ p1)
-      (h4 : p1 ≠ p2) (h5 : p1 ≠ senderVar) (h6 : p2 ≠ senderVar)
-  | letMappingUintParamReturnLocal
-      (fieldName paramName tmp : String) (slot : Nat)
-      (hSlot : findFieldSlot fields fieldName = some slot)
-  | setMappingUintParamsStop
-      (fieldName p1 p2 : String) (slot : Nat)
-      (hSlot : findFieldSlot fields fieldName = some slot)
-      (hp : p1 ≠ p2)
   | letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
       (ownerField senderVar ownerVar paramName msg1 msg2 : String) (ownerSlot : Nat)
       (hOwner : findFieldWithResolvedSlot fields ownerField =
@@ -100,29 +78,6 @@ def SupportedStmtLegacyTail.toStmts
   match tail with
   | .rawLogLiterals topics dataOffset dataSize _ =>
       [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)]
-  | .returnMappingCaller fieldName _ _ =>
-      [Stmt.return (Expr.mapping fieldName Expr.caller)]
-  | .letMappingParamReturnLocal fieldName paramName tmp _ _ =>
-      [ Stmt.letVar tmp (Expr.mapping fieldName (Expr.param paramName))
-      , Stmt.return (Expr.localVar tmp)
-      ]
-  | .letMapping2ParamsReturnLocal fieldName p1 p2 tmp _ _ _ =>
-      [ Stmt.letVar tmp (Expr.mapping2 fieldName (Expr.param p1) (Expr.param p2))
-      , Stmt.return (Expr.localVar tmp)
-      ]
-  | .letCallerSetMapping2Stop fieldName senderVar p1 p2 _ _ _ _ _ _ _ _ =>
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.setMapping2 fieldName (Expr.localVar senderVar) (Expr.param p1) (Expr.param p2)
-      , Stmt.stop
-      ]
-  | .letMappingUintParamReturnLocal fieldName paramName tmp _ _ =>
-      [ Stmt.letVar tmp (Expr.mappingUint fieldName (Expr.param paramName))
-      , Stmt.return (Expr.localVar tmp)
-      ]
-  | .setMappingUintParamsStop fieldName p1 p2 _ _ _ =>
-      [ Stmt.setMappingUint fieldName (Expr.param p1) (Expr.param p2)
-      , Stmt.stop
-      ]
   | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
       ownerField senderVar ownerVar paramName msg1 msg2 _ _ _ _ _ =>
       [ Stmt.letVar senderVar Expr.caller
@@ -205,6 +160,71 @@ inductive SupportedStmtList (fields : List Field) : List String → List Stmt �
       findFieldWithResolvedSlot fields fieldName =
         some ({ name := fieldName, ty := FieldType.uint256 }, slot) →
       SupportedStmtList fields scope [Stmt.setStorage fieldName value]
+  | returnMapping
+      {scope : List String}
+      {fieldName : String}
+      {key : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.return (Expr.mapping fieldName key)]
+  | letMapping
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.letVar tmp (Expr.mapping fieldName key)]
+  | letMapping2
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key1 key2 : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)]
+  | letMappingUint
+      {scope : List String}
+      {tmp : String}
+      {fieldName : String}
+      {key : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.letVar tmp (Expr.mappingUint fieldName key)]
+  | setMappingUintSingle
+      {scope : List String}
+      {fieldName : String}
+      {key value : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key →
+      FunctionBody.exprBoundNamesInScope key scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.setMappingUint fieldName key value]
+  | setMapping2Single
+      {scope : List String}
+      {fieldName : String}
+      {key1 key2 value : Expr}
+      {slot : Nat} :
+      FunctionBody.ExprCompileCore key1 →
+      FunctionBody.exprBoundNamesInScope key1 scope →
+      FunctionBody.ExprCompileCore key2 →
+      FunctionBody.exprBoundNamesInScope key2 scope →
+      FunctionBody.ExprCompileCore value →
+      FunctionBody.exprBoundNamesInScope value scope →
+      findFieldSlot fields fieldName = some slot →
+      SupportedStmtList fields scope [Stmt.setMapping2 fieldName key1 key2 value]
   | requireClause
       {scope : List String}
       (clause : RequireLiteralGuardFamilyClause)

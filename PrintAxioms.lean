@@ -1150,7 +1150,15 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_append_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_requireClause_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_ite_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_ite_list_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_singleton_stmt_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_returnMapping_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMapping2_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letMappingUint_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMappingUintSingle_surface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_setMapping2Single_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_legacyTail_surface  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
@@ -1402,6 +1410,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_returnMapping_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letMapping_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letMapping2_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letMappingUint_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMappingUintSingle_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_setMapping2Single_helperSurfaceClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
@@ -1589,4 +1603,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1458 theorems/lemmas (1159 public, 299 private)
+-- Total: 1472 theorems/lemmas (1159 public, 313 private)

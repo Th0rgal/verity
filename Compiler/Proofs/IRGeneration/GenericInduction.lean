@@ -4700,6 +4700,19 @@ private theorem false_of_supportedStmtList_ite_surface
     False := by
   simp [stmtTouchesUnsupportedContractSurface] at hsurface
 
+private theorem false_of_supportedStmtList_ite_list_surface
+    {cond : Expr}
+    {thenBranch elseBranch : List Stmt}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.ite cond thenBranch elseBranch] = false) :
+    False := by
+  have hhead :
+      stmtTouchesUnsupportedContractSurface
+        (Stmt.ite cond thenBranch elseBranch) = false := by
+    simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
+  exact false_of_supportedStmtList_ite_surface hhead
+
 private theorem stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
     {fields : List Field}
     {scope : List String}
@@ -4719,6 +4732,94 @@ private theorem stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of
     (hfind := hfind)
     (hcore := hcore)
     (hinScope := hinScope)
+
+private theorem false_of_supportedStmtList_singleton_stmt_surface
+    {stmt : Stmt}
+    (hunsupported : stmtTouchesUnsupportedContractSurface stmt = true)
+    (hsurface : stmtListTouchesUnsupportedContractSurface [stmt] = false) :
+    False := by
+  have hhead : stmtTouchesUnsupportedContractSurface stmt = false := by
+    simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
+  rw [hunsupported] at hhead
+  contradiction
+
+private theorem false_of_supportedStmtList_returnMapping_surface
+    {fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.return (Expr.mapping fieldName key)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.return (Expr.mapping fieldName key))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMapping_surface
+    {tmp fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mapping fieldName key)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mapping fieldName key))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMapping2_surface
+    {tmp fieldName : String}
+    {key1 key2 : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_letMappingUint_surface
+    {tmp fieldName : String}
+    {key : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.letVar tmp (Expr.mappingUint fieldName key))
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_setMappingUintSingle_surface
+    {fieldName : String}
+    {key value : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.setMappingUint fieldName key value] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.setMappingUint fieldName key value)
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
+
+private theorem false_of_supportedStmtList_setMapping2Single_surface
+    {fieldName : String}
+    {key1 key2 value : Expr}
+    (hsurface :
+      stmtListTouchesUnsupportedContractSurface
+        [Stmt.setMapping2 fieldName key1 key2 value] = false) :
+    False :=
+  false_of_supportedStmtList_singleton_stmt_surface
+    (stmt := Stmt.setMapping2 fieldName key1 key2 value)
+    (by simp [stmtTouchesUnsupportedContractSurface,
+      exprTouchesUnsupportedContractSurface])
+    hsurface
 
 private theorem false_of_supportedStmtList_legacyTail_surface
     {fields : List Field}
@@ -4751,33 +4852,29 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
       exact stmtListGenericCore_of_stmtListTerminalCore hterminal
   | setStorageSingleSlot hcore hinScope hfind =>
       exact stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
-        (fields := fields)
-        hnoConflict
-        hfind
-        hcore
-        hinScope
+        (fields := fields) hnoConflict hfind hcore hinScope
+  | returnMapping hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_returnMapping_surface hsurface)
+  | letMapping hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_letMapping_surface hsurface)
+  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
+      exact False.elim (false_of_supportedStmtList_letMapping2_surface hsurface)
+  | letMappingUint hkey hscope hslot =>
+      exact False.elim (false_of_supportedStmtList_letMappingUint_surface hsurface)
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMappingUintSingle_surface hsurface)
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      exact False.elim (false_of_supportedStmtList_setMapping2Single_surface hsurface)
   | requireClause clause hrest ih =>
       exact stmtListGenericCore_of_supportedStmtList_requireClause_of_surface
-        (fields := fields)
-        (scope := scope)
-        clause
-        ih
-        hsurface
+        (fields := fields) (scope := scope) clause ih hsurface
   | ite hcond hscope hthen helse ihThen ihElse =>
-      have hhead :
-          stmtTouchesUnsupportedContractSurface
-            (Stmt.ite cond thenBranch elseBranch) = false := by
-        simpa [stmtListTouchesUnsupportedContractSurface] using hsurface
-      exact False.elim (false_of_supportedStmtList_ite_surface hhead)
+      exact False.elim (false_of_supportedStmtList_ite_list_surface hsurface)
   | append hprefix hsuffix ihPrefix ihSuffix =>
       exact stmtListGenericCore_of_supportedStmtList_append_of_surface hprefix hsuffix ihPrefix ihSuffix hsurface
   | @legacyTail _ _ tail rest htail ih =>
-      exact False.elim
-        (false_of_supportedStmtList_legacyTail_surface
-          (fields := fields)
-          (tail := tail)
-          (rest := rest)
-          hsurface)
+      exact False.elim (false_of_supportedStmtList_legacyTail_surface
+        (fields := fields) (tail := tail) (rest := rest) hsurface)
 
 /-- The current supported statement-list witness already suffices for the
 weaker helper-free source-step interface consumed by the exact helper-aware

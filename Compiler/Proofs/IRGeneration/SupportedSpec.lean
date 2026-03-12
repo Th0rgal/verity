@@ -1251,6 +1251,80 @@ private theorem stmtListTerminalCore_helperSurfaceClosed
         ihThen, ihElse,
         stmtListCompileCore_helperSurfaceClosed hrest]
 
+private theorem supportedStmtList_returnMapping_helperSurfaceClosed
+    {fieldName : String}
+    {key : Expr}
+    (hkey : FunctionBody.ExprCompileCore key) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.return (Expr.mapping fieldName key)] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey]
+
+private theorem supportedStmtList_letMapping_helperSurfaceClosed
+    {tmp fieldName : String}
+    {key : Expr}
+    (hkey : FunctionBody.ExprCompileCore key) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.letVar tmp (Expr.mapping fieldName key)] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey]
+
+private theorem supportedStmtList_letMapping2_helperSurfaceClosed
+    {tmp fieldName : String}
+    {key1 key2 : Expr}
+    (hkey1 : FunctionBody.ExprCompileCore key1)
+    (hkey2 : FunctionBody.ExprCompileCore key2) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey1,
+    exprCompileCore_helperSurfaceClosed hkey2]
+
+private theorem supportedStmtList_letMappingUint_helperSurfaceClosed
+    {tmp fieldName : String}
+    {key : Expr}
+    (hkey : FunctionBody.ExprCompileCore key) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey]
+
+private theorem supportedStmtList_setMappingUintSingle_helperSurfaceClosed
+    {fieldName : String}
+    {key value : Expr}
+    (hkey : FunctionBody.ExprCompileCore key)
+    (hvalue : FunctionBody.ExprCompileCore value) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.setMappingUint fieldName key value] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey,
+    exprCompileCore_helperSurfaceClosed hvalue]
+
+private theorem supportedStmtList_setMapping2Single_helperSurfaceClosed
+    {fieldName : String}
+    {key1 key2 value : Expr}
+    (hkey1 : FunctionBody.ExprCompileCore key1)
+    (hkey2 : FunctionBody.ExprCompileCore key2)
+    (hvalue : FunctionBody.ExprCompileCore value) :
+    stmtListTouchesUnsupportedHelperSurface
+      [Stmt.setMapping2 fieldName key1 key2 value] = false := by
+  simp [stmtListTouchesUnsupportedHelperSurface,
+    stmtTouchesUnsupportedHelperSurface,
+    exprTouchesUnsupportedHelperSurface,
+    exprCompileCore_helperSurfaceClosed hkey1,
+    exprCompileCore_helperSurfaceClosed hkey2,
+    exprCompileCore_helperSurfaceClosed hvalue]
+
 theorem SupportedStmtList.helperSurfaceClosed
     {fields : List Field}
     {scope : List String}
@@ -1266,6 +1340,18 @@ theorem SupportedStmtList.helperSurfaceClosed
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface]
+  | returnMapping hkey hscope hslot =>
+      exact supportedStmtList_returnMapping_helperSurfaceClosed hkey
+  | letMapping hkey hscope hslot =>
+      exact supportedStmtList_letMapping_helperSurfaceClosed hkey
+  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
+      exact supportedStmtList_letMapping2_helperSurfaceClosed hkey1 hkey2
+  | letMappingUint hkey hscope hslot =>
+      exact supportedStmtList_letMappingUint_helperSurfaceClosed hkey
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      exact supportedStmtList_setMappingUintSingle_helperSurfaceClosed hkey hvalue
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      exact supportedStmtList_setMapping2Single_helperSurfaceClosed hkey1 hkey2 hvalue
   | requireClause clause hrest ih =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         RequireLiteralGuardFamilyClause.toStmt,
