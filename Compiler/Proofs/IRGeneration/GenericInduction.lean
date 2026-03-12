@@ -4673,19 +4673,27 @@ theorem stmtListGenericCore_of_supportedStmtList_of_surface
             (Verity.Core.Free.SupportedStmtFragment.toStmts fragment))
           htailSurface)
 
-theorem SupportedBodyInterface.genericCore
-    {spec : CompilationModel}
-    {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface spec fn)
-    (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
-    StmtListGenericCore spec.fields (fn.params.map (·.name)) fn.body :=
-  stmtListGenericCore_of_supportedStmtList_of_surface
-    (fields := spec.fields)
-    (scope := fn.params.map (·.name))
-    (stmts := fn.body)
-    hnoConflict
-    hBody.stmtList
-    hBody.surfaceClosed
+/-- The current supported statement-list witness already suffices for the
+weaker helper-free source-step interface consumed by the exact helper-aware
+seam. This keeps helper-free reuse derivable directly from the proof-layer
+fragment witness without exposing the stronger full generic-core theorem at the
+supported-body boundary. -/
+theorem stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoConflict : firstFieldWriteSlotConflict fields = none)
+    (hSupported : SupportedStmtList fields stmts)
+    (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
+    StmtListHelperFreeStepInterface fields scope stmts :=
+  stmtListHelperFreeStepInterface_of_core
+    (stmtListGenericCore_of_supportedStmtList_of_surface
+      (fields := fields)
+      (scope := scope)
+      (stmts := stmts)
+      hnoConflict
+      hSupported
+      hsurface)
 
 /-- The supported-body interface also derives the weaker source-side reuse
 witness needed by the exact helper-aware seam: helper-free heads retain the
@@ -4697,22 +4705,12 @@ theorem SupportedBodyInterface.helperFreeStepInterface
     (hBody : SupportedBodyInterface spec fn)
     (hnoConflict : firstFieldWriteSlotConflict spec.fields = none) :
     StmtListHelperFreeStepInterface spec.fields (fn.params.map (·.name)) fn.body :=
-  stmtListHelperFreeStepInterface_of_core (hBody.genericCore hnoConflict)
-
-/-- The current supported-body interface is already strong enough to derive the
-compiled-side legacy-compatibility witness needed by the exact helper-aware
-induction seam. -/
-theorem SupportedBodyInterface.compiledLegacyCompatible
-    {spec : CompilationModel}
-    {fn : FunctionSpec}
-    (hBody : SupportedBodyInterface spec fn)
-    (hnoPacked : ∀ field ∈ spec.fields, field.packedBits = none) :
-    StmtListCompiledLegacyCompatible spec.fields (fn.params.map (·.name)) fn.body :=
-  stmtListCompiledLegacyCompatible_of_supportedContractSurface
+  stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
     (fields := spec.fields)
     (scope := fn.params.map (·.name))
     (stmts := fn.body)
-    hnoPacked
+    hnoConflict
+    hBody.stmtList
     hBody.surfaceClosed
 
 /-- The supported-body surface also derives the weaker exact-seam compiled

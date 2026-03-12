@@ -1148,9 +1148,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_requireClausesThenLetAssignMulSetStorageLocalLiteral  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtFragment_of_surface  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
-#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.genericCore
+#print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperFreeStepInterface
-#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.compiledLegacyCompatible
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.compiledHelperFreeLegacyCompatible
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded  -- private
@@ -1586,4 +1585,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1452 theorems/lemmas (1162 public, 290 private)
+-- Total: 1451 theorems/lemmas (1161 public, 290 private)
