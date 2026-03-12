@@ -104,6 +104,10 @@ work is now split into:
 - matching helper-proof-carrying theorem variants in `Function.lean`,
   `Dispatch.lean`, and `Contract.lean`, so the public Layer 2 theorem family
   already exposes that input without changing the current trusted boundary
+- helper-aware compiled-target wrapper theorems in `Contract.lean` and
+  `Dispatch.lean` that already target `execIRFunctionWithInternals` /
+  `interpretIRWithInternals` once the compiled-side conservative-extension
+  equalities are supplied
 - a dedicated world-preservation hook for expression-position helper callees
 - a strictly decreasing helper-rank interface for direct callees, so future
   helper composition can target a well-founded measure instead of raw fuel
@@ -146,8 +150,8 @@ so stmt compatibility, function compatibility, the dispatch-local theorem, and
 the contract-level theorem all reduce to stmt-list compatibility. That leaves
 the remaining proof work as the stmt-list theorem for
 `runtimeContractOfFunctions`-style contracts over the subset. After that, the
-broader theorem stack can retarget from legacy `interpretIR` to the richer
-helper-aware IR target.
+broader theorem stack can instantiate the already-defined helper-aware wrapper
+theorems rather than requiring another theorem-interface refactor.
 The helper-aware compiled target remains available as total fuel-indexed
 helper-aware IR semantics throughout that retargeting work.
 The compiled-side blocker is tracked in

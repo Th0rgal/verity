@@ -307,9 +307,9 @@ now sits under the post-generic widening/completeness plan in
   the remaining compiled-side proof step is therefore the stmt-list theorem itself,
   after which the conservative-extension goal from legacy `interpretIR` to
   `interpretIRWithInternals` on that subset follows by composition,
-  while the public theorem stack still targets legacy `execIRFunction` / `interpretIR`
-  even though `IRInterpreter.lean` now defines helper-aware compiled-side targets
-  (`execIRFunctionWithInternals`, `interpretIRWithInternals`) for internal-helper composition;
+  and `Function.lean`, `Dispatch.lean`, and `Contract.lean` now already expose
+  helper-aware wrapper theorems that consume those conservative-extension equalities
+  directly instead of requiring another public-theorem refactor;
   those helper-aware IR semantics are now available as total fuel-indexed helper-aware IR semantics, and the first compiled-side
   retarget step now has an explicit compositional proof surface rather than one large monolithic goal;
   the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)

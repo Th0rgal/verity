@@ -340,6 +340,59 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs
     (htxNormalized := htxNormalized)
     (hcalldataSizeFits := hcalldataSizeFits)
 
+/-- Helper-aware compiled-side wrapper for the generic function theorem.
+This does not strengthen the current proof boundary by itself: it factors the
+eventual retarget from `execIRFunction` to `execIRFunctionWithInternals` behind
+the exact conservative-extension equality that still remains to be proved on the
+compiled side. -/
+theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hhelperIR :
+      execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld) =
+      execIRFunction irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    compileFunctionSpec_correct_generic_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (hvalidateInputs := hvalidateInputs)
+      (fn := fn)
+      (sel := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
+      (bindings := bindings)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+  simpa [hhelperIR] using hlegacy
+
 /-- Primary whole-contract Layer 2 theorem: compilation preserves semantics
 for any supported `CompilationModel`. No contract-specific bridge premise.
 Layer 2 itself is axiom-free; the remaining documented project axiom is the
@@ -501,6 +554,45 @@ theorem compile_preserves_semantics_with_helper_proofs
       simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
         (hSupported := hSupported) hfn tx initialWorld] using
         hfunction fn sel irFn bindings hfn hcompileFn hbind)
+
+/-- Helper-aware compiled-side wrapper for the whole-contract theorem.
+The remaining compiled-side blocker is exactly the conservative-extension proof
+that supplies `hhelperIR`; once that theorem is available, the public Layer 2
+contract theorem can retarget to `interpretIRWithInternals` without another
+interface change in `Contract.lean`. -/
+theorem compile_preserves_semantics_with_helper_proofs_and_helper_ir
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (ir : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir)
+    (hhelperIR :
+      interpretIRWithInternals ir 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld) =
+      interpretIR ir tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (interpretIRWithInternals ir 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    compile_preserves_semantics_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hcompile := hcompile)
+  simpa [hhelperIR] using hlegacy
 
 /-- First direct consumer of the generic Layer 2 theorem surface: the existing
 supported single-function demo model can now obtain whole-contract correctness
