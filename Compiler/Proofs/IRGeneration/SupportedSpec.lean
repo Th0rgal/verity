@@ -2202,6 +2202,29 @@ theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClose
         stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed, ih] at hsurface ⊢
 
+theorem stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false) :
+    stmtTouchesUnsupportedHelperSurface stmt = false := by
+  cases stmt <;>
+    simp [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites,
+      stmtTouchesUnsupportedContractSurface, stmtTouchesUnsupportedHelperSurface,
+      exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed] at *
+
+theorem stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
+    {stmts : List Stmt}
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    stmtListTouchesUnsupportedHelperSurface stmts = false := by
+  induction stmts with
+  | nil =>
+      simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+        stmtListTouchesUnsupportedHelperSurface]
+  | cons stmt rest ih =>
+      simp [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites,
+        stmtListTouchesUnsupportedHelperSurface,
+        stmtTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites,
+        ih] at hsurface ⊢
+
 theorem SupportedBodyCallInterface.surfaceClosed
     {spec : CompilationModel} {fn : FunctionSpec}
     (hBody : SupportedBodyInterface spec fn) :

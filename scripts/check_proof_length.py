@@ -176,6 +176,12 @@ ALLOWLIST: set[str] = {
     # witness family and threading slot-safety/no-conflict assumptions through
     # the per-function generic closure.
     "compile_preserves_semantics_except_mapping_writes",
+    # Tier-2 exact helper-aware singleton mapping-write bridge pieces: one
+    # theorem exhaustively unfolds the double-mapping compile shape to recover a
+    # legacy-compatible Yul witness, and the other packages the alternate
+    # contract-surface disjointness proof into the exact helper-aware body goal.
+    "legacyCompatibleExternalStmtList_of_compileSetMapping2_ok",
+    "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes",
     # Issue #1564 / PR #1606:
     # these are the pre-existing long terminal-ite branch-entry transport
     # proofs, now exposed as public lemmas so later Layer 2 induction work can

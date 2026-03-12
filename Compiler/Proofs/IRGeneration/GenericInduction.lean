@@ -733,6 +733,236 @@ theorem stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface
             hstmtSurface
             hcompile)
 
+private theorem legacyCompatibleExternalStmtList_of_exprMap
+    (exprs : List YulExpr) :
+    LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by
+  induction exprs with
+  | nil =>
+      exact .nil
+  | cons expr rest ih =>
+      simpa using LegacyCompatibleExternalStmtList.expr expr (rest.map YulStmt.expr) ih
+
+private theorem legacyCompatibleExternalStmtList_of_letBindings
+    (bindings : List (String × YulExpr))
+    (rest : List YulStmt)
+    (hrest : LegacyCompatibleExternalStmtList rest) :
+    LegacyCompatibleExternalStmtList
+      (bindings.map (fun binding => YulStmt.let_ binding.1 binding.2) ++ rest) := by
+  induction bindings with
+  | nil =>
+      simpa using hrest
+  | cons binding restBindings ih =>
+      simpa using LegacyCompatibleExternalStmtList.let_ binding.1 binding.2
+        ((restBindings.map (fun inner => YulStmt.let_ inner.1 inner.2)) ++ rest)
+        (ih hrest)
+
+private theorem legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok
+    {fields : List Field}
+    {field : String}
+    {keyExpr valueExpr : YulExpr}
+    {label : String}
+    {wordOffset : Nat}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileMappingSlotWrite fields field keyExpr valueExpr label wordOffset =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileMappingSlotWrite at hcompile
+  by_cases hmapping : isMapping fields field
+  · simp [hmapping] at hcompile
+    cases hslots : findFieldWriteSlots fields field <;> simp [hslots] at hcompile
+    case some slots =>
+      cases slots with
+      | nil =>
+          simp at hcompile
+      | cons slot rest =>
+          cases rest with
+          | nil =>
+              injection hcompile with hbody
+              subst hbody
+              exact LegacyCompatibleExternalStmtList.expr _ [] .nil
+          | cons slot' rest' =>
+              injection hcompile with hbody
+              subst hbody
+              refine LegacyCompatibleExternalStmtList.block _ [] ?_ .nil
+              exact legacyCompatibleExternalStmtList_of_letBindings
+                [("__compat_key", keyExpr), ("__compat_value", valueExpr)]
+                ((slot :: slot' :: rest').map (fun writeSlot =>
+                  YulStmt.expr
+                    (YulExpr.call "sstore"
+                      [let mappingBase :=
+                          YulExpr.call "mappingSlot"
+                            [YulExpr.lit writeSlot, YulExpr.ident "__compat_key"]
+                        if wordOffset == 0 then mappingBase
+                        else YulExpr.call "add" [mappingBase, YulExpr.lit wordOffset],
+                        YulExpr.ident "__compat_value"])))
+                (legacyCompatibleExternalStmtList_of_exprMap _)
+  · simp [hmapping] at hcompile
+
+private theorem legacyCompatibleExternalStmtList_of_compileSetMapping2_ok
+    {fields : List Field}
+    {dynamicSource : DynamicDataSource}
+    {field : String}
+    {key1 key2 value : Expr}
+    {bodyIR : List YulStmt}
+    (hcompile :
+      CompilationModel.compileSetMapping2 fields dynamicSource field key1 key2 value =
+        Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileSetMapping2 at hcompile
+  by_cases hmapping2 : isMapping2 fields field
+  · simp [hmapping2] at hcompile
+    cases hslots : findFieldWriteSlots fields field <;> simp [hslots] at hcompile
+    case some slots =>
+      rcases hkey1 : CompilationModel.compileExpr fields dynamicSource key1 with _ | key1Expr <;>
+        simp [hkey1] at hcompile
+      rcases hkey2 : CompilationModel.compileExpr fields dynamicSource key2 with _ | key2Expr <;>
+        simp [hkey2] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields dynamicSource value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      cases slots with
+      | nil =>
+          simp at hcompile
+      | cons slot rest =>
+          cases rest with
+          | nil =>
+              injection hcompile with hbody
+              subst hbody
+              exact LegacyCompatibleExternalStmtList.expr _ [] .nil
+          | cons slot' rest' =>
+              injection hcompile with hbody
+              subst hbody
+              refine LegacyCompatibleExternalStmtList.block _ [] ?_ .nil
+              exact legacyCompatibleExternalStmtList_of_letBindings
+                [("__compat_key1", key1Expr), ("__compat_key2", key2Expr),
+                  ("__compat_value", valueExpr)]
+                ((slot :: slot' :: rest').map (fun writeSlot =>
+                  let innerSlot := YulExpr.call "mappingSlot"
+                    [YulExpr.lit writeSlot, YulExpr.ident "__compat_key1"]
+                  YulStmt.expr (YulExpr.call "sstore"
+                    [YulExpr.call "mappingSlot" [innerSlot, YulExpr.ident "__compat_key2"],
+                      YulExpr.ident "__compat_value"])))
+                (legacyCompatibleExternalStmtList_of_exprMap _)
+  · simp [hmapping2] at hcompile
+
+/-- On the Tier 2 alternate contract surface, successful single-statement
+compilation still stays inside the legacy helper-free external Yul subset. This
+extends the exact helper-aware compiled seam to the already-proved singleton
+mapping-write fragment instead of forcing it back onto the stricter default
+surface. -/
+theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites
+    {fields : List Field}
+    {inScopeNames : List String}
+    {stmt : Stmt}
+    {bodyIR : List YulStmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false)
+    (hcompile :
+      CompilationModel.compileStmt
+        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
+    LegacyCompatibleExternalStmtList bodyIR := by
+  cases stmt with
+  | setMapping field key value =>
+      unfold CompilationModel.compileStmt at hcompile
+      rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
+        simp [hkey] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
+  | setMappingUint field key value =>
+      unfold CompilationModel.compileStmt at hcompile
+      rcases hkey : CompilationModel.compileExpr fields .calldata key with _ | keyExpr <;>
+        simp [hkey] at hcompile
+      rcases hvalue : CompilationModel.compileExpr fields .calldata value with _ | valueExpr <;>
+        simp [hvalue] at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok hcompile
+  | setMapping2 field key1 key2 value =>
+      unfold CompilationModel.compileStmt at hcompile
+      exact legacyCompatibleExternalStmtList_of_compileSetMapping2_ok hcompile
+  | stmt =>
+      exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+        hnoPacked
+        (by simpa [stmtTouchesUnsupportedContractSurfaceExceptMappingWrites] using hsurface)
+        hcompile
+
+/-- Tier 2 list-level legacy-compatibility witness for the alternate singleton
+mapping-write surface. -/
+theorem stmtListCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    StmtListCompiledLegacyCompatible fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hstmtSurface :
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using
+          (Bool.or_eq_false.mp hsurface).1
+      have hrestSurface :
+          stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using
+          (Bool.or_eq_false.mp hsurface).2
+      refine .cons ?_ (ih hrestSurface)
+      intro compiledIR hcompile
+      exact
+        legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites
+          hnoPacked hstmtSurface hcompile
+
+/-- Tier 2 exact-seam helper-free compiled compatibility witness. -/
+theorem stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false) :
+    StmtListHelperFreeCompiledLegacyCompatible fields scope stmts :=
+  stmtListHelperFreeCompiledLegacyCompatible_of_compiledLegacyCompatible
+    (stmtListCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
+      (fields := fields)
+      (scope := scope)
+      (stmts := stmts)
+      hnoPacked
+      hsurface)
+
+/-- Tier 2 exact-seam compiled disjointness witness for the alternate singleton
+mapping-write surface when the runtime contract has no internal helper table. -/
+theorem stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites
+    {runtimeContract : IRContract}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
+    (hsurface : stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites stmts = false)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hstmtSurface :
+          stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using
+          (Bool.or_eq_false.mp hsurface).1
+      have hrestSurface :
+          stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites] using
+          (Bool.or_eq_false.mp hsurface).2
+      refine .cons ?_ (ih hrestSurface)
+      intro _ compiledIR hcompile
+      exact
+        YulStmtListCallsDisjointFromInternalTable_of_internalFunctions_nil
+          runtimeContract
+          hinternal
+          compiledIR
+          (legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface_exceptMappingWrites
+            hnoPacked
+            hstmtSurface
+            hcompile)
+
 /-- Any full helper-free generic statement-list proof also gives the weaker
 source-side reuse witness needed by the future helper-rich exact seam: only the
 helper-free heads retain the old generic-step obligation. -/
@@ -8149,6 +8379,113 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers_an
         fn.body := by
     simpa [hnormalized] using
       (stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface
+        (runtimeContract := runtimeContract)
+        (fields := model.fields)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hnoPacked
+        hcontractSurface
+        hinternal)
+  exact
+    supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hfuelPos hnormalized hnoEvents hnoErrors hhelperFree
+      (stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hhelperSurface)
+      (stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hhelperSurface)
+      (stmtListExprInternalHelperStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hhelperSurface)
+      (stmtListStructuralInternalHelperStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hhelperSurface)
+      (stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed
+        (runtimeContract := runtimeContract)
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (scope := fn.params.map (·.name))
+        (stmts := fn.body)
+        hhelperSurface)
+      hdisjoint
+      hbodyCompile
+      hscope hbounded hstateRuntime hstateBindings
+
+/-- Tier 2 exact helper-aware wrapper for the alternate singleton
+mapping-write contract surface. This keeps the helper-aware compiled-body seam
+available even before those writes are promoted onto the default support path. -/
+theorem supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_except_mapping_writes
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hfuelPos : 0 < helperFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hnoPacked : ∀ field ∈ model.fields, field.packedBits = none)
+    (hcontractSurface :
+      stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites fn.body = false)
+    (hhelperFree :
+      StmtListHelperFreeStepInterface
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state)
+    (hinternal : runtimeContract.internalFunctions = []) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hhelperSurface : stmtListTouchesUnsupportedHelperSurface fn.body = false :=
+    stmtListTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_exceptMappingWrites
+      hcontractSurface
+  have hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body := by
+    simpa [hnormalized] using
+      (stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites
         (runtimeContract := runtimeContract)
         (fields := model.fields)
         (scope := fn.params.map (·.name))
