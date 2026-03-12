@@ -111,9 +111,11 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
     · rfl
   · rfl
   ·
-    verity_unfold simpleTokenConstructor
-    simp [Specs.sameContext, Contracts.SimpleToken.ownerSlot,
-      Contracts.SimpleToken.totalSupplySlot]
+    refine ⟨?_, ?_⟩
+    · rfl
+    ·
+      verity_unfold simpleTokenConstructor
+      simp [Specs.sameContext, Contracts.SimpleToken.ownerSlot, Contracts.SimpleToken.totalSupplySlot]
 
 theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
   let s' := ((simpleTokenConstructor initialOwner).run s).snd
@@ -196,16 +198,15 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
   simp only [Contract.run, ContractResult.snd, mint_spec]
   rw [h_unfold_apply]
   simp only [ContractResult.snd]
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp -- balance of 'to' updated
   · simp -- supply updated
   · refine ⟨?_, ?_⟩
     · intro addr h_neq; simp [h_neq] -- other balances preserved
     · intro slotIdx h_neq; intro addr; simp [h_neq] -- other mapping slots
   · intro slotIdx h_neq; simp [h_neq] -- other uint storage
-  · refine ⟨?_, ?_⟩
-    · trivial -- owner preserved
-    · exact Specs.sameContext_rfl _
+  · trivial -- owner preserved
+  · exact Specs.sameContext_rfl _
 
 theorem mint_increases_balance (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0)
@@ -334,7 +335,7 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
     · simp [h_eq, beq_iff_eq, Specs.storageMapUnchangedExceptKeyAtSlot,
         Specs.storageMapUnchangedExceptKey, Specs.storageMapUnchangedExceptSlot]
     · rfl
-    · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameContext]
+    · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameStorageArray, Specs.sameContext]
   · have h_unfold := transfer_unfold_other s to amount h_balance h_eq (h_no_overflow h_eq)
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.run, ContractResult.snd, transfer_spec]
@@ -350,7 +351,7 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
       · intro slotIdx h_neq addr'; simp [h_neq]
     · -- owner preserved
       trivial
-    · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameContext]
+    · simp [Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr, Specs.sameStorageArray, Specs.sameContext]
 
 theorem transfer_preserves_supply_when_sufficient (s : ContractState) (to : Address) (amount : Uint256)
   (h_balance : s.storageMap 1 s.sender ≥ amount)
@@ -488,7 +489,7 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   WellFormedState s' := by
   have h_spec := constructor_meets_spec s initialOwner
   simp [constructor_spec] at h_spec
-  obtain ⟨h_owner_set, h_supply_set, h_other_addr, h_other_uint, h_map, h_sender, h_this, _h_value, _h_time⟩ := h_spec
+  obtain ⟨h_owner_set, h_supply_set, h_other_addr, h_other_uint, h_map, _h_array, h_sender, h_this, _h_value, _h_time⟩ := h_spec
   exact ⟨h_sender ▸ h.sender_nonzero, h_this ▸ h.contract_nonzero, h_owner_set ▸ h_owner⟩
 
 theorem balanceOf_preserves_wellformedness (s : ContractState) (addr : Address) (h : WellFormedState s) :

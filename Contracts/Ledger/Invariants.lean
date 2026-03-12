@@ -20,6 +20,6 @@ abbrev context_preserved := Specs.sameContext
 
 /-- Non-mapping storage unchanged by all Ledger operations -/
 abbrev non_mapping_storage_unchanged (s s' : ContractState) :=
-  Specs.sameStorage s s' ∧ Specs.sameStorageAddr s s'
+  Specs.sameStorage s s' ∧ Specs.sameStorageAddr s s' ∧ Specs.sameStorageArray s s'
 
 end Contracts.Ledger.Invariants

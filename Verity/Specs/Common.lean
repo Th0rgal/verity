@@ -69,6 +69,12 @@ def sameStorageMap2 (s s' : ContractState) : Prop :=
 
 @[simp] theorem sameStorageMap2_rfl (s : ContractState) : sameStorageMap2 s s := rfl
 
+/-- Dynamic-array storage is unchanged. -/
+def sameStorageArray (s s' : ContractState) : Prop :=
+  s'.storageArray = s.storageArray
+
+@[simp] theorem sameStorageArray_rfl (s : ContractState) : sameStorageArray s s := rfl
+
 /-- Event log is unchanged. -/
 def sameEvents (s s' : ContractState) : Prop :=
   s'.events = s.events
@@ -85,45 +91,50 @@ def sameKnownAddresses (s s' : ContractState) : Prop :=
 def sameAddrMapContext (s s' : ContractState) : Prop :=
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameAddrMapContext_rfl (s : ContractState) : sameAddrMapContext s s :=
-  ⟨rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Uint256 storage, mapping storage, and context are unchanged. -/
 def sameStorageMapContext (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
   sameStorageMap s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageMapContext_rfl (s : ContractState) : sameStorageMapContext s s :=
-  ⟨rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Uint256 storage, address storage, and context are unchanged. -/
 def sameStorageAddrContext (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
   sameStorageAddr s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageAddrContext_rfl (s : ContractState) : sameStorageAddrContext s s :=
-  ⟨rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Mapping storage, double-mapping storage, and context are unchanged. -/
 def sameStorageMap2Context (s s' : ContractState) : Prop :=
   sameStorageMap s s' ∧
   sameStorageMap2 s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageMap2Context_rfl (s : ContractState) : sameStorageMap2Context s s :=
-  ⟨rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Mapping storage and context are unchanged. -/
 def sameMapContext (s s' : ContractState) : Prop :=
   sameStorageMap s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameMapContext_rfl (s : ContractState) : sameMapContext s s :=
-  ⟨rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, sameContext_rfl s⟩
 
 /-- One address slot and context are unchanged. -/
 def sameStorageAddrSlotContext (addrSlot : Nat) (s s' : ContractState) : Prop :=
@@ -138,11 +149,12 @@ def sameStorageAddrSlotContext (addrSlot : Nat) (s s' : ContractState) : Prop :=
 def sameStorageAddrSlotMap2Context (addrSlot : Nat) (s s' : ContractState) : Prop :=
   sameStorageAddrSlot addrSlot s s' ∧
   sameStorageMap2 s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageAddrSlotMap2Context_rfl (addrSlot : Nat) (s : ContractState) :
     sameStorageAddrSlotMap2Context addrSlot s s :=
-  ⟨rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- One Uint256 slot, one address slot, double-mapping storage, and context are unchanged. -/
 def sameStorageSlotAddrSlotMap2Context
@@ -150,22 +162,24 @@ def sameStorageSlotAddrSlotMap2Context
   sameStorageSlot storageSlot s s' ∧
   sameStorageAddrSlot addrSlot s s' ∧
   sameStorageMap2 s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageSlotAddrSlotMap2Context_rfl
     (storageSlot addrSlot : Nat) (s : ContractState) :
     sameStorageSlotAddrSlotMap2Context storageSlot addrSlot s s :=
-  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Uint256 storage, address storage, mapping storage, and context are unchanged. -/
 def sameStorageAddrMapContext (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageAddrMapContext_rfl (s : ContractState) : sameStorageAddrMapContext s s :=
-  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Uint256/address storage, mapping storage (word+uint-keyed), and context are unchanged. -/
 def sameStorageAddrMapUintContext (s s' : ContractState) : Prop :=
@@ -173,20 +187,22 @@ def sameStorageAddrMapUintContext (s s' : ContractState) : Prop :=
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
   sameStorageMapUint s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageAddrMapUintContext_rfl (s : ContractState) : sameStorageAddrMapUintContext s s :=
-  ⟨rfl, rfl, rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- Mapping storage (word + uint-keyed + double), and context are unchanged. -/
 def sameStorageMapsContext (s s' : ContractState) : Prop :=
   sameStorageMap s s' ∧
   sameStorageMapUint s s' ∧
   sameStorageMap2 s s' ∧
+  sameStorageArray s s' ∧
   sameContext s s'
 
 @[simp] theorem sameStorageMapsContext_rfl (s : ContractState) : sameStorageMapsContext s s :=
-  ⟨rfl, rfl, rfl, sameContext_rfl s⟩
+  ⟨rfl, rfl, rfl, rfl, sameContext_rfl s⟩
 
 /-- All storage slots except `slot` are unchanged. -/
 def storageUnchangedExcept (slot : Nat) (s s' : ContractState) : Prop :=
@@ -367,16 +383,17 @@ def storageMapTransferFromSpec
   storageMap2UnchangedExceptKeyPair allowanceSlot fromAddr spender s s' ∧
   frame s s'
 
-/-- All storage (uint256, addr, map, mapUint, map2) is unchanged. -/
+/-- All storage (uint256, addr, map, mapUint, map2, array) is unchanged. -/
 def sameAllStorage (s s' : ContractState) : Prop :=
   sameStorage s s' ∧
   sameStorageAddr s s' ∧
   sameStorageMap s s' ∧
   sameStorageMapUint s s' ∧
-  sameStorageMap2 s s'
+  sameStorageMap2 s s' ∧
+  sameStorageArray s s'
 
 @[simp] theorem sameAllStorage_rfl (s : ContractState) : sameAllStorage s s :=
-  ⟨rfl, rfl, rfl, rfl, rfl⟩
+  ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- Everything except the event log is unchanged. -/
 def sameExceptEvents (s s' : ContractState) : Prop :=

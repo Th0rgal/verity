@@ -44,7 +44,7 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   · intro slotIdx h_neq
     simp [setStorageAddr, owner, Contract.run, ContractResult.snd, h_neq]
   · simp [setStorageAddr, owner, Contract.run, ContractResult.snd,
-      Specs.sameStorageMapContext, Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+      Specs.sameStorageMapContext, Specs.sameStorage, Specs.sameStorageMap, Specs.sameStorageArray, Specs.sameContext]
 
 theorem constructor_sets_owner (s : ContractState) (initialOwner : Address) :
   let s' := ((setStorageAddr owner initialOwner).run s).snd
@@ -139,7 +139,7 @@ theorem increment_meets_spec_when_owner (s : ContractState)
   · intro slotIdx h_neq
     simp [ContractResult.snd, h_neq]
   · simp [ContractResult.snd, Specs.sameAddrMapContext, Specs.sameStorageAddr,
-      Specs.sameStorageMap, Specs.sameContext]
+      Specs.sameStorageMap, Specs.sameStorageArray, Specs.sameContext]
 
 theorem increment_adds_one_when_owner (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
@@ -187,7 +187,7 @@ theorem decrement_meets_spec_when_owner (s : ContractState)
   · intro slotIdx h_neq
     simp [ContractResult.snd, h_neq]
   · simp [ContractResult.snd, Specs.sameAddrMapContext, Specs.sameStorageAddr,
-      Specs.sameStorageMap, Specs.sameContext]
+      Specs.sameStorageMap, Specs.sameStorageArray, Specs.sameContext]
 
 theorem decrement_subtracts_one_when_owner (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
@@ -234,7 +234,7 @@ theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : 
   · intro slotIdx h_neq
     simp [ContractResult.snd, h_neq]
   · simp [ContractResult.snd, Specs.sameStorageMapContext,
-      Specs.sameStorage, Specs.sameStorageMap, Specs.sameContext]
+      Specs.sameStorage, Specs.sameStorageMap, Specs.sameStorageArray, Specs.sameContext]
 
 theorem transferOwnership_changes_owner (s : ContractState) (newOwner : Address)
   (h_owner : s.sender = s.storageAddr 0) :
@@ -280,7 +280,7 @@ theorem constructor_preserves_wellformedness (s : ContractState) (initialOwner :
   WellFormedState s' := by
   have h_spec := constructor_meets_spec s initialOwner
   rcases h_spec with ⟨h_set, _h_other_addr, h_same⟩
-  rcases h_same with ⟨_h_storage, _h_map, h_ctx⟩
+  rcases h_same with ⟨_h_storage, _h_map, _h_array, h_ctx⟩
   exact ⟨h_ctx.1 ▸ h.sender_nonzero, h_ctx.2.1 ▸ h.contract_nonzero, h_set ▸ h_owner⟩
 
 theorem increment_preserves_wellformedness (s : ContractState)

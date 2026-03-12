@@ -81,9 +81,10 @@ theorem increment_meets_spec (s : ContractState)
   increment_spec s s' := by
   rw [increment_unfold s h_no_overflow]
   simp only [ContractResult.snd, increment_spec]
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp [evm_add_eq_of_no_overflow (s.storage 0) 1 h_no_overflow]
   · intro k h_ne; simp [beq_iff_eq, h_ne]
+  · rfl
   · rfl
   · rfl
   · exact Specs.sameContext_rfl _
@@ -141,9 +142,10 @@ theorem decrement_meets_spec (s : ContractState)
   decrement_spec s s' := by
   rw [decrement_unfold s h_no_underflow]
   simp only [ContractResult.snd, decrement_spec]
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp [HSub.hSub, sub]
   · intro k h_ne; simp [beq_iff_eq, h_ne]
+  · rfl
   · rfl
   · rfl
   · exact Specs.sameContext_rfl _

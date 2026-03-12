@@ -23,7 +23,7 @@ private def constructorCompat (initialOwner : Address) : Contract Unit := do
 /-- `constructor` sets owner slot 0 and initializes supply slot 1. -/
 theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
     constructor_spec initialOwner s ((constructorCompat initialOwner).runState s) := by
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp [constructorCompat, ownerSlot, setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
   · simp [constructorCompat, totalSupplySlot, setStorageAddr, setStorage, Contract.runState, Verity.bind, Bind.bind]
   · intro slotIdx h_neq
@@ -35,6 +35,8 @@ theorem constructor_meets_spec (s : ContractState) (initialOwner : Address) :
   · simp [Specs.sameStorageMap, constructorCompat, ownerSlot, totalSupplySlot, setStorageAddr, setStorage,
       Contract.runState, Verity.bind, Bind.bind]
   · simp [Specs.sameStorageMap2, constructorCompat, ownerSlot, totalSupplySlot, setStorageAddr, setStorage,
+      Contract.runState, Verity.bind, Bind.bind]
+  · simp [Specs.sameStorageArray, constructorCompat, ownerSlot, totalSupplySlot, setStorageAddr, setStorage,
       Contract.runState, Verity.bind, Bind.bind]
   · simp [Specs.sameContext, constructorCompat, ownerSlot, totalSupplySlot, setStorageAddr, setStorage,
       Contract.runState, Verity.bind, Bind.bind]
@@ -53,7 +55,8 @@ theorem approve_meets_spec (s : ContractState) (spender : Address) (amount : Uin
     · intro sp' h_neq
       simp [approve, allowancesSlot, setMapping2, msgSender, Contract.runState, Verity.bind, Bind.bind,
         h_neq]
-  · refine ⟨?_, ?_, ?_, ?_⟩
+  · refine ⟨?_, ?_, ?_, ?_, ?_⟩
+    · rfl
     · rfl
     · rfl
     · rfl
@@ -95,7 +98,7 @@ private theorem mint_unfold (s : ContractState) (to : Address) (amount : Uint256
         storageAddr := s.storageAddr,
         storageMap := fun slotIdx addr =>
           if (slotIdx == 2 && addr == to) = true then EVM.Uint256.add (s.storageMap 2 to) amount
-          else s.storageMap slotIdx addr,
+        else s.storageMap slotIdx addr,
         storageMapUint := s.storageMapUint,
         storageMap2 := s.storageMap2,
         storageArray := s.storageArray,
@@ -130,7 +133,7 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
   have h_unfold_apply := Contract.eq_of_run_success h_unfold
   simp only [Contract.runState, mint_spec]
   rw [h_unfold_apply]
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp
   · simp
   · refine ⟨?_, ?_⟩
@@ -140,6 +143,7 @@ theorem mint_meets_spec_when_owner (s : ContractState) (to : Address) (amount : 
       simp [h_ne]
   · intro slotIdx h_ne
     simp [h_ne]
+  · rfl
   · rfl
   · rfl
   · exact Specs.sameContext_rfl _
@@ -183,7 +187,7 @@ private theorem transfer_unfold_other (s : ContractState) (to : Address) (amount
         storageMap := fun slotIdx addr =>
           if (slotIdx == 2 && addr == to) = true then EVM.Uint256.add (s.storageMap 2 to) amount
           else if (slotIdx == 2 && addr == s.sender) = true then EVM.Uint256.sub (s.storageMap 2 s.sender) amount
-          else s.storageMap slotIdx addr,
+        else s.storageMap slotIdx addr,
         storageMapUint := s.storageMapUint,
         storageMap2 := s.storageMap2,
         storageArray := s.storageArray,
@@ -218,7 +222,7 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.runState, transfer_spec]
     rw [h_unfold_apply]
-    refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · simp [h_eq]
     · simp [h_eq]
     · simp [h_eq, Specs.storageMapUnchangedExceptKeyAtSlot,
@@ -226,13 +230,14 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
     · trivial
     · trivial
     · rfl
+    · rfl
     · exact Specs.sameContext_rfl _
   · have h_unfold := transfer_unfold_other s to amount h_balance h_eq (h_no_overflow h_eq)
     have h_unfold_apply := Contract.eq_of_run_success h_unfold
     simp only [Contract.runState, transfer_spec]
     rw [h_unfold_apply]
     have h_ne' := address_beq_false_of_ne s.sender to h_eq
-    refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    refine ⟨h_balance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · simp [h_ne']
     · simp [h_ne']
     · simp [h_ne']
@@ -243,6 +248,7 @@ theorem transfer_meets_spec_when_sufficient (s : ContractState) (to : Address) (
         simp [h_neq]
     · trivial
     · trivial
+    · rfl
     · rfl
     · exact Specs.sameContext_rfl _
 

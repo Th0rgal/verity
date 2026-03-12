@@ -67,7 +67,7 @@ theorem increment_meets_spec (s : ContractState) :
   · simp [increment, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
   · intro other h_neq
     simp [increment, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind, h_neq]
-  · simp [Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameContext, increment, count,
+  · simp [Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameStorageArray, Specs.sameContext, increment, count,
       getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
 
 theorem increment_adds_one (s : ContractState) :
@@ -85,7 +85,7 @@ theorem decrement_meets_spec (s : ContractState) :
   · simp [decrement, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
   · intro other h_neq
     simp [decrement, count, getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind, h_neq]
-  · simp [Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameContext, decrement, count,
+  · simp [Specs.sameStorageAddr, Specs.sameStorageMap, Specs.sameStorageArray, Specs.sameContext, decrement, count,
       getStorage, setStorage, Contract.run, ContractResult.snd, Verity.bind, Bind.bind]
 
 theorem decrement_subtracts_one (s : ContractState) :
