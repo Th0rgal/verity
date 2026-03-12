@@ -277,6 +277,24 @@ inductive StmtListHelperFreeCompiledLegacyCompatible
       StmtListHelperFreeCompiledLegacyCompatible fields (stmtNextScope scope stmt) rest →
       StmtListHelperFreeCompiledLegacyCompatible fields scope (stmt :: rest)
 
+/-- Disjoint-based compiled-side compatibility: helper-surface-closed statement
+heads produce compiled IR that is disjoint from the runtime contract's internal
+function table.  Unlike `StmtListHelperFreeCompiledLegacyCompatible` this does
+**not** require `runtimeContract.internalFunctions = []` downstream. -/
+inductive StmtListHelperFreeCompiledCallsDisjoint
+    (runtimeContract : IRContract)
+    (fields : List Field) : List String → List Stmt → Prop where
+  | nil {scope : List String} :
+      StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope []
+  | cons {scope : List String} {stmt : Stmt} {rest : List Stmt} :
+      (stmtTouchesUnsupportedHelperSurface stmt = false →
+        ∀ compiledIR,
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope stmt =
+            Except.ok compiledIR →
+            YulStmtListCallsDisjointFromInternalTable runtimeContract compiledIR) →
+      StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields (stmtNextScope scope stmt) rest →
+      StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope (stmt :: rest)
+
 /-- List-local exact step interface for the genuinely new helper-surface
 statement heads. Helper-free heads remain reusable through the existing
 helper-free generic step library plus the helper-free compiled compatibility
@@ -1079,6 +1097,43 @@ theorem CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
       simpa [hir] using hcompat
     · cases irExec <;> simpa [stmtStepMatchesIRExecWithInternals] using hmatch
 
+/-- Disjoint-based bridge: any helper-aware generic statement-step proof closes
+the exact helper-aware compiled-side step goal when the compiled IR is disjoint
+from the internal function table.  Unlike `withHelperIR_of_legacyCompatible` this
+does **not** require `runtimeContract.internalFunctions = []`. -/
+theorem CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmt : Stmt}
+    {compiledIR : List YulStmt}
+    (hstep : CompiledStmtStepWithHelpers spec fields scope stmt compiledIR)
+    (hdisjoint : YulStmtListCallsDisjointFromInternalTable runtimeContract compiledIR) :
+    CompiledStmtStepWithHelpersAndHelperIR
+      runtimeContract spec fields scope stmt compiledIR where
+  compileOk := hstep.compileOk
+  preserves := by
+    intro runtime state helperFuel extraFuel hexact hscope hbounded hruntime hslack
+    rcases hstep.preserves runtime state helperFuel extraFuel
+        hexact hscope hbounded hruntime hslack with
+      ⟨sourceResult, irExec, hsource, hir, hmatch⟩
+    refine ⟨sourceResult,
+      match irExec with
+      | .continue next => .continue next
+      | .return value next => .return value next
+      | .stop next => .stop next
+      | .revert next => .revert next,
+      hsource, ?_, ?_⟩
+    · have hcompat :=
+        execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+          (compiledIR.length + extraFuel + 1)
+          state
+          compiledIR
+          hdisjoint
+      simpa [hir] using hcompat
+    · cases irExec <;> simpa [stmtStepMatchesIRExecWithInternals] using hmatch
+
 /-- Lift helper-aware statement-list proofs into the exact helper-aware compiled
 induction seam on the current legacy-compatible compiled subset. This isolates
 future helper-summary work to the genuinely new helper-call cases: already
@@ -1140,6 +1195,42 @@ theorem
                   cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
                 rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
                 exact .cons hcompiled (ih htailFree htailLegacy)
+
+/-- Disjoint-based exact helper-aware list bridge: helper-free heads reuse the
+legacy generic step library plus the new disjointness witness, while
+helper-positive heads are discharged through the dedicated step interface.
+Unlike the `_helperFreeCompiledLegacyCompatible` variant, this does **not**
+require `runtimeContract.internalFunctions = []`. -/
+theorem
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
+    (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hsteps generalizing hhelperFree hdisjoint with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadStep htailSteps ih =>
+      cases hhelperFree with
+      | cons hheadFree htailFree =>
+          cases hdisjoint with
+          | cons hheadDisjoint htailDisjoint =>
+              by_cases hsurface : stmtTouchesUnsupportedHelperSurface stmt = false
+              · rcases hheadFree hsurface with ⟨compiledIR, hcore⟩
+                exact .cons
+                  ((hcore.withHelpers_of_helperSurfaceClosed hsurface)
+                    .withHelperIR_of_callsDisjoint
+                      (hheadDisjoint hsurface compiledIR hcore.compileOk))
+                  (ih htailFree htailDisjoint)
+              · have hsurfaceTrue : stmtTouchesUnsupportedHelperSurface stmt = true := by
+                  cases hstmt : stmtTouchesUnsupportedHelperSurface stmt <;> simp [hstmt] at hsurface ⊢
+                rcases hheadStep hsurfaceTrue with ⟨compiledIR, hcompiled⟩
+                exact .cons hcompiled (ih htailFree htailDisjoint)
 
 /-- Exact helper-aware list bridge with the helper-positive work split cleanly:
 genuine internal-helper heads are supplied through a narrow helper-specific
@@ -1270,6 +1361,27 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface
       (hlegacy := hlegacy)
       hinternal
 
+/-- Disjoint-based exact helper-aware list bridge with `StmtListGenericCore`.
+The legacy `StmtListGenericCore` witness is reused for helper-free heads, with
+compiled-side disjointness replacing `internalFunctions = []`. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hsteps : StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (hhelperFree := stmtListHelperFreeStepInterface_of_core hgeneric)
+      (hsteps := hsteps)
+      (hdisjoint := hdisjoint)
+
 /-- Exact helper-aware list bridge over the split helper-positive interfaces:
 the legacy `StmtListGenericCore` witness is still reused for helper-free heads,
 while genuine internal-helper heads and residual coarse helper-surface heads are
@@ -1370,6 +1482,72 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperStepIn
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       hnoInternalFunctions
+
+/-- Disjoint-based legacy-core exact helper-aware list bridge over the fully
+split helper-positive interfaces.  Does **not** require
+`runtimeContract.internalFunctions = []`. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface runtimeContract spec fields scope stmts)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact
+    stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (hgeneric := hgeneric)
+      (hsteps :=
+        stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
+          (stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
+            (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+              hcall
+              hassign)
+            hexpr
+            hstruct)
+          hresidual)
+      (hdisjoint := hdisjoint)
+
+/-- On helper-surface-closed statement lists, the disjoint-based bridge
+collapses: no internal function table constraint at all is needed since every
+head is helper-free and compiled-disjoint. -/
+theorem stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceClosed_and_helperFreeCompiledCallsDisjoint
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hgeneric : StmtListGenericCore fields scope stmts)
+    (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false)
+    (hdisjoint : StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts) :
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  exact
+    stmtListGenericWithHelpersAndHelperIR_of_core_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (hgeneric := hgeneric)
+      (hsteps :=
+        stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed
+          (runtimeContract := runtimeContract)
+          (spec := spec)
+          (fields := fields)
+          (scope := scope)
+          (stmts := stmts)
+          hsurface)
+      (hdisjoint := hdisjoint)
 
 /-- On helper-surface-closed statement lists, the new exact helper-aware list
 bridge collapses to the old helper-free lifting path, but only needs the weaker
@@ -5944,6 +6122,43 @@ theorem supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goa
     simpa [hbodyExec] using hcompat
   · cases irExec <;> simpa [stmtResultMatchesIRExecWithInternals] using hmatch
 
+/-- Disjoint-based body-level bridge: the helper-free compiled-body goal lifts to
+the exact helper-aware compiled-body target when the compiled body is disjoint
+from the runtime contract's internal function table.  Does **not** require
+`runtimeContract.internalFunctions = []`. -/
+theorem supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goal_callsDisjoint
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hbody :
+      SupportedFunctionBodyWithHelpersIRPreservationGoal
+        model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel)
+    (hdisjoint : YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  refine ⟨sourceResult, match irExec with
+      | .continue next => .continue next
+      | .return value next => .return value next
+      | .stop next => .stop next
+      | .revert next => .revert next, hsource, ?_, ?_⟩
+  · have hcompat :=
+      execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+        (bodyStmts.length + extraFuel + 1)
+        state
+        bodyStmts
+        hdisjoint
+    simpa [hbodyExec] using hcompat
+  · cases irExec <;> simpa [stmtResultMatchesIRExecWithInternals] using hmatch
+
 /-- Exact helper-aware body theorem for a helper-aware generic statement
 induction witness. This is the induction-level target needed to replace the
 current helper-free `SupportedStmtList` gate with compositional helper-step
@@ -6398,6 +6613,117 @@ theorem supported_function_body_correct_from_exact_state_generic_split_internal_
       (hresidual := hresidual)
       (hlegacy := hlegacy)
       hnoInternalFunctions
+  exact
+    supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel
+      hextraFuel hnormalized hnoEvents hnoErrors hgeneric hbodyCompile hscope
+      hbounded hstateRuntime hstateBindings
+
+/-- Disjoint-based body-level exact helper-aware bridge over the fully split
+genuine-helper interfaces.  Replaces `StmtListHelperFreeCompiledLegacyCompatible`
++ `runtimeContract.internalFunctions = []` with the weaker
+`StmtListHelperFreeCompiledCallsDisjoint`.  This is the entry point for
+function bodies that live in a contract with an internal helper table. -/
+theorem supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir_callsDisjoint
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hextraFuel : sizeOf bodyStmts - bodyStmts.length ≤ extraFuel)
+    (hnormalized : SourceSemantics.effectiveFields model = model.fields)
+    (hnoEvents : model.events = [])
+    (hnoErrors : model.errors = [])
+    (hhelperFree :
+      StmtListHelperFreeStepInterface
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hcall :
+      StmtListDirectInternalHelperCallStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hassign :
+      StmtListDirectInternalHelperAssignStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hexpr :
+      StmtListExprInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hstruct :
+      StmtListStructuralInternalHelperStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hresidual :
+      StmtListResidualHelperSurfaceStepInterface
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings)
+    (hbounded : FunctionBody.bindingsBounded bindings)
+    (hstateRuntime :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := [] }
+        state)
+    (hstateBindings :
+      FunctionBody.bindingsExactlyMatchIRVars bindings state) :
+    SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+      runtimeContract
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  have hgeneric :
+      StmtListGenericWithHelpersAndHelperIR
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body :=
+    stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_helperSurfaceStepInterface_and_helperFreeCompiledCallsDisjoint
+      (runtimeContract := runtimeContract)
+      (spec := model)
+      (hhelperFree := hhelperFree)
+      (hsteps :=
+        stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
+          (stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
+            (stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
+              hcall
+              hassign)
+            hexpr
+            hstruct)
+          hresidual)
+      (hdisjoint := hdisjoint)
   exact
     supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
       runtimeContract
