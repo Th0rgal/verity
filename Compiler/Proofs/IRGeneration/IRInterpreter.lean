@@ -3080,6 +3080,129 @@ theorem execIRStmtWithInternals_letMany_call_internal
   rw [evalIRCallWithInternals_of_internal_function contract fuel state func args helper argVals
     state' hargs hfind]
 
+/-! ## Internal function lookup bridge
+
+These theorems connect `SupportedCompiledInternalHelperWitness.presentInRuntime`
+(which provides `compiledStmt ∈ runtimeContract.internalFunctions`) with the
+`findInternalFunction?` lookup used by the IR interpreter. -/
+
+@[simp] theorem irInternalFunctionDefOfStmt?_funcDef
+    (name : String) (params rets : List String) (body : List YulStmt) :
+    irInternalFunctionDefOfStmt? (YulStmt.funcDef name params rets body) =
+      some { name, params, rets, body } := rfl
+
+/-- If a `funcDef` statement is in `contract.internalFunctions`, then
+`findInternalFunction?` succeeds for that name. -/
+theorem findInternalFunction?_isSome_of_funcDef_mem
+    (contract : IRContract) (name : String) (params rets : List String)
+    (body : List YulStmt)
+    (hmem : YulStmt.funcDef name params rets body ∈ contract.internalFunctions) :
+    (findInternalFunction? contract name).isSome := by
+  unfold findInternalFunction?
+  rw [List.find?_isSome]
+  exact ⟨⟨name, params, rets, body⟩,
+    List.mem_filterMap.mpr ⟨_, hmem, rfl⟩,
+    by simp⟩
+
+/-- The result of `findInternalFunction?` always satisfies the name predicate
+and comes from a `funcDef` in `internalFunctions`. -/
+theorem findInternalFunction?_spec
+    (contract : IRContract) (name : String) (helper : IRInternalFunctionDef)
+    (hfind : findInternalFunction? contract name = some helper) :
+    helper.name = name ∧
+    YulStmt.funcDef helper.name helper.params helper.rets helper.body ∈
+      contract.internalFunctions := by
+  unfold findInternalFunction? at hfind
+  constructor
+  · have := List.find?_some hfind
+    simp at this
+    exact this
+  · have hmem := List.mem_of_find?_eq_some hfind
+    rw [List.mem_filterMap] at hmem
+    obtain ⟨stmt, hstmt_mem, hstmt_def⟩ := hmem
+    cases stmt with
+    | funcDef n p r b =>
+      simp [irInternalFunctionDefOfStmt?] at hstmt_def
+      subst hstmt_def
+      exact hstmt_mem
+    | _ => simp [irInternalFunctionDefOfStmt?] at hstmt_def
+
+/-- Under a uniqueness assumption on helper names, if a `funcDef` is in
+`internalFunctions`, then `findInternalFunction?` returns a definition
+with matching params, rets, and body. -/
+theorem findInternalFunction?_exact_of_funcDef_mem_unique
+    (contract : IRContract) (name : String) (params rets : List String)
+    (body : List YulStmt)
+    (hmem : YulStmt.funcDef name params rets body ∈ contract.internalFunctions)
+    (hunique : ∀ stmt ∈ contract.internalFunctions,
+      ∀ p r b, irInternalFunctionDefOfStmt? stmt = some ⟨name, p, r, b⟩ →
+        p = params ∧ r = rets ∧ b = body) :
+    findInternalFunction? contract name =
+      some { name, params, rets, body } := by
+  have hisSome := findInternalFunction?_isSome_of_funcDef_mem contract name params rets body hmem
+  obtain ⟨helper, hhel⟩ := Option.isSome_iff_exists.mp hisSome
+  have ⟨hname, hstmt_mem⟩ := findInternalFunction?_spec contract name helper hhel
+  rw [hname] at hstmt_mem
+  have hir : irInternalFunctionDefOfStmt?
+      (YulStmt.funcDef name helper.params helper.rets helper.body) =
+      some ⟨name, helper.params, helper.rets, helper.body⟩ := rfl
+  obtain ⟨hp, hr, hb⟩ := hunique _ hstmt_mem _ _ _ hir
+  have heq : helper = { name, params, rets, body } := by
+    cases helper with | mk hn hp' hr' hb' =>
+      simp only [IRInternalFunctionDef.mk.injEq] at hname hp hr hb ⊢
+      exact ⟨hname, hp, hr, hb⟩
+  rw [heq] at hhel
+  exact hhel
+
+/-! ## Singleton list characterization
+
+The `CompiledStmtStepWithHelpersAndHelperIR.preserves` interface uses
+`execIRStmtsWithInternals` (the list version).  When a statement compiles to a
+singleton IR list, we can relate the list execution directly to the single
+statement execution. -/
+
+/-- On a singleton list with enough fuel, `execIRStmtsWithInternals` reduces to
+`execIRStmtWithInternals` on the single element.  The `.continue` case stays
+`.continue` because the empty-tail evaluation is trivially `.continue`. -/
+theorem execIRStmtsWithInternals_singleton
+    (contract : IRContract) (fuel : Nat) (state : IRState) (stmt : YulStmt) :
+    execIRStmtsWithInternals contract (fuel + 1) state [stmt] =
+      execIRStmtWithInternals contract fuel state stmt := by
+  simp only [execIRStmtsWithInternals]
+  cases execIRStmtWithInternals contract fuel state stmt with
+  | «continue» state' => rfl
+  | «return» value state' => rfl
+  | stop state' => rfl
+  | revert state' => rfl
+  | «leave» state' => rfl
+
+/-- End-to-end singleton list characterization for `Stmt.internalCallAssign`:
+when `compiledIR = [.letMany names (.call func args)]` with args evaluating to
+`argVals` and `func` resolving to an internal helper, the list execution result
+is determined by `execIRInternalFunctionWithInternals`.  This is the IR-side
+half of the `CompiledStmtStepWithHelpersAndHelperIR.preserves` goal for
+`Stmt.internalCallAssign`. -/
+theorem execIRStmtsWithInternals_singleton_letMany_call_internal
+    (contract : IRContract) (fuel : Nat) (state : IRState)
+    (names : List String) (func : String) (args : List YulExpr)
+    (helper : IRInternalFunctionDef) (argVals : List Nat) (state' : IRState)
+    (hargs : evalIRExprsWithInternals contract (fuel + 1) state args = .values argVals state')
+    (hfind : findInternalFunction? contract func = some helper) :
+    execIRStmtsWithInternals contract (fuel + 3) state
+      [YulStmt.letMany names (YulExpr.call func args)] =
+      match execIRInternalFunctionWithInternals contract fuel state' helper argVals with
+      | .values values state'' =>
+          if names.length = values.length then
+            .continue (state''.setVars (names.zip values))
+          else .revert state''
+      | .stop state'' => .stop state''
+      | .return value' state'' => .return value' state''
+      | .revert state'' => .revert state'' := by
+  rw [show fuel + 3 = (fuel + 2) + 1 from by omega]
+  rw [execIRStmtsWithInternals_singleton]
+  exact execIRStmtWithInternals_letMany_call_internal
+    contract fuel state names func args helper argVals state' hargs hfind
+
 @[simp] theorem applyIRTransactionContext_sender
     (tx : IRTransaction) (initialState : IRState) :
     (applyIRTransactionContext tx initialState).sender = tx.sender := by
