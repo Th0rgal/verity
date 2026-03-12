@@ -100,16 +100,16 @@
     "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')"
   },
   "expected_job_runs_on": {
-    "changes": "ubuntu-latest",
-    "checks": "ubuntu-latest",
-    "build": "ubuntu-latest",
-    "build-compiler": "ubuntu-latest",
-    "lean-profile": "ubuntu-latest",
-    "foundry-gas-calibration": "ubuntu-latest",
-    "foundry": "ubuntu-latest",
-    "foundry-patched": "ubuntu-latest",
-    "foundry-multi-seed": "ubuntu-latest",
-    "failure-hints": "ubuntu-latest"
+    "changes": "blacksmith-2vcpu-ubuntu-2404",
+    "checks": "blacksmith-2vcpu-ubuntu-2404",
+    "build": "blacksmith-8vcpu-ubuntu-2404",
+    "build-compiler": "blacksmith-8vcpu-ubuntu-2404",
+    "lean-profile": "blacksmith-8vcpu-ubuntu-2404",
+    "foundry-gas-calibration": "blacksmith-4vcpu-ubuntu-2404",
+    "foundry": "blacksmith-4vcpu-ubuntu-2404",
+    "foundry-patched": "blacksmith-4vcpu-ubuntu-2404",
+    "foundry-multi-seed": "blacksmith-4vcpu-ubuntu-2404",
+    "failure-hints": "blacksmith-2vcpu-ubuntu-2404"
   },
   "expected_job_timeouts": {
     "changes": 5,
@@ -263,7 +263,11 @@
       },
       {
         "name": "Setup Foundry environment",
-        "uses": "./.github/actions/setup-foundry"
+        "uses": "./.github/actions/setup-foundry",
+        "with": {
+          "yul-artifact-name": "generated-yul-patched",
+          "yul-artifact-path": "compiler/yul-patched"
+        }
       }
     ],
     "foundry-multi-seed": [
@@ -430,32 +434,12 @@
   },
   "expected_downloaded_artifacts": {
     "foundry-gas-calibration": [
-      "static-gas-report",
-      "generated-yul"
-    ],
-    "foundry": [
-      "generated-yul"
-    ],
-    "foundry-patched": [
-      "generated-yul-patched"
-    ],
-    "foundry-multi-seed": [
-      "generated-yul"
+      "static-gas-report"
     ]
   },
   "expected_downloaded_artifact_paths": {
     "foundry-gas-calibration": [
-      null,
-      "compiler/yul"
-    ],
-    "foundry": [
-      "compiler/yul"
-    ],
-    "foundry-patched": [
-      "compiler/yul-patched"
-    ],
-    "foundry-multi-seed": [
-      "compiler/yul"
+      null
     ]
   }
 }

@@ -1,14 +1,26 @@
 name: Setup Foundry test environment
 description: Download build artifacts, install Foundry and solc
 
+inputs:
+  yul-artifact-name:
+    description: Yul artifact name to restore before running Foundry tests
+    default: "generated-yul"
+  yul-artifact-path:
+    description: Directory where the Yul artifact should be restored
+    default: "compiler/yul"
+  download-yul:
+    description: Whether to restore a Yul artifact for the job
+    default: "true"
+
 runs:
   using: composite
   steps:
     - name: Download generated Yul
+      if: inputs.download-yul == 'true'
       uses: actions/download-artifact@v4
       with:
-        name: generated-yul
-        path: compiler/yul
+        name: ${{ inputs.yul-artifact-name }}
+        path: ${{ inputs.yul-artifact-path }}
 
     - name: Download difftest interpreter
       uses: actions/download-artifact@v4

@@ -74,7 +74,7 @@ env:
 
 jobs:
   changes:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -120,7 +120,7 @@ jobs:
               - 'foundry.toml'
 
   checks:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -128,10 +128,12 @@ jobs:
         run: make check
 
   build:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 45
     needs: changes
     if: needs.changes.outputs.code == 'true'
+    env:
+      LEAN_NUM_THREADS: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -143,8 +145,6 @@ jobs:
           cache-key-prefix: lake
 
       - name: Build and verify all proofs
-        env:
-          LEAN_NUM_THREADS: 4
         run: |
           set -o pipefail
           lake build 2>&1 | tee lake-build.log
@@ -156,18 +156,12 @@ jobs:
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 
       - name: Run compiler CLI regression module
-        env:
-          LEAN_NUM_THREADS: 4
         run: stdbuf -oL -eL lake exe compiler-main-test
 
       - name: Run CompilationModel feature regression module
-        env:
-          LEAN_NUM_THREADS: 4
         run: lake build Compiler.CompilationModelFeatureTest
 
       - name: Run macro round-trip fuzz harness
-        env:
-          LEAN_NUM_THREADS: 4
         run: lake exe macro-roundtrip-fuzz
 
       - name: Check for axioms in proof files
@@ -202,8 +196,6 @@ jobs:
           fi
 
       - name: Build proof modules for axiom audit
-        env:
-          LEAN_NUM_THREADS: 4
         run: lake build PrintAxioms
 
       - name: Generate axiom dependency report
@@ -237,10 +229,12 @@ jobs:
             axiom-report-raw.log
 
   build-compiler:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 90
     needs: changes
     if: needs.changes.outputs.compiler == 'true'
+    env:
+      LEAN_NUM_THREADS: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -252,15 +246,11 @@ jobs:
           cache-key-prefix: lake-compiler
 
       - name: Build compiler
-        env:
-          LEAN_NUM_THREADS: 4
         run: |
           set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
           stdbuf -oL -eL lake build "$@" verity-compiler verity-compiler-patched
 
       - name: Build difftest interpreter
-        env:
-          LEAN_NUM_THREADS: 4
         run: lake build difftest-interpreter
 
       - name: Generate Yul (all contracts + CryptoHash with linked libraries)
@@ -451,7 +441,7 @@ jobs:
           path: compiler/parity-pack-identity-report.json
 
   lean-profile:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 45
     needs: changes
     if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.code == 'true'
@@ -488,12 +478,6 @@ jobs:
         with:
           name: static-gas-report
 
-      - name: Download generated Yul
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
 
@@ -516,12 +500,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Download generated Yul
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
 
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
@@ -549,14 +527,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download patched Yul
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-yul-patched
-          path: compiler/yul-patched
-
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
+        with:
+          yul-artifact-name: generated-yul-patched
+          yul-artifact-path: compiler/yul-patched
 
       - name: Run Foundry patched-Yul smoke tests
         env:
@@ -585,12 +560,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download generated Yul
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
       - name: Setup Foundry environment
         uses: ./.github/actions/setup-foundry
 
@@ -616,7 +585,7 @@ jobs:
           echo "::notice::Reproduce locally: FOUNDRY_PROFILE=difftest DIFFTEST_RANDOM_SEED=${{ matrix.seed }} forge test -vv"
 
   failure-hints:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     needs: [checks, build, build-compiler, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
