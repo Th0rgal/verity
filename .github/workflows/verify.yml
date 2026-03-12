@@ -78,7 +78,9 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      build: ${{ steps.filter.outputs.build }}
       compiler: ${{ steps.filter.outputs.compiler }}
+      macro_fuzz: ${{ steps.filter.outputs.macro_fuzz }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -102,22 +104,59 @@ jobs:
               - 'lake-manifest.json'
               - 'lean-toolchain'
               - 'foundry.toml'
-            compiler:
+            build:
               - '.github/actions/**'
               - '.github/workflows/verify.yml'
               - 'Verity/**'
+              - 'Verity.lean'
               - 'Compiler/**'
               - 'Compiler.lean'
               - 'Contracts/**'
               - 'Contracts.lean'
               - 'examples/**'
               - 'packages/**'
+              - 'lakefile.lean'
+              - 'lake-manifest.json'
+              - 'lean-toolchain'
+            compiler:
+              - '.github/actions/**'
+              - '.github/workflows/verify.yml'
+              - 'Verity/**'
+              - '!Verity/Proofs/**'
+              - 'Compiler/**'
+              - '!Compiler/Proofs/**'
+              - 'Compiler.lean'
+              - 'Contracts/**'
+              - '!Contracts/**/Proofs/**'
+              - 'Contracts.lean'
+              - 'examples/**'
+              - 'packages/**'
               - 'test/**'
-              - 'scripts/**'
+              - 'scripts/check_gas.py'
+              - 'scripts/check_patch_gas_delta.py'
+              - 'scripts/check_parity_pack_metrics.py'
+              - 'scripts/check_selectors.py'
+              - 'scripts/check_yul.py'
+              - 'scripts/generate_yul_identity_diff_report.py'
+              - 'scripts/keccak256.py'
+              - 'scripts/property_utils.py'
               - 'lakefile.lean'
               - 'lake-manifest.json'
               - 'lean-toolchain'
               - 'foundry.toml'
+            macro_fuzz:
+              - '.github/actions/**'
+              - '.github/workflows/verify.yml'
+              - 'Verity/Macro/**'
+              - 'Compiler/**'
+              - '!Compiler/Proofs/**'
+              - 'Compiler.lean'
+              - 'Contracts/**'
+              - '!Contracts/**/Proofs/**'
+              - 'Contracts.lean'
+              - 'lakefile.lean'
+              - 'lake-manifest.json'
+              - 'lean-toolchain'
 
   checks:
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -131,7 +170,7 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 45
     needs: [changes, checks]
-    if: needs.checks.result == 'success' && needs.changes.outputs.code == 'true'
+    if: needs.checks.result == 'success' && needs.changes.outputs.build == 'true'
     env:
       LEAN_NUM_THREADS: 8
     steps:
@@ -156,7 +195,11 @@ jobs:
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 
+      - name: Check macro round-trip fuzz coverage
+        run: python3 scripts/check_macro_roundtrip_fuzz_coverage.py
+
       - name: Run macro round-trip fuzz harness
+        if: needs.changes.outputs.macro_fuzz == 'true'
         run: lake exe macro-roundtrip-fuzz
 
       - name: Check for axioms in proof files
@@ -209,7 +252,7 @@ jobs:
         run: python3 scripts/check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY
 
       - name: Save Lake packages cache
-        if: success() && needs.changes.outputs.code == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
+        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
@@ -224,12 +267,12 @@ jobs:
             axiom-report-raw.log
 
   build-compiler:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 90
     needs: [changes, checks]
     if: needs.checks.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
-      LEAN_NUM_THREADS: 8
+      LEAN_NUM_THREADS: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -451,7 +494,7 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 45
     needs: changes
-    if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.code == 'true'
+    if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'
     steps:
       - uses: actions/checkout@v4
 
