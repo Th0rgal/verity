@@ -362,19 +362,20 @@ The first theorem does not need to cover everything. It may explicitly leave out
   constructor used by the current theorem stack, and
   `IRInterpreter.lean` now proves the corresponding helper-free conservative-
   extension theorem directly as
-  `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. The remaining
-  work is therefore to stop treating that helper-free runtime-contract witness
-  as if it were the same thing as the weaker external-body witness derivable
-  from supported compile outputs. On the current `SupportedSpec` fragment,
-  successful `CompilationModel.compile` now already proves
-  `ir.internalFunctions = []`, so the immediate compiled-side blocker for
-  today’s theorem domain is the external-body witness rather than the raw
-  helper-table field itself. The longer-term widening step still needs to
-  bridge compiled helper tables without requiring `internalFunctions = []`,
-  and then consume helper-summary soundness/rank evidence so
-  `calls.helperCompatibility` can disappear. The helper-aware
-  interpreter remains a total fuel-indexed helper-aware IR semantics surface
-  for that follow-on retarget
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. `Contract.lean`
+  now additionally proves that, on the current `SupportedSpec` fragment,
+  successful `CompilationModel.compile` yields the full
+  `LegacyCompatibleRuntimeContract` witness and therefore exposes a directly
+  consumable helper-aware whole-contract theorem
+  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported`
+  without any extra caller-supplied compiled-side premise. The remaining work
+  on today’s theorem domain is therefore no longer the helper-free compiled-side
+  witness, but consuming helper-summary soundness/rank evidence so
+  `calls.helperCompatibility` can disappear. The longer-term widening step still
+  needs a weaker compiled-side retarget boundary that can tolerate helper tables
+  without requiring `internalFunctions = []` once helper-rich features move
+  inside the theorem domain. The helper-aware interpreter remains a total
+  fuel-indexed helper-aware IR semantics surface for that follow-on retarget
 - dynamic ABI cases outside the current typed path
 
 If a feature is out of scope, say so in the supported-fragment witness and docs.

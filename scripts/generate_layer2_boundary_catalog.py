@@ -50,6 +50,10 @@ def build_catalog() -> dict:
                 "Compiler.Proofs.IRGeneration.Contract."
                 "compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed"
             ),
+            "helper_ir_supported_variant": (
+                "Compiler.Proofs.IRGeneration.Contract."
+                "compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported"
+            ),
             "source_semantics": (
                 "Compiler.Proofs.IRGeneration.SourceSemantics.supportedSourceContractSemantics"
             ),
@@ -237,17 +241,13 @@ def build_catalog() -> dict:
                         "evalIRExprWithInternals"
                     ),
                     "required_follow_on": (
-                        "consume the now-closed helper-free conservative-"
-                        "extension theorem through the helper-aware wrappers "
-                        "in Function.lean / Dispatch.lean / Contract.lean, "
-                        "separate the weaker LegacyCompatibleExternalBodies "
-                        "witness from the stronger "
-                        "LegacyCompatibleRuntimeContract boundary, retarget "
-                        "the compiled-side theorem so helper tables can remain "
-                        "present without affecting helper-free external "
-                        "execution, and then thread helper-summary "
-                        "soundness/rank evidence so calls.helperCompatibility "
-                        "can disappear"
+                        "consume helper-summary soundness/rank evidence "
+                        "through the helper-aware body/IR preservation path "
+                        "so calls.helperCompatibility can disappear, then "
+                        "retarget the compiled-side theorem so helper tables "
+                        "can remain present without affecting helper-free "
+                        "external execution once helper-rich features move "
+                        "inside the theorem domain"
                     ),
                 },
                 "decreasing_rank_measure": (
@@ -260,22 +260,21 @@ def build_catalog() -> dict:
                     "the helper-free compiled-side conservative-extension goal "
                     "is now closed on LegacyCompatibleRuntimeContract via "
                     "interpretIRWithInternalsZeroConservativeExtensionGoal_closed, "
-                    "and Dispatch.lean / Contract.lean now expose direct "
-                    "helper-aware closed wrappers "
-                    "(interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed "
-                    "and compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed). "
-                    "On the current SupportedSpec fragment, successful "
-                    "CompilationModel.compile also now proves "
-                    "ir.internalFunctions = [], so the immediate compiled-side "
-                    "blocker on today’s theorem domain is the weaker external-"
-                    "body witness rather than the raw helper-table field. The "
-                    "longer-term widening step still needs a weaker compiled-"
-                    "side retarget boundary so helper tables can remain "
-                    "present without affecting helper-free external execution "
-                    "once helper-rich features move inside the theorem domain, "
-                    "and then it must consume helper-summary soundness/rank "
-                    "evidence in the body/IR composition interface so "
-                    "calls.helperCompatibility can disappear"
+                    "and Contract.lean now proves that successful "
+                    "CompilationModel.compile on the current SupportedSpec "
+                    "fragment yields that full legacy-compatible runtime "
+                    "witness, exposing the directly consumable helper-aware "
+                    "whole-contract theorem "
+                    "compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported. "
+                    "The immediate blocker on today’s theorem domain is "
+                    "therefore no longer a helper-free compiled-side witness, "
+                    "but consuming helper-summary soundness/rank evidence in "
+                    "the body/IR composition interface so "
+                    "calls.helperCompatibility can disappear. The longer-term "
+                    "widening step still needs a weaker compiled-side retarget "
+                    "boundary so helper tables can remain present without "
+                    "affecting helper-free external execution once helper-rich "
+                    "features move inside the theorem domain"
                 ),
                 "blocking_seams": [
                     {
@@ -319,10 +318,13 @@ def build_catalog() -> dict:
                             "theorem, and IRInterpreter.lean now closes it on "
                             "that helper-free runtime subset via "
                             "interpretIRWithInternalsZeroConservativeExtensionGoal_closed. "
-                            "Dispatch.lean and Contract.lean now also expose "
-                            "direct helper-aware closed wrappers that consume "
-                            "that closed theorem on an explicit "
-                            "legacy-compatibility witness"
+                            "Contract.lean now also derives the required "
+                            "LegacyCompatibleRuntimeContract witness from "
+                            "successful CompilationModel.compile on the current "
+                            "SupportedSpec fragment, exposing a directly "
+                            "consumable helper-aware whole-contract theorem; "
+                            "later widening still needs a weaker compiled-side "
+                            "retarget boundary once helper tables are allowed"
                         ),
                     },
                     {

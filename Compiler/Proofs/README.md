@@ -188,11 +188,17 @@ lemmas for `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore`, so
 the broader theorem stack can instantiate the already-defined helper-aware
 wrapper theorems rather than requiring another theorem-interface refactor.
 `Contract.lean` now also exposes the direct closed helper-aware wrapper
-`compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`.
-The helper-aware compiled target remains available as total fuel-indexed
-helper-aware IR semantics throughout that retargeting work.
-The compiled-side blocker is tracked in
-[#1638](https://github.com/Th0rgal/verity/issues/1638).
+`compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`, and on
+the current `SupportedSpec` fragment it now also exposes
+`compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported`, which
+discharges the required `LegacyCompatibleRuntimeContract` witness directly from
+successful `CompilationModel.compile`. The helper-aware compiled target remains
+available as total fuel-indexed helper-aware IR semantics throughout the later
+fragment-widening retargeting work. The remaining blocker is therefore no
+longer a helper-free compiled-side witness on today’s theorem domain, but
+end-to-end consumption of helper-summary soundness/rank evidence and, for later
+widening beyond the current fragment, the weaker compiled-side boundary tracked
+in [#1638](https://github.com/Th0rgal/verity/issues/1638).
 
 The remaining work tracked in
 [#1630](https://github.com/Th0rgal/verity/issues/1630).

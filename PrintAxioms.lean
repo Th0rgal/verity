@@ -668,6 +668,21 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- Compiler/Proofs/IRGeneration/Contract.lean
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.pickUniqueFunctionByName_eq_ok_none_of_absent  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compiled_functions_forall₂_of_mapM_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.field_mem_of_findFieldWithResolvedSlot_some  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_append  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_exprStmtExprs  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_revertWithMessage  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_require  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_return  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_stop  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scalar  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_genParamLoads_of_supported  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_compiled_functions  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_all_nonInternal  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_supported  -- private
@@ -678,6 +693,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_of_compiled_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+#print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.compiled_functions_legacyCompatibleExternalBodies  -- private
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_legacyCompatibleExternalBodies
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_legacyCompatibleRuntimeContract
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
@@ -686,6 +705,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed
+#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported
 #print axioms Compiler.Proofs.IRGeneration.Contract.counter_supported_spec_compile_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
@@ -1382,4 +1402,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1248 theorems/lemmas (991 public, 257 private)
+-- Total: 1268 theorems/lemmas (995 public, 273 private)

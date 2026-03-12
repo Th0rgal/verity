@@ -40,6 +40,7 @@
     "helper_ir_closed_variant": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed",
     "helper_ir_goal_ready_variant": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal",
     "helper_ir_ready_variant": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir",
+    "helper_ir_supported_variant": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported",
     "helper_proof_ready_variant": "Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs",
     "layer2_axioms": [],
     "remaining_global_hypotheses": [
@@ -200,7 +201,7 @@
         {
           "name": "legacy_ir_target_compatibility_subset",
           "source": "Compiler.Proofs.IRGeneration.IRInterpreter.interpretIRWithInternals",
-          "status": "the helper-free external-body compatibility subset is now formalized in IRInterpreter.lean as LegacyCompatibleExternalStmtList, the helper-free runtime-contract shape is captured by LegacyCompatibleRuntimeContract, and InterpretIRWithInternalsZeroConservativeExtensionGoal now encodes the exact first compiled-side retarget theorem, and IRInterpreter.lean now closes it on that helper-free runtime subset via interpretIRWithInternalsZeroConservativeExtensionGoal_closed. Dispatch.lean and Contract.lean now also expose direct helper-aware closed wrappers that consume that closed theorem on an explicit legacy-compatibility witness"
+          "status": "the helper-free external-body compatibility subset is now formalized in IRInterpreter.lean as LegacyCompatibleExternalStmtList, the helper-free runtime-contract shape is captured by LegacyCompatibleRuntimeContract, and InterpretIRWithInternalsZeroConservativeExtensionGoal now encodes the exact first compiled-side retarget theorem, and IRInterpreter.lean now closes it on that helper-free runtime subset via interpretIRWithInternalsZeroConservativeExtensionGoal_closed. Contract.lean now also derives the required LegacyCompatibleRuntimeContract witness from successful CompilationModel.compile on the current SupportedSpec fragment, exposing a directly consumable helper-aware whole-contract theorem; later widening still needs a weaker compiled-side retarget boundary once helper tables are allowed"
         },
         {
           "name": "summary_soundness_not_yet_consumed",
@@ -234,14 +235,14 @@
         "stmt_subgoal_surface": "Compiler.Proofs.IRGeneration.IRInterpreter.InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals"
       },
       "compiled_target_proof_surface": {
-        "required_follow_on": "consume the now-closed helper-free conservative-extension theorem through the helper-aware wrappers in Function.lean / Dispatch.lean / Contract.lean, separate the weaker LegacyCompatibleExternalBodies witness from the stronger LegacyCompatibleRuntimeContract boundary, retarget the compiled-side theorem so helper tables can remain present without affecting helper-free external execution, and then thread helper-summary soundness/rank evidence so calls.helperCompatibility can disappear",
+        "required_follow_on": "consume helper-summary soundness/rank evidence through the helper-aware body/IR preservation path so calls.helperCompatibility can disappear, then retarget the compiled-side theorem so helper tables can remain present without affecting helper-free external execution once helper-rich features move inside the theorem domain",
         "source": "Compiler.Proofs.IRGeneration.IRInterpreter.evalIRExprWithInternals",
         "status": "helper_aware_ir_target_now_total_fuel_indexed_defs"
       },
       "current_fail_closed_gate": "SupportedBodyCallInterface.helperCompatibility",
       "decreasing_rank_measure": "SupportedBodyHelperInterface.calleeRanksDecrease",
       "inventory_source": "SupportedBodyHelperInterface.summaryOf",
-      "next_required_proof_step": "the helper-free compiled-side conservative-extension goal is now closed on LegacyCompatibleRuntimeContract via interpretIRWithInternalsZeroConservativeExtensionGoal_closed, and Dispatch.lean / Contract.lean now expose direct helper-aware closed wrappers (interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed and compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed). On the current SupportedSpec fragment, successful CompilationModel.compile also now proves ir.internalFunctions = [], so the immediate compiled-side blocker on today\u2019s theorem domain is the weaker external-body witness rather than the raw helper-table field. The longer-term widening step still needs a weaker compiled-side retarget boundary so helper tables can remain present without affecting helper-free external execution once helper-rich features move inside the theorem domain, and then it must consume helper-summary soundness/rank evidence in the body/IR composition interface so calls.helperCompatibility can disappear",
+      "next_required_proof_step": "the helper-free compiled-side conservative-extension goal is now closed on LegacyCompatibleRuntimeContract via interpretIRWithInternalsZeroConservativeExtensionGoal_closed, and Contract.lean now proves that successful CompilationModel.compile on the current SupportedSpec fragment yields that full legacy-compatible runtime witness, exposing the directly consumable helper-aware whole-contract theorem compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported. The immediate blocker on today\u2019s theorem domain is therefore no longer a helper-free compiled-side witness, but consuming helper-summary soundness/rank evidence in the body/IR composition interface so calls.helperCompatibility can disappear. The longer-term widening step still needs a weaker compiled-side retarget boundary so helper tables can remain present without affecting helper-free external execution once helper-rich features move inside the theorem domain",
       "proof_contract": "InternalHelperSummaryContract",
       "proof_soundness_slot": "SupportedSpecHelperProofs"
     }
