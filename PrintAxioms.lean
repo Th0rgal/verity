@@ -1386,7 +1386,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/IRGeneration/SupportedFragment.lean
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.toLegacy
-#print axioms Compiler.Proofs.IRGeneration.supported_stmt_list_preserves_semantics
 
 -- Compiler/Proofs/IRGeneration/SupportedSpec.lean
 #print axioms Compiler.Proofs.IRGeneration.helperCallNames_nodup
@@ -1585,4 +1584,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1451 theorems/lemmas (1160 public, 291 private)
+-- Total: 1450 theorems/lemmas (1159 public, 291 private)

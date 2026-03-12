@@ -38,21 +38,4 @@ theorem SupportedStmtList.toLegacy
       refine ⟨fragment :: fragments, ?_⟩
       simp [Verity.Core.Free.supportedStmtFragmentsToStmts, hfragments]
 
-/-- Current generic Layer-2 theorem: for any raw statement list admitted by the
-supported statement fragment witness, the compiled and source semantics agree.
-
-This is the reusable structural theorem available today. It is narrower than a
-future whole-contract `CompilationModel.compile` theorem because it ranges over
-statement lists plus an explicit `SupportedStmtList` witness, rather than over
-arbitrary `CompilationModel` values and dispatch compilation. -/
-theorem supported_stmt_list_preserves_semantics
-    (fields : List CompilationModel.Field)
-    (init : TExecState)
-    (stmts : List CompilationModel.Stmt)
-    (hSupported : SupportedStmtList fields stmts) :
-    Verity.Core.Free.execCompiledSupportedStmtList fields init stmts hSupported.toLegacy =
-      Verity.Core.Free.execSourceSupportedStmtList fields init stmts hSupported.toLegacy :=
-  Verity.Core.Free.compile_supported_stmt_list_direct_semantics fields init stmts
-    hSupported.toLegacy
-
 end Compiler.Proofs.IRGeneration
