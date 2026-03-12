@@ -1124,6 +1124,196 @@ theorem evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal
 
 end
 
+/-- Per-expression disjointness: no nested function call in this expression
+resolves to an internal function in the given contract's runtime table.
+This is strictly weaker than `contract.internalFunctions = []`: a contract
+MAY carry internal helper definitions as long as no expression inside an
+external function body actually calls one of them. The compiler ensures
+this by emitting `internal_`-prefixed names only through `Stmt.internalCall`
+and `Stmt.internalCallAssign`, never inside legacy external-body expressions. -/
+def yulExprCallsDisjointFromInternalTable (contract : IRContract) : YulExpr → Prop
+  | .lit _ | .hex _ | .str _ | .ident _ => True
+  | .call func args =>
+      findInternalFunction? contract func = none ∧
+      ∀ arg, arg ∈ args → yulExprCallsDisjointFromInternalTable contract arg
+
+def yulExprsCallsDisjointFromInternalTable (contract : IRContract) :
+    List YulExpr → Prop
+  | [] => True
+  | e :: es =>
+      yulExprCallsDisjointFromInternalTable contract e ∧
+      yulExprsCallsDisjointFromInternalTable contract es
+
+/-- Extract the `findInternalFunction? ... = none` part of a call-level
+disjointness hypothesis. -/
+theorem yulExprCallsDisjointFromInternalTable_call_func
+    {contract : IRContract} {func : String} {args : List YulExpr}
+    (h : yulExprCallsDisjointFromInternalTable contract (.call func args)) :
+    findInternalFunction? contract func = none := by
+  unfold yulExprCallsDisjointFromInternalTable at h; exact h.1
+
+/-- Extract the per-argument disjointness from a call-level hypothesis. -/
+theorem yulExprCallsDisjointFromInternalTable_call_args
+    {contract : IRContract} {func : String} {args : List YulExpr}
+    (h : yulExprCallsDisjointFromInternalTable contract (.call func args)) :
+    ∀ arg, arg ∈ args → yulExprCallsDisjointFromInternalTable contract arg := by
+  unfold yulExprCallsDisjointFromInternalTable at h; exact h.2
+
+mutual
+private theorem yulExprCallsDisjointFromInternalTable_of_nil_aux
+    (contract : IRContract) (hinternal : contract.internalFunctions = [])
+    (expr : YulExpr) :
+    yulExprCallsDisjointFromInternalTable contract expr := by
+  cases expr with
+  | lit | hex | str | ident =>
+      simp [yulExprCallsDisjointFromInternalTable]
+  | call func args =>
+      unfold yulExprCallsDisjointFromInternalTable
+      exact ⟨findInternalFunction?_eq_none_of_internalFunctions_nil contract func hinternal,
+        fun arg hmem => yulExprCallsDisjointFromInternalTable_of_nil_aux_list
+          contract hinternal args arg hmem⟩
+
+private theorem yulExprCallsDisjointFromInternalTable_of_nil_aux_list
+    (contract : IRContract) (hinternal : contract.internalFunctions = [])
+    (exprs : List YulExpr) (e : YulExpr) (hmem : e ∈ exprs) :
+    yulExprCallsDisjointFromInternalTable contract e := by
+  match exprs, hmem with
+  | _ :: _, .head .. =>
+      exact yulExprCallsDisjointFromInternalTable_of_nil_aux contract hinternal e
+  | _ :: tl, .tail _ hmem' =>
+      exact yulExprCallsDisjointFromInternalTable_of_nil_aux_list contract hinternal tl e hmem'
+end
+
+theorem yulExprCallsDisjointFromInternalTable_of_internalFunctions_nil
+    (contract : IRContract) (hinternal : contract.internalFunctions = [])
+    (expr : YulExpr) :
+    yulExprCallsDisjointFromInternalTable contract expr :=
+  yulExprCallsDisjointFromInternalTable_of_nil_aux contract hinternal expr
+
+theorem yulExprsCallsDisjointFromInternalTable_of_internalFunctions_nil
+    (contract : IRContract) (hinternal : contract.internalFunctions = [])
+    (exprs : List YulExpr) :
+    yulExprsCallsDisjointFromInternalTable contract exprs := by
+  induction exprs with
+  | nil => trivial
+  | cons e es ih =>
+      exact ⟨yulExprCallsDisjointFromInternalTable_of_internalFunctions_nil contract hinternal e, ih⟩
+
+mutual
+
+/-- Expression-level conservative extension under per-expression disjointness.
+This is the generalization of `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`
+that does not require `contract.internalFunctions = []`: it suffices that the
+specific expression being evaluated does not reference any internal function in
+the contract's runtime table. -/
+theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
+    (contract : IRContract) :
+    ∀ fuel state expr,
+      yulExprCallsDisjointFromInternalTable contract expr →
+      evalIRExprWithInternals contract fuel state expr =
+        match evalIRExpr state expr with
+        | some value => .value value state
+        | none => .revert state
+  | fuel, state, .lit n, _ => by
+      simp [evalIRExprWithInternals, evalIRExpr]
+  | fuel, state, .hex n, _ => by
+      simp [evalIRExprWithInternals, evalIRExpr]
+  | fuel, state, .str s, _ => by
+      simp [evalIRExprWithInternals, evalIRExpr]
+  | fuel, state, .ident name, _ => by
+      cases hget : state.getVar name <;>
+        simp [evalIRExprWithInternals, evalIRExpr, hget]
+  | fuel, state, .call func args, hdisjoint => by
+      have hfunc := yulExprCallsDisjointFromInternalTable_call_func hdisjoint
+      have hargs_disjoint := yulExprCallsDisjointFromInternalTable_call_args hdisjoint
+      rw [evalIRExprWithInternals, evalIRExpr, evalIRCall, evalIRCallWithInternals,
+        evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint contract fuel state args
+          hargs_disjoint]
+      cases hargs : evalIRExprs state args with
+      | none =>
+          simp
+      | some argVals =>
+          cases hbuiltin :
+              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
+                state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
+          | none =>
+              simp [hfunc, hbuiltin]
+          | some value =>
+              simp [hfunc, hbuiltin]
+
+/-- Expression-list conservative extension under per-expression disjointness.
+Generalizes `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`. -/
+theorem evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint
+    (contract : IRContract) :
+    ∀ fuel state exprs,
+      (∀ e, e ∈ exprs → yulExprCallsDisjointFromInternalTable contract e) →
+      evalIRExprsWithInternals contract fuel state exprs =
+        match evalIRExprs state exprs with
+        | some values => .values values state
+        | none => .revert state
+  | fuel, state, [], _ => by
+      simp [evalIRExprsWithInternals, evalIRExprs]
+  | fuel, state, expr :: exprs, hdisjoint => by
+      have hexpr_disjoint : yulExprCallsDisjointFromInternalTable contract expr :=
+        hdisjoint expr (List.mem_cons_self ..)
+      have hrest_disjoint : ∀ e, e ∈ exprs →
+          yulExprCallsDisjointFromInternalTable contract e :=
+        fun e hmem => hdisjoint e (List.mem_cons_of_mem _ hmem)
+      rw [evalIRExprsWithInternals,
+        evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint contract fuel state expr
+          hexpr_disjoint]
+      cases hexpr : evalIRExpr state expr <;>
+        cases htail : evalIRExprs state exprs <;>
+          simp [evalIRExprs, hexpr, htail,
+            evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint contract fuel state exprs
+              hrest_disjoint]
+
+end
+
+/-- Per-statement disjointness predicate (inductive): every nested expression in
+the statement list is disjoint from the contract's internal function table.
+Encoding as an inductive avoids the nested-inductive termination issue that
+mutual `def` would cause on `YulStmt` / `List YulStmt`. -/
+inductive YulStmtListCallsDisjointFromInternalTable
+    (contract : IRContract) : List YulStmt → Prop
+  | nil :
+      YulStmtListCallsDisjointFromInternalTable contract []
+  | comment (msg : String) (rest : List YulStmt) :
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.comment msg :: rest)
+  | let_ (name : String) (value : YulExpr) (rest : List YulStmt) :
+      yulExprCallsDisjointFromInternalTable contract value →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.let_ name value :: rest)
+  | assign (name : String) (value : YulExpr) (rest : List YulStmt) :
+      yulExprCallsDisjointFromInternalTable contract value →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.assign name value :: rest)
+  | expr (value : YulExpr) (rest : List YulStmt) :
+      yulExprCallsDisjointFromInternalTable contract value →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.expr value :: rest)
+  | if_ (cond : YulExpr) (body rest : List YulStmt) :
+      yulExprCallsDisjointFromInternalTable contract cond →
+      YulStmtListCallsDisjointFromInternalTable contract body →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.if_ cond body :: rest)
+  | block (body rest : List YulStmt) :
+      YulStmtListCallsDisjointFromInternalTable contract body →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.block body :: rest)
+  | funcDef (name : String) (params rets : List String) (body rest : List YulStmt) :
+      YulStmtListCallsDisjointFromInternalTable contract body →
+      YulStmtListCallsDisjointFromInternalTable contract rest →
+      YulStmtListCallsDisjointFromInternalTable contract (.funcDef name params rets body :: rest)
+
+/-- Single-statement wrapper: the singleton list is disjoint. -/
+abbrev YulStmtCallsDisjointFromInternalTable
+    (contract : IRContract) (stmt : YulStmt) : Prop :=
+  YulStmtListCallsDisjointFromInternalTable contract [stmt]
+
 /-- Helper-free helper-aware execution now preserves the legacy `mappingSlot`
 `sstore` special case instead of routing it through the generic builtin path.
 This removes a real semantic mismatch that would otherwise make the remaining
