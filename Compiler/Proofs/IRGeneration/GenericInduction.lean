@@ -6964,4 +6964,80 @@ theorem supported_function_body_correct_from_exact_state_generic_with_helpers
     hextraFuel hnormalized hnoEvents hnoErrors hgenericWithHelpers hbodyCompile
     hscope hbounded hstateRuntime hstateBindings
 
+/-- Constructor for the helper-aware single-step interface when the head
+statement is `Stmt.internalCallAssign`. The proof is parameterised by a single
+source-to-IR alignment bridge that the rank-decreasing callee induction will
+supply. The bridge captures the end-to-end obligation: given matching
+preconditions, the source and IR execution results for this statement match
+through `stmtStepMatchesIRExecWithInternals`.
+
+The bridge is quantified over an extra `irFuel` so that the proof can
+instantiate it at the right fuel level derived from `extraFuel`.
+
+The `compileOk` obligation is passed through from the compilation hypothesis. -/
+theorem compiledStmtStepWithHelpersAndHelperIR_internalCallAssign
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {names : List String} {calleeName : String} {args : List Expr}
+    {compiledIR : List YulStmt}
+    {argExprs : List YulExpr}
+    (hcompile : CompilationModel.compileStmt fields [] [] .calldata [] false scope
+      (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR)
+    (hargCompile : CompilationModel.compileExprList fields .calldata args = Except.ok argExprs)
+    -- End-to-end source↔IR alignment bridge.
+    (bridge :
+      ∀ (runtime : SourceSemantics.RuntimeState)
+        (state : IRState)
+        (helperFuel : Nat)
+        (irFuel : Nat),
+        0 < helperFuel →
+        FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+        FunctionBody.scopeNamesPresent scope runtime.bindings →
+        FunctionBody.bindingsBounded runtime.bindings →
+        FunctionBody.runtimeStateMatchesIR fields runtime state →
+        stmtStepMatchesIRExecWithInternals fields
+          (stmtNextScope scope (Stmt.internalCallAssign names calleeName args))
+          (SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
+            (Stmt.internalCallAssign names calleeName args))
+          (execIRStmtsWithInternals runtimeContract (irFuel + 3) state
+            [YulStmt.letMany names (YulExpr.call
+              (CompilationModel.internalFunctionYulName calleeName) argExprs)])) :
+    CompiledStmtStepWithHelpersAndHelperIR
+      runtimeContract spec fields scope
+      (Stmt.internalCallAssign names calleeName args)
+      compiledIR := by
+  refine {
+    compileOk := hcompile
+    preserves := ?_ }
+  intro runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hslack
+  -- Obtain the shape of the compiled IR
+  obtain ⟨argExprs', hargOk, hshape⟩ := compileStmt_internalCallAssign_shape hcompile
+  have hArgEq : argExprs' = argExprs := by
+    simp [hargCompile] at hargOk; exact hargOk.symm
+  subst hArgEq
+  rw [hshape]
+  -- Fuel arithmetic: compiledIR = singleton, so .length = 1
+  -- preserves fuel = 1 + extraFuel + 1, bridge needs irFuel + 3
+  -- So irFuel = extraFuel - 1
+  have hlenOne : ([YulStmt.letMany names
+    (YulExpr.call (CompilationModel.internalFunctionYulName calleeName)
+      argExprs)] : List YulStmt).length = 1 := rfl
+  have hExtraPos : 1 ≤ extraFuel := by
+    have hsz : sizeOf ([YulStmt.letMany names
+      (YulExpr.call (CompilationModel.internalFunctionYulName calleeName)
+        argExprs)] : List YulStmt) ≥ 2 := by simp; omega
+    rw [hshape] at hslack; rw [hlenOne] at hslack; omega
+  set irFuel := extraFuel - 1 with hirFuel
+  -- The source result and the IR result at fuel irFuel + 3 match by the bridge
+  have hMatch := bridge runtime state helperFuel irFuel hfuelPos hexact hscope hbounded hruntime
+  -- Rewrite the fuel in the IR execution
+  have hFuelEq : ([YulStmt.letMany names
+    (YulExpr.call (CompilationModel.internalFunctionYulName calleeName) argExprs)]).length +
+    extraFuel + 1 = irFuel + 3 := by
+    rw [hlenOne, hirFuel]; omega
+  rw [hFuelEq]
+  exact ⟨_, _, rfl, rfl, hMatch⟩
+
 end Compiler.Proofs.IRGeneration
