@@ -12383,6 +12383,33 @@ theorem directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
       (argExprs := argExprs)
       hcompile
       hargCompile
+
+/-- Assemble the body-level direct-helper bridge catalog directly from the
+current helper-free supported-body witness plus the assign-only per-callee
+bridge inventory. This keeps downstream theorems on the exact assign-only Tier 4
+boundary instead of routing through the vacuous per-callee void-call layer. -/
+theorem directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hbody : SupportedBodyInterface spec fn)
+    (hassign :
+      DirectInternalHelperPerCalleeAssignBridgeCatalog runtimeContract spec fields fn) :
+    DirectInternalHelperHeadStepBridgeCatalog runtimeContract spec fields fn := by
+  exact
+    directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (fn := fn)
+      (directInternalHelperPerCalleeBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fields := fields)
+        (fn := fn)
+        hbody
+        hassign)
   · intro scope names calleeName args hmem
     exact (hcallee.assign hmem).compile (scope := scope) (names := names) (args := args)
   · intro scope names calleeName args compiledIR argExprs hmem hcompile hargCompile
@@ -12497,6 +12524,33 @@ theorem directInternalHelperHeadStepCatalog_of_bridgeCatalog
   refine ⟨?_, ?_⟩
   · exact directInternalHelperHeadStepCatalog_call_of_bridgeCatalog hbridge
   · exact directInternalHelperHeadStepCatalog_assign_of_bridgeCatalog hbridge
+
+/-- Assemble the reusable direct-helper head-step catalog directly from the
+current helper-free supported-body witness plus the assign-only per-callee
+bridge inventory. This removes one more derived Tier 4 seam while preserving the
+same eventual rank-induction target. -/
+theorem directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hbody : SupportedBodyInterface spec fn)
+    (hassign :
+      DirectInternalHelperPerCalleeAssignBridgeCatalog runtimeContract spec fields fn) :
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
+  exact
+    directInternalHelperHeadStepCatalog_of_bridgeCatalog
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (fn := fn)
+      (directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fields := fields)
+        (fn := fn)
+        hbody
+        hassign)
 
 /-- Assemble the exact direct-helper-assign list interface from a reusable
 single-head constructor. This pushes future helper-rank induction down to the

@@ -2410,7 +2410,7 @@ theorem
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
   exact
-    supported_function_correct_with_helper_proofs_direct_internal_helper_per_callee_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+    supported_function_correct_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)
@@ -2432,8 +2432,8 @@ theorem
       (hcompile := hcompile)
       (hbind := hbind)
       (htxNormalized := htxNormalized)
-      (hcallee :=
-        directInternalHelperPerCalleeBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
+      (hcatalog :=
+        directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCatalog
           (runtimeContract := runtimeContract)
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
