@@ -12335,6 +12335,43 @@ theorem
         hsummaries
         hkernel)
 
+/-- Assemble the exact body-level direct-helper head-step catalog directly from
+the split assign-side compile/runtime-helper-table/semantic-kernel Tier 4
+ingredients plus the current supported-body witness. This removes the last
+runtime-witness repackaging step on the assign-first theorem chain. -/
+theorem
+    directInternalHelperHeadStepCatalog_of_supportedBody_and_assignCompileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_assignSemanticKernelCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hbody : SupportedBodyInterface spec fn)
+    (hcompile :
+      DirectInternalHelperPerCalleeAssignCompileCatalog spec fields fn)
+    (hruntime : SupportedRuntimeHelperTableInterface spec runtimeContract)
+    (hsummaries :
+      SupportedBodyHelperSummariesSound spec fn hbody.calls.helpers)
+    (hkernel :
+      DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+        runtimeContract spec fields fn) :
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
+  exact
+    directInternalHelperHeadStepCatalog_of_supportedBody_and_assignCompileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_assignSemanticKernelCatalog
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (fn := fn)
+      hbody
+      hcompile
+      (directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fn := fn)
+        hruntime
+        hbody.calls.helpers)
+      hsummaries
+      hkernel
+
 /-- Split semantic Tier 4 inventory. This keeps the end-to-end source/IR step
 alignment separate from the compile-success obligations, matching the eventual
 division between helper-rank induction and fragment-widening compile lemmas. -/
@@ -12720,6 +12757,79 @@ theorem directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileC
         hhelpers
         hsummaries
         hkernel)
+
+/-- Assemble the exact body-level direct-helper head-step catalog directly from
+the split compile/runtime-helper-table/semantic-kernel Tier 4 inventories plus
+the current supported-body helper summaries. This removes the remaining
+runtime-witness repackaging step once callers already provide the compiled
+runtime helper table. -/
+theorem
+    directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_semanticKernelCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hhelpers : SupportedBodyHelpersInterface spec fn)
+    (hcompile : DirectInternalHelperPerCalleeCompileCatalog spec fields fn)
+    (hruntime : SupportedRuntimeHelperTableInterface spec runtimeContract)
+    (hsummaries : SupportedBodyHelperSummariesSound spec fn hhelpers)
+    (hkernel :
+      DirectInternalHelperPerCalleeSemanticKernelCatalog runtimeContract spec fields fn) :
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
+  exact
+    directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_semanticKernelCatalog
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (fn := fn)
+      hhelpers
+      hcompile
+      (directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fn := fn)
+        hruntime
+        hhelpers)
+      hsummaries
+      hkernel
+
+/-- Assemble the exact body-level direct-helper head-step catalog directly from
+the split compile/runtime-helper-table/call-kernel/assign-kernel Tier 4
+inventories plus the current supported-body helper summaries. This keeps the
+wrapper seam on the exact future rank-induction target even when call and
+assign semantic kernels are still supplied separately. -/
+theorem
+    directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_callSemanticKernelCatalog_and_assignSemanticKernelCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hhelpers : SupportedBodyHelpersInterface spec fn)
+    (hcompile : DirectInternalHelperPerCalleeCompileCatalog spec fields fn)
+    (hruntime : SupportedRuntimeHelperTableInterface spec runtimeContract)
+    (hsummaries : SupportedBodyHelperSummariesSound spec fn hhelpers)
+    (hcall :
+      DirectInternalHelperPerCalleeCallSemanticKernelCatalog runtimeContract spec fields fn)
+    (hassign :
+      DirectInternalHelperPerCalleeAssignSemanticKernelCatalog runtimeContract spec fields fn) :
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
+  exact
+    directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_semanticKernelCatalog
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (fn := fn)
+      hhelpers
+      hcompile
+      hruntime
+      hsummaries
+      (directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fields := fields)
+        (fn := fn)
+        hcall
+        hassign)
 
 /-- Assemble the reusable direct-helper head-step catalog directly from the
 current helper-free supported-body witness plus the assign-only per-callee

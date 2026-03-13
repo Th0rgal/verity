@@ -2811,19 +2811,14 @@ theorem
       (hbind := hbind)
       (htxNormalized := htxNormalized)
       (hcatalog :=
-        directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_semanticKernelCatalog
+        directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_semanticKernelCatalog
           (runtimeContract := runtimeContract)
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
           (fn := fn)
           hHelpers
           hheadCompile
-          (directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
-            (runtimeContract := runtimeContract)
-            (spec := model)
-            (fn := fn)
-            hRuntime
-            hHelpers)
+          hRuntime
           (SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
             hSupported hHelperProofs hfn)
           hheadKernel)
@@ -2913,19 +2908,14 @@ theorem
       (hbind := hbind)
       (htxNormalized := htxNormalized)
       (hcatalog :=
-        directInternalHelperHeadStepCatalog_of_supportedBody_and_assignCompileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_assignSemanticKernelCatalog
+        directInternalHelperHeadStepCatalog_of_supportedBody_and_assignCompileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_assignSemanticKernelCatalog
           (runtimeContract := runtimeContract)
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
           (fn := fn)
           hsupportedFn.body
           hheadAssignCompile
-          (directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
-            (runtimeContract := runtimeContract)
-            (spec := model)
-            (fn := fn)
-            hRuntime
-            hsupportedFn.body.calls.helpers)
+          hRuntime
           (SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
             hSupported hHelperProofs hfn)
           hheadAssignKernel)
@@ -2988,9 +2978,9 @@ theorem
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsupportedFn := hSupported.supportedFunctionOfSelectorDispatched hfn
+  let hHelpers := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers
   exact
-    supported_function_correct_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+    supported_function_correct_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)
@@ -3013,15 +3003,24 @@ theorem
       (hcompile := hcompile)
       (hbind := hbind)
       (htxNormalized := htxNormalized)
-      (hheadCompile := hheadCompile)
-      (hheadCallKernel :=
-        directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+      (hcatalog :=
+        directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_callSemanticKernelCatalog_and_assignSemanticKernelCatalog
           (runtimeContract := runtimeContract)
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
           (fn := fn)
-          hsupportedFn.body)
-      (hheadAssignKernel := hheadAssignKernel)
+          hHelpers
+          hheadCompile
+          hRuntime
+          (SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
+            hSupported hHelperProofs hfn)
+          (directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+            (runtimeContract := runtimeContract)
+            (spec := model)
+            (fields := SourceSemantics.effectiveFields model)
+            (fn := fn)
+            (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
+          hheadAssignKernel)
       (hdisjoint := hdisjoint)
       (hfnBodyDisjoint := hfnBodyDisjoint)
       (hcalldataSizeFits := hcalldataSizeFits)
@@ -3087,8 +3086,9 @@ theorem
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  let hHelpers := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers
   exact
-    supported_function_correct_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+    supported_function_correct_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)
@@ -3111,13 +3111,17 @@ theorem
       (hcompile := hcompile)
       (hbind := hbind)
       (htxNormalized := htxNormalized)
-      (hheadCompile := hheadCompile)
-      (hheadKernel :=
-        directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
+      (hcatalog :=
+        directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeHelperTable_and_helperSummariesSound_and_callSemanticKernelCatalog_and_assignSemanticKernelCatalog
           (runtimeContract := runtimeContract)
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
           (fn := fn)
+          hHelpers
+          hheadCompile
+          hRuntime
+          (SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
+            hSupported hHelperProofs hfn)
           hheadCallKernel
           hheadAssignKernel)
       (hdisjoint := hdisjoint)
