@@ -400,6 +400,14 @@ ALLOWLIST: set[str] = {
     "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir_callsDisjoint",
     "supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir",
     "supported_function_correct_with_helper_proofs_body_goal",
+    # Issue #1639 follow-up — exact helper-aware body/function wrappers:
+    # these theorems close the bidirectional disjointness bridge between the
+    # new exact helper-aware body goal and the existing function theorem stack.
+    # They are transport-heavy composition wrappers rather than new semantic
+    # arguments, and will shrink once the helper-aware path becomes the default.
+    "supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisjoint",
+    "supported_function_correct_with_helper_proofs_body_goal_and_helper_ir",
+    "supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint",
     # Issue #1638 / PR #1639 — helper-aware compiled-target retarget wrappers:
     # these theorems preserve the public Layer 2 theorem signatures while
     # swapping in the helper-aware compiled semantics target or goal surface.

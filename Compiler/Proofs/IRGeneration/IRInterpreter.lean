@@ -1367,6 +1367,26 @@ abbrev YulStmtCallsDisjointFromInternalTable
     (contract : IRContract) (stmt : YulStmt) : Prop :=
   YulStmtListCallsDisjointFromInternalTable contract [stmt]
 
+theorem YulStmtListCallsDisjointFromInternalTable.tail
+    {contract : IRContract}
+    {stmt : YulStmt}
+    {rest : List YulStmt}
+    (hdisjoint : YulStmtListCallsDisjointFromInternalTable contract (stmt :: rest)) :
+    YulStmtListCallsDisjointFromInternalTable contract rest := by
+  cases hdisjoint <;> assumption
+
+theorem YulStmtListCallsDisjointFromInternalTable.of_append_prefix
+    {contract : IRContract}
+    {pre : List YulStmt}
+    {suf : List YulStmt}
+    (hdisjoint : YulStmtListCallsDisjointFromInternalTable contract (pre ++ suf)) :
+    YulStmtListCallsDisjointFromInternalTable contract suf := by
+  induction pre with
+  | nil =>
+      simpa using hdisjoint
+  | cons stmt rest ih =>
+      exact ih (YulStmtListCallsDisjointFromInternalTable.tail hdisjoint)
+
 /-- Statement-level collapse for call expressions under per-expression disjointness.
 When a call expression is evaluated via `evalIRCallWithInternals` in statement
 position (value discarded) and the expression is disjoint from the internal table,

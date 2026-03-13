@@ -10243,6 +10243,81 @@ theorem supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goa
     simpa [hbodyExec] using hcompat
   · cases irExec <;> simpa [stmtResultMatchesIRExecWithInternals] using hmatch
 
+/-- Under compiled-body disjointness, the exact helper-aware body goal can also
+be collapsed back to the legacy compiled-body goal. This keeps the new exact
+helper-aware seam reusable with the existing function-level theorem surface
+until callers are ready to retarget all the way to `execIRFunctionWithInternals`. -/
+theorem supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisjoint
+    (runtimeContract : IRContract)
+    (model : CompilationModel)
+    (fn : FunctionSpec)
+    (bodyStmts : List YulStmt)
+    (helperFuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (state : IRState)
+    (bindings : List (String × Nat))
+    (extraFuel : Nat)
+    (hbody :
+      SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+        runtimeContract
+        model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel)
+    (hdisjoint : YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts) :
+    SupportedFunctionBodyWithHelpersIRPreservationGoal
+      model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
+  rcases hbody with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  cases irExec with
+  | continue next =>
+      refine ⟨sourceResult, .continue next, hsource, ?_, ?_⟩
+      · have hcompat :=
+          execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+            (bodyStmts.length + extraFuel + 1)
+            state
+            bodyStmts
+            hdisjoint
+        rw [← hcompat]
+        simpa using hbodyExec
+      · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
+          hmatch
+  | return value next =>
+      refine ⟨sourceResult, .return value next, hsource, ?_, ?_⟩
+      · have hcompat :=
+          execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+            (bodyStmts.length + extraFuel + 1)
+            state
+            bodyStmts
+            hdisjoint
+        rw [← hcompat]
+        simpa using hbodyExec
+      · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
+          hmatch
+  | stop next =>
+      refine ⟨sourceResult, .stop next, hsource, ?_, ?_⟩
+      · have hcompat :=
+          execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+            (bodyStmts.length + extraFuel + 1)
+            state
+            bodyStmts
+            hdisjoint
+        rw [← hcompat]
+        simpa using hbodyExec
+      · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
+          hmatch
+  | revert next =>
+      refine ⟨sourceResult, .revert next, hsource, ?_, ?_⟩
+      · have hcompat :=
+          execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+            (bodyStmts.length + extraFuel + 1)
+            state
+            bodyStmts
+            hdisjoint
+        rw [← hcompat]
+        simpa using hbodyExec
+      · simpa [stmtResultMatchesIRExecWithInternals, FunctionBody.stmtResultMatchesIRExec] using
+          hmatch
+  | leave _ =>
+      cases hmatch
+
 /-- Exact helper-aware body theorem for a helper-aware generic statement
 induction witness. This is the induction-level target needed to replace the
 current helper-free `SupportedStmtList` gate with compositional helper-step

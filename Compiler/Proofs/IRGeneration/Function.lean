@@ -1462,6 +1462,156 @@ theorem supported_function_correct_with_helper_proofs_body_goal
       hfuelEq'] using hfuel
   simpa [hadequacy] using hfuel'
 
+/-- Exact helper-aware function/IR preservation target for the non-core path.
+This lets callers stay on the exact helper-aware body/IR seam and only collapse
+back to the legacy function theorem boundary through compiled-body
+disjointness. -/
+theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (htxNormalized : TxContextNormalized tx)
+    (extraFuel : Nat)
+    (hbodyCorrect :
+      SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+        runtimeContract
+        model fn bodyStmts hSupported.helperFuel tx initialWorld
+        (ParamLoading.applyBindingsToIRState
+          (prebindRawArgs
+            (FunctionBody.initialIRStateForTx model tx initialWorld) fn.params)
+          bindings)
+        bindings extraFuel)
+    (hbodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts)
+    (hhelperIR :
+      execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld) =
+      execIRFunction irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld))
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacyBody :
+      SupportedFunctionBodyWithHelpersIRPreservationGoal
+        model fn bodyStmts hSupported.helperFuel tx initialWorld
+        (ParamLoading.applyBindingsToIRState
+          (prebindRawArgs
+            (FunctionBody.initialIRStateForTx model tx initialWorld) fn.params)
+          bindings)
+        bindings extraFuel :=
+    supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisjoint
+      runtimeContract
+      model fn bodyStmts hSupported.helperFuel tx initialWorld
+      (ParamLoading.applyBindingsToIRState
+        (prebindRawArgs
+          (FunctionBody.initialIRStateForTx model tx initialWorld) fn.params)
+        bindings)
+      bindings extraFuel
+      hbodyCorrect
+      hbodyDisjoint
+  have hlegacy :=
+    supported_function_correct_with_helper_proofs_body_goal
+      model selectors hSupported hHelperProofs hvalidateInputs fn selector returns
+      bodyStmts irFn tx initialWorld bindings hfn hvalidate hreturns hbodyCompile
+      hcompile hbind htxNormalized extraFuel hlegacyBody hcalldataSizeFits
+  simpa [hhelperIR] using hlegacy
+
+/-- Structured exact helper-aware function/IR wrapper under compiled-body
+disjointness. The exact helper-aware body theorem can now be reused all the way
+up to function-level results without requiring callers to restate the
+conservative-extension equality manually. -/
+theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (htxNormalized : TxContextNormalized tx)
+    (extraFuel : Nat)
+    (hbodyCorrect :
+      SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
+        runtimeContract
+        model fn bodyStmts hSupported.helperFuel tx initialWorld
+        (ParamLoading.applyBindingsToIRState
+          (prebindRawArgs
+            (FunctionBody.initialIRStateForTx model tx initialWorld) fn.params)
+          bindings)
+        bindings extraFuel)
+    (hfnBodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract irFn.body)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hcompiled := compileFunctionSpec_ok_of_components model.fields model.events model.errors
+      selector fn returns bodyStmts hvalidate hreturns hbodyCompile
+  have hirFn : irFn = compiledFunctionIR selector fn returns bodyStmts := by
+    rw [hcompile] at hcompiled
+    injection hcompiled
+  have hbodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts := by
+    subst hirFn
+    simpa [compiledFunctionIR] using
+      YulStmtListCallsDisjointFromInternalTable.of_append_prefix
+        (contract := runtimeContract)
+        (pre := genParamLoads fn.params)
+        (suf := bodyStmts)
+        hfnBodyDisjoint
+  exact
+    supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
+      model selectors hSupported hHelperProofs hvalidateInputs runtimeContract
+      fn selector returns bodyStmts irFn tx initialWorld bindings hfn hvalidate
+      hreturns hbodyCompile hcompile hbind htxNormalized extraFuel hbodyCorrect
+      hbodyDisjoint
+      (execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+        runtimeContract
+        irFn
+        tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        hfnBodyDisjoint)
+      hcalldataSizeFits
+
 /-- Function-level Tier 2 bridge for bodies admitted by the alternate
 singleton storage-write state interface. This keeps the theorem local to one
 function: global normalization and no-event/no-error assumptions remain

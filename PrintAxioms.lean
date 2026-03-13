@@ -766,6 +766,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_supported_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_goal
@@ -1292,6 +1294,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic
 -- #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_steps_raw  -- private
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goal_callsDisjoint
+#print axioms Compiler.Proofs.IRGeneration.supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_steps
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_surface_steps_and_helper_ir
@@ -1347,6 +1350,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.yulExprsCallsDisjointFromInternalTable_of_internalFunctions_nil
 #print axioms Compiler.Proofs.IRGeneration.evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.evalIRExprsWithInternals_eq_evalIRExprs_of_callsDisjoint
+#print axioms Compiler.Proofs.IRGeneration.YulStmtListCallsDisjointFromInternalTable.tail
+#print axioms Compiler.Proofs.IRGeneration.YulStmtListCallsDisjointFromInternalTable.of_append_prefix
 #print axioms Compiler.Proofs.IRGeneration.evalIRCallWithInternals_stmt_eq_of_callsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.evalIRCallWithInternals_stmt_eq_of_no_internal
 #print axioms Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_expr_of_callsDisjoint
@@ -1759,4 +1764,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1628 theorems/lemmas (1225 public, 403 private)
+-- Total: 1633 theorems/lemmas (1230 public, 403 private)
