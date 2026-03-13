@@ -1050,7 +1050,7 @@ theorem
             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
     intro fn sel irFn bindings hfn hcompileFn hbind
     exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
         (model := model)
         (selectors := selectors)
         (hSupported := hSupported)
@@ -1068,7 +1068,13 @@ theorem
         (hfn := hfn)
         (hcompileFn := hcompileFn)
         (hbind := hbind)
-        (hcallee := hcallee fn hfn)
+        (hcatalog :=
+          directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
+            (runtimeContract := runtimeContractOfFunctions model.name irFns)
+            (spec := model)
+            (fields := SourceSemantics.effectiveFields model)
+            (fn := fn)
+            (hcallee fn hfn))
         (hdisjoint := hdisjoint fn hfn)
         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
   exact

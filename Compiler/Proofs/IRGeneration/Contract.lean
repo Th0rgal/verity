@@ -1709,7 +1709,7 @@ theorem
     ⟨returns, bodyStmts, hvalidate, hreturns, hbodyCompile, hirFn⟩
   subst hirFn
   exact
-    Function.supported_function_correct_with_helper_proofs_direct_internal_helper_per_callee_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+    Function.supported_function_correct_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)
@@ -1731,7 +1731,13 @@ theorem
       (hcompile := by simpa using hcompileFn)
       (hbind := hbind)
       (htxNormalized := htxNormalized)
-      (hcallee := hcallee)
+      (hcatalog :=
+        directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
+          (runtimeContract := runtimeContract)
+          (spec := model)
+          (fields := SourceSemantics.effectiveFields model)
+          (fn := fn)
+          hcallee)
       (hdisjoint := hdisjoint)
       (hfnBodyDisjoint := by simpa using hfnBodyDisjoint)
       (hcalldataSizeFits := hcalldataSizeFits)
