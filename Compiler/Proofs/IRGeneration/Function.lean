@@ -2641,6 +2641,99 @@ theorem
           (SourceSemantics.SupportedSpecHelperProofs.functionSummariesSound
             hSupported hHelperProofs hfn)
           hheadKernel)
+       (hdisjoint := hdisjoint)
+       (hfnBodyDisjoint := hfnBodyDisjoint)
+       (hcalldataSizeFits := hcalldataSizeFits)
+
+/-- Function-level Tier 4 wrapper one seam earlier than the runtime-witness
+catalog boundary. The compiled runtime helper table already determines the
+per-callee runtime witness inventory for `fn`, so callers only need to supply
+the global table together with the compile catalog and irreducible semantic
+kernel. -/
+theorem
+    supported_function_correct_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (hRuntime : SupportedRuntimeHelperTableInterface model runtimeContract)
+    (fn : FunctionSpec)
+    (selector : Nat)
+    (returns : List ParamType)
+    (bodyStmts : List YulStmt)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (bindings : List (String × Nat))
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hvalidate : validateFunctionSpec fn = Except.ok ())
+    (hreturns : functionReturns fn = Except.ok returns)
+    (hbodyCompile :
+      compileStmtList model.fields model.events model.errors .calldata [] false
+        (fn.params.map (·.name)) fn.body = Except.ok bodyStmts)
+    (hcompile :
+      compileFunctionSpec model.fields model.events model.errors selector fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (htxNormalized : TxContextNormalized tx)
+    (hheadCompile :
+      DirectInternalHelperPerCalleeCompileCatalog
+        model
+        (SourceSemantics.effectiveFields model)
+        fn)
+    (hheadKernel :
+      DirectInternalHelperPerCalleeSemanticKernelCatalog
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        fn)
+    (hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hfnBodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract irFn.body)
+    (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  let hHelpers := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers
+  exact
+    supported_function_correct_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (hvalidateInputs := hvalidateInputs)
+      (runtimeContract := runtimeContract)
+      (fn := fn)
+      (selector := selector)
+      (returns := returns)
+      (bodyStmts := bodyStmts)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (bindings := bindings)
+      (hfn := hfn)
+      (hvalidate := hvalidate)
+      (hreturns := hreturns)
+      (hbodyCompile := hbodyCompile)
+      (hcompile := hcompile)
+      (hbind := hbind)
+      (htxNormalized := htxNormalized)
+      (hheadCompile := hheadCompile)
+      (hruntimeWitness :=
+        directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
+          (runtimeContract := runtimeContract)
+          (spec := model)
+          (fn := fn)
+          hRuntime
+          hHelpers)
+      (hheadKernel := hheadKernel)
       (hdisjoint := hdisjoint)
       (hfnBodyDisjoint := hfnBodyDisjoint)
       (hcalldataSizeFits := hcalldataSizeFits)
