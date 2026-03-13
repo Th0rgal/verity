@@ -11780,6 +11780,67 @@ structure DirectInternalHelperPerCalleeBridgeCatalog
 obligations from the semantic bridge obligations so future fragment widening can
 discharge compile success generically once direct helper calls are admitted into
 the supported statement witness. -/
+structure DirectInternalHelperPerCalleeCallCompileCatalog
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fn : FunctionSpec) : Prop where
+  call :
+    ∀ {calleeName : String},
+      calleeName ∈ helperCallNames fn →
+      ∀ {scope : List String} {args : List Expr},
+        ∃ compiledIR,
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope
+            (Stmt.internalCall calleeName args) = Except.ok compiledIR
+
+/-- Assign-only half of the compile-side Tier 4 inventory. This isolates the
+current fragment-widening blocker once direct helper return-binding calls are
+admitted into the supported statement witness. -/
+structure DirectInternalHelperPerCalleeAssignCompileCatalog
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fn : FunctionSpec) : Prop where
+  assign :
+    ∀ {calleeName : String},
+      calleeName ∈ helperCallNames fn →
+      ∀ {scope : List String} {names : List String} {args : List Expr},
+        ∃ compiledIR,
+          CompilationModel.compileStmt fields [] [] .calldata [] false scope
+            (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR
+
+/-- Reassemble the full compile-side Tier 4 inventory from independently
+constructed call and assign halves. -/
+theorem directInternalHelperPerCalleeCompileCatalog_of_callCatalog_and_assignCatalog
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hcall : DirectInternalHelperPerCalleeCallCompileCatalog spec fields fn)
+    (hassign : DirectInternalHelperPerCalleeAssignCompileCatalog spec fields fn) :
+    DirectInternalHelperPerCalleeCompileCatalog spec fields fn := by
+  refine ⟨?_, ?_⟩
+  · intro calleeName hmem scope args
+    exact hcall.call hmem
+  · intro calleeName hmem scope names args
+    exact hassign.assign hmem
+
+/-- Under the current supported statement fragment, every direct helper void
+call compile obligation is vacuous because `SupportedStmtList` contains no
+helper-call syntax at all. This lets the public Tier 4 seam keep only the
+assign-side compile inventory explicit. -/
+theorem directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hbody : SupportedBodyInterface spec fn) :
+    DirectInternalHelperPerCalleeCallCompileCatalog spec fields fn := by
+  refine ⟨?_⟩
+  intro calleeName hmem
+  exfalso
+  simpa [hbody.helperCallNames_nil] using hmem
+
+/-- Split compile-side Tier 4 inventory. This isolates the purely compilation
+obligations from the semantic bridge obligations so future fragment widening can
+discharge compile success generically once direct helper calls are admitted into
+the supported statement witness. -/
 structure DirectInternalHelperPerCalleeCompileCatalog
     (spec : CompilationModel)
     (fields : List Field)

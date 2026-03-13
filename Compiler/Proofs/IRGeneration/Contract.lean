@@ -2075,6 +2075,88 @@ keeps the public function theorem aligned with the roadmap's assign-first
 helper wiring while still reusing the existing combined semantic-kernel chain
 internally. -/
 theorem
+    compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (hRuntime : SupportedRuntimeHelperTableInterface model runtimeContract)
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hheadAssignCompile :
+      DirectInternalHelperPerCalleeAssignCompileCatalog
+        model
+        (SourceSemantics.effectiveFields model)
+        fn)
+    (hheadAssignKernel :
+      DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        fn)
+    (hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hfnBodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract irFn.body) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, hvalidate, hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  exact
+    Function.supported_function_correct_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (hvalidateInputs := hvalidateInputs)
+      (runtimeContract := runtimeContract)
+      (hRuntime := hRuntime)
+      (fn := fn)
+      (selector := sel)
+      (returns := returns)
+      (bodyStmts := bodyStmts)
+      (irFn := Function.compiledFunctionIR sel fn returns bodyStmts)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (bindings := bindings)
+      (hfn := hfn)
+      (hvalidate := hvalidate)
+      (hreturns := hreturns)
+      (hbodyCompile := hbodyCompile)
+      (hcompile := by simpa using hcompileFn)
+      (hbind := hbind)
+      (htxNormalized := htxNormalized)
+      (hheadAssignCompile := hheadAssignCompile)
+      (hheadAssignKernel := hheadAssignKernel)
+      (hdisjoint := hdisjoint)
+      (hfnBodyDisjoint := by simpa using hfnBodyDisjoint)
+      (hcalldataSizeFits := hcalldataSizeFits)
+
+/-- Contract-level Tier 4 wrapper on the split semantic-kernel boundary. This
+keeps the public function theorem aligned with the roadmap's assign-first
+helper wiring while still reusing the existing combined semantic-kernel chain
+internally. -/
+theorem
     compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
     (model : CompilationModel)
     (selectors : List Nat)
