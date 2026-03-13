@@ -2825,7 +2825,9 @@ theorem
 /-- Function-level Tier 4 wrapper on the assign-only compile and semantic seam.
 Under the current fragment the direct-helper void-call compile side is still
 vacuous, so callers only need to provide assign-side compile obligations
-together with the assign semantic kernel and runtime helper table. -/
+together with the assign semantic kernel and runtime helper table, and this
+wrapper now lands directly on the exact body-level head-step catalog future
+rank induction should build. -/
 theorem
     supported_function_correct_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
     (model : CompilationModel)
@@ -2879,7 +2881,7 @@ theorem
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
   have hsupportedFn := hSupported.supportedFunctionOfSelectorDispatched hfn
   exact
-    supported_function_correct_with_helper_proofs_direct_internal_helper_head_step_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+    supported_function_correct_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)
@@ -2901,8 +2903,8 @@ theorem
       (hcompile := hcompile)
       (hbind := hbind)
       (htxNormalized := htxNormalized)
-      (hbridge :=
-        directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignCompileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_assignSemanticKernelCatalog
+      (hcatalog :=
+        directInternalHelperHeadStepCatalog_of_supportedBody_and_assignCompileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_assignSemanticKernelCatalog
           (runtimeContract := runtimeContract)
           (spec := model)
           (fields := SourceSemantics.effectiveFields model)
