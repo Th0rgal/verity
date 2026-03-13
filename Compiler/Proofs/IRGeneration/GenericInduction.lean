@@ -11887,6 +11887,112 @@ structure DirectInternalHelperPerCalleeSemanticCoreCatalog
               [YulStmt.letMany names (YulExpr.call
                 (CompilationModel.internalFunctionYulName calleeName) argExprs)])
 
+/-- Irreducible semantic Tier 4 kernel. This is the part future helper-rank
+induction should actually construct: source helper witnesses and summary
+soundness are supplied explicitly, so callers that already carry
+`SupportedBodyHelperInterface` plus helper-summary proofs can reassemble the
+full semantic core mechanically. -/
+structure DirectInternalHelperPerCalleeSemanticKernelCatalog
+    (runtimeContract : IRContract)
+    (spec : CompilationModel)
+    (fields : List Field)
+    (fn : FunctionSpec) : Prop where
+  call :
+    ∀ {calleeName : String},
+      (hmem : calleeName ∈ helperCallNames fn) →
+      (sourceWitness : SupportedInternalHelperWitness spec calleeName) →
+      InternalHelperSummarySound spec
+        sourceWitness.callee
+        sourceWitness.summary.contract →
+      ∀ (compiledHelper :
+          SupportedCompiledInternalHelperWitness spec runtimeContract calleeName)
+        {scope : List String} {args : List Expr}
+        {compiledIR : List YulStmt} {argExprs : List YulExpr},
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope
+          (Stmt.internalCall calleeName args) = Except.ok compiledIR →
+        CompilationModel.compileExprList fields .calldata args = Except.ok argExprs →
+        ∀ (runtime : SourceSemantics.RuntimeState)
+          (state : IRState)
+          (helperFuel : Nat)
+          (irFuel : Nat),
+          0 < helperFuel →
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+          FunctionBody.scopeNamesPresent scope runtime.bindings →
+          FunctionBody.bindingsBounded runtime.bindings →
+          FunctionBody.runtimeStateMatchesIR fields runtime state →
+          stmtStepMatchesIRExecWithInternals fields
+            (stmtNextScope scope (Stmt.internalCall calleeName args))
+            (SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
+              (Stmt.internalCall calleeName args))
+            (execIRStmtsWithInternals runtimeContract (irFuel + 3) state
+              [YulStmt.expr (YulExpr.call
+                (CompilationModel.internalFunctionYulName calleeName) argExprs)])
+  assign :
+    ∀ {calleeName : String},
+      (hmem : calleeName ∈ helperCallNames fn) →
+      (sourceWitness : SupportedInternalHelperWitness spec calleeName) →
+      InternalHelperSummarySound spec
+        sourceWitness.callee
+        sourceWitness.summary.contract →
+      ∀ (compiledHelper :
+          SupportedCompiledInternalHelperWitness spec runtimeContract calleeName)
+        {scope : List String} {names : List String} {args : List Expr}
+        {compiledIR : List YulStmt} {argExprs : List YulExpr},
+        CompilationModel.compileStmt fields [] [] .calldata [] false scope
+          (Stmt.internalCallAssign names calleeName args) = Except.ok compiledIR →
+        CompilationModel.compileExprList fields .calldata args = Except.ok argExprs →
+        ∀ (runtime : SourceSemantics.RuntimeState)
+          (state : IRState)
+          (helperFuel : Nat)
+          (irFuel : Nat),
+          0 < helperFuel →
+          FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+          FunctionBody.scopeNamesPresent scope runtime.bindings →
+          FunctionBody.bindingsBounded runtime.bindings →
+          FunctionBody.runtimeStateMatchesIR fields runtime state →
+          stmtStepMatchesIRExecWithInternals fields
+            (stmtNextScope scope (Stmt.internalCallAssign names calleeName args))
+            (SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
+              (Stmt.internalCallAssign names calleeName args))
+            (execIRStmtsWithInternals runtimeContract (irFuel + 3) state
+              [YulStmt.letMany names (YulExpr.call
+                (CompilationModel.internalFunctionYulName calleeName) argExprs)])
+
+/-- Reassemble the split semantic Tier 4 core from helper witnesses and summary
+soundness already carried by `SupportedBodyHelperInterface`, plus the smaller
+semantic kernel future rank induction actually needs to construct. -/
+theorem
+    directInternalHelperPerCalleeSemanticCoreCatalog_of_supportedBodyHelpers_and_helperSummariesSound_and_semanticKernelCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hHelpers : SupportedBodyHelperInterface spec fn)
+    (hsummaries : SupportedBodyHelperSummariesSound spec fn hHelpers)
+    (hkernel :
+      DirectInternalHelperPerCalleeSemanticKernelCatalog
+        runtimeContract spec fields fn) :
+    DirectInternalHelperPerCalleeSemanticCoreCatalog runtimeContract spec fields fn := by
+  refine ⟨?_, ?_⟩
+  · intro calleeName hmem compiledHelper scope args compiledIR argExprs hstmt hargs
+    exact
+      hkernel.call
+        hmem
+        (hHelpers.summaryOfCall hmem)
+        (hsummaries calleeName hmem)
+        compiledHelper
+        hstmt
+        hargs
+  · intro calleeName hmem compiledHelper scope names args compiledIR argExprs hstmt hargs
+    exact
+      hkernel.assign
+        hmem
+        (hHelpers.summaryOfCall hmem)
+        (hsummaries calleeName hmem)
+        compiledHelper
+        hstmt
+        hargs
+
 /-- Split semantic Tier 4 inventory. This keeps the end-to-end source/IR step
 alignment separate from the compile-success obligations, matching the eventual
 division between helper-rank induction and fragment-widening compile lemmas. -/
