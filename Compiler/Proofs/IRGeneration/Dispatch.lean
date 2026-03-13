@@ -1542,6 +1542,94 @@ lets callers provide void-call and return-binding helper kernels separately for
 each dispatched function while the existing combined semantic-kernel theorem is
 reassembled mechanically here. -/
 theorem
+    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (irFns : List IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        irFns)
+    (hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+    (hRuntime :
+      SupportedRuntimeHelperTableInterface
+        model
+        (runtimeContractOfFunctions model.name irFns))
+    (hheadCompile :
+      ∀ fn,
+        fn ∈ selectorDispatchedFunctions model →
+        DirectInternalHelperPerCalleeCompileCatalog
+          model
+          (SourceSemantics.effectiveFields model)
+          fn)
+    (hheadAssignKernel :
+      ∀ fn,
+        fn ∈ selectorDispatchedFunctions model →
+        DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+          (runtimeContractOfFunctions model.name irFns)
+          model
+          (SourceSemantics.effectiveFields model)
+          fn)
+    (hdisjoint :
+      ∀ fn,
+        fn ∈ selectorDispatchedFunctions model →
+        StmtListHelperFreeCompiledCallsDisjoint
+          (runtimeContractOfFunctions model.name irFns)
+          (SourceSemantics.effectiveFields model)
+          (fn.params.map (·.name))
+          fn.body)
+    (hbodyDisjoint :
+      ∀ fn sel irFn,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        YulStmtListCallsDisjointFromInternalTable
+          (runtimeContractOfFunctions model.name irFns)
+          irFn.body) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact
+    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (irFns := irFns)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hvalidateInputs := hvalidateInputs)
+      (htxNormalized := htxNormalized)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hRuntime := hRuntime)
+      (hheadCompile := hheadCompile)
+      (hheadCallKernel := by
+        intro fn hfn
+        exact
+          directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+            (runtimeContract := runtimeContractOfFunctions model.name irFns)
+            (spec := model)
+            (fields := SourceSemantics.effectiveFields model)
+            (fn := fn)
+            (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
+      (hheadAssignKernel := hheadAssignKernel)
+      (hdisjoint := hdisjoint)
+      (hbodyDisjoint := hbodyDisjoint)
+
+theorem
     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
     (model : CompilationModel)
     (selectors : List Nat)

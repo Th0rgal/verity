@@ -2075,6 +2075,86 @@ keeps the public function theorem aligned with the roadmap's assign-first
 helper wiring while still reusing the existing combined semantic-kernel chain
 internally. -/
 theorem
+    compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+    (runtimeContract : IRContract)
+    (hRuntime : SupportedRuntimeHelperTableInterface model runtimeContract)
+    (fn : FunctionSpec)
+    (sel : Nat)
+    (irFn : IRFunction)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (bindings : List (String × Nat))
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hfn : fn ∈ selectorDispatchedFunctions model)
+    (hcompileFn :
+      compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn)
+    (hbind : SourceSemantics.bindSupportedParams fn.params tx.args = some bindings)
+    (hheadCompile :
+      DirectInternalHelperPerCalleeCompileCatalog
+        model
+        (SourceSemantics.effectiveFields model)
+        fn)
+    (hheadAssignKernel :
+      DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+        runtimeContract
+        model
+        (SourceSemantics.effectiveFields model)
+        fn)
+    (hdisjoint :
+      StmtListHelperFreeCompiledCallsDisjoint
+        runtimeContract
+        (SourceSemantics.effectiveFields model)
+        (fn.params.map (·.name))
+        fn.body)
+    (hfnBodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract irFn.body) :
+    FunctionBody.sourceResultMatchesIRResult
+      (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+      (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact
+    compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (hvalidateInputs := hvalidateInputs)
+      (runtimeContract := runtimeContract)
+      (hRuntime := hRuntime)
+      (fn := fn)
+      (sel := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
+      (bindings := bindings)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+      (hheadCompile := hheadCompile)
+      (hheadCallKernel :=
+        directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+          (runtimeContract := runtimeContract)
+          (spec := model)
+          (fields := SourceSemantics.effectiveFields model)
+          (fn := fn)
+          (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
+      (hheadAssignKernel := hheadAssignKernel)
+      (hdisjoint := hdisjoint)
+      (hfnBodyDisjoint := hfnBodyDisjoint)
+
+/-- Contract-level Tier 4 wrapper on the split semantic-kernel boundary. This
+keeps the public function theorem aligned with the roadmap's assign-first
+helper wiring while still reusing the existing combined semantic-kernel chain
+internally. -/
+theorem
     compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
     (model : CompilationModel)
     (selectors : List Nat)

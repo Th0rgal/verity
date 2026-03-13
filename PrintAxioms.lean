@@ -1311,6 +1311,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStepWithHelpersAndHelperIR_internalCall
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_cons_internalCallAssign
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
+#print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeBridgeCatalog_of_compileCatalog_and_semanticBridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
@@ -1539,8 +1540,11 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.paramsSupported
 #print axioms Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.returnsSupported
 -- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprCompileCore_internalHelperCallNames_nil  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprListCompileCore_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.exprListCompileCore_internalHelperCallNames_nil  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_helperSurfaceClosed  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.stmtListCompileCore_internalHelperCallNames_nil  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTerminalCore_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_returnMapping_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letStorageField_helperSurfaceClosed  -- private
@@ -1563,6 +1567,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed  -- private
 #print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.SupportedStmtList.internalHelperCallNames_nil
+#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperCallNames_nil
 #print axioms Compiler.Proofs.IRGeneration.exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtTouchesInternalHelperSurface_eq_split
@@ -1776,4 +1782,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1645 theorems/lemmas (1240 public, 405 private)
+-- Total: 1651 theorems/lemmas (1243 public, 408 private)

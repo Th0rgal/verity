@@ -1285,6 +1285,30 @@ private theorem exprCompileCore_helperSurfaceClosed
   | logicalNot _ ih =>
       simp [exprTouchesUnsupportedHelperSurface, ih]
 
+private theorem exprCompileCore_internalHelperCallNames_nil
+    {expr : Expr}
+    (hcore : FunctionBody.ExprCompileCore expr) :
+    exprInternalHelperCallNames expr = [] := by
+  induction hcore with
+  | literal | param | localVar | caller | contractAddress | msgValue
+    | blockTimestamp | blockNumber | chainid =>
+      simp [exprInternalHelperCallNames]
+  | add _ _ ihL ihR
+    | sub _ _ ihL ihR
+    | mul _ _ ihL ihR
+    | div _ _ ihL ihR
+    | mod _ _ ihL ihR
+    | eq _ _ ihL ihR
+    | lt _ _ ihL ihR
+    | gt _ _ ihL ihR
+    | ge _ _ ihL ihR
+    | le _ _ ihL ihR
+    | logicalAnd _ _ ihL ihR
+    | logicalOr _ _ ihL ihR =>
+      simp [exprInternalHelperCallNames, ihL, ihR]
+  | logicalNot _ ih =>
+      simp [exprInternalHelperCallNames, ih]
+
 private theorem exprListCompileCore_helperSurfaceClosed
     {exprs : List Expr}
     (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
@@ -1299,6 +1323,22 @@ private theorem exprListCompileCore_helperSurfaceClosed
         exact hcore e (by simp [he])
       simp [exprListTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hhead,
+        ih htail]
+
+private theorem exprListCompileCore_internalHelperCallNames_nil
+    {exprs : List Expr}
+    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
+    exprListInternalHelperCallNames exprs = [] := by
+  induction exprs with
+  | nil =>
+      simp [exprListInternalHelperCallNames]
+  | cons expr rest ih =>
+      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
+      have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
+        intro e he
+        exact hcore e (by simp [he])
+      simp [exprListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hhead,
         ih htail]
 
 private theorem stmtListCompileCore_helperSurfaceClosed
@@ -1325,6 +1365,24 @@ private theorem stmtListCompileCore_helperSurfaceClosed
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         ih]
+
+private theorem stmtListCompileCore_internalHelperCallNames_nil
+    {scope : List String}
+    {stmts : List Stmt}
+    (hcore : FunctionBody.StmtListCompileCore scope stmts) :
+    stmtListInternalHelperCallNames stmts = [] := by
+  induction hcore with
+  | nil =>
+      simp [stmtListInternalHelperCallNames]
+  | letVar _ _ hexpr ih
+    | assignVar _ _ hexpr ih
+    | return_ _ _ hexpr ih
+    | require_ _ _ hexpr ih =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hexpr,
+        ih]
+  | stop _ ih =>
+      simp [stmtListInternalHelperCallNames, ih]
 
 private theorem stmtListTerminalCore_helperSurfaceClosed
     {scope : List String}
@@ -1676,6 +1734,106 @@ theorem SupportedStmtList.helperSurfaceClosed
         ihThen, ihElse]
   | append hprefix hsuffix ihPrefix ihSuffix =>
       simp [stmtListTouchesUnsupportedHelperSurface_append, ihPrefix, ihSuffix]
+
+theorem SupportedStmtList.internalHelperCallNames_nil
+    {fields : List Field}
+    {scope : List String}
+    {stmts : List Stmt}
+    (hSupported : SupportedStmtList fields scope stmts) :
+    stmtListInternalHelperCallNames stmts = [] := by
+  induction hSupported with
+  | compileCore hcore =>
+      exact stmtListCompileCore_internalHelperCallNames_nil hcore
+  | terminalCore hterminal =>
+      cases hterminal <;> simp [stmtListInternalHelperCallNames]
+  | setStorageSingleSlot hcore hinScope hfind =>
+      simp [stmtListInternalHelperCallNames, exprCompileCore_internalHelperCallNames_nil hcore]
+  | setStorageAddrSingleSlot hcore hinScope hfind =>
+      simp [stmtListInternalHelperCallNames, exprCompileCore_internalHelperCallNames_nil hcore]
+  | mstoreSingle hoffset hscopeOffset hvalue hscopeValue =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hoffset,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | tstoreSingle hoffset hscopeOffset hvalue hscopeValue =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hoffset,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | letStorageField hfind =>
+      simp [stmtListInternalHelperCallNames]
+  | returnMapping hkey hscope hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey]
+  | letMapping hkey hscope hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey]
+  | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey1,
+        exprCompileCore_internalHelperCallNames_nil hkey2]
+  | letMappingUint hkey hscope hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey]
+  | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprListCompileCore_internalHelperCallNames_nil hkeys,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
+      hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey1,
+        exprCompileCore_internalHelperCallNames_nil hkey2,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey1,
+        exprCompileCore_internalHelperCallNames_nil hkey2,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hkey1,
+        exprCompileCore_internalHelperCallNames_nil hkey2,
+        exprCompileCore_internalHelperCallNames_nil hvalue]
+  | rawLogLiterals htopics =>
+      simp [stmtListInternalHelperCallNames]
+  | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
+      simp [stmtListInternalHelperCallNames]
+  | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
+      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
+      simp [stmtListInternalHelperCallNames]
+  | requireClause clause hrest ih =>
+      cases clause <;> simp [RequireLiteralGuardFamilyClause.toStmt, stmtListInternalHelperCallNames, ih]
+  | ite hcond hscope hthen helse ihThen ihElse =>
+      simp [stmtListInternalHelperCallNames,
+        exprCompileCore_internalHelperCallNames_nil hcond,
+        ihThen, ihElse]
+  | append hprefix hsuffix ihPrefix ihSuffix =>
+      simp [stmtListInternalHelperCallNames, ihPrefix, ihSuffix]
+
+theorem SupportedBodyInterface.helperCallNames_nil
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hBody : SupportedBodyInterface spec fn) :
+    helperCallNames fn = [] := by
+  simp [helperCallNames, hBody.stmtList.internalHelperCallNames_nil]
 
 theorem exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {expr : Expr}

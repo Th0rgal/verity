@@ -12032,9 +12032,25 @@ structure DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
             (stmtNextScope scope (Stmt.internalCallAssign names calleeName args))
             (SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime
               (Stmt.internalCallAssign names calleeName args))
-            (execIRStmtsWithInternals runtimeContract (irFuel + 3) state
-              [YulStmt.letMany names (YulExpr.call
-                (CompilationModel.internalFunctionYulName calleeName) argExprs)])
+          (execIRStmtsWithInternals runtimeContract (irFuel + 3) state
+            [YulStmt.letMany names (YulExpr.call
+              (CompilationModel.internalFunctionYulName calleeName) argExprs)])
+
+/-- Under the current supported statement fragment, every direct helper call
+kernel obligation is vacuous because `SupportedStmtList` contains no helper-call
+syntax at all. This lets the public Tier 4 seam focus on the assign side, which
+is the actual roadmap blocker. -/
+theorem directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hbody : SupportedBodyInterface spec fn) :
+    DirectInternalHelperPerCalleeCallSemanticKernelCatalog runtimeContract spec fields fn := by
+  refine ⟨?_⟩
+  intro calleeName hmem
+  exfalso
+  simpa [hbody.helperCallNames_nil] using hmem
 
 /-- Reassemble the full semantic kernel from independently constructed call and
 assign halves. This lets future helper-rank induction target the assign side
