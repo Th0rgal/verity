@@ -12463,6 +12463,17 @@ theorem directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
       (argExprs := argExprs)
       hcompile
       hargCompile
+  · intro scope names calleeName args hmem
+    exact (hcallee.assign hmem).compile (scope := scope) (names := names) (args := args)
+  · intro scope names calleeName args compiledIR argExprs hmem hcompile hargCompile
+    exact (hcallee.assign hmem).bridge
+      (scope := scope)
+      (names := names)
+      (args := args)
+      (compiledIR := compiledIR)
+      (argExprs := argExprs)
+      hcompile
+      hargCompile
 
 /-- Assemble the body-level direct-helper bridge catalog directly from the
 current helper-free supported-body witness plus the assign-only per-callee
@@ -12490,17 +12501,6 @@ theorem directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignBri
         (fn := fn)
         hbody
         hassign)
-  · intro scope names calleeName args hmem
-    exact (hcallee.assign hmem).compile (scope := scope) (names := names) (args := args)
-  · intro scope names calleeName args compiledIR argExprs hmem hcompile hargCompile
-    exact (hcallee.assign hmem).bridge
-      (scope := scope)
-      (names := names)
-      (args := args)
-      (compiledIR := compiledIR)
-      (argExprs := argExprs)
-      hcompile
-      hargCompile
 
 private theorem directInternalHelperHeadStepCatalog_call_of_bridgeCatalog
     {runtimeContract : IRContract}
@@ -12604,6 +12604,30 @@ theorem directInternalHelperHeadStepCatalog_of_bridgeCatalog
   refine ⟨?_, ?_⟩
   · exact directInternalHelperHeadStepCatalog_call_of_bridgeCatalog hbridge
   · exact directInternalHelperHeadStepCatalog_assign_of_bridgeCatalog hbridge
+
+/-- Assemble the reusable direct-helper head-step catalog directly from the more
+rank-induction-friendly per-callee bridge inventory. This lets downstream
+wrapper theorems consume the exact catalog object future rank induction should
+build, without routing through the intermediate body-level bridge catalog. -/
+theorem directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {fn : FunctionSpec}
+    (hcallee : DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn) :
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
+  exact
+    directInternalHelperHeadStepCatalog_of_bridgeCatalog
+      (runtimeContract := runtimeContract)
+      (spec := spec)
+      (fields := fields)
+      (fn := fn)
+      (directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
+        (runtimeContract := runtimeContract)
+        (spec := spec)
+        (fields := fields)
+        (fn := fn)
+        hcallee)
 
 /-- Assemble the reusable direct-helper head-step catalog directly from the
 current helper-free supported-body witness plus the assign-only per-callee
