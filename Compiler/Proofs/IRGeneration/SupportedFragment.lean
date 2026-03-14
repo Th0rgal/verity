@@ -1,4 +1,5 @@
 import Compiler.TypedIRCompilerCorrectness
+import Compiler.Proofs.IRGeneration.SupportedCoreGrammar
 
 /-!
 Scoped proof-layer support witness for statement lists.
