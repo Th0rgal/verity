@@ -71,7 +71,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _ => true
+  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
+  | .dynamicBytesEq _ _ => true
 
 /-- Stateful expression surfaces not yet carried by the generic Layer 2 body
 interface. These are the next storage/layout-style widening targets. -/
@@ -101,7 +102,8 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _
-  | .shl _ _ | .shr _ _ | .sar _ _ | .signextend _ _ => false
+  | .shl _ _ | .shr _ _ | .sar _ _ | .signextend _ _
+  | .dynamicBytesEq _ _ => false
 
 /-- Call-related surfaces that still sit outside the current generic Layer 2
 body theorem: internal helper reuse, low-level calls, and foreign call hooks. -/
@@ -139,6 +141,7 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
         exprTouchesUnsupportedCallSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Internal helper-call surfaces not yet modeled compositionally in the current
 generic whole-contract theorem. -/
@@ -176,7 +179,13 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
         exprTouchesUnsupportedHelperSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
+  | .dynamicBytesEq _ _ => false
 
+def exprListTouchesUnsupportedHelperSurface : List Expr → Bool
+  | [] => false
+  | e :: rest => exprTouchesUnsupportedHelperSurface e || exprListTouchesUnsupportedHelperSurface rest
+
+mutual
 /-- Narrow helper-effect surface used by the exact helper-aware induction seam:
 this tracks only genuine internal-helper execution, not the broader set of
 still-unsupported expression shapes that currently share the coarse
@@ -201,7 +210,7 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesInternalHelperSurface b
   | .mappingChain _ keys =>
-      keys.any exprTouchesInternalHelperSurface
+      exprListTouchesInternalHelperSurface keys
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .structMember _ a _ => exprTouchesInternalHelperSurface a
   | .ite cond thenVal elseVal =>
@@ -216,6 +225,12 @@ def exprTouchesInternalHelperSurface : Expr → Bool
         exprTouchesInternalHelperSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
+  | .dynamicBytesEq _ _ => false
+
+def exprListTouchesInternalHelperSurface : List Expr → Bool
+  | [] => false
+  | e :: rest => exprTouchesInternalHelperSurface e || exprListTouchesInternalHelperSurface rest
+end
 
 /-- Foreign-call/library-hook surfaces still outside the current generic
 whole-contract theorem. -/
@@ -253,6 +268,7 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
         exprTouchesUnsupportedForeignSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Low-level call/runtime-mechanic surfaces still outside the current generic
 whole-contract theorem. -/
@@ -289,6 +305,7 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
         exprTouchesUnsupportedLowLevelSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Compatibility expression scan retained for the current generic-induction
 proofs. This intentionally preserves the pre-interface split meaning so the
@@ -320,8 +337,10 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
   | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
-  | .shr _ _ | .sar _ _ | .signextend _ _ => true
+  | .shr _ _ | .sar _ _ | .signextend _ _
+  | .dynamicBytesEq _ _ => true
 
+mutual
 /-- Observable/effect-rich surfaces outside the current generic whole-contract
 theorem: richer returns, logs, typed errors, and raw external effect hooks. -/
 def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
@@ -329,7 +348,7 @@ def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _
   | .externalCallBind _ _ _ | .ecm _ _ => true
   | .letVar _ _ | .assignVar _ _ | .setStorage _ _ | .setStorageAddr _ _
-  | .require _ _ | .return _ | .mstore _ _ | .stop
+  | .require _ _ | .return _ | .mstore _ _ | .tstore _ _ | .stop
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _ | .setMappingChain _ _ _
@@ -420,6 +439,7 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .stop | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
   | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
   | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
@@ -527,6 +547,7 @@ def stmtTouchesExprInternalHelperSurface : Stmt → Bool
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _
   | .setStorageArrayElement _ _ _ | .requireError _ _ _
@@ -551,6 +572,7 @@ def stmtTouchesStructuralInternalHelperSurface : Stmt → Bool
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _
   | .setStorageArrayElement _ _ _ | .requireError _ _ _
@@ -731,6 +753,7 @@ def stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites : List Stmt →
   | stmt :: rest =>
       stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt ||
         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest
+end
 
 mutual
   /-- Collect direct internal-helper callee names mentioned by an expression. This
@@ -903,6 +926,98 @@ mutual
   decreasing_by all_goals simp_wf; all_goals omega
 end
 
+private theorem nodup_reverse' {l : List α} (h : l.Nodup) : l.reverse.Nodup := by
+  rw [show l.reverse.Nodup ↔ List.Pairwise (fun a b => a ≠ b) l.reverse from Iff.rfl]
+  rw [List.pairwise_reverse]
+  exact h.imp (fun h1 h2 => h1 h2.symm)
+
+private theorem nodup_eraseDupsBy_loop [BEq α] [LawfulBEq α]
+    (l acc : List α)
+    (hacc : acc.Nodup) :
+    (List.eraseDupsBy.loop (· == ·) l acc).Nodup := by
+  induction l generalizing acc with
+  | nil =>
+    simp [List.eraseDupsBy.loop]
+    exact nodup_reverse' hacc
+  | cons a t ih =>
+    simp only [List.eraseDupsBy.loop]
+    split
+    · exact ih acc hacc
+    · rename_i hnotin
+      apply ih
+      rw [List.nodup_cons]
+      refine ⟨?_, hacc⟩
+      intro hmem
+      have : (acc.any fun x2 => a == x2) = true := by
+        rw [List.any_eq_true]
+        exact ⟨a, hmem, beq_self_eq_true a⟩
+      simp [this] at hnotin
+
+theorem List.nodup_eraseDups [BEq α] [LawfulBEq α] (l : List α) :
+    l.eraseDups.Nodup := by
+  simp only [List.eraseDups]
+  exact nodup_eraseDupsBy_loop l [] List.Pairwise.nil
+
+private theorem mem_eraseDups_iff [BEq α] [LawfulBEq α] {a : α} {l : List α} :
+    a ∈ l.eraseDups ↔ a ∈ l := by
+  constructor
+  · intro h
+    simp only [List.eraseDups] at h
+    have loop_sub : ∀ (l acc : List α) (x : α),
+      x ∈ (List.eraseDupsBy.loop (· == ·) l acc) → x ∈ acc ∨ x ∈ l := by
+      intro l; induction l with
+      | nil =>
+        intro acc x hx; simp [List.eraseDupsBy.loop] at hx
+        left; exact hx
+      | cons b t ih =>
+        intro acc x hx; simp only [List.eraseDupsBy.loop] at hx
+        split at hx
+        · rcases ih acc x hx with hacc | ht
+          · left; exact hacc
+          · right; exact List.mem_cons_of_mem _ ht
+        · rcases ih (b :: acc) x hx with hacc | ht
+          · rw [List.mem_cons] at hacc
+            rcases hacc with rfl | hmem
+            · right; simp
+            · left; exact hmem
+          · right; exact List.mem_cons_of_mem _ ht
+    rcases loop_sub l [] a h with hacc | hl
+    · simp at hacc
+    · exact hl
+  · intro h
+    simp only [List.eraseDups]
+    have loop_mem : ∀ (l acc : List α) (x : α),
+      (x ∈ l ∨ x ∈ acc) → x ∈ (List.eraseDupsBy.loop (· == ·) l acc) := by
+      intro l; induction l with
+      | nil =>
+        intro acc x hx; simp [List.eraseDupsBy.loop]
+        rcases hx with hx | hx
+        · simp at hx
+        · exact hx
+      | cons b t ih =>
+        intro acc x hx; simp only [List.eraseDupsBy.loop]
+        split
+        · apply ih acc x
+          rcases hx with hx | hx
+          · rw [List.mem_cons] at hx
+            rcases hx with rfl | ht
+            · right
+              rename_i hany
+              rw [List.any_eq_true] at hany
+              obtain ⟨y, hy, hbeq⟩ := hany
+              rw [beq_iff_eq] at hbeq
+              rw [hbeq]; exact hy
+            · left; exact ht
+          · right; exact hx
+        · apply ih (b :: acc) x
+          rcases hx with hx | hx
+          · rw [List.mem_cons] at hx
+            rcases hx with rfl | ht
+            · right; simp
+            · left; exact ht
+          · right; rw [List.mem_cons]; right; exact hx
+    exact loop_mem l [] a (Or.inl h)
+
 /-- Deduplicated direct helper-callee inventory for a function body. -/
 def helperCallNames (fn : FunctionSpec) : List String :=
   (stmtListInternalHelperCallNames fn.body).eraseDups
@@ -919,65 +1034,80 @@ theorem exprHelperCallNames_nodup (fn : FunctionSpec) :
     (exprHelperCallNames fn).Nodup := by
   simpa [exprHelperCallNames] using List.nodup_eraseDups (stmtListExprHelperCallNames fn.body)
 
+private def stmtExprHelperCallNames_subset_stmtInternalHelperCallNames_aux :
+    (stmts : List Stmt) →
+    ∀ {calleeName : String},
+      calleeName ∈ stmtListExprHelperCallNames stmts →
+        calleeName ∈ stmtListInternalHelperCallNames stmts
+  | [], _, hmem => by simpa [stmtListExprHelperCallNames, stmtListInternalHelperCallNames] using hmem
+  | stmt :: rest, calleeName, hmem => by
+      simp only [stmtListExprHelperCallNames, stmtListInternalHelperCallNames, List.mem_append] at hmem ⊢
+      rcases hmem with hstmt | hrest
+      · left
+        revert hstmt
+        cases stmt with
+        | ite cond thenBranch elseBranch =>
+            intro hstmt
+            simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hstmt ⊢
+            rcases hstmt with (hcond | hthen) | helse
+            · left; left; exact hcond
+            · left; right
+              exact stmtExprHelperCallNames_subset_stmtInternalHelperCallNames_aux _ hthen
+            · right
+              exact stmtExprHelperCallNames_subset_stmtInternalHelperCallNames_aux _ helse
+        | forEach var count body =>
+            intro hstmt
+            simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hstmt ⊢
+            rcases hstmt with hcount | hbody
+            · exact Or.inl hcount
+            · exact Or.inr <| stmtExprHelperCallNames_subset_stmtInternalHelperCallNames_aux _ hbody
+        | internalCall calleeName args =>
+            intro hstmt
+            simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_cons] at hstmt ⊢
+            exact Or.inr hstmt
+        | internalCallAssign names calleeName args =>
+            intro hstmt
+            simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_cons] at hstmt ⊢
+            exact Or.inr hstmt
+        | _ =>
+            intro hstmt
+            all_goals
+              first
+              | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hstmt
+              | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hstmt
+              | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
+                  or_left_comm, or_assoc] using hstmt
+      · exact Or.inr (stmtExprHelperCallNames_subset_stmtInternalHelperCallNames_aux rest hrest)
+  termination_by l => sizeOf l
+
+theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames
+    (stmts : List Stmt) :
+    ∀ {calleeName : String},
+      calleeName ∈ stmtListExprHelperCallNames stmts →
+        calleeName ∈ stmtListInternalHelperCallNames stmts :=
+  stmtExprHelperCallNames_subset_stmtInternalHelperCallNames_aux stmts
+
 theorem stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
     (stmt : Stmt) :
     ∀ {calleeName : String},
       calleeName ∈ stmtExprHelperCallNames stmt →
         calleeName ∈ stmtInternalHelperCallNames stmt := by
   intro calleeName hmem
-  induction stmt with
-  | ite cond thenBranch elseBranch ihThen ihElse =>
-      simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
-        List.mem_cons] at hmem ⊢
-      rcases hmem with hcond | hrest
-      · exact Or.inl hcond
-      · rcases hrest with hthen | helse
-        · exact Or.inr <| Or.inl <| ihThen hthen
-        · exact Or.inr <| Or.inr <| ihElse helse
-  | forEach var count body ih =>
-      simp only [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hmem ⊢
-      rcases hmem with hcount | hbody
-      · exact Or.inl hcount
-      · exact Or.inr <| ih hbody
-  | internalCall calleeName args =>
-      simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_cons] at hmem ⊢
-      exact Or.inr hmem
-  | internalCallAssign names calleeName args =>
-      simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_cons] at hmem ⊢
-      exact Or.inr hmem
-  | _ =>
-      all_goals
-        first
-        | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hmem
-        | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hmem
-        | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
-            or_left_comm, or_assoc] using hmem
-
-theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames
-    (stmts : List Stmt) :
-    ∀ {calleeName : String},
-      calleeName ∈ stmtListExprHelperCallNames stmts →
-        calleeName ∈ stmtListInternalHelperCallNames stmts := by
-  intro calleeName hmem
-  induction stmts with
-  | nil =>
-      simpa [stmtListExprHelperCallNames, stmtListInternalHelperCallNames] using hmem
-  | cons stmt rest ih =>
-      simp only [stmtListExprHelperCallNames, stmtListInternalHelperCallNames, List.mem_append] at hmem ⊢
-      rcases hmem with hstmt | hrest
-      · exact Or.inl (stmtExprHelperCallNames_subset_stmtInternalHelperCallNames stmt hstmt)
-      · exact Or.inr (ih hrest)
+  have h := @stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames [stmt] calleeName
+  simp only [stmtListExprHelperCallNames, stmtListInternalHelperCallNames,
+    List.mem_append, List.not_mem_nil, or_false] at h
+  exact h hmem
 
 theorem exprHelperCallNames_subset_helperCallNames
     {fn : FunctionSpec}
     {calleeName : String}
     (hmem : calleeName ∈ exprHelperCallNames fn) :
     calleeName ∈ helperCallNames fn := by
-  have hexpr : calleeName ∈ stmtListExprHelperCallNames fn.body := by
-    simpa [exprHelperCallNames] using hmem
+  have hexpr : calleeName ∈ stmtListExprHelperCallNames fn.body :=
+    mem_eraseDups_iff.mp hmem
   have hhelper : calleeName ∈ stmtListInternalHelperCallNames fn.body :=
     stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames fn.body hexpr
-  simpa [helperCallNames] using hhelper
+  exact mem_eraseDups_iff.mpr hhelper
 
 /-- Compatibility scan retained for the existing generic-induction library.
 Its meaning is now derived from smaller feature-local interfaces rather than a
@@ -1042,7 +1172,10 @@ def InternalHelperSummaryPreservesWorldOnSuccess
       success = true →
       finalWorld = initialWorld
 
-structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : FunctionSpec) : Prop where
+structure SupportedBodyEffectInterface (fn : FunctionSpec) : Prop where
+  surfaceClosed : stmtListTouchesUnsupportedEffectSurface fn.body = false
+
+structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : FunctionSpec) where
   present : callee ∈ spec.functions
   internal : callee.isInternal = true
   nonSpecialEntrypoint : isInteropEntrypointName callee.name = false
@@ -1058,7 +1191,7 @@ structure SupportedInternalHelperSummary (spec : CompilationModel) (callee : Fun
   noLocalObligations : callee.localObligations = []
 
 structure SupportedInternalHelperWitness
-    (spec : CompilationModel) (calleeName : String) : Prop where
+    (spec : CompilationModel) (calleeName : String) where
   callee : FunctionSpec
   summary : SupportedInternalHelperSummary spec callee
   nameEq : callee.name = calleeName
@@ -1071,7 +1204,7 @@ came from compiling a supported source helper. -/
 structure SupportedCompiledInternalHelperWitness
     (spec : CompilationModel)
     (runtimeContract : IRContract)
-    (calleeName : String) : Prop where
+    (calleeName : String) where
   sourceWitness : SupportedInternalHelperWitness spec calleeName
   compiledStmt : YulStmt
   compileOk :
@@ -1091,7 +1224,7 @@ instead of baking ad hoc assumptions about a particular runtime contract's
 internal helper table into each theorem. -/
 structure SupportedRuntimeHelperTableInterface
     (spec : CompilationModel)
-    (runtimeContract : IRContract) : Prop where
+    (runtimeContract : IRContract) where
   compiledOfWitness :
     ∀ calleeName (witness : SupportedInternalHelperWitness spec calleeName),
       SupportedCompiledInternalHelperWitness spec runtimeContract calleeName
@@ -1100,7 +1233,7 @@ structure SupportedRuntimeHelperTableInterface
 It already inventories helper callees via positive summary witnesses, but it
 still carries the helper-excluding body fragment witness, so the generic theorem
 shape and trusted boundary remain unchanged until helper semantics are modeled. -/
-structure SupportedBodyHelperInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+structure SupportedBodyHelperInterface (spec : CompilationModel) (fn : FunctionSpec) where
   helperRank : Nat
   callNamesNodup : (helperCallNames fn).Nodup
   summaryOf :
@@ -1116,19 +1249,17 @@ structure SupportedBodyHelperInterface (spec : CompilationModel) (fn : FunctionS
       InternalHelperSummaryPreservesWorldOnSuccess
         ((summaryOf calleeName hcall).summary.contract)
 
-structure SupportedBodyCallInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+structure SupportedBodyCallInterface (spec : CompilationModel) (fn : FunctionSpec) where
   helpers : SupportedBodyHelperInterface spec fn
   foreign : stmtListTouchesUnsupportedForeignSurface fn.body = false
   lowLevel : stmtListTouchesUnsupportedLowLevelSurface fn.body = false
 
-structure SupportedBodyEffectInterface (fn : FunctionSpec) : Prop where
-  surfaceClosed : stmtListTouchesUnsupportedEffectSurface fn.body = false
 
 /-- Body-level interface for the initial theorem boundary. This keeps the current
 syntactic support inventory local to the body witness instead of baking it
 directly into the top-level `SupportedSpec` inventory. Each sub-interface is a
 feature-local place to hang future widening work. -/
-structure SupportedBodyInterface (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+structure SupportedBodyInterface (spec : CompilationModel) (fn : FunctionSpec) where
   stmtList : SupportedStmtList spec.fields (fn.params.map (·.name)) fn.body
   core : SupportedBodyCoreInterface fn
   state : SupportedBodyStateInterface fn
@@ -1140,7 +1271,7 @@ structure SupportedBodyInterface (spec : CompilationModel) (fn : FunctionSpec) :
 admit the currently proved singleton storage-write shapes; all other fail-closed
 boundaries remain unchanged. -/
 structure SupportedBodyInterfaceExceptMappingWrites
-    (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+    (spec : CompilationModel) (fn : FunctionSpec) where
   stmtList : SupportedStmtList spec.fields (fn.params.map (·.name)) fn.body
   core : SupportedBodyCoreInterface fn
   state : SupportedBodyStateInterfaceExceptMappingWrites fn
@@ -1151,7 +1282,7 @@ structure SupportedBodyInterfaceExceptMappingWrites
 /-- Supported external function for the first whole-contract Layer 2 theorem.
 This lifts the raw `SupportedStmtList` witness to the function boundary and
 makes the whole-contract scope auditable without proof-internal inspection. -/
-structure SupportedFunction (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+structure SupportedFunction (spec : CompilationModel) (fn : FunctionSpec) where
   nonInternal : fn.isInternal = false
   nonSpecialEntrypoint : isInteropEntrypointName fn.name = false
   params : SupportedParamProfile fn.params
@@ -1161,7 +1292,7 @@ structure SupportedFunction (spec : CompilationModel) (fn : FunctionSpec) : Prop
 /-- Tier 2 function-level support witness that weakens only the body state
 surface closure to admit the currently proved singleton storage-write shapes. -/
 structure SupportedFunctionExceptMappingWrites
-    (spec : CompilationModel) (fn : FunctionSpec) : Prop where
+    (spec : CompilationModel) (fn : FunctionSpec) where
   nonInternal : fn.isInternal = false
   nonSpecialEntrypoint : isInteropEntrypointName fn.name = false
   params : SupportedParamProfile fn.params
@@ -1196,7 +1327,7 @@ structure SupportedSpecSurface (spec : CompilationModel) : Prop where
 The initial scope is deliberately narrow: selector-dispatched external entrypoints only,
 no constructor, no fallback/receive, no foreign/linking surface, and every function body
 must already live inside the explicit supported statement fragment. -/
-structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop where
+structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) where
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
   functions :
@@ -1205,7 +1336,7 @@ structure SupportedSpec (spec : CompilationModel) (selectors : List Nat) : Prop 
 /-- Tier 2 whole-contract support witness that weakens only the function-body
 state closure to admit the currently proved singleton storage-write shapes. -/
 structure SupportedSpecExceptMappingWrites
-    (spec : CompilationModel) (selectors : List Nat) : Prop where
+    (spec : CompilationModel) (selectors : List Nat) where
   invariants : SupportedSpecInvariants spec selectors
   surface : SupportedSpecSurface spec
   functions :
@@ -1349,17 +1480,17 @@ private theorem stmtListCompileCore_helperSurfaceClosed
   induction hcore with
   | nil =>
       simp [stmtListTouchesUnsupportedHelperSurface]
-  | letVar _ _ _ ih
-    | assignVar _ _ _ ih
-    | return_ _ _ _ ih =>
+  | letVar hcore _ _ ih
+    | assignVar hcore _ _ ih
+    | return_ hcore _ _ ih =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcore,
         ih]
-  | require_ _ _ _ ih =>
+  | require_ hcore _ _ ih =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcore,
         ih]
   | stop _ ih =>
       simp [stmtListTouchesUnsupportedHelperSurface,
@@ -1374,15 +1505,15 @@ private theorem stmtListCompileCore_internalHelperCallNames_nil
   induction hcore with
   | nil =>
       simp [stmtListInternalHelperCallNames]
-  | letVar _ _ hexpr ih
-    | assignVar _ _ hexpr ih
-    | return_ _ _ hexpr ih
-    | require_ _ _ hexpr ih =>
-      simp [stmtListInternalHelperCallNames,
+  | letVar hexpr _ _ ih
+    | assignVar hexpr _ _ ih
+    | return_ hexpr _ _ ih
+    | require_ hexpr _ _ ih =>
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hexpr,
         ih]
   | stop _ ih =>
-      simp [stmtListInternalHelperCallNames, ih]
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames, ih]
 
 private theorem stmtListTerminalCore_helperSurfaceClosed
     {scope : List String}
@@ -1390,30 +1521,30 @@ private theorem stmtListTerminalCore_helperSurfaceClosed
     (hterminal : FunctionBody.StmtListTerminalCore scope stmts) :
     stmtListTouchesUnsupportedHelperSurface stmts = false := by
   induction hterminal with
-  | letVar _ _ _ ih
-    | assignVar _ _ _ ih =>
+  | letVar hcore _ _ ih
+    | assignVar hcore _ _ ih =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcore,
         ih]
-  | require_ _ _ _ ih =>
+  | require_ hcore _ _ ih =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcore,
         ih]
-  | return_ _ _ hrest =>
+  | return_ hcore _ hrest =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcore,
         stmtListCompileCore_helperSurfaceClosed hrest]
   | stop hrest =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         stmtListCompileCore_helperSurfaceClosed hrest]
-  | ite _ _ hthen helse hrest ihThen ihElse =>
+  | ite hcond _ hthen helse hrest ihThen ihElse =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface,
+        exprCompileCore_helperSurfaceClosed hcond,
         ihThen, ihElse,
         stmtListCompileCore_helperSurfaceClosed hrest]
 
@@ -1674,6 +1805,16 @@ private theorem supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetSto
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface]
 
+private theorem stmtListTouchesUnsupportedHelperSurface_append
+    {pfx sfx : List Stmt} :
+    stmtListTouchesUnsupportedHelperSurface (pfx ++ sfx) =
+      (stmtListTouchesUnsupportedHelperSurface pfx ||
+        stmtListTouchesUnsupportedHelperSurface sfx) := by
+  induction pfx with
+  | nil => simp [stmtListTouchesUnsupportedHelperSurface]
+  | cons head rest ih =>
+    simp [stmtListTouchesUnsupportedHelperSurface, ih, Bool.or_assoc]
+
 theorem SupportedStmtList.helperSurfaceClosed
     {fields : List Field}
     {scope : List String}
@@ -1686,7 +1827,7 @@ theorem SupportedStmtList.helperSurfaceClosed
   | setStorageSingleSlot hcore hinScope hfind =>
       simp [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        exprTouchesUnsupportedHelperSurface]
+        exprCompileCore_helperSurfaceClosed hcore]
   | setStorageAddrSingleSlot hcore hinScope hfind =>
       exact supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed hcore
   | mstoreSingle hoffset hscopeOffset hvalue hscopeValue =>
@@ -1721,8 +1862,9 @@ theorem SupportedStmtList.helperSurfaceClosed
       hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
       exact supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed
   | requireClause clause hrest ih =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
-        RequireLiteralGuardFamilyClause.toStmt,
+      cases clause
+      all_goals simp [stmtListTouchesUnsupportedHelperSurface,
+        Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
         stmtTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface,
         ih]
@@ -1745,36 +1887,36 @@ theorem SupportedStmtList.internalHelperCallNames_nil
   | compileCore hcore =>
       exact stmtListCompileCore_internalHelperCallNames_nil hcore
   | terminalCore hterminal =>
-      cases hterminal <;> simp [stmtListInternalHelperCallNames]
+      cases hterminal <;> simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
   | setStorageSingleSlot hcore hinScope hfind =>
       simp [stmtListInternalHelperCallNames, exprCompileCore_internalHelperCallNames_nil hcore]
   | setStorageAddrSingleSlot hcore hinScope hfind =>
       simp [stmtListInternalHelperCallNames, exprCompileCore_internalHelperCallNames_nil hcore]
   | mstoreSingle hoffset hscopeOffset hvalue hscopeValue =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hoffset,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | tstoreSingle hoffset hscopeOffset hvalue hscopeValue =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hoffset,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | letStorageField hfind =>
-      simp [stmtListInternalHelperCallNames]
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
   | returnMapping hkey hscope hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey]
   | letMapping hkey hscope hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey]
   | letMapping2 hkey1 hscope1 hkey2 hscope2 hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2]
   | letMappingUint hkey hscope hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey]
   | setMappingUintSingle hkey hscopeKey hvalue hscopeValue hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setMappingChainSingle hkeys hscopeKeys hvalue hscopeValue hslot =>
@@ -1782,48 +1924,48 @@ theorem SupportedStmtList.internalHelperCallNames_nil
         exprListCompileCore_internalHelperCallNames_nil hkeys,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setMappingSingle hkey hscopeKey hvalue hscopeValue hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setMappingWordSingle hkey hscopeKey hvalue hscopeValue hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setMappingPackedWordSingle hkey hscopeKey hvalue hscopeValue
       hcompatValue hcompatPacked hcompatSlotWord hcompatSlotCleared hpacked hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setStructMemberSingle hkey hscopeKey hvalue hscopeValue hslot hmembers hmember =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setMapping2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setMapping2WordSingle hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | setStructMember2Single hkey1 hscope1 hkey2 hscope2 hvalue hscopeValue hslot hmembers hmember =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2,
         exprCompileCore_internalHelperCallNames_nil hvalue]
   | rawLogLiterals htopics =>
-      simp [stmtListInternalHelperCallNames]
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop hOwner hne_sv_p hne_ov_p hne_ov_sv =>
-      simp [stmtListInternalHelperCallNames]
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop
       hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
-      simp [stmtListInternalHelperCallNames]
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
   | requireClause clause hrest ih =>
-      cases clause <;> simp [RequireLiteralGuardFamilyClause.toStmt, stmtListInternalHelperCallNames, ih]
+      cases clause <;> simp [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt, stmtListInternalHelperCallNames, stmtInternalHelperCallNames, ih]
   | ite hcond hscope hthen helse ihThen ihElse =>
-      simp [stmtListInternalHelperCallNames,
+      simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
         ihThen, ihElse]
   | append hprefix hsuffix ihPrefix ihSuffix =>
@@ -1835,53 +1977,81 @@ theorem SupportedBodyInterface.helperCallNames_nil
     helperCallNames fn = [] := by
   simp [helperCallNames, hBody.stmtList.internalHelperCallNames_nil]
 
+private def exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux :
+    (expr : Expr) →
+    exprTouchesUnsupportedHelperSurface expr = false →
+    exprTouchesInternalHelperSurface expr = false
+  | .literal _, _ | .param _, _ | .storage _, _ | .storageAddr _, _
+  | .constructorArg _, _ | .caller, _ | .contractAddress, _ | .chainid, _
+  | .msgValue, _ | .blockTimestamp, _ | .blockNumber, _ | .localVar _, _
+  | .blobbasefee, _ | .mload _, _ | .tload _, _ | .calldatasize, _
+  | .calldataload _, _ | .returndataSize, _ | .extcodesize _, _
+  | .returndataOptionalBoolAt _, _ | .arrayLength _, _
+  | .storageArrayLength _, _ | .externalCall _ _, _
+  | .call _ _ _ _ _ _ _, _ | .staticcall _ _ _ _ _ _, _
+  | .delegatecall _ _ _ _ _ _, _ | .internalCall _ _, _
+  | .dynamicBytesEq _ _, _ => by
+      simp_all [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface]
+  | .add a b, hsurface | .sub a b, hsurface | .mul a b, hsurface
+  | .div a b, hsurface | .sdiv a b, hsurface | .mod a b, hsurface
+  | .smod a b, hsurface | .bitAnd a b, hsurface | .bitOr a b, hsurface
+  | .bitXor a b, hsurface | .eq a b, hsurface | .ge a b, hsurface
+  | .gt a b, hsurface | .sgt a b, hsurface | .lt a b, hsurface
+  | .slt a b, hsurface | .le a b, hsurface
+  | .logicalAnd a b, hsurface | .logicalOr a b, hsurface
+  | .min a b, hsurface | .max a b, hsurface
+  | .wMulDown a b, hsurface | .wDivUp a b, hsurface
+  | .keccak256 a b, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        Bool.or_eq_false_iff] at hsurface ⊢
+      exact ⟨exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux a hsurface.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux b hsurface.2⟩
+  | .logicalNot e, hsurface | .bitNot e, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at hsurface ⊢
+      exact exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux e hsurface
+  | .mapping _ e, hsurface | .mappingUint _ e, hsurface
+  | .arrayElement _ e, hsurface | .storageArrayElement _ e, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at hsurface ⊢
+      exact exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux e hsurface
+  | .mappingWord _ e _, hsurface | .mappingPackedWord _ e _ _, hsurface
+  | .structMember _ e _, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at hsurface ⊢
+      exact exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux e hsurface
+  | .shl a b, hsurface | .shr a b, hsurface | .sar a b, hsurface
+  | .signextend a b, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        Bool.or_eq_false_iff] at hsurface ⊢
+      exact ⟨exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux a hsurface.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux b hsurface.2⟩
+  | .mapping2 _ a b, hsurface | .mapping2Word _ a b _, hsurface
+  | .structMember2 _ a b _, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        Bool.or_eq_false_iff] at hsurface ⊢
+      exact ⟨exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux a hsurface.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux b hsurface.2⟩
+  | .ite c t e, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        Bool.or_eq_false_iff] at hsurface ⊢
+      exact ⟨exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux c hsurface.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux t hsurface.2.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux e hsurface.2.2⟩
+  | .mulDivDown a b c, hsurface | .mulDivUp a b c, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        Bool.or_eq_false_iff] at hsurface ⊢
+      exact ⟨exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux a hsurface.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux b hsurface.2.1,
+             exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux c hsurface.2.2⟩
+  | .mappingChain _ keys, hsurface => by
+      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
+        exprListTouchesInternalHelperSurface] at hsurface ⊢
+  termination_by expr => sizeOf expr
+  decreasing_by all_goals simp_wf; omega
+
 theorem exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {expr : Expr}
     (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
-    exprTouchesInternalHelperSurface expr = false := by
-  induction expr with
-  | literal | param | storage | storageAddr | constructorArg | caller
-    | contractAddress | chainid | msgValue | blockTimestamp | blockNumber
-    | localVar | blobbasefee | mload | tload | calldatasize | calldataload
-    | returndataSize | extcodesize | returndataOptionalBoolAt | arrayLength
-    | storageArrayLength | externalCall | call | staticcall | delegatecall
-    | internalCall =>
-      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at *
-  | add lhs rhs ihL ihR | sub lhs rhs ihL ihR | mul lhs rhs ihL ihR
-    | div lhs rhs ihL ihR | sdiv lhs rhs ihL ihR | mod lhs rhs ihL ihR
-    | smod lhs rhs ihL ihR | bitAnd lhs rhs ihL ihR | bitOr lhs rhs ihL ihR
-    | bitXor lhs rhs ihL ihR | eq lhs rhs ihL ihR | ge lhs rhs ihL ihR
-    | gt lhs rhs ihL ihR | sgt lhs rhs ihL ihR | lt lhs rhs ihL ihR
-    | slt lhs rhs ihL ihR | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR
-    | logicalOr lhs rhs ihL ihR | min lhs rhs ihL ihR | max lhs rhs ihL ihR
-    | wMulDown lhs rhs ihL ihR | wDivUp lhs rhs ihL ihR
-    | mapping2 _ lhs rhs ihL ihR | structMember2 _ lhs rhs _ ihL ihR =>
-      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
-        ihL, ihR, Bool.or_eq_false] at *
-  | logicalNot expr ih | bitNot expr ih | mapping _ expr ih | mappingUint _ expr ih
-    | arrayElement _ expr ih | storageArrayElement _ expr ih
-    | mappingWord _ expr _ ih | mappingPackedWord _ expr _ _ ih
-    | structMember _ expr _ ih | shl expr _ ih | shr expr _ ih
-    | sar expr _ ih | signextend expr _ ih =>
-      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface, ih] at *
-  | ite cond thenVal elseVal ihCond ihThen ihElse =>
-      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
-        ihCond, ihThen, ihElse, Bool.or_eq_false] at *
-  | mulDivDown a b c ihA ihB ihC | mulDivUp a b c ihA ihB ihC =>
-      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
-        ihA, ihB, ihC, Bool.or_eq_false] at *
-  | keccak256 a b ihA ihB =>
-      simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface,
-        ihA, ihB, Bool.or_eq_false] at *
-  | mappingChain _ keys ih =>
-      induction keys with
-      | nil =>
-          simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface]
-      | cons key rest ihKeys =>
-          simp [exprTouchesUnsupportedHelperSurface, exprTouchesInternalHelperSurface] at hsurface ⊢
-          constructor
-          · exact ih hsurface.1
-          · exact ihKeys hsurface.2
+    exprTouchesInternalHelperSurface expr = false :=
+  exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed_aux expr hsurface
 
 theorem stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {stmt : Stmt}
@@ -1913,6 +2083,15 @@ theorem stmtTouchesDirectInternalHelperSurface_eq_split
       stmtTouchesDirectInternalHelperCallSurface,
       stmtTouchesDirectInternalHelperAssignSurface]
 
+theorem stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed
+    {stmt : Stmt}
+    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+    stmtTouchesDirectInternalHelperSurface stmt = false := by
+  have hinternal := stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface
+  rw [stmtTouchesInternalHelperSurface_eq_split] at hinternal
+  cases hdirect : stmtTouchesDirectInternalHelperSurface stmt <;>
+    simp [hdirect] at hinternal ⊢
+
 theorem stmtTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed
     {stmt : Stmt}
     (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
@@ -1931,15 +2110,6 @@ theorem stmtTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceCl
   cases hcall : stmtTouchesDirectInternalHelperCallSurface stmt <;>
     cases hassign : stmtTouchesDirectInternalHelperAssignSurface stmt <;>
       simp [hcall, hassign] at hdirect ⊢
-
-theorem stmtTouchesDirectInternalHelperSurface_eq_false_of_helperSurfaceClosed
-    {stmt : Stmt}
-    (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
-    stmtTouchesDirectInternalHelperSurface stmt = false := by
-  have hinternal := stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface
-  rw [stmtTouchesInternalHelperSurface_eq_split] at hinternal
-  cases hdirect : stmtTouchesDirectInternalHelperSurface stmt <;>
-    simp [hdirect] at hinternal ⊢
 
 theorem stmtTouchesExprInternalHelperSurface_eq_false_of_helperSurfaceClosed
     {stmt : Stmt}
@@ -2059,7 +2229,7 @@ theorem SupportedBodyInterfaceExceptMappingWrites.helperSurfaceClosed
     stmtListTouchesUnsupportedHelperSurface fn.body = false := by
   exact hBody.stmtList.helperSurfaceClosed
 
-theorem SupportedBodyHelperInterface.summaryOfCall
+def SupportedBodyHelperInterface.summaryOfCall
     {spec : CompilationModel} {fn : FunctionSpec}
     (hHelpers : SupportedBodyHelperInterface spec fn)
     {calleeName : String}
@@ -2067,7 +2237,7 @@ theorem SupportedBodyHelperInterface.summaryOfCall
     SupportedInternalHelperWitness spec calleeName :=
   hHelpers.summaryOf calleeName hmem
 
-theorem SupportedBodyHelperInterface.summaryContractOfCall
+def SupportedBodyHelperInterface.summaryContractOfCall
     {spec : CompilationModel} {fn : FunctionSpec}
     (hHelpers : SupportedBodyHelperInterface spec fn)
     {calleeName : String}
@@ -2094,7 +2264,7 @@ theorem SupportedBodyHelperInterface.exprSummaryPreservesWorld
       (hHelpers.summaryContractOfCall hcall) :=
   hHelpers.exprCallsPreserveWorld calleeName hmem
 
-theorem SupportedRuntimeHelperTableInterface.compiledOfCall
+def SupportedRuntimeHelperTableInterface.compiledOfCall
     {spec : CompilationModel}
     {runtimeContract : IRContract}
     {fn : FunctionSpec}
@@ -2185,17 +2355,17 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | logicalAnd lhs rhs ihL ihR
   | logicalOr lhs rhs ihL ihR =>
       have hcoreL : exprTouchesUnsupportedCoreSurface lhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hcoreR : exprTouchesUnsupportedCoreSurface rhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       have hstateL : exprTouchesUnsupportedStateSurface lhs = false := by
-        simpa [exprTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).1
+        simpa [exprTouchesUnsupportedStateSurface] using (Bool.or_eq_false_iff.mp hstate).1
       have hstateR : exprTouchesUnsupportedStateSurface rhs = false := by
-        simpa [exprTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).2
+        simpa [exprTouchesUnsupportedStateSurface] using (Bool.or_eq_false_iff.mp hstate).2
       have hcallsL : exprTouchesUnsupportedCallSurface lhs = false := by
-        simpa [exprTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).1
+        simpa [exprTouchesUnsupportedCallSurface] using (Bool.or_eq_false_iff.mp hcalls).1
       have hcallsR : exprTouchesUnsupportedCallSurface rhs = false := by
-        simpa [exprTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).2
+        simpa [exprTouchesUnsupportedCallSurface] using (Bool.or_eq_false_iff.mp hcalls).2
       have hleft : exprTouchesUnsupportedContractSurface lhs = false :=
         ihL hcoreL hstateL hcallsL
       have hright : exprTouchesUnsupportedContractSurface rhs = false :=
@@ -2225,29 +2395,29 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp [exprTouchesUnsupportedContractSurface, hexpr]
   | ite cond thenVal elseVal ihCond ihThen ihElse =>
       have hstateCond : exprTouchesUnsupportedStateSurface cond = false := by
-        simpa [exprTouchesUnsupportedStateSurface, Bool.or_eq_false] using (Bool.or_eq_false.mp hstate).1
+        simpa [exprTouchesUnsupportedStateSurface, Bool.or_eq_false_iff] using (Bool.or_eq_false_iff.mp hstate).1
       have hstateRest : exprTouchesUnsupportedStateSurface thenVal || exprTouchesUnsupportedStateSurface elseVal = false := by
-        simpa [exprTouchesUnsupportedStateSurface, Bool.or_assoc] using (Bool.or_eq_false.mp hstate).2
-      have hstateThen : exprTouchesUnsupportedStateSurface thenVal = false := (Bool.or_eq_false.mp hstateRest).1
-      have hstateElse : exprTouchesUnsupportedStateSurface elseVal = false := (Bool.or_eq_false.mp hstateRest).2
+        simpa [exprTouchesUnsupportedStateSurface, Bool.or_assoc] using (Bool.or_eq_false_iff.mp hstate).2
+      have hstateThen : exprTouchesUnsupportedStateSurface thenVal = false := (Bool.or_eq_false_iff.mp hstateRest).1
+      have hstateElse : exprTouchesUnsupportedStateSurface elseVal = false := (Bool.or_eq_false_iff.mp hstateRest).2
       have hcallsCond : exprTouchesUnsupportedCallSurface cond = false := by
-        simpa [exprTouchesUnsupportedCallSurface, Bool.or_eq_false] using (Bool.or_eq_false.mp hcalls).1
+        simpa [exprTouchesUnsupportedCallSurface, Bool.or_eq_false_iff] using (Bool.or_eq_false_iff.mp hcalls).1
       have hcallsRest : exprTouchesUnsupportedCallSurface thenVal || exprTouchesUnsupportedCallSurface elseVal = false := by
-        simpa [exprTouchesUnsupportedCallSurface, Bool.or_assoc] using (Bool.or_eq_false.mp hcalls).2
-      have hcallsThen : exprTouchesUnsupportedCallSurface thenVal = false := (Bool.or_eq_false.mp hcallsRest).1
-      have hcallsElse : exprTouchesUnsupportedCallSurface elseVal = false := (Bool.or_eq_false.mp hcallsRest).2
+        simpa [exprTouchesUnsupportedCallSurface, Bool.or_assoc] using (Bool.or_eq_false_iff.mp hcalls).2
+      have hcallsThen : exprTouchesUnsupportedCallSurface thenVal = false := (Bool.or_eq_false_iff.mp hcallsRest).1
+      have hcallsElse : exprTouchesUnsupportedCallSurface elseVal = false := (Bool.or_eq_false_iff.mp hcallsRest).2
       have hcond : exprTouchesUnsupportedContractSurface cond = false :=
-        ihCond (by simpa [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false] using (Bool.or_eq_false.mp hcore).1) hstateCond hcallsCond
+        ihCond (by simpa [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] using (Bool.or_eq_false_iff.mp hcore).1) hstateCond hcallsCond
       have hthen : exprTouchesUnsupportedContractSurface thenVal = false :=
         ihThen (by
           have hcoreRest : exprTouchesUnsupportedCoreSurface thenVal || exprTouchesUnsupportedCoreSurface elseVal = false := by
-            simpa [exprTouchesUnsupportedCoreSurface, Bool.or_assoc] using (Bool.or_eq_false.mp hcore).2
-          exact (Bool.or_eq_false.mp hcoreRest).1) hstateThen hcallsThen
+            simpa [exprTouchesUnsupportedCoreSurface, Bool.or_assoc] using (Bool.or_eq_false_iff.mp hcore).2
+          exact (Bool.or_eq_false_iff.mp hcoreRest).1) hstateThen hcallsThen
       have helse : exprTouchesUnsupportedContractSurface elseVal = false :=
         ihElse (by
           have hcoreRest : exprTouchesUnsupportedCoreSurface thenVal || exprTouchesUnsupportedCoreSurface elseVal = false := by
-            simpa [exprTouchesUnsupportedCoreSurface, Bool.or_assoc] using (Bool.or_eq_false.mp hcore).2
-          exact (Bool.or_eq_false.mp hcoreRest).2) hstateElse hcallsElse
+            simpa [exprTouchesUnsupportedCoreSurface, Bool.or_assoc] using (Bool.or_eq_false_iff.mp hcore).2
+          exact (Bool.or_eq_false_iff.mp hcoreRest).2) hstateElse hcallsElse
       simp [exprTouchesUnsupportedContractSurface, hcond, hthen, helse]
   | shl lhs rhs ihL ihR
   | shr lhs rhs ihL ihR
@@ -2289,7 +2459,7 @@ private theorem stmtTouchesUnsupportedContractSurface_eq_false_of_featureClosed
     exact exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed value hcore hstate hcalls
   case require cond message =>
     exact exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed cond hcore hstate hcalls
-  case return value =>
+  case «return» value =>
     exact exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed value hcore hstate hcalls
   all_goals
     cases hcore
@@ -2318,7 +2488,7 @@ private theorem stmtTouchesUnsupportedContractSurfaceExceptMappingWrites_eq_fals
     exact exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed cond hcore
       (by simpa [stmtTouchesUnsupportedStateSurfaceExceptMappingWrites] using hstate)
       hcalls
-  case return value =>
+  case «return» value =>
     exact exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed value hcore
       (by simpa [stmtTouchesUnsupportedStateSurfaceExceptMappingWrites] using hstate)
       hcalls
@@ -2341,20 +2511,20 @@ private theorem stmtListFeatureClosed_cons_inv
     stmtTouchesUnsupportedEffectSurface stmt = false ∧
     stmtListTouchesUnsupportedEffectSurface rest = false := by
   constructor
-  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
   constructor
-  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
   constructor
-  · simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).1
+  · simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false_iff.mp hstate).1
   constructor
-  · simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false.mp hstate).2
+  · simpa [stmtListTouchesUnsupportedStateSurface] using (Bool.or_eq_false_iff.mp hstate).2
   constructor
-  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).1
+  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false_iff.mp hcalls).1
   constructor
-  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).2
+  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false_iff.mp hcalls).2
   constructor
-  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).1
-  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).2
+  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false_iff.mp heffects).1
+  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false_iff.mp heffects).2
 
 private theorem stmtListFeatureClosedExceptMappingWrites_cons_inv
     (stmt : Stmt)
@@ -2372,22 +2542,22 @@ private theorem stmtListFeatureClosedExceptMappingWrites_cons_inv
     stmtTouchesUnsupportedEffectSurface stmt = false ∧
     stmtListTouchesUnsupportedEffectSurface rest = false := by
   constructor
-  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
   constructor
-  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
-  constructor
-  · simpa [stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites] using
-      (Bool.or_eq_false.mp hstate).1
+  · simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
   constructor
   · simpa [stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites] using
-      (Bool.or_eq_false.mp hstate).2
+      (Bool.or_eq_false_iff.mp hstate).1
   constructor
-  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).1
+  · simpa [stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites] using
+      (Bool.or_eq_false_iff.mp hstate).2
   constructor
-  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false.mp hcalls).2
+  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false_iff.mp hcalls).1
   constructor
-  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).1
-  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false.mp heffects).2
+  · simpa [stmtListTouchesUnsupportedCallSurface] using (Bool.or_eq_false_iff.mp hcalls).2
+  constructor
+  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false_iff.mp heffects).1
+  · simpa [stmtListTouchesUnsupportedEffectSurface] using (Bool.or_eq_false_iff.mp heffects).2
 
 theorem stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed
     (stmts : List Stmt)
@@ -2480,7 +2650,7 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
     | mapping2 _ lhs rhs ihL ihR | mapping2Word _ lhs rhs _ ihL ihR
     | structMember2 _ lhs rhs _ ihL ihR =>
       simp [exprTouchesUnsupportedContractSurface,
-        exprTouchesUnsupportedHelperSurface, ihL, ihR, Bool.or_eq_false] at *
+        exprTouchesUnsupportedHelperSurface, ihL, ihR, Bool.or_eq_false_iff] at *
   | logicalNot expr ih | bitNot expr ih | mapping _ expr ih | mappingUint _ expr ih
     | arrayElement _ expr ih | storageArrayElement _ expr ih
     | mappingWord _ expr _ ih | mappingPackedWord _ expr _ _ ih
@@ -2490,14 +2660,14 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
   | ite cond thenVal elseVal ihCond ihThen ihElse =>
       simp [exprTouchesUnsupportedContractSurface,
         exprTouchesUnsupportedHelperSurface, ihCond, ihThen, ihElse,
-        Bool.or_eq_false] at *
+        Bool.or_eq_false_iff] at *
   | mulDivDown a b c ihA ihB ihC | mulDivUp a b c ihA ihB ihC =>
       simp [exprTouchesUnsupportedContractSurface,
         exprTouchesUnsupportedHelperSurface, ihA, ihB, ihC,
-        Bool.or_eq_false] at *
+        Bool.or_eq_false_iff] at *
   | keccak256 a b ihA ihB =>
       simp [exprTouchesUnsupportedContractSurface,
-        exprTouchesUnsupportedHelperSurface, ihA, ihB, Bool.or_eq_false] at *
+        exprTouchesUnsupportedHelperSurface, ihA, ihB, Bool.or_eq_false_iff] at *
   | mappingChain fieldName keys ih =>
       exact
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed_mappingChain
@@ -2585,9 +2755,9 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
     | ge lhs rhs ihL ihR | gt lhs rhs ihL ihR | lt lhs rhs ihL ihR
     | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR | logicalOr lhs rhs ihL ihR =>
       have hleft : exprTouchesUnsupportedCoreSurface lhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hright : exprTouchesUnsupportedCoreSurface rhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       simp [exprUsesArrayElement, ihL hleft, ihR hright]
   | sdiv | smod | bitAnd | bitOr | bitXor | sgt | slt | min | max
     | wMulDown | wDivUp | shl | shr | sar | signextend | mulDivDown
@@ -2621,9 +2791,9 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
     | ge lhs rhs ihL ihR | gt lhs rhs ihL ihR | lt lhs rhs ihL ihR
     | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR | logicalOr lhs rhs ihL ihR =>
       have hleft : exprTouchesUnsupportedCoreSurface lhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hright : exprTouchesUnsupportedCoreSurface rhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       simp [exprUsesStorageArrayElement, ihL hleft, ihR hright]
   | sdiv | smod | bitAnd | bitOr | bitXor | sgt | slt | min | max
     | wMulDown | wDivUp | shl | shr | sar | signextend | mulDivDown
@@ -2656,9 +2826,9 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
     | ge lhs rhs ihL ihR | gt lhs rhs ihL ihR | lt lhs rhs ihL ihR
     | le lhs rhs ihL ihR | logicalAnd lhs rhs ihL ihR | logicalOr lhs rhs ihL ihR =>
       have hleft : exprTouchesUnsupportedCoreSurface lhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hright : exprTouchesUnsupportedCoreSurface rhs = false := by
-        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [exprTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       simp [exprUsesDynamicBytesEq, ihL hleft, ihR hright]
   | sdiv | smod | bitAnd | bitOr | bitXor | sgt | slt | min | max
     | wMulDown | wDivUp | shl | shr | sar | signextend | mulDivDown
@@ -2676,10 +2846,8 @@ private theorem stmtUsesArrayElement_eq_false_of_coreClosed
     stmtUsesArrayElement stmt = false := by
   cases stmt <;> simp [stmtTouchesUnsupportedCoreSurface, stmtUsesArrayElement] at *
   case letVar name value | assignVar name value | setStorage field value
-    | return value | require value message =>
+    | «return» value | require value message =>
       exact exprUsesArrayElement_eq_false_of_coreClosed hcore
-  case stop =>
-      rfl
 
 private theorem stmtUsesStorageArrayElement_eq_false_of_coreClosed
     {stmt : Stmt}
@@ -2687,10 +2855,8 @@ private theorem stmtUsesStorageArrayElement_eq_false_of_coreClosed
     stmtUsesStorageArrayElement stmt = false := by
   cases stmt <;> simp [stmtTouchesUnsupportedCoreSurface, stmtUsesStorageArrayElement] at *
   case letVar name value | assignVar name value | setStorage field value
-    | return value | require value message =>
+    | «return» value | require value message =>
       exact exprUsesStorageArrayElement_eq_false_of_coreClosed hcore
-  case stop =>
-      rfl
 
 private theorem stmtUsesDynamicBytesEq_eq_false_of_coreClosed
     {stmt : Stmt}
@@ -2698,10 +2864,8 @@ private theorem stmtUsesDynamicBytesEq_eq_false_of_coreClosed
     stmtUsesDynamicBytesEq stmt = false := by
   cases stmt <;> simp [stmtTouchesUnsupportedCoreSurface, stmtUsesDynamicBytesEq] at *
   case letVar name value | assignVar name value | setStorage field value
-    | return value | require value message =>
+    | «return» value | require value message =>
       exact exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore
-  case stop =>
-      rfl
 
 private theorem stmtListUsesArrayElement_eq_false_of_coreClosed
     {stmts : List Stmt}
@@ -2712,9 +2876,9 @@ private theorem stmtListUsesArrayElement_eq_false_of_coreClosed
       rfl
   | cons stmt rest ih =>
       have hstmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hrest : stmtListTouchesUnsupportedCoreSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       simp [stmtListUsesArrayElement, stmtUsesArrayElement_eq_false_of_coreClosed hstmt, ih hrest]
 
 private theorem stmtListUsesStorageArrayElement_eq_false_of_coreClosed
@@ -2726,9 +2890,9 @@ private theorem stmtListUsesStorageArrayElement_eq_false_of_coreClosed
       rfl
   | cons stmt rest ih =>
       have hstmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hrest : stmtListTouchesUnsupportedCoreSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       simp [stmtListUsesStorageArrayElement,
         stmtUsesStorageArrayElement_eq_false_of_coreClosed hstmt, ih hrest]
 
@@ -2741,9 +2905,9 @@ private theorem stmtListUsesDynamicBytesEq_eq_false_of_coreClosed
       rfl
   | cons stmt rest ih =>
       have hstmt : stmtTouchesUnsupportedCoreSurface stmt = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).1
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).1
       have hrest : stmtListTouchesUnsupportedCoreSurface rest = false := by
-        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false.mp hcore).2
+        simpa [stmtListTouchesUnsupportedCoreSurface] using (Bool.or_eq_false_iff.mp hcore).2
       simp [stmtListUsesDynamicBytesEq,
         stmtUsesDynamicBytesEq_eq_false_of_coreClosed hstmt, ih hrest]
 
@@ -2771,6 +2935,12 @@ theorem SupportedSpecExceptMappingWrites.noInternalFunctions
     ∀ fn ∈ spec.functions, fn.isInternal = false := by
   intro fn hmem
   exact (hSupported.functions fn hmem).nonInternal
+
+theorem SupportedSpec.noConstructor
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    spec.constructor = none :=
+  hSupported.surface.noConstructor
 
 theorem SupportedSpec.contractUsesArrayElement_eq_false
     {spec : CompilationModel} {selectors : List Nat}
@@ -2916,12 +3086,6 @@ theorem SupportedSpecExceptMappingWrites.functionNamesNodup
     (spec.functions.map (·.name)).Nodup :=
   hSupported.invariants.functionNamesNodup
 
-theorem SupportedSpec.noConstructor
-    {spec : CompilationModel} {selectors : List Nat}
-    (hSupported : SupportedSpec spec selectors) :
-    spec.constructor = none :=
-  hSupported.surface.noConstructor
-
 theorem SupportedSpecExceptMappingWrites.noConstructor
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
@@ -2988,7 +3152,7 @@ theorem SupportedSpecExceptMappingWrites.noReceive
     ∀ fn ∈ spec.functions, fn.name != "receive" :=
   hSupported.surface.noReceive
 
-theorem SupportedSpec.supportedFunctionOfSelectorDispatched
+def SupportedSpec.supportedFunctionOfSelectorDispatched
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpec spec selectors)
     {fn : FunctionSpec}
@@ -2999,7 +3163,7 @@ theorem SupportedSpec.supportedFunctionOfSelectorDispatched
   have hmem : fn ∈ spec.functions := (List.mem_filter.mp hfiltered).1
   exact hSupported.functions fn hmem
 
-theorem SupportedSpecExceptMappingWrites.supportedFunctionOfSelectorDispatched
+def SupportedSpecExceptMappingWrites.supportedFunctionOfSelectorDispatched
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors)
     {fn : FunctionSpec}
@@ -3232,7 +3396,7 @@ private theorem counter_supported_function :
            effects := { surfaceClosed := by decide }
            noLocalObligations := rfl } }
 
-theorem counter_supported_spec : SupportedSpec counterSupportedSpecModel
+def counter_supported_spec : SupportedSpec counterSupportedSpecModel
     [0xa87d942c] := by
   refine
     { invariants :=
@@ -3322,7 +3486,7 @@ private theorem simpleStorage_supported_function :
            effects := { surfaceClosed := by decide }
            noLocalObligations := rfl } }
 
-theorem simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
+def simpleStorage_supported_spec : SupportedSpec simpleStorageSupportedSpecModel
     [0x2e64cec1] := by
   refine
     { invariants :=
