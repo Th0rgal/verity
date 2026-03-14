@@ -903,8 +903,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_stop_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_stop_core_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_implies_onExpr
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exprBoundNamesPresent_of_scope
@@ -1027,8 +1025,6 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_ite_then_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_ite_else_eq
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_then
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_else
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
@@ -1804,4 +1800,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1673 theorems/lemmas (1248 public, 425 private)
+-- Total: 1669 theorems/lemmas (1244 public, 425 private)
