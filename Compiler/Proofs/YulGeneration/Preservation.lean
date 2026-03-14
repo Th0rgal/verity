@@ -259,20 +259,33 @@ a fixed overhead. The nesting is:
 `[block [let_, if_, if_ [switch selectorExpr (switchCases fns) (some default)]]]`. -/
 private theorem sizeOf_buildSwitch_ge_switchCases
     (fns : List IRFunction) :
-    sizeOf [Compiler.buildSwitch fns none none] ≥ sizeOf (switchCases fns) + 9 := by
+    sizeOf [Compiler.CodegenCommon.buildSwitch fns none none] ≥ sizeOf (switchCases fns) + 9 := by
   -- sizeOf [x] = sizeOf x + 2
-  have h_list : sizeOf [Compiler.buildSwitch fns none none] ≥
-      sizeOf (Compiler.buildSwitch fns none none) + 2 := by
-    show 1 + sizeOf (Compiler.buildSwitch fns none none) + 1 ≥ _; omega
-  suffices h : sizeOf (Compiler.buildSwitch fns none none) ≥ sizeOf (switchCases fns) + 7 by omega
+  have h_list : sizeOf [Compiler.CodegenCommon.buildSwitch fns none none] ≥
+      sizeOf (Compiler.CodegenCommon.buildSwitch fns none none) + 2 := by
+    show 1 + sizeOf (Compiler.CodegenCommon.buildSwitch fns none none) + 1 ≥ _; omega
+  suffices h : sizeOf (Compiler.CodegenCommon.buildSwitch fns none none) ≥
+      sizeOf (switchCases fns) + 7 by
+    omega
   -- Unfold buildSwitch, simplify the sortCasesBySelector=false branch, fold map to switchCases
-  change sizeOf (Compiler.buildSwitch fns (sortCasesBySelector := false)) ≥ _
-  unfold Compiler.buildSwitch
-  simp only [ite_false, Bool.false_eq_true, Compiler.defaultDispatchCase]
-  rw [show (fns.map (fun fn => (fn.selector,
-      dispatchBody fn.payable s!"{fn.name}()"
-        ([calldatasizeGuard fn.params.length] ++ fn.body)))) =
-    switchCases fns from by simp [switchCases, switchCaseBody, dispatchBody]]
+  change sizeOf (Compiler.CodegenCommon.buildSwitch fns none none false) ≥ _
+  unfold Compiler.CodegenCommon.buildSwitch
+  simp only [ite_false, Bool.false_eq_true, Compiler.CodegenCommon.defaultDispatchCase]
+  have hcases :
+      (fns.map (fun fn =>
+        (fn.selector,
+          Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+            ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))) =
+        switchCases fns := by
+    induction fns with
+    | nil =>
+        simp [switchCases]
+    | cons fn rest ih =>
+        cases hpay : fn.payable <;>
+          simp [switchCases, switchCaseBody, dispatchBody,
+            Compiler.CodegenCommon.dispatchBody, Compiler.callvalueGuard,
+            Compiler.calldatasizeGuard, hpay, ih]
+  rw [hcases]
   -- Name sub-expressions and decompose sizeOf level by level (simp normalizes
   -- auto-generated SizeOf instances; omega closes the arithmetic)
   set defaultStmts : List YulStmt :=
@@ -294,7 +307,7 @@ private theorem sizeOf_buildSwitch_ge_switchCases
 private theorem sizeOf_buildSwitch_ge_fn_body
     {fns : List IRFunction} {fn : IRFunction}
     (hmem : fn ∈ fns) :
-    sizeOf [Compiler.buildSwitch fns none none] ≥ sizeOf fn.body + 12 := by
+    sizeOf [Compiler.CodegenCommon.buildSwitch fns none none] ≥ sizeOf fn.body + 12 := by
   have h1 := sizeOf_buildSwitch_ge_switchCases fns
   have h2 := sizeOf_switchCases_gt_body hmem
   have h3 := sizeOf_switchCaseBody_ge fn
@@ -327,19 +340,57 @@ private theorem sizeOf_buildSwitch_ge_fn_body
     | .revert s => .revert s) = r := by
   cases r <;> rfl
 
+/-- Executing a singleton statement list consumes one list-step of fuel. -/
+@[simp] private theorem execYulStmtsFuel_singleton_succ_bridge
+    (fuel : Nat) (state : YulState) (stmt : YulStmt) :
+    execYulStmtsFuel (fuel + 2) state [stmt] = execYulStmtFuel (fuel + 1) state stmt := by
+  simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
+  cases hExec : execYulFuel (fuel + 1) state (.stmt stmt) <;> simp
+
+/-- Fueled `if_` step: a zero condition skips the body and continues unchanged. -/
+@[simp] private theorem execYulStmtFuel_if_zero_continue_bridge
+    (fuel : Nat) (state : YulState) (cond : YulExpr) (body : List YulStmt)
+    (hEval : evalYulExpr state cond = some 0) :
+    execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = .continue state := by
+  simp [execYulStmtFuel, execYulFuel, hEval]
+
+/-- Fueled `if_` step: a nonzero condition executes the body with decremented fuel. -/
+@[simp] private theorem execYulStmtFuel_if_nonzero_exec_bridge
+    (fuel : Nat) (state : YulState) (cond : YulExpr) (body : List YulStmt) (v : Nat)
+    (hEval : evalYulExpr state cond = some v) (hNonzero : v ≠ 0) :
+    execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = execYulStmtsFuel fuel state body := by
+  simpa [execYulStmtsFuel] using
+    (by simp [execYulStmtFuel, execYulFuel, hEval, hNonzero] :
+      execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) =
+        execYulFuel fuel state (.stmts body))
+
+/-- Zero fuel on a non-empty statement list always reverts. -/
+@[simp] private theorem execYulStmtsFuel_zero_of_ne_nil_bridge
+    (state : YulState) (stmts : List YulStmt) (hNe : stmts ≠ []) :
+    execYulStmtsFuel 0 state stmts = .revert state := by
+  cases stmts with
+  | nil => cases hNe rfl
+  | cons stmt rest =>
+      simp [execYulStmtsFuel, execYulFuel]
+
 /-- `callvalueGuard` is a no-op when the execution context observes zero
     `callvalue()` modulo `2^256`, matching `DispatchGuardsSafe`. -/
 private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState)
     (hMsgValue : state.msgValue % evmModulus = 0) :
     execYulStmtsFuel (fuel + 2) state [Compiler.callvalueGuard] =
       YulExecResult.continue state := by
-  have hs : fuel + 2 = Nat.succ (Nat.succ fuel) := by omega
-  rw [hs]
   have hCallvalue : evalYulExpr state (YulExpr.call "callvalue" []) = some 0 := by
     simp [hMsgValue, evalYulExpr, evalYulCall, evalYulExprs,
       evalBuiltinCallWithBackend, evalBuiltinCall, evalBuiltinCallWithBackendContext,
       evalBuiltinCallWithContext]
-  simp [Compiler.callvalueGuard, execYulStmtsFuel, execYulFuel, hCallvalue]
+  have hstmt :
+      execYulStmtFuel (fuel + 1) state Compiler.callvalueGuard = .continue state := by
+    simpa [Compiler.callvalueGuard] using
+      (execYulStmtFuel_if_zero_continue_bridge fuel state
+        (YulExpr.call "callvalue" [])
+        [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+        hCallvalue)
+  simpa [execYulStmtsFuel_singleton_succ_bridge] using hstmt
 
 /-- If calldata is too short for the expected arity, the singleton
     `calldatasizeGuard` list reverts. This is the smallest checked short-arity
@@ -360,15 +411,24 @@ private theorem exec_calldatasizeGuard_revert_of_short_noWrap
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
       evalBuiltinCallWithContext, hLtTrue, Nat.mod_eq_of_lt hDataNoWrap,
       Nat.mod_eq_of_lt hParamNoWrap]
-  cases fuel with
-  | zero =>
-      simp [Compiler.calldatasizeGuard, execYulStmtsFuel, execYulFuel, hEval]
-  | succ fuel =>
-      cases fuel with
-      | zero =>
-          simp [Compiler.calldatasizeGuard, execYulStmtsFuel, execYulFuel, hEval]
-      | succ fuel =>
-          simp [Compiler.calldatasizeGuard, execYulStmtsFuel, execYulFuel, hEval]
+  have hguard :
+      execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard numParams) =
+        execYulStmtsFuel fuel state [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] := by
+    simpa [Compiler.calldatasizeGuard] using
+      (execYulStmtFuel_if_nonzero_exec_bridge fuel state
+        (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)])
+        [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+        1 hEval one_ne_zero)
+  have hRevertBody :
+      execYulStmtsFuel fuel state [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] =
+        .revert state := by
+    cases fuel with
+    | zero =>
+        simpa using execYulStmtsFuel_zero_of_ne_nil_bridge state
+          [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] (by simp)
+    | succ k =>
+        cases k <;> simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
+  rw [execYulStmtsFuel_singleton_succ_bridge, hguard, hRevertBody]
 
 /-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
 
@@ -390,7 +450,14 @@ private theorem exec_calldatasizeGuard_noop_of_noWrap
         some 0 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
       evalBuiltinCallWithContext, hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
-  simp [Compiler.calldatasizeGuard, execYulStmtsFuel, execYulFuel, hEval]
+  have hstmt :
+      execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard numParams) = .continue state := by
+    simpa [Compiler.calldatasizeGuard] using
+      (execYulStmtFuel_if_zero_continue_bridge fuel state
+        (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)])
+        [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+        hEval)
+  simpa [execYulStmtsFuel_singleton_succ_bridge] using hstmt
 
 /-! ### buildSwitch stepping axiom
 
@@ -464,7 +531,7 @@ private theorem eval_hasSelector_after_set (state : YulState) :
 private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : YulState)
     (fns : List IRFunction)
     (hNoWrap : 4 + state.calldata.length * 32 < evmModulus) :
-    execYulStmtsFuel (fuel + 6) state [Compiler.buildSwitch fns none none] =
+    execYulStmtsFuel (fuel + 6) state [Compiler.CodegenCommon.buildSwitch fns none none] =
       execYulStmtsFuel fuel (state.setVar "__has_selector" 1)
         [YulStmt.switch selectorExpr (switchCases fns)
           (some (switchDefaultCase none none))] := by
@@ -486,7 +553,7 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
     simp [evalYulExpr, evalYulCall, evalYulExprs,
       evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, hIdentEval]
   rw [show fuel + 6 = (fuel + 4) + 2 by omega, execYulStmtsFuel_singleton_succ_local]
-  simp only [Compiler.buildSwitch, execYulStmtFuel, execYulFuel]
+  simp only [Compiler.CodegenCommon.buildSwitch, execYulStmtFuel, execYulFuel]
   simp [state', execYulStmtsFuel, hHasSelectorEval, hIfZeroEval, hIdentEval,
     switchCases, switchCaseBody, dispatchBody, selectorExpr, switchDefaultCase]
   exact yulExecResult_match_id _
@@ -525,7 +592,14 @@ private theorem buildSwitch_cases_eq_switchCases (fns : List IRFunction) :
         dispatchBody fn.payable s!"{fn.name}()"
           ([calldatasizeGuard fn.params.length] ++ fn.body)))) =
       switchCases fns := by
-  simp [switchCases, switchCaseBody, dispatchBody]
+  induction fns with
+  | nil =>
+      simp [switchCases]
+  | cons fn rest ih =>
+      cases hpay : fn.payable <;>
+        simp [switchCases, switchCaseBody, dispatchBody,
+          Compiler.CodegenCommon.dispatchBody, Compiler.callvalueGuard,
+          Compiler.calldatasizeGuard, hpay, ih]
 
 /-- Normalize switch-case lookup to function-list lookup.
     This removes `List.find?_map` noise from mechanical `buildSwitch` proofs. -/
@@ -1240,14 +1314,16 @@ theorem yulCodegen_preserves_semantics
     args := tx.args
   }
   -- Abbreviations for the funcDef prefix and buildSwitch suffix.
-  set prefix_ := (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+  set prefix_ := (if contract.usesMapping then [Compiler.CodegenCommon.mappingSlotFuncAt 0] else []) ++
     contract.internalFunctions with hPrefixDef
-  set switchStmt := Compiler.buildSwitch contract.functions contract.fallbackEntrypoint
+  set switchStmt := Compiler.CodegenCommon.buildSwitch contract.functions contract.fallbackEntrypoint
     contract.receiveEntrypoint with hSwitchDef
   have hRuntimeEq : Compiler.runtimeCode contract = prefix_ ++ [switchStmt] := by
-    simp [Compiler.runtimeCode, List.append_assoc, hPrefixDef, hSwitchDef]
-  have hPrefixFD := runtimeCode_prefix_allFuncDefs contract hWF
-  rw [← hPrefixDef] at hPrefixFD
+    simpa [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode, hPrefixDef, hSwitchDef,
+      List.append_assoc]
+  have hPrefixFD :
+      ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b := by
+    simpa [hPrefixDef, Compiler.mappingSlotFuncAt] using runtimeCode_prefix_allFuncDefs contract hWF
   have hFuel : sizeOf (prefix_ ++ [switchStmt]) + 1 ≥ prefix_.length := by
     have h1 : prefix_.length ≤ (prefix_ ++ [switchStmt]).length := by simp
     have h2 : (prefix_ ++ [switchStmt]).length ≤ sizeOf (prefix_ ++ [switchStmt]) :=
@@ -1261,11 +1337,15 @@ theorem yulCodegen_preserves_semantics
   have hAdjGe : adjustedFuel ≥ 10 := by
     have : sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length ≥ sizeOf [switchStmt] + 1 := by
       have := sizeOf_append_ge_length_add prefix_ [switchStmt]; omega
-    have : sizeOf [switchStmt] ≥ 9 := by rw [hSwitchDef]; simp [Compiler.buildSwitch]; omega
+    have : sizeOf [switchStmt] ≥ 9 := by
+      rw [hSwitchDef]
+      simp [Compiler.CodegenCommon.buildSwitch]
+      omega
     omega
   obtain ⟨m, hm⟩ : ∃ m, adjustedFuel = m + 10 := ⟨adjustedFuel - 10, by omega⟩
   -- Simplify buildSwitch with known fallback/receive = none.
-  have hSwitchSimp : switchStmt = Compiler.buildSwitch contract.functions none none := by
+  have hSwitchSimp :
+      switchStmt = Compiler.CodegenCommon.buildSwitch contract.functions none none := by
     rw [hSwitchDef, hNoFallback, hNoReceive]
   -- Selector modulus pre-computation.
   have hpow : (2 : Nat) ^ selectorShift > 0 := by simp [selectorShift]
