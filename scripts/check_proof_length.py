@@ -456,6 +456,12 @@ ALLOWLIST: set[str] = {
     # List.find? / Option.bind witness extraction needed to recover the
     # unique internal function from the compiled helper table.
     "findUniqueInternalFunction",
+    # GenericInduction sorry-based migration (Lean 4.22 / evalExpr Option Nat):
+    # these sorry'd theorems have long type signatures from the helper-aware
+    # induction seam; proof bodies are just `sorry` but the declarations
+    # exceed the limit due to deeply nested hypothesis lists.
+    "directInternalHelperHeadStepCatalog_of_compileCatalog_and_semanticBridgeCatalog",
+    "internalFunctionYulName_ne_return",
 }
 
 # Directories containing proof files to scan.
