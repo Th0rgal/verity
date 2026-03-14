@@ -254,6 +254,8 @@ def genTransaction (contractType : ContractType) (rng : RNG) : Except String (RN
   let (rng, timestamp) := genTimestamp rng
   let result := match contractType with
   | ContractType.simpleStorage => Except.ok (genSimpleStorageTx rng)
+  | ContractType.localObligationMacroSmoke =>
+      Except.error "Random transaction generation not implemented for LocalObligationMacroSmoke"
   | ContractType.counter => Except.ok (genCounterTx rng)
   | ContractType.safeCounter => Except.ok (genSafeCounterTx rng)
   | ContractType.owned => Except.ok (genOwnedTx rng)
@@ -306,6 +308,7 @@ def main (args : List String) : IO Unit := do
       | none => throw <| IO.userError s!"Invalid seed: {seedStr}"
     let contractTypeEnum? : Option ContractType := match contractType with
       | "SimpleStorage" => some ContractType.simpleStorage
+      | "LocalObligationMacroSmoke" => some ContractType.localObligationMacroSmoke
       | "Counter" => some ContractType.counter
       | "Owned" => some ContractType.owned
       | "Ledger" => some ContractType.ledger
