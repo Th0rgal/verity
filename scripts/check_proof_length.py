@@ -183,6 +183,13 @@ ALLOWLIST: set[str] = {
     "eval_compileExpr_logicalOr_of_compiled",
     "compileRequireFailCond_core_ok",
     "eval_compileRequireFailCond_core_onExpr",
+    # FunctionBody comparison proofs adapted for evalExpr Option Nat migration:
+    # each carries an explicit Option.bind case-split that adds ~10 lines over
+    # the main-branch version; splitting further would just duplicate plumbing.
+    "eval_compileExpr_ge_of_compiled",
+    "eval_compileExpr_le_of_compiled",
+    "exec_compileStmt_letVar_core",
+    "exec_compileStmt_assignVar_core",
     "exec_compileStmt_return_core",
     # Helper-table closure theorem for the exact helper-aware Layer 2 seam
     # (Issue #1630 follow-up): long because it destructures the whole

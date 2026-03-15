@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Expected sorry count matches actual.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 225  # 15 Morpho admin tail + 5 SourceSemantics (Lean 4.22 equation lemma heartbeat cap) + 6 FunctionBody (evalExpr Option Nat migration) + 149 GenericInduction + 41 Function + 7 Dispatch + 2 Contract (sorry-based migration)
+    expected_sorry = 223  # 15 TypedIRCompilerCorrectness (Morpho admin tail) + 5 SourceSemantics (Lean 4.22 equation lemma heartbeat cap) + 6 FunctionBody (evalExpr Option Nat migration) + 149 GenericInduction + 41 Function + 7 Dispatch
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

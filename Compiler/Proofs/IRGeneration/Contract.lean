@@ -871,7 +871,35 @@ theorem compileFunctionSpec_correct_generic
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-        sorry
+  have hfnModel : fn ∈ model.functions := List.mem_of_mem_filter hfn
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, hvalidate, hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  have hcorrect :=
+    Function.supported_function_correct
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hvalidateInputs := hvalidateInputs)
+    (fn := fn)
+    (selector := sel)
+    (returns := returns)
+    (bodyStmts := bodyStmts)
+    (irFn := Function.compiledFunctionIR sel fn returns bodyStmts)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (bindings := bindings)
+    (hfn := hfn)
+    (hvalidate := hvalidate)
+    (hreturns := hreturns)
+    (hbodyCompile := hbodyCompile)
+    (hcompile := by simpa using hcompileFn)
+    (hbind := hbind)
+    (hcalldataSizeFits := hcalldataSizeFits)
+  simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+    (hSupported := hSupported) hfn tx initialWorld] using hcorrect
 /-- Tier 2 generic function-level closure from
 `SupportedSpecExceptMappingWrites` and successful `compileFunctionSpec`. This
 exposes the widened singleton storage-write fragment on the same public theorem
@@ -897,7 +925,27 @@ theorem compileFunctionSpec_correct_generic_except_mapping_writes
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemanticsExceptMappingWrites model selectors hSupported fn tx initialWorld)
       (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-        sorry
+  have hfnModel : fn ∈ model.functions := List.mem_of_mem_filter hfn
+  have hcorrect :=
+    Function.supported_function_correct_except_mapping_writes
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (fn := fn)
+    (selector := sel)
+    (irFn := irFn)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (bindings := bindings)
+    (hfn := hfn)
+    (hcompileFn := hcompileFn)
+    (hbind := hbind)
+    (hnoConflict := hnoConflict)
+    (hsafety := hsafety)
+    (htxNormalized := htxNormalized)
+    (hcalldataSizeFits := hcalldataSizeFits)
+  simpa [supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
+    (hSupported := hSupported) hfn tx initialWorld] using hcorrect
 /-- Helper-proof-carrying function-level generic theorem.
 This is the proof-ready theorem surface for the next helper-composition step.
 Today the additional helper-proof argument is compatibility-redundant because
