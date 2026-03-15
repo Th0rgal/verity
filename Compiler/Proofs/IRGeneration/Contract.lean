@@ -202,13 +202,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
                                   exact .block _ _ (.let_ _ _ _ (legacyCompatibleExternalStmtList_of_exprStmtMap _ _)) .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {name : String}
     {value : Expr}
     {bodyIR : List Yul.YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.letVar name value) =
+        fields events errors .calldata [] false inScopeNames (.letVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
@@ -219,13 +221,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
           simp [pure, Except.pure]; intro h; subst h; exact .let_ _ _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {name : String}
     {value : Expr}
     {bodyIR : List Yul.YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.assignVar name value) =
+        fields events errors .calldata [] false inScopeNames (.assignVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
@@ -236,13 +240,15 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
           simp [pure, Except.pure]; intro h; subst h; exact .assign _ _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {cond : Expr}
     {message : String}
     {bodyIR : List Yul.YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.require cond message) =
+        fields events errors .calldata [] false inScopeNames (.require cond message) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
@@ -255,12 +261,14 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
             (legacyCompatibleExternalStmtList_revertWithMessage message) .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {value : Expr}
     {bodyIR : List Yul.YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames (.«return» value) =
+        fields events errors .calldata [] false inScopeNames (.«return» value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       -- isInternal = false, so produces [mstore(0, val), return(0, 32)]
@@ -273,17 +281,21 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
           exact .expr _ _ (.expr _ _ .nil)
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {bodyIR : List Yul.YulStmt}
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames .stop =
+        fields events errors .calldata [] false inScopeNames .stop =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       simp only [CompilationModel.compileStmt, pure, Except.pure] at hcompile
       cases hcompile; exact .expr _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {stmt : Stmt}
     {bodyIR : List Yul.YulStmt}
@@ -291,7 +303,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedC
     (hsurface : stmtTouchesUnsupportedContractSurface stmt = false)
     (hcompile :
       CompilationModel.compileStmt
-        fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
+        fields events errors .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       cases stmt with
       | letVar _ _ => exact legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar hcompile
@@ -391,6 +403,8 @@ private theorem legacyCompatibleExternalStmtList_genParamLoads_of_supported
         (legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported _ _ _ _ _ _ hparams)
 private theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
     {fields : List Field}
+    {events : List EventDef}
+    {errors : List ErrorDef}
     {inScopeNames : List String}
     {stmts : List Stmt}
     {bodyIR : List Yul.YulStmt}
@@ -398,7 +412,7 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_suppor
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
     (hcompile :
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
+        fields events errors .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       induction stmts generalizing bodyIR inScopeNames with
       | nil =>
@@ -409,10 +423,10 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_suppor
           obtain ⟨hstmt, hrest_surface⟩ := hsurface
           simp only [CompilationModel.compileStmtList, bind, Except.bind] at hcompile
           revert hcompile
-          cases hhead : CompilationModel.compileStmt fields [] [] .calldata [] false inScopeNames stmt with
+          cases hhead : CompilationModel.compileStmt fields events errors .calldata [] false inScopeNames stmt with
           | error e => simp
           | ok headIR =>
-              cases htail : CompilationModel.compileStmtList fields [] [] .calldata [] false _ rest with
+              cases htail : CompilationModel.compileStmtList fields events errors .calldata [] false _ rest with
               | error e => simp
               | ok tailIR =>
                   simp [pure, Except.pure]; intro h; subst h
@@ -726,45 +740,34 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
     (hcompileFn :
       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
     LegacyCompatibleExternalStmtList irFn.body := by
-      sorry
--- private theorem compiled_functions_legacyCompatibleExternalBodies
---     (model : CompilationModel)
---     (selectors : List Nat)
---     (hSupported : SupportedSpec model selectors) :
---     ∀ {entries irFns},
---       List.Forall₂
---         (fun entry irFn =>
---           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
---         entries
---         irFns →
---       (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
---       ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body
---   | [], [], .nil, _ => by
---       intro irFn hmem
---       cases hmem
---   | entry :: entries, irFn :: irFns, .cons hhead htail, hentries => by
---       intro target hmem
---       cases hmem with
---       | head =>
---           exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
---             (model := model)
---             (selectors := selectors)
---             (hSupported := hSupported)
---             (fn := entry.1)
---             (sel := entry.2)
---             (irFn := irFn)
---             (hfn := hentries entry (by simp))
---             (hcompileFn := hhead)
---       | tail hmem =>
---           exact compiled_functions_legacyCompatibleExternalBodies
---             (model := model)
---             (selectors := selectors)
---             (hSupported := hSupported)
---             htail
---             (fun other hmemEntry => hentries other (by simp [hmemEntry]))
---             target
---             hmem
-
+      have hfnSupp := hSupported.supportedFunctionOfSelectorDispatched hfn
+      have hBody := hfnSupp.body
+      have hnoPacked := hSupported.noPackedFields
+      have hsurface : stmtListTouchesUnsupportedContractSurface fn.body = false :=
+        stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
+          hBody.core.surfaceClosed hBody.state.surfaceClosed
+          (SupportedBodyCallInterface.surfaceClosed hBody) hBody.effects.surfaceClosed
+      -- Unfold compileFunctionSpec and extract monadic steps
+      simp only [compileFunctionSpec, bind, Except.bind] at hcompileFn
+      revert hcompileFn
+      cases hval : validateFunctionSpec fn with
+      | error e => simp
+      | ok _ =>
+          cases hret : functionReturns fn with
+          | error e => simp
+          | ok returns =>
+              cases hbody : CompilationModel.compileStmtList
+                  model.fields model.events model.errors .calldata [] false
+                  (fn.params.map (·.name)) fn.body with
+              | error e => simp
+              | ok bodyStmts =>
+                  simp [pure, Except.pure]; intro h; subst h
+                  -- irFn.body = genParamLoads fn.params ++ bodyStmts
+                  apply legacyCompatibleExternalStmtList_append
+                  · exact legacyCompatibleExternalStmtList_genParamLoads_of_supported
+                      fn.params hfnSupp.params.supported
+                  · exact legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+                      hnoPacked hsurface hbody
 theorem compile_ok_yields_legacyCompatibleExternalBodies
     (model : CompilationModel)
     (selectors : List Nat)
