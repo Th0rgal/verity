@@ -4715,12 +4715,20 @@ theorem stmtListGenericCore_append
         (List.foldl stmtNextScope scope pfx)
         suffix) :
     StmtListGenericCore fields scope (pfx ++ suffix) := by
-      sorry
+      induction hprefix with
+      | nil => exact hsuffix
+      | cons hstep _ ih => exact .cons hstep (ih hsuffix)
 private theorem scopeNamesIncluded_foldl_stmtNextScope
     {scope : List String}
     {stmts : List Stmt} :
     FunctionBody.scopeNamesIncluded scope (List.foldl stmtNextScope scope stmts) := by
-      sorry
+      induction stmts generalizing scope with
+      | nil => exact fun _ h => h
+      | cons stmt rest ih =>
+        intro name hmem
+        have hmem' : name ∈ stmtNextScope scope stmt :=
+          List.mem_append_right _ hmem
+        exact @ih (stmtNextScope scope stmt) name hmem'
 theorem compileStmtList_ok_of_stmtListGenericCore
     {fields : List Field}
     {scope inScopeNames : List String}
@@ -4763,7 +4771,12 @@ theorem stmtStepMatchesIRExec_of_included
     (hmatch : stmtStepMatchesIRExec fields largerScope sourceResult irExec)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
     stmtStepMatchesIRExec fields scope sourceResult irExec := by
-      sorry
+      cases sourceResult <;> cases irExec <;>
+        simp only [stmtStepMatchesIRExec] at hmatch ⊢ <;>
+        try exact hmatch
+      obtain ⟨hrt, hbind, hbdd, hpres⟩ := hmatch
+      exact ⟨hrt, fun name hm => hbind name (hincluded name hm), hbdd,
+        fun name hm => hpres name (hincluded name hm)⟩
 theorem stmtStepMatchesIRExecWithInternals_of_included
     {fields : List Field}
     {scope largerScope : List String}
@@ -4772,7 +4785,12 @@ theorem stmtStepMatchesIRExecWithInternals_of_included
     (hmatch : stmtStepMatchesIRExecWithInternals fields largerScope sourceResult irExec)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
     stmtStepMatchesIRExecWithInternals fields scope sourceResult irExec := by
-      sorry
+      cases irExec <;> cases sourceResult <;>
+        simp only [stmtStepMatchesIRExecWithInternals, stmtStepMatchesIRExec] at hmatch ⊢ <;>
+        try exact hmatch
+      obtain ⟨hrt, hbind, hbdd, hpres⟩ := hmatch
+      exact ⟨hrt, fun name hm => hbind name (hincluded name hm), hbdd,
+        fun name hm => hpres name (hincluded name hm)⟩
 theorem stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
     {fields : List Field}
     {scope : List String}
@@ -4780,7 +4798,8 @@ theorem stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
     {irExec : IRExecResult}
     (hmatch : stmtStepMatchesIRExec fields scope sourceResult irExec) :
     FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec := by
-      sorry
+      cases sourceResult <;> cases irExec <;>
+        simp_all [stmtStepMatchesIRExec, FunctionBody.stmtResultMatchesIRExec]
 theorem stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals
     {fields : List Field}
     {scope : List String}
@@ -4789,11 +4808,22 @@ theorem stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithIn
     (hmatch :
       stmtStepMatchesIRExecWithInternals fields scope sourceResult irExec) :
     stmtResultMatchesIRExecWithInternals fields sourceResult irExec := by
-      sorry
+      cases irExec <;> cases sourceResult <;>
+        simp_all [stmtStepMatchesIRExecWithInternals, stmtResultMatchesIRExecWithInternals,
+          stmtStepMatchesIRExec, FunctionBody.stmtResultMatchesIRExec]
 private theorem yulStmtList_sizeOf_append_left_le
     (head tail : List YulStmt) :
     sizeOf head ≤ sizeOf (head ++ tail) := by
-      sorry
+      induction head with
+      | nil =>
+        simp only [List.nil_append]
+        cases tail with
+        | nil => exact Nat.le_refl _
+        | cons h t => simp only [sizeOf, List._sizeOf_1]; omega
+      | cons x rest ih =>
+        simp only [List.cons_append]
+        show 1 + sizeOf x + sizeOf rest ≤ 1 + sizeOf x + sizeOf (rest ++ tail)
+        exact Nat.add_le_add_left ih _
 private theorem scopeNamesIncluded_stmtNextScope
     {scope inScopeNames : List String}
     {stmt : Stmt}
@@ -4801,7 +4831,11 @@ private theorem scopeNamesIncluded_stmtNextScope
     FunctionBody.scopeNamesIncluded
       (stmtNextScope scope stmt)
       (collectStmtNames stmt ++ inScopeNames) := by
-        sorry
+        intro name hmem
+        simp only [stmtNextScope, List.mem_append] at hmem ⊢
+        cases hmem with
+        | inl h => exact Or.inl h
+        | inr h => exact Or.inr (hincluded name h)
 private theorem execIRStmts_append_of_continue
     (fuel : Nat)
     (state next : IRState)

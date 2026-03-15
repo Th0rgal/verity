@@ -1267,15 +1267,15 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore
--- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_foldl_stmtNextScope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericCore  -- sorry
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericWithHelpers  -- sorry
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_of_included  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_of_included  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_of_included
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_of_included
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals
 -- #print axioms Compiler.Proofs.IRGeneration.yulStmtList_sizeOf_append_left_le  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_stmtNextScope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmts_append_of_continue  -- private
@@ -1790,4 +1790,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1659 theorems/lemmas (1001 active, 424 private, 234 sorry)
+-- Total: 1659 theorems/lemmas (1006 active, 424 private, 229 sorry)
