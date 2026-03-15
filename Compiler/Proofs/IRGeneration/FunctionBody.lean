@@ -7576,10 +7576,27 @@ theorem execStmtList_terminal_core_ite_then_eq
     {cond : Expr}
     {thenBranch elseBranch rest : List Stmt}
     (hthen : StmtListTerminalCore scope thenBranch)
-    (hcondTrue : (SourceSemantics.evalExpr fields runtime cond != some 0) = true) :
+    (hcondTrue : (SourceSemantics.evalExpr fields runtime cond != some 0) = true)
+    (hcondSome : (SourceSemantics.evalExpr fields runtime cond).isSome = true) :
     SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
       SourceSemantics.execStmtList fields runtime thenBranch := by
-        sorry
+  cases hevalCond : SourceSemantics.evalExpr fields runtime cond with
+  | none => simp [hevalCond] at hcondSome
+  | some condVal =>
+    have hne : (condVal != 0) = true := by
+      rw [hevalCond] at hcondTrue
+      simpa using hcondTrue
+    rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hevalCond]
+    simp [hne]
+    cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec]
+    rename_i next
+    exact False.elim <|
+      execStmtList_terminal_core_not_continue
+        (fields := fields)
+        (runtime := runtime)
+        (scope := scope)
+        (stmts := thenBranch)
+        hthen next hthenExec
 
 theorem execStmtList_terminal_core_ite_else_eq
     {fields : List Field}
