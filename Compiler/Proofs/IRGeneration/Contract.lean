@@ -160,9 +160,10 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
     {fieldName : String}
     {value : Expr}
     {bodyIR : List Yul.YulStmt}
+    {requireAddr : Bool}
     (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
     (hcompile :
-      CompilationModel.compileSetStorage fields .calldata fieldName value =
+      CompilationModel.compileSetStorage fields .calldata fieldName value requireAddr =
         Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
       simp only [CompilationModel.compileSetStorage, bind, Except.bind] at hcompile
@@ -292,7 +293,41 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedC
       CompilationModel.compileStmt
         fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      cases stmt with
+      | letVar _ _ => exact legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar hcompile
+      | assignVar _ _ => exact legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar hcompile
+      | setStorage field value =>
+          simp only [CompilationModel.compileStmt] at hcompile
+          exact legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields hnoPacked hcompile
+      | setStorageAddr field value =>
+          simp only [CompilationModel.compileStmt] at hcompile
+          exact legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields hnoPacked hcompile
+      | require _ _ => exact legacyCompatibleExternalStmtList_of_compileStmt_ok_require hcompile
+      | «return» _ => exact legacyCompatibleExternalStmtList_of_compileStmt_ok_return hcompile
+      | stop => exact legacyCompatibleExternalStmtList_of_compileStmt_ok_stop hcompile
+      | mstore offset value =>
+          simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile; revert hcompile
+          cases CompilationModel.compileExpr fields .calldata offset with
+          | error e => simp
+          | ok oExpr => cases CompilationModel.compileExpr fields .calldata value with
+            | error e => simp
+            | ok vExpr => simp [pure, Except.pure]; intro h; subst h; exact .expr _ _ .nil
+      | tstore offset value =>
+          simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile; revert hcompile
+          cases CompilationModel.compileExpr fields .calldata offset with
+          | error e => simp
+          | ok oExpr => cases CompilationModel.compileExpr fields .calldata value with
+            | error e => simp
+            | ok vExpr => simp [pure, Except.pure]; intro h; subst h; exact .expr _ _ .nil
+      | ite _ _ _ | setMapping _ _ _ | setMappingWord _ _ _ _ | setMappingPackedWord _ _ _ _ _
+      | setMapping2 _ _ _ _ | setMapping2Word _ _ _ _ _ | setMappingUint _ _ _
+      | setMappingChain _ _ _ | setStructMember _ _ _ _ | setStructMember2 _ _ _ _ _
+      | storageArrayPush _ _ | storageArrayPop _ | setStorageArrayElement _ _ _
+      | requireError _ _ _ | revertError _ _ | returnValues _ | returnArray _
+      | returnBytes _ | returnStorageWords _ | calldatacopy _ _ _
+      | returndataCopy _ _ _ | revertReturndata | forEach _ _ _
+      | emit _ _ | internalCall _ _ | internalCallAssign _ _ _
+      | rawLog _ _ _ | externalCallBind _ _ _ | ecm _ _ => cases hsurface
 private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scalar
     (loadWord : Yul.YulExpr → Yul.YulExpr)
     (sizeExpr : Yul.YulExpr)
@@ -365,7 +400,26 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_suppor
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      induction stmts generalizing bodyIR inScopeNames with
+      | nil =>
+          simp only [CompilationModel.compileStmtList, pure, Except.pure] at hcompile
+          cases hcompile; exact .nil
+      | cons stmt rest ih =>
+          simp only [stmtListTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+          obtain ⟨hstmt, hrest_surface⟩ := hsurface
+          simp only [CompilationModel.compileStmtList, bind, Except.bind] at hcompile
+          revert hcompile
+          cases hhead : CompilationModel.compileStmt fields [] [] .calldata [] false inScopeNames stmt with
+          | error e => simp
+          | ok headIR =>
+              cases htail : CompilationModel.compileStmtList fields [] [] .calldata [] false _ rest with
+              | error e => simp
+              | ok tailIR =>
+                  simp [pure, Except.pure]; intro h; subst h
+                  apply legacyCompatibleExternalStmtList_append
+                  · exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+                      hnoPacked hstmt hhead
+                  · exact ih hrest_surface htail
 private theorem compileValidatedCore_ok_yields_compiled_functions
     (model : CompilationModel)
     (selectors : List Nat)
