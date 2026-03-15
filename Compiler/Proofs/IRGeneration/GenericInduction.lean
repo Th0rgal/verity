@@ -1455,7 +1455,9 @@ private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
     fieldName ∈ fields.map (·.name) := by
-      sorry
+      have hmem := findFieldWithResolvedSlot_mem hfind
+      have hname := findFieldWithResolvedSlot_name hfind
+      exact List.mem_map.mpr ⟨f, hmem, hname⟩
 private theorem fieldName_mem_fields_of_compileSetStorage_ok
     {fields : List Field}
     {fieldName : String}
@@ -1470,7 +1472,13 @@ private theorem fieldName_mem_fields_of_compileSetStorage_ok
         value
         requireAddressField = Except.ok compiledIR) :
     fieldName ∈ fields.map (·.name) := by
-      sorry
+      simp only [CompilationModel.compileSetStorage] at hcompile
+      split at hcompile
+      · simp at hcompile
+      · split at hcompile
+        · next f slot hfind =>
+          exact fieldName_mem_fields_of_findFieldWithResolvedSlot_some hfind
+        · simp at hcompile
 private theorem compileStmt_ite_ok_inv
     {fields : List Field}
     {scope : List String}
@@ -1487,7 +1495,14 @@ private theorem compileStmt_ite_ok_inv
         fields [] [] .calldata [] false scope thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false scope elseBranch = Except.ok elseIR := by
-          sorry
+          simp only [CompilationModel.compileStmt] at hcompile
+          match hcond : CompilationModel.compileExpr fields .calldata cond,
+                hthen : CompilationModel.compileStmtList fields [] [] .calldata [] false scope thenBranch,
+                helse : CompilationModel.compileStmtList fields [] [] .calldata [] false scope elseBranch with
+          | .ok condIR, .ok thenIR, .ok elseIR => exact ⟨condIR, thenIR, elseIR, rfl, rfl, rfl⟩
+          | .error _, _, _ => simp [hcond, bind, Except.bind] at hcompile
+          | .ok _, .error _, _ => simp [hcond, hthen, bind, Except.bind] at hcompile
+          | .ok _, .ok _, .error _ => simp [hcond, hthen, helse, bind, Except.bind] at hcompile
 theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
     {fields : List Field}
     {scope : List String}
@@ -2401,14 +2416,18 @@ private theorem compatValue_not_mem_scope_of_reservedPrefix
     {scope : List String}
     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope) :
     "__compat_value" ∉ scope := by
-      sorry
+      intro hmem
+      exact absurd compatValue_startsWith_reserved
+        (by simpa using hscopeReserved "__compat_value" hmem)
 private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
     {spec : CompilationModel}
     {name : String}
     (hvalidate : validateIdentifierShapes spec = Except.ok ())
     (hmem : name ∈ spec.fields.map (·.name)) :
     ¬ name.startsWith "__" := by
-      sorry
+      obtain ⟨field, hfield, hname⟩ := List.mem_map.mp hmem
+      rw [← hname]
+      exact validateIdentifierShapes_field_avoidReservedCompilerPrefix hvalidate hfield
 private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
     {spec : CompilationModel}
     {fn : FunctionSpec}
@@ -2423,7 +2442,17 @@ private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
             collectStmtListAssignedNames fn.body ++
             spec.fields.map (·.name))) :
     scopeAvoidsReservedCompilerPrefix scope := by
-      sorry
+      intro name hmem
+      have hnames := hscopeNames name hmem
+      -- hnames : name ∈ (A ++ B ++ C ++ D)
+      -- Split using List.mem_append three times
+      rcases List.mem_append.mp hnames with h123 | h4
+      · rcases List.mem_append.mp h123 with h12 | h3
+        · rcases List.mem_append.mp h12 with h1 | h2
+          · exact validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix hvalidate hfn h1
+          · exact validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix hvalidate hfn h2
+        · exact validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix hvalidate hfn h3
+      · exact validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix hvalidate h4
 theorem compiledStmtStep_setStorage_singleSlot
     {fields : List Field}
     {scope : List String}

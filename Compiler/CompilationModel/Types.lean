@@ -561,4 +561,25 @@ theorem findFieldWithResolvedSlot_mem {fields : List Field} {name : String}
   simp only [findFieldWithResolvedSlot, findFieldByName] at h
   exact findFieldByName_go_mem_aux fields 0 h
 
+private theorem findFieldByName_go_name_aux
+    {name : String} {f : Field} {slot : Nat}
+    (remaining : List Field) (idx : Nat)
+    (h : findFieldByName.go name (fun f₁ slot₁ => (f₁, slot₁)) remaining idx =
+      some (f, slot)) :
+    f.name = name := by
+  induction remaining generalizing idx with
+  | nil => unfold findFieldByName.go at h; exact absurd h (by simp)
+  | cons hd tl ih =>
+      unfold findFieldByName.go at h
+      split at h
+      · next heq => cases h; exact eq_of_beq heq
+      · exact ih _ h
+
+theorem findFieldWithResolvedSlot_name {fields : List Field} {name : String}
+    {f : Field} {slot : Nat}
+    (h : findFieldWithResolvedSlot fields name = some (f, slot)) :
+    f.name = name := by
+  simp only [findFieldWithResolvedSlot, findFieldByName] at h
+  exact findFieldByName_go_name_aux fields 0 h
+
 end Compiler.CompilationModel
