@@ -716,8 +716,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/IRGeneration/Dispatch.lean
 #print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_internalFunctions
--- #print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_legacyCompatible  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_disjoint  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_legacyCompatible
+#print axioms Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_disjoint
 -- #print axioms Compiler.Proofs.IRGeneration.Dispatch.decodeSupportedParamWord_some_of_supported  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Dispatch.bindSupportedParams_some_of_supported  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Dispatch.find_compiledFunction_some_of_forall₂  -- private
@@ -1784,4 +1784,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1653 theorems/lemmas (968 active, 418 private, 267 sorry)
+-- Total: 1653 theorems/lemmas (970 active, 418 private, 265 sorry)
