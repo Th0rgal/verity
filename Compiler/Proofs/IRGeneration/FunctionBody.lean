@@ -2895,7 +2895,304 @@ theorem eval_compileRequireFailCond_core_onExpr
       CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond ∧
       evalIRExpr state failCond =
         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime cond = some 0)) := by
-          sorry
+  sorry
+  /- Adapted from main. Needs additional work for ge/le cases where evalExpr
+     returns Option Nat via monadic bind.
+  let finishIszeroEval {expr : Expr} (h : ExprCompileCore expr)
+      (hexactExpr : bindingsExactlyMatchIRVarsOnExpr expr runtime.bindings state)
+      (hpresentExpr : exprBoundNamesPresent expr runtime.bindings)
+      {exprIR : YulExpr}
+      (hexpr : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+      evalIRExpr state (YulExpr.call "iszero" [exprIR]) =
+        some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime expr = some 0)) := by
+    have heval := eval_compileExpr_core_onExpr h hexactExpr hbounded hpresentExpr hruntime
+    rw [hexpr] at heval
+    simp only [Except.toOption, Option.getD] at heval
+    have hlt := evalExpr_lt_evmModulus_core_onExpr h hexactExpr hbounded hpresentExpr hruntime
+    cases hv : SourceSemantics.evalExpr fields runtime expr with
+    | none =>
+      simp only [hv] at heval
+      cases hi : evalIRExpr state exprIR <;> simp_all [Option.bind]
+    | some value =>
+      simp only [hv] at heval hlt
+      have heval' : evalIRExpr state exprIR = some value := by
+        cases hi : evalIRExpr state exprIR with
+        | none => simp [hi, Option.bind] at heval
+        | some v => simp [hi, Option.bind] at heval; exact congrArg _ heval
+      have hvalueLt : value < Compiler.Constants.evmModulus := by exact_mod_cast hlt
+      have hiz := evalIRExpr_iszero_of_lt heval' hvalueLt
+      simp only [hv, Option.some.injEq] at hiz ⊢
+      exact hiz
+  cases hcore with
+  | literal value =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.literal value) from ExprCompileCore.literal value) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.literal value) hexact hpresent hexpr
+  | param name =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.param name) from ExprCompileCore.param name) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.param name) hexact hpresent hexpr
+  | localVar name =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.localVar name) from ExprCompileCore.localVar name) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.localVar name) hexact hpresent hexpr
+  | caller =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.caller) from ExprCompileCore.caller) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval ExprCompileCore.caller hexact hpresent hexpr
+  | contractAddress =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.contractAddress) from ExprCompileCore.contractAddress) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval ExprCompileCore.contractAddress hexact hpresent hexpr
+  | msgValue =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.msgValue) from ExprCompileCore.msgValue) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval ExprCompileCore.msgValue hexact hpresent hexpr
+  | blockTimestamp =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.blockTimestamp) from ExprCompileCore.blockTimestamp) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval ExprCompileCore.blockTimestamp hexact hpresent hexpr
+  | blockNumber =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.blockNumber) from ExprCompileCore.blockNumber) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval ExprCompileCore.blockNumber hexact hpresent hexpr
+  | chainid =>
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.chainid) from ExprCompileCore.chainid) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval ExprCompileCore.chainid hexact hpresent hexpr
+  | add hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.add lhs rhs) from ExprCompileCore.add hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.add hL hR) hexact hpresent hexpr
+  | sub hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.sub lhs rhs) from ExprCompileCore.sub hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.sub hL hR) hexact hpresent hexpr
+  | mul hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.mul lhs rhs) from ExprCompileCore.mul hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.mul hL hR) hexact hpresent hexpr
+  | div hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.div lhs rhs) from ExprCompileCore.div hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.div hL hR) hexact hpresent hexpr
+  | mod hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.mod lhs rhs) from ExprCompileCore.mod hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.mod hL hR) hexact hpresent hexpr
+  | eq hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.eq lhs rhs) from ExprCompileCore.eq hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.eq hL hR) hexact hpresent hexpr
+  | lt hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.lt lhs rhs) from ExprCompileCore.lt hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.lt hL hR) hexact hpresent hexpr
+  | gt hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.gt lhs rhs) from ExprCompileCore.gt hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.gt hL hR) hexact hpresent hexpr
+  | ge hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
+      have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
+      have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
+      have hpresentL : exprBoundNamesPresent lhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
+      have hpresentR : exprBoundNamesPresent rhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
+      have hlhsEval := eval_compileExpr_core_onExpr hL hexactL hbounded hpresentL hruntime
+      have hrhsEval := eval_compileExpr_core_onExpr hR hexactR hbounded hpresentR hruntime
+      rw [hlhs] at hlhsEval
+      rw [hrhs] at hrhsEval
+      simp only [Except.toOption, Option.getD] at hlhsEval hrhsEval
+      have hlhsLt := evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime
+      have hrhsLt := evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime
+      -- Case-split on lhs and rhs evalExpr
+      cases hvL : SourceSemantics.evalExpr fields runtime lhs with
+      | none =>
+        simp only [hvL] at hlhsEval
+        exfalso
+        cases h : evalIRExpr state lhsIR <;> simp_all [Option.bind]
+      | some lhsVal =>
+        simp only [hvL] at hlhsEval hlhsLt
+        have hlhsEval' : evalIRExpr state lhsIR = some lhsVal := by
+          cases h : evalIRExpr state lhsIR with
+          | none => simp [h, Option.bind] at hlhsEval
+          | some v => simp [h, Option.bind] at hlhsEval; exact congrArg _ hlhsEval
+        cases hvR : SourceSemantics.evalExpr fields runtime rhs with
+        | none =>
+          simp only [hvR] at hrhsEval
+          exfalso
+          cases h : evalIRExpr state rhsIR <;> simp_all [Option.bind]
+        | some rhsVal =>
+          simp only [hvR] at hrhsEval hrhsLt
+          have hrhsEval' : evalIRExpr state rhsIR = some rhsVal := by
+            cases h : evalIRExpr state rhsIR with
+            | none => simp [h, Option.bind] at hrhsEval
+            | some v => simp [h, Option.bind] at hrhsEval; exact congrArg _ hrhsEval
+          have hlhsValLt : lhsVal < Compiler.Constants.evmModulus := by exact_mod_cast hlhsLt
+          have hrhsValLt : rhsVal < Compiler.Constants.evmModulus := by exact_mod_cast hrhsLt
+          refine ⟨YulExpr.call "lt" [lhsIR, rhsIR], ?_, ?_⟩
+          · rw [CompilationModel.compileRequireFailCond, hlhs, hrhs]
+            rfl
+          · have hltEval :
+                evalIRExpr state (YulExpr.call "lt" [lhsIR, rhsIR]) =
+                  some (SourceSemantics.boolWord
+                    (lhsVal % Compiler.Constants.evmModulus <
+                      rhsVal % Compiler.Constants.evmModulus)) := by
+              simpa using evalIRExpr_lt_of_eval hlhsEval' hrhsEval'
+            simp only [hvL, hvR, Option.some.injEq]
+            by_cases hlt : lhsVal < rhsVal
+            · have hnotge : ¬ (rhsVal ≤ lhsVal) := Nat.not_le_of_gt hlt
+              simp [hltEval, Nat.mod_eq_of_lt hlhsValLt, Nat.mod_eq_of_lt hrhsValLt, hlt, hnotge,
+                SourceSemantics.boolWord]
+            · have hge : rhsVal ≤ lhsVal := Nat.le_of_not_gt hlt
+              simp [hltEval, Nat.mod_eq_of_lt hlhsValLt, Nat.mod_eq_of_lt hrhsValLt, hlt, hge,
+                SourceSemantics.boolWord]
+  | le hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
+      rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
+      have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
+      have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
+        bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
+      have hpresentL : exprBoundNamesPresent lhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hname))
+      have hpresentR : exprBoundNamesPresent rhs runtime.bindings :=
+        exprBoundNamesPresent_of_subset hpresent (by
+          intro name hname
+          simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hname))
+      have hlhsEval := eval_compileExpr_core_onExpr hL hexactL hbounded hpresentL hruntime
+      have hrhsEval := eval_compileExpr_core_onExpr hR hexactR hbounded hpresentR hruntime
+      rw [hlhs] at hlhsEval
+      rw [hrhs] at hrhsEval
+      simp only [Except.toOption, Option.getD] at hlhsEval hrhsEval
+      have hlhsLt := evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime
+      have hrhsLt := evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime
+      cases hvL : SourceSemantics.evalExpr fields runtime lhs with
+      | none =>
+        simp only [hvL] at hlhsEval
+        exfalso
+        cases h : evalIRExpr state lhsIR <;> simp_all [Option.bind]
+      | some lhsVal =>
+        simp only [hvL] at hlhsEval hlhsLt
+        have hlhsEval' : evalIRExpr state lhsIR = some lhsVal := by
+          cases h : evalIRExpr state lhsIR with
+          | none => simp [h, Option.bind] at hlhsEval
+          | some v => simp [h, Option.bind] at hlhsEval; exact congrArg _ hlhsEval
+        cases hvR : SourceSemantics.evalExpr fields runtime rhs with
+        | none =>
+          simp only [hvR] at hrhsEval
+          exfalso
+          cases h : evalIRExpr state rhsIR <;> simp_all [Option.bind]
+        | some rhsVal =>
+          simp only [hvR] at hrhsEval hrhsLt
+          have hrhsEval' : evalIRExpr state rhsIR = some rhsVal := by
+            cases h : evalIRExpr state rhsIR with
+            | none => simp [h, Option.bind] at hrhsEval
+            | some v => simp [h, Option.bind] at hrhsEval; exact congrArg _ hrhsEval
+          have hlhsValLt : lhsVal < Compiler.Constants.evmModulus := by exact_mod_cast hlhsLt
+          have hrhsValLt : rhsVal < Compiler.Constants.evmModulus := by exact_mod_cast hrhsLt
+          refine ⟨YulExpr.call "gt" [lhsIR, rhsIR], ?_, ?_⟩
+          · rw [CompilationModel.compileRequireFailCond, hlhs, hrhs]
+            rfl
+          · have hgtEval :
+                evalIRExpr state (YulExpr.call "gt" [lhsIR, rhsIR]) =
+                  some (SourceSemantics.boolWord
+                    (rhsVal % Compiler.Constants.evmModulus <
+                      lhsVal % Compiler.Constants.evmModulus)) := by
+              simpa using evalIRExpr_gt_of_eval hlhsEval' hrhsEval'
+            simp only [hvL, hvR, Option.some.injEq]
+            by_cases hgt : rhsVal < lhsVal
+            · have hnotle : ¬ (lhsVal ≤ rhsVal) := Nat.not_le_of_gt hgt
+              simp [hgtEval, Nat.mod_eq_of_lt hlhsValLt, Nat.mod_eq_of_lt hrhsValLt, hgt, hnotle,
+                SourceSemantics.boolWord]
+            · have hle : lhsVal ≤ rhsVal := Nat.le_of_not_gt hgt
+              simp [hgtEval, Nat.mod_eq_of_lt hlhsValLt, Nat.mod_eq_of_lt hrhsValLt, hgt, hle,
+                SourceSemantics.boolWord]
+  | logicalNot h =>
+      rename_i expr
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.logicalNot expr) from ExprCompileCore.logicalNot h) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.logicalNot h) hexact hpresent hexpr
+  | logicalAnd hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.logicalAnd lhs rhs) from ExprCompileCore.logicalAnd hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.logicalAnd hL hR) hexact hpresent hexpr
+  | logicalOr hL hR =>
+      rename_i lhs rhs
+      rcases compileExpr_core_ok (fields := fields)
+          (show ExprCompileCore (.logicalOr lhs rhs) from ExprCompileCore.logicalOr hL hR) with ⟨exprIR, hexpr⟩
+      refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
+      · simp [CompilationModel.compileRequireFailCond, hexpr]
+      · exact finishIszeroEval (ExprCompileCore.logicalOr hL hR) hexact hpresent hexpr
+  -/
 
 theorem eval_compileRequireFailCond_core
     {fields : List Field}
@@ -3029,7 +3326,8 @@ theorem runtimeStateMatchesIR_setTransientStorage
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state)
-    (offset value : Nat) :
+    (offset value : Nat)
+    (hlt : value < Compiler.Constants.evmModulus) :
     runtimeStateMatchesIR fields
       { runtime with
           world := {
@@ -3038,7 +3336,28 @@ theorem runtimeStateMatchesIR_setTransientStorage
           } }
       { state with
           transientStorage := fun o => if o = offset then value else state.transientStorage o } := by
-            sorry
+  have hstorInv := SourceSemantics.encodeStorageAt_transientStorage_invariant
+    fields runtime.world
+    (fun o => if o = offset then ↑value else runtime.world.transientStorage o)
+  -- Build each conjunct of runtimeStateMatchesIR directly
+  unfold runtimeStateMatchesIR at hmatch ⊢
+  -- After unfold, the goal has encodeStorageAt with the expanded struct.
+  -- hstorInv rewrites this because it's definitionally equal to the expanded form.
+  rcases hmatch with ⟨hstor, htrans, hsender, hmsgVal, hthis, hblock, hblockNum, hchain, hret, hevents⟩
+  refine ⟨?_, ?_, hsender, hmsgVal, hthis, hblock, hblockNum, hchain, hret, hevents⟩
+  · -- storage
+    rw [hstorInv]
+    exact hstor
+  · -- transientStorage
+    funext slot
+    simp only
+    split
+    · -- slot = offset
+      simp [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus,
+        Verity.Core.UINT256_MODULUS, Compiler.Constants.evmModulus] at hlt ⊢
+      exact (Nat.mod_eq_of_lt hlt).symm
+    · -- slot ≠ offset
+      exact congrFun htrans slot
 
 theorem bindingsExactlyMatchIRVars_setMemory
     {bindings : List (String × Nat)}
@@ -7272,7 +7591,20 @@ theorem execStmtList_terminal_core_ite_else_eq
     (hcondFalse : (SourceSemantics.evalExpr fields runtime cond != some 0) = false) :
     SourceSemantics.execStmtList fields runtime (.ite cond thenBranch elseBranch :: rest) =
       SourceSemantics.execStmtList fields runtime elseBranch := by
-        sorry
+  have heval : SourceSemantics.evalExpr fields runtime cond = some 0 := by
+    simp at hcondFalse
+    exact hcondFalse
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval]
+  simp
+  cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp
+  rename_i next
+  exact False.elim <|
+    execStmtList_terminal_core_not_continue
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (stmts := elseBranch)
+      helse next helseExec
 
 theorem execIRStmts_compiled_return_core_append_wholeFuel
     {fields : List Field}
@@ -7300,7 +7632,81 @@ theorem execIRStmts_compiled_return_core_append_wholeFuel
          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
           tailIR) =
         .return retVal state' := by
-          sorry
+  rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨valueIR, hvalueIR, ?_⟩
+  have heval := eval_compileExpr_core hcore hexact hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some retNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some retNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    simp only [hv, Option.getD]
+    have hmstoreFuelNeZero :
+        sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel ≠ 0 := by
+      have : 1 ≤ ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+                   , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+                    tailIR).length := by simp
+      have := yulStmtList_length_le_sizeOf
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR)
+      omega
+    have hreturnFuelNeZero :
+        sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel - 1 ≠ 0 := by
+      have : 2 ≤ ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+                   , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+                    tailIR).length := by simp
+      have := yulStmtList_length_le_sizeOf
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR)
+      omega
+    have hmstore :
+        execIRStmt
+          (sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel)
+          state
+          (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
+        .continue { state with memory := fun o => if o = 0 then retNat else state.memory o } :=
+      execIRStmt_mstore_of_eval_nonzeroFuel _ _ _ _ _ hmstoreFuelNeZero heval'
+    have hreturn :
+        execIRStmt
+          (sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel - 1)
+          { state with memory := fun o => if o = 0 then retNat else state.memory o }
+          (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
+        .return retNat { state with memory := fun o => if o = 0 then retNat else state.memory o } := by
+      have := execIRStmt_return32_of_memory_nonzeroFuel
+        (sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel - 1)
+        { state with memory := fun o => if o = 0 then retNat else state.memory o }
+        0 hreturnFuelNeZero
+      simp at this
+      exact this
+    exact execIRStmts_two_append_of_continue_then_return_wholeFuel
+      extraFuel state
+      { state with memory := fun o => if o = 0 then retNat else state.memory o }
+      { state with memory := fun o => if o = 0 then retNat else state.memory o }
+      (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
+      (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
+      tailIR retNat hmstore hreturn
 
 theorem execIRStmts_compiled_return_core_append_wholeFuel_of_scope
     {fields : List Field}
@@ -7330,7 +7736,83 @@ theorem execIRStmts_compiled_return_core_append_wholeFuel_of_scope
          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
           tailIR) =
         .return retVal state' := by
-          sorry
+  rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
+  refine ⟨valueIR, hvalueIR, ?_⟩
+  have heval := eval_compileExpr_core_onExpr hcore
+    (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+    hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some retNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some retNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    simp only [hv, Option.getD]
+    have hmstoreFuelNeZero :
+        sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel ≠ 0 := by
+      have : 1 ≤ ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+                   , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+                    tailIR).length := by simp
+      have := yulStmtList_length_le_sizeOf
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR)
+      omega
+    have hreturnFuelNeZero :
+        sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel - 1 ≠ 0 := by
+      have : 2 ≤ ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+                   , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+                    tailIR).length := by simp
+      have := yulStmtList_length_le_sizeOf
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR)
+      omega
+    have hmstore :
+        execIRStmt
+          (sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel)
+          state
+          (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
+        .continue { state with memory := fun o => if o = 0 then retNat else state.memory o } :=
+      execIRStmt_mstore_of_eval_nonzeroFuel _ _ _ _ _ hmstoreFuelNeZero heval'
+    have hreturn :
+        execIRStmt
+          (sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel - 1)
+          { state with memory := fun o => if o = 0 then retNat else state.memory o }
+          (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
+        .return retNat { state with memory := fun o => if o = 0 then retNat else state.memory o } := by
+      have := execIRStmt_return32_of_memory_nonzeroFuel
+        (sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel - 1)
+        { state with memory := fun o => if o = 0 then retNat else state.memory o }
+        0 hreturnFuelNeZero
+      simp at this
+      exact this
+    exact execIRStmts_two_append_of_continue_then_return_wholeFuel
+      extraFuel state
+      { state with memory := fun o => if o = 0 then retNat else state.memory o }
+      { state with memory := fun o => if o = 0 then retNat else state.memory o }
+      (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
+      (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
+      tailIR retNat hmstore hreturn
 
 theorem execIRStmts_compiled_stop_core_append_wholeFuel
     {state : IRState}
@@ -7413,7 +7895,61 @@ theorem execIRStmts_compiled_let_core_append_wholeFuel_of_scope
       bindingsExactlyMatchIRVarsOnScope (name :: scope) runtime'.bindings state' ∧
       bindingsBounded runtime'.bindings ∧
       scopeNamesPresent (name :: scope) runtime'.bindings := by
-        sorry
+  rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  have hvalueLt :=
+    evalExpr_lt_evmModulus_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some valueNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    rw [hv] at hvalueLt
+    simp only [Option.some_lt_some] at hvalueLt
+    simp only [hv, Option.getD]
+    have hstmt :
+        execIRStmt
+          (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel)
+          state
+          (YulStmt.let_ name valueIR) =
+        .continue (state.setVar name valueNat) := by
+      exact execIRStmt_let_of_eval_nonzeroFuel
+        (fuel := sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel)
+        (state := state)
+        (name := name)
+        (valueExpr := valueIR)
+        (value := valueNat)
+        (sizeOf_singleton_append_extraFuel_ne_zero
+          (stmt := YulStmt.let_ name valueIR)
+          (tailIR := tailIR)
+          (extraFuel := extraFuel))
+        heval'
+    refine ⟨valueIR, hvalueIR, ?_, ?_⟩
+    · exact execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+        (extraFuel := extraFuel)
+        (state := state)
+        (next := state.setVar name valueNat)
+        (stmt := YulStmt.let_ name valueIR)
+        (rest := tailIR)
+        hstmt
+    · refine ⟨runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat, ?_⟩
+      refine ⟨bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact, ?_⟩
+      exact ⟨bindingsBounded_bindValue hbounded name valueNat hvalueLt,
+        scopeNamesPresent_cons_bindValue hscope⟩
 
 theorem execIRStmts_compiled_let_core_tailExtraFuel_of_scope
     {fields : List Field}
@@ -7454,7 +7990,60 @@ theorem execIRStmts_compiled_let_core_tailExtraFuel_of_scope
     bindingsExactlyMatchIRVarsOnScope (name :: scope) runtime'.bindings state' ∧
     bindingsBounded runtime'.bindings ∧
     scopeNamesPresent (name :: scope) runtime'.bindings := by
-      sorry
+  rcases execIRStmts_compiled_let_core_append_wholeFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (name := name)
+      (value := value)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      hcore hexact hinScope hscope hbounded hruntime with
+    ⟨valueIR', hvalueIR', hwhole, hruntime', hexact', hbounded', hscope'⟩
+  rw [hvalueIR] at hvalueIR'
+  injection hvalueIR' with hEq
+  subst hEq
+  refine ⟨?_, hruntime', hexact', hbounded', hscope'⟩
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some valueNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    simp only [hv, Option.getD] at htail ⊢
+    exact execIRStmts_singleton_append_of_execIRStmt_continue_tailExtraFuel
+        (extraFuel := extraFuel)
+        (state := state)
+        (next := state.setVar name valueNat)
+        (stmt := YulStmt.let_ name valueIR)
+        (rest := tailIR)
+        (irExec := irExec)
+        (by
+          exact execIRStmt_let_of_eval_nonzeroFuel
+            (fuel := sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel)
+            (state := state)
+            (name := name)
+            (valueExpr := valueIR)
+            (value := valueNat)
+            (sizeOf_singleton_append_extraFuel_ne_zero
+              (stmt := YulStmt.let_ name valueIR)
+              (tailIR := tailIR)
+              (extraFuel := extraFuel))
+            heval')
+        htail
 
 theorem execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
     {fields : List Field}
@@ -7489,7 +8078,61 @@ theorem execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
       bindingsExactlyMatchIRVarsOnScope (name :: scope) runtime'.bindings state' ∧
       bindingsBounded runtime'.bindings ∧
       scopeNamesPresent (name :: scope) runtime'.bindings := by
-        sorry
+  rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  have hvalueLt :=
+    evalExpr_lt_evmModulus_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some valueNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    rw [hv] at hvalueLt
+    simp only [Option.some_lt_some] at hvalueLt
+    simp only [hv, Option.getD]
+    have hstmt :
+        execIRStmt
+          (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel)
+          state
+          (YulStmt.assign name valueIR) =
+        .continue (state.setVar name valueNat) := by
+      exact execIRStmt_assign_of_eval_nonzeroFuel
+        (fuel := sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel)
+        (state := state)
+        (name := name)
+        (valueExpr := valueIR)
+        (value := valueNat)
+        (sizeOf_singleton_append_extraFuel_ne_zero
+          (stmt := YulStmt.assign name valueIR)
+          (tailIR := tailIR)
+          (extraFuel := extraFuel))
+        heval'
+    refine ⟨valueIR, hvalueIR, ?_, ?_⟩
+    · exact execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+        (extraFuel := extraFuel)
+        (state := state)
+        (next := state.setVar name valueNat)
+        (stmt := YulStmt.assign name valueIR)
+        (rest := tailIR)
+        hstmt
+    · refine ⟨runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat, ?_⟩
+      refine ⟨bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact, ?_⟩
+      exact ⟨bindingsBounded_bindValue hbounded name valueNat hvalueLt,
+        scopeNamesPresent_cons_bindValue hscope⟩
 
 theorem execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
     {fields : List Field}
@@ -7530,7 +8173,60 @@ theorem execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
     bindingsExactlyMatchIRVarsOnScope (name :: scope) runtime'.bindings state' ∧
     bindingsBounded runtime'.bindings ∧
     scopeNamesPresent (name :: scope) runtime'.bindings := by
-      sorry
+  rcases execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (name := name)
+      (value := value)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      hcore hexact hinScope hscope hbounded hruntime with
+    ⟨valueIR', hvalueIR', hwhole, hruntime', hexact', hbounded', hscope'⟩
+  rw [hvalueIR] at hvalueIR'
+  injection hvalueIR' with hEq
+  subst hEq
+  refine ⟨?_, hruntime', hexact', hbounded', hscope'⟩
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some valueNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    simp only [hv, Option.getD] at htail ⊢
+    exact execIRStmts_singleton_append_of_execIRStmt_continue_tailExtraFuel
+        (extraFuel := extraFuel)
+        (state := state)
+        (next := state.setVar name valueNat)
+        (stmt := YulStmt.assign name valueIR)
+        (rest := tailIR)
+        (irExec := irExec)
+        (by
+          exact execIRStmt_assign_of_eval_nonzeroFuel
+            (fuel := sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel)
+            (state := state)
+            (name := name)
+            (valueExpr := valueIR)
+            (value := valueNat)
+            (sizeOf_singleton_append_extraFuel_ne_zero
+              (stmt := YulStmt.assign name valueIR)
+              (tailIR := tailIR)
+              (extraFuel := extraFuel))
+            heval')
+        htail
 
 theorem execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope
     {fields : List Field}
@@ -7558,7 +8254,47 @@ theorem execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope
           (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
           state
           tailIR := by
-            sorry
+  have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  rcases eval_compileRequireFailCond_core_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (cond := cond)
+      hcore hexact hinScope hbounded hpresent hruntime with
+    ⟨failCond, hfailCompile, hfailEval⟩
+  have hfailEval' : evalIRExpr state failCond = some 0 := by
+    have hdecideFalse : decide (SourceSemantics.evalExpr fields runtime cond = some 0) = false := by
+      simp [hcondNeZero]
+    simpa [SourceSemantics.boolWord, hdecideFalse] using hfailEval
+  have hstmt :
+      execIRStmt
+        (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+        state
+        (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+      .continue state := by
+    exact execIRStmt_if_false_of_eval_nonzeroFuel
+      (fuel :=
+        sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+      (state := state)
+      (cond := failCond)
+      (body := CompilationModel.revertWithMessage message)
+      (value := 0)
+      (sizeOf_singleton_append_extraFuel_ne_zero
+        (stmt := YulStmt.if_ failCond (CompilationModel.revertWithMessage message))
+        (tailIR := tailIR)
+        (extraFuel := extraFuel))
+      (by simpa [SourceSemantics.boolWord, hcondNeZero] using hfailEval)
+      rfl
+  refine ⟨failCond, hfailCompile, ?_⟩
+  exact execIRStmts_singleton_append_of_execIRStmt_continue_wholeFuel
+    (extraFuel := extraFuel)
+    (state := state)
+    (next := state)
+    (stmt := YulStmt.if_ failCond (CompilationModel.revertWithMessage message))
+    (rest := tailIR)
+    hstmt
 
 theorem execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
     {fields : List Field}
@@ -7592,7 +8328,55 @@ theorem execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
       (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel + 1)
       state
       ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) = irExec := by
-        sorry
+  rcases execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (cond := cond)
+      (message := message)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      hcore hexact hinScope hscope hbounded hruntime hcondNeZero with
+    ⟨failCond', hfailCompile', hwhole⟩
+  rw [hfailCompile] at hfailCompile'
+  injection hfailCompile' with hEq
+  subst hEq
+  exact execIRStmts_singleton_append_of_execIRStmt_continue_tailExtraFuel
+    (extraFuel := extraFuel)
+    (state := state)
+    (next := state)
+    (stmt := YulStmt.if_ failCond (CompilationModel.revertWithMessage message))
+    (rest := tailIR)
+    (irExec := irExec)
+    (by
+      have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases eval_compileRequireFailCond_core_of_scope
+          (fields := fields)
+          (runtime := runtime)
+          (state := state)
+          (scope := scope)
+          (cond := cond)
+          hcore hexact hinScope hbounded hpresent hruntime with
+        ⟨failCond', hfailCompile', hfailEval⟩
+      rw [hfailCompile] at hfailCompile'
+      injection hfailCompile' with hEq
+      subst hEq
+      exact execIRStmt_if_false_of_eval_nonzeroFuel
+        (fuel :=
+          sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+        (state := state)
+        (cond := failCond)
+        (body := CompilationModel.revertWithMessage message)
+        (value := 0)
+        (sizeOf_singleton_append_extraFuel_ne_zero
+          (stmt := YulStmt.if_ failCond (CompilationModel.revertWithMessage message))
+          (tailIR := tailIR)
+          (extraFuel := extraFuel))
+        (by simpa [SourceSemantics.boolWord, hcondNeZero] using hfailEval)
+        rfl)
+    htail
 
 theorem execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
     {fields : List Field}
@@ -7617,7 +8401,51 @@ theorem execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
         state
         ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) =
         .revert revState := by
-          sorry
+  have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  rcases eval_compileRequireFailCond_core_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (cond := cond)
+      hcore hexact hinScope hbounded hpresent hruntime with
+    ⟨failCond, hfailCompile, hfailEval⟩
+  rcases execIRStmts_revertWithMessage_revert
+      (fuel := sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel - 1)
+      (state := state)
+      message with
+    ⟨revState, hrev⟩
+  have hfailEval' : evalIRExpr state failCond = some 1 := by
+    simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
+  have hstmt :
+      execIRStmt
+        (sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+        state
+        (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+      .revert revState := by
+    rw [execIRStmt_if_true_of_eval_nonzeroFuel
+        (fuel :=
+          sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) + extraFuel)
+        (state := state)
+        (cond := failCond)
+        (body := CompilationModel.revertWithMessage message)
+        (value := 1)
+        (sizeOf_singleton_append_extraFuel_ne_zero
+          (stmt := YulStmt.if_ failCond (CompilationModel.revertWithMessage message))
+          (tailIR := tailIR)
+          (extraFuel := extraFuel))
+        hfailEval'
+        (by decide : (1 : Nat) ≠ 0)]
+    simpa using hrev
+  refine ⟨failCond, revState, hfailCompile, ?_⟩
+  exact execIRStmts_singleton_append_of_execIRStmt_revert_wholeFuel
+    (extraFuel := extraFuel)
+    (state := state)
+    (next := revState)
+    (stmt := YulStmt.if_ failCond (CompilationModel.revertWithMessage message))
+    (rest := tailIR)
+    hstmt
 
 theorem stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
     {fields : List Field}
@@ -7658,7 +8486,34 @@ theorem stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
         (sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) + extraFuel + 1)
         state
         ([YulStmt.let_ name valueIR] ++ tailIR)) := by
-          sorry
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some valueNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    have hgetD : (SourceSemantics.evalExpr fields runtime value).getD 0 = valueNat := by
+      simp [hv]
+    rcases execIRStmts_compiled_let_core_tailExtraFuel_of_scope
+        hcore hvalueIR hexact hinScope hscope hbounded hruntime
+        (rfl : execIRStmts _ _ _ = _) with
+      ⟨hwhole, hruntime', hexact', hbounded', hscope'⟩
+    rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hv]
+    simp only [hgetD] at hwhole htail ⊢
+    rw [hwhole]
+    exact htail
 
 theorem stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
     {fields : List Field}
@@ -7699,7 +8554,34 @@ theorem stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
         (sizeOf ([YulStmt.assign name valueIR] ++ tailIR) + extraFuel + 1)
         state
         ([YulStmt.assign name valueIR] ++ tailIR)) := by
-          sorry
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some valueNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some valueNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    have hgetD : (SourceSemantics.evalExpr fields runtime value).getD 0 = valueNat := by
+      simp [hv]
+    rcases execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
+        hcore hvalueIR hexact hinScope hscope hbounded hruntime
+        (rfl : execIRStmts _ _ _ = _) with
+      ⟨hwhole, hruntime', hexact', hbounded', hscope'⟩
+    rw [SourceSemantics.execStmtList, SourceSemantics.execStmt, hv]
+    simp only [hgetD] at hwhole htail ⊢
+    rw [hwhole]
+    exact htail
 
 theorem stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
     {fields : List Field}
@@ -7740,7 +8622,35 @@ theorem stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scop
           extraFuel + 1)
         state
         ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR)) := by
-          sorry
+  -- Need to show evalExpr = some resolved for some resolved ≠ 0
+  have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :=
+    eval_compileExpr_core_onExpr hcore
+      (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+      hbounded hpresent hruntime
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  cases hv : SourceSemantics.evalExpr fields runtime cond with
+  | none =>
+    -- evalExpr = none is impossible: derive contradiction from heval
+    exfalso
+    rw [hv] at heval
+    rcases compileExpr_core_ok (fields := fields) hcore with ⟨exprIR, hexprIR⟩
+    rw [hexprIR] at heval
+    simp only [Except.toOption, Option.getD] at heval
+    cases h : evalIRExpr state exprIR <;> simp_all [Option.bind]
+  | some resolved =>
+    have hneZero : resolved ≠ 0 := by
+      intro h
+      exact hcondNeZero (by rw [hv, h])
+    have hbne : (resolved != 0) = true := by
+      simp [bne, BEq.beq, Nat.beq, hneZero]
+    simp only [hbne, ite_true]
+    have hwhole := execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
+      (message := message) (tailIR := tailIR) (extraFuel := extraFuel)
+      hcore hfailCompile hexact hinScope hscope hbounded hruntime hcondNeZero rfl
+    rw [hwhole]
+    exact htail
 
 theorem stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
     {fields : List Field}
@@ -7771,7 +8681,34 @@ theorem stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
         ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
           tailIR)) := by
-            sorry
+  have hpresent : exprBoundNamesPresent value runtime.bindings :=
+    exprBoundNamesPresent_of_scope hscope hinScope
+  have heval := eval_compileExpr_core_onExpr hcore
+    (bindingsExactlyMatchIRVarsOnScope_implies_onExpr hexact hinScope)
+    hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  simp only [Except.toOption, Option.getD] at heval
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  cases hv : SourceSemantics.evalExpr fields runtime value with
+  | none =>
+    simp only [hv] at heval
+    exfalso
+    cases h : evalIRExpr state valueIR <;> simp_all [Option.bind]
+  | some retNat =>
+    simp only [hv] at heval
+    have heval' : evalIRExpr state valueIR = some retNat := by
+      cases h : evalIRExpr state valueIR with
+      | none => simp [h, Option.bind] at heval
+      | some v => simp [h, Option.bind] at heval; exact congrArg _ heval
+    simp only [hv, Option.getD]
+    rcases execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+        hcore hexact hinScope hbounded hpresent hruntime with
+      ⟨valueIR', hvalueIR', hir⟩
+    rw [hvalueIR] at hvalueIR'
+    cases hvalueIR'
+    simp only [hv, Option.getD] at hir
+    rw [hir]
+    exact ⟨rfl, runtimeStateMatchesIR_setMemory hruntime 0 retNat⟩
 
 theorem stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
     {fields : List Field}
@@ -7788,7 +8725,12 @@ theorem stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
         (sizeOf ([YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR) + extraFuel + 1)
         state
         ([YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR)) := by
-          sorry
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  rw [execIRStmts_compiled_stop_core_append_wholeFuel
+    (state := state)
+    (tailIR := tailIR)
+    (extraFuel := extraFuel)]
+  exact hruntime
 
 theorem scopeNamesIncluded_refl
     {scope : List String} :
@@ -7963,7 +8905,25 @@ theorem stmtResultToSourceResult_matches_irExecResult
     sourceResultMatchesIRResult
       (stmtResultToSourceResult spec initialWorld sourceResult)
       (irResultOfExecResult rollback irResult) := by
-        sorry
+  subst hfields
+  cases sourceResult <;> cases irResult <;> simp [stmtResultMatchesIRExec] at hmatch
+  · -- continue / continue
+    rcases hmatch with ⟨hstorage, _, _, _, _, _, _, hret, ⟨hnone, hevents⟩⟩
+    refine ⟨rfl, hnone.symm, ?_, hevents.symm⟩
+    simpa [sourceResultMatchesIRResult, stmtResultToSourceResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
+  · -- stop / stop
+    rcases hmatch with ⟨hstorage, _, _, _, _, _, _, hret, ⟨hnone, hevents⟩⟩
+    refine ⟨rfl, rfl, ?_, hevents.symm⟩
+    simpa [sourceResultMatchesIRResult, stmtResultToSourceResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
+  · -- return / return
+    rcases hmatch with ⟨rfl, hstorage, _, _, _, _, _, _, hret, ⟨hnone, hevents⟩⟩
+    refine ⟨rfl, rfl, ?_, hevents.symm⟩
+    simpa [sourceResultMatchesIRResult, stmtResultToSourceResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
+  · -- revert / revert
+    refine ⟨rfl, rfl, hrollbackStorage.symm, hrollbackEvents.symm⟩
 
 end FunctionBody
 end Compiler.Proofs.IRGeneration

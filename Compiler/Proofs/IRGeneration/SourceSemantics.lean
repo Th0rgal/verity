@@ -89,6 +89,41 @@ def encodeStorageAt (fields : List Field) (world : Verity.ContractState) (slot :
       | some value => value
       | none => (world.storage slot).val
 
+private theorem findDynamicArrayElementAtSlot_go_storageArray_eq
+    {w1 w2 : Verity.ContractState}
+    (h : w1.storageArray = w2.storageArray)
+    (slot : Nat) (remaining : List Field) (idx : Nat) :
+    findDynamicArrayElementAtSlot.go w1 slot remaining idx
+      = findDynamicArrayElementAtSlot.go w2 slot remaining idx := by
+  induction remaining generalizing idx with
+  | nil => simp [findDynamicArrayElementAtSlot.go]
+  | cons field rest ih =>
+    simp only [findDynamicArrayElementAtSlot.go]
+    split <;> try exact ih (idx + 1)
+    -- dynamicArray case: uses world.storageArray
+    simp only [h]
+    split
+    · rfl
+    · exact ih (idx + 1)
+
+private theorem findDynamicArrayElementAtSlot_transientStorage_invariant
+    (fields : List Field) (world : Verity.ContractState) (f : Nat → Verity.Core.Uint256)
+    (slot : Nat) :
+    findDynamicArrayElementAtSlot fields { world with transientStorage := f } slot
+      = findDynamicArrayElementAtSlot fields world slot := by
+  unfold findDynamicArrayElementAtSlot
+  have hsa : ({ world with transientStorage := f } : Verity.ContractState).storageArray
+      = world.storageArray := rfl
+  exact findDynamicArrayElementAtSlot_go_storageArray_eq hsa slot fields 0
+
+theorem encodeStorageAt_transientStorage_invariant
+    (fields : List Field) (world : Verity.ContractState) (f : Nat → Verity.Core.Uint256) :
+    encodeStorageAt fields { world with transientStorage := f }
+      = encodeStorageAt fields world := by
+  funext slot
+  unfold encodeStorageAt
+  rw [findDynamicArrayElementAtSlot_transientStorage_invariant]
+
 def encodeStorage (spec : CompilationModel) (world : Verity.ContractState) : Nat → Nat :=
   encodeStorageAt (effectiveFields spec) world
 
