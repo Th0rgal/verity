@@ -606,14 +606,18 @@ theorem stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface
 private theorem legacyCompatibleExternalStmtList_of_exprMap
     (exprs : List YulExpr) :
     LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by
-      sorry
+      induction exprs with
+      | nil => exact .nil
+      | cons e es ih => exact .expr e _ ih
 private theorem legacyCompatibleExternalStmtList_of_letBindings
     (bindings : List (String × YulExpr))
     (rest : List YulStmt)
     (hrest : LegacyCompatibleExternalStmtList rest) :
     LegacyCompatibleExternalStmtList
       (bindings.map (fun binding => YulStmt.let_ binding.1 binding.2) ++ rest) := by
-        sorry
+        induction bindings with
+        | nil => simp; exact hrest
+        | cons b bs ih => exact .let_ b.1 b.2 _ ih
 private theorem legacyCompatibleExternalStmtList_of_compileMappingSlotWrite_ok
     {fields : List Field}
     {field : String}
@@ -1400,7 +1404,14 @@ private theorem stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsuppor
     (hsurface :
       stmtListTouchesUnsupportedContractSurface (pfx ++ stmt :: suffix) = false) :
     stmtTouchesUnsupportedContractSurface stmt = false := by
-      sorry
+      induction pfx with
+      | nil =>
+        simp [stmtListTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
+        exact hsurface.1
+      | cons h t ih =>
+        simp only [List.cons_append, stmtListTouchesUnsupportedContractSurface,
+          Bool.or_eq_false_iff] at hsurface
+        exact ih hsurface.2
 private theorem mem_stmtNextScope_of_mem_scope
     {scope : List String}
     {stmt : Stmt}
@@ -1415,7 +1426,10 @@ private theorem mem_stmtNextScopeList_of_mem_scope
     {name : String}
     (hmem : name ∈ scope) :
     name ∈ List.foldl stmtNextScope scope stmts := by
-      sorry
+      induction stmts generalizing scope with
+      | nil => exact hmem
+      | cons stmt rest ih =>
+        exact @ih (stmtNextScope scope stmt) (mem_stmtNextScope_of_mem_scope hmem)
 private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
     {context : String}
     {params : List Param}
@@ -3555,7 +3569,10 @@ private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
     (hmatch : FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec)
     (hnotContinue : ∀ next, sourceResult ≠ .continue next) :
     stmtStepMatchesIRExec fields scope sourceResult irExec := by
-      sorry
+      cases sourceResult with
+      | «continue» next => exact absurd rfl (hnotContinue next)
+      | stop | «return» | revert =>
+        cases irExec <;> simp_all [stmtStepMatchesIRExec, FunctionBody.stmtResultMatchesIRExec]
 theorem compiledStmtStep_ite
     {fields : List Field}
     {scope : List String}
@@ -3572,19 +3589,42 @@ private theorem stmtListTouchesUnsupportedContractSurface_append
     stmtListTouchesUnsupportedContractSurface (pfx ++ suffix) =
       (stmtListTouchesUnsupportedContractSurface pfx ||
         stmtListTouchesUnsupportedContractSurface suffix) := by
-          sorry
+          induction pfx with
+          | nil => simp [stmtListTouchesUnsupportedContractSurface]
+          | cons h t ih =>
+            simp only [List.cons_append, stmtListTouchesUnsupportedContractSurface, ih,
+              Bool.or_assoc]
 private theorem stmtListCompileCore_of_requireLiteralGuardFamilyClauses
     {scope : List String}
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
     FunctionBody.StmtListCompileCore scope
       (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) := by
         sorry
+private theorem stmtNextScope_requireLiteralGuardFamilyClause
+    {scope : List String}
+    (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause) :
+    stmtNextScope scope clause.toStmt = scope := by
+      simp only [stmtNextScope]
+      cases clause with | mk family n m p q message =>
+      cases family with
+      | binary guard =>
+        cases guard <;>
+          simp [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+            collectStmtNames, collectExprNames]
+      | andEqLt | orEqLt =>
+        simp [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+          collectStmtNames, collectExprNames]
 private theorem foldl_stmtNextScope_requireLiteralGuardFamilyClauses
     {scope : List String}
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
     List.foldl stmtNextScope scope
       (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) = scope := by
-        sorry
+        induction clauses generalizing scope with
+        | nil => simp
+        | cons clause rest ih =>
+          simp only [List.map_cons, List.foldl_cons]
+          rw [stmtNextScope_requireLiteralGuardFamilyClause]
+          exact ih
 private theorem stmtListGenericCore_singleton_setStorage_singleSlot
     {fields : List Field}
     {scope : List String}
@@ -3807,7 +3847,7 @@ private theorem false_of_supportedStmtList_ite_surface
       stmtTouchesUnsupportedContractSurface
         (Stmt.ite cond thenBranch elseBranch) = false) :
     False := by
-      sorry
+      simp [stmtTouchesUnsupportedContractSurface] at hsurface
 private theorem false_of_supportedStmtList_ite_list_surface
     {cond : Expr}
     {thenBranch elseBranch : List Stmt}
@@ -3815,7 +3855,8 @@ private theorem false_of_supportedStmtList_ite_list_surface
       stmtListTouchesUnsupportedContractSurface
         [Stmt.ite cond thenBranch elseBranch] = false) :
     False := by
-      sorry
+      simp [stmtListTouchesUnsupportedContractSurface,
+        stmtTouchesUnsupportedContractSurface] at hsurface
 private theorem stmtListGenericCore_of_supportedStmtList_setStorageSingleSlot_of_surface
     {fields : List Field}
     {scope : List String}
@@ -4334,7 +4375,7 @@ private theorem false_of_supportedStmtList_singleton_stmt_surface
     (hunsupported : stmtTouchesUnsupportedContractSurface stmt = true)
     (hsurface : stmtListTouchesUnsupportedContractSurface [stmt] = false) :
     False := by
-      sorry
+      simp [stmtListTouchesUnsupportedContractSurface, hunsupported] at hsurface
 private theorem false_of_supportedStmtList_returnMapping_surface
     {fieldName : String}
     {key : Expr}
@@ -4551,7 +4592,9 @@ private theorem false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStor
         , Stmt.stop
         ] = false) :
     False := by
-      sorry
+      simp [stmtListTouchesUnsupportedContractSurface,
+        stmtTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedContractSurface] at hsurface
 private theorem false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface
     {ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String}
     (hsurface :
@@ -4566,7 +4609,9 @@ private theorem false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReq
         , Stmt.stop
         ] = false) :
     False := by
-      sorry
+      simp [stmtListTouchesUnsupportedContractSurface,
+        stmtTouchesUnsupportedContractSurface,
+        exprTouchesUnsupportedContractSurface] at hsurface
 theorem stmtListGenericCore_of_supportedStmtList_of_surface
     {fields : List Field}
     {scope : List String}

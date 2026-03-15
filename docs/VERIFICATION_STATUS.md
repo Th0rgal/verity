@@ -156,7 +156,7 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 **Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-360 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
+348 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
 
 1 documented Lean axiom remains. The Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
 
