@@ -36,6 +36,23 @@ theorem runtimeContractOfFunctions_disjoint
           fn.body) :
     DisjointRuntimeContract (runtimeContractOfFunctions name functions) :=
   hdisjointBodies
+private theorem exists_left_of_forall₂_mem_right
+    {α β : Type}
+    {R : α → β → Prop}
+    {xs : List α}
+    {ys : List β}
+    (hrel : List.Forall₂ R xs ys)
+    {y : β}
+    (hmem : y ∈ ys) :
+    ∃ x, x ∈ xs ∧ R x y := by
+  induction hrel with
+  | nil => cases hmem
+  | cons hhead _ ih =>
+      cases hmem with
+      | head => exact ⟨_, .head _, hhead⟩
+      | tail _ hmem' =>
+          rcases ih hmem' with ⟨x, hx, hr⟩
+          exact ⟨x, .tail _ hx, hr⟩
 private theorem decodeSupportedParamWord_some_of_supported
     (ty : ParamType) (word : Nat) (hsupported : SupportedExternalParamType ty) :
     ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by
@@ -557,7 +574,29 @@ theorem
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  have hfunction' :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    rw [← execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+      (runtimeContractOfFunctions model.name irFns) irFn tx.args
+      (FunctionBody.initialIRStateForTx model tx initialWorld)
+      (hbodyDisjoint fn sel irFn hfn hcompileFn)]
+    exact hfunction fn sel irFn bindings hfn hcompileFn hbind
+  have hdisjointIR : DisjointRuntimeContract (runtimeContractOfFunctions model.name irFns) :=
+    runtimeContractOfFunctions_disjoint model.name irFns (fun irFn hirFn => by
+      rcases exists_left_of_forall₂_mem_right hcompiled hirFn with ⟨entry, hentry, hcompileFn⟩
+      have hfn : entry.1 ∈ selectorDispatchedFunctions model := by
+        simpa [SourceSemantics.selectorFunctionPairs] using (List.of_mem_zip hentry).1
+      exact hbodyDisjoint entry.1 entry.2 irFn hfn hcompileFn)
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_of_disjointRuntimeContract
+    model selectors hSupported hHelperProofs irFns tx initialWorld
+    hcompiled hparamsSupported hfunction' hdisjointIR
 /-- Dispatch-level Tier 4 wrapper stated over reusable single-head direct
 helper step builders. This lets future rank-decreasing helper induction target
 the public whole-contract theorem boundary directly, without first assembling
@@ -1396,7 +1435,11 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal
+    model selectors hSupported hHelperProofs irFns tx initialWorld
+    hcompiled hparamsSupported hfunction hlegacyBodies
+    (interpretIRWithInternalsZeroConservativeExtensionGoal_closed
+      (runtimeContractOfFunctions model.name irFns))
 end Dispatch
 
 end Compiler.Proofs.IRGeneration
