@@ -429,6 +429,29 @@ inductive StmtListResidualHelperSurfaceStepInterface
         runtimeContract spec fields (stmtNextScope scope stmt) rest →
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope (stmt :: rest)
 
+private theorem legacyCompat_of_all_expr :
+    ∀ (stmts : List YulStmt),
+    (∀ s ∈ stmts, ∃ e, s = .expr e) →
+    LegacyCompatibleExternalStmtList stmts
+  | [], _ => .nil
+  | s :: rest, h => by
+    obtain ⟨e, rfl⟩ := h s (List.mem_cons_self ..)
+    exact .expr e rest (legacyCompat_of_all_expr rest
+      (fun s hs => h s (List.mem_cons_of_mem _ hs)))
+
+private theorem revertWithMessage_all_expr (message : String) :
+    ∀ s ∈ revertWithMessage message, ∃ e, s = .expr e := by
+  intro s hs
+  unfold revertWithMessage at hs
+  simp only [List.mem_append, List.mem_cons, List.mem_nil_iff, List.mem_map,
+             Prod.exists] at hs
+  aesop
+
+private theorem legacyCompatibleExternalStmtList_revertWithMessage
+    (message : String) :
+    LegacyCompatibleExternalStmtList (revertWithMessage message) :=
+  legacyCompat_of_all_expr _ (revertWithMessage_all_expr message)
+
 /-- The current helper-free compiled theorem target already accepts the scalar
 storage write emitted by `compileSetStorage` when packed-field writes are
 excluded. -/
@@ -454,7 +477,10 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
         fields [] [] .calldata [] false inScopeNames (.letVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+  simp [compileStmt, bind, Except.bind, pure, Except.pure] at hcompile
+  split at hcompile
+  · exact absurd hcompile (by exact nofun)
+  · cases hcompile; exact .let_ _ _ [] .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
     {fields : List Field}
     {inScopeNames : List String}
@@ -466,7 +492,10 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
         fields [] [] .calldata [] false inScopeNames (.assignVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+  simp [compileStmt, bind, Except.bind, pure, Except.pure] at hcompile
+  split at hcompile
+  · exact absurd hcompile (by exact nofun)
+  · cases hcompile; exact .assign _ _ [] .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
     {fields : List Field}
     {inScopeNames : List String}
@@ -478,7 +507,11 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
         fields [] [] .calldata [] false inScopeNames (.require cond message) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+  simp [compileStmt, bind, Except.bind, pure, Except.pure] at hcompile
+  split at hcompile
+  · exact absurd hcompile (by exact nofun)
+  · cases hcompile
+    exact .if_ _ _ [] (legacyCompatibleExternalStmtList_revertWithMessage message) .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
     {fields : List Field}
     {inScopeNames : List String}
@@ -489,7 +522,10 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
         fields [] [] .calldata [] false inScopeNames (.return value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+  simp [compileStmt, bind, Except.bind, pure, Except.pure] at hcompile
+  split at hcompile
+  · exact absurd hcompile (by exact nofun)
+  · cases hcompile; exact .expr _ _ (.expr _ [] .nil)
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
     {fields : List Field}
     {inScopeNames : List String}
@@ -499,7 +535,8 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
         fields [] [] .calldata [] false inScopeNames .stop =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+  simp [compileStmt, pure, Except.pure] at hcompile
+  subst hcompile; exact .expr _ [] .nil
 /-- On the current supported contract surface, successful single-statement
 compilation stays inside the legacy helper-free external Yul subset. This is
 the compiled-side compatibility fact needed to reuse already-proved helper-free
@@ -548,7 +585,9 @@ theorem stmtListHelperFreeCompiledLegacyCompatible_of_compiledLegacyCompatible
     {stmts : List Stmt}
     (hlegacy : StmtListCompiledLegacyCompatible fields scope stmts) :
     StmtListHelperFreeCompiledLegacyCompatible fields scope stmts := by
-      sorry
+  induction hlegacy with
+  | nil => exact .nil
+  | cons hcomp _ ih => exact .cons (fun _ => hcomp) ih
 /-- The current supported contract surface already implies the weaker exact-seam
 compiled disjointness witness whenever the runtime contract has no internal
 helper table. This lets the active exact helper-aware wrapper target the
@@ -7113,26 +7152,36 @@ theorem stmtListDirectInternalHelperStepInterfaces_of_headStepCatalog
       scope
       fn.body := by
         sorry
-private theorem internalFunctionYulName_ne_stop
-    (calleeName : String) :
+private theorem internalFunctionYulName_ne_stop (calleeName : String) :
     CompilationModel.internalFunctionYulName calleeName ≠ "stop" := by
-      sorry
-private theorem internalFunctionYulName_ne_sstore
-    (calleeName : String) :
+  intro h; have := congrArg String.data h
+  simp only [internalFunctionYulName, internalFunctionPrefix,
+    show ∀ s : String, toString s = s from fun _ => rfl] at this
+  simp at this
+private theorem internalFunctionYulName_ne_sstore (calleeName : String) :
     CompilationModel.internalFunctionYulName calleeName ≠ "sstore" := by
-      sorry
-private theorem internalFunctionYulName_ne_mstore
-    (calleeName : String) :
+  intro h; have := congrArg String.data h
+  simp only [internalFunctionYulName, internalFunctionPrefix,
+    show ∀ s : String, toString s = s from fun _ => rfl] at this
+  simp at this
+private theorem internalFunctionYulName_ne_mstore (calleeName : String) :
     CompilationModel.internalFunctionYulName calleeName ≠ "mstore" := by
-      sorry
-private theorem internalFunctionYulName_ne_revert
-    (calleeName : String) :
+  intro h; have := congrArg String.data h
+  simp only [internalFunctionYulName, internalFunctionPrefix,
+    show ∀ s : String, toString s = s from fun _ => rfl] at this
+  simp at this
+private theorem internalFunctionYulName_ne_revert (calleeName : String) :
     CompilationModel.internalFunctionYulName calleeName ≠ "revert" := by
-      sorry
-private theorem internalFunctionYulName_ne_return
-    (calleeName : String) :
+  intro h; have := congrArg String.data h
+  simp only [internalFunctionYulName, internalFunctionPrefix,
+    show ∀ s : String, toString s = s from fun _ => rfl] at this
+  simp at this
+private theorem internalFunctionYulName_ne_return (calleeName : String) :
     CompilationModel.internalFunctionYulName calleeName ≠ "return" := by
-      sorry
+  intro h; have := congrArg String.data h
+  simp only [internalFunctionYulName, internalFunctionPrefix,
+    show ∀ s : String, toString s = s from fun _ => rfl] at this
+  simp at this
 -- /-- Runtime-helper-table packaged version of
 -- `execIRStmtsWithInternals_of_internalCallAssign_compile`: the caller no longer
 -- threads a raw `findInternalFunction?` hypothesis by hand, only the compiled
