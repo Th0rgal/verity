@@ -854,31 +854,31 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mul_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_div_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_mod_ok
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_eq_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_lt_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_gt_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ge_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_le_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalNot_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalAnd_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalOr_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_add_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mul_of_compiled  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_eq_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_lt_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_gt_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_ge_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_le_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalNot_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalAnd_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_logicalOr_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_add_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mul_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_val_ofNat_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_div_val_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_sub_val_eq
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.uint256_mod_val_eq
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_div_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sub_of_compiled  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mod_of_compiled  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_div_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_sub_of_compiled
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_mod_of_compiled
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_literal_lt_evmModulus
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_param_lt_evmModulus_of_bindingsBounded
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_localVar_lt_evmModulus_of_bindingsBounded
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exprBoundNamesPresent_of_subset
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileExpr_core_ok
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core_onExpr  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_onExpr  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileRequireFailCond_core_ok
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_onExpr  -- sorry
@@ -894,12 +894,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeEvents_withTransactionContext
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeStorage_withTransactionContext
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_letVar_core  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_assignVar_core  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_return_core  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_return_core_extraFuel  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_stop_core  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_stop_core_extraFuel  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_letVar_core
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_assignVar_core
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_return_core
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_return_core_extraFuel
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_stop_core
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_stop_core_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_implies_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
@@ -913,12 +913,12 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtListTerminalCore_ne_nil
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok_any_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_inv  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_terminal_ite_ok_inv  -- sorry
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_terminal_ite_ok_inv  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_cons_ok_inv
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_terminal_ite_ok_inv
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_terminal_ite_ok_inv
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_core_ok
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_terminal_core_ok
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_terminal_core_ok_nonempty  -- sorry
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmtList_terminal_core_ok_nonempty
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.yulStmtList_length_le_sizeOf  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiledIteBlockSize_ge_thenBranchLength  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiledIteBlockSize_ge_thenBranchSizeOf  -- private
@@ -1801,4 +1801,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1670 theorems/lemmas (1077 active, 435 private, 158 sorry)
+-- Total: 1670 theorems/lemmas (1102 active, 435 private, 133 sorry)
