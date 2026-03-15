@@ -336,7 +336,10 @@ private theorem legacy_function_correct_of_supportedSourceFunctionSemanticsExcep
       FunctionBody.sourceResultMatchesIRResult
         (SourceSemantics.interpretFunction model fn tx initialWorld)
         (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  intro fn sel irFn bindings hfn hcompileFn hbind
+  simpa [supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
+    (hSupported := hSupported) hfn tx initialWorld] using
+    hfunction fn sel irFn bindings hfn hcompileFn hbind
 /-- Tier 2 dispatch wrapper for the alternate singleton-storage-write support
 witness. This keeps the public theorem surface aligned with the ordinary
 `SupportedSpec` path while reusing the existing legacy dispatch skeleton. -/
@@ -367,7 +370,21 @@ theorem interpretContract_correct_of_compiled_functions_except_mapping_writes
     FunctionBody.sourceResultMatchesIRResult (supportedSourceContractSemanticsExceptMappingWrites model selectors hSupported tx initialWorld)
       (interpretIR (runtimeContractOfFunctions model.name irFns) tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  have hlegacyFunction :=
+    legacy_function_correct_of_supportedSourceFunctionSemanticsExceptMappingWrites
+      model selectors hSupported tx initialWorld hfunction
+  have hlegacy :=
+    interpretContract_correct_of_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (irFns := irFns)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hlegacyFunction)
+  simpa [supportedSourceContractSemanticsExceptMappingWrites_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hlegacy
 /-- Helper-aware compiled-side wrapper for the dispatch theorem.
 This packages the remaining compiled-side retarget work as a single
 conservative-extension equality for the runtime contract produced by
@@ -406,7 +423,10 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  rw [hhelperIR]
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs
+    model selectors hSupported hHelperProofs irFns tx initialWorld
+    hcompiled hparamsSupported hfunction
 /-- Structured helper-aware dispatch wrapper.
 This consumes the named compiled-side conservative-extension goal together with
 the runtime-contract compatibility witness, instead of requiring callers to
@@ -445,7 +465,11 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  have hlegacy := runtimeContractOfFunctions_legacyCompatible model.name irFns hlegacyBodies
+  have hhelperIR := hhelperIRGoal hlegacy tx (FunctionBody.initialIRStateForTx model tx initialWorld)
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
+    model selectors hSupported hHelperProofs irFns tx initialWorld
+    hcompiled hparamsSupported hfunction hhelperIR
 /-- Disjointness-based helper-aware dispatch wrapper.
 This drops the stronger legacy-compatibility runtime assumption in favor of the
 compiled-side condition actually needed by
@@ -481,7 +505,13 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-          sorry
+  have hhelperIR :=
+    interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
+      (runtimeContractOfFunctions model.name irFns) hdisjointIR tx
+      (FunctionBody.initialIRStateForTx model tx initialWorld)
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
+    model selectors hSupported hHelperProofs irFns tx initialWorld
+    hcompiled hparamsSupported hfunction hhelperIR
 /-- Narrow direct-helper-aware dispatch wrapper aligned with the current Tier 4
 function theorem seam. Callers stay on `execIRFunctionWithInternals` for each
 selected function, while the wrapper discharges the older dispatch theorem
