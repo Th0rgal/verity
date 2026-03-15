@@ -167,63 +167,38 @@ private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPa
     LegacyCompatibleExternalStmtList bodyIR := by
       simp only [CompilationModel.compileSetStorage, bind, Except.bind] at hcompile
       split at hcompile
-      · cases hcompile  -- isMapping = true → throws
-      · -- isMapping = false
-        revert hcompile
+      · cases hcompile
+      · revert hcompile
         cases hfind : findFieldWithResolvedSlot fields fieldName with
         | none => simp
         | some p =>
-            obtain ⟨f, slot⟩ := p
-            simp only [Except.bind]
-            -- handle requireAddressField branch
+            obtain ⟨f, slot⟩ := p; simp only [Except.bind]
+            have hnoP := hnoPacked f (findFieldWithResolvedSlot_mem hfind)
+            -- Both requireAddressField branches share the same slot-matching tail.
+            -- Inline tactic block handles compileExpr + slot case analysis for each.
             split
-            · -- requireAddressField = true
-              split
-              · -- f.ty = address
-                simp only [pure, Except.pure, Except.bind]
-                intro hrest; revert hrest
-                -- Now use hnoPacked to eliminate packed branches
-                have hfmem := findFieldWithResolvedSlot_mem hfind
-                have hnoP := hnoPacked f hfmem
+            · split
+              · simp only [pure, Except.pure, Except.bind]; intro hrest; revert hrest
                 cases CompilationModel.compileExpr fields .calldata value with
                 | error e => simp
                 | ok valExpr =>
-                    simp only [Except.bind]
-                    cases hslots : (slot :: f.aliasSlots) with
+                    simp only [Except.bind]; cases (slot :: f.aliasSlots) with
                     | nil => simp
-                    | cons s rest =>
-                        cases rest with
-                        | nil =>
-                            simp only [hnoP]
-                            intro h; cases h; exact .expr _ _ .nil
-                        | cons s2 rest' =>
-                            simp only [hnoP]
-                            intro h; cases h
-                            exact .block _ _
-                              (.let_ _ _ _ (legacyCompatibleExternalStmtList_of_exprStmtMap _ _)) .nil
-              · -- f.ty ≠ address → throws
-                simp
-            · -- requireAddressField = false
-              simp only [pure, Except.pure, Except.bind]
-              intro hrest; revert hrest
-              have hfmem := findFieldWithResolvedSlot_mem hfind
-              have hnoP := hnoPacked f hfmem
+                    | cons s rest => cases rest with
+                      | nil => simp only [hnoP]; intro h; cases h; exact .expr _ _ .nil
+                      | cons _ _ => simp only [hnoP]; intro h; cases h
+                                    exact .block _ _ (.let_ _ _ _ (legacyCompatibleExternalStmtList_of_exprStmtMap _ _)) .nil
+              · simp
+            · simp only [pure, Except.pure, Except.bind]; intro hrest; revert hrest
               cases CompilationModel.compileExpr fields .calldata value with
               | error e => simp
               | ok valExpr =>
-                  simp only [Except.bind]
-                  cases hslots : (slot :: f.aliasSlots) with
+                  simp only [Except.bind]; cases (slot :: f.aliasSlots) with
                   | nil => simp
-                  | cons s rest =>
-                      cases rest with
-                      | nil =>
-                          simp only [hnoP]
-                          intro h; cases h; exact .expr _ _ .nil
-                      | cons s2 rest' =>
-                          simp only [hnoP]
-                          intro h; cases h
-                          exact .block _ _
-                            (.let_ _ _ _ (legacyCompatibleExternalStmtList_of_exprStmtMap _ _)) .nil
+                  | cons s rest => cases rest with
+                    | nil => simp only [hnoP]; intro h; cases h; exact .expr _ _ .nil
+                    | cons _ _ => simp only [hnoP]; intro h; cases h
+                                  exact .block _ _ (.let_ _ _ _ (legacyCompatibleExternalStmtList_of_exprStmtMap _ _)) .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
     {fields : List Field}
     {inScopeNames : List String}
