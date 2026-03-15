@@ -67,7 +67,24 @@ private theorem compiled_internal_functions_forall₂_of_mapM_ok
         (fun fn internalDef =>
           compileInternalFunction fields events errors fn = Except.ok internalDef)
         entries internalDefs := by
-          sorry
+  intro entries
+  induction entries with
+  | nil =>
+      intro internalDefs hmap
+      cases hmap
+      simp
+  | cons entry entries ih =>
+      intro internalDefs hmap
+      rcases hstep : compileInternalFunction fields events errors entry with _ | def_
+      · simp only [List.mapM_cons, hstep, bind, Except.bind] at hmap
+        cases hmap
+      · rcases htail : List.mapM
+            (compileInternalFunction fields events errors) entries with _ | defsTail
+        · simp only [List.mapM_cons, hstep, htail, bind, Except.bind] at hmap
+          cases hmap
+        · simp only [List.mapM_cons, hstep, htail, bind, Except.bind] at hmap
+          cases hmap
+          exact List.Forall₂.cons hstep (ih _ htail)
 private theorem exists_right_of_forall₂_mem_left
     {α β : Type}
     {R : α → β → Prop}
@@ -77,7 +94,14 @@ private theorem exists_right_of_forall₂_mem_left
     {x : α}
     (hmem : x ∈ xs) :
     ∃ y, y ∈ ys ∧ R x y := by
-      sorry
+  induction hrel with
+  | nil => cases hmem
+  | cons hhead _ ih =>
+      cases hmem with
+      | head => exact ⟨_, .head _, hhead⟩
+      | tail _ hmem' =>
+          rcases ih hmem' with ⟨y, hy, hr⟩
+          exact ⟨y, .tail _ hy, hr⟩
 private theorem field_mem_of_findFieldWithResolvedSlot_some
     {fields : List Field}
     {fieldName : String}
@@ -252,8 +276,13 @@ private theorem compileValidatedCore_ok_yields_compiled_functions_except_mapping
 private theorem filterInternalFunctions_eq_nil_of_all_nonInternal :
     ∀ (fns : List FunctionSpec),
       (∀ fn ∈ fns, fn.isInternal = false) →
-        fns.filter (·.isInternal) = [] := by
-  sorry
+        fns.filter (·.isInternal) = []
+  | [], _ => rfl
+  | fn :: rest, h => by
+      simp only [List.filter_cons]
+      have hfn := h fn (.head _)
+      simp [hfn, filterInternalFunctions_eq_nil_of_all_nonInternal rest
+        (fun f hf => h f (.tail _ hf))]
 private theorem filterInternalFunctions_eq_nil_of_supported
     (model : CompilationModel)
     (selectors : List Nat)

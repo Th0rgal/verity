@@ -25,8 +25,8 @@ def runtimeContractOfFunctions (name : String) (functions : List IRFunction) : I
 theorem runtimeContractOfFunctions_legacyCompatible
     (name : String) (functions : List IRFunction)
     (hlegacyBodies : ∀ fn ∈ functions, LegacyCompatibleExternalStmtList fn.body) :
-    LegacyCompatibleRuntimeContract (runtimeContractOfFunctions name functions) := by
-      sorry
+    LegacyCompatibleRuntimeContract (runtimeContractOfFunctions name functions) :=
+  ⟨rfl, hlegacyBodies⟩
 theorem runtimeContractOfFunctions_disjoint
     (name : String) (functions : List IRFunction)
     (hdisjointBodies :
@@ -34,8 +34,8 @@ theorem runtimeContractOfFunctions_disjoint
         YulStmtListCallsDisjointFromInternalTable
           (runtimeContractOfFunctions name functions)
           fn.body) :
-    DisjointRuntimeContract (runtimeContractOfFunctions name functions) := by
-      sorry
+    DisjointRuntimeContract (runtimeContractOfFunctions name functions) :=
+  hdisjointBodies
 private theorem decodeSupportedParamWord_some_of_supported
     (ty : ParamType) (word : Nat) (hsupported : SupportedExternalParamType ty) :
     ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by

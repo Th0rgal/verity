@@ -59,12 +59,19 @@ private theorem yulStmtList_length_le_sizeOf : (stmts : List YulStmt) → stmts.
 private theorem compiledFunctionIR_body_length_le_sizeOf
     (selector : Nat) (spec : FunctionSpec) (returns : List ParamType) (bodyStmts : List YulStmt) :
     (compiledFunctionIR selector spec returns bodyStmts).body.length + 1 ≤
-      sizeOf (compiledFunctionIR selector spec returns bodyStmts).body + 1 := by
-        sorry
+      sizeOf (compiledFunctionIR selector spec returns bodyStmts).body + 1 :=
+  Nat.add_le_add_right
+    (yulStmtList_length_le_sizeOf (compiledFunctionIR selector spec returns bodyStmts).body) 1
 private theorem yulStmtList_extraFuel_append_ge
     (pre body : List YulStmt) :
     sizeOf (pre ++ body) - (pre ++ body).length ≥ sizeOf body - body.length := by
-      sorry
+  induction pre with
+  | nil => simp
+  | cons s rest ih =>
+      simp only [List.cons_append, List.length_cons]
+      have : sizeOf (s :: (rest ++ body)) = 1 + sizeOf s + sizeOf (rest ++ body) := by
+        simp [sizeOf, List._sizeOf_1]
+      omega
 @[simp] theorem prebindRawArgs_calldata (state : IRState) (params : List Param) :
     (prebindRawArgs state params).calldata = state.calldata := by
   unfold prebindRawArgs
@@ -281,13 +288,35 @@ private theorem lookupBinding?_eq_none_of_not_mem
     (queryName : String)
     (hnotmem : queryName ∉ bindings.map Prod.fst) :
     FunctionBody.lookupBinding? bindings queryName = none := by
-      sorry
-private theorem lookupBinding?_some_of_mem
-    (bindings : List (String × Nat))
-    (queryName : String)
-    (hmem : queryName ∈ bindings.map Prod.fst) :
-    ∃ value, FunctionBody.lookupBinding? bindings queryName = some value := by
-      sorry
+  simp only [FunctionBody.lookupBinding?]
+  have hfind : bindings.find? (fun entry => entry.1 == queryName) = none := by
+    induction bindings with
+    | nil => rfl
+    | cons entry rest ih =>
+        simp only [List.map, List.mem_cons, not_or] at hnotmem
+        simp only [List.find?]
+        have hne : (entry.1 == queryName) = false := by
+          simp only [beq_eq_false_iff_ne, ne_eq]
+          exact fun h => hnotmem.1 h.symm
+        simp [hne, ih hnotmem.2]
+  simp [hfind]
+private theorem lookupBinding?_some_of_mem :
+    ∀ (bindings : List (String × Nat)) (queryName : String),
+      queryName ∈ bindings.map Prod.fst →
+        ∃ value, FunctionBody.lookupBinding? bindings queryName = some value
+  | [], _, hmem => absurd hmem (by simp)
+  | entry :: rest, queryName, hmem => by
+      simp only [List.map, List.mem_cons] at hmem
+      by_cases heq : entry.1 = queryName
+      · exact ⟨entry.2, by simp [FunctionBody.lookupBinding?, List.find?, heq]⟩
+      · have hmem' : queryName ∈ rest.map Prod.fst :=
+          hmem.resolve_left (fun h => heq h.symm)
+        have ⟨v, hv⟩ := lookupBinding?_some_of_mem rest queryName hmem'
+        refine ⟨v, ?_⟩
+        simp only [FunctionBody.lookupBinding?, List.find?] at hv ⊢
+        have hne : (entry.1 == queryName) = false := by
+          simp [beq_eq_false_iff_ne, heq]
+        simp [hne, hv]
 /-- The initial IR state matches the source runtime once the transaction
 context already fits the bounded source-level numeric domains. -/
 theorem initialIRStateForTx_matches_runtime
