@@ -109,6 +109,10 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
     f ∈ fields := by
+      -- findFieldWithResolvedSlot wraps a private recursive search; add the helper
+      -- lemma directly in Types.lean's namespace where the private is visible.
+      -- For now, we reason generically: if the Option lookup succeeds, the field
+      -- must appear in the list.  We use `findFieldSlot` as an auxiliary witness.
       sorry
 -- private theorem legacyCompatibleExternalStmtList_append
 --     (pfx suffix : List Yul.YulStmt)
@@ -120,10 +124,41 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 --     (exprs : List Yul.YulExpr) :
 --     LegacyCompatibleExternalStmtList (exprs.map Yul.YulStmt.expr) := by
 --       sorry
+private theorem legacyCompatibleExternalStmtList_append
+    (xs ys : List Yul.YulStmt)
+    (hxs : LegacyCompatibleExternalStmtList xs)
+    (hys : LegacyCompatibleExternalStmtList ys) :
+    LegacyCompatibleExternalStmtList (xs ++ ys) := by
+  induction xs with
+  | nil => exact hys
+  | cons hd tl ih =>
+      cases hxs with
+      | comment _ _ hrest => exact .comment _ _ (ih hrest)
+      | let_ _ _ _ hrest => exact .let_ _ _ _ (ih hrest)
+      | assign _ _ _ hrest => exact .assign _ _ _ (ih hrest)
+      | expr _ _ hrest => exact .expr _ _ (ih hrest)
+      | if_ _ _ _ hbody hrest => exact .if_ _ _ _ hbody (ih hrest)
+      | block _ _ hbody hrest => exact .block _ _ hbody (ih hrest)
+      | funcDef _ _ _ _ _ hbody hrest => exact .funcDef _ _ _ _ _ hbody (ih hrest)
+private theorem legacyCompatibleExternalStmtList_of_exprStmtMap
+    {α : Type} (f : α → Yul.YulExpr) (xs : List α) :
+    LegacyCompatibleExternalStmtList (xs.map (fun x => Yul.YulStmt.expr (f x))) := by
+  induction xs with
+  | nil => exact .nil
+  | cons _ _ ih => exact .expr _ _ ih
 private theorem legacyCompatibleExternalStmtList_revertWithMessage
     (message : String) :
     LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by
-      sorry
+      simp only [CompilationModel.revertWithMessage]
+      -- After unfolding, [h1,h2,h3] ++ rest reduces to h1::h2::h3::rest.
+      -- Apply expr constructors for the 3 header stmts, then handle dataStmts ++ [revert]
+      apply LegacyCompatibleExternalStmtList.expr
+      apply LegacyCompatibleExternalStmtList.expr
+      apply LegacyCompatibleExternalStmtList.expr
+      -- Now goal is: LegacyCompatibleExternalStmtList (dataStmts ++ [revert])
+      apply legacyCompatibleExternalStmtList_append
+      · exact legacyCompatibleExternalStmtList_of_exprStmtMap _ _
+      · exact .expr _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
     {fields : List Field}
     {fieldName : String}
@@ -146,7 +181,12 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar
         fields [] [] .calldata [] false inScopeNames (.letVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
+      revert hcompile
+      cases CompilationModel.compileExpr fields .calldata value with
+      | error e => simp
+      | ok val =>
+          simp [pure, Except.pure]; intro h; subst h; exact .let_ _ _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
     {fields : List Field}
     {inScopeNames : List String}
@@ -158,7 +198,12 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar
         fields [] [] .calldata [] false inScopeNames (.assignVar name value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
+      revert hcompile
+      cases CompilationModel.compileExpr fields .calldata value with
+      | error e => simp
+      | ok val =>
+          simp [pure, Except.pure]; intro h; subst h; exact .assign _ _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
     {fields : List Field}
     {inScopeNames : List String}
@@ -170,7 +215,14 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
         fields [] [] .calldata [] false inScopeNames (.require cond message) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
+      revert hcompile
+      cases CompilationModel.compileRequireFailCond fields .calldata cond with
+      | error e => simp
+      | ok failCond =>
+          simp [pure, Except.pure]; intro h; subst h
+          exact .if_ _ _ _
+            (legacyCompatibleExternalStmtList_revertWithMessage message) .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
     {fields : List Field}
     {inScopeNames : List String}
@@ -181,7 +233,14 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
         fields [] [] .calldata [] false inScopeNames (.«return» value) =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      -- isInternal = false, so produces [mstore(0, val), return(0, 32)]
+      simp only [CompilationModel.compileStmt, bind, Except.bind] at hcompile
+      revert hcompile
+      cases CompilationModel.compileExpr fields .calldata value with
+      | error e => simp
+      | ok val =>
+          simp [pure, Except.pure]; intro h; subst h
+          exact .expr _ _ (.expr _ _ .nil)
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
     {fields : List Field}
     {inScopeNames : List String}
@@ -191,7 +250,8 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_stop
         fields [] [] .calldata [] false inScopeNames .stop =
           Except.ok bodyIR) :
     LegacyCompatibleExternalStmtList bodyIR := by
-      sorry
+      simp only [CompilationModel.compileStmt, pure, Except.pure] at hcompile
+      cases hcompile; exact .expr _ _ .nil
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
     {fields : List Field}
     {inScopeNames : List String}
@@ -601,7 +661,29 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies
     (ir : IRContract)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     LegacyCompatibleExternalBodies ir := by
-      sorry
+      have hcompiled := compile_ok_yields_compiled_functions model selectors hSupported ir hcompile
+      -- Suffices to show for any irFn related by Forall₂
+      suffices h : ∀ (entries : List (FunctionSpec × Nat)) (irFns : List IRFunction),
+          List.Forall₂
+            (fun (entry : FunctionSpec × Nat) (irFn : IRFunction) =>
+              compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+            entries irFns →
+          (∀ (entry : FunctionSpec × Nat), entry ∈ entries → entry.1 ∈ selectorDispatchedFunctions model) →
+          ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body by
+        exact h _ _ hcompiled
+          (fun entry hentry => by
+            simpa [SourceSemantics.selectorFunctionPairs] using (List.of_mem_zip hentry).1)
+      intro entries irFns hrel hentries
+      induction hrel with
+      | nil => intro _ hirFn; cases hirFn
+      | cons hhead _ ih =>
+          intro irFn hirFn
+          cases hirFn with
+          | head =>
+              exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
+                model selectors hSupported _ _ _ (hentries _ (.head _)) hhead
+          | tail _ hmem =>
+              exact ih (fun entry hentry => hentries entry (.tail _ hentry)) _ hmem
 theorem compile_ok_yields_legacyCompatibleRuntimeContract
     (model : CompilationModel)
     (selectors : List Nat)

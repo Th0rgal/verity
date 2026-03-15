@@ -670,6 +670,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compiled_internal_functions_forall₂_of_mapM_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.exists_right_of_forall₂_mem_left  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.field_mem_of_findFieldWithResolvedSlot_some  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_append  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_exprStmtMap  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_revertWithMessage  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar  -- private
@@ -1785,4 +1787,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1654 theorems/lemmas (988 active, 419 private, 247 sorry)
+-- Total: 1656 theorems/lemmas (988 active, 421 private, 247 sorry)
