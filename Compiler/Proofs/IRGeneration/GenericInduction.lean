@@ -5553,7 +5553,15 @@ theorem supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goa
     SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal
       runtimeContract
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
-        sorry
+    obtain ⟨sourceResult, irExec, hsource, hir, hmatch⟩ := hbody
+    have hbridge := execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint
+      runtimeContract (bodyStmts.length + extraFuel + 1) state bodyStmts hdisjoint
+    subst hir
+    refine ⟨sourceResult, _, hsource, hbridge, ?_⟩
+    revert hmatch
+    cases sourceResult <;>
+      cases execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts <;>
+      simp [FunctionBody.stmtResultMatchesIRExec, stmtResultMatchesIRExecWithInternals]
 /-- Under compiled-body disjointness, the exact helper-aware body goal can also
 be collapsed back to the legacy compiled-body goal. This keeps the new exact
 helper-aware seam reusable with the existing function-level theorem surface
@@ -5576,7 +5584,14 @@ theorem supported_function_body_with_helpers_ir_goal_of_helper_ir_goal_callsDisj
     (hdisjoint : YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts) :
     SupportedFunctionBodyWithHelpersIRPreservationGoal
       model fn bodyStmts helperFuel tx initialWorld state bindings extraFuel := by
-        sorry
+    obtain ⟨sourceResult, irExec, hsource, hir, hmatch⟩ := hbody
+    have hbridge := execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint
+      runtimeContract (bodyStmts.length + extraFuel + 1) state bodyStmts hdisjoint
+    subst hir
+    rw [hbridge] at hmatch
+    cases heq : execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts <;>
+      simp [heq, stmtResultMatchesIRExecWithInternals] at hmatch <;>
+      exact ⟨sourceResult, _, hsource, heq, hmatch⟩
 /-- Exact helper-aware body theorem for a helper-aware generic statement
 induction witness. This is the induction-level target needed to replace the
 current helper-free `SupportedStmtList` gate with compositional helper-step
@@ -6716,8 +6731,9 @@ theorem directInternalHelperPerCalleeBridgeCatalog_of_supportedBody_and_assignBr
     (hbody : SupportedBodyInterface spec fn)
     (hassign :
       DirectInternalHelperPerCalleeAssignBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn :=
+  { call := fun hmem => absurd hmem (by simp [hbody.helperCallNames_nil])
+    assign := hassign.assign }
 /-- Split compile-side Tier 4 inventory. This isolates the purely compilation
 obligations from the semantic bridge obligations so future fragment widening can
 discharge compile success generically once direct helper calls are admitted into
@@ -6768,8 +6784,8 @@ theorem directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody
     {fields : List Field}
     {fn : FunctionSpec}
     (hbody : SupportedBodyInterface spec fn) :
-    DirectInternalHelperPerCalleeCallCompileCatalog spec fields fn := by
-      sorry
+    DirectInternalHelperPerCalleeCallCompileCatalog spec fields fn :=
+  { call := fun hmem => absurd hmem (by simp [hbody.helperCallNames_nil]) }
 /-- Split compile-side Tier 4 inventory. This isolates the purely compilation
 obligations from the semantic bridge obligations so future fragment widening can
 discharge compile success generically once direct helper calls are admitted into
@@ -7245,8 +7261,9 @@ theorem directInternalHelperPerCalleeBridgeCatalog_of_compileCatalog_and_semanti
     (hcompile : DirectInternalHelperPerCalleeCompileCatalog spec fields fn)
     (hsemantic :
       DirectInternalHelperPerCalleeSemanticBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn :=
+  { call := fun hmem => ⟨hcompile.call hmem, hsemantic.call hmem⟩
+    assign := fun hmem => ⟨hcompile.assign hmem, hsemantic.assign hmem⟩ }
 /-- Assemble the existing body-level direct-helper bridge catalog from the more
 rank-induction-friendly per-callee bridge inventory. -/
 theorem directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
@@ -7255,8 +7272,11 @@ theorem directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
     {fields : List Field}
     {fn : FunctionSpec}
     (hcallee : DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperHeadStepBridgeCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperHeadStepBridgeCatalog runtimeContract spec fields fn :=
+  { callCompile := fun hmem => (hcallee.call hmem).compile
+    callBridge := fun hmem => (hcallee.call hmem).bridge
+    assignCompile := fun hmem => (hcallee.assign hmem).compile
+    assignBridge := fun hmem => (hcallee.assign hmem).bridge }
 /-- Assemble the body-level direct-helper bridge catalog directly from the
 current helper-free supported-body witness plus the assign-only per-callee
 bridge inventory. This keeps downstream theorems on the exact assign-only Tier 4
@@ -7269,8 +7289,11 @@ theorem directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignBri
     (hbody : SupportedBodyInterface spec fn)
     (hassign :
       DirectInternalHelperPerCalleeAssignBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperHeadStepBridgeCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperHeadStepBridgeCatalog runtimeContract spec fields fn :=
+  { callCompile := fun hmem => absurd hmem (by simp [hbody.helperCallNames_nil])
+    callBridge := fun hmem => absurd hmem (by simp [hbody.helperCallNames_nil])
+    assignCompile := fun hmem => (hassign.assign hmem).compile
+    assignBridge := fun hmem => (hassign.assign hmem).bridge }
 private theorem directInternalHelperHeadStepCatalog_call_of_bridgeCatalog
     {runtimeContract : IRContract}
     {spec : CompilationModel}
@@ -7287,7 +7310,17 @@ private theorem directInternalHelperHeadStepCatalog_call_of_bridgeCatalog
           scope
           (Stmt.internalCall calleeName args)
           compiledIR := by
-            sorry
+      intro _scope _calleeName _args hmem
+      obtain ⟨compiledIR, hcompileOk⟩ := hbridge.callCompile hmem
+      obtain ⟨argExprs, hargOk, hshape⟩ := compileStmt_internalCall_shape hcompileOk
+      subst hshape
+      refine ⟨_, hcompileOk, fun runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hfuel => ?_⟩
+      have hfuelGe : extraFuel ≥ 1 := by simp [List.length] at hfuel; omega
+      refine ⟨_, _, rfl, rfl, ?_⟩
+      have heq : [YulStmt.expr (YulExpr.call (internalFunctionYulName _calleeName) argExprs)].length + extraFuel + 1 = (extraFuel - 1) + 3 := by simp [List.length]; omega
+      rw [heq]
+      exact hbridge.callBridge hmem hcompileOk hargOk runtime state helperFuel (extraFuel - 1)
+          hfuelPos hexact hscope hbounded hruntime
 private theorem directInternalHelperHeadStepCatalog_assign_of_bridgeCatalog
     {runtimeContract : IRContract}
     {spec : CompilationModel}
@@ -7304,7 +7337,17 @@ private theorem directInternalHelperHeadStepCatalog_assign_of_bridgeCatalog
           scope
           (Stmt.internalCallAssign names calleeName args)
           compiledIR := by
-            sorry
+      intro _scope _names _calleeName _args hmem
+      obtain ⟨compiledIR, hcompileOk⟩ := hbridge.assignCompile hmem
+      obtain ⟨argExprs, hargOk, hshape⟩ := compileStmt_internalCallAssign_shape hcompileOk
+      subst hshape
+      refine ⟨_, hcompileOk, fun runtime state helperFuel extraFuel hfuelPos hexact hscope hbounded hruntime hfuel => ?_⟩
+      have hfuelGe : extraFuel ≥ 1 := by simp [List.length] at hfuel; omega
+      refine ⟨_, _, rfl, rfl, ?_⟩
+      have heq : [YulStmt.letMany _names (YulExpr.call (internalFunctionYulName _calleeName) argExprs)].length + extraFuel + 1 = (extraFuel - 1) + 3 := by simp [List.length]; omega
+      rw [heq]
+      exact hbridge.assignBridge hmem hcompileOk hargOk runtime state helperFuel (extraFuel - 1)
+          hfuelPos hexact hscope hbounded hruntime
 /-- Build the reusable direct-helper head-step catalog from the lighter bridge
 catalog seam. This keeps future helper-rank induction focused on exact singleton
 bridges instead of reconstructing `CompiledStmtStepWithHelpersAndHelperIR`
@@ -7315,8 +7358,9 @@ theorem directInternalHelperHeadStepCatalog_of_bridgeCatalog
     {fields : List Field}
     {fn : FunctionSpec}
     (hbridge : DirectInternalHelperHeadStepBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn :=
+  { call := directInternalHelperHeadStepCatalog_call_of_bridgeCatalog hbridge
+    assign := directInternalHelperHeadStepCatalog_assign_of_bridgeCatalog hbridge }
 /-- Assemble the reusable direct-helper head-step catalog directly from the more
 rank-induction-friendly per-callee bridge inventory. This lets downstream
 wrapper theorems consume the exact catalog object future rank induction should
@@ -7327,8 +7371,9 @@ theorem directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
     {fields : List Field}
     {fn : FunctionSpec}
     (hcallee : DirectInternalHelperPerCalleeBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn :=
+  directInternalHelperHeadStepCatalog_of_bridgeCatalog
+    (directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog hcallee)
 /-- Assemble the exact body-level direct-helper head-step catalog directly from
 the split compile/semantic Tier 4 inventories. This removes the last per-callee
 bridge detour once callers already provide the compile catalog and semantic
@@ -7341,8 +7386,10 @@ theorem directInternalHelperHeadStepCatalog_of_compileCatalog_and_semanticBridge
     (hcompile : DirectInternalHelperPerCalleeCompileCatalog spec fields fn)
     (hsemantic :
       DirectInternalHelperPerCalleeSemanticBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn :=
+  directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
+    (directInternalHelperPerCalleeBridgeCatalog_of_compileCatalog_and_semanticBridgeCatalog
+      hcompile hsemantic)
 -- /-- Assemble the exact body-level direct-helper head-step catalog directly from
 -- the split compile/runtime-witness/semantic-core Tier 4 inventories. This keeps
 -- the theorem seam on the precise head-step catalog even before helper-summary
@@ -7430,8 +7477,10 @@ theorem directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCat
     (hbody : SupportedBodyInterface spec fn)
     (hassign :
       DirectInternalHelperPerCalleeAssignBridgeCatalog runtimeContract spec fields fn) :
-    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn := by
-      sorry
+    DirectInternalHelperHeadStepCatalog runtimeContract spec fields fn :=
+  directInternalHelperHeadStepCatalog_of_bridgeCatalog
+    (directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
+      hbody hassign)
 /-- Assemble the exact direct-helper-assign list interface from a reusable
 single-head constructor. This pushes future helper-rank induction down to the
 only genuinely new work: constructing the `Stmt.internalCallAssign` head step
