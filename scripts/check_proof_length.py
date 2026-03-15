@@ -462,6 +462,15 @@ ALLOWLIST: set[str] = {
     # exceed the limit due to deeply nested hypothesis lists.
     "directInternalHelperHeadStepCatalog_of_compileCatalog_and_semanticBridgeCatalog",
     "internalFunctionYulName_ne_return",
+    # Issue #1638 / PR #1639 — sorry reduction, legacy-compatible surface proofs:
+    # The compileSetStorage theorem (64 lines) handles a monadic chain with
+    # requireAddressField guard, compileExpr bind, single-vs-multi-slot split,
+    # and packedBits match — each branch needs explicit case analysis.
+    "legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields",
+    # The surface theorem (89 lines) exhaustively case-splits on all 38 Stmt
+    # constructors: 9 supported cases dispatch to helper lemmas, 29 unsupported
+    # cases derive contradiction from stmtTouchesUnsupportedContractSurface.
+    "legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface",
 }
 
 # Directories containing proof files to scan.
