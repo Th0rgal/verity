@@ -2895,9 +2895,6 @@ theorem eval_compileRequireFailCond_core_onExpr
       CompilationModel.compileRequireFailCond fields .calldata cond = Except.ok failCond ∧
       evalIRExpr state failCond =
         some (SourceSemantics.boolWord (SourceSemantics.evalExpr fields runtime cond = some 0)) := by
-  sorry
-  /- Adapted from main. Needs additional work for ge/le cases where evalExpr
-     returns Option Nat via monadic bind.
   let finishIszeroEval {expr : Expr} (h : ExprCompileCore expr)
       (hexactExpr : bindingsExactlyMatchIRVarsOnExpr expr runtime.bindings state)
       (hpresentExpr : exprBoundNamesPresent expr runtime.bindings)
@@ -3095,7 +3092,12 @@ theorem eval_compileRequireFailCond_core_onExpr
                     (lhsVal % Compiler.Constants.evmModulus <
                       rhsVal % Compiler.Constants.evmModulus)) := by
               simpa using evalIRExpr_lt_of_eval hlhsEval' hrhsEval'
-            simp only [hvL, hvR, Option.some.injEq]
+            have hevalExpr : SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
+                (do let l ← SourceSemantics.evalExpr fields runtime lhs
+                    let r ← SourceSemantics.evalExpr fields runtime rhs
+                    pure (SourceSemantics.boolWord (decide (r ≤ l)))) := rfl
+            rw [hevalExpr, hvL, hvR]
+            simp only [bind, Option.bind, pure, Option.some.injEq]
             by_cases hlt : lhsVal < rhsVal
             · have hnotge : ¬ (rhsVal ≤ lhsVal) := Nat.not_le_of_gt hlt
               simp [hltEval, Nat.mod_eq_of_lt hlhsValLt, Nat.mod_eq_of_lt hrhsValLt, hlt, hnotge,
@@ -3163,7 +3165,12 @@ theorem eval_compileRequireFailCond_core_onExpr
                     (rhsVal % Compiler.Constants.evmModulus <
                       lhsVal % Compiler.Constants.evmModulus)) := by
               simpa using evalIRExpr_gt_of_eval hlhsEval' hrhsEval'
-            simp only [hvL, hvR, Option.some.injEq]
+            have hevalExpr : SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
+                (do let l ← SourceSemantics.evalExpr fields runtime lhs
+                    let r ← SourceSemantics.evalExpr fields runtime rhs
+                    pure (SourceSemantics.boolWord (decide (l ≤ r)))) := rfl
+            rw [hevalExpr, hvL, hvR]
+            simp only [bind, Option.bind, pure, Option.some.injEq]
             by_cases hgt : rhsVal < lhsVal
             · have hnotle : ¬ (lhsVal ≤ rhsVal) := Nat.not_le_of_gt hgt
               simp [hgtEval, Nat.mod_eq_of_lt hlhsValLt, Nat.mod_eq_of_lt hrhsValLt, hgt, hnotle,
@@ -3192,7 +3199,6 @@ theorem eval_compileRequireFailCond_core_onExpr
       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
       · simp [CompilationModel.compileRequireFailCond, hexpr]
       · exact finishIszeroEval (ExprCompileCore.logicalOr hL hR) hexact hpresent hexpr
-  -/
 
 theorem eval_compileRequireFailCond_core
     {fields : List Field}
