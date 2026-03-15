@@ -171,7 +171,11 @@ theorem evalIRExpr_caller_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "caller" []) =
       some (SourceSemantics.evalExpr fields runtime (.caller)) := by
-        sorry
+  rcases hmatch with ⟨_, _, hsender, _, _, _, _, _, _, _⟩
+  rw [show SourceSemantics.evalExpr fields runtime (.caller) = runtime.world.sender.val by rfl]
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hsender]
 
 theorem evalIRExpr_contractAddress_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -180,7 +184,18 @@ theorem evalIRExpr_contractAddress_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "address" []) =
       some (SourceSemantics.evalExpr fields runtime (.contractAddress)) := by
-        sorry
+  rcases hmatch with ⟨_, _, _, _, hthis, _, _, _, _, _⟩
+  have hthisLt : runtime.world.thisAddress.val < Compiler.Constants.evmModulus := by
+    have haddrLt : runtime.world.thisAddress.val < Verity.Core.ADDRESS_MODULUS := by
+      simpa [Verity.Core.Address.modulus] using
+        Verity.Core.Address.val_lt_modulus runtime.world.thisAddress
+    have hmodLt : Verity.Core.ADDRESS_MODULUS < Compiler.Constants.evmModulus := by
+      norm_num [Verity.Core.ADDRESS_MODULUS, Compiler.Constants.evmModulus]
+    exact Nat.lt_trans haddrLt hmodLt
+  rw [show SourceSemantics.evalExpr fields runtime (.contractAddress) = runtime.world.thisAddress.val by rfl]
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hthis, Nat.mod_eq_of_lt hthisLt]
 
 theorem evalIRExpr_msgValue_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -189,7 +204,14 @@ theorem evalIRExpr_msgValue_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "callvalue" []) =
       some (SourceSemantics.evalExpr fields runtime (.msgValue)) := by
-        sorry
+  rcases hmatch with ⟨_, _, _, hmsgValue, _, _, _, _, _, _⟩
+  rw [show SourceSemantics.evalExpr fields runtime (.msgValue) = runtime.world.msgValue.val by rfl]
+  have hmsgValueLt : runtime.world.msgValue.val < Compiler.Constants.evmModulus := by
+    simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+      runtime.world.msgValue.isLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hmsgValue, Nat.mod_eq_of_lt hmsgValueLt]
 
 theorem evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -198,7 +220,15 @@ theorem evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "timestamp" []) =
       some (SourceSemantics.evalExpr fields runtime (.blockTimestamp)) := by
-        sorry
+  rcases hmatch with ⟨_, _, _, _, _, htimestamp, _, _, _, _⟩
+  rw [show SourceSemantics.evalExpr fields runtime (.blockTimestamp) =
+      runtime.world.blockTimestamp.val by rfl]
+  have htimestampLt : runtime.world.blockTimestamp.val < Compiler.Constants.evmModulus := by
+    simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+      runtime.world.blockTimestamp.isLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, htimestamp, Nat.mod_eq_of_lt htimestampLt]
 
 theorem evalIRExpr_blockNumber_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -207,7 +237,15 @@ theorem evalIRExpr_blockNumber_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "number" []) =
       some (SourceSemantics.evalExpr fields runtime (.blockNumber)) := by
-        sorry
+  rcases hmatch with ⟨_, _, _, _, _, _, hnumber, _, _, _⟩
+  rw [show SourceSemantics.evalExpr fields runtime (.blockNumber) =
+      runtime.world.blockNumber.val by rfl]
+  have hnumberLt : runtime.world.blockNumber.val < Compiler.Constants.evmModulus := by
+    simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+      runtime.world.blockNumber.isLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hnumber, Nat.mod_eq_of_lt hnumberLt]
 
 theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -216,7 +254,14 @@ theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "chainid" []) =
       some (SourceSemantics.evalExpr fields runtime (.chainid)) := by
-        sorry
+  rcases hmatch with ⟨_, _, _, _, _, _, _, hchain, _, _⟩
+  rw [show SourceSemantics.evalExpr fields runtime (.chainid) = runtime.world.chainId.val by rfl]
+  have hchainLt : runtime.world.chainId.val < Compiler.Constants.evmModulus := by
+    simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+      runtime.world.chainId.isLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hchain, Nat.mod_eq_of_lt hchainLt]
 
 theorem eval_compileExpr_caller
     {fields : List Field}
@@ -285,7 +330,11 @@ theorem eval_compileExpr_literal
     (value : Nat) :
     evalIRExpr state (YulExpr.lit (value % CompilationModel.uint256Modulus)) =
       some (SourceSemantics.evalExpr fields runtime (.literal value)) := by
-        sorry
+  simp only [evalIRExpr]
+  have hsource : SourceSemantics.evalExpr fields runtime (.literal value) =
+      some (SourceSemantics.wordNormalize value) := rfl
+  rw [hsource, ParamLoading.wordNormalize_eq_mod]
+  rfl
 
 @[simp] theorem boolWord_eq_if (p : Prop) [Decidable p] :
     SourceSemantics.boolWord (decide p) = (if p then 1 else 0) := by
@@ -945,7 +994,13 @@ theorem eval_compileExpr_param_of_exact_bindings
     (hpresent : exprBoundNamesPresent (.param name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
       some (SourceSemantics.evalExpr fields runtime (.param name)) := by
-        sorry
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := evalIRExpr_ident_of_exact_bindings hexact name
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.param name) =
+      some (SourceSemantics.lookupValue runtime.bindings name) := rfl
+  rw [hsource, lookupValue_eq_of_lookupBinding?_some hlookup]
+  simp only [bind, Option.bind, pure, hident]
 
 theorem eval_compileExpr_localVar_of_exact_bindings
     {fields : List Field}
@@ -956,7 +1011,13 @@ theorem eval_compileExpr_localVar_of_exact_bindings
     (hpresent : exprBoundNamesPresent (.localVar name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
       some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by
-        sorry
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := evalIRExpr_ident_of_exact_bindings hexact name
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) =
+      some (SourceSemantics.lookupValue runtime.bindings name) := rfl
+  rw [hsource, lookupValue_eq_of_lookupBinding?_some hlookup]
+  simp only [bind, Option.bind, pure, hident]
 
 theorem eval_compileExpr_param_of_expr_bindings
     {fields : List Field}
@@ -967,7 +1028,13 @@ theorem eval_compileExpr_param_of_expr_bindings
     (hpresent : exprBoundNamesPresent (.param name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
       some (SourceSemantics.evalExpr fields runtime (.param name)) := by
-        sorry
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := hexact name (by simp [exprBoundNames])
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.param name) =
+      some (SourceSemantics.lookupValue runtime.bindings name) := rfl
+  rw [hsource, lookupValue_eq_of_lookupBinding?_some hlookup]
+  simp only [evalIRExpr, bind, Option.bind, pure, hident]
 
 theorem eval_compileExpr_localVar_of_expr_bindings
     {fields : List Field}
@@ -978,7 +1045,13 @@ theorem eval_compileExpr_localVar_of_expr_bindings
     (hpresent : exprBoundNamesPresent (.localVar name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
       some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by
-        sorry
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := hexact name (by simp [exprBoundNames])
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) =
+      some (SourceSemantics.lookupValue runtime.bindings name) := rfl
+  rw [hsource, lookupValue_eq_of_lookupBinding?_some hlookup]
+  simp only [evalIRExpr, bind, Option.bind, pure, hident]
 
 @[simp] theorem boolWord_lt_evmModulus (b : Bool) :
     SourceSemantics.boolWord b < Compiler.Constants.evmModulus := by
@@ -2221,7 +2294,9 @@ theorem runtimeStateMatchesIR_setVar_bindValue
     runtimeStateMatchesIR fields
       { runtime with bindings := SourceSemantics.bindValue runtime.bindings boundName value }
       (state.setVar boundName value) := by
-        sorry
+  cases runtime
+  cases state
+  simpa [runtimeStateMatchesIR, IRState.setVar]
 
 theorem runtimeStateMatchesIR_setVar_irrelevant
     {fields : List Field}
@@ -2277,7 +2352,35 @@ theorem compileStmt_core_ok
     {stmt : Stmt}
     (hcore : StmtCompileCore stmt) :
     ∃ bodyIR, CompilationModel.compileStmt fields [] [] .calldata [] false [] stmt = Except.ok bodyIR := by
-      sorry
+  cases hcore with
+  | letVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.let_ name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | assignVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.assign name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | require_ hcond =>
+      rename_i cond message
+      rcases compileRequireFailCond_core_ok hcond with ⟨failCond, hfailCond⟩
+      exact ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)], by
+        rw [CompilationModel.compileStmt, hfailCond]
+        rfl⟩
+  | return_ hvalue =>
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | stop =>
+      exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
+        rw [CompilationModel.compileStmt]
+        rfl⟩
 
 theorem runtimeStateMatchesIR_setMemory
     {fields : List Field}
@@ -2377,7 +2480,15 @@ theorem bindingsExactlyMatchIRVarsOnScope_setVar_bindValue
     (tx : IRTransaction) :
     SourceSemantics.encodeStorage spec (SourceSemantics.withTransactionContext world tx) =
       SourceSemantics.encodeStorage spec world := by
-        sorry
+  funext slot
+  simp only [SourceSemantics.encodeStorage, SourceSemantics.withTransactionContext]
+  unfold SourceSemantics.encodeStorageAt
+  -- After simp unfolds withTransactionContext, the remaining difference is
+  -- findDynamicArrayElementAtSlot (private) applied to different ContractState records.
+  -- Both records have the same storageArray, which is all findDynamicArrayElementAtSlot accesses.
+  -- This was provable on main but a structural change to ContractState (adding transientStorage)
+  -- causes a heartbeat timeout. Pre-existing sorry in PrintAxioms.lean.
+  sorry
 
 def stmtResultToSourceResult
     (spec : CompilationModel)
@@ -2519,7 +2630,8 @@ theorem bindingsExactlyMatchIRVarsOnScope_implies_onExpr
     (hexact : bindingsExactlyMatchIRVarsOnScope scope bindings state)
     (hinScope : exprBoundNamesInScope expr scope) :
     bindingsExactlyMatchIRVarsOnExpr expr bindings state := by
-      sorry
+  intro name hname
+  exact hexact name (hinScope name hname)
 
 theorem eval_compileRequireFailCond_core_of_scope
     {fields : List Field}
@@ -2548,7 +2660,8 @@ theorem bindingsExactlyMatchIRVarsOnScope_of_included
     (hexact : bindingsExactlyMatchIRVarsOnScope largerScope bindings state)
     (hincluded : scopeNamesIncluded scope largerScope) :
     bindingsExactlyMatchIRVarsOnScope scope bindings state := by
-      sorry
+  intro name hname
+  exact hexact name (hincluded name hname)
 
 theorem exprBoundNamesPresent_of_scope
     {expr : Expr}
@@ -2643,7 +2756,35 @@ theorem compileStmt_core_ok_any_scope
     ∃ bodyIR,
       CompilationModel.compileStmt
         fields [] [] .calldata [] false inScopeNames stmt = Except.ok bodyIR := by
-          sorry
+  cases hcore with
+  | letVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.let_ name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | assignVar hvalue =>
+      rename_i name value
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[YulStmt.assign name valueIR], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | require_ hcond =>
+      rename_i cond message
+      rcases compileRequireFailCond_core_ok hcond with ⟨failCond, hfailCond⟩
+      exact ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)], by
+        rw [CompilationModel.compileStmt, hfailCond]
+        rfl⟩
+  | return_ hvalue =>
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      exact ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+            , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ], by
+        rw [CompilationModel.compileStmt, hvalueIR]
+        rfl⟩
+  | stop =>
+      exact ⟨[YulStmt.expr (YulExpr.call "stop" [])], by
+        rw [CompilationModel.compileStmt]
+        rfl⟩
 
 theorem compileStmtList_cons_ok_of_compileStmt_ok
     {fields : List Field}
@@ -2834,7 +2975,106 @@ theorem compileStmtList_terminal_core_ok
     ∃ bodyIR,
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by
-          sorry
+  induction hterminal generalizing inScopeNames
+  case letVar scope name value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .letVar name value) (.letVar hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case assignVar scope name value rest hvalue _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .assignVar name value) (.assignVar hvalue) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case require_ scope cond message rest hcond _ hrest ih =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .require cond message) (.require_ hcond) with ⟨headIR, hheadIR⟩
+      rcases ih (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames) with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case return_ scope value rest hvalue _ hrest =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .return value) (.return_ hvalue) with ⟨headIR, hheadIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
+          (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case stop scope rest hrest =>
+      rcases compileStmt_core_ok_any_scope (fields := fields) (inScopeNames := inScopeNames)
+        (stmt := .stop) StmtCompileCore.stop with ⟨headIR, hheadIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
+          (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      refine ⟨headIR ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList, hheadIR]
+      dsimp
+      rw [htailIR]
+      rfl
+  case ite scope cond thenBranch elseBranch rest hcond _ hthen helse hrest ihThen ihElse =>
+      rcases compileExpr_core_ok (fields := fields) hcond with ⟨condIR, hcondIR⟩
+      rcases ihThen (inScopeNames := inScopeNames) with ⟨thenIR, hthenIR⟩
+      rcases ihElse (inScopeNames := inScopeNames) with ⟨elseIR, helseIR⟩
+      rcases compileStmtList_core_ok (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames)
+          (stmts := rest) hrest with
+        ⟨tailIR, htailIR⟩
+      have helseNonempty : elseBranch.isEmpty = false := by
+        cases elseBranch with
+        | nil =>
+            exfalso
+            exact stmtListTerminalCore_ne_nil helse rfl
+        | cons =>
+            simp
+      refine
+        ⟨[YulStmt.block [
+            YulStmt.let_
+              (CompilationModel.pickFreshName "__ite_cond"
+                (inScopeNames ++ collectExprNames cond ++
+                  collectStmtListNames thenBranch ++ collectStmtListNames elseBranch))
+              condIR,
+            YulStmt.if_
+              (YulExpr.ident
+                (CompilationModel.pickFreshName "__ite_cond"
+                  (inScopeNames ++ collectExprNames cond ++
+                    collectStmtListNames thenBranch ++ collectStmtListNames elseBranch)))
+              thenIR,
+            YulStmt.if_
+              (YulExpr.call "iszero"
+                [YulExpr.ident
+                  (CompilationModel.pickFreshName "__ite_cond"
+                    (inScopeNames ++ collectExprNames cond ++
+                      collectStmtListNames thenBranch ++ collectStmtListNames elseBranch))])
+              elseIR
+          ]] ++ tailIR, ?_⟩
+      rw [CompilationModel.compileStmtList]
+      unfold CompilationModel.compileStmt
+      rw [hcondIR, hthenIR, helseIR]
+      dsimp
+      rw [htailIR]
+      simp [helseNonempty]
 
 theorem compileStmtList_terminal_core_ok_nonempty
     {fields : List Field}
@@ -2846,7 +3086,97 @@ theorem compileStmtList_terminal_core_ok_nonempty
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
     bodyIR ≠ [] := by
-      sorry
+  induction hterminal generalizing inScopeNames bodyIR with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .letVar name value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .assignVar name value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      rcases compileRequireFailCond_core_ok (fields := fields) hcond with ⟨failCond, hfailCond⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .require cond message) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hfailCond] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .return value) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt, hvalueIR] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | stop hrest =>
+      rename_i scope rest
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .stop) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      rw [CompilationModel.compileStmt] at hhead
+      injection hhead with hheadEq
+      subst hheadEq
+      simp [hbody]
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rename_i scope cond thenBranch elseBranch rest
+      rcases compileStmtList_cons_ok_inv (fields := fields) (inScopeNames := inScopeNames)
+          (stmt := .ite cond thenBranch elseBranch) (rest := rest) hcompile with
+        ⟨headIR, tailIR, hhead, _, hbody⟩
+      have helseNonempty : elseBranch.isEmpty = false := by
+        cases elseBranch with
+        | nil =>
+            exfalso
+            exact stmtListTerminalCore_ne_nil helse rfl
+        | cons =>
+            simp
+      rcases compileExpr_core_ok (fields := fields) hcond with ⟨condIR', hcondOk⟩
+      rcases compileStmtList_terminal_core_ok (fields := fields)
+          (scope := scope) (inScopeNames := inScopeNames) (stmts := thenBranch) hthen with
+        ⟨thenIR', hthenOk⟩
+      rcases compileStmtList_terminal_core_ok (fields := fields)
+          (scope := scope) (inScopeNames := inScopeNames) (stmts := elseBranch) helse with
+        ⟨elseIR', helseOk⟩
+      cases hcondIR : CompilationModel.compileExpr fields .calldata cond with
+      | error err =>
+          rw [hcondOk] at hcondIR
+          cases hcondIR
+      | ok condIR =>
+          cases hthenIR :
+              CompilationModel.compileStmtList
+                fields [] [] .calldata [] false inScopeNames thenBranch with
+          | error err =>
+              rw [hthenOk] at hthenIR
+              cases hthenIR
+          | ok thenIR =>
+              cases helseIR :
+                  CompilationModel.compileStmtList
+                    fields [] [] .calldata [] false inScopeNames elseBranch with
+              | error err =>
+                  rw [helseOk] at helseIR
+                  cases helseIR
+              | ok elseIR =>
+                  simp [CompilationModel.compileStmt, helseNonempty, hcondIR, hthenIR, helseIR] at hhead
+                  subst hhead
+                  simp [hbody]
 
 private theorem yulStmtList_length_le_sizeOf : (stmts : List YulStmt) → stmts.length ≤ sizeOf stmts
   | [] => by simp
@@ -5951,7 +6281,73 @@ theorem execStmtList_terminal_core_not_continue
     {stmts : List Stmt}
     (hterminal : StmtListTerminalCore scope stmts) :
     ∀ next, SourceSemantics.execStmtList fields runtime stmts ≠ .continue next := by
-      sorry
+  induction hterminal generalizing runtime with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      cases heval : SourceSemantics.evalExpr fields runtime value with
+      | none =>
+          simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval]
+      | some resolved =>
+          let runtime' :=
+            { runtime with
+              bindings := SourceSemantics.bindValue runtime.bindings name resolved }
+          simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval, runtime'] using
+            ih (runtime := runtime')
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      cases heval : SourceSemantics.evalExpr fields runtime value with
+      | none =>
+          simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval]
+      | some resolved =>
+          let runtime' :=
+            { runtime with
+              bindings := SourceSemantics.bindValue runtime.bindings name resolved }
+          simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval, runtime'] using
+            ih (runtime := runtime')
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      cases heval : SourceSemantics.evalExpr fields runtime cond with
+      | none =>
+          simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval]
+      | some resolved =>
+          by_cases hcondTrue : (resolved != 0) = true
+          · simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval, hcondTrue] using
+              ih (runtime := runtime)
+          · have hcondFalse : (resolved != 0) = false := by
+              cases hbool : (resolved != 0) <;> simp_all
+            simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval, hcondFalse]
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      intro next
+      cases heval : SourceSemantics.evalExpr fields runtime value <;>
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval]
+  | stop hrest =>
+      rename_i scope rest
+      intro next
+      simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rename_i scope cond thenBranch elseBranch rest
+      cases heval : SourceSemantics.evalExpr fields runtime cond with
+      | none =>
+          simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval]
+      | some resolved =>
+          by_cases hcondTrue : (resolved != 0) = true
+          · intro next
+            have hthenNoContinue := ihThen (runtime := runtime)
+            simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval, hcondTrue]
+            intro hEq
+            cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec] at hEq
+            · rename_i next'
+              exact hthenNoContinue next' hthenExec
+          · intro next
+            have helseNoContinue := ihElse (runtime := runtime)
+            have hcondFalse : (resolved != 0) = false := by
+              cases hbool : (resolved != 0) <;> simp_all
+            simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, heval, hcondFalse]
+            intro hEq
+            cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp [helseExec] at hEq
+            · rename_i next'
+              exact helseNoContinue next' helseExec
 
 theorem stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
     {fields : List Field}
@@ -5960,7 +6356,10 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
     (hsourceNoContinue : ∀ next, sourceResult ≠ .continue next)
     (hmatch : stmtResultMatchesIRExec fields sourceResult irExec) :
     ∀ next, irExec ≠ .continue next := by
-      sorry
+  intro next hcontinue
+  cases sourceResult <;> cases irExec <;> simp [stmtResultMatchesIRExec] at hmatch hcontinue
+  rename_i runtime state
+  exact hsourceNoContinue runtime rfl
 
 theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
     {fields : List Field}
@@ -5974,7 +6373,17 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
         (SourceSemantics.execStmtList fields runtime stmts)
         irExec) :
     ∀ next, irExec ≠ .continue next := by
-      sorry
+  exact stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
+    (fields := fields)
+    (sourceResult := SourceSemantics.execStmtList fields runtime stmts)
+    (irExec := irExec)
+    (execStmtList_terminal_core_not_continue
+      (fields := fields)
+      (runtime := runtime)
+      (scope := scope)
+      (stmts := stmts)
+      hterminal)
+    hmatch
 
 theorem execStmtList_terminal_core_ite_then_eq
     {fields : List Field}
