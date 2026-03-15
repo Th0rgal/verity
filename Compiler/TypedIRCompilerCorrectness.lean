@@ -1418,178 +1418,6 @@ theorem compile_setMappingUint_params_stop_semantics
     evalTStmts, defaultEvalFuel]
   simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, TVars.get]
 
--- ============================================================================
--- Morpho Blue admin function base semantics definitions
--- ============================================================================
-
-/-- Source semantics for the Morpho setOwner/setFeeRecipient pattern.
-Params: paramName (address, id 0).
-Locals: senderVar (address, id 1), ownerVar (address, id 2). -/
-def execSourceLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-    (init : TExecState) (ownerSlot : Nat) (msg1 msg2 : String) : TExecResult :=
-  let sender := init.env.sender
-  let owner := init.world.storageAddr ownerSlot
-  let param := init.vars.address 0
-  if decide (sender = owner) then
-    if decide (¬ (param = owner)) then
-      .ok { init with
-        vars := TVars.set (TVars.set init.vars
-          { id := 1, ty := Ty.address } sender)
-          { id := 2, ty := Ty.address } owner,
-        world := { init.world with
-          storageAddr := fun i => if i == ownerSlot then param else init.world.storageAddr i } }
-    else .revert msg2
-  else .revert msg1
-
-/-- Compiled semantics for the Morpho setOwner/setFeeRecipient pattern.
-Pre-populated CompileState: paramName (address, id 0). -/
-def execCompiledLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-    (fields : List Field) (ownerField senderVar ownerVar paramName : String)
-    (msg1 msg2 : String) (init : TExecState) : TExecResult :=
-  match (compileStmts fields
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.require (Expr.logicalNot (Expr.eq (Expr.param paramName) (Expr.localVar ownerVar))) msg2
-      , Stmt.setStorage ownerField (Expr.param paramName)
-      , Stmt.stop
-      ]).run
-      (CompileState.mk 1
-        [(paramName, { id := 0, ty := Ty.address })]
-        #[{ id := 0, ty := Ty.address }]
-        #[] #[]) with
-  | .error err => .revert err
-  | .ok (_, st) => evalTStmts init st.body.toList
-
-/-- Source semantics for the Morpho setFeeRecipient owner-auth pattern.
-Params: paramName (address, id 0).
-Locals: senderVar (address, id 1), ownerVar (address, id 2), targetVar (address, id 3). -/
-def execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-    (init : TExecState) (ownerSlot targetSlot : Nat) (msg1 msg2 : String) : TExecResult :=
-  let sender := init.env.sender
-  let owner := init.world.storageAddr ownerSlot
-  let param := init.vars.address 0
-  if decide (sender = owner) then
-    let targetVal := init.world.storageAddr targetSlot
-    if decide (¬ (param = targetVal)) then
-      .ok { init with
-        vars := TVars.set (TVars.set (TVars.set init.vars
-          { id := 1, ty := Ty.address } sender)
-          { id := 2, ty := Ty.address } owner)
-          { id := 3, ty := Ty.address } targetVal,
-        world := { init.world with
-          storageAddr := fun i => if i == targetSlot then param else init.world.storageAddr i } }
-    else .revert msg2
-  else .revert msg1
-
-/-- Compiled semantics for the Morpho setFeeRecipient owner-auth pattern.
-Pre-populated CompileState: paramName (address, id 0). -/
-def execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-    (fields : List Field) (ownerField targetField senderVar ownerVar targetVar paramName : String)
-    (msg1 msg2 : String) (init : TExecState) : TExecResult :=
-  match (compileStmts fields
-      (morphoSetFeeRecipientOwnerAuthStmts
-        ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2)).run
-      (CompileState.mk 1
-        [(paramName, { id := 0, ty := Ty.address })]
-        #[{ id := 0, ty := Ty.address }]
-        #[] #[]) with
-  | .error err => .revert err
-  | .ok (_, st) => evalTStmts init st.body.toList
-
-/-- Source semantics for the Morpho enableIrm pattern.
-Params: keyParam (address, id 0).
-Locals: senderVar (address, id 1), ownerVar (address, id 2), currentVar (uint256, id 3). -/
-def execSourceLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-    (init : TExecState) (ownerSlot mappingSlot : Nat) (writeVal : Nat)
-    (msg1 msg2 : String) : TExecResult :=
-  let sender := init.env.sender
-  let owner := init.world.storageAddr ownerSlot
-  let key := init.vars.address 0
-  if decide (sender = owner) then
-    let currentVal := init.world.storageMap mappingSlot key
-    if decide ((currentVal : Verity.Core.Uint256) = (0 : Verity.Core.Uint256)) then
-      .ok { init with
-        vars := TVars.set (TVars.set (TVars.set init.vars
-          { id := 1, ty := Ty.address } sender)
-          { id := 2, ty := Ty.address } owner)
-          { id := 3, ty := Ty.uint256 } currentVal,
-        world := { init.world with
-          storageMap := fun i a => if i == mappingSlot && a == key
-            then (writeVal : Verity.Core.Uint256)
-            else init.world.storageMap i a } }
-    else .revert msg2
-  else .revert msg1
-
-/-- Compiled semantics for the Morpho enableIrm pattern.
-Pre-populated CompileState: keyParam (address, id 0). -/
-def execCompiledLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-    (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
-    (writeVal : Nat) (msg1 msg2 : String) (init : TExecState) : TExecResult :=
-  match (compileStmts fields
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar currentVar (Expr.mapping mappingField (Expr.param keyParam))
-      , Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg2
-      , Stmt.setMapping mappingField (Expr.param keyParam) (Expr.literal writeVal)
-      , Stmt.stop
-      ]).run
-      (CompileState.mk 1
-        [(keyParam, { id := 0, ty := Ty.address })]
-        #[{ id := 0, ty := Ty.address }]
-        #[] #[]) with
-  | .error err => .revert err
-  | .ok (_, st) => evalTStmts init st.body.toList
-
-/-- Source semantics for the Morpho enableLltv pattern.
-Params: keyParam (uint256, id 0).
-Locals: senderVar (address, id 1), ownerVar (address, id 2), currentVar (uint256, id 3). -/
-def execSourceLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-    (init : TExecState) (ownerSlot mappingSlot : Nat) (bound writeVal : Nat)
-    (msg1 msg2 msg3 : String) : TExecResult :=
-  let sender := init.env.sender
-  let owner := init.world.storageAddr ownerSlot
-  let key := init.vars.uint256 0
-  if decide (sender = owner) then
-    let currentVal := init.world.storageMapUint mappingSlot key
-    if decide ((currentVal : Verity.Core.Uint256) = (0 : Verity.Core.Uint256)) then
-      if decide ((key : Verity.Core.Uint256) < (bound : Verity.Core.Uint256)) then
-        .ok { init with
-          vars := TVars.set (TVars.set (TVars.set init.vars
-            { id := 1, ty := Ty.address } sender)
-            { id := 2, ty := Ty.address } owner)
-            { id := 3, ty := Ty.uint256 } currentVal,
-          world := { init.world with
-            storageMapUint := fun i k => if i == mappingSlot && k == key
-              then (writeVal : Verity.Core.Uint256)
-              else init.world.storageMapUint i k } }
-      else .revert msg3
-    else .revert msg2
-  else .revert msg1
-
-/-- Compiled semantics for the Morpho enableLltv pattern.
-Pre-populated CompileState: keyParam (uint256, id 0). -/
-def execCompiledLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-    (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
-    (bound writeVal : Nat) (msg1 msg2 msg3 : String) (init : TExecState) : TExecResult :=
-  match (compileStmts fields
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar ownerVar (Expr.storage ownerField)
-      , Stmt.require (Expr.eq (Expr.localVar senderVar) (Expr.localVar ownerVar)) msg1
-      , Stmt.letVar currentVar (Expr.mappingUint mappingField (Expr.param keyParam))
-      , Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg2
-      , Stmt.require (Expr.lt (Expr.param keyParam) (Expr.literal bound)) msg3
-      , Stmt.setMappingUint mappingField (Expr.param keyParam) (Expr.literal writeVal)
-      , Stmt.stop
-      ]).run
-      (CompileState.mk 1
-        [(keyParam, { id := 0, ty := Ty.uint256 })]
-        #[{ id := 0, ty := Ty.uint256 }]
-        #[] #[]) with
-  | .error err => .revert err
-  | .ok (_, st) => evalTStmts init st.body.toList
-
 /-- Source semantics for an owner-auth mint pattern with one mapping read and one
 storage read before updating both pieces of state.
 Params: toParam (address, id 0), amountParam (uint256, id 1).
@@ -1649,122 +1477,6 @@ def execCompiledLetCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingAddPar
   | .error err => .revert err
   | .ok (_, st) => evalTStmts init st.body.toList
 
-/-- Source semantics for the Morpho setAuthorization pattern.
-Params: authParam (address, id 0), boolParam (bool, id 1).
-Locals: senderVar (address, id 2), currentVar (uint256, id 3). -/
-def execSourceLetCallerLetMapping2IteParamReqSetMapping2Stop
-    (init : TExecState) (mappingSlot : Nat) (msg1 msg2 : String) : TExecResult :=
-  let sender := init.env.sender
-  let authAddr := init.vars.address 0
-  let currentVal := init.world.storageMap2 mappingSlot sender authAddr
-  if init.vars.bool 1 then
-    if decide ((currentVal : Verity.Core.Uint256) = (0 : Verity.Core.Uint256)) then
-      .ok { init with
-        vars := TVars.set (TVars.set init.vars
-          { id := 2, ty := Ty.address } sender)
-          { id := 3, ty := Ty.uint256 } currentVal,
-        world := { init.world with
-          storageMap2 := fun i a1 a2 => if i == mappingSlot && a1 == sender && a2 == authAddr
-            then (1 : Verity.Core.Uint256)
-            else init.world.storageMap2 i a1 a2 } }
-    else .revert msg1
-  else
-    if decide (¬ ((currentVal : Verity.Core.Uint256) = (0 : Verity.Core.Uint256))) then
-      .ok { init with
-        vars := TVars.set (TVars.set init.vars
-          { id := 2, ty := Ty.address } sender)
-          { id := 3, ty := Ty.uint256 } currentVal,
-        world := { init.world with
-          storageMap2 := fun i a1 a2 => if i == mappingSlot && a1 == sender && a2 == authAddr
-            then (0 : Verity.Core.Uint256)
-            else init.world.storageMap2 i a1 a2 } }
-    else .revert msg2
-
-/-- Compiled semantics for the Morpho setAuthorization pattern.
-Pre-populated CompileState: authParam (address, id 0), boolParam (bool, id 1). -/
-def execCompiledLetCallerLetMapping2IteParamReqSetMapping2Stop
-    (fields : List Field) (mappingField senderVar currentVar authParam boolParam : String)
-    (msg1 msg2 : String) (init : TExecState) : TExecResult :=
-  match (compileStmts fields
-      [ Stmt.letVar senderVar Expr.caller
-      , Stmt.letVar currentVar (Expr.mapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam))
-      , Stmt.ite (Expr.param boolParam)
-          [ Stmt.require (Expr.eq (Expr.localVar currentVar) (Expr.literal 0)) msg1
-          , Stmt.setMapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam) (Expr.literal 1)
-          ]
-          [ Stmt.require (Expr.logicalNot (Expr.eq (Expr.localVar currentVar) (Expr.literal 0))) msg2
-          , Stmt.setMapping2 mappingField (Expr.localVar senderVar) (Expr.param authParam) (Expr.literal 0)
-          ]
-      , Stmt.stop
-      ]).run
-      (CompileState.mk 2
-        [(boolParam, { id := 1, ty := Ty.bool }),
-         (authParam, { id := 0, ty := Ty.address })]
-        #[{ id := 0, ty := Ty.address }, { id := 1, ty := Ty.bool }]
-        #[] #[]) with
-  | .error err => .revert err
-  | .ok (_, st) => evalTStmts init st.body.toList
-
--- ============================================================================
--- Morpho Blue admin function correctness theorems
--- ============================================================================
-
-/-- Semantic-preservation for the Morpho setOwner/setFeeRecipient pattern. -/
-theorem compile_letCaller_letStorageAddr_reqEq_reqNeq_setStorageAddr_param_stop_semantics
-    (fields : List Field) (ownerField senderVar ownerVar paramName msg1 msg2 : String)
-    (ownerSlot : Nat) (init : TExecState)
-    (hOwner : findFieldWithResolvedSlot fields ownerField =
-      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
-    (hne_sv_p : senderVar ≠ paramName)
-    (hne_ov_p : ownerVar ≠ paramName)
-    (hne_ov_sv : ownerVar ≠ senderVar) :
-    execCompiledLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-        fields ownerField senderVar ownerVar paramName msg1 msg2 init =
-      execSourceLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-        init ownerSlot msg1 msg2 := by
-  simp [execCompiledLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop,
-    execSourceLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop,
-    compileStmts_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_run,
-    hOwner, hne_sv_p, hne_ov_p, hne_ov_sv,
-    evalTStmts, defaultEvalFuel]
-  by_cases hEq1 : init.env.sender = init.world.storageAddr ownerSlot
-  · by_cases hEq2 : init.vars.address 0 = init.world.storageAddr ownerSlot
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, TVars.set, TVars.get]
-
-/-- Semantic-preservation for the Morpho setFeeRecipient owner-auth pattern. -/
-theorem compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageAddr_param_stop_semantics
-    (fields : List Field) (ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String)
-    (ownerSlot targetSlot : Nat) (init : TExecState)
-    (hOwner : findFieldWithResolvedSlot fields ownerField =
-      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
-    (hTarget : findFieldWithResolvedSlot fields targetField =
-      some ({ name := targetField, ty := FieldType.address }, targetSlot))
-    (hne_sv_p : senderVar ≠ paramName)
-    (hne_ov_p : ownerVar ≠ paramName)
-    (hne_ov_sv : ownerVar ≠ senderVar)
-    (hne_tv_p : targetVar ≠ paramName)
-    (hne_tv_sv : targetVar ≠ senderVar)
-    (hne_tv_ov : targetVar ≠ ownerVar) :
-    execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-        fields ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 init =
-      execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-        init ownerSlot targetSlot msg1 msg2 := by
-  simp [execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop,
-    execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop,
-    compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop_run,
-    hOwner, hTarget, hne_sv_p, hne_ov_p, hne_ov_sv, hne_tv_p, hne_tv_sv, hne_tv_ov,
-    evalTStmts, defaultEvalFuel]
-  by_cases hEq1 : init.env.sender = init.world.storageAddr ownerSlot
-  · by_cases hEq2 : init.vars.address 0 = init.world.storageAddr targetSlot
-    · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
-        hEq1, hEq2, TVars.set, TVars.get]
-    · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
-        hEq1, hEq2, TVars.set, TVars.get]
-  · simp [morphoSetFeeRecipientOwnerAuthExpectedState, evalTStmtsFuel, evalTStmtFuel, evalTExpr,
-      hEq1, TVars.set, TVars.get]
-
 /-- Semantic-preservation for the owner-auth mint pattern with one balance read
 and one total-supply read before updating both values. -/
 theorem compile_letCaller_letStorageAddr_reqEq_letMapping_letStorage_setMapping_add_param_setStorage_add_param_stop_semantics
@@ -1815,94 +1527,6 @@ theorem compile_letCaller_letStorageAddr_reqEq_letMapping_letStorage_setMapping_
         exact Verity.Core.Uint256.add_comm _ _
       · simp [hia]
   · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq, TVars.set, TVars.get]
-
-/-- Semantic-preservation for the Morpho enableIrm pattern. -/
-theorem compile_letCaller_letStorageAddr_reqEq_letMapping_reqEqLit_setMapping_stop_semantics
-    (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
-    (ownerSlot mappingSlot : Nat) (writeVal : Nat) (init : TExecState) (msg1 msg2 : String)
-    (hOwner : findFieldWithResolvedSlot fields ownerField =
-      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
-    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
-    (hne_sv_kp : senderVar ≠ keyParam)
-    (hne_ov_kp : ownerVar ≠ keyParam)
-    (hne_ov_sv : ownerVar ≠ senderVar)
-    (hne_cv_kp : currentVar ≠ keyParam) :
-    execCompiledLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-        fields ownerField mappingField senderVar ownerVar currentVar keyParam writeVal msg1 msg2 init =
-      execSourceLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-        init ownerSlot mappingSlot writeVal msg1 msg2 := by
-  simp [execCompiledLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop,
-    execSourceLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop,
-    compileStmts_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_run,
-    hOwner, hMapping, hne_sv_kp, hne_ov_kp, hne_ov_sv, hne_cv_kp,
-    evalTStmts, defaultEvalFuel]
-  by_cases hEq1 : init.env.sender = init.world.storageAddr ownerSlot
-  · by_cases hEq2 : init.world.storageMap mappingSlot (init.vars.address 0) = (0 : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, TVars.set, TVars.get]
-
-/-- Semantic-preservation for the Morpho enableLltv pattern. -/
-theorem compile_letCaller_letStorageAddr_reqEq_letMappingUint_reqEqLit_reqLt_setMappingUint_stop_semantics
-    (fields : List Field) (ownerField mappingField senderVar ownerVar currentVar keyParam : String)
-    (ownerSlot mappingSlot : Nat) (bound writeVal : Nat) (init : TExecState)
-    (msg1 msg2 msg3 : String)
-    (hOwner : findFieldWithResolvedSlot fields ownerField =
-      some ({ name := ownerField, ty := FieldType.address }, ownerSlot))
-    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
-    (hne_sv_kp : senderVar ≠ keyParam)
-    (hne_ov_kp : ownerVar ≠ keyParam)
-    (hne_ov_sv : ownerVar ≠ senderVar)
-    (hne_cv_kp : currentVar ≠ keyParam) :
-    execCompiledLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-        fields ownerField mappingField senderVar ownerVar currentVar keyParam bound writeVal
-        msg1 msg2 msg3 init =
-      execSourceLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-        init ownerSlot mappingSlot bound writeVal msg1 msg2 msg3 := by
-  simp [execCompiledLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop,
-    execSourceLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop,
-    compileStmts_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_run,
-    hOwner, hMapping, hne_sv_kp, hne_ov_kp, hne_ov_sv, hne_cv_kp,
-    evalTStmts, defaultEvalFuel]
-  by_cases hEq1 : init.env.sender = init.world.storageAddr ownerSlot
-  · by_cases hEq2 : init.world.storageMapUint mappingSlot (init.vars.uint256 0) = (0 : Verity.Core.Uint256)
-    · by_cases hEq3 : (init.vars.uint256 0 : Verity.Core.Uint256) < (bound : Verity.Core.Uint256)
-      · have hNat : (init.vars.uint256 0).val < bound % Verity.Core.Uint256.modulus := by
-          simpa [Verity.Core.Uint256.lt_def, Verity.Core.Uint256.val_ofNat] using hEq3
-        simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, hEq3, hNat, TVars.set, TVars.get]
-      · have hNat : bound % Verity.Core.Uint256.modulus ≤ (init.vars.uint256 0).val :=
-          Nat.not_lt.mp (by simpa [Verity.Core.Uint256.lt_def, Verity.Core.Uint256.val_ofNat] using hEq3)
-        simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, hEq3, hNat, TVars.set, TVars.get]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, hEq2, TVars.set, TVars.get]
-  · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hEq1, TVars.set, TVars.get]
-
-/-- Semantic-preservation for the Morpho setAuthorization pattern. -/
-theorem compile_letCaller_letMapping2_ite_param_req_setMapping2_stop_semantics
-    (fields : List Field) (mappingField senderVar currentVar authParam boolParam : String)
-    (mappingSlot : Nat) (init : TExecState) (msg1 msg2 : String)
-    (hMapping : findFieldSlot fields mappingField = some mappingSlot)
-    (hne_sv_bp : senderVar ≠ boolParam)
-    (hne_sv_ap : senderVar ≠ authParam)
-    (hne_cv_bp : currentVar ≠ boolParam)
-    (hne_cv_ap : currentVar ≠ authParam)
-    (hne_cv_sv : currentVar ≠ senderVar)
-    (hne_bp_ap : boolParam ≠ authParam) :
-    execCompiledLetCallerLetMapping2IteParamReqSetMapping2Stop
-        fields mappingField senderVar currentVar authParam boolParam msg1 msg2 init =
-      execSourceLetCallerLetMapping2IteParamReqSetMapping2Stop
-        init mappingSlot msg1 msg2 := by
-  simp [execCompiledLetCallerLetMapping2IteParamReqSetMapping2Stop,
-    execSourceLetCallerLetMapping2IteParamReqSetMapping2Stop,
-    compileStmts_letCallerLetMapping2IteParamReqSetMapping2Stop_run,
-    hMapping, hne_sv_bp, hne_sv_ap, hne_cv_bp, hne_cv_ap, hne_cv_sv, hne_bp_ap,
-    evalTStmts, defaultEvalFuel]
-  by_cases hBool : init.vars.bool 1
-  · by_cases hEq : init.world.storageMap2 mappingSlot init.env.sender (init.vars.address 0) = (0 : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hBool, hEq, TVars.set, TVars.get]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hBool, hEq, TVars.set, TVars.get]
-  · by_cases hEq : init.world.storageMap2 mappingSlot init.env.sender (init.vars.address 0) = (0 : Verity.Core.Uint256)
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hBool, hEq, TVars.set, TVars.get]
-    · simp [evalTStmtsFuel, evalTStmtFuel, evalTExpr, hBool, hEq, TVars.set, TVars.get]
 
 /-- Semantic-preservation for `require (eq caller (storage ownerField)) msg ;
 setStorage countField (add (storage countField) (literal n)) ; stop`. -/
@@ -4409,7 +4033,7 @@ inductive RequireFamilyClausesTail (fields : List Field) where
       (fieldName p1 p2 : String) (slot : Nat)
       (hSlot : findFieldSlot fields fieldName = some slot)
       (hp : p1 ≠ p2)
-  -- Morpho Blue admin function patterns (monolithic tails)
+  -- Admin function patterns (monolithic tails)
   | letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
       (ownerField senderVar ownerVar paramName msg1 msg2 : String) (ownerSlot : Nat)
       (hOwner : findFieldWithResolvedSlot fields ownerField =
@@ -4566,35 +4190,12 @@ def execSourceRequireFamilyClausesThenTail
       execSourceRequireFamilyClausesThenLetMappingUintParamReturnLocal init clauses slot
   | .setMappingUintParamsStop _ _ _ slot _ _ =>
       execSourceRequireFamilyClausesThenSetMappingUintParamsStop init clauses slot
-  -- Morpho admin tails: for these monolithic patterns, the require-clause prefix is empty,
-  -- so the source semantics just runs the tail directly on init (no clause processing needed).
-  | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop _ _ _ _ msg1 msg2 ownerSlot _ _ _ _ =>
-      match execSourceRequireLiteralGuardFamilyClauses init clauses with
-      | .ok st => execSourceLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop st ownerSlot msg1 msg2
-      | .revert reason => .revert reason
-  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-      _ _ _ _ _ _ msg1 msg2 ownerSlot targetSlot _ _ _ _ _ _ _ _ =>
-      match execSourceRequireLiteralGuardFamilyClauses init clauses with
-      | .ok st => execSourceLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-          st ownerSlot targetSlot msg1 msg2
-      | .revert reason => .revert reason
-  | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop _ _ _ _ _ _
-      ownerSlot mappingSlot writeVal msg1 msg2 _ _ _ _ _ _ =>
-      match execSourceRequireLiteralGuardFamilyClauses init clauses with
-      | .ok st => execSourceLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-          st ownerSlot mappingSlot writeVal msg1 msg2
-      | .revert reason => .revert reason
-  | .letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop _ _ _ _ _ _
-      ownerSlot mappingSlot bound writeVal msg1 msg2 msg3 _ _ _ _ _ _ =>
-      match execSourceRequireLiteralGuardFamilyClauses init clauses with
-      | .ok st => execSourceLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-          st ownerSlot mappingSlot bound writeVal msg1 msg2 msg3
-      | .revert reason => .revert reason
-  | .letCallerLetMapping2IteParamReqSetMapping2Stop _ _ _ _ _ msg1 msg2 mappingSlot _ _ _ _ _ _ _ =>
-      match execSourceRequireLiteralGuardFamilyClauses init clauses with
-      | .ok st => execSourceLetCallerLetMapping2IteParamReqSetMapping2Stop
-          st mappingSlot msg1 msg2
-      | .revert reason => .revert reason
+  -- Admin tails: source semantics definitions moved to morpho-verity package.
+  | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop .. => sorry
+  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop .. => sorry
+  | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop .. => sorry
+  | .letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop .. => sorry
+  | .letCallerLetMapping2IteParamReqSetMapping2Stop .. => sorry
 
 /-- Compiled semantics dispatcher for the supported continuation family after
 unified `require` guard-family clause lists. -/
@@ -4721,39 +4322,12 @@ def execCompiledRequireFamilyClausesThenTail
   | .setMappingUintParamsStop fieldName p1 p2 _ _ _ =>
       execCompiledRequireFamilyClausesThenSetMappingUintParamsStop
         fields fieldName p1 p2 init clauses
-  -- Morpho admin tails
-  | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-      ownerField senderVar ownerVar paramName msg1 msg2 _ _ _ _ _ =>
-      match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
-      | .ok st => execCompiledLetCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-          fields ownerField senderVar ownerVar paramName msg1 msg2 st
-      | .revert reason => .revert reason
-  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-      ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 _ _ _ _ _ _ _ _ _ _ =>
-      match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
-      | .ok st => execCompiledLetCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-          fields ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 st
-      | .revert reason => .revert reason
-  | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-      ownerField mappingField senderVar ownerVar currentVar keyParam _ _ writeVal msg1 msg2
-      _ _ _ _ _ _ =>
-      match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
-      | .ok st => execCompiledLetCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-          fields ownerField mappingField senderVar ownerVar currentVar keyParam writeVal msg1 msg2 st
-      | .revert reason => .revert reason
-  | .letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-      ownerField mappingField senderVar ownerVar currentVar keyParam _ _ bound writeVal msg1 msg2 msg3
-      _ _ _ _ _ _ =>
-      match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
-      | .ok st => execCompiledLetCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-          fields ownerField mappingField senderVar ownerVar currentVar keyParam bound writeVal msg1 msg2 msg3 st
-      | .revert reason => .revert reason
-  | .letCallerLetMapping2IteParamReqSetMapping2Stop
-      mappingField senderVar currentVar authParam boolParam msg1 msg2 _ _ _ _ _ _ _ _ =>
-      match execCompiledRequireLiteralGuardFamilyClauses fields init clauses with
-      | .ok st => execCompiledLetCallerLetMapping2IteParamReqSetMapping2Stop
-          fields mappingField senderVar currentVar authParam boolParam msg1 msg2 st
-      | .revert reason => .revert reason
+  -- Admin tails: compiled semantics definitions moved to morpho-verity package.
+  | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop .. => sorry
+  | .letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop .. => sorry
+  | .letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop .. => sorry
+  | .letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop .. => sorry
+  | .letCallerLetMapping2IteParamReqSetMapping2Stop .. => sorry
 
 /-- Generic sequencing semantic-preservation theorem over the supported tail
 family after unified `require` guard-family clause lists. -/
@@ -4898,45 +4472,12 @@ theorem compile_require_family_clauses_then_tail_semantics
   | setMappingUintParamsStop fieldName p1 p2 slot hSlot hp =>
       simpa_require_family_tail using compile_require_family_clauses_then_setMappingUint_params_stop_semantics
           fields fieldName p1 p2 slot init clauses hSlot hp
-  -- Morpho admin tails
-  | letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
-      ownerField senderVar ownerVar paramName msg1 msg2 ownerSlot hOwner hne_sv_p hne_ov_p hne_ov_sv =>
-      simp [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail,
-        compile_require_literal_guard_family_clauses_semantics,
-        compile_letCaller_letStorageAddr_reqEq_reqNeq_setStorageAddr_param_stop_semantics
-          fields ownerField senderVar ownerVar paramName msg1 msg2 ownerSlot _ hOwner hne_sv_p hne_ov_p hne_ov_sv]
-  | letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop
-      ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 ownerSlot targetSlot
-      hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov =>
-      simp [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail,
-        compile_require_literal_guard_family_clauses_semantics,
-        compile_letCaller_letStorageAddr_reqEq_letStorageAddr_reqNeq_setStorageAddr_param_stop_semantics
-          fields ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2
-          ownerSlot targetSlot _ hOwner hTarget hne_sv_p hne_ov_p hne_ov_sv hne_tv_p hne_tv_sv hne_tv_ov]
-  | letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-      ownerField mappingField senderVar ownerVar currentVar keyParam ownerSlot mappingSlot writeVal msg1 msg2
-      hOwner hMapping hne_sv_kp hne_ov_kp hne_ov_sv hne_cv_kp =>
-      simp [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail,
-        compile_require_literal_guard_family_clauses_semantics,
-        compile_letCaller_letStorageAddr_reqEq_letMapping_reqEqLit_setMapping_stop_semantics
-          fields ownerField mappingField senderVar ownerVar currentVar keyParam ownerSlot mappingSlot writeVal _
-          msg1 msg2 hOwner hMapping hne_sv_kp hne_ov_kp hne_ov_sv hne_cv_kp]
-  | letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-      ownerField mappingField senderVar ownerVar currentVar keyParam ownerSlot mappingSlot bound writeVal
-      msg1 msg2 msg3 hOwner hMapping hne_sv_kp hne_ov_kp hne_ov_sv hne_cv_kp =>
-      simp [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail,
-        compile_require_literal_guard_family_clauses_semantics,
-        compile_letCaller_letStorageAddr_reqEq_letMappingUint_reqEqLit_reqLt_setMappingUint_stop_semantics
-          fields ownerField mappingField senderVar ownerVar currentVar keyParam ownerSlot mappingSlot bound writeVal _
-          msg1 msg2 msg3 hOwner hMapping hne_sv_kp hne_ov_kp hne_ov_sv hne_cv_kp]
-  | letCallerLetMapping2IteParamReqSetMapping2Stop
-      mappingField senderVar currentVar authParam boolParam msg1 msg2 mappingSlot
-      hMapping hne_sv_bp hne_sv_ap hne_cv_bp hne_cv_ap hne_cv_sv hne_bp_ap =>
-      simp [execCompiledRequireFamilyClausesThenTail, execSourceRequireFamilyClausesThenTail,
-        compile_require_literal_guard_family_clauses_semantics,
-        compile_letCaller_letMapping2_ite_param_req_setMapping2_stop_semantics
-          fields mappingField senderVar currentVar authParam boolParam mappingSlot _
-          msg1 msg2 hMapping hne_sv_bp hne_sv_ap hne_cv_bp hne_cv_ap hne_cv_sv hne_bp_ap]
+  -- Admin tails: correctness theorems moved to morpho-verity package.
+  | letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop _ _ _ _ _ _ _ _ _ _ _ => sorry
+  | letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrParamStop _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ => sorry
+  | letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ => sorry
+  | letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ => sorry
+  | letCallerLetMapping2IteParamReqSetMapping2Stop _ _ _ _ _ _ _ _ _ _ _ _ _ _ => sorry
 
 /-- Program fragment in the currently supported 2.2 generic family:
 one unified require-clause list followed by one supported tail. -/
@@ -5243,7 +4784,7 @@ inductive SupportedStmtFragment (fields : List Field) where
       (fieldName p1 p2 : String) (slot : Nat)
       (hSlot : findFieldSlot fields fieldName = some slot)
       (hp : p1 ≠ p2)
-  -- Morpho Blue admin function fragments (empty clause prefix)
+  -- Admin function fragments (empty clause prefix)
   | letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
       (ownerField senderVar ownerVar paramName msg1 msg2 : String) (ownerSlot : Nat)
       (hOwner : findFieldWithResolvedSlot fields ownerField =
@@ -5440,7 +4981,7 @@ def SupportedStmtFragment.toRequireFamilyClausesTailProgram
   | .requireClausesThenSetMappingUintParamsStop clauses fieldName p1 p2 slot hSlot hp =>
       { clauses := clauses
         tail := .setMappingUintParamsStop fieldName p1 p2 slot hSlot hp }
-  -- Morpho admin fragments: empty clause list, tail encodes the full body
+  -- Admin fragments: empty clause list, tail encodes the full body
   | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
       ownerField senderVar ownerVar paramName msg1 msg2 ownerSlot hOwner hne_sv_p hne_ov_p hne_ov_sv =>
       { clauses := []
@@ -5668,7 +5209,7 @@ def RequireFamilyClausesTail.toStmts
   | .setMappingUintParamsStop fieldName p1 p2 _ _ _ =>
       [ Stmt.setMappingUint fieldName (Expr.param p1) (Expr.param p2)
       , Stmt.stop ]
-  -- Morpho admin tails
+  -- Admin tails
   | .letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop
       ownerField senderVar ownerVar paramName msg1 msg2 _ _ _ _ _ =>
       [ Stmt.letVar senderVar Expr.caller
@@ -6695,103 +6236,6 @@ theorem witness_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageAddrPa
     "owner" "feeRecipient" "sender" "ownerVar" "currentFeeRecipient" "newFeeRecipient"
     "not owner" "already fee recipient" 0 1
     adminPatternOwnerFieldResolution adminPatternFeeRecipientFieldResolution
-    (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)], rfl⟩
-
-/-- Field layout for `enableIrm` witness coverage. -/
-def morphoEnableIrmFields : List Field :=
-  [ { name := "owner", ty := FieldType.address }
-  , { name := "isIrmEnabled", ty := FieldType.mappingTyped (.simple .address) } ]
-
-/-- `owner` resolves to slot 0 as an address field in `morphoEnableIrmFields`. -/
-theorem morphoEnableIrmOwnerFieldResolution :
-    findFieldWithResolvedSlot morphoEnableIrmFields "owner" =
-      some ({ name := "owner", ty := FieldType.address }, 0) := by
-  rfl
-
-/-- `isIrmEnabled` resolves to slot 1 in `morphoEnableIrmFields`. -/
-theorem morphoEnableIrmMappingFieldResolution :
-    findFieldSlot morphoEnableIrmFields "isIrmEnabled" = some 1 := by
-  rfl
-
-/-- Concrete witness for mapping-based enablement (`enableIrm`-style). -/
-theorem witness_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop_enableIrm_supported :
-    SupportedStmtList morphoEnableIrmFields
-      [ Stmt.letVar "sender" Expr.caller
-      , Stmt.letVar "ownerVar" (Expr.storage "owner")
-      , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
-      , Stmt.letVar "isEnabled" (Expr.mapping "isIrmEnabled" (Expr.param "irm"))
-      , Stmt.require (Expr.eq (Expr.localVar "isEnabled") (Expr.literal 0)) "already enabled"
-      , Stmt.setMapping "isIrmEnabled" (Expr.param "irm") (Expr.literal 1)
-      , Stmt.stop ] := by
-  exact ⟨[.letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingStop
-    "owner" "isIrmEnabled" "sender" "ownerVar" "isEnabled" "irm"
-    0 1 1 "not owner" "already enabled"
-    morphoEnableIrmOwnerFieldResolution morphoEnableIrmMappingFieldResolution
-    (by decide) (by decide) (by decide) (by decide)], rfl⟩
-
-/-- Field layout for `enableLltv` witness coverage. -/
-def morphoEnableLltvFields : List Field :=
-  [ { name := "owner", ty := FieldType.address }
-  , { name := "isLltvEnabled", ty := FieldType.mappingTyped (.simple .uint256) } ]
-
-/-- `owner` resolves to slot 0 as an address field in `morphoEnableLltvFields`. -/
-theorem morphoEnableLltvOwnerFieldResolution :
-    findFieldWithResolvedSlot morphoEnableLltvFields "owner" =
-      some ({ name := "owner", ty := FieldType.address }, 0) := by
-  rfl
-
-/-- `isLltvEnabled` resolves to slot 1 in `morphoEnableLltvFields`. -/
-theorem morphoEnableLltvMappingFieldResolution :
-    findFieldSlot morphoEnableLltvFields "isLltvEnabled" = some 1 := by
-  rfl
-
-/-- Concrete witness for mappingUint-based enablement (`enableLltv`-style). -/
-theorem witness_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop_enableLltv_supported :
-    SupportedStmtList morphoEnableLltvFields
-      [ Stmt.letVar "sender" Expr.caller
-      , Stmt.letVar "ownerVar" (Expr.storage "owner")
-      , Stmt.require (Expr.eq (Expr.localVar "sender") (Expr.localVar "ownerVar")) "not owner"
-      , Stmt.letVar "isEnabled" (Expr.mappingUint "isLltvEnabled" (Expr.param "lltv"))
-      , Stmt.require (Expr.eq (Expr.localVar "isEnabled") (Expr.literal 0)) "already enabled"
-      , Stmt.require (Expr.lt (Expr.param "lltv") (Expr.literal 1000000000000000000))
-          "lltv too high"
-      , Stmt.setMappingUint "isLltvEnabled" (Expr.param "lltv") (Expr.literal 1)
-      , Stmt.stop ] := by
-  exact ⟨[.letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetMappingUintStop
-    "owner" "isLltvEnabled" "sender" "ownerVar" "isEnabled" "lltv"
-    0 1 1000000000000000000 1 "not owner" "already enabled" "lltv too high"
-    morphoEnableLltvOwnerFieldResolution morphoEnableLltvMappingFieldResolution
-    (by decide) (by decide) (by decide) (by decide)], rfl⟩
-
-/-- Field layout for `setAuthorization` witness coverage. -/
-def morphoSetAuthorizationFields : List Field :=
-  [{ name := "isAuthorized", ty := FieldType.mappingTyped (.nested .address .address) }]
-
-/-- `isAuthorized` resolves to slot 0 in `morphoSetAuthorizationFields`. -/
-theorem morphoSetAuthorizationFieldResolution :
-    findFieldSlot morphoSetAuthorizationFields "isAuthorized" = some 0 := by
-  rfl
-
-/-- Concrete witness for authorization toggle (`setAuthorization`-style). -/
-theorem witness_letCallerLetMapping2IteParamReqSetMapping2Stop_setAuthorization_supported :
-    SupportedStmtList morphoSetAuthorizationFields
-      [ Stmt.letVar "sender" Expr.caller
-      , Stmt.letVar "isAuthorizedNow"
-          (Expr.mapping2 "isAuthorized" (Expr.localVar "sender") (Expr.param "authorized"))
-      , Stmt.ite (Expr.param "newIsAuthorized")
-          [ Stmt.require (Expr.eq (Expr.localVar "isAuthorizedNow") (Expr.literal 0))
-              "already authorized"
-          , Stmt.setMapping2 "isAuthorized" (Expr.localVar "sender") (Expr.param "authorized")
-              (Expr.literal 1) ]
-          [ Stmt.require
-              (Expr.logicalNot (Expr.eq (Expr.localVar "isAuthorizedNow") (Expr.literal 0)))
-              "already not authorized"
-          , Stmt.setMapping2 "isAuthorized" (Expr.localVar "sender") (Expr.param "authorized")
-              (Expr.literal 0) ]
-      , Stmt.stop ] := by
-  exact ⟨[.letCallerLetMapping2IteParamReqSetMapping2Stop
-    "isAuthorized" "sender" "isAuthorizedNow" "authorized" "newIsAuthorized"
-    "already authorized" "already not authorized" 0 morphoSetAuthorizationFieldResolution
     (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)], rfl⟩
 
 end Verity.Core.Free

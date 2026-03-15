@@ -261,23 +261,163 @@ now sits under the post-generic widening/completeness plan in
   `SupportedBodyHelperSummariesSound` plus direct-call consumption lemmas for
   `Expr.internalCall`, `Stmt.internalCall`, and `Stmt.internalCallAssign`, so
   helper summaries are now a proof-carrying source-semantics interface rather
-  than just an inventory placeholder. `SourceSemantics.lean` now also exposes
-  dedicated `SupportedFunctionHelperProofs` / `SupportedSpecHelperProofs`
-  wrappers, so future helper composition has an explicit theorem-level slot for
-  summary-soundness evidence instead of needing an ad hoc extra hypothesis, and
+  than just an inventory placeholder. `SourceSemantics.lean` now also exposes a
+  reusable global helper-summary proof catalog
+  (`SupportedHelperSummaryProofCatalog`) and derives the theorem-level wrapper
+  `SupportedSpecHelperProofs` from that catalog, so each internal helper
+  summary can be proved once and reused across every caller instead of being
+  replumbed per external function. `SupportedSpec.lean` now also defines the
+  compiled-side bridge `SupportedCompiledInternalHelperWitness` /
+  `SupportedRuntimeHelperTableInterface`, and `Contract.lean` proves
+  `compile_ok_yields_supportedRuntimeHelperTableInterface`, so exact helper-step
+  proofs can consume a generic source-helper-to-runtime-helper-table interface
+  instead of reconstructing helper membership from whole-contract compilation
+  each time. `GenericInduction.lean` now also exposes the
+  helper-aware induction interfaces `CompiledStmtStepWithHelpers` /
+  `StmtListGenericWithHelpers`, the fail-closed lifting bridge
+  `CompiledStmtStep.withHelpers_of_helperSurfaceClosed` /
+  `stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed`, and the
+  induction-level body theorem
+  `supported_function_body_correct_from_exact_state_generic_helper_steps`, so
+  the remaining helper work now has an explicit statement-induction goal
+  surface instead of only a body/function wrapper target, and the already-proved
+  helper-free cases can be reused directly inside that seam rather than
+  re-proved there. `GenericInduction.lean` now also exposes the exact
+  helper-aware compiled induction seam
+  `CompiledStmtStepWithHelpersAndHelperIR` /
+  `StmtListGenericWithHelpersAndHelperIR` plus the exact induction-level body
+  theorem
+  `supported_function_body_correct_from_exact_state_generic_helper_steps_and_helper_ir`,
+  so future helper-rich proofs can target `execIRStmtsWithInternals` directly.
+  It now also exposes the compiled-side fail-closed bridge
+  `CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible` /
+  `stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible`
+  plus the witness interface `StmtListCompiledLegacyCompatible`, so the
+  already-proved helper-free cases can also lift into the exact helper-aware
+  compiled seam. It now also weakens that requirement for future helper-rich
+  widening via `StmtListHelperFreeCompiledLegacyCompatible`,
+  `StmtListInternalHelperSurfaceStepInterface`,
+  `StmtListResidualHelperSurfaceStepInterface`, and the finer genuine-helper
+  cut `StmtListDirectInternalHelperCallStepInterface`,
+  `StmtListDirectInternalHelperAssignStepInterface`,
+  and the compatibility wrapper `StmtListDirectInternalHelperStepInterface`,
+  `StmtListExprInternalHelperStepInterface`,
+  `StmtListStructuralInternalHelperStepInterface`, assembled through
+  `stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface`
+  and then
+  `stmtListGenericWithHelpersAndHelperIR_of_core_directInternalHelperCallStepInterface_and_directInternalHelperAssignStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
+  so only genuine internal-helper heads need genuinely new helper-specific exact
+  step proofs while residual non-helper coarse-surface heads are kept separate,
+  and the genuine-helper work itself is now cut along direct-helper-call,
+  direct-helper-assign, expression-helper, and structural-recursion lines. On today's
+  boundary the source-side reuse seam is now split the same way via
+  `StmtListHelperFreeStepInterface`,
+  `stmtListGenericWithHelpersAndHelperIR_of_helperFreeStepInterface_and_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface_and_helperFreeCompiledLegacyCompatible`,
+  `supported_function_body_correct_from_exact_state_generic_finer_split_internal_helper_surface_steps_and_helper_ir`,
+  and the coarser compatibility wrapper
+  `supported_function_body_correct_from_exact_state_generic_split_internal_helper_surface_steps_and_helper_ir`,
+  so future helper-rich bodies no longer need the whole list to satisfy
+  `StmtListGenericCore` before they can land in the exact helper-aware body
+  theorem. On today's
+  supported fragment that weaker witness is derived directly via
+  `stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface` /
+  `SupportedBodyInterface.compiledHelperFreeLegacyCompatible`, and the
+  current-fragment wrapper
+  `supported_function_body_correct_from_exact_state_generic_with_helpers_and_helper_ir`
+  now lands in the exact helper-aware compiled body goal without a
+  caller-supplied compiled-side witness.
   `Contract.lean` now mirrors that at the public theorem surface via
   helper-proof-carrying variants such as
   `compile_preserves_semantics_with_helper_proofs`; the
   feature-local `state` / `calls` / `effects` scans recurse through nested `ite` / `forEach` bodies so those
   boundaries are control-flow complete rather than top-level-only, and
   compatibility lemmas still prove that the helper-aware semantics collapses to
-  the existing helper-free semantics on the current `SupportedSpec` fragment
+  the existing helper-free semantics on the current `SupportedSpec` fragment.
+  That helper-free collapse seam is now named directly as
+  `SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal`, with
+  goal wrappers `supported_function_body_correct_from_exact_state_generic_with_helpers_goal`
+  and `supported_function_correct_with_helper_proofs_goal`; the exact future
+  current helper-aware legacy-compiled-body target is now exposed as
+  `SupportedFunctionBodyWithHelpersIRPreservationGoal`, while the exact future
+  helper-rich body target is now exposed separately as
+  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`, feeding
+  `supported_function_correct_with_helper_proofs_body_goal`
 - the remaining helper blocker is now pinned down more precisely in
   [`artifacts/layer2_boundary_catalog.json`](../artifacts/layer2_boundary_catalog.json):
   callers still derive generic body proofs through the helper-free `SupportedStmtList` witness,
   the generic body theorem now already targets the helper-aware source semantics family under the current fail-closed helper gate,
-  but summary-soundness/rank evidence is still not consumed inside that body proof,
-  and the current IR function semantics has no first-class internal-helper composition;
+  but summary-soundness/rank evidence is still not consumed inside a direct
+  proof of `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; more
+  precisely, that evidence is not yet consumed through the genuinely new
+  helper-call cases in `CompiledStmtStepWithHelpersAndHelperIR` /
+  `StmtListGenericWithHelpersAndHelperIR` and then into a proof of
+  `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`; helper-free
+  cases on today’s fragment now already lift into that exact seam
+  automatically, so the genuinely new remaining work is helper-call reasoning
+  plus widening/proving the compiled compatibility witness beyond today's
+  fragment; the older conservative-extension
+  goal remains only the abstract helper-free discharge path,
+  `IRInterpreter.lean` now formalizes the intended legacy-compatible external-body Yul subset as
+  `LegacyCompatibleExternalStmtList`,
+  and `IRInterpreter.lean` now also encodes the exact first compiled-side retarget theorem as
+  `InterpretIRWithInternalsZeroConservativeExtensionGoal`;
+  `IRInterpreter.lean` now also decomposes that first theorem into explicit expr / stmt / stmt-list / function
+  compatibility obligations via `InterpretIRWithInternalsZeroConservativeExtensionInterfaces`;
+  it now also factors the shared transaction setup through
+  `applyIRTransactionContext` and packages the selected-function cut as
+  `InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal` over
+  `LegacyCompatibleRuntimeDispatch`;
+  `IRInterpreter.lean` now also proves
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal`, so
+  lifting the selected-function theorem back to the contract-level conservative-extension
+  goal is no longer part of the open blocker;
+  the expr / expr-list obligations in that interface are now discharged directly in
+  `IRInterpreter.lean` via
+  `evalIRExprWithInternals_eq_evalIRExpr_of_no_internal`,
+  `evalIRExprsWithInternals_eq_evalIRExprs_of_no_internal`, and the wrapper theorem
+  `InterpretIRWithInternalsZeroConservativeExtensionExprInterfaces`;
+  `IRInterpreter.lean` now also packages the remaining stmt seam as the named
+  interface `InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals`,
+  and proves `execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals` plus
+  `interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtSubgoals`,
+  so the full helper-free conservative-extension interface object is assembled
+  from a compositional Lean subgoal object rather than only a prose checklist;
+  `IRInterpreter.lean` now also proves
+  `execIRStmtsWithInternals_eq_execIRStmts_of_exprCompatibility` and
+  `execIRStmtWithInternals_eq_execIRStmt_of_exprCompatibility`, so the
+  structural `if` / `block` transport on that subset is already discharged and
+  the named stmt-subgoal interface now carries only the residual expr-statement
+  compatibility surface;
+  `IRInterpreter.lean` now also proves
+  `execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility`,
+  `execIRFunctionWithInternals_eq_execIRFunction_of_stmtCompatibility`,
+  `interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtCompatibility`,
+  and `interpretIRWithInternalsZeroConservativeExtensionGoal_of_stmtCompatibility`,
+  so stmt-list compatibility, function compatibility, the dispatch-local cut, and the
+  contract-level lift are all reduced to stmt compatibility rather than
+  remaining independent proof tasks;
+  `IRInterpreter.lean` now goes one step further and closes that stmt-subgoal
+  interface outright: it proves
+  `interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed`,
+  `interpretIRWithInternalsZeroConservativeExtensionInterfaces_closed`, and
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. The helper-free
+  conservative-extension goal is now closed, and the already-exposed `_goal`
+  wrapper surface such as
+  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal` remains
+  available for theorem consumers that want the named goal form explicitly.
+  The dedicated expr-statement builtin classifier
+  `exprStmtUsesDedicatedBuiltinSemantics` and the direct helper-free lemmas for
+  `stop`, `mstore`, `revert`, `return`, and mapping-slot `sstore` are now part
+  of a finished helper-free conservative-extension proof rather than a remaining
+  checklist item. `Function.lean`, `Dispatch.lean`, and `Contract.lean` already
+  exposed helper-aware wrapper theorems that consume those conservative-extension
+  equalities directly; `Dispatch.lean` and `Contract.lean` now also expose
+  closed wrapper variants such as
+  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_closed`, so the
+  public theorem seam no longer needs an extra compiled-side goal premise on the
+  helper-free runtime subset;
+  those helper-aware IR semantics are now available as total fuel-indexed helper-aware IR semantics, and the first compiled-side
+  retarget step is no longer open on the helper-free runtime subset;
   the compiled-side blocker is tracked in [#1638](https://github.com/Th0rgal/verity/issues/1638)
 - widen the supported whole-contract fragment without reintroducing axioms
 
@@ -289,7 +429,41 @@ The first theorem does not need to cover everything. It may explicitly leave out
 - fallback / receive
 - events/logs
 - external or linked calls
-- internal helper compositional reuse
+- internal helper compositional reuse:
+  `IRInterpreter.lean` now defines helper-aware compiled-side targets
+  (`execIRFunctionWithInternals`, `interpretIRWithInternals`) that can execute
+  `IRContract.internalFunctions`, and it now also formalizes the intended
+  helper-free compatibility subset as `LegacyCompatibleExternalStmtList` plus
+  the weaker contract-level witness `LegacyCompatibleExternalBodies`.
+  The exact first theorem cut is now machine-checkable as
+  `InterpretIRWithInternalsZeroConservativeExtensionGoal`.
+  `Dispatch.runtimeContractOfFunctions` now also has an explicit
+  `internalFunctions = []` lemma documenting the exact helper-free runtime
+  constructor used by the current theorem stack, and
+  `IRInterpreter.lean` now proves the corresponding helper-free conservative-
+  extension theorem directly as
+  `interpretIRWithInternalsZeroConservativeExtensionGoal_closed`. `Contract.lean`
+  now additionally proves that, on the current `SupportedSpec` fragment,
+  successful `CompilationModel.compile` yields the full
+  `LegacyCompatibleRuntimeContract` witness and therefore exposes a directly
+  consumable helper-aware whole-contract theorem
+  `compile_preserves_semantics_with_helper_proofs_and_helper_ir_supported`
+  without any extra caller-supplied compiled-side premise. The remaining work
+  on today’s theorem domain is therefore no longer the helper-free compiled-side
+  witness, but consuming helper-summary soundness/rank evidence through
+  helper-aware `CompiledStmtStepWithHelpers` / `StmtListGenericWithHelpers`
+  proofs and then into `SupportedFunctionBodyWithHelpersAndHelperIRPreservationGoal`
+  while widening or
+  replacing the helper-excluding `SupportedStmtList` fragment, which now
+  discharges helper-freedom via `SupportedStmtList.helperSurfaceClosed`. The
+  helper-free collapse goal
+  `SourceSemantics.ExecStmtListWithHelpersConservativeExtensionGoal` remains
+  only as the current discharge path on today’s fragment. The longer-term
+  widening step still
+  needs a weaker compiled-side retarget boundary that can tolerate helper tables
+  without requiring `internalFunctions = []` once helper-rich features move
+  inside the theorem domain. The helper-aware interpreter remains a total
+  fuel-indexed helper-aware IR semantics surface for that follow-on retarget
 - dynamic ABI cases outside the current typed path
 
 If a feature is out of scope, say so in the supported-fragment witness and docs.

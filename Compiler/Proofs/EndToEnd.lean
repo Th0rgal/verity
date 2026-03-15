@@ -102,6 +102,7 @@ theorem yulStateOfIR_eq_initial
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
+    (htransient : state.transientStorage = fun _ => 0)
     (hvars : state.vars = []) :
     yulStateOfIR sel state =
       YulState.initial
@@ -115,8 +116,8 @@ theorem yulStateOfIR_eq_initial
           functionSelector := tx.functionSelector
           args := tx.args }
         state.storage state.events := by
-  simp [yulStateOfIR, YulState.initial, hvars, hmemory, hcalldata, hsender, hmsgValue, hthis,
-    htimestamp, hnumber, hchain, hblobBaseFee, hselector, hreturn]
+  simp [yulStateOfIR, YulState.initial, hvars, hmemory, htransient, hcalldata, hsender, hmsgValue,
+    hthis, htimestamp, hnumber, hchain, hblobBaseFee, hselector, hreturn]
 
 /-- Hypothesis-driven param-load erasure. -/
 theorem execYulStmts_paramState_eq_emptyVars
@@ -151,6 +152,7 @@ theorem yulBody_from_state_eq_yulBody
     (hselector : state.selector = tx.functionSelector)
     (hreturn : state.returnValue = none)
     (hmemory : state.memory = fun _ => 0)
+    (htransient : state.transientStorage = fun _ => 0)
     (hvars : state.vars = [])
     (hparamErase : paramLoadErasure fn tx state) :
     Compiler.Proofs.YulGeneration.resultsMatch
@@ -162,7 +164,7 @@ theorem yulBody_from_state_eq_yulBody
       state = interpretYulBody fn tx state by
     rwa [h_eq] at h_ir_from
   simp only [interpretYulBodyFromState, interpretYulBody]
-  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hmsgValue hthis htimestamp hnumber hchain hblobBaseFee hselector hreturn hmemory hvars
+  have h_rollback := yulStateOfIR_eq_initial 0 state tx hcalldata hsender hmsgValue hthis htimestamp hnumber hchain hblobBaseFee hselector hreturn hmemory htransient hvars
   have h_exec := execYulStmts_paramState_eq_emptyVars fn tx state hvars hmemory hcalldata hsender hmsgValue hthis htimestamp hnumber hchain hselector hreturn hparamErase
   rw [h_rollback]
   simp only at h_exec
@@ -189,6 +191,7 @@ theorem layer3_contract_preserves_semantics
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hvars : initialState.vars = [])
     (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ contract.functions →
       paramLoadErasure fn tx
@@ -234,6 +237,7 @@ theorem layer3_contract_preserves_semantics
       rfl rfl rfl rfl rfl rfl rfl rfl rfl
       (by simpa using hreturn)
       (by simpa using hmemory)
+      (by simpa using htransient)
       (by simpa using hvars)
       (hparamErase fn hmem))
 
@@ -296,6 +300,7 @@ theorem layers2_3_ir_matches_yul
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hvars : initialState.vars = [])
     (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
     (hparamErase : ∀ fn, fn ∈ irContract.functions →
       paramLoadErasure fn tx
@@ -324,7 +329,7 @@ theorem layers2_3_ir_matches_yul
       (interpretIR irContract tx initialState)
       (interpretYulFromIR irContract tx initialState) :=
   layer3_contract_preserves_semantics irContract tx initialState
-    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     hLoopFree hWF hNoFallback hNoReceive
 
 /-! ## Concrete Instantiation: SimpleStorage -/
@@ -336,6 +341,7 @@ theorem simpleStorage_endToEnd
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hvars : initialState.vars = [])
     (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
     (hreturn : initialState.returnValue = none)
     (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       DispatchGuardsSafe fn tx)
@@ -359,7 +365,7 @@ theorem simpleStorage_endToEnd
       (interpretIR simpleStorageIRContract tx initialState)
       (interpretYulFromIR simpleStorageIRContract tx initialState) :=
   layer3_contract_preserves_semantics simpleStorageIRContract tx initialState
-    hselector hNoWrap hvars hmemory hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     (by intro fn hmem; simp [simpleStorageIRContract, yulStmtsLoopFree, yulStmtLoopFree] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 

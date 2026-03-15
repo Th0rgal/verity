@@ -899,4 +899,7 @@ theorem validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPref
     (validateIdentifierShapes_functionIdentifiers_ok hvalidate hfn)
     hmem
 
+theorem compatValue_startsWith_reserved :
+    "__compat_value".startsWith "__" = true := by native_decide
+
 end Compiler.CompilationModel
