@@ -129,6 +129,7 @@ private theorem stmt_align_contra
   simpa [hIR, hYul] using hStmt
 
 set_option maxHeartbeats 800000 in
+set_option linter.unusedSimpArgs false in
 private theorem stmt_and_stmts_equiv :
     ∀ fuel,
       (∀ selector stmt irState yulState,
