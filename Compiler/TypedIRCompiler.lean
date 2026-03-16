@@ -522,6 +522,10 @@ example :
     | Except.error _ => false) = true := by
   native_decide
 
+-- The compilation-shape theorems below use `simp` to unfold the compiler pipeline.
+-- With many definitions to expand, this exceeds the default heartbeat limit (200000).
+set_option maxHeartbeats 800000
+
 /-- Single-statement compilation shape for the supported subset:
 `setStorage fieldName (literal n)` lowers to one typed `setStorage` when the
 field resolves to a uint256 slot. -/
