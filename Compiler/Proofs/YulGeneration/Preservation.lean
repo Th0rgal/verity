@@ -282,9 +282,7 @@ private theorem sizeOf_buildSwitch_ge_switchCases
         simp [switchCases]
     | cons fn rest ih =>
         cases hpay : fn.payable <;>
-          simp [switchCases, switchCaseBody, dispatchBody,
-            Compiler.CodegenCommon.dispatchBody, Compiler.callvalueGuard,
-            Compiler.calldatasizeGuard, hpay, ih]
+          simp [switchCases, switchCaseBody, dispatchBody, hpay, ih]
   rw [hcases]
   -- Name sub-expressions and decompose sizeOf level by level (simp normalizes
   -- auto-generated SizeOf instances; omega closes the arithmetic)
@@ -381,8 +379,7 @@ private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState)
       YulExecResult.continue state := by
   have hCallvalue : evalYulExpr state (YulExpr.call "callvalue" []) = some 0 := by
     simp [hMsgValue, evalYulExpr, evalYulCall, evalYulExprs,
-      evalBuiltinCallWithBackend, evalBuiltinCall, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext]
+      evalBuiltinCallWithBackend, evalBuiltinCallWithContext]
   have hstmt :
       execYulStmtFuel (fuel + 1) state Compiler.callvalueGuard = .continue state := by
     simpa [Compiler.callvalueGuard] using
@@ -424,10 +421,10 @@ private theorem exec_calldatasizeGuard_revert_of_short_noWrap
         .revert state := by
     cases fuel with
     | zero =>
-        simpa using execYulStmtsFuel_zero_of_ne_nil_bridge state
+        exact execYulStmtsFuel_zero_of_ne_nil_bridge state
           [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] (by simp)
     | succ k =>
-        cases k <;> simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
+        cases k <;> simp [execYulStmtsFuel, execYulStmtFuel]
   rw [execYulStmtsFuel_singleton_succ_bridge, hguard, hRevertBody]
 
 /-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
@@ -640,7 +637,7 @@ private theorem dispatchGuardsSafe_msgValue_zero_mod_of_nonpayable
     tx.msgValue % evmModulus = 0 := by
   rcases hguards with ⟨hValueSafe, _⟩
   rcases hValueSafe with hPayable | hZero
-  · cases (by simpa [hNonPayable] using hPayable : False)
+  · cases (by simp [hNonPayable] at hPayable : False)
   · exact hZero
 
 private theorem exec_switchCaseBody_revert_of_short
@@ -965,22 +962,22 @@ private theorem execYulFuel_succ_eq
     | cons s rest =>
       have hf : fuel ≥ 2 := by
         simp only [sizeOfExecTarget] at hFuel
-        have : sizeOf s < sizeOf (s :: rest) := by simp_wf <;> omega
+        have : sizeOf s < sizeOf (s :: rest) := by simp_wf; omega
         omega
       obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
       have hs_lt : sizeOf (YulExecTarget.stmt s) < n := by
-        rw [← hn]; simp_wf <;> omega
+        rw [← hn]; simp_wf; omega
       have hr_lt : sizeOf (YulExecTarget.stmts rest) < n := by
-        rw [← hn]; simp_wf <;> omega
+        rw [← hn]; simp_wf
       simp [yulExecTargetLoopFree, yulStmtsLoopFree] at hLF
       obtain ⟨hLFs, hLFr⟩ := hLF
       have hs_fuel : f + 1 ≥ sizeOfExecTarget (.stmt s) + 1 := by
         simp only [sizeOfExecTarget] at hFuel ⊢
-        have : sizeOf s < sizeOf (s :: rest) := by simp_wf <;> omega
+        have : sizeOf s < sizeOf (s :: rest) := by simp_wf; omega
         omega
       have hr_fuel : f + 1 ≥ sizeOfExecTarget (.stmts rest) + 1 := by
         simp only [sizeOfExecTarget] at hFuel ⊢
-        have : sizeOf rest < sizeOf (s :: rest) := by simp_wf <;> omega
+        have : sizeOf rest < sizeOf (s :: rest) := by simp_wf
         omega
       have ihs := ih _ hs_lt (.stmt s) state (f + 1) rfl
         (by simp [yulExecTargetLoopFree, hLFs]) hs_fuel
@@ -1027,14 +1024,14 @@ private theorem execYulFuel_succ_eq
       simp [yulStmtLoopFree] at hLF
       have : fuel ≥ 2 := by
         simp only [sizeOfExecTarget] at hFuel
-        have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf <;> omega
+        have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf
         omega
       obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
       have hb_lt : sizeOf (YulExecTarget.stmts body) < n := by
-        rw [← hn]; simp_wf <;> omega
+        rw [← hn]; simp_wf
       have hb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts body) + 1 := by
         simp only [sizeOfExecTarget] at hFuel ⊢
-        have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf <;> omega
+        have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf
         omega
       show execYulFuel (f + 3) state (.stmt (YulStmt.if_ cond body)) =
            execYulFuel (f + 2) state (.stmt (YulStmt.if_ cond body))
@@ -1052,7 +1049,7 @@ private theorem execYulFuel_succ_eq
       obtain ⟨hLFcases, hLFdef⟩ := hLF
       have : fuel ≥ 2 := by
         simp only [sizeOfExecTarget] at hFuel
-        have : sizeOf expr < sizeOf (YulStmt.switch expr cases defaultCase) := by simp_wf <;> omega
+        have : sizeOf expr < sizeOf (YulStmt.switch expr cases defaultCase) := by simp_wf; omega
         omega
       obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
       show execYulFuel (f + 3) state (.stmt (YulStmt.switch expr cases defaultCase)) =
@@ -1069,11 +1066,11 @@ private theorem execYulFuel_succ_eq
           | none => rfl
           | some defBody =>
             have hdb_lt : sizeOf (YulExecTarget.stmts defBody) < n := by
-              rw [← hn]; simp_wf <;> omega
+              rw [← hn]; simp_wf; omega
             have hdb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts defBody) + 1 := by
               simp only [sizeOfExecTarget] at hFuel ⊢
               have : sizeOf defBody < sizeOf (YulStmt.switch expr cases (some defBody)) := by
-                simp_wf <;> omega
+                simp_wf; omega
               omega
             simp [yulOptionStmtsLoopFree] at hLFdef
             exact ih _ hdb_lt (.stmts defBody) state (f + 1) rfl
@@ -1083,13 +1080,13 @@ private theorem execYulFuel_succ_eq
           simp only []
           have hmem : (caseVal, caseBody) ∈ cases := List.mem_of_find?_eq_some hfind
           have hpair : sizeOf caseBody < sizeOf (caseVal, caseBody) := by
-            simp_wf <;> omega
+            simp_wf
           have hlist : sizeOf (caseVal, caseBody) < sizeOf cases :=
             List.sizeOf_lt_of_mem hmem
           have hcases : sizeOf cases < sizeOf (YulStmt.switch expr cases defaultCase) := by
-            simp_wf <;> omega
+            simp_wf; omega
           have hcb_lt : sizeOf (YulExecTarget.stmts caseBody) < n := by
-            subst hn; simp_wf <;> omega
+            subst hn; simp_wf
           have hcb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts caseBody) + 1 := by
             simp only [sizeOfExecTarget] at hFuel ⊢; omega
           have hcb_lf : yulStmtsLoopFree caseBody = true :=
@@ -1100,14 +1097,14 @@ private theorem execYulFuel_succ_eq
       simp [yulStmtLoopFree] at hLF
       have : fuel ≥ 2 := by
         simp only [sizeOfExecTarget] at hFuel
-        have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf <;> omega
+        have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf
         omega
       obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
       have hb_lt : sizeOf (YulExecTarget.stmts stmts) < n := by
-        rw [← hn]; simp_wf <;> omega
+        rw [← hn]; simp_wf
       have hb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts stmts) + 1 := by
         simp only [sizeOfExecTarget] at hFuel ⊢
-        have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf <;> omega
+        have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf
         omega
       show execYulFuel (f + 3) state (.stmt (YulStmt.block stmts)) =
            execYulFuel (f + 2) state (.stmt (YulStmt.block stmts))
@@ -1319,7 +1316,7 @@ theorem yulCodegen_preserves_semantics
   set switchStmt := Compiler.CodegenCommon.buildSwitch contract.functions contract.fallbackEntrypoint
     contract.receiveEntrypoint with hSwitchDef
   have hRuntimeEq : Compiler.runtimeCode contract = prefix_ ++ [switchStmt] := by
-    simpa [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode, hPrefixDef, hSwitchDef,
+    simp [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode, hPrefixDef, hSwitchDef,
       List.append_assoc]
   have hPrefixFD :
       ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b := by

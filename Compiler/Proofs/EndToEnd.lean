@@ -367,7 +367,7 @@ theorem simpleStorage_endToEnd
   layer3_contract_preserves_semantics simpleStorageIRContract tx initialState
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
     hHasSelectorDead
-    (by intro fn hmem; simp [simpleStorageIRContract, yulStmtsLoopFree, yulStmtLoopFree] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
+    (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
     (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
 /-! ## Universal Pure Arithmetic Bridge
