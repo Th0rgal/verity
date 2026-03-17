@@ -71,7 +71,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _ => true
+  | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
+  | .dynamicBytesEq _ _ => true
 
 /-- Stateful expression surfaces not yet carried by the generic Layer 2 body
 interface. These are the next storage/layout-style widening targets. -/
@@ -101,7 +102,8 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .calldatasize | .calldataload _ | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .mulDivDown _ _ _ | .mulDivUp _ _ _
-  | .shl _ _ | .shr _ _ | .sar _ _ | .signextend _ _ => false
+  | .shl _ _ | .shr _ _ | .sar _ _ | .signextend _ _
+  | .dynamicBytesEq _ _ => false
 
 /-- Call-related surfaces that still sit outside the current generic Layer 2
 body theorem: internal helper reuse, low-level calls, and foreign call hooks. -/
@@ -139,6 +141,7 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
         exprTouchesUnsupportedCallSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Internal helper-call surfaces not yet modeled compositionally in the current
 generic whole-contract theorem. -/
@@ -176,6 +179,7 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
         exprTouchesUnsupportedHelperSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Narrow helper-effect surface used by the exact helper-aware induction seam:
 this tracks only genuine internal-helper execution, not the broader set of
@@ -200,8 +204,9 @@ def exprTouchesInternalHelperSurface : Expr → Bool
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .storageArrayElement _ b =>
       exprTouchesInternalHelperSurface b
-  | .mappingChain _ keys =>
-      keys.any exprTouchesInternalHelperSurface
+  | .mappingChain _ [] => false
+  | .mappingChain field (k :: ks) =>
+      exprTouchesInternalHelperSurface k || exprTouchesInternalHelperSurface (.mappingChain field ks)
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .structMember _ a _ => exprTouchesInternalHelperSurface a
   | .ite cond thenVal elseVal =>
@@ -216,6 +221,7 @@ def exprTouchesInternalHelperSurface : Expr → Bool
         exprTouchesInternalHelperSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Foreign-call/library-hook surfaces still outside the current generic
 whole-contract theorem. -/
@@ -253,6 +259,7 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
         exprTouchesUnsupportedForeignSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Low-level call/runtime-mechanic surfaces still outside the current generic
 whole-contract theorem. -/
@@ -289,6 +296,7 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
         exprTouchesUnsupportedLowLevelSurface c
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
+  | .dynamicBytesEq _ _ => false
 
 /-- Compatibility expression scan retained for the current generic-induction
 proofs. This intentionally preserves the pre-interface split meaning so the
@@ -320,8 +328,10 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
   | .arrayLength _ | .arrayElement _ _ | .storageArrayLength _ | .storageArrayElement _ _
   | .mulDivDown _ _ _ | .mulDivUp _ _ _ | .shl _ _
-  | .shr _ _ | .sar _ _ | .signextend _ _ => true
+  | .shr _ _ | .sar _ _ | .signextend _ _
+  | .dynamicBytesEq _ _ => true
 
+mutual
 /-- Observable/effect-rich surfaces outside the current generic whole-contract
 theorem: richer returns, logs, typed errors, and raw external effect hooks. -/
 def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
@@ -329,7 +339,7 @@ def stmtTouchesUnsupportedEffectSurface : Stmt → Bool
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _
   | .externalCallBind _ _ _ | .ecm _ _ => true
   | .letVar _ _ | .assignVar _ _ | .setStorage _ _ | .setStorageAddr _ _
-  | .require _ _ | .return _ | .mstore _ _ | .stop
+  | .require _ _ | .return _ | .mstore _ _ | .tstore _ _ | .stop
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _ | .setMappingChain _ _ _
@@ -420,6 +430,7 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
   | .stop | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
   | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
   | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
@@ -527,6 +538,7 @@ def stmtTouchesExprInternalHelperSurface : Stmt → Bool
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _
   | .setStorageArrayElement _ _ _ | .requireError _ _ _
@@ -551,6 +563,7 @@ def stmtTouchesStructuralInternalHelperSurface : Stmt → Bool
   | .setMapping _ _ _ | .setMappingWord _ _ _ _
   | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
   | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
+  | .setMappingChain _ _ _
   | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
   | .storageArrayPush _ _ | .storageArrayPop _
   | .setStorageArrayElement _ _ _ | .requireError _ _ _
@@ -731,6 +744,7 @@ def stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites : List Stmt →
   | stmt :: rest =>
       stmtTouchesUnsupportedContractSurfaceExceptMappingWrites stmt ||
         stmtListTouchesUnsupportedContractSurfaceExceptMappingWrites rest
+end
 
 mutual
   /-- Collect direct internal-helper callee names mentioned by an expression. This
