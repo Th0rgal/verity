@@ -1029,10 +1029,10 @@ private theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNam
         | _ =>
             all_goals
               first
-              | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hstmt
-              | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] using hstmt
-              | simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
-                  or_left_comm, or_assoc] using hstmt
+              | simp [stmtExprHelperCallNames, stmtInternalHelperCallNames] at hstmt; exact hstmt
+              | simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hstmt; exact hstmt
+              | simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
+                  or_left_comm, or_assoc] at hstmt; exact hstmt
       · exact Or.inr (stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames rest hrest)
 termination_by sizeOf stmts
 decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
@@ -1046,7 +1046,8 @@ theorem stmtExprHelperCallNames_subset_stmtInternalHelperCallNames
   have : calleeName ∈ stmtListExprHelperCallNames [stmt] := by
     simp [stmtListExprHelperCallNames, hmem]
   have := stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames [stmt] this
-  simpa [stmtListInternalHelperCallNames] using this
+  simp [stmtListInternalHelperCallNames] at this
+  exact this
 
 theorem exprHelperCallNames_subset_helperCallNames
     {fn : FunctionSpec}
@@ -2365,7 +2366,15 @@ theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
       (stmtListTouchesUnsupportedCoreSurface stmts ||
         stmtListTouchesUnsupportedStateSurface stmts ||
         stmtListTouchesUnsupportedCallSurface stmts ||
-        stmtListTouchesUnsupportedEffectSurface stmts) :=
+        stmtListTouchesUnsupportedEffectSurface stmts) := by
+  -- UNPROVABLE: As documented above, the definitions have structural mismatches.
+  -- The contract surface uses exprTouchesUnsupportedContractSurface which recurses
+  -- on some expr constructors (e.g. sdiv, smod, bitAnd), while the feature surfaces
+  -- use expr predicates that return true directly for those constructors.
+  -- The statement-level relationship stmtTouchesUnsupportedContractSurface stmt =
+  -- (Core || State || Call || Effect) does not hold, so the list-level equality
+  -- cannot be proven by induction. This requires alignment of the underlying
+  -- definitions by project authors.
   sorry
 
 private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
@@ -3660,7 +3669,8 @@ theorem SupportedSpec.contractUsesDynamicBytesEq_eq_false
   have := supportedStmtList_usesDynamicBytesEq_false
     (hSupported.functions fn hmem).body.stmtList
   rw [stmtListUsesDynamicBytesEq_eq_any] at this
-  simpa using this
+  simp at this
+  exact this
 
 theorem SupportedSpecExceptMappingWrites.contractUsesDynamicBytesEq_eq_false
     {spec : CompilationModel} {selectors : List Nat}
@@ -3671,7 +3681,8 @@ theorem SupportedSpecExceptMappingWrites.contractUsesDynamicBytesEq_eq_false
   have := supportedStmtList_usesDynamicBytesEq_false
     (hSupported.functions fn hmem).body.stmtList
   rw [stmtListUsesDynamicBytesEq_eq_any] at this
-  simpa using this
+  simp at this
+  exact this
 
 
 theorem SupportedSpec.normalizedFields
