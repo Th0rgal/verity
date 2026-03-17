@@ -282,7 +282,7 @@ private theorem sizeOf_buildSwitch_ge_switchCases
         simp [switchCases]
     | cons fn rest ih =>
         cases hpay : fn.payable <;>
-          simp [switchCases, switchCaseBody, dispatchBody, hpay, ih]
+          simp [switchCases, switchCaseBody, Compiler.CodegenCommon.dispatchBody, hpay, ih]
   rw [hcases]
   -- Name sub-expressions and decompose sizeOf level by level (simp normalizes
   -- auto-generated SizeOf instances; omega closes the arithmetic)
@@ -379,7 +379,7 @@ private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState)
       YulExecResult.continue state := by
   have hCallvalue : evalYulExpr state (YulExpr.call "callvalue" []) = some 0 := by
     simp [hMsgValue, evalYulExpr, evalYulCall, evalYulExprs,
-      evalBuiltinCallWithBackend, evalBuiltinCallWithContext]
+      evalBuiltinCallWithBackendContext]
   have hstmt :
       execYulStmtFuel (fuel + 1) state Compiler.callvalueGuard = .continue state := by
     simpa [Compiler.callvalueGuard] using
@@ -424,7 +424,7 @@ private theorem exec_calldatasizeGuard_revert_of_short_noWrap
         exact execYulStmtsFuel_zero_of_ne_nil_bridge state
           [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] (by simp)
     | succ k =>
-        cases k <;> simp [execYulStmtsFuel, execYulStmtFuel]
+        cases k <;> simp [execYulFuel, execYulStmtsFuel, execYulStmtFuel]
   rw [execYulStmtsFuel_singleton_succ_bridge, hguard, hRevertBody]
 
 /-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
@@ -1086,7 +1086,7 @@ private theorem execYulFuel_succ_eq
           have hcases : sizeOf cases < sizeOf (YulStmt.switch expr cases defaultCase) := by
             simp_wf; omega
           have hcb_lt : sizeOf (YulExecTarget.stmts caseBody) < n := by
-            subst hn; simp_wf
+            subst hn; simp_wf; omega
           have hcb_fuel : f + 1 ≥ sizeOfExecTarget (.stmts caseBody) + 1 := by
             simp only [sizeOfExecTarget] at hFuel ⊢; omega
           have hcb_lf : yulStmtsLoopFree caseBody = true :=

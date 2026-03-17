@@ -1026,6 +1026,12 @@ private theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNam
         | internalCallAssign names calleeName args =>
             simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_cons] at hstmt ⊢
             exact Or.inr hstmt
+        | requireError cond errorName args =>
+            simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hstmt ⊢
+            exact hstmt
+        | revertError errorName args =>
+            simp [stmtExprHelperCallNames, stmtInternalHelperCallNames] at hstmt
+            exact hstmt
         | _ =>
             all_goals
               first
