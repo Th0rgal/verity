@@ -1831,7 +1831,30 @@ theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
       (fn := fn)
       (tx := tx)
       (initialWorld := initialWorld)
-      sorry -- TODO: fix proof - SupportedBodyHelperInterface doesn't have surfaceClosed field
+      (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
+  · rfl
+
+theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExceptMappingWrites
+    {spec : CompilationModel}
+    {selectors : List Nat}
+    (hSupported : SupportedSpecExceptMappingWrites spec selectors)
+    (fuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState) :
+    interpretContractWithHelpers spec selectors fuel tx initialWorld =
+      interpretContract spec selectors tx initialWorld := by
+  unfold interpretContractWithHelpers interpretContract
+  split
+  · rename_i fn hfind
+    have hfn : fn ∈ selectorDispatchedFunctions spec :=
+      findFunctionBySelector_mem_selectorDispatchedFunctions hfind
+    exact interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+      (spec := spec)
+      (fuel := fuel)
+      (fn := fn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
   · rfl
 
 end SourceSemantics
@@ -1903,6 +1926,18 @@ theorem sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_support
   exact SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
     hSupported fuel tx initialWorld
 
+theorem sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_supportedSpecExceptMappingWrites
+    {spec : CompilationModel}
+    {selectors : List Nat}
+    (hSupported : SupportedSpecExceptMappingWrites spec selectors)
+    (fuel : Nat)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState) :
+    sourceContractSemanticsWithHelpers spec selectors fuel tx initialWorld =
+      sourceContractSemantics spec selectors tx initialWorld := by
+  exact SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExceptMappingWrites
+    hSupported fuel tx initialWorld
+
 theorem supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
     {spec : CompilationModel}
     {selectors : List Nat}
@@ -1920,7 +1955,7 @@ theorem supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatc
     (fn := fn)
     (tx := tx)
     (initialWorld := initialWorld)
-    sorry -- TODO: fix proof - SupportedBodyHelperInterface doesn't have surfaceClosed field
+    (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
 
 theorem supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
     {spec : CompilationModel}
@@ -1939,7 +1974,7 @@ theorem supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction
     (fn := fn)
     (tx := tx)
     (initialWorld := initialWorld)
-    sorry -- TODO: fix proof - SupportedBodyHelperInterface doesn't have surfaceClosed field
+    (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
 
 theorem supportedSourceContractSemantics_eq_sourceContractSemantics
     {spec : CompilationModel}
@@ -1960,7 +1995,8 @@ theorem supportedSourceContractSemanticsExceptMappingWrites_eq_sourceContractSem
     (initialWorld : Verity.ContractState) :
     supportedSourceContractSemanticsExceptMappingWrites spec selectors hSupported tx initialWorld =
       sourceContractSemantics spec selectors tx initialWorld := by
-  sorry -- TODO: fix proof - theorem interpretContractWithHelpers_eq_interpretContract_of_helperSurfaceClosed doesn't exist
+  exact sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_supportedSpecExceptMappingWrites
+    hSupported hSupported.helperFuel tx initialWorld
 
 example :
     (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
@@ -2029,14 +2065,14 @@ example :
       { sender := 9, functionSelector := 0x44444444, args := [29] }
       { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
         (Compiler.Proofs.solidityMappingSlot 7 0) = 29 := by
-  sorry -- TODO: decide fails after noncomputable dependency; needs refactoring
+  decide
 
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x55555555, args := [] }
       { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage 7 = 1 := by
-  sorry -- TODO: decide fails after noncomputable dependency; needs refactoring
+  decide
 
 example :
     (sourceContractSemantics storageArraySourceSpec
