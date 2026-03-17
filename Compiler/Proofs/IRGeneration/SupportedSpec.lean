@@ -2358,6 +2358,17 @@ def SupportedRuntimeHelperTableInterface.compiledOfCall
 -- constructors (sdiv, smod, bitAnd, …) differently from the per-surface
 -- functions (the contract surface recurses while the core surface returns
 -- true directly), making the equality unprovable as-is.
+--
+-- Concrete counterexample at the expression level:
+--   exprTouchesUnsupportedContractSurface (Expr.sdiv (Expr.literal 1) (Expr.literal 2))
+--     = (false || false) = false  (recurses on both arguments)
+--   exprTouchesUnsupportedCoreSurface (Expr.sdiv (Expr.literal 1) (Expr.literal 2))
+--     = true  (returns true directly for sdiv, without checking arguments)
+--
+-- Similarly, for `.ite` statements:
+--   stmtTouchesUnsupportedContractSurface (.ite cond thenBranch elseBranch) = true
+--   but the OR of sub-predicates recurses on cond and branches, giving different results.
+--
 -- The statement needs revision by project authors.
 -- This theorem is not used in any downstream proof.
 theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
@@ -2369,8 +2380,8 @@ theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
         stmtListTouchesUnsupportedEffectSurface stmts) := by
   -- UNPROVABLE: As documented above, the definitions have structural mismatches.
   -- The contract surface uses exprTouchesUnsupportedContractSurface which recurses
-  -- on some expr constructors (e.g. sdiv, smod, bitAnd), while the feature surfaces
-  -- use expr predicates that return true directly for those constructors.
+  -- on some expr constructors (e.g. sdiv, smod, bitAnd), while the core surface
+  -- returns true directly for those constructors without examining their arguments.
   -- The statement-level relationship stmtTouchesUnsupportedContractSurface stmt =
   -- (Core || State || Call || Effect) does not hold, so the list-level equality
   -- cannot be proven by induction. This requires alignment of the underlying
