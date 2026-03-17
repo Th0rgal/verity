@@ -923,13 +923,51 @@ mutual
   decreasing_by all_goals simp_wf; all_goals omega
 end
 
+private theorem eraseDups_nodup_and_mem_aux [BEq α] [LawfulBEq α]
+    (n : Nat) (l : List α) (hlen : l.length ≤ n) :
+    (l.eraseDups).Nodup ∧ (∀ a, a ∈ l.eraseDups ↔ a ∈ l) := by
+  induction n generalizing l with
+  | zero =>
+    have : l = [] := List.eq_nil_of_length_eq_zero (Nat.eq_zero_of_le_zero hlen)
+    subst this
+    exact ⟨List.Pairwise.nil, fun _ => Iff.rfl⟩
+  | succ n ih =>
+    match l with
+    | [] => exact ⟨List.Pairwise.nil, fun _ => Iff.rfl⟩
+    | x :: xs =>
+      rw [List.eraseDups_cons]
+      have hfilt_len : (xs.filter fun b => !b == x).length ≤ n := by
+        have := List.length_filter_le (fun b => !b == x) xs
+        simp [List.length_cons] at hlen; omega
+      have ⟨ihNd, ihMem⟩ := ih _ hfilt_len
+      constructor
+      · rw [List.nodup_cons]
+        constructor
+        · intro h
+          have hmf := (ihMem x).mp h
+          rw [List.mem_filter] at hmf
+          have := hmf.2
+          simp at this
+        · exact ihNd
+      · intro a; constructor
+        · intro h; rw [List.mem_cons] at h ⊢
+          rcases h with rfl | h
+          · exact Or.inl rfl
+          · exact Or.inr (List.mem_filter.mp ((ihMem a).mp h)).1
+        · intro h; rw [List.mem_cons] at h ⊢
+          rcases h with rfl | h
+          · exact Or.inl rfl
+          · by_cases heq : a == x
+            · exact Or.inl (beq_iff_eq.mp heq)
+            · exact Or.inr ((ihMem a).mpr (List.mem_filter.mpr ⟨h, by simp [heq]⟩))
+
 private theorem List.eraseDups_nodup [BEq α] [LawfulBEq α]
-    (l : List α) : (l.eraseDups).Nodup := by
-  sorry
+    (l : List α) : (l.eraseDups).Nodup :=
+  (eraseDups_nodup_and_mem_aux l.length l (Nat.le_refl _)).1
 
 private theorem List.mem_eraseDups_iff [BEq α] [LawfulBEq α]
-    {a : α} {l : List α} : a ∈ l.eraseDups ↔ a ∈ l := by
-  sorry
+    {a : α} {l : List α} : a ∈ l.eraseDups ↔ a ∈ l :=
+  (eraseDups_nodup_and_mem_aux l.length l (Nat.le_refl _)).2 a
 
 private theorem List.mem_eraseDups_of_mem [BEq α] [LawfulBEq α]
     {a : α} {l : List α} (h : a ∈ l) : a ∈ l.eraseDups :=
