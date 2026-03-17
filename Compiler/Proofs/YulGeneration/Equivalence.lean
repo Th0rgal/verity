@@ -13,6 +13,7 @@ open Compiler.Yul
 def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
   { vars := state.vars
     storage := state.storage
+    transientStorage := state.transientStorage
     memory := state.memory
     calldata := state.calldata
     selector := state.selector

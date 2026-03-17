@@ -36,6 +36,7 @@ aligned with Solidity's keccak-derived flat storage slot layout.
 structure YulState where
   vars : List (String × Nat)
   storage : Nat → Nat
+  transientStorage : Nat → Nat := fun _ => 0
   memory : Nat → Nat
   calldata : List Nat
   selector : Nat
@@ -67,6 +68,7 @@ def YulState.initial (tx : YulTransaction) (storage : Nat → Nat)
     (events : List (List Nat) := []) : YulState :=
   { vars := []
     storage := storage
+    transientStorage := fun _ => 0
     memory := fun _ => 0
     calldata := tx.args
     selector := tx.functionSelector
@@ -200,6 +202,15 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                   match evalYulExpr state offsetExpr, evalYulExpr state valExpr with
                   | some offset, some val =>
                       .continue { state with memory := fun o => if o = offset then val else state.memory o }
+                  | _, _ => .revert state
+              | .call "tstore" [offsetExpr, valExpr] =>
+                  match evalYulExpr state offsetExpr, evalYulExpr state valExpr with
+                  | some offset, some val =>
+                      .continue {
+                        state with
+                        transientStorage := fun o =>
+                          if o = offset then val else state.transientStorage o
+                      }
                   | _, _ => .revert state
               | .call "stop" [] => .stop state
               | .call "return" [offsetExpr, sizeExpr] =>

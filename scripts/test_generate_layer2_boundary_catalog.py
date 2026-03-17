@@ -23,15 +23,127 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
         )
         self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"]["current_fail_closed_gate"],
-            "SupportedBodyCallInterface.helperCompatibility",
+            "SupportedBodyInterface.stmtList",
         )
         self.assertEqual(
             catalog["theorem_target"]["issue_refs"]["helper_ir_semantics"],
             1638,
         )
         self.assertEqual(
+            catalog["current_theorem"]["helper_ir_ready_variant"],
+            "Compiler.Proofs.IRGeneration.Contract."
+            "compile_preserves_semantics_with_helper_proofs_and_helper_ir",
+        )
+        self.assertEqual(
+            catalog["current_theorem"]["helper_ir_goal_ready_variant"],
+            "Compiler.Proofs.IRGeneration.Contract."
+            "compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal",
+        )
+        self.assertEqual(
             catalog["supported_spec_split"]["helper_boundary"]["compiled_side_blocker_issue"],
             1638,
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["name"],
+            "legacy_compatible_external_body_yul_subset",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["status"],
+            "helper_free_conservative_extension_goal_closed",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["remaining_stmt_compatibility_surface"],
+            [],
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["dispatch_local_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "LegacyCompatibleRuntimeDispatch",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["dispatch_goal_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "InterpretIRWithInternalsZeroConservativeExtensionDispatchGoal",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["goal_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "InterpretIRWithInternalsZeroConservativeExtensionGoal",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["goal_composition_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "interpretIRWithInternalsZeroConservativeExtensionGoal_"
+            "of_dispatchGoal",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["goal_decomposition_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "InterpretIRWithInternalsZeroConservativeExtensionInterfaces",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["interface_builder_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "interpretIRWithInternalsZeroConservativeExtensionInterfaces_"
+            "of_stmtCompatibility",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["stmt_subgoal_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "InterpretIRWithInternalsZeroConservativeExtensionStmtSubgoals",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["stmt_subgoal_builder_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["stmt_subgoal_closed_surface"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["expr_stmt_dedicated_builtin_classifier"],
+            "Compiler.Proofs.IRGeneration.IRInterpreter."
+            "exprStmtUsesDedicatedBuiltinSemantics",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["closed_expr_stmt_subcases"],
+            [
+                "special_expr_stmt_stop",
+                "special_expr_stmt_mstore",
+                "special_expr_stmt_return",
+                "special_expr_stmt_revert",
+                "special_expr_stmt_mapping_slot_sstore",
+            ],
         )
         self.assertEqual(
             catalog["current_out_of_scope_surfaces"][0]["status"],
@@ -45,8 +157,21 @@ class GenerateLayer2BoundaryCatalogTests(unittest.TestCase):
             [
                 "legacy_stmt_fragment_witness",
                 "ir_internal_call_semantics",
+                "legacy_ir_target_compatibility_subset",
                 "summary_soundness_not_yet_consumed",
             ],
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_proof_surface"
+            ]["status"],
+            "helper_aware_ir_target_now_total_fuel_indexed_defs",
+        )
+        self.assertEqual(
+            catalog["supported_spec_split"]["helper_boundary"][
+                "compiled_target_compatibility_subset"
+            ]["status"],
+            "helper_free_conservative_extension_goal_closed",
         )
         self.assertEqual(
             [step["rank"] for step in catalog["ranked_next_steps"]],

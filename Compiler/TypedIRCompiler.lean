@@ -119,6 +119,43 @@ private def ensureTypedIRScalarStorageFieldSupported (fieldName : String) (field
       { name := name, ty := ty, slot := slot, packedBits := none, aliasSlots := aliasSlots } =
         Except.ok () := rfl
 
+private theorem ensureTypedIRScalarStorageFieldSupported_uint256
+    (fieldName name context : String) (slot : Option Nat)
+    (packedBits : Option PackedBits) (aliasSlots : List Nat) :
+    ensureTypedIRScalarStorageFieldSupported fieldName
+      { name := name, ty := .uint256, slot := slot, packedBits := packedBits, aliasSlots := aliasSlots }
+      context = Except.ok () := rfl
+
+private theorem ensureTypedIRScalarStorageFieldSupported_address
+    (fieldName name context : String) (slot : Option Nat)
+    (packedBits : Option PackedBits) (aliasSlots : List Nat) :
+    ensureTypedIRScalarStorageFieldSupported fieldName
+      { name := name, ty := .address, slot := slot, packedBits := packedBits, aliasSlots := aliasSlots }
+      context = Except.ok () := rfl
+
+private theorem ensureTypedIRScalarStorageFieldSupported_mappingTyped
+    (fieldName name context : String) (mt : MappingType) (slot : Option Nat)
+    (packedBits : Option PackedBits) (aliasSlots : List Nat) :
+    ensureTypedIRScalarStorageFieldSupported fieldName
+      { name := name, ty := .mappingTyped mt, slot := slot, packedBits := packedBits, aliasSlots := aliasSlots }
+      context = Except.ok () := rfl
+
+private theorem ensureTypedIRScalarStorageFieldSupported_mappingStruct
+    (fieldName name context : String) (keyType : MappingKeyType) (members : List StructMember)
+    (slot : Option Nat) (packedBits : Option PackedBits) (aliasSlots : List Nat) :
+    ensureTypedIRScalarStorageFieldSupported fieldName
+      { name := name, ty := .mappingStruct keyType members, slot := slot, packedBits := packedBits,
+        aliasSlots := aliasSlots }
+      context = Except.ok () := rfl
+
+private theorem ensureTypedIRScalarStorageFieldSupported_mappingStruct2
+    (fieldName name context : String) (outerKey innerKey : MappingKeyType) (members : List StructMember)
+    (slot : Option Nat) (packedBits : Option PackedBits) (aliasSlots : List Nat) :
+    ensureTypedIRScalarStorageFieldSupported fieldName
+      { name := name, ty := .mappingStruct2 outerKey innerKey members, slot := slot, packedBits := packedBits,
+        aliasSlots := aliasSlots }
+      context = Except.ok () := rfl
+
 private def compileStorageRead (fields : List Field) (fieldName : String)
     (requireAddressField : Bool := false) : Except String SomeTExpr := do
   match findFieldWithResolvedSlot fields fieldName with
@@ -399,6 +436,124 @@ private def compileBranch (fields : List Field) (stmts : List Stmt) : CompileM (
 
 end
 
+-- Per-constructor reduction lemmas for compileExpr.
+-- These bypass the problematic multi-case equation lemma that causes simp to loop.
+-- Simple constructors (no recursive compileExpr calls):
+@[simp] private theorem compileExpr_literal (fields : List Field) (n : Nat) :
+    compileExpr fields (Expr.literal n) = (return ⟨Ty.uint256, TExpr.uintLit n⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_param (fields : List Field) (name : String) :
+    compileExpr fields (Expr.param name) = (do let v ← lookupVar name; return ⟨v.ty, TExpr.var v⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_localVar (fields : List Field) (name : String) :
+    compileExpr fields (Expr.localVar name) = (do let v ← lookupVar name; return ⟨v.ty, TExpr.var v⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_storage (fields : List Field) (fieldName : String) :
+    compileExpr fields (Expr.storage fieldName) = (liftExcept <| compileStorageRead fields fieldName : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_storageAddr (fields : List Field) (fieldName : String) :
+    compileExpr fields (Expr.storageAddr fieldName) = (liftExcept <| compileStorageRead fields fieldName true : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_caller (fields : List Field) :
+    compileExpr fields Expr.caller = (return ⟨Ty.address, TExpr.sender⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_contractAddress (fields : List Field) :
+    compileExpr fields Expr.contractAddress = (return ⟨Ty.address, TExpr.this⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_blockTimestamp (fields : List Field) :
+    compileExpr fields Expr.blockTimestamp = (return ⟨Ty.uint256, TExpr.blockTimestamp⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_blockNumber (fields : List Field) :
+    compileExpr fields Expr.blockNumber = (return ⟨Ty.uint256, TExpr.blockNumber⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_chainid (fields : List Field) :
+    compileExpr fields Expr.chainid = (return ⟨Ty.uint256, TExpr.chainid⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_msgValue (fields : List Field) :
+    compileExpr fields Expr.msgValue = (return ⟨Ty.uint256, TExpr.msgValue⟩ : CompileM SomeTExpr) := rfl
+-- Compound constructors (have recursive compileExpr calls):
+@[simp] private theorem compileExpr_add (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.add a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.uint256, TExpr.add a' b'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_sub (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.sub a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.uint256, TExpr.sub a' b'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_mul (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.mul a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.uint256, TExpr.mul a' b'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_lt (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.lt a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.bool, TExpr.lt a' b'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_ge (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.ge a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.bool, TExpr.not (TExpr.lt a' b')⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_gt (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.gt a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.bool, TExpr.lt b' a'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_le (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.le a b) = (do
+      let a' ← liftExcept <| asUInt256 (← compileExpr fields a)
+      let b' ← liftExcept <| asUInt256 (← compileExpr fields b)
+      return ⟨Ty.bool, TExpr.not (TExpr.lt b' a')⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_eq (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.eq a b) = (do
+      let a' ← compileExpr fields a
+      let b' ← compileExpr fields b
+      match a', b' with
+      | ⟨Ty.uint256, aExpr⟩, ⟨Ty.uint256, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
+      | ⟨Ty.address, aExpr⟩, ⟨Ty.address, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
+      | ⟨Ty.address, aExpr⟩, ⟨Ty.uint256, bExpr⟩ => return ⟨Ty.bool, TExpr.eq (TExpr.addrToUint aExpr) bExpr⟩
+      | ⟨Ty.uint256, aExpr⟩, ⟨Ty.address, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr (TExpr.addrToUint bExpr)⟩
+      | ⟨Ty.bool, aExpr⟩, ⟨Ty.bool, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
+      | ⟨Ty.unit, aExpr⟩, ⟨Ty.unit, bExpr⟩ => return ⟨Ty.bool, TExpr.eq aExpr bExpr⟩
+      | ⟨aTy, _⟩, ⟨bTy, _⟩ =>
+          throw s!"Typed IR compile error: eq operand type mismatch ({repr aTy} vs {repr bTy})"
+      : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_logicalAnd (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.logicalAnd a b) = (do
+      let a' ← liftExcept <| asBool (← compileExpr fields a)
+      let b' ← liftExcept <| asBool (← compileExpr fields b)
+      return ⟨Ty.bool, TExpr.and a' b'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_logicalOr (fields : List Field) (a b : Expr) :
+    compileExpr fields (Expr.logicalOr a b) = (do
+      let a' ← liftExcept <| asBool (← compileExpr fields a)
+      let b' ← liftExcept <| asBool (← compileExpr fields b)
+      return ⟨Ty.bool, TExpr.or a' b'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_logicalNot (fields : List Field) (a : Expr) :
+    compileExpr fields (Expr.logicalNot a) = (do
+      let a' ← liftExcept <| asBool (← compileExpr fields a)
+      return ⟨Ty.bool, TExpr.not a'⟩ : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_mapping (fields : List Field) (field : String) (key : Expr) :
+    compileExpr fields (Expr.mapping field key) = (do
+      let keyExpr ← compileExpr fields key
+      let keyAddr ← liftExcept <| asAddress keyExpr
+      match findFieldSlot fields field with
+      | some slot => return ⟨Ty.uint256, TExpr.getMapping slot keyAddr⟩
+      | none => throw s!"Typed IR compile error: unknown mapping field '{field}'"
+      : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_mappingUint (fields : List Field) (field : String) (key : Expr) :
+    compileExpr fields (Expr.mappingUint field key) = (do
+      let keyExpr ← compileExpr fields key
+      let keyUint ← liftExcept <| asUInt256 keyExpr
+      match findFieldSlot fields field with
+      | some slot => return ⟨Ty.uint256, TExpr.getMappingUint slot keyUint⟩
+      | none => throw s!"Typed IR compile error: unknown mapping field '{field}'"
+      : CompileM SomeTExpr) := rfl
+@[simp] private theorem compileExpr_mapping2 (fields : List Field) (field : String) (key1 key2 : Expr) :
+    compileExpr fields (Expr.mapping2 field key1 key2) = (do
+      let key1Expr ← liftExcept <| asAddress (← compileExpr fields key1)
+      let key2Expr ← liftExcept <| asAddress (← compileExpr fields key2)
+      match findFieldSlot fields field with
+      | some slot => return ⟨Ty.uint256, TExpr.getMapping2 slot key1Expr key2Expr⟩
+      | none => throw s!"Typed IR compile error: unknown mapping field '{field}'"
+      : CompileM SomeTExpr) := rfl
+
+private theorem compileExpr_literal_run (fields : List Field) (n : Nat) (st : CompileState) :
+    StateT.run (compileExpr fields (Expr.literal n)) st =
+      Except.ok (⟨Ty.uint256, TExpr.uintLit n⟩, st) := rfl
+
 private def registerParam (param : Param) : CompileM Unit := do
   let ty ← liftExcept <| paramTypeToTy param.ty
   let ⟨v, _⟩ ← freshVar ty
@@ -481,6 +636,10 @@ example :
     | Except.error _ => false) = true := by
   native_decide
 
+-- The compilation-shape theorems below use `simp` to unfold the compiler pipeline.
+-- With many definitions to expand, this exceeds the default step limits.
+set_option maxHeartbeats 800000
+
 /-- Single-statement compilation shape for the supported subset:
 `setStorage fieldName (literal n)` lowers to one typed `setStorage` when the
 field resolves to a uint256 slot. -/
@@ -491,7 +650,7 @@ theorem compileStmts_single_setStorage_literal_run
       some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
     (compileStmts fields [Stmt.setStorage fieldName (Expr.literal n)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.setStorage slot (TExpr.uintLit n)) }) := by
-  simp [compileStmts, compileStmt, compileExpr, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Two-statement compilation shape for a broader supported subset:
@@ -513,7 +672,7 @@ theorem compileStmts_let_literal_setStorage_local_run
             TStmt.let_ { id := 0, ty := Ty.uint256 } (TExpr.uintLit n),
             TStmt.setStorage slot (TExpr.var { id := 0, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar, bindVar, pushLocal,
     lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -541,7 +700,7 @@ theorem compileStmts_let_assign_literal_setStorage_local_run
             TStmt.let_ { id := 1, ty := Ty.uint256 } (TExpr.uintLit m),
             TStmt.setStorage slot (TExpr.var { id := 1, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar, bindVar, pushLocal,
     lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -570,7 +729,7 @@ theorem compileStmts_let_assign_add_literal_setStorage_local_run
               (TExpr.add (TExpr.var { id := 0, ty := Ty.uint256 }) (TExpr.uintLit m)),
             TStmt.setStorage slot (TExpr.var { id := 1, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar, bindVar, pushLocal,
     lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -599,7 +758,7 @@ theorem compileStmts_let_assign_sub_literal_setStorage_local_run
               (TExpr.sub (TExpr.var { id := 0, ty := Ty.uint256 }) (TExpr.uintLit m)),
             TStmt.setStorage slot (TExpr.var { id := 1, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar, bindVar, pushLocal,
     lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -628,7 +787,7 @@ theorem compileStmts_let_assign_mul_literal_setStorage_local_run
               (TExpr.mul (TExpr.var { id := 0, ty := Ty.uint256 }) (TExpr.uintLit m)),
             TStmt.setStorage slot (TExpr.var { id := 1, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar, bindVar, pushLocal,
     lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -638,7 +797,7 @@ theorem compileStmts_single_return_literal_run
     (fields : List Field) (n : Nat) (st : CompileState) :
     (compileStmts fields [Stmt.return (Expr.literal n)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.returnUint (TExpr.uintLit n)) }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Two-statement compilation shape for a broader supported subset:
@@ -657,7 +816,7 @@ theorem compileStmts_let_return_local_literal_run
             TStmt.let_ { id := 0, ty := Ty.uint256 } (TExpr.uintLit n),
             TStmt.returnUint (TExpr.var { id := 0, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar, bindVar, pushLocal,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar, bindVar, pushLocal,
     lookupVar, emit]
   rfl
 
@@ -687,7 +846,7 @@ theorem compileStmts_single_ite_eq_setStorage_literals_run
               [TStmt.setStorage slot (TExpr.uintLit thenVal)]
               [TStmt.setStorage slot (TExpr.uintLit elseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported branch subset:
@@ -717,7 +876,7 @@ theorem compileStmts_single_ite_eq_setStorage_then_return_literal_run
               [TStmt.setStorage slot (TExpr.uintLit thenVal)]
               [TStmt.returnUint (TExpr.uintLit elseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported branch subset:
@@ -747,7 +906,7 @@ theorem compileStmts_single_ite_eq_return_then_setStorage_literal_run
               [TStmt.returnUint (TExpr.uintLit thenVal)]
               [TStmt.setStorage slot (TExpr.uintLit elseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported branch subset:
@@ -774,7 +933,7 @@ theorem compileStmts_single_ite_eq_return_literals_run
               [TStmt.returnUint (TExpr.uintLit thenVal)]
               [TStmt.returnUint (TExpr.uintLit elseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, emit]
+  simp only [compileStmts, compileStmt, compileBranch, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested-branch subset:
@@ -809,7 +968,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_literals_run
                 [TStmt.returnUint (TExpr.uintLit elseVal)]]
               [TStmt.returnUint (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, emit]
+  simp only [compileStmts, compileStmt, compileBranch, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested-branch subset:
@@ -848,7 +1007,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_return_l
                 [TStmt.setStorage slot (TExpr.uintLit elseVal)]]
               [TStmt.returnUint (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
@@ -886,7 +1045,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_literals_then_setStorage_l
                 [TStmt.returnUint (TExpr.uintLit elseVal)]]
               [TStmt.setStorage slot (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
@@ -928,7 +1087,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_literals_then_setStorage_l
               [TStmt.setStorage slot (TExpr.uintLit outerElseWriteVal),
                TStmt.returnUint (TExpr.uintLit outerElseRetVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested storage branch subset:
@@ -967,7 +1126,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_setStorage_literals_then_setStora
                 [TStmt.setStorage slot (TExpr.uintLit elseVal)]]
               [TStmt.setStorage slot (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
@@ -1006,7 +1165,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_setStorage_then_return_literal_th
                 [TStmt.returnUint (TExpr.uintLit elseVal)]]
               [TStmt.returnUint (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
@@ -1045,7 +1204,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_setStorage_then_return_literal_th
                 [TStmt.returnUint (TExpr.uintLit elseVal)]]
               [TStmt.setStorage slot (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
@@ -1084,7 +1243,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_th
                 [TStmt.setStorage slot (TExpr.uintLit elseVal)]]
               [TStmt.returnUint (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported nested heterogeneous branch subset:
@@ -1123,7 +1282,7 @@ theorem compileStmts_single_ite_eq_then_ite_eq_return_then_setStorage_literal_th
                 [TStmt.setStorage slot (TExpr.uintLit elseVal)]]
               [TStmt.setStorage slot (TExpr.uintLit outerElseVal)]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileBranch, fieldTypeToTy, hfind, emit]
+  simp only [compileStmts, compileStmt, compileBranch, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1144,7 +1303,7 @@ theorem compileStmts_single_require_eq_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1166,7 +1325,7 @@ theorem compileStmts_single_require_not_eq_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1187,7 +1346,7 @@ theorem compileStmts_single_require_lt_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1209,7 +1368,7 @@ theorem compileStmts_single_require_gt_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1231,7 +1390,7 @@ theorem compileStmts_single_require_ge_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1253,7 +1412,7 @@ theorem compileStmts_single_require_le_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1280,7 +1439,7 @@ theorem compileStmts_single_require_and_eq_lt_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Single-statement compilation shape for a broader supported require subset:
@@ -1307,7 +1466,7 @@ theorem compileStmts_single_require_or_eq_lt_literals_run
               []
               [TStmt.revert message]
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emit]
+  simp only [compileStmts, compileStmt, emit]
   rfl
 
 /-- Three-statement compilation shape for Counter.increment pattern:
@@ -1333,7 +1492,7 @@ theorem compileStmts_let_storage_setStorage_add_local_stop_run
               (TExpr.add (TExpr.var { id := 0, ty := Ty.uint256 }) (TExpr.uintLit m)),
             TStmt.stop
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, compileStorageRead, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -1360,7 +1519,7 @@ theorem compileStmts_let_storage_setStorage_sub_local_stop_run
               (TExpr.sub (TExpr.var { id := 0, ty := Ty.uint256 }) (TExpr.uintLit m)),
             TStmt.stop
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, compileStorageRead, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -1387,7 +1546,7 @@ theorem compileStmts_let_blockTimestamp_setStorage_local_stop_run
               (TExpr.var { id := 0, ty := Ty.uint256 }),
             TStmt.stop
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -1411,7 +1570,7 @@ theorem compileStmts_let_storage_return_local_run
             TStmt.let_ { id := 0, ty := Ty.uint256 } (TExpr.getStorage slot),
             TStmt.returnUint (TExpr.var { id := 0, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, compileStorageRead, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -1424,7 +1583,7 @@ theorem compileStmts_single_return_storage_run
       some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
     (compileStmts fields [Stmt.return (Expr.storage fieldName)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.returnUint (TExpr.getStorage slot)) }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy, hfind, emit]
+  simp [compileStmts, compileStmt, compileStorageRead, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Single-statement compilation shape for direct storage return (address):
@@ -1436,7 +1595,7 @@ theorem compileStmts_single_return_storage_addr_run
       some ({ name := fieldName, ty := FieldType.address }, slot)) :
     (compileStmts fields [Stmt.return (Expr.storage fieldName)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.returnAddr (TExpr.getStorageAddr slot)) }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy, hfind, emit]
+  simp [compileStmts, compileStmt, compileStorageRead, fieldTypeToTy, hfind, emit]
   rfl
 
 /-- Compilation shape for `require (eq caller (storage ownerField)) msg ; setStorage countField (add (storage countField) (literal n)) ; stop`.
@@ -1462,7 +1621,7 @@ theorem compileStmts_require_caller_eq_storage_addr_setStorage_add_storage_liter
             TStmt.setStorage countSlot (TExpr.add (TExpr.getStorage countSlot) (TExpr.uintLit n)),
             TStmt.stop
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy,
+  simp [compileStmts, compileStmt, compileStorageRead, fieldTypeToTy,
     hOwner, hCount, asBool, asUInt256, liftExcept, emit]
   rfl
 
@@ -1489,7 +1648,7 @@ theorem compileStmts_require_caller_eq_storage_addr_setStorage_sub_storage_liter
             TStmt.setStorage countSlot (TExpr.sub (TExpr.getStorage countSlot) (TExpr.uintLit n)),
             TStmt.stop
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, fieldTypeToTy,
+  simp [compileStmts, compileStmt, compileStorageRead, fieldTypeToTy,
     hOwner, hCount, asBool, asUInt256, liftExcept, emit]
   rfl
 
@@ -1501,7 +1660,7 @@ theorem compileStmts_single_return_mapping_caller_run
     (hSlot : findFieldSlot fields fieldName = some slot) :
     (compileStmts fields [Stmt.return (Expr.mapping fieldName Expr.caller)]).run st =
       Except.ok ((), { st with body := st.body.push (TStmt.returnUint (TExpr.getMapping slot TExpr.sender)) }) := by
-  simp [compileStmts, compileStmt, compileExpr, asAddress, hSlot, emit, liftExcept]
+  simp [compileStmts, compileStmt, asAddress, hSlot, emit, liftExcept]
   rfl
 
 /-- Two-statement compilation shape for address storage read + return:
@@ -1524,7 +1683,7 @@ theorem compileStmts_let_storage_addr_return_local_run
             TStmt.let_ { id := 0, ty := Ty.address } (TExpr.getStorageAddr slot),
             TStmt.returnAddr (TExpr.var { id := 0, ty := Ty.address })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, compileStorageRead, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, compileStorageRead, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, fieldTypeToTy, hfind, emit]
   rfl
 
@@ -1557,7 +1716,7 @@ theorem compileStmts_let_mapping_param_return_local_run
               (TExpr.getMapping slot (TExpr.var { id := 0, ty := Ty.address })),
             TStmt.returnUint (TExpr.var { id := 1, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asAddress, liftExcept, hSlot, emit,
     List.find?]; rfl
 
@@ -1590,7 +1749,7 @@ theorem compileStmts_let_mapping2_params_return_local_run
             TStmt.returnUint (TExpr.var { id := 2, ty := Ty.uint256 })
           ] }) := by
   have hne : (p2 == p1) = false := beq_false_of_ne hp.symm
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asAddress, liftExcept, hSlot, emit,
     List.find?, hne]; rfl
 
@@ -1628,7 +1787,7 @@ theorem compileStmts_let_caller_setMapping2_stop_run
   have hne1 : (senderVar == p2) = false := beq_false_of_ne h1
   have hne2 : (senderVar == p1) = false := beq_false_of_ne h2
   have hne3 : (p2 == p1) = false := beq_false_of_ne h3
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asAddress, asUInt256, liftExcept, hSlot, emit,
     List.find?, hne1, hne2, hne3]; rfl
 
@@ -1655,7 +1814,7 @@ theorem compileStmts_let_mappingUint_param_return_local_run
               (TExpr.getMappingUint slot (TExpr.var { id := 0, ty := Ty.uint256 })),
             TStmt.returnUint (TExpr.var { id := 1, ty := Ty.uint256 })
           ] }) := by
-  simp [compileStmts, compileStmt, compileExpr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asUInt256, liftExcept, hSlot, emit,
     List.find?]; rfl
 
@@ -1686,7 +1845,7 @@ theorem compileStmts_setMappingUint_params_stop_run
             TStmt.stop
           ] }) := by
   have hne : (p2 == p1) = false := beq_false_of_ne hp.symm
-  simp [compileStmts, compileStmt, compileExpr,
+  simp [compileStmts, compileStmt,
     lookupVar, asUInt256, liftExcept, hSlot, emit,
     List.find?, hne]; rfl
 
@@ -1743,7 +1902,7 @@ theorem compileStmts_letCallerLetStorageAddrReqEqReqNeqSetStorageAddrParamStop_r
   have hsr : compileStorageRead fields ownerField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
     simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
-  simp [compileStmts, compileStmt, compileExpr, hsr, hOwner, fieldTypeToTy,
+  simp [compileStmts, compileStmt, hsr, hOwner, fieldTypeToTy,
     emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asBool,
     liftExcept, emit, List.find?, h1, h2, h3, monadLift]; rfl
 
@@ -1822,12 +1981,12 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetStorageAddrReqNeqSetStorageA
   have h6 : (targetVar == ownerVar) = false := beq_false_of_ne hne_tv_ov
   have hsrOwner : compileStorageRead fields ownerField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
-    simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
+    simp [compileStorageRead, hOwner, fieldTypeToTy]; rfl
   have hsrTarget : compileStorageRead fields targetField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr targetSlot⟩ := by
-    simp only [compileStorageRead, hTarget, fieldTypeToTy]; rfl
+    simp [compileStorageRead, hTarget, fieldTypeToTy]; rfl
   simp [morphoSetFeeRecipientOwnerAuthStmts, morphoSetFeeRecipientOwnerAuthExpectedState,
-    compileStmts, compileStmt, compileExpr, hsrOwner, hsrTarget, hTarget, fieldTypeToTy,
+    compileStmts, compileStmt, hsrOwner, hsrTarget, hTarget, fieldTypeToTy,
     emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asBool,
     liftExcept, emit, List.find?, h1, h2, h3, h4, monadLift]; rfl
 
@@ -1923,11 +2082,11 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingLetStorageSetMappingA
   have h14 : (supplyVar == balanceVar) = false := beq_false_of_ne hne_sp_bv
   have hsrOwner : compileStorageRead fields ownerField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
-    simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
+    simp [compileStorageRead, hOwner, fieldTypeToTy]; rfl
   have hsrSupply : compileStorageRead fields supplyField =
       Except.ok ⟨Ty.uint256, TExpr.getStorage supplySlot⟩ := by
     simp only [compileStorageRead, hSupply, fieldTypeToTy]; rfl
-  simp [compileStmts, compileStmt, compileExpr, hsrOwner, hsrSupply, hSupply, fieldTypeToTy,
+  simp [compileStmts, compileStmt, hsrOwner, hsrSupply, hSupply, fieldTypeToTy,
     emitSSABind, freshVar, bindVar, pushLocal, lookupVar, asAddress, asBool, asUInt256,
     liftExcept, emit, List.find?, hMapping, h0, h1, h2, h3, h4, h5, h6, h7, h10, h11, h14]
   rfl
@@ -1996,7 +2155,7 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingReqEqLitSetMappingSto
   have hsr : compileStorageRead fields ownerField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
     simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
-  simp [compileStmts, compileStmt, compileExpr, hsr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, hsr, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asAddress, asBool, asUInt256, liftExcept,
     hMapping, emit, List.find?, h1, h2, h3, h4]; rfl
 
@@ -2070,7 +2229,7 @@ theorem compileStmts_letCallerLetStorageAddrReqEqLetMappingUintReqEqLitReqLtSetM
   have hsr : compileStorageRead fields ownerField =
       Except.ok ⟨Ty.address, TExpr.getStorageAddr ownerSlot⟩ := by
     simp only [compileStorageRead, hOwner, fieldTypeToTy]; rfl
-  simp [compileStmts, compileStmt, compileExpr, hsr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, hsr, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asBool, asUInt256, liftExcept, hMapping,
     emit, List.find?, h1, h2, h3, h4]; rfl
 
@@ -2153,7 +2312,7 @@ theorem compileStmts_letCallerLetMapping2IteParamReqSetMapping2Stop_run
   have h4 : (currentVar == authParam) = false := beq_false_of_ne hne_cv_ap
   have h5 : (currentVar == senderVar) = false := beq_false_of_ne hne_cv_sv
   have h6 : (boolParam == authParam) = false := beq_false_of_ne hne_bp_ap
-  simp [compileStmts, compileStmt, compileBranch, compileExpr, emitSSABind, freshVar,
+  simp [compileStmts, compileStmt, compileBranch, emitSSABind, freshVar,
     bindVar, pushLocal, lookupVar, asAddress, asBool, asUInt256, liftExcept,
     hMapping, emit, List.find?, h1, h2, h3, h4, h5, h6]; rfl
 
