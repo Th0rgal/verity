@@ -449,6 +449,14 @@ ALLOWLIST: set[str] = {
     # Decomposing it now would only spread the temporary compatibility transport.
     "exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed",
     "firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs",
+    # SupportedSpec.lean helper-surface fragment proofs (PR #1639);
+    # mechanical case-splits over the supported-fragment predicate.
+    "supportedStmtList_usesStorageArrayElement_false",
+    "supportedStmtList_usesDynamicBytesEq_false",
+    "supportedStmtList_usesArrayElement_false",
+    "exprTouchesUnsupportedCallSurface_eq_featureOr",
+    "exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
+    "exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed",
 }
 
 # Directories containing proof files to scan.
