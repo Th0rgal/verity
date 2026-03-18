@@ -1364,7 +1364,7 @@ private theorem findUniqueInternalFunction?_of_witness
       exfalso
       have hnd := hfilt ▸ hfilt_nodup
       have h1 := hfilter_eq fn₁ (by rw [hfilt]; exact List.mem_cons_self _ _)
-      have h2 := hfilter_eq fn₂ (by rw [hfilt]; exact List.mem_cons.mpr (Or.inr (List.mem_cons_self _ _)))
+      have h2 := hfilter_eq fn₂ (by rw [hfilt]; exact List.mem_cons_of_mem _ (List.mem_cons_self _ _))
       rw [h1, h2] at hnd
       exact absurd (List.mem_cons_self _ _) ((List.nodup_cons.mp hnd).1)
 
@@ -1783,7 +1783,8 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     interpretFunctionWithHelpers spec fuel fn tx initialWorld =
       interpretFunction spec fn tx initialWorld := by
   simp [interpretFunctionWithHelpers, interpretFunction]
-  split <;> simp
+  split
+  · rfl
   rename_i bindings hbind
   exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
     (spec := spec)
@@ -1808,7 +1809,7 @@ theorem findFunctionBySelector_mem_selectorDispatchedFunctions
   | mk foundFn foundSelector =>
       cases hfind
       simpa [selectorFunctionPairs] using
-        (List.mem_map_of_mem Prod.fst (List.mem_of_find?_some hentry))
+        (List.mem_map.mpr ⟨(foundFn, foundSelector), List.mem_of_find?_some hentry, rfl⟩)
 
 theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
     {spec : CompilationModel}
@@ -1905,7 +1906,7 @@ noncomputable def supportedSourceContractSemantics
     SourceSemantics.SourceContractResult :=
   sourceContractSemanticsWithHelpers spec selectors hSupported.helperFuel tx initialWorld
 
-def supportedSourceContractSemanticsExceptMappingWrites
+noncomputable def supportedSourceContractSemanticsExceptMappingWrites
     (spec : CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpecExceptMappingWrites spec selectors)
@@ -2057,7 +2058,7 @@ example :
       { sender := 9, functionSelector := 0x33333333, args := [23] }
       { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
         (Compiler.Proofs.solidityMappingSlot 7 2) = 23 := by
-  decide
+  rfl
 
 example :
     (sourceContractSemantics storageArraySourceSpec
@@ -2065,7 +2066,7 @@ example :
       { sender := 9, functionSelector := 0x44444444, args := [29] }
       { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
         (Compiler.Proofs.solidityMappingSlot 7 0) = 29 := by
-  decide
+  rfl
 
 example :
     (sourceContractSemantics storageArraySourceSpec
