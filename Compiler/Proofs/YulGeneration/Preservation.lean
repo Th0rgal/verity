@@ -281,8 +281,11 @@ private theorem sizeOf_buildSwitch_ge_switchCases
     | nil =>
         simp [switchCases]
     | cons fn rest ih =>
-        cases hpay : fn.payable <;>
-          simp [switchCases, switchCaseBody, Compiler.CodegenCommon.dispatchBody, hpay, ih]
+      cases hpay : fn.payable <;>
+          simp [switchCases, switchCaseBody, Compiler.CodegenCommon.dispatchBody,
+            Compiler.callvalueGuard, Compiler.calldatasizeGuard,
+            Compiler.CodegenCommon.callvalueGuard, Compiler.CodegenCommon.calldatasizeGuard,
+            hpay, ih]
   rw [hcases]
   -- Name sub-expressions and decompose sizeOf level by level (simp normalizes
   -- auto-generated SizeOf instances; omega closes the arithmetic)
@@ -596,7 +599,8 @@ private theorem buildSwitch_cases_eq_switchCases (fns : List IRFunction) :
       cases hpay : fn.payable <;>
         simp [switchCases, switchCaseBody, dispatchBody,
           Compiler.CodegenCommon.dispatchBody, Compiler.callvalueGuard,
-          Compiler.calldatasizeGuard, hpay, ih]
+          Compiler.calldatasizeGuard, Compiler.CodegenCommon.callvalueGuard,
+          Compiler.CodegenCommon.calldatasizeGuard, hpay, ih]
 
 /-- Normalize switch-case lookup to function-list lookup.
     This removes `List.find?_map` noise from mechanical `buildSwitch` proofs. -/
