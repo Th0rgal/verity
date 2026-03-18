@@ -2057,7 +2057,7 @@ example :
       { sender := 9, functionSelector := 0x33333333, args := [23] }
       { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
         (Compiler.Proofs.solidityMappingSlot 7 2) = 23 := by
-  decide
+  rfl
 
 example :
     (sourceContractSemantics storageArraySourceSpec
@@ -2065,7 +2065,7 @@ example :
       { sender := 9, functionSelector := 0x44444444, args := [29] }
       { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
         (Compiler.Proofs.solidityMappingSlot 7 0) = 29 := by
-  decide
+  rfl
 
 example :
     (sourceContractSemantics storageArraySourceSpec
