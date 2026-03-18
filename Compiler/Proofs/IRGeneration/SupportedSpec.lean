@@ -1030,15 +1030,11 @@ private theorem stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNam
             simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hstmt ⊢
             exact hstmt
         | revertError errorName args =>
-            simp [stmtExprHelperCallNames, stmtInternalHelperCallNames] at hstmt
-            exact hstmt
+            simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames] using hstmt
         | _ =>
             all_goals
-              first
-              | simp [stmtExprHelperCallNames, stmtInternalHelperCallNames] at hstmt; exact hstmt
-              | simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append] at hstmt; exact hstmt
-              | simp [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
-                  or_left_comm, or_assoc] at hstmt; exact hstmt
+              simpa [stmtExprHelperCallNames, stmtInternalHelperCallNames, List.mem_append,
+                or_left_comm, or_assoc] using hstmt
       · exact Or.inr (stmtListExprHelperCallNames_subset_stmtListInternalHelperCallNames rest hrest)
 termination_by sizeOf stmts
 decreasing_by all_goals (subst_vars; simp_wf; simp_all [List.cons.sizeOf_spec]; omega)
