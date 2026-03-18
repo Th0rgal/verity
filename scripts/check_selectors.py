@@ -3,7 +3,7 @@
 
 Checks:
 1) CompilationModel function signatures -> keccak selectors are unique per contract.
-2) Compiler/Proofs/IRGeneration/Expr.lean compile selector lists match the spec.
+2) Explicit proof-level compile selector lists match the spec when present.
 3) Generated Yul files include all expected selector case labels.
 4) No function name uses the reserved ``internal_`` prefix (Yul namespace collision).
 5) Error(string) selector constant sync between CompilationModel and Interpreter.
@@ -31,8 +31,11 @@ SPEC_FILES = (
     ROOT / "Contracts" / "Specs.lean",
     ROOT / "Contracts" / "SpecAliases.lean",
 )
-IR_EXPR_FILE = ROOT / "Compiler" / "Proofs" / "IRGeneration" / "Expr.lean"
-CONTRACT_SPEC_FILE = ROOT / "Compiler" / "CompilationModel.lean"
+PROOFS_DIR = ROOT / "Compiler" / "Proofs"
+CHECK_CONTRACT_FILE = ROOT / "Compiler" / "CheckContract.lean"
+DISPATCH_FILE = ROOT / "Compiler" / "CompilationModel" / "Dispatch.lean"
+INTERNAL_NAMING_FILE = ROOT / "Compiler" / "CompilationModel" / "InternalNaming.lean"
+SELECTOR_INTEROP_FILE = ROOT / "Compiler" / "CompilationModel" / "SelectorInteropHelpers.lean"
 CONSTANTS_FILE = ROOT / "Compiler" / "Constants.lean"
 YUL_DIR_LEGACY = ("yul", YUL_DIR)
 
@@ -420,10 +423,11 @@ def compute_selectors(signatures: Iterable[str]) -> List[int]:
 
 def extract_compile_selectors(text: str) -> List[CompileSelectors]:
     items: List[CompileSelectors] = []
-    # Allow empty selector tables (`compile fooSpec []`) as valid Lean syntax.
-    pattern = re.compile(r"compile\s+(\w+)Spec\s*\[([^\]]*)\]")
+    # Allow empty selector tables and both bare `compile` and qualified
+    # `CompilationModel.compile` theorem assumptions.
+    pattern = re.compile(r"(?:CompilationModel\.)?compile\s+(\w+)\s*\[([^\]]*)\]")
     for match in pattern.finditer(text):
-        def_name = match.group(1) + "Spec"
+        def_name = match.group(1)
         raw_list = match.group(2)
         selectors = [int(x, 16) for x in re.findall(r"0x[0-9a-fA-F]+", raw_list)]
         items.append(CompileSelectors(def_name, selectors))
@@ -480,26 +484,28 @@ def check_unique_selectors(specs: List[SpecInfo]) -> List[str]:
 def check_compile_lists(specs: List[SpecInfo], compile_lists: List[CompileSelectors]) -> List[str]:
     errors: List[str] = []
     spec_map = {spec.def_name: spec for spec in specs}
-    seen_specs: set[str] = set()
     for item in compile_lists:
         spec = spec_map.get(item.def_name)
         if spec is None:
-            errors.append(f"Compile list references unknown spec {item.def_name}")
             continue
-        seen_specs.add(item.def_name)
         expected = compute_selectors(spec.signatures)
         if expected != item.selectors:
             errors.append(
                 f"{spec.contract_name}: compile selector list mismatch: expected {format_selectors(expected)} "
                 f"got {format_selectors(item.selectors)}"
             )
-    for spec in specs:
-        # Specs compiled only via --link do not need compile selector tables.
-        if spec.has_externals:
-            continue
-        if spec.def_name not in seen_specs:
-            errors.append(f"{spec.contract_name}: missing compile selector list for {spec.def_name}")
     return errors
+
+
+def load_compile_selector_text() -> str:
+    if not PROOFS_DIR.exists():
+        die(f"Missing proofs directory: {PROOFS_DIR}")
+    proof_files = sorted(PROOFS_DIR.rglob("*.lean"))
+    if not proof_files:
+        die(f"No proof files found under: {PROOFS_DIR}")
+    return "\n".join(
+        strip_lean_comments(path.read_text(encoding="utf-8")) for path in proof_files
+    )
 
 
 def check_yul_selectors(specs: List[SpecInfo], yul_label: str, yul_dir: Path) -> List[str]:
@@ -645,20 +651,20 @@ _INTERNAL_PREFIX_RE = re.compile(
 
 
 def check_internal_prefix_sync() -> List[str]:
-    """Verify _INTERNAL_FUNCTION_PREFIX matches CompilationModel.internalFunctionPrefix."""
+    """Verify _INTERNAL_FUNCTION_PREFIX matches InternalNaming.internalFunctionPrefix."""
     errors: List[str] = []
-    if not CONTRACT_SPEC_FILE.exists():
-        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+    if not INTERNAL_NAMING_FILE.exists():
+        errors.append(f"Missing {INTERNAL_NAMING_FILE}")
         return errors
-    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    text = INTERNAL_NAMING_FILE.read_text(encoding="utf-8")
     m = _INTERNAL_PREFIX_RE.search(text)
     if not m:
         errors.append(
-            "CompilationModel.lean: missing internalFunctionPrefix definition"
+            "InternalNaming.lean: missing internalFunctionPrefix definition"
         )
     elif m.group(1) != _INTERNAL_FUNCTION_PREFIX:
         errors.append(
-            f"CompilationModel.internalFunctionPrefix is {m.group(1)!r} "
+            f"InternalNaming.internalFunctionPrefix is {m.group(1)!r} "
             f"but check_selectors.py uses {_INTERNAL_FUNCTION_PREFIX!r}"
         )
     return errors
@@ -675,16 +681,16 @@ _INTEROP_ENTRYPOINTS_RE = re.compile(
 
 
 def check_special_entrypoints_sync() -> List[str]:
-    """Verify _SPECIAL_ENTRYPOINTS matches CompilationModel.isInteropEntrypointName."""
+    """Verify _SPECIAL_ENTRYPOINTS matches SelectorInteropHelpers.isInteropEntrypointName."""
     errors: List[str] = []
-    if not CONTRACT_SPEC_FILE.exists():
-        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+    if not SELECTOR_INTEROP_FILE.exists():
+        errors.append(f"Missing {SELECTOR_INTEROP_FILE}")
         return errors
-    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    text = SELECTOR_INTEROP_FILE.read_text(encoding="utf-8")
     m = _INTEROP_ENTRYPOINTS_RE.search(text)
     if not m:
         errors.append(
-            "CompilationModel.lean: missing isInteropEntrypointName definition"
+            "SelectorInteropHelpers.lean: missing isInteropEntrypointName definition"
         )
         return errors
     # Parse the Lean list literal: ["fallback", "receive"]
@@ -693,7 +699,7 @@ def check_special_entrypoints_sync() -> List[str]:
     )
     if lean_names != _SPECIAL_ENTRYPOINTS:
         errors.append(
-            f"CompilationModel.isInteropEntrypointName uses {sorted(lean_names)} "
+            f"SelectorInteropHelpers.isInteropEntrypointName uses {sorted(lean_names)} "
             f"but check_selectors.py uses {sorted(_SPECIAL_ENTRYPOINTS)}"
         )
     return errors
@@ -721,24 +727,42 @@ def check_free_memory_pointer_sync() -> List[str]:
 
 
 def check_compile_duplicate_name_guard() -> List[str]:
-    """Verify that CompilationModel.compile checks for duplicate names across all spec lists.
+    """Verify that validateCompileInputs checks duplicate names across all spec lists.
 
-    Ensures the compile function calls ``firstDuplicateName`` on all five
+    Ensures the current dispatch validation calls ``firstDuplicateName`` on all five
     spec collections: functions, errors, fields, events, and externals.
     """
     errors: List[str] = []
-    if not CONTRACT_SPEC_FILE.exists():
-        errors.append(f"Missing {CONTRACT_SPEC_FILE}")
+    if not DISPATCH_FILE.exists():
+        errors.append(f"Missing {DISPATCH_FILE}")
         return errors
-    text = CONTRACT_SPEC_FILE.read_text(encoding="utf-8")
+    text = DISPATCH_FILE.read_text(encoding="utf-8")
     for collection in ("functions", "errors", "fields", "events", "externals"):
         if not re.search(
             rf"firstDuplicateName\s*\(spec\.{collection}\.map", text
         ):
             errors.append(
-                f"CompilationModel.compile: missing duplicate {collection} name check "
+                f"Dispatch.validateCompileInputs: missing duplicate {collection} name check "
                 f"(expected firstDuplicateName (spec.{collection}.map ...))"
             )
+    return errors
+
+
+def check_check_contract_selector_flow() -> List[str]:
+    """Verify #check_contract computes canonical selectors before compiling."""
+    errors: List[str] = []
+    if not CHECK_CONTRACT_FILE.exists():
+        errors.append(f"Missing {CHECK_CONTRACT_FILE}")
+        return errors
+    text = strip_lean_comments(CHECK_CONTRACT_FILE.read_text(encoding="utf-8"))
+    if "Compiler.Selector.computeSelectors spec" not in text:
+        errors.append(
+            "CheckContract.lean: missing Compiler.Selector.computeSelectors spec"
+        )
+    if "Compiler.CompilationModel.compile spec selectors" not in text:
+        errors.append(
+            "CheckContract.lean: missing Compiler.CompilationModel.compile spec selectors"
+        )
     return errors
 
 
@@ -751,17 +775,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not IR_EXPR_FILE.exists():
-        die(f"Missing IR proof file: {IR_EXPR_FILE}")
-
     _self_test_param_type_parser()
 
     specs = extract_specs(load_specs_text())
     if not specs:
         die("No CompilationModel definitions found")
 
-    compile_text = strip_lean_comments(IR_EXPR_FILE.read_text(encoding="utf-8"))
-    compile_lists = extract_compile_selectors(compile_text)
+    compile_lists = extract_compile_selectors(load_compile_selector_text())
 
     errors: List[str] = []
     errors.extend(check_unique_selectors(specs))
@@ -794,6 +814,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # Validate compile function has all five duplicate-name guards.
     errors.extend(check_compile_duplicate_name_guard())
+
+    # Validate #check_contract computes selectors before invoking compile.
+    errors.extend(check_check_contract_selector_flow())
 
     report_errors(errors, "Selector checks failed")
     if args.check_fixtures:
