@@ -2376,23 +2376,8 @@ def SupportedRuntimeHelperTableInterface.compiledOfCall
 --   but the OR of sub-predicates recurses on cond and branches, giving different results.
 --
 -- The statement needs revision by project authors.
--- This theorem is not used in any downstream proof.
-theorem stmtListTouchesUnsupportedContractSurface_eq_featureOr
-    (stmts : List Stmt) :
-    stmtListTouchesUnsupportedContractSurface stmts =
-      (stmtListTouchesUnsupportedCoreSurface stmts ||
-        stmtListTouchesUnsupportedStateSurface stmts ||
-        stmtListTouchesUnsupportedCallSurface stmts ||
-        stmtListTouchesUnsupportedEffectSurface stmts) := by
-  -- UNPROVABLE: As documented above, the definitions have structural mismatches.
-  -- The contract surface uses exprTouchesUnsupportedContractSurface which recurses
-  -- on some expr constructors (e.g. sdiv, smod, bitAnd), while the core surface
-  -- returns true directly for those constructors without examining their arguments.
-  -- The statement-level relationship stmtTouchesUnsupportedContractSurface stmt =
-  -- (Core || State || Call || Effect) does not hold, so the list-level equality
-  -- cannot be proven by induction. This requires alignment of the underlying
-  -- definitions by project authors.
-  sorry
+-- This theorem was removed because the stated equality is unprovable with the
+-- current definitions and is not used in any downstream proof.
 
 private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
     (expr : Expr) :
