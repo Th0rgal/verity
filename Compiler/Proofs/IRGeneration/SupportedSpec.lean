@@ -2978,14 +2978,14 @@ private theorem exprCompileCore_usesArrayElement_false
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
     | blockTimestamp | blockNumber | chainid =>
-      simp [exprUsesArrayElement]
+      simp only [exprUsesArrayElement, Bool.false_or]
   | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
     | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
     | lt _ _ ihL ihR | gt _ _ ihL ihR | ge _ _ ihL ihR
     | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR =>
-      simp [exprUsesArrayElement, ihL, ihR]
+      simp only [exprUsesArrayElement, ihL, ihR, Bool.false_or]
   | logicalNot _ ih =>
-      simp [exprUsesArrayElement, ih]
+      simp only [exprUsesArrayElement, ih, Bool.false_or]
 
 -- Helper: ExprCompileCore expressions never use storageArrayElement
 private theorem exprCompileCore_usesStorageArrayElement_false
@@ -2995,14 +2995,14 @@ private theorem exprCompileCore_usesStorageArrayElement_false
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
     | blockTimestamp | blockNumber | chainid =>
-      simp [exprUsesStorageArrayElement]
+      simp only [exprUsesStorageArrayElement, Bool.false_or]
   | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
     | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
     | lt _ _ ihL ihR | gt _ _ ihL ihR | ge _ _ ihL ihR
     | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR =>
-      simp [exprUsesStorageArrayElement, ihL, ihR]
+      simp only [exprUsesStorageArrayElement, ihL, ihR, Bool.false_or]
   | logicalNot _ ih =>
-      simp [exprUsesStorageArrayElement, ih]
+      simp only [exprUsesStorageArrayElement, ih, Bool.false_or]
 
 -- Helper: ExprCompileCore expressions never use dynamicBytesEq
 private theorem exprCompileCore_usesDynamicBytesEq_false
@@ -3012,14 +3012,14 @@ private theorem exprCompileCore_usesDynamicBytesEq_false
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
     | blockTimestamp | blockNumber | chainid =>
-      simp [exprUsesDynamicBytesEq]
+      simp only [exprUsesDynamicBytesEq, Bool.false_or]
   | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
     | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
     | lt _ _ ihL ihR | gt _ _ ihL ihR | ge _ _ ihL ihR
     | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR =>
-      simp [exprUsesDynamicBytesEq, ihL, ihR]
+      simp only [exprUsesDynamicBytesEq, ihL, ihR, Bool.false_or]
   | logicalNot _ ih =>
-      simp [exprUsesDynamicBytesEq, ih]
+      simp only [exprUsesDynamicBytesEq, ih, Bool.false_or]
 
 -- Helper: ExprCompileCore lists never use arrayElement
 private theorem exprListCompileCore_usesArrayElement_false
@@ -3027,11 +3027,11 @@ private theorem exprListCompileCore_usesArrayElement_false
     (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
     exprListUsesArrayElement exprs = false := by
   induction exprs with
-  | nil => simp [exprListUsesArrayElement]
+  | nil => simp only [exprListUsesArrayElement, Bool.false_or]
   | cons e rest ih =>
-      simp [exprListUsesArrayElement,
+      simp only [exprListUsesArrayElement,
         exprCompileCore_usesArrayElement_false (hcore e (List.mem_cons_self ..)),
-        ih (fun e he => hcore e (List.mem_cons_of_mem _ he))]
+        ih (fun e he => hcore e (List.mem_cons_of_mem _ he)), Bool.false_or]
 
 -- Helper: ExprCompileCore lists never use storageArrayElement
 private theorem exprListCompileCore_usesStorageArrayElement_false
@@ -3039,11 +3039,11 @@ private theorem exprListCompileCore_usesStorageArrayElement_false
     (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
     exprListUsesStorageArrayElement exprs = false := by
   induction exprs with
-  | nil => simp [exprListUsesStorageArrayElement]
+  | nil => simp only [exprListUsesStorageArrayElement, Bool.false_or]
   | cons e rest ih =>
-      simp [exprListUsesStorageArrayElement,
+      simp only [exprListUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false (hcore e (List.mem_cons_self ..)),
-        ih (fun e he => hcore e (List.mem_cons_of_mem _ he))]
+        ih (fun e he => hcore e (List.mem_cons_of_mem _ he)), Bool.false_or]
 
 -- Helper: ExprCompileCore lists never use dynamicBytesEq
 private theorem exprListCompileCore_usesDynamicBytesEq_false
@@ -3051,11 +3051,11 @@ private theorem exprListCompileCore_usesDynamicBytesEq_false
     (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
     exprListUsesDynamicBytesEq exprs = false := by
   induction exprs with
-  | nil => simp [exprListUsesDynamicBytesEq]
+  | nil => simp only [exprListUsesDynamicBytesEq, Bool.false_or]
   | cons e rest ih =>
-      simp [exprListUsesDynamicBytesEq,
+      simp only [exprListUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false (hcore e (List.mem_cons_self ..)),
-        ih (fun e he => hcore e (List.mem_cons_of_mem _ he))]
+        ih (fun e he => hcore e (List.mem_cons_of_mem _ he)), Bool.false_or]
 
 -- Helper: StmtListCompileCore never uses arrayElement
 private theorem stmtListCompileCore_usesArrayElement_false
@@ -3063,21 +3063,21 @@ private theorem stmtListCompileCore_usesArrayElement_false
     (hcore : FunctionBody.StmtListCompileCore scope stmts) :
     stmtListUsesArrayElement stmts = false := by
   induction hcore with
-  | nil => simp [stmtListUsesArrayElement]
+  | nil => simp only [stmtListUsesArrayElement, Bool.false_or]
   | letVar hvalue _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
   | assignVar hvalue _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
   | require_ hcond _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hcond]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hcond, Bool.false_or]; assumption
   | return_ hvalue _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
   | stop _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, Bool.false_or]; assumption
 
 -- Helper: StmtListTerminalCore never uses arrayElement
 private theorem stmtListTerminalCore_usesArrayElement_false
@@ -3086,25 +3086,25 @@ private theorem stmtListTerminalCore_usesArrayElement_false
     stmtListUsesArrayElement stmts = false := by
   induction hcore with
   | letVar hvalue _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
   | assignVar hvalue _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]; assumption
   | require_ hcond _ _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hcond]; assumption
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hcond, Bool.false_or]; assumption
   | return_ hvalue _ ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hvalue,
-        stmtListCompileCore_usesArrayElement_false ih]
+        stmtListCompileCore_usesArrayElement_false ih, Bool.false_or]
   | stop ih =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        stmtListCompileCore_usesArrayElement_false ih]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        stmtListCompileCore_usesArrayElement_false ih, Bool.false_or]
   | ite hcond _ _ _ hCompile ih_then ih_else =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hcond, ih_then, ih_else,
-        stmtListCompileCore_usesArrayElement_false hCompile]
+        stmtListCompileCore_usesArrayElement_false hCompile, Bool.false_or]
 
 -- Helper: StmtListCompileCore never uses storageArrayElement
 private theorem stmtListCompileCore_usesStorageArrayElement_false
@@ -3112,21 +3112,21 @@ private theorem stmtListCompileCore_usesStorageArrayElement_false
     (hcore : FunctionBody.StmtListCompileCore scope stmts) :
     stmtListUsesStorageArrayElement stmts = false := by
   induction hcore with
-  | nil => simp [stmtListUsesStorageArrayElement]
+  | nil => simp only [stmtListUsesStorageArrayElement, Bool.false_or]
   | letVar hvalue _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
   | assignVar hvalue _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
   | require_ hcond _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hcond]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hcond, Bool.false_or]; assumption
   | return_ hvalue _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
   | stop _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement, Bool.false_or]; assumption
 
 -- Helper: StmtListTerminalCore never uses storageArrayElement
 private theorem stmtListTerminalCore_usesStorageArrayElement_false
@@ -3135,25 +3135,25 @@ private theorem stmtListTerminalCore_usesStorageArrayElement_false
     stmtListUsesStorageArrayElement stmts = false := by
   induction hcore with
   | letVar hvalue _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
   | assignVar hvalue _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]; assumption
   | require_ hcond _ _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hcond]; assumption
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hcond, Bool.false_or]; assumption
   | return_ hvalue _ ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hvalue,
-        stmtListCompileCore_usesStorageArrayElement_false ih]
+        stmtListCompileCore_usesStorageArrayElement_false ih, Bool.false_or]
   | stop ih =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        stmtListCompileCore_usesStorageArrayElement_false ih]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        stmtListCompileCore_usesStorageArrayElement_false ih, Bool.false_or]
   | ite hcond _ _ _ hCompile ih_then ih_else =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hcond, ih_then, ih_else,
-        stmtListCompileCore_usesStorageArrayElement_false hCompile]
+        stmtListCompileCore_usesStorageArrayElement_false hCompile, Bool.false_or]
 
 -- Helper: StmtListCompileCore never uses dynamicBytesEq
 private theorem stmtListCompileCore_usesDynamicBytesEq_false
@@ -3161,21 +3161,21 @@ private theorem stmtListCompileCore_usesDynamicBytesEq_false
     (hcore : FunctionBody.StmtListCompileCore scope stmts) :
     stmtListUsesDynamicBytesEq stmts = false := by
   induction hcore with
-  | nil => simp [stmtListUsesDynamicBytesEq]
+  | nil => simp only [stmtListUsesDynamicBytesEq, Bool.false_or]
   | letVar hvalue _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
   | assignVar hvalue _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
   | require_ hcond _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hcond]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hcond, Bool.false_or]; assumption
   | return_ hvalue _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
   | stop _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, Bool.false_or]; assumption
 
 -- Helper: StmtListTerminalCore never uses dynamicBytesEq
 private theorem stmtListTerminalCore_usesDynamicBytesEq_false
@@ -3184,52 +3184,52 @@ private theorem stmtListTerminalCore_usesDynamicBytesEq_false
     stmtListUsesDynamicBytesEq stmts = false := by
   induction hcore with
   | letVar hvalue _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
   | assignVar hvalue _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]; assumption
   | require_ hcond _ _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hcond]; assumption
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hcond, Bool.false_or]; assumption
   | return_ hvalue _ ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hvalue,
-        stmtListCompileCore_usesDynamicBytesEq_false ih]
+        stmtListCompileCore_usesDynamicBytesEq_false ih, Bool.false_or]
   | stop ih =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        stmtListCompileCore_usesDynamicBytesEq_false ih]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        stmtListCompileCore_usesDynamicBytesEq_false ih, Bool.false_or]
   | ite hcond _ _ _ hCompile ih_then ih_else =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hcond, ih_then, ih_else,
-        stmtListCompileCore_usesDynamicBytesEq_false hCompile]
+        stmtListCompileCore_usesDynamicBytesEq_false hCompile, Bool.false_or]
 
 -- Helper for append: stmtListUsesArrayElement distributes over append
 private theorem stmtListUsesArrayElement_append (xs ys : List Stmt) :
     stmtListUsesArrayElement (xs ++ ys) =
       (stmtListUsesArrayElement xs || stmtListUsesArrayElement ys) := by
   induction xs with
-  | nil => simp [stmtListUsesArrayElement]
+  | nil => simp only [List.nil_append, stmtListUsesArrayElement, Bool.false_or]
   | cons x xs' ih =>
-      simp only [List.cons_append, stmtListUsesArrayElement]
+      simp only [List.cons_append, stmtListUsesArrayElement, Bool.false_or]
       rw [ih, Bool.or_assoc]
 
 private theorem stmtListUsesStorageArrayElement_append (xs ys : List Stmt) :
     stmtListUsesStorageArrayElement (xs ++ ys) =
       (stmtListUsesStorageArrayElement xs || stmtListUsesStorageArrayElement ys) := by
   induction xs with
-  | nil => simp [stmtListUsesStorageArrayElement]
+  | nil => simp only [List.nil_append, stmtListUsesStorageArrayElement, Bool.false_or]
   | cons x xs' ih =>
-      simp only [List.cons_append, stmtListUsesStorageArrayElement]
+      simp only [List.cons_append, stmtListUsesStorageArrayElement, Bool.false_or]
       rw [ih, Bool.or_assoc]
 
 private theorem stmtListUsesDynamicBytesEq_append (xs ys : List Stmt) :
     stmtListUsesDynamicBytesEq (xs ++ ys) =
       (stmtListUsesDynamicBytesEq xs || stmtListUsesDynamicBytesEq ys) := by
   induction xs with
-  | nil => simp [stmtListUsesDynamicBytesEq]
+  | nil => simp only [List.nil_append, stmtListUsesDynamicBytesEq, Bool.false_or]
   | cons x xs' ih =>
-      simp only [List.cons_append, stmtListUsesDynamicBytesEq]
+      simp only [List.cons_append, stmtListUsesDynamicBytesEq, Bool.false_or]
       rw [ih, Bool.or_assoc]
 
 -- SupportedStmtList never uses arrayElement
@@ -3242,103 +3242,103 @@ private theorem supportedStmtList_usesArrayElement_false
   | compileCore hcore => exact stmtListCompileCore_usesArrayElement_false hcore
   | terminalCore hterminal => exact stmtListTerminalCore_usesArrayElement_false hterminal
   | setStorageSingleSlot hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setStorageAddrSingleSlot hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hvalue]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | mstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hoffset,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | tstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hoffset,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | letStorageField _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
   | returnMapping hkey _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
   | letMapping hkey _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
   | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey1,
-        exprCompileCore_usesArrayElement_false hkey2]
+        exprCompileCore_usesArrayElement_false hkey2, Bool.false_or]
   | letMappingUint hkey _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hkey]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement, exprUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setMappingChainSingle hkeys _ hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprListCompileCore_usesArrayElement_false hkeys,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setMappingSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setMappingWordSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setMappingPackedWordSingle hkey _ hvalue _ _ _ _ _ _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setStructMemberSingle hkey _ hvalue _ _ _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setMapping2Single hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey1,
         exprCompileCore_usesArrayElement_false hkey2,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setMapping2WordSingle hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey1,
         exprCompileCore_usesArrayElement_false hkey2,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
         exprCompileCore_usesArrayElement_false hkey1,
         exprCompileCore_usesArrayElement_false hkey2,
-        exprCompileCore_usesArrayElement_false hvalue]
+        exprCompileCore_usesArrayElement_false hvalue, Bool.false_or]
   | rawLogLiterals _ =>
       have hliterals : ∀ (ns : List Nat),
           exprListUsesArrayElement (ns.map Expr.literal) = false := by
         intro ns; induction ns with
-        | nil => simp [exprListUsesArrayElement]
-        | cons _ _ ih => simp [List.map, exprListUsesArrayElement, exprUsesArrayElement, ih]
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprUsesArrayElement, hliterals]
+        | nil => simp only [List.map_nil, exprListUsesArrayElement, Bool.false_or]
+        | cons _ _ ih => simp only [List.map_cons, exprListUsesArrayElement, exprUsesArrayElement, ih, Bool.false_or]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprUsesArrayElement, hliterals, Bool.false_or]
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprUsesArrayElement, exprListUsesArrayElement]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprUsesArrayElement, exprListUsesArrayElement, Bool.false_or]
   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprUsesArrayElement, exprListUsesArrayElement]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprUsesArrayElement, exprListUsesArrayElement, Bool.false_or]
   | requireClause clause _ ih =>
-      simp only [stmtListUsesArrayElement, Bool.or_eq_false_iff]
+      simp only [stmtListUsesArrayElement, Bool.or_eq_false_iff, Bool.false_or]
       exact ⟨by cases clause with | mk family n m p q message =>
           cases family with
           | binary op =>
-              cases op <;> simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesArrayElement, exprUsesArrayElement]
+              cases op <;> simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
           | andEqLt =>
-              simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesArrayElement, exprUsesArrayElement]
+              simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or]
           | orEqLt =>
-              simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesArrayElement, exprUsesArrayElement], ih⟩
+              simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesArrayElement, exprUsesArrayElement, Bool.false_or], ih⟩
   | ite hcond _ _ _ ihThen ihElse =>
-      simp [stmtListUsesArrayElement, stmtUsesArrayElement,
-        exprCompileCore_usesArrayElement_false hcond, ihThen, ihElse]
+      simp only [stmtListUsesArrayElement, stmtUsesArrayElement,
+        exprCompileCore_usesArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
   | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesArrayElement_append, ihPfx, ihSfx]
       simp
@@ -3353,106 +3353,106 @@ private theorem supportedStmtList_usesStorageArrayElement_false
   | compileCore hcore => exact stmtListCompileCore_usesStorageArrayElement_false hcore
   | terminalCore hterminal => exact stmtListTerminalCore_usesStorageArrayElement_false hterminal
   | setStorageSingleSlot hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setStorageAddrSingleSlot hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | mstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hoffset,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | tstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hoffset,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | letStorageField _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, Bool.false_or]
   | returnMapping hkey _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
   | letMapping hkey _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
   | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey1,
-        exprCompileCore_usesStorageArrayElement_false hkey2]
+        exprCompileCore_usesStorageArrayElement_false hkey2, Bool.false_or]
   | letMappingUint hkey _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, exprCompileCore_usesStorageArrayElement_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setMappingChainSingle hkeys _ hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprListCompileCore_usesStorageArrayElement_false hkeys,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setMappingSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setMappingWordSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setMappingPackedWordSingle hkey _ hvalue _ _ _ _ _ _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setStructMemberSingle hkey _ hvalue _ _ _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setMapping2Single hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey1,
         exprCompileCore_usesStorageArrayElement_false hkey2,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setMapping2WordSingle hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey1,
         exprCompileCore_usesStorageArrayElement_false hkey2,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
         exprCompileCore_usesStorageArrayElement_false hkey1,
         exprCompileCore_usesStorageArrayElement_false hkey2,
-        exprCompileCore_usesStorageArrayElement_false hvalue]
+        exprCompileCore_usesStorageArrayElement_false hvalue, Bool.false_or]
   | rawLogLiterals _ =>
       have hliterals : ∀ (ns : List Nat),
           exprListUsesStorageArrayElement (ns.map Expr.literal) = false := by
         intro ns; induction ns with
-        | nil => simp [exprListUsesStorageArrayElement]
+        | nil => simp only [List.map_nil, exprListUsesStorageArrayElement, Bool.false_or]
         | cons _ _ ih =>
-          simp [List.map, exprListUsesStorageArrayElement, exprUsesStorageArrayElement, ih]
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, hliterals]
+          simp only [List.map_cons, exprListUsesStorageArrayElement, exprUsesStorageArrayElement, ih, Bool.false_or]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, hliterals, Bool.false_or]
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprListUsesStorageArrayElement]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, exprListUsesStorageArrayElement, Bool.false_or]
   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprUsesStorageArrayElement, exprListUsesStorageArrayElement]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprUsesStorageArrayElement, exprListUsesStorageArrayElement, Bool.false_or]
   | requireClause clause _ ih =>
-      simp only [stmtListUsesStorageArrayElement, Bool.or_eq_false_iff]
+      simp only [stmtListUsesStorageArrayElement, Bool.or_eq_false_iff, Bool.false_or]
       exact ⟨by cases clause with | mk family n m p q message =>
           cases family with
           | binary op =>
-              cases op <;> simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesStorageArrayElement, exprUsesStorageArrayElement]
+              cases op <;> simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesStorageArrayElement, exprUsesStorageArrayElement, Bool.false_or]
           | andEqLt =>
-              simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesStorageArrayElement, exprUsesStorageArrayElement]
+              simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesStorageArrayElement, exprUsesStorageArrayElement, Bool.false_or]
           | orEqLt =>
-              simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesStorageArrayElement, exprUsesStorageArrayElement], ih⟩
+              simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesStorageArrayElement, exprUsesStorageArrayElement, Bool.false_or], ih⟩
   | ite hcond _ _ _ ihThen ihElse =>
-      simp [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
-        exprCompileCore_usesStorageArrayElement_false hcond, ihThen, ihElse]
+      simp only [stmtListUsesStorageArrayElement, stmtUsesStorageArrayElement,
+        exprCompileCore_usesStorageArrayElement_false hcond, ihThen, ihElse, Bool.false_or]
   | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesStorageArrayElement_append, ihPfx, ihSfx]
       simp
@@ -3467,105 +3467,105 @@ private theorem supportedStmtList_usesDynamicBytesEq_false
   | compileCore hcore => exact stmtListCompileCore_usesDynamicBytesEq_false hcore
   | terminalCore hterminal => exact stmtListTerminalCore_usesDynamicBytesEq_false hterminal
   | setStorageSingleSlot hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setStorageAddrSingleSlot hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | mstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hoffset,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | tstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hoffset,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | letStorageField _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
   | returnMapping hkey _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
   | letMapping hkey _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
   | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey1,
-        exprCompileCore_usesDynamicBytesEq_false hkey2]
+        exprCompileCore_usesDynamicBytesEq_false hkey2, Bool.false_or]
   | letMappingUint hkey _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq, exprCompileCore_usesDynamicBytesEq_false hkey, Bool.false_or]
   | setMappingUintSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setMappingChainSingle hkeys _ hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprListCompileCore_usesDynamicBytesEq_false hkeys,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setMappingSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setMappingWordSingle hkey _ hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setMappingPackedWordSingle hkey _ hvalue _ _ _ _ _ _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setStructMemberSingle hkey _ hvalue _ _ _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setMapping2Single hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey1,
         exprCompileCore_usesDynamicBytesEq_false hkey2,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setMapping2WordSingle hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey1,
         exprCompileCore_usesDynamicBytesEq_false hkey2,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
         exprCompileCore_usesDynamicBytesEq_false hkey1,
         exprCompileCore_usesDynamicBytesEq_false hkey2,
-        exprCompileCore_usesDynamicBytesEq_false hvalue]
+        exprCompileCore_usesDynamicBytesEq_false hvalue, Bool.false_or]
   | rawLogLiterals _ =>
       have hliterals : ∀ (ns : List Nat),
           exprListUsesDynamicBytesEq (ns.map Expr.literal) = false := by
         intro ns; induction ns with
-        | nil => simp [exprListUsesDynamicBytesEq]
+        | nil => simp only [List.map_nil, exprListUsesDynamicBytesEq, Bool.false_or]
         | cons _ _ ih =>
-          simp [List.map, exprListUsesDynamicBytesEq, exprUsesDynamicBytesEq, ih]
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, hliterals]
+          simp only [List.map_cons, exprListUsesDynamicBytesEq, exprUsesDynamicBytesEq, ih, Bool.false_or]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq, hliterals, Bool.false_or]
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprListUsesDynamicBytesEq]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq, exprListUsesDynamicBytesEq, Bool.false_or]
   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprUsesDynamicBytesEq, exprListUsesDynamicBytesEq]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprUsesDynamicBytesEq, exprListUsesDynamicBytesEq, Bool.false_or]
   | requireClause clause _ ih =>
-      simp only [stmtListUsesDynamicBytesEq, Bool.or_eq_false_iff]
+      simp only [stmtListUsesDynamicBytesEq, Bool.or_eq_false_iff, Bool.false_or]
       exact ⟨by cases clause with | mk family n m p q message =>
           cases family with
           | binary op =>
-              cases op <;> simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq]
+              cases op <;> simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
           | andEqLt =>
-              simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq]
+              simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or]
           | orEqLt =>
-              simp [RequireLiteralGuardFamilyClause.toStmt,
-                stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq], ih⟩
+              simp only [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesDynamicBytesEq, exprUsesDynamicBytesEq, Bool.false_or], ih⟩
   | ite hcond _ _ _ ihThen ihElse =>
-      simp [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
-        exprCompileCore_usesDynamicBytesEq_false hcond, ihThen, ihElse]
+      simp only [stmtListUsesDynamicBytesEq, stmtUsesDynamicBytesEq,
+        exprCompileCore_usesDynamicBytesEq_false hcond, ihThen, ihElse, Bool.false_or]
   | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
       rw [stmtListUsesDynamicBytesEq_append, ihPfx, ihSfx]
       simp
