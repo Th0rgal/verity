@@ -8,7 +8,7 @@ Verity implements a **three-layer verification stack** proving smart contracts c
 EDSL contracts (Lean)
     ↓ Layer 1: EDSL ≡ CompilationModel [PROVEN FOR CURRENT CONTRACTS; GENERIC CORE, CONTRACT BRIDGES]
 CompilationModel (declarative compiler-facing model)
-    ↓ Layer 2: CompilationModel → IR [GENERIC WHOLE-CONTRACT THEOREM, AXIOM-FREE]
+    ↓ Layer 2: CompilationModel → IR [GENERIC WHOLE-CONTRACT THEOREM, PROOF SCRIPTS WIP]
 Intermediate Representation (IR)
     ↓ Layer 3: IR → Yul [GENERIC SURFACE, EXPLICIT BRIDGE HYPOTHESIS]
 Yul (EVM Assembly)
@@ -56,6 +56,8 @@ Tracking:
 - a structural theorem for raw statement lists inside the explicit `SupportedStmtList` fragment witness in [`TypedIRCompilerCorrectness.lean`](../Compiler/TypedIRCompilerCorrectness.lean), re-exported for the compiler-proof layer in [`SupportedFragment.lean`](../Compiler/Proofs/IRGeneration/SupportedFragment.lean)
 - a whole-contract theorem surface, [`compile_preserves_semantics`](../Compiler/Proofs/IRGeneration/Contract.lean), quantified over arbitrary supported `CompilationModel`s, selectors, a `SupportedSpec` witness, and successful `CompilationModel.compile` output; the source side is already expressed in the helper-aware semantics family using the canonical `SupportedSpec.helperFuel` bound
 
+> **Note (WIP)**: The Layer 2 proof scripts are currently being repaired after a definition refactor (PR #1639) that added helper-aware interpreter targets and `transientStorage` to `WorldState`. The theorem *statements* listed above are in place and structurally sound, but their tactic proofs contain `sorry` placeholders across `SourceSemantics.lean`, `FunctionBody.lean`, `GenericInduction.lean`, `Function.lean`, `Contract.lean`, and `Dispatch.lean`. The failures are all tactic-level (heartbeat timeouts, missing case arms for new constructors, `simp` lemma set mismatches) — not type errors or wrong statements. Repair is tracked in PR #1645.
+
 **What is not yet covered**:
 - the supported whole-contract fragment is still intentionally narrower than the full `CompilationModel` surface; unsupported features remain documented at the boundary instead of being claimed as proved
 - the body-level supported-fragment witness is now decomposed into feature-local interfaces (`core`, `state`, `calls`, `effects`) in [`SupportedSpec.lean`](../Compiler/Proofs/IRGeneration/SupportedSpec.lean), and the `calls` interface is further split into `helpers`, `foreign`, and `lowLevel`; `calls.helpers` now inventories direct helper callees through positive summary witnesses carrying an `InternalHelperSummaryContract` plus a strictly decreasing helper-rank measure, and expression-position helper callees are tracked separately with an explicit world-preservation-on-success obligation because the current helper-aware expression semantics returns only values. [`SourceSemantics.lean`](../Compiler/Proofs/IRGeneration/SourceSemantics.lean) exposes the helper-aware source execution target those future contracts will quantify over and now defines `InternalHelperSummarySound` / `SupportedBodyHelperSummariesSound` plus direct-call consumption lemmas for helper summaries. The feature-local `state` / `calls` / `effects` scans recurse through nested `ite` / `forEach` bodies, so these boundary witnesses are control-flow complete, but helper reuse, low-level calls, and richer observables are still outside the proved generic theorem until those interfaces are threaded through the body/IR composition lemmas
@@ -76,7 +78,7 @@ Tracking:
 **Current boundary**:
 - Generic: supported statement-list compilation and the whole-contract theorem itself
 - Proved generically: initial-state normalization between `withTransactionContext` and `initialIRStateForTx`, under explicit transaction-context normalization hypotheses
-- No Lean axioms remain in Layer 2
+- No Lean axioms remain in Layer 2 (the proof scripts contain `sorry` placeholders from a definition refactor — see WIP note above — but no axioms)
 - Additional explicit precondition: the generic theorem surface now requires the observed transaction-context fields (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`) to already fit the bounded source-side `Address`/`Uint256` domains
 - Outside the current generic theorem or current proof model: events/logs, proxy/delegatecall upgradeability, linked externals, local unsafe obligations, and other trust-surfaced features not captured by the current supported whole-contract fragment
 
@@ -156,7 +158,8 @@ Also note that the macro-generated `*_semantic_preservation` theorems are not co
 
 **Proof-Only Properties (22 exclusions)**: Internal proof machinery that cannot be tested in Foundry.
 
-1 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
+222 `sorry` remaining across `Compiler/**/*.lean` and `Verity/**/*.lean` proof modules.
+These are concentrated in the Layer 2 proof modules (`Compiler/Proofs/IRGeneration/`) due to a definition refactor (PR #1639) that added helper-aware interpreter targets. The theorem statements are structurally sound; the tactic proofs are being repaired. Layer 3 proofs and all contract-level specification proofs are fully discharged.
 
 1 documented Lean axiom remains. The Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is tracked as an explicit theorem hypothesis rather than a Lean axiom.
 
@@ -194,4 +197,4 @@ See [`TRUST_ASSUMPTIONS.md`](../TRUST_ASSUMPTIONS.md) for the full trust model a
 
 ---
 
-**Last Updated**: 2026-03-11
+**Last Updated**: 2026-03-19

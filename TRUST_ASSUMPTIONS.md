@@ -16,7 +16,7 @@ Yul
 EVM Bytecode
 ```
 
-The repository has no `sorry`, and it now has 1 documented Lean axiom. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
+The repository currently has `sorry` placeholders in the Layer 2 proof scripts (Source → IR), which are being repaired after a definition refactor (PR #1639 added `transientStorage` to `WorldState` and expanded interpreter definitions); the theorem statements are unchanged but their tactic proofs need updating. Layer 3 (IR → Yul) proofs remain fully discharged, and it now has 1 documented Lean axiom. See [AXIOMS.md](AXIOMS.md) for the exact list and current elimination plan.
 
 ## What's Verified
 
@@ -24,7 +24,7 @@ The repository has no `sorry`, and it now has 1 documented Lean axiom. See [AXIO
   This names the frontend EDSL-to-`CompilationModel` bridge only; the
   contract-specific specification theorems in `Contracts/<Name>/Proofs/` are a
   separate proof layer about human-readable contract behavior.
-- **Layer 2**: A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment. `supported_function_correct` is now a real theorem, the initial-state normalization step is proved, the former generic body-simulation axiom has been eliminated, and the theorem surface makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains. The compiler proves Layer 2 preservation automatically for the supported fragment — no manual per-contract bridge proofs are needed.
+- **Layer 2**: A generic whole-contract theorem is proved for the current supported `CompilationModel` fragment. `supported_function_correct` is now a real theorem, the initial-state normalization step is proved, the former generic body-simulation axiom has been eliminated, and the theorem surface makes explicit that the observed transaction-context fields must already be normalized to the bounded source-side `Address`/`Uint256` domains. However, the Layer 2 tactic proofs are currently being repaired after a definition refactor (PR #1639) that added helper-aware interpreter targets; they contain `sorry` placeholders until proof maintenance is complete. The theorem *statements* are in place and structurally sound.
 - **Layer 3**: IR → Yul preservation is generic at the proof surface, and the remaining dispatch bridge now lives as an explicit theorem hypothesis rather than a Lean axiom. The checked contract-level theorem surface makes the dispatch-guard safety preconditions explicit: non-payable cases must see word-level zero `msg.value`, and each selected function case must have a non-wrapping calldata-width guard.
 
 Current theorem totals, property-test coverage, and proof status live in [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md).
@@ -110,5 +110,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-03-11
+**Last Updated**: 2026-03-19
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.

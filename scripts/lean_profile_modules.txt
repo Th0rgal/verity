@@ -1,6 +1,37 @@
 # Hot modules for Lean performance profiling
-Compiler.Proofs.YulGeneration.Preservation
-Compiler.Proofs.YulGeneration.StatementEquivalence
-Compiler.TypedIRCompilerCorrectness
+#
+# Top-level proof entry points
+Compiler.Proofs.ArithmeticProfile
 Compiler.Proofs.EndToEnd
+Compiler.Proofs.MappingSlot
+#
+# IR generation proofs
+Compiler.Proofs.IRGeneration.Contract
+Compiler.Proofs.IRGeneration.Dispatch
+Compiler.Proofs.IRGeneration.Expr
+Compiler.Proofs.IRGeneration.ExprCore
+Compiler.Proofs.IRGeneration.Function
+Compiler.Proofs.IRGeneration.FunctionBody
+Compiler.Proofs.IRGeneration.GenericInduction
+Compiler.Proofs.IRGeneration.IRInterpreter
+Compiler.Proofs.IRGeneration.ParamLoading
+Compiler.Proofs.IRGeneration.SourceSemantics
+Compiler.Proofs.IRGeneration.SupportedFragment
+Compiler.Proofs.IRGeneration.SupportedSpec
+#
+# Yul generation proofs
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
+Compiler.Proofs.YulGeneration.Builtins
+Compiler.Proofs.YulGeneration.Codegen
+Compiler.Proofs.YulGeneration.Equivalence
+Compiler.Proofs.YulGeneration.Lemmas
+Compiler.Proofs.YulGeneration.PatchRulesProofs
+Compiler.Proofs.YulGeneration.Preservation
+Compiler.Proofs.YulGeneration.Semantics
+Compiler.Proofs.YulGeneration.StatementEquivalence
+#
+# Non-proof integration targets
+Compiler.TypedIRCompilerCorrectness
 Compiler.MainTest

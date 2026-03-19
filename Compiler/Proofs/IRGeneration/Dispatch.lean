@@ -43,32 +43,32 @@ theorem runtimeContractOfFunctions_disjoint
 
 private theorem decodeSupportedParamWord_some_of_supported
     (ty : ParamType) (word : Nat) (hsupported : SupportedExternalParamType ty) :
-    ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by
-  cases ty with
-  | uint256 =>
-      exact ⟨SourceSemantics.wordNormalize word, by
-        simp [SourceSemantics.decodeSupportedParamWord]⟩
-  | uint8 =>
-      exact ⟨SourceSemantics.wordNormalize word &&& (SourceSemantics.uint8Modulus - 1), by
-        simp [SourceSemantics.decodeSupportedParamWord]⟩
-  | address =>
-      exact ⟨SourceSemantics.wordNormalize word &&& Compiler.Constants.addressMask, by
-        simp [SourceSemantics.decodeSupportedParamWord]⟩
-  | bool =>
-      cases hsupported
-  | bytes32 =>
-      exact ⟨SourceSemantics.wordNormalize word, by
-        simp [SourceSemantics.decodeSupportedParamWord]⟩
-  | string =>
-      cases hsupported
-  | tuple _ =>
-      cases hsupported
-  | array _ =>
-      cases hsupported
-  | fixedArray _ _ =>
-      cases hsupported
-  | bytes =>
-      cases hsupported
+    ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by sorry
+-- SORRY'D:   cases ty with
+-- SORRY'D:   | uint256 =>
+-- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word, by
+-- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
+-- SORRY'D:   | uint8 =>
+-- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word &&& (SourceSemantics.uint8Modulus - 1), by
+-- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
+-- SORRY'D:   | address =>
+-- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word &&& Compiler.Constants.addressMask, by
+-- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
+-- SORRY'D:   | bool =>
+-- SORRY'D:       cases hsupported
+-- SORRY'D:   | bytes32 =>
+-- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word, by
+-- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
+-- SORRY'D:   | string =>
+-- SORRY'D:       cases hsupported
+-- SORRY'D:   | tuple _ =>
+-- SORRY'D:       cases hsupported
+-- SORRY'D:   | array _ =>
+-- SORRY'D:       cases hsupported
+-- SORRY'D:   | fixedArray _ _ =>
+-- SORRY'D:       cases hsupported
+-- SORRY'D:   | bytes =>
+-- SORRY'D:       cases hsupported
 
 private theorem bindSupportedParams_some_of_supported
     (params : List Param) (args : List Nat)
@@ -432,25 +432,25 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hlegacy :=
-    interpretContract_correct_of_compiled_functions_with_helper_proofs
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hfunction)
-  simpa [hhelperIR] using hlegacy
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+-- SORRY'D:   have hlegacy :=
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hfunction)
+-- SORRY'D:   simpa [hhelperIR] using hlegacy
 
-/-- Structured helper-aware dispatch wrapper.
-This consumes the named compiled-side conservative-extension goal together with
-the runtime-contract compatibility witness, instead of requiring callers to
-restate the resulting equality manually. -/
+-- SORRY'D: /-- Structured helper-aware dispatch wrapper.
+-- SORRY'D: This consumes the named compiled-side conservative-extension goal together with
+-- SORRY'D: the runtime-contract compatibility witness, instead of requiring callers to
+-- SORRY'D: restate the resulting equality manually. -/
 theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal
     (model : CompilationModel)
     (selectors : List Nat)
@@ -536,1502 +536,1502 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
-    (model := model)
-    (selectors := selectors)
-    (hSupported := hSupported)
-    (hHelperProofs := hHelperProofs)
-    (irFns := irFns)
-    (tx := tx)
-    (initialWorld := initialWorld)
-    (hcompiled := hcompiled)
-    (hparamsSupported := hparamsSupported)
-    (hfunction := hfunction)
-    (hhelperIR :=
-      interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
-        (runtimeContractOfFunctions model.name irFns)
-        hdisjointIR
-        tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld))
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+-- SORRY'D:   exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
+-- SORRY'D:     (model := model)
+-- SORRY'D:     (selectors := selectors)
+-- SORRY'D:     (hSupported := hSupported)
+-- SORRY'D:     (hHelperProofs := hHelperProofs)
+-- SORRY'D:     (irFns := irFns)
+-- SORRY'D:     (tx := tx)
+-- SORRY'D:     (initialWorld := initialWorld)
+-- SORRY'D:     (hcompiled := hcompiled)
+-- SORRY'D:     (hparamsSupported := hparamsSupported)
+-- SORRY'D:     (hfunction := hfunction)
+-- SORRY'D:     (hhelperIR :=
+-- SORRY'D:       interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
+-- SORRY'D:         (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         hdisjointIR
+-- SORRY'D:         tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld))
 
-/-- Narrow direct-helper-aware dispatch wrapper aligned with the current Tier 4
-function theorem seam. Callers stay on `execIRFunctionWithInternals` for each
-selected function, while the wrapper discharges the older dispatch theorem
-through per-body disjointness instead of requiring a manual whole-contract
-compiled-side equality premise. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hfunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)))
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hlegacyFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunction irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    have hmatch :=
-      hfunction fn sel irFn bindings hfn hcompileFn hbind
-    have hfnBodyDisjoint :
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body :=
-      hbodyDisjoint fn sel irFn hfn hcompileFn
-    have hhelperEq :
-        execIRFunctionWithInternals (runtimeContractOfFunctions model.name irFns) 0
-          irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld) =
-        execIRFunction irFn tx.args
-          (FunctionBody.initialIRStateForTx model tx initialWorld) :=
-      execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
-        (runtimeContractOfFunctions model.name irFns)
-        irFn
-        tx.args
-        (FunctionBody.initialIRStateForTx model tx initialWorld)
-        hfnBodyDisjoint
-    simpa [hhelperEq] using hmatch
-  have hdisjointIR :
-      DisjointRuntimeContract (runtimeContractOfFunctions model.name irFns) := by
-    intro irFn hmem
-    rcases exists_left_of_forall₂_mem_right hcompiled hmem with ⟨entry, hmemEntry, hcompileFn⟩
-    rcases entry with ⟨fn, sel⟩
-    have hfn :
-        fn ∈ selectorDispatchedFunctions model := by
-      simpa [SourceSemantics.selectorFunctionPairs] using
-        (List.mem_of_mem_zipLeft hmemEntry : fn ∈ selectorDispatchedFunctions model)
-    exact hbodyDisjoint fn sel irFn hfn hcompileFn
-  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_of_disjointRuntimeContract
-    (model := model)
-    (selectors := selectors)
-    (hSupported := hSupported)
-    (hHelperProofs := hHelperProofs)
-    (irFns := irFns)
-    (tx := tx)
-    (initialWorld := initialWorld)
-    (hcompiled := hcompiled)
-    (hparamsSupported := hparamsSupported)
-    (hfunction := hlegacyFunction)
-    (hdisjointIR := hdisjointIR)
+-- SORRY'D: /-- Narrow direct-helper-aware dispatch wrapper aligned with the current Tier 4
+-- SORRY'D: function theorem seam. Callers stay on `execIRFunctionWithInternals` for each
+-- SORRY'D: selected function, while the wrapper discharges the older dispatch theorem
+-- SORRY'D: through per-body disjointness instead of requiring a manual whole-contract
+-- SORRY'D: compiled-side equality premise. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hfunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)))
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hlegacyFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunction irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     have hmatch :=
+-- SORRY'D:       hfunction fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     have hfnBodyDisjoint :
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body :=
+-- SORRY'D:       hbodyDisjoint fn sel irFn hfn hcompileFn
+-- SORRY'D:     have hhelperEq :
+-- SORRY'D:         execIRFunctionWithInternals (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:           irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld) =
+-- SORRY'D:         execIRFunction irFn tx.args
+-- SORRY'D:           (FunctionBody.initialIRStateForTx model tx initialWorld) :=
+-- SORRY'D:       execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+-- SORRY'D:         (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         irFn
+-- SORRY'D:         tx.args
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)
+-- SORRY'D:         hfnBodyDisjoint
+-- SORRY'D:     simpa [hhelperEq] using hmatch
+-- SORRY'D:   have hdisjointIR :
+-- SORRY'D:       DisjointRuntimeContract (runtimeContractOfFunctions model.name irFns) := by
+-- SORRY'D:     intro irFn hmem
+-- SORRY'D:     rcases exists_left_of_forall₂_mem_right hcompiled hmem with ⟨entry, hmemEntry, hcompileFn⟩
+-- SORRY'D:     rcases entry with ⟨fn, sel⟩
+-- SORRY'D:     have hfn :
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model := by
+-- SORRY'D:       simpa [SourceSemantics.selectorFunctionPairs] using
+-- SORRY'D:         (List.mem_of_mem_zipLeft hmemEntry : fn ∈ selectorDispatchedFunctions model)
+-- SORRY'D:     exact hbodyDisjoint fn sel irFn hfn hcompileFn
+-- SORRY'D:   exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_of_disjointRuntimeContract
+-- SORRY'D:     (model := model)
+-- SORRY'D:     (selectors := selectors)
+-- SORRY'D:     (hSupported := hSupported)
+-- SORRY'D:     (hHelperProofs := hHelperProofs)
+-- SORRY'D:     (irFns := irFns)
+-- SORRY'D:     (tx := tx)
+-- SORRY'D:     (initialWorld := initialWorld)
+-- SORRY'D:     (hcompiled := hcompiled)
+-- SORRY'D:     (hparamsSupported := hparamsSupported)
+-- SORRY'D:     (hfunction := hlegacyFunction)
+-- SORRY'D:     (hdisjointIR := hdisjointIR)
 
-/-- Dispatch-level Tier 4 wrapper stated over reusable single-head direct
-helper step builders. This lets future rank-decreasing helper induction target
-the public whole-contract theorem boundary directly, without first assembling
-per-function list interfaces. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_steps_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcallStep :
-      ∀ {scope : List String} {calleeName : String} {args : List Expr},
-        ∃ compiledIR,
-          CompiledStmtStepWithHelpersAndHelperIR
-            (runtimeContractOfFunctions model.name irFns)
-            model
-            (SourceSemantics.effectiveFields model)
-            scope
-            (Stmt.internalCall calleeName args)
-            compiledIR)
-    (hassignStep :
-      ∀ {scope : List String} {names : List String} {calleeName : String} {args : List Expr},
-        ∃ compiledIR,
-          CompiledStmtStepWithHelpersAndHelperIR
-            (runtimeContractOfFunctions model.name irFns)
-            model
-            (SourceSemantics.effectiveFields model)
-            scope
-            (Stmt.internalCallAssign names calleeName args)
-            compiledIR)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (hvalidateInputs := hvalidateInputs)
-      (runtimeContract := runtimeContractOfFunctions model.name irFns)
-      (fn := fn)
-      (sel := sel)
-      (irFn := irFn)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (htxNormalized := htxNormalized)
-      (bindings := bindings)
-      (hcalldataSizeFits := hcalldataSizeFits)
-      (hfn := hfn)
-      (hcompileFn := hcompileFn)
-      (hbind := hbind)
-      (hcallStep := hcallStep)
-      (hassignStep := hassignStep)
-      (hdisjoint := hdisjoint fn hfn)
-      (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper stated over reusable single-head direct
+-- SORRY'D: helper step builders. This lets future rank-decreasing helper induction target
+-- SORRY'D: the public whole-contract theorem boundary directly, without first assembling
+-- SORRY'D: per-function list interfaces. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hcallStep :
+-- SORRY'D:       ∀ {scope : List String} {calleeName : String} {args : List Expr},
+-- SORRY'D:         ∃ compiledIR,
+-- SORRY'D:           CompiledStmtStepWithHelpersAndHelperIR
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             model
+-- SORRY'D:             (SourceSemantics.effectiveFields model)
+-- SORRY'D:             scope
+-- SORRY'D:             (Stmt.internalCall calleeName args)
+-- SORRY'D:             compiledIR)
+-- SORRY'D:     (hassignStep :
+-- SORRY'D:       ∀ {scope : List String} {names : List String} {calleeName : String} {args : List Expr},
+-- SORRY'D:         ∃ compiledIR,
+-- SORRY'D:           CompiledStmtStepWithHelpersAndHelperIR
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             model
+-- SORRY'D:             (SourceSemantics.effectiveFields model)
+-- SORRY'D:             scope
+-- SORRY'D:             (Stmt.internalCallAssign names calleeName args)
+-- SORRY'D:             compiledIR)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:       (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:       (fn := fn)
+-- SORRY'D:       (sel := sel)
+-- SORRY'D:       (irFn := irFn)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (htxNormalized := htxNormalized)
+-- SORRY'D:       (bindings := bindings)
+-- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:       (hfn := hfn)
+-- SORRY'D:       (hcompileFn := hcompileFn)
+-- SORRY'D:       (hbind := hbind)
+-- SORRY'D:       (hcallStep := hcallStep)
+-- SORRY'D:       (hassignStep := hassignStep)
+-- SORRY'D:       (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:       (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper whose direct-helper head-step assumptions are
-indexed only by helper callees that actually occur in each function body. This
-matches the `calleeRanksDecrease` inventory that future helper-rank induction
-will consume. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_body_call_names_head_steps_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcallStep :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        ∀ {scope : List String} {calleeName : String} {args : List Expr},
-          calleeName ∈ helperCallNames fn →
-          ∃ compiledIR,
-            CompiledStmtStepWithHelpersAndHelperIR
-              (runtimeContractOfFunctions model.name irFns)
-              model
-              (SourceSemantics.effectiveFields model)
-              scope
-              (Stmt.internalCall calleeName args)
-              compiledIR)
-    (hassignStep :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        ∀ {scope : List String} {names : List String} {calleeName : String} {args : List Expr},
-          calleeName ∈ helperCallNames fn →
-          ∃ compiledIR,
-            CompiledStmtStepWithHelpersAndHelperIR
-              (runtimeContractOfFunctions model.name irFns)
-              model
-              (SourceSemantics.effectiveFields model)
-              scope
-              (Stmt.internalCallAssign names calleeName args)
-              compiledIR)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_body_call_names_head_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (hvalidateInputs := hvalidateInputs)
-      (runtimeContract := runtimeContractOfFunctions model.name irFns)
-      (fn := fn)
-      (sel := sel)
-      (irFn := irFn)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (htxNormalized := htxNormalized)
-      (bindings := bindings)
-      (hcalldataSizeFits := hcalldataSizeFits)
-      (hfn := hfn)
-      (hcompileFn := hcompileFn)
-      (hbind := hbind)
-      (hcallStep := hcallStep fn hfn)
-      (hassignStep := hassignStep fn hfn)
-      (hdisjoint := hdisjoint fn hfn)
-      (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper whose direct-helper head-step assumptions are
+-- SORRY'D: indexed only by helper callees that actually occur in each function body. This
+-- SORRY'D: matches the `calleeRanksDecrease` inventory that future helper-rank induction
+-- SORRY'D: will consume. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_body_call_names_head_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hcallStep :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         ∀ {scope : List String} {calleeName : String} {args : List Expr},
+-- SORRY'D:           calleeName ∈ helperCallNames fn →
+-- SORRY'D:           ∃ compiledIR,
+-- SORRY'D:             CompiledStmtStepWithHelpersAndHelperIR
+-- SORRY'D:               (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:               model
+-- SORRY'D:               (SourceSemantics.effectiveFields model)
+-- SORRY'D:               scope
+-- SORRY'D:               (Stmt.internalCall calleeName args)
+-- SORRY'D:               compiledIR)
+-- SORRY'D:     (hassignStep :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         ∀ {scope : List String} {names : List String} {calleeName : String} {args : List Expr},
+-- SORRY'D:           calleeName ∈ helperCallNames fn →
+-- SORRY'D:           ∃ compiledIR,
+-- SORRY'D:             CompiledStmtStepWithHelpersAndHelperIR
+-- SORRY'D:               (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:               model
+-- SORRY'D:               (SourceSemantics.effectiveFields model)
+-- SORRY'D:               scope
+-- SORRY'D:               (Stmt.internalCallAssign names calleeName args)
+-- SORRY'D:               compiledIR)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_body_call_names_head_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:       (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:       (fn := fn)
+-- SORRY'D:       (sel := sel)
+-- SORRY'D:       (irFn := irFn)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (htxNormalized := htxNormalized)
+-- SORRY'D:       (bindings := bindings)
+-- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:       (hfn := hfn)
+-- SORRY'D:       (hcompileFn := hcompileFn)
+-- SORRY'D:       (hbind := hbind)
+-- SORRY'D:       (hcallStep := hcallStep fn hfn)
+-- SORRY'D:       (hassignStep := hassignStep fn hfn)
+-- SORRY'D:       (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:       (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper that consumes one direct-helper head-step
-catalog per selector-dispatched function. This is the whole-contract theorem
-boundary future helper-rank induction should target. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcatalog :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperHeadStepCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hcatalog := hcatalog fn hfn)
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper that consumes one direct-helper head-step
+-- SORRY'D: catalog per selector-dispatched function. This is the whole-contract theorem
+-- SORRY'D: boundary future helper-rank induction should target. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hcatalog :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperHeadStepCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hcatalog := hcatalog fn hfn)
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper one seam earlier than
-`...head_step_catalog...`: callers provide a singleton direct-helper bridge
-catalog per dispatched function, and the reusable head-step catalogs are
-assembled here before dispatch-level reuse. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_step_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hbridge :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperHeadStepBridgeCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hvalidateInputs := hvalidateInputs)
-      (htxNormalized := htxNormalized)
-      (hcalldataSizeFits := hcalldataSizeFits)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hcatalog := by
-        intro fn hfn
-        exact
-          directInternalHelperHeadStepCatalog_of_bridgeCatalog
-            (runtimeContract := runtimeContractOfFunctions model.name irFns)
-            (spec := model)
-            (fields := SourceSemantics.effectiveFields model)
-            (fn := fn)
-            (hbridge fn hfn))
-      (hdisjoint := hdisjoint)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper one seam earlier than
+-- SORRY'D: `...head_step_catalog...`: callers provide a singleton direct-helper bridge
+-- SORRY'D: catalog per dispatched function, and the reusable head-step catalogs are
+-- SORRY'D: assembled here before dispatch-level reuse. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_step_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hbridge :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperHeadStepBridgeCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:       (htxNormalized := htxNormalized)
+-- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hcatalog := by
+-- SORRY'D:         intro fn hfn
+-- SORRY'D:         exact
+-- SORRY'D:           directInternalHelperHeadStepCatalog_of_bridgeCatalog
+-- SORRY'D:             (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             (spec := model)
+-- SORRY'D:             (fields := SourceSemantics.effectiveFields model)
+-- SORRY'D:             (fn := fn)
+-- SORRY'D:             (hbridge fn hfn))
+-- SORRY'D:       (hdisjoint := hdisjoint)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper on the callee-local bridge boundary. This
-matches `calleeRanksDecrease` directly: callers provide one reusable bridge
-object per helper callee referenced by each dispatched body, and the body-level
-bridge catalogs are assembled here mechanically before dispatch-level reuse. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hcallee :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeBridgeCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hcatalog :=
-          directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
-            (runtimeContract := runtimeContractOfFunctions model.name irFns)
-            (spec := model)
-            (fields := SourceSemantics.effectiveFields model)
-            (fn := fn)
-            (hcallee fn hfn))
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper on the callee-local bridge boundary. This
+-- SORRY'D: matches `calleeRanksDecrease` directly: callers provide one reusable bridge
+-- SORRY'D: object per helper callee referenced by each dispatched body, and the body-level
+-- SORRY'D: bridge catalogs are assembled here mechanically before dispatch-level reuse. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hcallee :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeBridgeCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hcatalog :=
+-- SORRY'D:           directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
+-- SORRY'D:             (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             (spec := model)
+-- SORRY'D:             (fields := SourceSemantics.effectiveFields model)
+-- SORRY'D:             (fn := fn)
+-- SORRY'D:             (hcallee fn hfn))
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper on the assign-only callee-local bridge
-boundary. Under the current fragment, each dispatched body only needs reusable
-helper-return-binding bridges; the void-call half is still vacuous and is
-reassembled mechanically here, and the wrapper now lands directly on the exact
-contract-level head-step catalog target instead of routing through the narrower
-assign-bridge theorem chain. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_assign_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hheadAssignBridge :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeAssignBridgeCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hcatalog :=
-          directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCatalog
-            (runtimeContract := runtimeContractOfFunctions model.name irFns)
-            (spec := model)
-            (fields := SourceSemantics.effectiveFields model)
-            (fn := fn)
-            (hSupported.supportedFunctionOfSelectorDispatched hfn).body
-            (hheadAssignBridge fn hfn))
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper on the assign-only callee-local bridge
+-- SORRY'D: boundary. Under the current fragment, each dispatched body only needs reusable
+-- SORRY'D: helper-return-binding bridges; the void-call half is still vacuous and is
+-- SORRY'D: reassembled mechanically here, and the wrapper now lands directly on the exact
+-- SORRY'D: contract-level head-step catalog target instead of routing through the narrower
+-- SORRY'D: assign-bridge theorem chain. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_assign_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hheadAssignBridge :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeAssignBridgeCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_head_step_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hcatalog :=
+-- SORRY'D:           directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCatalog
+-- SORRY'D:             (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             (spec := model)
+-- SORRY'D:             (fields := SourceSemantics.effectiveFields model)
+-- SORRY'D:             (fn := fn)
+-- SORRY'D:             (hSupported.supportedFunctionOfSelectorDispatched hfn).body
+-- SORRY'D:             (hheadAssignBridge fn hfn))
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper on the fully split callee-local boundary.
-Each dispatched body can now provide direct-helper head compilation and
-semantic bridge catalogs independently, and dispatch-level reuse assembles the
-existing per-callee bridge catalog mechanically. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_semantic_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hheadCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hheadSemantic :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeSemanticBridgeCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_semantic_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hheadCompile := hheadCompile fn hfn)
-        (hheadSemantic := hheadSemantic fn hfn)
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper on the fully split callee-local boundary.
+-- SORRY'D: Each dispatched body can now provide direct-helper head compilation and
+-- SORRY'D: semantic bridge catalogs independently, and dispatch-level reuse assembles the
+-- SORRY'D: existing per-callee bridge catalog mechanically. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_semantic_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hheadCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadSemantic :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeSemanticBridgeCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_semantic_bridge_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hheadCompile := hheadCompile fn hfn)
+-- SORRY'D:         (hheadSemantic := hheadSemantic fn hfn)
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper that separates runtime helper lookup from the
-remaining semantic singleton-step work. Each body can provide a runtime witness
-catalog independently from its semantic core, and dispatch-level reuse
-reassembles the existing bridge boundary mechanically. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_core_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hheadCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hruntimeWitness :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeRuntimeWitnessCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          fn)
-    (hheadSemantic :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeSemanticCoreCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_core_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hheadCompile := hheadCompile fn hfn)
-        (hruntimeWitness := hruntimeWitness fn hfn)
-        (hheadSemantic := hheadSemantic fn hfn)
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper that separates runtime helper lookup from the
+-- SORRY'D: remaining semantic singleton-step work. Each body can provide a runtime witness
+-- SORRY'D: catalog independently from its semantic core, and dispatch-level reuse
+-- SORRY'D: reassembles the existing bridge boundary mechanically. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_core_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hheadCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hruntimeWitness :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeRuntimeWitnessCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadSemantic :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeSemanticCoreCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_core_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hheadCompile := hheadCompile fn hfn)
+-- SORRY'D:         (hruntimeWitness := hruntimeWitness fn hfn)
+-- SORRY'D:         (hheadSemantic := hheadSemantic fn hfn)
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper on the smaller semantic-kernel seam. This
-keeps the dispatch boundary aligned with the actual new proof work: compile
-catalog, runtime helper witnesses, and the irreducible semantic kernel. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hheadCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hruntimeWitness :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeRuntimeWitnessCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          fn)
-    (hheadKernel :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeSemanticKernelCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hheadCompile := hheadCompile fn hfn)
-        (hruntimeWitness := hruntimeWitness fn hfn)
-        (hheadKernel := hheadKernel fn hfn)
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper on the smaller semantic-kernel seam. This
+-- SORRY'D: keeps the dispatch boundary aligned with the actual new proof work: compile
+-- SORRY'D: catalog, runtime helper witnesses, and the irreducible semantic kernel. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hheadCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hruntimeWitness :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeRuntimeWitnessCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadKernel :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeSemanticKernelCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_witness_catalog_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hheadCompile := hheadCompile fn hfn)
+-- SORRY'D:         (hruntimeWitness := hruntimeWitness fn hfn)
+-- SORRY'D:         (hheadKernel := hheadKernel fn hfn)
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper one seam earlier than the per-function
-runtime-witness catalog boundary. A single runtime helper table for the
-compiled contract is enough to derive each function's callee-local runtime
-inventory, leaving only the compile catalogs and semantic kernels explicit. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hRuntime :
-      SupportedRuntimeHelperTableInterface
-        model
-        (runtimeContractOfFunctions model.name irFns))
-    (hheadCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hheadKernel :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeSemanticKernelCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (hRuntime := hRuntime)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hheadCompile := hheadCompile fn hfn)
-        (hheadKernel := hheadKernel fn hfn)
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper one seam earlier than the per-function
+-- SORRY'D: runtime-witness catalog boundary. A single runtime helper table for the
+-- SORRY'D: compiled contract is enough to derive each function's callee-local runtime
+-- SORRY'D: inventory, leaving only the compile catalogs and semantic kernels explicit. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hRuntime :
+-- SORRY'D:       SupportedRuntimeHelperTableInterface
+-- SORRY'D:         model
+-- SORRY'D:         (runtimeContractOfFunctions model.name irFns))
+-- SORRY'D:     (hheadCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadKernel :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeSemanticKernelCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (hRuntime := hRuntime)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hheadCompile := hheadCompile fn hfn)
+-- SORRY'D:         (hheadKernel := hheadKernel fn hfn)
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper on the split semantic-kernel boundary. This
-keeps the public dispatch theorem aligned with the roadmap's assign-first
-helper wiring: callers provide only the assign-side compile catalog plus the
-assign semantic kernel for each dispatched function, and the proof now lands
-directly on the corresponding contract-level assign-first wrapper. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hRuntime :
-      SupportedRuntimeHelperTableInterface
-        model
-        (runtimeContractOfFunctions model.name irFns))
-    (hheadAssignCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeAssignCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hheadAssignKernel :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  have hsurfaceFunction :
-      ∀ fn sel irFn bindings,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
-        FunctionBody.sourceResultMatchesIRResult
-          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-          (execIRFunctionWithInternals
-            (runtimeContractOfFunctions model.name irFns) 0
-            irFn tx.args
-            (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-    intro fn sel irFn bindings hfn hcompileFn hbind
-    exact
-      Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-        (model := model)
-        (selectors := selectors)
-        (hSupported := hSupported)
-        (hHelperProofs := hHelperProofs)
-        (hvalidateInputs := hvalidateInputs)
-        (runtimeContract := runtimeContractOfFunctions model.name irFns)
-        (hRuntime := hRuntime)
-        (fn := fn)
-        (sel := sel)
-        (irFn := irFn)
-        (tx := tx)
-        (initialWorld := initialWorld)
-        (htxNormalized := htxNormalized)
-        (bindings := bindings)
-        (hcalldataSizeFits := hcalldataSizeFits)
-        (hfn := hfn)
-        (hcompileFn := hcompileFn)
-        (hbind := hbind)
-        (hheadAssignCompile := hheadAssignCompile fn hfn)
-        (hheadAssignKernel := hheadAssignKernel fn hfn)
-        (hdisjoint := hdisjoint fn hfn)
-        (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hfunction := hsurfaceFunction)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper on the split semantic-kernel boundary. This
+-- SORRY'D: keeps the public dispatch theorem aligned with the roadmap's assign-first
+-- SORRY'D: helper wiring: callers provide only the assign-side compile catalog plus the
+-- SORRY'D: assign semantic kernel for each dispatched function, and the proof now lands
+-- SORRY'D: directly on the corresponding contract-level assign-first wrapper. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hRuntime :
+-- SORRY'D:       SupportedRuntimeHelperTableInterface
+-- SORRY'D:         model
+-- SORRY'D:         (runtimeContractOfFunctions model.name irFns))
+-- SORRY'D:     (hheadAssignCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeAssignCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadAssignKernel :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   have hsurfaceFunction :
+-- SORRY'D:       ∀ fn sel irFn bindings,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+-- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+-- SORRY'D:           (execIRFunctionWithInternals
+-- SORRY'D:             (runtimeContractOfFunctions model.name irFns) 0
+-- SORRY'D:             irFn tx.args
+-- SORRY'D:             (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
+-- SORRY'D:     exact
+-- SORRY'D:       Contract.compileFunctionSpec_correct_generic_with_helper_proofs_direct_internal_helper_assign_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:         (model := model)
+-- SORRY'D:         (selectors := selectors)
+-- SORRY'D:         (hSupported := hSupported)
+-- SORRY'D:         (hHelperProofs := hHelperProofs)
+-- SORRY'D:         (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:         (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:         (hRuntime := hRuntime)
+-- SORRY'D:         (fn := fn)
+-- SORRY'D:         (sel := sel)
+-- SORRY'D:         (irFn := irFn)
+-- SORRY'D:         (tx := tx)
+-- SORRY'D:         (initialWorld := initialWorld)
+-- SORRY'D:         (htxNormalized := htxNormalized)
+-- SORRY'D:         (bindings := bindings)
+-- SORRY'D:         (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:         (hfn := hfn)
+-- SORRY'D:         (hcompileFn := hcompileFn)
+-- SORRY'D:         (hbind := hbind)
+-- SORRY'D:         (hheadAssignCompile := hheadAssignCompile fn hfn)
+-- SORRY'D:         (hheadAssignKernel := hheadAssignKernel fn hfn)
+-- SORRY'D:         (hdisjoint := hdisjoint fn hfn)
+-- SORRY'D:         (hfnBodyDisjoint := hbodyDisjoint fn sel irFn hfn hcompileFn)
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_surface_steps_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hfunction := hsurfaceFunction)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Dispatch-level Tier 4 wrapper on the split semantic-kernel boundary. This
-lets callers provide void-call and return-binding helper kernels separately for
-each dispatched function while the existing combined semantic-kernel theorem is
-reassembled mechanically here. -/
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hRuntime :
-      SupportedRuntimeHelperTableInterface
-        model
-        (runtimeContractOfFunctions model.name irFns))
-    (hheadCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hheadAssignKernel :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hvalidateInputs := hvalidateInputs)
-      (htxNormalized := htxNormalized)
-      (hcalldataSizeFits := hcalldataSizeFits)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hRuntime := hRuntime)
-      (hheadCompile := hheadCompile)
-      (hheadCallKernel := by
-        intro fn hfn
-        exact
-          directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
-            (runtimeContract := runtimeContractOfFunctions model.name irFns)
-            (spec := model)
-            (fields := SourceSemantics.effectiveFields model)
-            (fn := fn)
-            (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
-      (hheadAssignKernel := hheadAssignKernel)
-      (hdisjoint := hdisjoint)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: /-- Dispatch-level Tier 4 wrapper on the split semantic-kernel boundary. This
+-- SORRY'D: lets callers provide void-call and return-binding helper kernels separately for
+-- SORRY'D: each dispatched function while the existing combined semantic-kernel theorem is
+-- SORRY'D: reassembled mechanically here. -/
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hRuntime :
+-- SORRY'D:       SupportedRuntimeHelperTableInterface
+-- SORRY'D:         model
+-- SORRY'D:         (runtimeContractOfFunctions model.name irFns))
+-- SORRY'D:     (hheadCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadAssignKernel :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:       (htxNormalized := htxNormalized)
+-- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hRuntime := hRuntime)
+-- SORRY'D:       (hheadCompile := hheadCompile)
+-- SORRY'D:       (hheadCallKernel := by
+-- SORRY'D:         intro fn hfn
+-- SORRY'D:         exact
+-- SORRY'D:           directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+-- SORRY'D:             (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             (spec := model)
+-- SORRY'D:             (fields := SourceSemantics.effectiveFields model)
+-- SORRY'D:             (fn := fn)
+-- SORRY'D:             (hSupported.supportedFunctionOfSelectorDispatched hfn).body)
+-- SORRY'D:       (hheadAssignKernel := hheadAssignKernel)
+-- SORRY'D:       (hdisjoint := hdisjoint)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-theorem
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-    (model : CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
-    (irFns : List IRFunction)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompiled :
-      List.Forall₂
-        (fun entry irFn =>
-          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
-        (SourceSemantics.selectorFunctionPairs model selectors)
-        irFns)
-    (hparamsSupported :
-      ∀ fn ∈ selectorDispatchedFunctions model,
-        ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
-    (hRuntime :
-      SupportedRuntimeHelperTableInterface
-        model
-        (runtimeContractOfFunctions model.name irFns))
-    (hheadCompile :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCompileCatalog
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hheadCallKernel :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeCallSemanticKernelCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hheadAssignKernel :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
-          (runtimeContractOfFunctions model.name irFns)
-          model
-          (SourceSemantics.effectiveFields model)
-          fn)
-    (hdisjoint :
-      ∀ fn,
-        fn ∈ selectorDispatchedFunctions model →
-        StmtListHelperFreeCompiledCallsDisjoint
-          (runtimeContractOfFunctions model.name irFns)
-          (SourceSemantics.effectiveFields model)
-          (fn.params.map (·.name))
-          fn.body)
-    (hbodyDisjoint :
-      ∀ fn sel irFn,
-        fn ∈ selectorDispatchedFunctions model →
-        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
-        YulStmtListCallsDisjointFromInternalTable
-          (runtimeContractOfFunctions model.name irFns)
-          irFn.body) :
-    FunctionBody.sourceResultMatchesIRResult
-      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
-  exact
-    interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
-      (model := model)
-      (selectors := selectors)
-      (hSupported := hSupported)
-      (hHelperProofs := hHelperProofs)
-      (irFns := irFns)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hvalidateInputs := hvalidateInputs)
-      (htxNormalized := htxNormalized)
-      (hcalldataSizeFits := hcalldataSizeFits)
-      (hcompiled := hcompiled)
-      (hparamsSupported := hparamsSupported)
-      (hRuntime := hRuntime)
-      (hheadCompile := hheadCompile)
-      (hheadKernel := by
-        intro fn hfn
-        exact
-          directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
-            (runtimeContract := runtimeContractOfFunctions model.name irFns)
-            (spec := model)
-            (fields := SourceSemantics.effectiveFields model)
-            (fn := fn)
-            (hheadCallKernel fn hfn)
-            (hheadAssignKernel fn hfn))
-      (hdisjoint := hdisjoint)
-      (hbodyDisjoint := hbodyDisjoint)
+-- SORRY'D: theorem
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_call_semantic_kernel_catalog_and_assign_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:     (model : CompilationModel)
+-- SORRY'D:     (selectors : List Nat)
+-- SORRY'D:     (hSupported : SupportedSpec model selectors)
+-- SORRY'D:     (hHelperProofs : SourceSemantics.SupportedSpecHelperProofs model selectors hSupported)
+-- SORRY'D:     (irFns : List IRFunction)
+-- SORRY'D:     (tx : IRTransaction)
+-- SORRY'D:     (initialWorld : Verity.ContractState)
+-- SORRY'D:     (hvalidateInputs : validateCompileInputs model selectors = Except.ok ())
+-- SORRY'D:     (htxNormalized : Function.TxContextNormalized tx)
+-- SORRY'D:     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+-- SORRY'D:     (hcompiled :
+-- SORRY'D:       List.Forall₂
+-- SORRY'D:         (fun entry irFn =>
+-- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+-- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
+-- SORRY'D:         irFns)
+-- SORRY'D:     (hparamsSupported :
+-- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
+-- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty)
+-- SORRY'D:     (hRuntime :
+-- SORRY'D:       SupportedRuntimeHelperTableInterface
+-- SORRY'D:         model
+-- SORRY'D:         (runtimeContractOfFunctions model.name irFns))
+-- SORRY'D:     (hheadCompile :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCompileCatalog
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadCallKernel :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeCallSemanticKernelCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hheadAssignKernel :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         DirectInternalHelperPerCalleeAssignSemanticKernelCatalog
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           model
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           fn)
+-- SORRY'D:     (hdisjoint :
+-- SORRY'D:       ∀ fn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         StmtListHelperFreeCompiledCallsDisjoint
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           (SourceSemantics.effectiveFields model)
+-- SORRY'D:           (fn.params.map (·.name))
+-- SORRY'D:           fn.body)
+-- SORRY'D:     (hbodyDisjoint :
+-- SORRY'D:       ∀ fn sel irFn,
+-- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
+-- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+-- SORRY'D:         YulStmtListCallsDisjointFromInternalTable
+-- SORRY'D:           (runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:           irFn.body) :
+-- SORRY'D:     FunctionBody.sourceResultMatchesIRResult
+-- SORRY'D:       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+-- SORRY'D:       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
+-- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+-- SORRY'D:   exact
+-- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs_direct_internal_helper_per_callee_compile_catalog_and_runtime_helper_table_and_semantic_kernel_catalog_and_helper_ir_of_bodyCallsDisjoint
+-- SORRY'D:       (model := model)
+-- SORRY'D:       (selectors := selectors)
+-- SORRY'D:       (hSupported := hSupported)
+-- SORRY'D:       (hHelperProofs := hHelperProofs)
+-- SORRY'D:       (irFns := irFns)
+-- SORRY'D:       (tx := tx)
+-- SORRY'D:       (initialWorld := initialWorld)
+-- SORRY'D:       (hvalidateInputs := hvalidateInputs)
+-- SORRY'D:       (htxNormalized := htxNormalized)
+-- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
+-- SORRY'D:       (hcompiled := hcompiled)
+-- SORRY'D:       (hparamsSupported := hparamsSupported)
+-- SORRY'D:       (hRuntime := hRuntime)
+-- SORRY'D:       (hheadCompile := hheadCompile)
+-- SORRY'D:       (hheadKernel := by
+-- SORRY'D:         intro fn hfn
+-- SORRY'D:         exact
+-- SORRY'D:           directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
+-- SORRY'D:             (runtimeContract := runtimeContractOfFunctions model.name irFns)
+-- SORRY'D:             (spec := model)
+-- SORRY'D:             (fields := SourceSemantics.effectiveFields model)
+-- SORRY'D:             (fn := fn)
+-- SORRY'D:             (hheadCallKernel fn hfn)
+-- SORRY'D:             (hheadAssignKernel fn hfn))
+-- SORRY'D:       (hdisjoint := hdisjoint)
+-- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
-/-- Direct helper-aware dispatch theorem on the current legacy-compatible
-runtime-contract boundary. The compiled-side conservative-extension theorem is
-now closed in `IRInterpreter.lean`, so callers no longer need to supply it as
-an extra premise. -/
+-- SORRY'D: /-- Direct helper-aware dispatch theorem on the current legacy-compatible
+-- SORRY'D: runtime-contract boundary. The compiled-side conservative-extension theorem is
+-- SORRY'D: now closed in `IRInterpreter.lean`, so callers no longer need to supply it as
+-- SORRY'D: an extra premise. -/
 theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed
     (model : CompilationModel)
     (selectors : List Nat)

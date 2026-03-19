@@ -10,7 +10,14 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import check_selectors
-from check_selectors import extract_compile_selectors, extract_specs, load_specs_text
+from check_selectors import (
+    CompileSelectors,
+    SpecInfo,
+    check_compile_lists,
+    extract_compile_selectors,
+    extract_specs,
+    load_specs_text,
+)
 
 
 class CheckSelectorsExtractCompileSelectorsTests(unittest.TestCase):
@@ -26,14 +33,19 @@ class CheckSelectorsExtractCompileSelectorsTests(unittest.TestCase):
 
     def test_extract_compile_selectors_parses_non_empty_list(self) -> None:
         text = (
-            "theorem t : compile counterSpec [0xd09de08a, 0x8ada066e] "
+            "theorem t : CompilationModel.compile counterSupportedSpecModel [0xa87d942c] "
             "= .ok counterIR := by\n"
             "  trivial\n"
         )
         rows = extract_compile_selectors(text)
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0].def_name, "counterSpec")
-        self.assertEqual(rows[0].selectors, [0xD09DE08A, 0x8ADA066E])
+        self.assertEqual(rows[0].def_name, "counterSupportedSpecModel")
+        self.assertEqual(rows[0].selectors, [0xA87D942C])
+
+    def test_check_compile_lists_ignores_unknown_or_missing_proof_models(self) -> None:
+        specs = [SpecInfo("counterSpec", "Counter", ["increment()"])]
+        compile_lists = [CompileSelectors("counterSupportedSpecModel", [0xA87D942C])]
+        self.assertEqual(check_compile_lists(specs, compile_lists), [])
 
 
 class CheckSelectorsExtractSpecsTests(unittest.TestCase):

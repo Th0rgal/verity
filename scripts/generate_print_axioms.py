@@ -40,8 +40,11 @@ def file_to_module(path: Path) -> str:
     return ".".join(rel.parts)
 
 
-def extract_theorems(path: Path) -> list[tuple[str, bool]]:
-    """Extract (fully_qualified_name, is_private) pairs from a Lean file.
+SORRY_RE_BODY = re.compile(r"\bsorry\b")
+
+
+def extract_theorems(path: Path) -> list[tuple[str, bool, bool]]:
+    """Extract (fully_qualified_name, is_private, is_sorry) triples from a Lean file.
 
     FQN construction: In Lean 4 the fully-qualified name of a declaration is
     determined by the namespace stack, not the module (file) path. So a theorem
@@ -55,6 +58,10 @@ def extract_theorems(path: Path) -> list[tuple[str, bool]]:
     Comment handling: Uses the shared ``strip_lean_comments`` lexer which
     correctly handles nested block comments, inline block comments, line
     comments, and string literals.
+
+    Sorry detection: After comment stripping, if any line in a theorem's body
+    (from declaration to next declaration/end) contains ``sorry`` as a whole
+    word, the theorem is marked as sorry'd.
     """
     text = path.read_text()
     stripped_text = strip_lean_comments(text)
@@ -62,9 +69,10 @@ def extract_theorems(path: Path) -> list[tuple[str, bool]]:
 
     # Track namespace stack (each entry is a dotted namespace name)
     ns_stack: list[str] = []
-    results: list[tuple[str, bool]] = []
+    # Collect (fqn, is_private, start_line_idx) for each declaration
+    raw_results: list[tuple[str, bool, int]] = []
 
-    for line in lines:
+    for i, line in enumerate(lines):
         stripped = line.strip()
 
         # Skip blank lines
@@ -109,7 +117,18 @@ def extract_theorems(path: Path) -> list[tuple[str, bool]]:
             else:
                 fqn = f"{name}"
 
-            results.append((fqn, is_private))
+            raw_results.append((fqn, is_private, i))
+
+    # Determine sorry status by scanning each theorem's body range
+    results: list[tuple[str, bool, bool]] = []
+    for idx, (fqn, is_private, start) in enumerate(raw_results):
+        if idx + 1 < len(raw_results):
+            end = raw_results[idx + 1][2]
+        else:
+            end = len(lines)
+        body = "\n".join(lines[start:end])
+        is_sorry = bool(SORRY_RE_BODY.search(body))
+        results.append((fqn, is_private, is_sorry))
 
     return results
 
@@ -154,9 +173,11 @@ def generate() -> str:
 
         rel = path.relative_to(ROOT)
         lines = [f"\n-- {rel}"]
-        for fqn, is_private in theorems:
+        for fqn, is_private, is_sorry in theorems:
             if is_private:
                 lines.append(f"-- #print axioms {fqn}  -- private")
+            elif is_sorry:
+                lines.append(f"-- #print axioms {fqn}  -- sorry'd")
             else:
                 lines.append(f"#print axioms {fqn}")
 
@@ -165,14 +186,20 @@ def generate() -> str:
     public_count = sum(
         1
         for path in all_files
-        for _, priv in extract_theorems(path)
-        if not priv
+        for _, priv, sorry in extract_theorems(path)
+        if not priv and not sorry
     )
     private_count = sum(
         1
         for path in all_files
-        for _, priv in extract_theorems(path)
+        for _, priv, _ in extract_theorems(path)
         if priv
+    )
+    sorry_count = sum(
+        1
+        for path in all_files
+        for _, priv, sorry in extract_theorems(path)
+        if not priv and sorry
     )
 
     header = (
@@ -182,8 +209,8 @@ def generate() -> str:
     )
 
     footer = (
-        f"\n-- Total: {public_count + private_count} theorems/lemmas"
-        f" ({public_count} public, {private_count} private)\n"
+        f"\n-- Total: {public_count + private_count + sorry_count} theorems/lemmas"
+        f" ({public_count} public, {private_count} private, {sorry_count} sorry'd)\n"
     )
 
     return header + "\n" + "\n".join(imports) + "\n" + "\n".join(sections) + footer

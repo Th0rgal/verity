@@ -384,7 +384,7 @@ Function selectors (the first 4 bytes of `keccak256("functionName(paramTypes)")`
 
 When you define a contract using the `verity_contract` macro in `Contracts/<Name>/<Name>.lean`, the framework provides the frontend typed-IR correctness path in `Compiler/TypedIRCompilerCorrectness.lean`. For the current explicit supported fragment, the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean` as a generic whole-contract theorem rooted at successful `CompilationModel.compile`.
 
-The compiler proves Layer 2 preservation automatically for the supported fragment — no manual per-contract bridge proofs are needed. The repository's proof tree currently has zero `sorry` placeholders; the remaining documented trust surface is tracked in `AXIOMS.md`.
+The compiler proves Layer 2 preservation automatically for the supported fragment — no manual per-contract bridge proofs are needed. The repository's proof tree currently has `sorry` placeholders in the Layer 2 proof scripts (being repaired after a definition refactor); Layer 3 proofs and contract-level specification proofs are fully discharged. The remaining documented trust surface is tracked in `AXIOMS.md`.
 
 > **Tip**: Study `Compiler/TypedIRCompilerCorrectness.lean` to see the supported statement fragment grammar and bridge theorem examples for Counter, SimpleStorage, ERC20, and ERC721.
 

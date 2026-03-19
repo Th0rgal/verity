@@ -75,14 +75,12 @@ def expected_snippets() -> dict[str, list[str]]:
         ],
         "DOCS_SITE_INDEX": [
             "`Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract `CompilationModel -> IR` theorem for the current supported fragment)",
-            "This project currently has no `sorry` placeholders.",
         ],
         "DOCS_SITE_EXAMPLES": [
             "`Compiler/Proofs/IRGeneration/Contract.lean` for the current supported fragment",
         ],
         "DOCS_SITE_FIRST_CONTRACT": [
             "the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean`",
-            "The repository's proof tree currently has zero `sorry` placeholders",
         ],
         "DOCS_SITE_VERIFICATION": [
             "**Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean`",
@@ -94,7 +92,6 @@ def expected_snippets() -> dict[str, list[str]]:
         "LLMS": [
             "generic whole-contract CompilationModel -> IR theorem for the supported fragment",
             "1 documented Lean axiom",
-            "0 `sorry` placeholders",
         ],
     }
 
