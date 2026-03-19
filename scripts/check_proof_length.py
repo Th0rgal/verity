@@ -457,6 +457,10 @@ ALLOWLIST: set[str] = {
     "exprTouchesUnsupportedCallSurface_eq_featureOr",
     "exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed",
     "exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed",
+    # PR #1645 — per-function termination_by refactor of the helper-aware mutual
+    # block required rewriting findUniqueInternalFunction?_of_witness with more
+    # explicit subgoal resolution; marginally over limit (57 lines).
+    "findUniqueInternalFunction",
 }
 
 # Directories containing proof files to scan.
