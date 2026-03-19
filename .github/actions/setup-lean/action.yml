@@ -40,6 +40,8 @@ runs:
         key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
         restore-keys: |
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
+          lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
 
     - name: Refresh Lake dependency state on partial cache hit
       if: steps.cache-lake.outputs.cache-hit != 'true'
