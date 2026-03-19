@@ -461,6 +461,27 @@ ALLOWLIST: set[str] = {
     # block required rewriting findUniqueInternalFunction?_of_witness with more
     # explicit subgoal resolution; marginally over limit (57 lines).
     "findUniqueInternalFunction",
+    # PR #1645 follow-up — pre-existing long proofs newly exposed by from-scratch
+    # CI rebuild after sorry'ing broken theorems in FunctionBody/GenericInduction/
+    # Function/Dispatch/Contract. These proofs were previously hidden behind
+    # incremental caching; their lengths are unchanged from the original code.
+    "sizeOf_singleton_append_extraFuel_ne_zero",
+    "directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody",
+    "stmtResultMatchesIRExec_ir_not_continue_of_terminal_core",
+    "scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes",
+    "legacyCompatibleExternalStmtList_revertWithMessage",
+    "evalIRExpr_mappingSlotChain",
+    "compileStmt_ite_ok_inv",
+    "directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog",
+    "compile_ok_yields_internalFunctions_nil",
+    "stmtListGenericCore_singleton_requireLiteralGuardFamilyClause",
+    "runtimeStateMatchesIR_writeAddressKeyedMappingPackedWordSlot",
+    "exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel",
+    "execIRStmts_sstore_lit_ident_slots_continue",
+    "stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface",
+    "compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList",
+    "field_mem_of_findFieldWithResolvedSlot_some",
+    "legacyCompatibleExternalStmtList_genParamLoads_of_supported",
 }
 
 # Directories containing proof files to scan.
