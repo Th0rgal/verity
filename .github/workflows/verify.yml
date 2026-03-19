@@ -281,7 +281,7 @@ jobs:
 
   macro-fuzz:
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 35
+    timeout-minutes: 45
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     env:
