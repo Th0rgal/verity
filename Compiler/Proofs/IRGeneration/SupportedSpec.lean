@@ -1335,7 +1335,7 @@ private theorem exprCompileCore_helperSurfaceClosed
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
     | blockTimestamp | blockNumber | chainid =>
-      simp [exprTouchesUnsupportedHelperSurface]
+      simp only [exprTouchesUnsupportedHelperSurface]
   | add _ _ ihL ihR
     | sub _ _ ihL ihR
     | mul _ _ ihL ihR
@@ -1348,9 +1348,9 @@ private theorem exprCompileCore_helperSurfaceClosed
     | le _ _ ihL ihR
     | logicalAnd _ _ ihL ihR
     | logicalOr _ _ ihL ihR =>
-      simp [exprTouchesUnsupportedHelperSurface, ihL, ihR]
+      simp only [exprTouchesUnsupportedHelperSurface, ihL, ihR, Bool.or_false, Bool.false_or]
   | logicalNot _ ih =>
-      simp [exprTouchesUnsupportedHelperSurface, ih]
+      simp only [exprTouchesUnsupportedHelperSurface, ih]
 
 private theorem exprCompileCore_internalHelperCallNames_nil
     {expr : Expr}
@@ -1359,7 +1359,7 @@ private theorem exprCompileCore_internalHelperCallNames_nil
   induction hcore with
   | literal | param | localVar | caller | contractAddress | msgValue
     | blockTimestamp | blockNumber | chainid =>
-      simp [exprInternalHelperCallNames]
+      simp only [exprInternalHelperCallNames]
   | add _ _ ihL ihR
     | sub _ _ ihL ihR
     | mul _ _ ihL ihR
@@ -1372,9 +1372,9 @@ private theorem exprCompileCore_internalHelperCallNames_nil
     | le _ _ ihL ihR
     | logicalAnd _ _ ihL ihR
     | logicalOr _ _ ihL ihR =>
-      simp [exprInternalHelperCallNames, ihL, ihR]
+      simp only [exprInternalHelperCallNames, ihL, ihR, List.nil_append]
   | logicalNot _ ih =>
-      simp [exprInternalHelperCallNames, ih]
+      simp only [exprInternalHelperCallNames, ih]
 
 private theorem exprListCompileCore_helperSurfaceClosed
     {exprs : List Expr}
@@ -1382,15 +1382,17 @@ private theorem exprListCompileCore_helperSurfaceClosed
     exprListTouchesUnsupportedHelperSurface exprs = false := by
   induction exprs with
   | nil =>
-      simp [exprListTouchesUnsupportedHelperSurface]
+      simp only [exprListTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
   | cons expr rest ih =>
       have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
       have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
         intro e he
         exact hcore e (by simp [he])
-      simp [exprListTouchesUnsupportedHelperSurface,
+      simp only [exprListTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hhead,
-        ih htail]
+        ih htail,
+        Bool.or_false, Bool.false_or]
 
 private theorem exprListCompileCore_internalHelperCallNames_nil
     {exprs : List Expr}
@@ -1398,15 +1400,15 @@ private theorem exprListCompileCore_internalHelperCallNames_nil
     exprListInternalHelperCallNames exprs = [] := by
   induction exprs with
   | nil =>
-      simp [exprListInternalHelperCallNames]
+      simp only [exprListInternalHelperCallNames]
   | cons expr rest ih =>
       have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
       have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
         intro e he
         exact hcore e (by simp [he])
-      simp [exprListInternalHelperCallNames,
+      simp only [exprListInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hhead,
-        ih htail]
+        ih htail, List.nil_append]
 
 private theorem stmtListCompileCore_helperSurfaceClosed
     {scope : List String}
@@ -1415,23 +1417,27 @@ private theorem stmtListCompileCore_helperSurfaceClosed
     stmtListTouchesUnsupportedHelperSurface stmts = false := by
   induction hcore with
   | nil =>
-      simp [stmtListTouchesUnsupportedHelperSurface]
+      simp only [stmtListTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
   | letVar hvalue _ _ ih
     | assignVar hvalue _ _ ih
     | return_ hvalue _ _ ih =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hvalue,
-        ih]
+        ih,
+        Bool.or_false, Bool.false_or]
   | require_ hcond _ _ ih =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hcond,
-        ih]
+        ih,
+        Bool.or_false, Bool.false_or]
   | stop _ ih =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        ih]
+        ih,
+        Bool.or_false, Bool.false_or]
 
 private theorem stmtListCompileCore_internalHelperCallNames_nil
     {scope : List String}
@@ -1440,23 +1446,23 @@ private theorem stmtListCompileCore_internalHelperCallNames_nil
     stmtListInternalHelperCallNames stmts = [] := by
   induction hcore with
   | nil =>
-      simp [stmtListInternalHelperCallNames]
+      simp only [stmtListInternalHelperCallNames]
   | letVar hvalue _ _ ih
     | assignVar hvalue _ _ ih
     | return_ hvalue _ _ ih =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hvalue,
-        ih]
+        ih, List.nil_append, List.append_nil]
   | require_ hcond _ _ ih =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
-        ih]
+        ih, List.nil_append, List.append_nil]
   | stop _ ih =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        ih]
+        ih, List.nil_append, List.append_nil]
 
 
 private theorem stmtListTerminalCore_internalHelperCallNames_nil
@@ -1467,30 +1473,33 @@ private theorem stmtListTerminalCore_internalHelperCallNames_nil
   induction hterminal with
   | letVar hvalue _ _ ih
     | assignVar hvalue _ _ ih =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hvalue,
-        ih]
+        ih, List.nil_append, List.append_nil]
   | require_ hcond _ _ ih =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
-        ih]
+        ih, List.nil_append, List.append_nil]
   | return_ hvalue _ hrest =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hvalue,
-        stmtListCompileCore_internalHelperCallNames_nil hrest]
+        stmtListCompileCore_internalHelperCallNames_nil hrest,
+        List.nil_append, List.append_nil]
   | stop hrest =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        stmtListCompileCore_internalHelperCallNames_nil hrest]
+        stmtListCompileCore_internalHelperCallNames_nil hrest,
+        List.nil_append, List.append_nil]
   | ite hcond _ hthen helse hrest ihThen ihElse =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
         ihThen, ihElse,
-        stmtListCompileCore_internalHelperCallNames_nil hrest]
+        stmtListCompileCore_internalHelperCallNames_nil hrest,
+        List.nil_append, List.append_nil]
 
 
 private theorem stmtListTerminalCore_helperSurfaceClosed
@@ -1501,30 +1510,35 @@ private theorem stmtListTerminalCore_helperSurfaceClosed
   induction hterminal with
   | letVar hvalue _ _ ih
     | assignVar hvalue _ _ ih =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hvalue,
-        ih]
+        ih,
+        Bool.or_false, Bool.false_or]
   | require_ hcond _ _ ih =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hcond,
-        ih]
+        ih,
+        Bool.or_false, Bool.false_or]
   | return_ hvalue _ hrest =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hvalue,
-        stmtListCompileCore_helperSurfaceClosed hrest]
+        stmtListCompileCore_helperSurfaceClosed hrest,
+        Bool.or_false, Bool.false_or]
   | stop hrest =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
-        stmtListCompileCore_helperSurfaceClosed hrest]
+        stmtListCompileCore_helperSurfaceClosed hrest,
+        Bool.or_false, Bool.false_or]
   | ite hcond _ hthen helse hrest ihThen ihElse =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hcond,
         ihThen, ihElse,
-        stmtListCompileCore_helperSurfaceClosed hrest]
+        stmtListCompileCore_helperSurfaceClosed hrest,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_returnMapping_helperSurfaceClosed
     {fieldName : String}
@@ -1532,18 +1546,20 @@ private theorem supportedStmtList_returnMapping_helperSurfaceClosed
     (hkey : FunctionBody.ExprCompileCore key) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.return (Expr.mapping fieldName key)] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey]
+    exprCompileCore_helperSurfaceClosed hkey,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letStorageField_helperSurfaceClosed
     {tmp fieldName : String} :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.letVar tmp (Expr.storage fieldName)] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface]
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed
     {fieldName : String}
@@ -1551,10 +1567,11 @@ private theorem supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setStorageAddr fieldName value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_mstoreSingle_helperSurfaceClosed
     {offset value : Expr}
@@ -1562,11 +1579,12 @@ private theorem supportedStmtList_mstoreSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.mstore offset value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hoffset,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_tstoreSingle_helperSurfaceClosed
     {offset value : Expr}
@@ -1574,11 +1592,12 @@ private theorem supportedStmtList_tstoreSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.tstore offset value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hoffset,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letMapping_helperSurfaceClosed
     {tmp fieldName : String}
@@ -1586,10 +1605,11 @@ private theorem supportedStmtList_letMapping_helperSurfaceClosed
     (hkey : FunctionBody.ExprCompileCore key) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.letVar tmp (Expr.mapping fieldName key)] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey]
+    exprCompileCore_helperSurfaceClosed hkey,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letMapping2_helperSurfaceClosed
     {tmp fieldName : String}
@@ -1598,11 +1618,12 @@ private theorem supportedStmtList_letMapping2_helperSurfaceClosed
     (hkey2 : FunctionBody.ExprCompileCore key2) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.letVar tmp (Expr.mapping2 fieldName key1 key2)] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey1,
-    exprCompileCore_helperSurfaceClosed hkey2]
+    exprCompileCore_helperSurfaceClosed hkey2,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letMappingUint_helperSurfaceClosed
     {tmp fieldName : String}
@@ -1610,10 +1631,11 @@ private theorem supportedStmtList_letMappingUint_helperSurfaceClosed
     (hkey : FunctionBody.ExprCompileCore key) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.letVar tmp (Expr.mappingUint fieldName key)] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
-    exprCompileCore_helperSurfaceClosed hkey]
+    exprCompileCore_helperSurfaceClosed hkey,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMappingUintSingle_helperSurfaceClosed
     {fieldName : String}
@@ -1622,11 +1644,12 @@ private theorem supportedStmtList_setMappingUintSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMappingUint fieldName key value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMappingChainSingle_helperSurfaceClosed
     {fieldName : String}
@@ -1636,11 +1659,12 @@ private theorem supportedStmtList_setMappingChainSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMappingChain fieldName keys value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprListCompileCore_helperSurfaceClosed hkeys,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMappingSingle_helperSurfaceClosed
     {fieldName : String}
@@ -1649,11 +1673,12 @@ private theorem supportedStmtList_setMappingSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMapping fieldName key value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMappingWordSingle_helperSurfaceClosed
     {fieldName : String}
@@ -1663,11 +1688,12 @@ private theorem supportedStmtList_setMappingWordSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMappingWord fieldName key wordOffset value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setStructMemberSingle_helperSurfaceClosed
     {fieldName memberName : String}
@@ -1676,11 +1702,12 @@ private theorem supportedStmtList_setStructMemberSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setStructMember fieldName key memberName value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMapping2Single_helperSurfaceClosed
     {fieldName : String}
@@ -1690,12 +1717,13 @@ private theorem supportedStmtList_setMapping2Single_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMapping2 fieldName key1 key2 value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey1,
     exprCompileCore_helperSurfaceClosed hkey2,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMapping2WordSingle_helperSurfaceClosed
     {fieldName : String}
@@ -1706,12 +1734,13 @@ private theorem supportedStmtList_setMapping2WordSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMapping2Word fieldName key1 key2 wordOffset value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey1,
     exprCompileCore_helperSurfaceClosed hkey2,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setMappingPackedWordSingle_helperSurfaceClosed
     {fieldName : String}
@@ -1722,11 +1751,12 @@ private theorem supportedStmtList_setMappingPackedWordSingle_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setMappingPackedWord fieldName key wordOffset packed value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_setStructMember2Single_helperSurfaceClosed
     {fieldName memberName : String}
@@ -1736,21 +1766,23 @@ private theorem supportedStmtList_setStructMember2Single_helperSurfaceClosed
     (hvalue : FunctionBody.ExprCompileCore value) :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.setStructMember2 fieldName key1 key2 memberName value] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
     exprTouchesUnsupportedHelperSurface,
     exprCompileCore_helperSurfaceClosed hkey1,
     exprCompileCore_helperSurfaceClosed hkey2,
-    exprCompileCore_helperSurfaceClosed hvalue]
+    exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_rawLogLiterals_helperSurfaceClosed
     {topics : List Nat}
     {dataOffset dataSize : Nat} :
     stmtListTouchesUnsupportedHelperSurface
       [Stmt.rawLog (topics.map Expr.literal) (Expr.literal dataOffset) (Expr.literal dataSize)] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface]
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_helperSurfaceClosed
     {ownerField senderVar ownerVar paramName msg1 msg2 : String} :
@@ -1763,9 +1795,10 @@ private theorem supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamS
       , Stmt.setStorage ownerField (Expr.param paramName)
       , Stmt.stop
       ] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface]
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
 
 private theorem supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_helperSurfaceClosed
     {ownerField targetField senderVar ownerVar targetVar paramName msg1 msg2 : String} :
@@ -1779,9 +1812,10 @@ private theorem supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetSto
       , Stmt.setStorage targetField (Expr.param paramName)
       , Stmt.stop
       ] = false := by
-  simp [stmtListTouchesUnsupportedHelperSurface,
+  simp only [stmtListTouchesUnsupportedHelperSurface,
     stmtTouchesUnsupportedHelperSurface,
-    exprTouchesUnsupportedHelperSurface]
+    exprTouchesUnsupportedHelperSurface,
+        Bool.or_false, Bool.false_or]
 
 open Verity.Core.Free in
 theorem SupportedStmtList.helperSurfaceClosed
@@ -1794,10 +1828,11 @@ theorem SupportedStmtList.helperSurfaceClosed
   | compileCore hcore => exact stmtListCompileCore_helperSurfaceClosed hcore
   | terminalCore hterminal => exact stmtListTerminalCore_helperSurfaceClosed hterminal
   | setStorageSingleSlot hvalue _ _ =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface,
-        exprCompileCore_helperSurfaceClosed hvalue]
+        exprCompileCore_helperSurfaceClosed hvalue,
+        Bool.or_false, Bool.false_or]
   | setStorageAddrSingleSlot hvalue _ _ =>
       exact supportedStmtList_setStorageAddrSingleSlot_helperSurfaceClosed hvalue
   | mstoreSingle hoffset _ hvalue _ =>
@@ -1854,10 +1889,11 @@ theorem SupportedStmtList.helperSurfaceClosed
                 stmtTouchesUnsupportedHelperSurface, exprTouchesUnsupportedHelperSurface]
       · exact ih
   | ite hcond _ _ _ ihThen ihElse =>
-      simp [stmtListTouchesUnsupportedHelperSurface,
+      simp only [stmtListTouchesUnsupportedHelperSurface,
         stmtTouchesUnsupportedHelperSurface,
         exprCompileCore_helperSurfaceClosed hcond,
-        ihThen, ihElse]
+        ihThen, ihElse,
+        Bool.or_false, Bool.false_or]
   | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
       suffices h : ∀ (xs ys : List Stmt),
           stmtListTouchesUnsupportedHelperSurface xs = false →
@@ -1892,109 +1928,130 @@ theorem SupportedStmtList.internalHelperCallNames_nil
   | compileCore hcore => exact stmtListCompileCore_internalHelperCallNames_nil hcore
   | terminalCore hterminal => exact stmtListTerminalCore_internalHelperCallNames_nil hterminal
   | setStorageSingleSlot hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setStorageAddrSingleSlot hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | mstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hoffset,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | tstoreSingle hoffset _ hvalue _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hoffset,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | letStorageField _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        exprInternalHelperCallNames]
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
   | returnMapping hkey _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey]
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        List.nil_append, List.append_nil]
   | letMapping hkey _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey]
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        List.nil_append, List.append_nil]
   | letMapping2 hkey1 _ hkey2 _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
-        exprCompileCore_internalHelperCallNames_nil hkey2]
+        exprCompileCore_internalHelperCallNames_nil hkey2,
+        List.nil_append, List.append_nil]
   | letMappingUint hkey _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
-        exprCompileCore_internalHelperCallNames_nil hkey]
+        exprCompileCore_internalHelperCallNames_nil hkey,
+        List.nil_append, List.append_nil]
   | setMappingUintSingle hkey _ hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setMappingChainSingle hkeys _ hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprListCompileCore_internalHelperCallNames_nil hkeys,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setMappingSingle hkey _ hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setMappingWordSingle hkey _ hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setMappingPackedWordSingle hkey _ hvalue _ _ _ _ _ _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setStructMemberSingle hkey _ hvalue _ _ _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setMapping2Single hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setMapping2WordSingle hkey1 _ hkey2 _ hvalue _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hkey1,
         exprCompileCore_internalHelperCallNames_nil hkey2,
-        exprCompileCore_internalHelperCallNames_nil hvalue]
+        exprCompileCore_internalHelperCallNames_nil hvalue,
+        List.nil_append, List.append_nil]
   | rawLogLiterals _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprInternalHelperCallNames,
-        exprListInternalHelperCallNames_literals]
+        exprListInternalHelperCallNames_literals,
+        List.nil_append, List.append_nil]
   | letCallerLetStorageReqEqReqNeqSetStorageParamStop _ _ _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        exprInternalHelperCallNames]
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
   | letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop _ _ _ _ _ _ =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
-        exprInternalHelperCallNames]
+        exprInternalHelperCallNames,
+        List.nil_append, List.append_nil]
   | requireClause clause _ ih =>
       simp [stmtListInternalHelperCallNames]
       constructor
@@ -2011,10 +2068,10 @@ theorem SupportedStmtList.internalHelperCallNames_nil
                 stmtInternalHelperCallNames, exprInternalHelperCallNames]
       · exact ih
   | ite hcond _ _ _ ihThen ihElse =>
-      simp [stmtListInternalHelperCallNames,
+      simp only [stmtListInternalHelperCallNames,
         stmtInternalHelperCallNames,
         exprCompileCore_internalHelperCallNames_nil hcond,
-        ihThen, ihElse]
+        ihThen, ihElse, List.nil_append, List.append_nil]
   | @append _ _ pfx sfx _ _ ihPfx ihSfx =>
       suffices h : ∀ (xs ys : List Stmt),
           stmtListInternalHelperCallNames xs = [] →
