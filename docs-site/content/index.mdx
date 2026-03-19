@@ -128,7 +128,7 @@ See [/verification](/verification) for the complete, always-current theorem list
 
 **What's a proof?** A step-by-step logical argument that shows why a theorem must be true. Lean checks every step.
 
-**What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project currently has no `sorry` placeholders.
+**What's `sorry`?** A placeholder in Lean that says "I'll prove this later." It's how incomplete proofs compile. This project currently has `sorry` placeholders in the Layer 2 (Source → IR) proof scripts, which are being repaired after a definition refactor. Layer 3 proofs and all contract-level specification proofs are fully discharged.
 
 **What are axioms?** Statements assumed true without proof. This project currently documents 1 Lean axiom: `keccak256_first_4_bytes` for selector hashing (see [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md)). The former generic Layer 2 body-simulation axiom has been eliminated, and the Layer 3 dispatch bridge is kept as an explicit theorem hypothesis rather than a Lean axiom.
 

@@ -294,8 +294,11 @@ lake build                                      # Build everything
 lake build Contracts.SimpleStorage.Proofs    # Build one contract's proofs
 ```
 
-The proof tree currently has 0 `sorry`, but it still has the documented axioms
-listed in `AXIOMS.md`.
+The proof tree has the documented axioms listed in `AXIOMS.md`. The Layer 2 proof
+scripts (Source → IR) currently contain `sorry` placeholders after a definition
+refactor (PR #1639) that added helper-aware interpreter targets. The theorem
+statements are in place; the tactic proofs are being repaired. Layer 3 proofs
+are fully discharged.
 
 ## Infrastructure
 
