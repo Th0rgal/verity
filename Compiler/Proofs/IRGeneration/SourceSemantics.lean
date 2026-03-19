@@ -883,10 +883,7 @@ mutual
             if hresult.success then hresult.returnValue else none
     | _ => none
   termination_by expr => (fuel, sizeOf expr)
-  decreasing_by
-    all_goals simp_wf
-    all_goals omega
-
+  decreasing_by all_goals (simp_wf; omega)
   def evalExprListWithHelpers
       (spec : CompilationModel)
       (fields : List Field)
@@ -898,30 +895,28 @@ mutual
         let values ← evalExprListWithHelpers spec fields fuel state rest
         pure (value :: values)
   termination_by exprs => (fuel, sizeOf exprs)
-  decreasing_by
-    all_goals simp_wf
-    all_goals omega
-
+  decreasing_by all_goals (simp_wf; omega)
   def execStmtWithHelpers
       (spec : CompilationModel)
       (fields : List Field)
-      (fuel : Nat) : RuntimeState → Stmt → StmtResult
-    | state, .letVar name value =>
+      (fuel : Nat)
+      (state : RuntimeState) : Stmt → StmtResult
+    | .letVar name value =>
         match evalExprWithHelpers spec fields fuel state value with
         | some resolved =>
             .continue { state with bindings := bindValue state.bindings name resolved }
         | none => .revert
-    | state, .assignVar name value =>
+    | .assignVar name value =>
         match evalExprWithHelpers spec fields fuel state value with
         | some resolved =>
             .continue { state with bindings := bindValue state.bindings name resolved }
         | none => .revert
-    | state, .setStorage fieldName value =>
+    | .setStorage fieldName value =>
         match findFieldWriteSlots fields fieldName, evalExprWithHelpers spec fields fuel state value with
         | some slots, some resolved =>
             .continue { state with world := writeUintSlots state.world slots resolved }
         | _, _ => .revert
-    | state, .setMapping fieldName key value =>
+    | .setMapping fieldName key value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key,
             evalExprWithHelpers spec fields fuel state value with
@@ -930,7 +925,7 @@ mutual
               { state with
                   world := writeAddressKeyedMappingSlots state.world slots resolvedKey resolved }
         | _, _, _ => .revert
-    | state, .setMappingWord fieldName key wordOffset value =>
+    | .setMappingWord fieldName key wordOffset value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key,
             evalExprWithHelpers spec fields fuel state value with
@@ -940,7 +935,7 @@ mutual
                    world := writeAddressKeyedMappingWordSlots
                      state.world slots resolvedKey wordOffset resolved }
         | _, _, _ => .revert
-    | state, .setMappingPackedWord fieldName key wordOffset packed value =>
+    | .setMappingPackedWord fieldName key wordOffset packed value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key,
             evalExprWithHelpers spec fields fuel state value with
@@ -953,7 +948,7 @@ mutual
             else
               .revert
         | _, _, _ => .revert
-    | state, .setStructMember fieldName key memberName value =>
+    | .setStructMember fieldName key memberName value =>
         match findFieldWriteSlots fields fieldName,
             findStructMembers fields fieldName,
             evalExprWithHelpers spec fields fuel state key,
@@ -967,7 +962,7 @@ mutual
                         state.world slots resolvedKey wordOffset resolved }
             | _ => .revert
         | _, _, _, _ => .revert
-    | state, .setMapping2 fieldName key1 key2 value =>
+    | .setMapping2 fieldName key1 key2 value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key1,
             evalExprWithHelpers spec fields fuel state key2,
@@ -983,7 +978,7 @@ mutual
                       resolvedKey2
                       resolved }
         | _, _, _, _ => .revert
-    | state, .setMapping2Word fieldName key1 key2 wordOffset value =>
+    | .setMapping2Word fieldName key1 key2 wordOffset value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key1,
             evalExprWithHelpers spec fields fuel state key2,
@@ -1000,7 +995,7 @@ mutual
                       wordOffset
                       resolved }
         | _, _, _, _ => .revert
-    | state, .setStructMember2 fieldName key1 key2 memberName value =>
+    | .setStructMember2 fieldName key1 key2 memberName value =>
         match findFieldWriteSlots fields fieldName,
             findStructMembers fields fieldName,
             evalExprWithHelpers spec fields fuel state key1,
@@ -1015,7 +1010,7 @@ mutual
                         state.world slots resolvedKey1 resolvedKey2 wordOffset resolved }
             | _ => .revert
         | _, _, _, _, _ => .revert
-    | state, .setMappingUint fieldName key value =>
+    | .setMappingUint fieldName key value =>
         match findFieldWriteSlots fields fieldName,
             evalExprWithHelpers spec fields fuel state key,
             evalExprWithHelpers spec fields fuel state value with
@@ -1024,7 +1019,7 @@ mutual
               { state with
                   world := writeUintKeyedMappingSlots state.world slots resolvedKey resolved }
         | _, _, _ => .revert
-    | state, .setMappingChain fieldName keys value =>
+    | .setMappingChain fieldName keys value =>
         match findFieldWriteSlots fields fieldName,
             evalExprListWithHelpers spec fields fuel state keys,
             evalExprWithHelpers spec fields fuel state value with
@@ -1034,13 +1029,13 @@ mutual
                   world := writeAddressKeyedMappingChainSlots
                     state.world slots resolvedKeys resolved }
         | _, _, _ => .revert
-    | state, .storageArrayPush fieldName value =>
+    | .storageArrayPush fieldName value =>
         match findFieldWithResolvedSlot fields fieldName, evalExprWithHelpers spec fields fuel state value with
         | some ({ ty := .dynamicArray _, .. }, slot), some resolved =>
             let updated := state.world.storageArray slot ++ [(resolved : Verity.Core.Uint256)]
             .continue { state with world := writeStorageArray state.world slot updated }
         | _, _ => .revert
-    | state, .storageArrayPop fieldName =>
+    | .storageArrayPop fieldName =>
         match findFieldWithResolvedSlot fields fieldName with
         | some ({ ty := .dynamicArray _, .. }, slot) =>
             match storageArrayDropLast? (state.world.storageArray slot) with
@@ -1048,7 +1043,7 @@ mutual
                 .continue { state with world := writeStorageArray state.world slot updated }
             | none => .revert
         | _ => .revert
-    | state, .setStorageArrayElement fieldName index value =>
+    | .setStorageArrayElement fieldName index value =>
         match findFieldWithResolvedSlot fields fieldName,
             evalExprWithHelpers spec fields fuel state index,
             evalExprWithHelpers spec fields fuel state value with
@@ -1058,17 +1053,17 @@ mutual
                 .continue { state with world := writeStorageArray state.world slot updated }
             | none => .revert
         | _, _, _ => .revert
-    | state, .setStorageAddr fieldName value =>
+    | .setStorageAddr fieldName value =>
         match findFieldWriteSlots fields fieldName, evalExprWithHelpers spec fields fuel state value with
         | some slots, some resolved =>
             .continue { state with world := writeAddressSlots state.world slots resolved }
         | _, _ => .revert
-    | state, .mstore offset value =>
+    | .mstore offset value =>
         match evalExprWithHelpers spec fields fuel state offset,
             evalExprWithHelpers spec fields fuel state value with
         | some _, some _ => .continue state
         | _, _ => .revert
-    | state, .tstore offset value =>
+    | .tstore offset value =>
         match evalExprWithHelpers spec fields fuel state offset,
             evalExprWithHelpers spec fields fuel state value with
         | some resolvedOffset, some resolvedValue =>
@@ -1081,17 +1076,17 @@ mutual
               }
             }
         | _, _ => .revert
-    | state, .require cond _ =>
+    | .require cond _ =>
         match evalExprWithHelpers spec fields fuel state cond with
         | some resolved =>
             if resolved != 0 then .continue state else .revert
         | none => .revert
-    | state, .return value =>
+    | .return value =>
         match evalExprWithHelpers spec fields fuel state value with
         | some resolved => .return resolved state
         | none => .revert
-    | state, .stop => .stop state
-    | state, .ite cond thenBranch elseBranch =>
+    | .stop => .stop state
+    | .ite cond thenBranch elseBranch =>
         match evalExprWithHelpers spec fields fuel state cond with
         | some resolved =>
             if resolved != 0 then
@@ -1099,7 +1094,7 @@ mutual
             else
               execStmtListWithHelpers spec fields fuel state elseBranch
         | none => .revert
-    | state, .internalCall calleeName args =>
+    | .internalCall calleeName args =>
         match fuel with
         | 0 => .revert
         | fuel + 1 =>
@@ -1112,7 +1107,7 @@ mutual
                 else
                   .revert
             | _, _ => .revert
-    | state, .internalCallAssign names calleeName args =>
+    | .internalCallAssign names calleeName args =>
         match fuel with
         | 0 => .revert
         | fuel + 1 =>
@@ -1131,28 +1126,23 @@ mutual
                 else
                   .revert
             | _, _ => .revert
-    | _, _ => .revert
+    | _ => .revert
   termination_by stmt => (fuel, sizeOf stmt)
-  decreasing_by
-    all_goals simp_wf
-    all_goals omega
-
+  decreasing_by all_goals (simp_wf; omega)
   def execStmtListWithHelpers
       (spec : CompilationModel)
       (fields : List Field)
-      (fuel : Nat) : RuntimeState → List Stmt → StmtResult
-    | state, [] => .continue state
-    | state, stmt :: rest =>
+      (fuel : Nat)
+      (state : RuntimeState) : List Stmt → StmtResult
+    | [] => .continue state
+    | stmt :: rest =>
         match execStmtWithHelpers spec fields fuel state stmt with
         | .continue next => execStmtListWithHelpers spec fields fuel next rest
         | .stop next => .stop next
         | .return value next => .return value next
         | .revert => .revert
   termination_by stmts => (fuel, sizeOf stmts)
-  decreasing_by
-    all_goals simp_wf
-    all_goals omega
-
+  decreasing_by all_goals (simp_wf; omega)
   def interpretInternalFunctionFuel
       (spec : CompilationModel)
       (fuel : Nat)
@@ -1169,9 +1159,7 @@ mutual
         | .return value state => successInternalResult state.world (some value)
         | .revert => revertedInternalResult initialWorld
   termination_by (fuel, sizeOf fn.body + 1)
-  decreasing_by
-    all_goals simp_wf
-    all_goals omega
+  decreasing_by all_goals (simp_wf; omega)
 end
 
 /-- Semantic contract attached to an internal-helper summary witness. The summary
