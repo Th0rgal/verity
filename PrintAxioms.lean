@@ -699,18 +699,18 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_supportedRuntimeHelperTableInterface  -- private
-#print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_supportedRuntimeHelperTableInterface
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_supportedRuntimeHelperTableInterface
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compiled_functions_legacyCompatibleExternalBodies  -- private
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_legacyCompatibleExternalBodies
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_legacyCompatibleRuntimeContract
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic
-#print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_except_mapping_writes
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_bodyCallsDisjoint
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-#print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_except_mapping_writes
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics_with_helper_proofs_and_helper_ir_goal
@@ -771,8 +771,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
-#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
-#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_body_interface_except_mapping_writes
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs
 
@@ -883,8 +883,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileRequireFailCond_core_ok
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_onExpr
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_onExpr
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_bindValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.runtimeStateMatchesIR_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compileStmt_core_ok
@@ -905,7 +905,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_implies_onExpr
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalExpr_lt_evmModulus_core_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileRequireFailCond_core_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exprBoundNamesPresent_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.scopeNamesPresent_of_included
@@ -1025,24 +1025,24 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_not_continue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_ite_then_eq
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_ite_else_eq
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_then
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_else
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_ite_then_eq
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execStmtList_terminal_core_ite_else_eq
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_then
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_terminal_ite_else
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_return_core_append_wholeFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_stop_core_append_wholeFuel
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.sizeOf_singleton_append_extraFuel_ne_zero  -- private
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_let_core_append_wholeFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_let_core_tailExtraFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
-#print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_let_core_append_wholeFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_let_core_tailExtraFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_assign_core_append_wholeFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_assign_core_tailExtraFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_pass_append_wholeFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_pass_tailExtraFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.scopeNamesIncluded_refl
@@ -1060,14 +1060,14 @@ import Compiler.Proofs.YulGeneration.Equivalence
 
 -- Compiler/Proofs/IRGeneration/GenericInduction.lean
 #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStep.withHelpers_of_helperSurfaceClosed
-#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_letVar  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_assignVar  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_require  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_return  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_stop  -- private
-#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
-#print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
 #print axioms Compiler.Proofs.IRGeneration.stmtListCompiledLegacyCompatible_of_supportedContractSurface
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledLegacyCompatible_of_compiledLegacyCompatible
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface
@@ -1112,22 +1112,22 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_findFieldWithResolvedSlot_some  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.fieldName_mem_fields_of_compileSetStorage_ok  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmt_ite_ok_inv  -- private
-#print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
 -- #print axioms Compiler.Proofs.IRGeneration.stmtTouchesUnsupportedContractSurface_of_stmtListTouchesUnsupportedContractSurface_append_cons  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScope_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.mem_stmtNextScopeList_of_mem_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_validateScopedExprIdentifiers_core  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateScopedStmtListIdentifiers  -- private
-#print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_of_validateFunctionIdentifierReferences_prefix
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListIdentifiers  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_setStorage_of_validateFunctionIdentifierReferences  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.collectExprNames_mem_exprBoundNames_of_core  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListScopeDiscipline_scope_names  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letVar
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignVar
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_require
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_return
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_stop
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_letVar
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_assignVar
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_require
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_return
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_stop
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_singleton_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintSlots_other  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.encodeStorageAt_writeUintKeyedMappingSlots_singleton_other  -- private
@@ -1171,37 +1171,37 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compatValue_not_mem_scope_of_reservedPrefix  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_singleSlot
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_singleSlot
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorageAddr_singleSlot_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorageAddr_singleSlot
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorageAddr_singleSlot
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_mstore_single
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_tstore_single_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_tstore_single
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_tstore_single
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingUint_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingChain_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingChain_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingChain_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingWord_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety
 -- #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_preserves  -- private
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_aliasSlots
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStructMember2_singleSlot_of_slotSafety
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_aliasSlots
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
-#print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_scopeDiscipline
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_setStorage_of_validateIdentifierShapes_of_validateFunctionIdentifierReferences_of_compileStmtList_of_bodySurface
 -- #print axioms Compiler.Proofs.IRGeneration.terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec  -- private
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStep_ite
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListTouchesUnsupportedContractSurface_append  -- private
@@ -1262,18 +1262,18 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqReqNeqSetStorageParamStop_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.false_of_supportedStmtList_letCallerLetStorageReqEqLetStorageReqNeqSetStorageParamStop_surface  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface
-#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_of_surface_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface
-#print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
-#print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_surface_exceptMappingWrites
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_supportedStmtList_of_featureClosed_exceptMappingWrites
 #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterface.helperFreeStepInterface
-#print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.SupportedBodyInterfaceExceptMappingWrites.helperFreeStepInterface
 -- #print axioms Compiler.Proofs.IRGeneration.exprBoundNamesInScope_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore_of_scopeNamesIncluded  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore_of_scopeNamesIncluded  -- private
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListCompileCore
 #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_stmtListTerminalCore
-#print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_append
 -- #print axioms Compiler.Proofs.IRGeneration.scopeNamesIncluded_foldl_stmtNextScope  -- private
 #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericCore
 #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericWithHelpers
@@ -1290,10 +1290,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_append_of_not_continue  -- private
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel_step
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel_step
-#print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel_step
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_sizeOf_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_with_helpers_sizeOf_extraFuel
-#print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.exec_compileStmtList_generic_with_helpers_and_helper_ir_sizeOf_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic
 -- #print axioms Compiler.Proofs.IRGeneration.supported_function_body_correct_from_exact_state_generic_helper_steps_raw  -- private
 #print axioms Compiler.Proofs.IRGeneration.supported_function_body_with_helpers_and_helper_ir_goal_of_legacy_ir_goal_callsDisjoint
@@ -1314,21 +1314,21 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.compiledStmtStepWithHelpersAndHelperIR_internalCall
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_cons_internalCallAssign
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCompileCatalog_of_callCatalog_and_assignCatalog
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCompileCatalog_of_callCatalog_and_assignCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeBridgeCatalog_of_compileCatalog_and_semanticBridgeCatalog
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeRuntimeWitnessCatalog_of_runtimeHelperTable
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeCallSemanticKernelCatalog_of_supportedBody
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeSemanticKernelCatalog_of_callCatalog_and_assignCatalog
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperPerCalleeBridgeCatalog_of_compileCatalog_and_semanticBridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepBridgeCatalog_of_perCalleeBridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepBridgeCatalog_of_supportedBody_and_assignBridgeCatalog
 -- #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_call_of_bridgeCatalog  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_assign_of_bridgeCatalog  -- private
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_bridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_compileCatalog_and_semanticBridgeCatalog
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_compileCatalog_and_runtimeWitnessCatalog_and_semanticCoreCatalog
-#print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_semanticKernelCatalog
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_compileCatalog_and_semanticBridgeCatalog
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_compileCatalog_and_runtimeWitnessCatalog_and_semanticCoreCatalog
+-- TYPESIG_SORRY #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_supportedBodyHelpers_and_compileCatalog_and_runtimeWitnessCatalog_and_helperSummariesSound_and_semanticKernelCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSteps
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSteps_of_helperCallNames
