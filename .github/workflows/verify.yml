@@ -281,7 +281,7 @@ jobs:
 
   macro-fuzz:
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 60
+    timeout-minutes: 90
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     env:
@@ -302,7 +302,7 @@ jobs:
 
   build-compiler:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: 90
+    timeout-minutes: 120
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
@@ -359,11 +359,11 @@ jobs:
           cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
       - name: Save Lake compiler cache
-        if: always() && steps.setup-lean.outputs.cache-hit != 'true'
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: .lake
-          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Upload generated Yul
         uses: actions/upload-artifact@v4
