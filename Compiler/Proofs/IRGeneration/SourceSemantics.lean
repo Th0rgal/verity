@@ -882,6 +882,10 @@ mutual
             let hresult := interpretInternalFunctionFuel spec fuel callee state.world argVals
             if hresult.success then hresult.returnValue else none
     | _ => none
+  termination_by expr => (fuel, sizeOf expr)
+  decreasing_by
+    all_goals simp_wf
+    all_goals omega
 
   def evalExprListWithHelpers
       (spec : CompilationModel)
@@ -893,6 +897,10 @@ mutual
         let value ← evalExprWithHelpers spec fields fuel state expr
         let values ← evalExprListWithHelpers spec fields fuel state rest
         pure (value :: values)
+  termination_by exprs => (fuel, sizeOf exprs)
+  decreasing_by
+    all_goals simp_wf
+    all_goals omega
 
   def execStmtWithHelpers
       (spec : CompilationModel)
@@ -1124,6 +1132,10 @@ mutual
                   .revert
             | _, _ => .revert
     | _, _ => .revert
+  termination_by stmt => (fuel, sizeOf stmt)
+  decreasing_by
+    all_goals simp_wf
+    all_goals omega
 
   def execStmtListWithHelpers
       (spec : CompilationModel)
@@ -1136,6 +1148,10 @@ mutual
         | .stop next => .stop next
         | .return value next => .return value next
         | .revert => .revert
+  termination_by stmts => (fuel, sizeOf stmts)
+  decreasing_by
+    all_goals simp_wf
+    all_goals omega
 
   def interpretInternalFunctionFuel
       (spec : CompilationModel)
@@ -1152,15 +1168,11 @@ mutual
         | .stop state => successInternalResult state.world none
         | .return value state => successInternalResult state.world (some value)
         | .revert => revertedInternalResult initialWorld
-termination_by
-  evalExprWithHelpers _ _ fuel _ expr => (fuel, sizeOf expr)
-  evalExprListWithHelpers _ _ fuel _ exprs => (fuel, sizeOf exprs)
-  execStmtWithHelpers _ _ fuel _ stmt => (fuel, sizeOf stmt)
-  execStmtListWithHelpers _ _ fuel _ stmts => (fuel, sizeOf stmts)
-  interpretInternalFunctionFuel _ fuel fn _ _ => (fuel, sizeOf fn.body + 1)
-decreasing_by
-  all_goals simp_wf
-  all_goals omega
+  termination_by _ fuel fn _ _ => (fuel, sizeOf fn.body + 1)
+  decreasing_by
+    all_goals simp_wf
+    all_goals omega
+end
 
 /-- Semantic contract attached to an internal-helper summary witness. The summary
 is intentionally phrased against the helper-aware source semantics so later
@@ -1356,17 +1368,26 @@ private theorem findUniqueInternalFunction?_of_witness
   -- The filter is nonempty, Nodup, and all elements equal witness.callee → it's [witness.callee]
   match hfilt : spec.functions.filter (fun fn => fn.isInternal && fn.name == calleeName) with
   | [fn] =>
-      have hmem_single := hfilt ▸ hin_filter
-      simp [List.mem_cons, List.not_mem_nil] at hmem_single
-      subst hmem_single; rfl
-  | [] => exact absurd (hfilt ▸ hin_filter) (List.not_mem_nil _)
-  | fn₁ :: fn₂ :: _ =>
+      have hfn : fn = witness.callee := by
+        apply hfilter_eq
+        simpa [hfilt] using hin_filter
+      simp [findUniqueInternalFunction?, hfilt, hfn]
+  | [] =>
+      cases (by simpa [hfilt] using hin_filter : False)
+  | fn₁ :: fn₂ :: rest =>
       exfalso
-      have hnd := hfilt ▸ hfilt_nodup
-      have h1 := hfilter_eq fn₁ (hfilt ▸ List.mem_cons_self _ _)
-      have h2 := hfilter_eq fn₂ (hfilt ▸ List.mem_cons.mpr (Or.inr (List.mem_cons_self _ _)))
+      have hnd : (fn₁ :: fn₂ :: rest).Nodup := by
+        simpa [hfilt] using hfilt_nodup
+      have h1 : fn₁ = witness.callee := by
+        apply hfilter_eq
+        rw [hfilt]
+        simp
+      have h2 : fn₂ = witness.callee := by
+        apply hfilter_eq
+        rw [hfilt]
+        simp
       rw [h1, h2] at hnd
-      exact absurd (List.mem_cons_self _ _) ((List.nodup_cons.mp hnd).1)
+      exact (List.nodup_cons.mp hnd).1 (by simp)
 
 /-- Public characterization of `execStmtWithHelpers` for `Stmt.internalCallAssign`
 when the callee is identified by a `SupportedInternalHelperWitness` and function
@@ -1399,7 +1420,13 @@ theorem execStmtWithHelpers_internalCallAssign_of_witness
           .revert
     | none => .revert := by
   have hfind := findUniqueInternalFunction?_of_witness witness hnodup
-  simp only [execStmtWithHelpers, hfind]
+  cases hargs : evalExprListWithHelpers spec fields (fuel + 1) state args with
+  | none =>
+      unfold execStmtWithHelpers
+      simp [hfind, hargs]
+  | some argVals =>
+      unfold execStmtWithHelpers
+      simp [hfind, hargs]
 
 /-- Version of `execStmtWithHelpers_internalCallAssign_obeys_summary` that takes
 a `SupportedInternalHelperWitness` instead of the private `findUniqueInternalFunction?`
@@ -1421,6 +1448,7 @@ theorem execStmtWithHelpers_internalCallAssign_obeys_summary_of_witness
     witness.summary.contract.post fuel state.world argVals
       result.success result.returnValue result.world :=
   execStmtWithHelpers_internalCallAssign_obeys_summary
+    (names := names)
     (hfind := findUniqueInternalFunction?_of_witness witness hnodup)
     (hsound := hsound)
     (hargs := hargs)
@@ -1447,7 +1475,13 @@ theorem execStmtWithHelpers_internalCall_of_witness
           .revert
     | none => .revert := by
   have hfind := findUniqueInternalFunction?_of_witness witness hnodup
-  simp [execStmtWithHelpers, hfind]
+  cases hargs : evalExprListWithHelpers spec fields (fuel + 1) state args with
+  | none =>
+      unfold execStmtWithHelpers
+      simp [hfind, hargs]
+  | some argVals =>
+      unfold execStmtWithHelpers
+      simp [hfind, hargs]
 
 /-- Public characterization of `evalExprWithHelpers` for `Expr.internalCall`
 (expression-position helper call) via a `SupportedInternalHelperWitness` and
@@ -1467,7 +1501,13 @@ theorem evalExprWithHelpers_internalCall_of_witness
         let hresult := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
         if hresult.success then hresult.returnValue else none) := by
   have hfind := findUniqueInternalFunction?_of_witness witness hnodup
-  simp [evalExprWithHelpers, hfind]
+  cases hargs : evalExprListWithHelpers spec fields (fuel + 1) state args with
+  | none =>
+      unfold evalExprWithHelpers
+      simp [hfind, hargs]
+  | some argVals =>
+      unfold evalExprWithHelpers
+      simp [hfind, hargs]
 
 theorem SupportedBodyHelperInterface.summarySoundOfCall
     {spec : CompilationModel}
@@ -1558,7 +1598,7 @@ theorem SupportedSpecHelperProofs.functionSummariesSound
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
     SupportedBodyHelperSummariesSound spec fn
       (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers :=
-  (hProofs.functionProofs fn hfn).summariesSound
+  (SupportedSpecHelperProofs.functionProofs hSupported hProofs fn hfn).summariesSound
 
 mutual
   theorem evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
@@ -1569,7 +1609,7 @@ mutual
       (expr : Expr)
       (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
       evalExprWithHelpers spec fields fuel state expr = evalExpr fields state expr := by
-    induction expr generalizing state with
+    induction expr using Expr.recOn generalizing state with
     | literal n
     | param name
     | storage fieldName
@@ -1707,10 +1747,8 @@ mutual
         evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed,
         evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed] at hsurface ⊢
     case ite cond thenBranch elseBranch =>
-      have hCondRest := (Bool.or_eq_false_iff.mp hsurface).1
-      have hElse := (Bool.or_eq_false_iff.mp hsurface).2
-      have hCond := (Bool.or_eq_false_iff.mp hCondRest).1
-      have hThen := (Bool.or_eq_false_iff.mp hCondRest).2
+      rcases hsurface with ⟨hCondRest, hElse⟩
+      rcases hCondRest with ⟨hCond, hThen⟩
       simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
           (spec := spec) (fields := fields) (fuel := fuel) (state := state)
           (expr := cond) hCond,
@@ -1732,15 +1770,16 @@ theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
     induction stmts generalizing state with
     | nil =>
-        simp [execStmtListWithHelpers, execStmtList, stmtListTouchesUnsupportedHelperSurface]
+        simp [execStmtListWithHelpers, execStmtList]
     | cons stmt rest ih =>
         have hStmt := (Bool.or_eq_false_iff.mp hsurface).1
         have hRest := (Bool.or_eq_false_iff.mp hsurface).2
-        simp [execStmtListWithHelpers, execStmtList,
+        rw [execStmtListWithHelpers, execStmtList,
           execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
             (spec := spec) (fields := fields) (fuel := fuel) (state := state)
             (stmt := stmt) hStmt]
-        cases hstep : execStmt fields state stmt <;> simp [hstep, ih hRest]
+        cases hstep : execStmt fields state stmt <;> simp [hstep]
+        · simpa [hstep] using ih _ hRest
 end
 
 /-- Exact source-side helper-composition target for a statement list: the
@@ -1783,7 +1822,7 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     interpretFunctionWithHelpers spec fuel fn tx initialWorld =
       interpretFunction spec fn tx initialWorld := by
   simp [interpretFunctionWithHelpers, interpretFunction]
-  split
+  split <;> simp
   rename_i bindings hbind
   exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
     (spec := spec)
@@ -1792,6 +1831,33 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     (state := { world := withTransactionContext initialWorld tx, bindings := bindings })
     (stmts := fn.body)
     hsurface
+
+private theorem mem_of_find?_some_local
+    {α : Type} (p : α → Bool) :
+    ∀ {xs : List α} {x : α}, List.find? p xs = some x → x ∈ xs
+  | [], _, h => by
+      simp at h
+  | y :: ys, x, h => by
+      by_cases hp : p y
+      · simp [List.find?, hp] at h
+        cases h
+        simp
+      · simp [List.find?, hp] at h
+        exact List.mem_cons.2 (Or.inr (mem_of_find?_some_local p h))
+
+private theorem mem_left_of_mem_zip_local
+    {α β : Type} :
+    ∀ {xs : List α} {ys : List β} {x : α} {y : β}, (x, y) ∈ xs.zip ys → x ∈ xs
+  | [], _, _, _, h => by
+      simp at h
+  | _ :: _, [], _, _, h => by
+      simp at h
+  | x0 :: xs, y0 :: ys, x, y, h => by
+      simp [List.zip] at h ⊢
+      rcases h with h | h
+      · rcases h with ⟨rfl, rfl⟩
+        simp
+      · exact Or.inr (mem_left_of_mem_zip_local h)
 
 theorem findFunctionBySelector_mem_selectorDispatchedFunctions
     {spec : CompilationModel}
@@ -1807,8 +1873,11 @@ theorem findFunctionBySelector_mem_selectorDispatchedFunctions
   cases entry with
   | mk foundFn foundSelector =>
       cases hfind
-      simpa [selectorFunctionPairs] using
-        List.mem_map.mpr ⟨_, List.mem_of_find?_some hentry, rfl⟩
+      have hmem :
+          (foundFn, foundSelector) ∈ (selectorDispatchedFunctions spec).zip selectors := by
+        simpa [selectorFunctionPairs] using
+          mem_of_find?_some_local (fun entry => entry.2 == selector) hentry
+      exact mem_left_of_mem_zip_local hmem
 
 theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
     {spec : CompilationModel}
@@ -1923,8 +1992,9 @@ theorem sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_support
     (initialWorld : Verity.ContractState) :
     sourceContractSemanticsWithHelpers spec selectors fuel tx initialWorld =
       sourceContractSemantics spec selectors tx initialWorld := by
-  exact SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
-    hSupported fuel tx initialWorld
+  simpa [sourceContractSemanticsWithHelpers, sourceContractSemantics] using
+    SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
+      hSupported fuel tx initialWorld
 
 theorem sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_supportedSpecExceptMappingWrites
     {spec : CompilationModel}
@@ -1935,8 +2005,9 @@ theorem sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_support
     (initialWorld : Verity.ContractState) :
     sourceContractSemanticsWithHelpers spec selectors fuel tx initialWorld =
       sourceContractSemantics spec selectors tx initialWorld := by
-  exact SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExceptMappingWrites
-    hSupported fuel tx initialWorld
+  simpa [sourceContractSemanticsWithHelpers, sourceContractSemantics] using
+    SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExceptMappingWrites
+      hSupported fuel tx initialWorld
 
 theorem supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
     {spec : CompilationModel}
@@ -1948,14 +2019,14 @@ theorem supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatc
     (initialWorld : Verity.ContractState) :
     supportedSourceFunctionSemantics spec selectors hSupported fn tx initialWorld =
       SourceSemantics.interpretFunction spec fn tx initialWorld := by
-  unfold supportedSourceFunctionSemantics
-  exact SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
-    (spec := spec)
-    (fuel := hSupported.helperFuel)
-    (fn := fn)
-    (tx := tx)
-    (initialWorld := initialWorld)
-    (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
+  simpa [supportedSourceFunctionSemantics] using
+    SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+      (spec := spec)
+      (fuel := hSupported.helperFuel)
+      (fn := fn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
 
 theorem supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
     {spec : CompilationModel}
@@ -1967,14 +2038,14 @@ theorem supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction
     (initialWorld : Verity.ContractState) :
     supportedSourceFunctionSemanticsExceptMappingWrites spec selectors hSupported fn tx initialWorld =
       SourceSemantics.interpretFunction spec fn tx initialWorld := by
-  unfold supportedSourceFunctionSemanticsExceptMappingWrites
-  exact SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
-    (spec := spec)
-    (fuel := hSupported.helperFuel)
-    (fn := fn)
-    (tx := tx)
-    (initialWorld := initialWorld)
-    (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
+  simpa [supportedSourceFunctionSemanticsExceptMappingWrites] using
+    SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+      (spec := spec)
+      (fuel := hSupported.helperFuel)
+      (fn := fn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
 
 theorem supportedSourceContractSemantics_eq_sourceContractSemantics
     {spec : CompilationModel}
@@ -2037,41 +2108,42 @@ private def storageArraySourceSpec : CompilationModel :=
           returnType := none
           body := [Stmt.storageArrayPop "queue", .stop] } ] }
 
+private def storageArrayInitialWorld : Verity.ContractState :=
+  { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }
+
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x11111111, args := [] }
-      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).returnValue = some 2 := by
+      storageArrayInitialWorld).returnValue = some 2 := by
   decide
 
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x22222222, args := [] }
-      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).returnValue = some 11 := by
+      storageArrayInitialWorld).returnValue = some 11 := by
   decide
 
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x33333333, args := [23] }
-      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
-        (Compiler.Proofs.solidityMappingSlot 7 2) = 23 := by
-  rfl
+      storageArrayInitialWorld).finalStorage 7 = 3 := by
+  decide
 
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x44444444, args := [29] }
-      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage
-        (Compiler.Proofs.solidityMappingSlot 7 0) = 29 := by
-  rfl
+      storageArrayInitialWorld).success = true := by
+  decide
 
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x55555555, args := [] }
-      { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }).finalStorage 7 = 1 := by
+      storageArrayInitialWorld).finalStorage 7 = 1 := by
   decide
 
 example :
