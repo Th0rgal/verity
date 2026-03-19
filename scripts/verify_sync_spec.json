@@ -167,7 +167,7 @@
     "checks": 5,
     "build": 25,
     "build-audits": 20,
-    "macro-fuzz": 45,
+    "macro-fuzz": 60,
     "build-compiler": 90,
     "compiler-audits": 45,
     "compiler-regressions": 60,
