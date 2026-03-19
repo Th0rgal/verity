@@ -167,8 +167,8 @@
     "checks": 5,
     "build": 25,
     "build-audits": 20,
-    "macro-fuzz": 20,
-    "build-compiler": 60,
+    "macro-fuzz": 35,
+    "build-compiler": 90,
     "compiler-audits": 45,
     "compiler-regressions": 60,
     "lean-profile": 45,
@@ -309,7 +309,7 @@
       {
         "name": "Save Lake compiler cache",
         "uses": "actions/cache/save@v4",
-        "if": "success() && steps.setup-lean.outputs.cache-hit != 'true'",
+        "if": "always() && steps.setup-lean.outputs.cache-hit != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
