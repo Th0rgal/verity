@@ -1533,6 +1533,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtListWithHelpersConservativeExtensionGoal_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.mem_of_find?_some_local  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.mem_left_of_mem_zip_local  -- private
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findFunctionBySelector_mem_selectorDispatchedFunctions
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExceptMappingWrites
@@ -1801,4 +1803,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1670 theorems/lemmas (1238 public, 432 private)
+-- Total: 1672 theorems/lemmas (1238 public, 434 private)
