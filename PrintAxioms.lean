@@ -817,10 +817,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsMatchIRVars_setVar_bindValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVars_applyBindingsToIRState
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_sload_of_runtimeStateMatchesIR
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_param_of_exact_bindings  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_localVar_of_exact_bindings  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_param_of_expr_bindings  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_localVar_of_expr_bindings  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_param_of_exact_bindings
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_localVar_of_exact_bindings
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_param_of_expr_bindings
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_localVar_of_expr_bindings
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_lt_evmModulus
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_and
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_or
@@ -1713,4 +1713,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1582 theorems/lemmas (1070 public, 408 private, 104 sorry'd)
+-- Total: 1582 theorems/lemmas (1074 public, 408 private, 100 sorry'd)

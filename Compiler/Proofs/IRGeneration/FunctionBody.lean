@@ -988,7 +988,16 @@ theorem eval_compileExpr_param_of_exact_bindings
     (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
     (hpresent : exprBoundNamesPresent (.param name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
-      some (SourceSemantics.evalExpr fields runtime (.param name)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.param name)) := by
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := evalIRExpr_ident_of_exact_bindings hexact name
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.param name) = some value := by
+    change some (SourceSemantics.lookupValue runtime.bindings name) = some value
+    exact congrArg some (lookupValue_eq_of_lookupBinding?_some hlookup)
+  have hidentLift :=
+    congrArg (fun x => x.bind fun a => some (some a)) hident
+  simpa [hsource] using hidentLift
 -- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
 -- SORRY'D:   have hident := evalIRExpr_ident_of_exact_bindings hexact name
 -- SORRY'D:   rw [hlookup] at hident
@@ -1006,7 +1015,16 @@ theorem eval_compileExpr_localVar_of_exact_bindings
     (hexact : bindingsExactlyMatchIRVars runtime.bindings state)
     (hpresent : exprBoundNamesPresent (.localVar name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
-      some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := evalIRExpr_ident_of_exact_bindings hexact name
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) = some value := by
+    change some (SourceSemantics.lookupValue runtime.bindings name) = some value
+    exact congrArg some (lookupValue_eq_of_lookupBinding?_some hlookup)
+  have hidentLift :=
+    congrArg (fun x => x.bind fun a => some (some a)) hident
+  simpa [hsource] using hidentLift
 -- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
 -- SORRY'D:   have hident := evalIRExpr_ident_of_exact_bindings hexact name
 -- SORRY'D:   rw [hlookup] at hident
@@ -1024,7 +1042,16 @@ theorem eval_compileExpr_param_of_expr_bindings
     (hexact : bindingsExactlyMatchIRVarsOnExpr (.param name) runtime.bindings state)
     (hpresent : exprBoundNamesPresent (.param name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
-      some (SourceSemantics.evalExpr fields runtime (.param name)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.param name)) := by
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := hexact name (by simp [exprBoundNames])
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.param name) = some value := by
+    change some (SourceSemantics.lookupValue runtime.bindings name) = some value
+    exact congrArg some (lookupValue_eq_of_lookupBinding?_some hlookup)
+  have hidentLift :=
+    congrArg (fun x => x.bind fun a => some (some a)) hident
+  simpa [evalIRExpr, hsource] using hidentLift
 -- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
 -- SORRY'D:   have hident := hexact name (by simp [exprBoundNames])
 -- SORRY'D:   rw [hlookup] at hident
@@ -1042,7 +1069,16 @@ theorem eval_compileExpr_localVar_of_expr_bindings
     (hexact : bindingsExactlyMatchIRVarsOnExpr (.localVar name) runtime.bindings state)
     (hpresent : exprBoundNamesPresent (.localVar name) runtime.bindings) :
     evalIRExpr state (YulExpr.ident name) =
-      some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.localVar name)) := by
+  rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
+  have hident := hexact name (by simp [exprBoundNames])
+  rw [hlookup] at hident
+  have hsource : SourceSemantics.evalExpr fields runtime (.localVar name) = some value := by
+    change some (SourceSemantics.lookupValue runtime.bindings name) = some value
+    exact congrArg some (lookupValue_eq_of_lookupBinding?_some hlookup)
+  have hidentLift :=
+    congrArg (fun x => x.bind fun a => some (some a)) hident
+  simpa [evalIRExpr, hsource] using hidentLift
 -- SORRY'D:   rcases hpresent name (by simp [exprBoundNames]) with ⟨value, hlookup⟩
 -- SORRY'D:   have hident := hexact name (by simp [exprBoundNames])
 -- SORRY'D:   rw [hlookup] at hident
