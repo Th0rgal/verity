@@ -171,13 +171,20 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
         ]]
 
   | Stmt.forEach varName count body => do
-      -- Bounded loop: for { let i := 0 } lt(i, count) { i := add(i, 1) } { body } (#179)
+      -- Bounded loop: cache the trip count once, then expose the current index
+      -- through the user binder on each iteration.
       let countExpr ← compileExpr fields dynamicSource count
       let bodyStmts ← compileStmtList fields events errors dynamicSource internalRetNames isInternal (varName :: inScopeNames) body
+      let forEachUsedNames :=
+        varName :: inScopeNames ++ collectExprNames count ++ collectStmtListNames body
+      let countName := pickFreshName "__for_each_count" forEachUsedNames
       let initStmts := [YulStmt.let_ varName (YulExpr.lit 0)]
-      let condExpr := YulExpr.call "lt" [YulExpr.ident varName, countExpr]
+      let condExpr := YulExpr.call "lt" [YulExpr.ident varName, YulExpr.ident countName]
       let postStmts := [YulStmt.assign varName (YulExpr.call "add" [YulExpr.ident varName, YulExpr.lit 1])]
-      pure [YulStmt.for_ initStmts condExpr postStmts bodyStmts]
+      pure [YulStmt.block [
+        YulStmt.let_ countName countExpr,
+        YulStmt.for_ initStmts condExpr postStmts bodyStmts
+      ]]
 
   | Stmt.emit eventName args => do
       compileEmit fields events dynamicSource eventName args

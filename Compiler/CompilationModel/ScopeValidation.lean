@@ -3,6 +3,7 @@ import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.LogicalPurity
 import Compiler.CompilationModel.EcmAxiomCollection
+import Compiler.CompilationModel.UsageAnalysis
 
 namespace Compiler.CompilationModel
 
@@ -307,6 +308,8 @@ def validateScopedStmtIdentifiers
   | Stmt.forEach varName count body => do
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount count
       let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams (varName :: localScope) constructorArgCount body
+      if collectStmtListAssignedNames body |>.contains varName then
+        throw s!"Compilation error: {context} assigns to forEach binder '{varName}' inside the loop body"
       pure localScope
   | Stmt.internalCall _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args

@@ -1741,6 +1741,42 @@ private def reservedForEachBinderSpec : CompilationModel := {
   ]
 }
 
+private def assigningForEachBinderSpec : CompilationModel := {
+  name := "AssigningForEachBinder"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := []
+      returnType := none
+      body := [
+        Stmt.forEach "i" (Expr.literal 1) [
+          Stmt.assignVar "i" (Expr.literal 7)
+        ],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def cachedForEachCountSpec : CompilationModel := {
+  name := "CachedForEachCount"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "store"
+      params := [{ name := "count", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.forEach "i" (Expr.param "count") [
+          Stmt.setStorage "value" (Expr.localVar "i")
+        ],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def reservedInternalAssignBinderSpec : CompilationModel := {
   name := "ReservedInternalAssignBinder"
   fields := [{ name := "value", ty := FieldType.uint256 }]
@@ -2513,6 +2549,10 @@ set_option maxRecDepth 4096 in
     reservedForEachBinderSpec
     "local binder '__loop_idx' uses reserved compiler prefix '__'"
   expectCompileErrorContains
+    "forEach binders cannot be reassigned from the loop body"
+    assigningForEachBinderSpec
+    "assigns to forEach binder 'i' inside the loop body"
+  expectCompileErrorContains
     "reserved compiler prefix is rejected in internal call assignment binders"
     reservedInternalAssignBinderSpec
     "local binder '__ret' uses reserved compiler prefix '__'"
@@ -2526,6 +2566,12 @@ set_option maxRecDepth 4096 in
   expectTrue "effect-only external call bind lowers to a bare Yul call"
     (contains effectOnlyExternalBindYul "notify(next)" &&
       !(contains effectOnlyExternalBindYul "let  := notify(next)"))
+  let cachedForEachCountYul ← expectCompileToYul
+    "forEach count is cached before lowering to Yul"
+    cachedForEachCountSpec
+  expectTrue "forEach lowering caches the trip count once"
+    (contains cachedForEachCountYul "let __for_each_count := count" &&
+      contains cachedForEachCountYul "lt(i, __for_each_count)")
   expectCompileErrorContains
     "effect-only external call bind still rejects non-void externals"
     effectOnlyExternalBindMismatchSpec
