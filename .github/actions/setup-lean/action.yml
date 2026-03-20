@@ -189,14 +189,14 @@ runs:
         path: .lake/build
 
     - name: Mount main Lake build fallback sticky disk
-      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true' && steps.persistence.outputs.build_main_fallback_sticky_key != ''
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true' && steps.persistence.outputs.build_main_fallback_sticky_key != '' && steps.persistence.outputs.build_main_fallback_sticky_key != steps.persistence.outputs.build_sticky_disk_key
       uses: useblacksmith/stickydisk@v1
       with:
         key: ${{ steps.persistence.outputs.build_main_fallback_sticky_key }}
         path: ${{ runner.temp }}/setup-lean-fallback/build
 
     - name: Seed Lake build sticky disk from main fallback
-      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true' && steps.persistence.outputs.build_main_fallback_sticky_key != ''
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true' && steps.persistence.outputs.build_main_fallback_sticky_key != '' && steps.persistence.outputs.build_main_fallback_sticky_key != steps.persistence.outputs.build_sticky_disk_key
       shell: bash
       run: |
         if find .lake/build -mindepth 1 -print -quit | grep -q .; then
