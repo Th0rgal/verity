@@ -990,19 +990,19 @@ theorem stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper
--- SORRY'D:       rw [hstmtSurface] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtSurface] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Helper-surface-closed statement lists also satisfy the narrower exact
 -- SORRY'D: internal-helper step interface vacuously. -/
@@ -1013,21 +1013,21 @@ theorem stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListInternalHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hstmtInternal : stmtTouchesInternalHelperSurface stmt = false :=
--- SORRY'D:         stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper
--- SORRY'D:       rw [hstmtInternal] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListInternalHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hstmtInternal : stmtTouchesInternalHelperSurface stmt = false :=
+        stmtTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtInternal] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Helper-surface-closed statement lists also satisfy the direct
 -- SORRY'D: statement-position internal-helper interface vacuously. -/
@@ -1038,21 +1038,21 @@ theorem stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hstmtDirect : stmtTouchesDirectInternalHelperCallSurface stmt = false :=
--- SORRY'D:         stmtTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed hstmtSurface
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper
--- SORRY'D:       rw [hstmtDirect] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hstmtDirect : stmtTouchesDirectInternalHelperCallSurface stmt = false :=
+        stmtTouchesDirectInternalHelperCallSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtDirect] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Helper-surface-closed statement lists also satisfy the direct helper-return
 -- SORRY'D: binding interface vacuously. -/
@@ -1063,21 +1063,21 @@ theorem stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hstmtDirect : stmtTouchesDirectInternalHelperAssignSurface stmt = false :=
--- SORRY'D:         stmtTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceClosed hstmtSurface
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper
--- SORRY'D:       rw [hstmtDirect] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hstmtDirect : stmtTouchesDirectInternalHelperAssignSurface stmt = false :=
+        stmtTouchesDirectInternalHelperAssignSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtDirect] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Assemble the coarser direct helper interface from the two source-summary
 -- SORRY'D: shapes it still contains: void helper statements and helper-return bindings. -/
@@ -1091,23 +1091,23 @@ theorem stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assig
       StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts)
     (hassign :
       StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts) :
-    StmtListDirectInternalHelperStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction hcall generalizing hassign with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadCall htailCall ih =>
--- SORRY'D:       cases hassign with
--- SORRY'D:       | cons hheadAssign htailAssign =>
--- SORRY'D:           refine .cons ?_ (ih htailAssign)
--- SORRY'D:           intro hdirect
--- SORRY'D:           have hsplit := stmtTouchesDirectInternalHelperSurface_eq_split stmt
--- SORRY'D:           by_cases hcallStmt : stmtTouchesDirectInternalHelperCallSurface stmt = true
--- SORRY'D:           · exact hheadCall hcallStmt
--- SORRY'D:           · have hassignStmt : stmtTouchesDirectInternalHelperAssignSurface stmt = true := by
--- SORRY'D:               rw [hsplit] at hdirect
--- SORRY'D:               rw [hcallStmt] at hdirect
--- SORRY'D:               simpa using hdirect
--- SORRY'D:             exact hheadAssign hassignStmt
+    StmtListDirectInternalHelperStepInterface runtimeContract spec fields scope stmts := by
+  induction hcall with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadCall htailCall ih =>
+      cases hassign with
+      | cons hheadAssign htailAssign =>
+          refine .cons ?_ (ih htailAssign)
+          intro hdirect
+          by_cases hcallFalse : stmtTouchesDirectInternalHelperCallSurface stmt = false
+          · have hassignTrue : stmtTouchesDirectInternalHelperAssignSurface stmt = true := by
+              simpa [stmtTouchesDirectInternalHelperSurface_eq_split, hcallFalse] using hdirect
+            exact hheadAssign hassignTrue
+          · have hcallTrue : stmtTouchesDirectInternalHelperCallSurface stmt = true := by
+              cases hcallStmt : stmtTouchesDirectInternalHelperCallSurface stmt <;>
+                simp [hcallStmt] at hcallFalse ⊢
+            exact hheadCall hcallTrue
 
 -- SORRY'D: /-- Helper-surface-closed statement lists also satisfy the direct
 -- SORRY'D: statement-position internal-helper interface vacuously. -/
@@ -1145,21 +1145,21 @@ theorem stmtListExprInternalHelperStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListExprInternalHelperStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hstmtExpr : stmtTouchesExprInternalHelperSurface stmt = false :=
--- SORRY'D:         stmtTouchesExprInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper
--- SORRY'D:       rw [hstmtExpr] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListExprInternalHelperStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hstmtExpr : stmtTouchesExprInternalHelperSurface stmt = false :=
+        stmtTouchesExprInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtExpr] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Helper-surface-closed statement lists also satisfy the structural
 -- SORRY'D: internal-helper interface vacuously. -/
@@ -1170,21 +1170,21 @@ theorem stmtListStructuralInternalHelperStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hstmtStructural : stmtTouchesStructuralInternalHelperSurface stmt = false :=
--- SORRY'D:         stmtTouchesStructuralInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper
--- SORRY'D:       rw [hstmtStructural] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hstmtStructural : stmtTouchesStructuralInternalHelperSurface stmt = false :=
+        stmtTouchesStructuralInternalHelperSurface_eq_false_of_helperSurfaceClosed hstmtSurface
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper
+      rw [hstmtStructural] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Assemble the coarse internal-helper interface from the narrower proof-cut
 -- SORRY'D: interfaces that match the actual proof obligations: direct helper statements,
@@ -1201,27 +1201,31 @@ theorem stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepIn
       StmtListExprInternalHelperStepInterface runtimeContract spec fields scope stmts)
     (hstruct :
       StmtListStructuralInternalHelperStepInterface runtimeContract spec fields scope stmts) :
-    StmtListInternalHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction hdirect generalizing hexpr hstruct with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadDirect htailDirect ih =>
--- SORRY'D:       cases hexpr with
--- SORRY'D:       | cons hheadExpr htailExpr =>
--- SORRY'D:           cases hstruct with
--- SORRY'D:           | cons hheadStruct htailStruct =>
--- SORRY'D:               refine .cons ?_ (ih htailExpr htailStruct)
--- SORRY'D:               intro hhelper
--- SORRY'D:               have hsplit := stmtTouchesInternalHelperSurface_eq_split stmt
--- SORRY'D:               by_cases hdirectStmt : stmtTouchesDirectInternalHelperSurface stmt = true
--- SORRY'D:               · exact hheadDirect hdirectStmt
--- SORRY'D:               · by_cases hexprStmt : stmtTouchesExprInternalHelperSurface stmt = true
--- SORRY'D:                 · exact hheadExpr hexprStmt
--- SORRY'D:                 · have hstructStmt : stmtTouchesStructuralInternalHelperSurface stmt = true := by
--- SORRY'D:                     rw [hsplit] at hhelper
--- SORRY'D:                     rw [hdirectStmt, hexprStmt] at hhelper
--- SORRY'D:                     simpa using hhelper
--- SORRY'D:                   exact hheadStruct hstructStmt
+    StmtListInternalHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by
+  induction hdirect with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadDirect htailDirect ih =>
+      cases hexpr with
+      | cons hheadExpr htailExpr =>
+          cases hstruct with
+          | cons hheadStruct htailStruct =>
+              refine .cons ?_ (ih htailExpr htailStruct)
+              intro hhelper
+              by_cases hdirectFalse : stmtTouchesDirectInternalHelperSurface stmt = false
+              · by_cases hexprFalse : stmtTouchesExprInternalHelperSurface stmt = false
+                · have hstructTrue : stmtTouchesStructuralInternalHelperSurface stmt = true := by
+                    simpa [stmtTouchesInternalHelperSurface_eq_split, hdirectFalse, hexprFalse]
+                      using hhelper
+                  exact hheadStruct hstructTrue
+                · have hexprTrue : stmtTouchesExprInternalHelperSurface stmt = true := by
+                    cases hexprStmt : stmtTouchesExprInternalHelperSurface stmt <;>
+                      simp [hexprStmt] at hexprFalse ⊢
+                  exact hheadExpr hexprTrue
+              · have hdirectTrue : stmtTouchesDirectInternalHelperSurface stmt = true := by
+                  cases hdirectStmt : stmtTouchesDirectInternalHelperSurface stmt <;>
+                    simp [hdirectStmt] at hdirectFalse ⊢
+                exact hheadDirect hdirectTrue
 
 -- SORRY'D: /-- Helper-surface-closed statement lists also satisfy the residual non-helper
 -- SORRY'D: exact step interface vacuously. -/
@@ -1232,19 +1236,19 @@ theorem stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed
     {scope : List String}
     {stmts : List Stmt}
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).1
--- SORRY'D:       have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := by
--- SORRY'D:         simpa [stmtListTouchesUnsupportedHelperSurface] using (Bool.or_eq_false.mp hsurface).2
--- SORRY'D:       refine .cons ?_ (ih hrestSurface)
--- SORRY'D:       intro hhelper _
--- SORRY'D:       rw [hstmtSurface] at hhelper
--- SORRY'D:       cases hhelper
+    StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp <| by
+        simpa [stmtListTouchesUnsupportedHelperSurface] using hsurface
+      have hstmtSurface : stmtTouchesUnsupportedHelperSurface stmt = false := hsplit.1
+      have hrestSurface : stmtListTouchesUnsupportedHelperSurface rest = false := hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro hhelper _
+      rw [hstmtSurface] at hhelper
+      cases hhelper
 
 -- SORRY'D: /-- Assemble the coarse exact helper-surface step interface from the split
 -- SORRY'D: interfaces: genuine internal-helper heads are proved through the narrow helper
@@ -1260,18 +1264,21 @@ theorem stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface
       StmtListInternalHelperSurfaceStepInterface runtimeContract spec fields scope stmts)
     (hresidual :
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope stmts) :
-    StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction hinternal generalizing hresidual with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hheadInternal htailInternal ih =>
--- SORRY'D:       cases hresidual with
--- SORRY'D:       | cons hheadResidual htailResidual =>
--- SORRY'D:           refine .cons ?_ (ih htailResidual)
--- SORRY'D:           intro hhelper
--- SORRY'D:           by_cases hactual : stmtTouchesInternalHelperSurface stmt = true
--- SORRY'D:           · exact hheadInternal hactual
--- SORRY'D:           · exact hheadResidual hhelper hactual
+    StmtListHelperSurfaceStepInterface runtimeContract spec fields scope stmts := by
+  induction hinternal with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hheadInternal htailInternal ih =>
+      cases hresidual with
+      | cons hheadResidual htailResidual =>
+          refine .cons ?_ (ih htailResidual)
+          intro hhelper
+          by_cases hactual : stmtTouchesInternalHelperSurface stmt = true
+          · exact hheadInternal hactual
+          · have hactualFalse : stmtTouchesInternalHelperSurface stmt = false := by
+              cases hactual' : stmtTouchesInternalHelperSurface stmt <;>
+                simp [hactual'] at hactual ⊢
+            exact hheadResidual hhelper hactualFalse
 
 -- SORRY'D: /-- Lift an existing helper-free generic statement-list proof into the
 -- SORRY'D: helper-aware induction world when the whole list is helper-surface closed. This
