@@ -3215,10 +3215,10 @@ theorem bindingsExactlyMatchIRVarsOnScope_setVar_bindValue
     (world : Verity.ContractState)
     (tx : IRTransaction) :
     SourceSemantics.encodeStorage spec (SourceSemantics.withTransactionContext world tx) =
-      SourceSemantics.encodeStorage spec world := by sorry
--- SORRY'D:   funext slot
--- SORRY'D:   simp [SourceSemantics.encodeStorage, SourceSemantics.withTransactionContext,
--- SORRY'D:     SourceSemantics.encodeStorageAt]
+      SourceSemantics.encodeStorage spec world := by
+  funext slot
+  simp [SourceSemantics.encodeStorage, SourceSemantics.withTransactionContext,
+    SourceSemantics.encodeStorageAt]
 
 def stmtResultMatchesIRExec
     (fields : List Field) :

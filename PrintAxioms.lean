@@ -749,7 +749,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_rawArgBindings_fold_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_eq_none_of_not_mem  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Function.lookupBinding?_some_of_mem  -- private
--- #print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_runtime  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.Function.initialIRStateForTx_matches_runtime
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_param_state_exact
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_body_correct_from_exact_state_core_extraFuel
@@ -886,7 +886,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_bindValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeEvents_withTransactionContext
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeStorage_withTransactionContext  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.encodeStorage_withTransactionContext
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_letVar_core  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_assignVar_core  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmt_return_core  -- sorry'd
@@ -1724,4 +1724,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1590 theorems/lemmas (1081 public, 416 private, 93 sorry'd)
+-- Total: 1590 theorems/lemmas (1083 public, 416 private, 91 sorry'd)
