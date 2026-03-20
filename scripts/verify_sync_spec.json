@@ -52,6 +52,7 @@
     "checks",
     "timeout-watchdog",
     "build",
+    "prepare-macro-fuzz",
     "build-audits",
     "macro-fuzz",
     "build-compiler-binaries",
@@ -77,6 +78,11 @@
       "changes",
       "checks"
     ],
+    "prepare-macro-fuzz": [
+      "changes",
+      "checks",
+      "build"
+    ],
     "build-audits": [
       "changes",
       "checks",
@@ -85,7 +91,7 @@
     "macro-fuzz": [
       "changes",
       "checks",
-      "build"
+      "prepare-macro-fuzz"
     ],
     "build-compiler-binaries": [
       "changes",
@@ -152,6 +158,7 @@
     "failure-hints": [
       "checks",
       "build",
+      "prepare-macro-fuzz",
       "build-audits",
       "macro-fuzz",
       "build-compiler-binaries",
@@ -171,8 +178,9 @@
     "checks": null,
     "timeout-watchdog": "needs.checks.result == 'success'",
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
+    "prepare-macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
     "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
-    "macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
+    "macro-fuzz": "needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
     "build-compiler-binaries": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "generate-yul": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "generate-yul-patched": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
@@ -191,6 +199,7 @@
     "checks": "blacksmith-2vcpu-ubuntu-2404",
     "timeout-watchdog": "blacksmith-2vcpu-ubuntu-2404",
     "build": "blacksmith-8vcpu-ubuntu-2404",
+    "prepare-macro-fuzz": "blacksmith-16vcpu-ubuntu-2404",
     "build-audits": "blacksmith-4vcpu-ubuntu-2404",
     "macro-fuzz": "blacksmith-8vcpu-ubuntu-2404",
     "build-compiler-binaries": "blacksmith-16vcpu-ubuntu-2404",
@@ -211,6 +220,7 @@
     "checks": 5,
     "timeout-watchdog": 5,
     "build": 35,
+    "prepare-macro-fuzz": 75,
     "build-audits": 20,
     "macro-fuzz": 90,
     "build-compiler-binaries": 75,
@@ -312,8 +322,8 @@
         }
       },
       {
-        "name": "Prebuild shared downstream Lean targets",
-        "run": "set -o pipefail\nlake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log"
+        "name": "Prebuild shared audit Lean targets",
+        "run": "set -o pipefail\nlake build PrintAxioms 2>&1 | tee -a lake-build.log"
       },
       {
         "name": "Upload prepared Lean workspace build",
@@ -339,6 +349,43 @@
         "with": {
           "path": ".lake",
           "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
+        }
+      }
+    ],
+    "prepare-macro-fuzz": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Build macro round-trip fuzz executable",
+        "run": "stdbuf -oL -eL lake build macro-roundtrip-fuzz"
+      },
+      {
+        "name": "Upload macro-fuzz Lean workspace build",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "lean-workspace-macro-fuzz-build",
+          "path": "lean-workspace-macro-fuzz-build.tar"
         }
       }
     ],
@@ -396,7 +443,7 @@
         "name": "Download prepared Lean workspace build",
         "uses": "actions/download-artifact@v4",
         "with": {
-          "name": "lean-workspace-build"
+          "name": "lean-workspace-macro-fuzz-build"
         }
       },
       {
@@ -730,8 +777,7 @@
     "check_lean_warning_regression.py --log lake-build.log"
   ],
   "required_build_run_commands": [
-    "lake build PrintAxioms",
-    "macro-roundtrip-fuzz"
+    "lake build PrintAxioms"
   ],
   "expected_build_audit_commands": [
     "check_split_package_builds.py",
@@ -801,6 +847,9 @@
     "build": [
       "lean-workspace-build"
     ],
+    "prepare-macro-fuzz": [
+      "lean-workspace-macro-fuzz-build"
+    ],
     "build-audits": [
       "axiom-dependency-report"
     ],
@@ -831,6 +880,9 @@
     "build": [
       "lean-workspace-build.tar"
     ],
+    "prepare-macro-fuzz": [
+      "lean-workspace-macro-fuzz-build.tar"
+    ],
     "build-audits": [
       "axiom-report.md\naxiom-report-raw.log"
     ],
@@ -858,11 +910,14 @@
     ]
   },
   "expected_downloaded_artifacts": {
+    "prepare-macro-fuzz": [
+      "lean-workspace-build"
+    ],
     "build-audits": [
       "lean-workspace-build"
     ],
     "macro-fuzz": [
-      "lean-workspace-build"
+      "lean-workspace-macro-fuzz-build"
     ],
     "build-compiler-binaries": [
       "lean-workspace-build"
@@ -894,6 +949,9 @@
     ]
   },
   "expected_downloaded_artifact_paths": {
+    "prepare-macro-fuzz": [
+      null
+    ],
     "build-audits": [
       null
     ],

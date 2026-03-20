@@ -212,10 +212,10 @@ jobs:
           set -o pipefail
           lake build 2>&1 | tee lake-build.log
 
-      - name: Prebuild shared downstream Lean targets
+      - name: Prebuild shared audit Lean targets
         run: |
           set -o pipefail
-          lake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log
+          lake build PrintAxioms 2>&1 | tee -a lake-build.log
 
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
@@ -242,6 +242,46 @@ jobs:
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+
+  prepare-macro-fuzz:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 75
+    needs: [changes, checks, build]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    env:
+      LEAN_NUM_THREADS: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Build macro round-trip fuzz executable
+        run: stdbuf -oL -eL lake build macro-roundtrip-fuzz
+
+      - name: Package macro-fuzz Lean workspace build
+        run: tar -cf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
+
+      - name: Upload macro-fuzz Lean workspace build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace-macro-fuzz-build
+          path: lean-workspace-macro-fuzz-build.tar
 
   build-audits:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -337,8 +377,8 @@ jobs:
   macro-fuzz:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 90
-    needs: [changes, checks, build]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    needs: [changes, checks, prepare-macro-fuzz]
+    if: needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -364,10 +404,10 @@ jobs:
       - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v4
         with:
-          name: lean-workspace-build
+          name: lean-workspace-macro-fuzz-build
 
       - name: Restore prepared Lean workspace build
-        run: tar -xf lean-workspace-build.tar
+        run: tar -xf lean-workspace-macro-fuzz-build.tar
 
       - name: Run macro round-trip fuzz harness
         run: lake exe macro-roundtrip-fuzz
@@ -912,7 +952,7 @@ jobs:
 
   failure-hints:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [checks, build, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read
