@@ -17,6 +17,9 @@ inputs:
   sticky-disk-key-prefix:
     description: Prefix used when deriving sticky disk keys for elan and Lake packages
     default: ""
+  lake-packages-sticky-key:
+    description: Fully qualified sticky-disk key to use for `.lake/packages`
+    default: ""
   lake-packages-main-fallback-sticky-key:
     description: Optional sticky-disk key to seed `.lake/packages` when the primary sticky disk is cold
     default: ""
@@ -44,8 +47,12 @@ runs:
         BUILD_STICKY_DISK_ENABLED: ${{ inputs.use-build-sticky-disk }}
         CACHE_KEY_PREFIX: ${{ inputs.cache-key-prefix }}
         STICKY_DISK_KEY_PREFIX: ${{ inputs.sticky-disk-key-prefix }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+        LEAN_TOOLCHAIN_HASH: ${{ hashFiles('lean-toolchain') }}
+        LAKEFILE_HASH: ${{ hashFiles('lakefile.lean') }}
+        LAKE_MANIFEST_HASH: ${{ hashFiles('lake-manifest.json') }}
         ELAN_STICKY_KEY: elan-${{ inputs.sticky-disk-key-prefix || inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}
-        LAKE_PACKAGES_STICKY_KEY: lake-packages-${{ inputs.sticky-disk-key-prefix || inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+        OVERRIDE_LAKE_PACKAGES_STICKY_KEY: ${{ inputs.lake-packages-sticky-key }}
         LAKE_PACKAGES_MAIN_FALLBACK_STICKY_KEY: ${{ inputs.lake-packages-main-fallback-sticky-key }}
         BUILD_STICKY_DISK_KEY: ${{ inputs.build-sticky-disk-key }}
         BUILD_MAIN_FALLBACK_STICKY_KEY: ${{ inputs.build-main-fallback-sticky-key }}
@@ -53,6 +60,7 @@ runs:
         use_sticky="${STICKY_DISKS_ENABLED}"
         use_build_sticky="${BUILD_STICKY_DISK_ENABLED}"
         key_prefix="${STICKY_DISK_KEY_PREFIX:-$CACHE_KEY_PREFIX}"
+        lake_packages_sticky_key="${OVERRIDE_LAKE_PACKAGES_STICKY_KEY:-lake-packages-${key_prefix}-${RUNNER_OS_NAME}-${LEAN_TOOLCHAIN_HASH}-${LAKEFILE_HASH}-${LAKE_MANIFEST_HASH}}"
         if [ -z "${BUILD_STICKY_DISK_KEY}" ]; then
           use_build_sticky=false
         fi
@@ -61,7 +69,7 @@ runs:
           echo "use_build_sticky_disk=${use_build_sticky}"
           echo "key_prefix=${key_prefix}"
           echo "elan_sticky_key=${ELAN_STICKY_KEY}"
-          echo "lake_packages_sticky_key=${LAKE_PACKAGES_STICKY_KEY}"
+          echo "lake_packages_sticky_key=${lake_packages_sticky_key}"
           echo "lake_packages_main_fallback_sticky_key=${LAKE_PACKAGES_MAIN_FALLBACK_STICKY_KEY}"
           echo "build_sticky_disk_key=${BUILD_STICKY_DISK_KEY}"
           echo "build_main_fallback_sticky_key=${BUILD_MAIN_FALLBACK_STICKY_KEY}"
@@ -155,14 +163,14 @@ runs:
         path: .lake/packages
 
     - name: Mount main Lake packages fallback sticky disk
-      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != ''
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != '' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != steps.persistence.outputs.lake_packages_sticky_key
       uses: useblacksmith/stickydisk@v1
       with:
         key: ${{ steps.persistence.outputs.lake_packages_main_fallback_sticky_key }}
         path: ${{ runner.temp }}/setup-lean-fallback/packages
 
     - name: Seed Lake packages sticky disk from main fallback
-      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != ''
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != '' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != steps.persistence.outputs.lake_packages_sticky_key
       shell: bash
       run: |
         if find .lake/packages -mindepth 1 -print -quit | grep -q .; then

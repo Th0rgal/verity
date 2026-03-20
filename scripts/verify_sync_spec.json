@@ -264,8 +264,8 @@
     "contents": "read"
   },
   "expected_workflow_concurrency": {
-    "group": "${{ github.workflow }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.run_id) || github.ref }}",
-    "cancel-in-progress": "true"
+    "group": "${{ github.workflow }}-${{ github.ref }}",
+    "cancel-in-progress": "${{ github.event_name != 'schedule' }}"
   },
   "expected_workflow_env": {
     "SOLC_VERSION": "0.8.33",

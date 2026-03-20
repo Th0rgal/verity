@@ -702,8 +702,8 @@ class VerifySyncTests(unittest.TestCase):
             },
             expected_workflow_permissions={"contents": "read"},
             expected_workflow_concurrency={
-                "group": "${{ github.workflow }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.run_id) || github.ref }}",
-                "cancel-in-progress": "true",
+                "group": "${{ github.workflow }}-${{ github.ref }}",
+                "cancel-in-progress": "${{ github.event_name != 'schedule' }}",
             },
             expected_workflow_env={"SOLC_VERSION": "0.8.33"},
         )
@@ -758,8 +758,8 @@ class VerifySyncTests(unittest.TestCase):
             permissions:
               contents: read
             concurrency:
-              group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.run_id) || github.ref }}
-              cancel-in-progress: true
+              group: ${{ github.workflow }}-${{ github.ref }}
+              cancel-in-progress: ${{ github.event_name != 'schedule' }}
             env:
               SOLC_VERSION: "0.8.33"
               SOLC_URL: "https://example.invalid/solc"
@@ -802,8 +802,8 @@ class VerifySyncTests(unittest.TestCase):
             },
             expected_workflow_permissions={"contents": "read"},
             expected_workflow_concurrency={
-                "group": "${{ github.workflow }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.run_id) || github.ref }}",
-                "cancel-in-progress": "true",
+                "group": "${{ github.workflow }}-${{ github.ref }}",
+                "cancel-in-progress": "${{ github.event_name != 'schedule' }}",
             },
             expected_workflow_env={
                 "SOLC_VERSION": "0.8.33",
