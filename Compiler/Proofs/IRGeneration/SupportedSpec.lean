@@ -367,16 +367,32 @@ def stmtTouchesUnsupportedCoreSurface : Stmt → Bool
       exprTouchesUnsupportedCoreSurface value
   | .setStorageAddr _ value =>
       exprTouchesUnsupportedCoreSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesUnsupportedCoreSurface key ||
+        exprTouchesUnsupportedCoreSurface value
+  | .setMappingChain _ keys value =>
+      keys.any exprTouchesUnsupportedCoreSurface ||
+        exprTouchesUnsupportedCoreSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedCoreSurface key1 ||
+        exprTouchesUnsupportedCoreSurface key2 ||
+        exprTouchesUnsupportedCoreSurface value
+  | .storageArrayPush _ value =>
+      exprTouchesUnsupportedCoreSurface value
+  | .setStorageArrayElement _ index value =>
+      exprTouchesUnsupportedCoreSurface index ||
+        exprTouchesUnsupportedCoreSurface value
+  | .mstore offset value | .tstore offset value =>
+      exprTouchesUnsupportedCoreSurface offset ||
+        exprTouchesUnsupportedCoreSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedCoreSurface cond
   | .stop => false
   | .ite _ _ _ | .forEach _ _ _ => true
-  | .mstore _ _ | .tstore _ _
-  | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
-  | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
-  | .setMappingChain _ _ _
-  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
-  | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
+  | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata
@@ -415,30 +431,52 @@ def stmtTouchesUnsupportedStateSurface : Stmt → Bool
 all existing unsupported stateful forms remain excluded except for the proved
 singleton mapping-write heads. -/
 def stmtTouchesUnsupportedStateSurfaceExceptMappingWrites : Stmt → Bool
-  | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
-  | .setMapping2 _ _ _ _
-  | .setMapping2Word _ _ _ _ _ | .setStructMember _ _ _ _
-  | .setStructMember2 _ _ _ _ _
-  | .setMappingUint _ _ _ | .setMappingChain _ _ _ => false
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesUnsupportedStateSurface key ||
+        exprTouchesUnsupportedStateSurface value
+  | .setMappingChain _ keys value =>
+      keys.any exprTouchesUnsupportedStateSurface ||
+        exprTouchesUnsupportedStateSurface value
+  | .setMapping2 _ key1 key2 value
+  | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedStateSurface key1 ||
+        exprTouchesUnsupportedStateSurface key2 ||
+        exprTouchesUnsupportedStateSurface value
   | stmt => stmtTouchesUnsupportedStateSurface stmt
 
 /-- Helper/foreign/runtime-call statement surfaces still outside the current
 generic theorem. -/
 def stmtTouchesUnsupportedCallSurface : Stmt → Bool
-  | .letVar _ value | .assignVar _ value | .setStorage _ value =>
+  | .letVar _ value | .assignVar _ value | .setStorage _ value
+  | .setStorageAddr _ value | .storageArrayPush _ value =>
       exprTouchesUnsupportedCallSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesUnsupportedCallSurface key ||
+        exprTouchesUnsupportedCallSurface value
+  | .setMappingChain _ keys value =>
+      keys.any exprTouchesUnsupportedCallSurface ||
+        exprTouchesUnsupportedCallSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedCallSurface key1 ||
+        exprTouchesUnsupportedCallSurface key2 ||
+        exprTouchesUnsupportedCallSurface value
+  | .setStorageArrayElement _ index value
+  | .mstore index value | .tstore index value =>
+      exprTouchesUnsupportedCallSurface index ||
+        exprTouchesUnsupportedCallSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedCallSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
   | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
   | .ecm _ _ => true
-  | .stop | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
-  | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
-  | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
-  | .setMappingChain _ _ _
-  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
-  | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
+  | .stop | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
   | .ite cond thenBranch elseBranch =>
@@ -450,19 +488,32 @@ def stmtTouchesUnsupportedCallSurface : Stmt → Bool
         stmtListTouchesUnsupportedCallSurface body
 
 def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
-  | .letVar _ value | .assignVar _ value | .setStorage _ value =>
+  | .letVar _ value | .assignVar _ value | .setStorage _ value
+  | .setStorageAddr _ value | .storageArrayPush _ value =>
       exprTouchesUnsupportedHelperSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesUnsupportedHelperSurface key ||
+        exprTouchesUnsupportedHelperSurface value
+  | .setMappingChain _ keys value =>
+      exprListTouchesUnsupportedHelperSurface keys ||
+        exprTouchesUnsupportedHelperSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedHelperSurface key1 ||
+        exprTouchesUnsupportedHelperSurface key2 ||
+        exprTouchesUnsupportedHelperSurface value
+  | .setStorageArrayElement _ index value
+  | .mstore index value | .tstore index value =>
+      exprTouchesUnsupportedHelperSurface index ||
+        exprTouchesUnsupportedHelperSurface value
   | .require cond _ | .return cond =>
       exprTouchesUnsupportedHelperSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
-  | .stop | .setStorageAddr _ _
-  | .mstore _ _ | .tstore _ _ | .calldatacopy _ _ _
+  | .stop | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
-  | .ecm _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _
-  | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
-  | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _ | .setMappingChain _ _ _
-  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
-  | .storageArrayPush _ _ | .storageArrayPop _ | .setStorageArrayElement _ _ _
+  | .ecm _ _ | .storageArrayPop _
   | .requireError _ _ _ | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _ | .rawLog _ _ _ => false
   | .ite cond thenBranch elseBranch =>
@@ -477,20 +528,32 @@ def stmtTouchesUnsupportedHelperSurface : Stmt → Bool
 this isolates heads that genuinely execute internal helpers, leaving residual
 non-helper unsupported cases to be tracked separately. -/
 def stmtTouchesInternalHelperSurface : Stmt → Bool
-  | .letVar _ value | .assignVar _ value | .setStorage _ value =>
+  | .letVar _ value | .assignVar _ value | .setStorage _ value
+  | .setStorageAddr _ value | .storageArrayPush _ value =>
       exprTouchesInternalHelperSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesInternalHelperSurface key ||
+        exprTouchesInternalHelperSurface value
+  | .setMappingChain _ keys value =>
+      keys.any exprTouchesInternalHelperSurface ||
+        exprTouchesInternalHelperSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesInternalHelperSurface key1 ||
+        exprTouchesInternalHelperSurface key2 ||
+        exprTouchesInternalHelperSurface value
+  | .setStorageArrayElement _ index value
+  | .mstore index value | .tstore index value =>
+      exprTouchesInternalHelperSurface index ||
+        exprTouchesInternalHelperSurface value
   | .require cond _ | .return cond =>
       exprTouchesInternalHelperSurface cond
   | .internalCall _ _ | .internalCallAssign _ _ _ => true
-  | .stop | .setStorageAddr _ _
-  | .mstore _ _ | .tstore _ _ | .calldatacopy _ _ _
+  | .stop | .calldatacopy _ _ _
   | .returndataCopy _ _ _ | .revertReturndata | .externalCallBind _ _ _
-  | .ecm _ _ | .setMapping _ _ _ | .setMappingWord _ _ _ _
-  | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
-  | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _ | .setMappingChain _ _ _
-  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
-  | .storageArrayPush _ _ | .storageArrayPop _
-  | .setStorageArrayElement _ _ _ | .requireError _ _ _
+  | .ecm _ _ | .storageArrayPop _ | .requireError _ _ _
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
   | .rawLog _ _ _ => false
@@ -529,8 +592,26 @@ This isolates the cases that should consume the expression-level helper-summary
 soundness and world-preservation lemmas directly, rather than bundling them
 with direct helper statements or recursive structural transport. -/
 def stmtTouchesExprInternalHelperSurface : Stmt → Bool
-  | .letVar _ value | .assignVar _ value | .setStorage _ value =>
+  | .letVar _ value | .assignVar _ value | .setStorage _ value
+  | .setStorageAddr _ value | .storageArrayPush _ value =>
       exprTouchesInternalHelperSurface value
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesInternalHelperSurface key ||
+        exprTouchesInternalHelperSurface value
+  | .setMappingChain _ keys value =>
+      keys.any exprTouchesInternalHelperSurface ||
+        exprTouchesInternalHelperSurface value
+  | .setMapping2 _ key1 key2 value | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesInternalHelperSurface key1 ||
+        exprTouchesInternalHelperSurface key2 ||
+        exprTouchesInternalHelperSurface value
+  | .setStorageArrayElement _ index value
+  | .mstore index value | .tstore index value =>
+      exprTouchesInternalHelperSurface index ||
+        exprTouchesInternalHelperSurface value
   | .require cond _ | .return cond =>
       exprTouchesInternalHelperSurface cond
   | .ite cond _ _ =>
@@ -538,16 +619,9 @@ def stmtTouchesExprInternalHelperSurface : Stmt → Bool
   | .forEach _ count _ =>
       exprTouchesInternalHelperSurface count
   | .internalCall _ _ | .internalCallAssign _ _ _ | .stop
-  | .setStorageAddr _ _ | .mstore _ _ | .tstore _ _
   | .calldatacopy _ _ _ | .returndataCopy _ _ _
   | .revertReturndata | .externalCallBind _ _ _ | .ecm _ _
-  | .setMapping _ _ _ | .setMappingWord _ _ _ _
-  | .setMappingPackedWord _ _ _ _ _ | .setMapping2 _ _ _ _
-  | .setMapping2Word _ _ _ _ _ | .setMappingUint _ _ _
-  | .setMappingChain _ _ _
-  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _
-  | .storageArrayPush _ _ | .storageArrayPop _
-  | .setStorageArrayElement _ _ _ | .requireError _ _ _
+  | .storageArrayPop _ | .requireError _ _ _
   | .revertError _ _ | .returnValues _ | .returnArray _
   | .returnBytes _ | .returnStorageWords _ | .emit _ _
   | .rawLog _ _ _ => false
@@ -651,10 +725,20 @@ bridge: ordinary unsupported contract effects remain excluded, but the proved
 singleton mapping-write heads are admitted. -/
 def stmtTouchesUnsupportedContractSurfaceExceptMappingWrites (stmt : Stmt) : Bool :=
   match stmt with
-  | .setMapping _ _ _ | .setMappingWord _ _ _ _ | .setMappingPackedWord _ _ _ _ _
-  | .setMapping2 _ _ _ _ | .setMapping2Word _ _ _ _ _
-  | .setMappingUint _ _ _ | .setMappingChain _ _ _
-  | .setStructMember _ _ _ _ | .setStructMember2 _ _ _ _ _ => false
+  | .setMapping _ key value | .setMappingWord _ key _ value
+  | .setMappingPackedWord _ key _ _ value | .setMappingUint _ key value
+  | .setStructMember _ key _ value =>
+      exprTouchesUnsupportedContractSurface key ||
+        exprTouchesUnsupportedContractSurface value
+  | .setMappingChain _ keys value =>
+      keys.any exprTouchesUnsupportedContractSurface ||
+        exprTouchesUnsupportedContractSurface value
+  | .setMapping2 _ key1 key2 value
+  | .setMapping2Word _ key1 key2 _ value
+  | .setStructMember2 _ key1 key2 _ value =>
+      exprTouchesUnsupportedContractSurface key1 ||
+        exprTouchesUnsupportedContractSurface key2 ||
+        exprTouchesUnsupportedContractSurface value
   | _ => stmtTouchesUnsupportedContractSurface stmt
 
 def stmtListTouchesUnsupportedCoreSurface : List Stmt → Bool
