@@ -6,6 +6,7 @@
 -/
 
 import Verity.Core.Address
+import Verity.Core.Int256
 import Verity.Core.Uint256
 import Verity.Core.FiniteSet
 
@@ -15,7 +16,14 @@ open Verity.Core (FiniteAddressSet)
 
 -- Basic Ethereum types
 abbrev Address := Verity.Core.Address
+abbrev Int256 := Verity.Core.Int256
 abbrev Uint256 := Verity.Core.Uint256
+
+@[simp] def toInt256 (value : Uint256) : Int256 :=
+  Verity.Core.Int256.ofUint256 value
+
+@[simp] def toUint256 (value : Int256) : Uint256 :=
+  Verity.Core.Int256.toUint256 value
 
 @[simp] def zeroAddress : Address := 0
 
