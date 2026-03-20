@@ -106,26 +106,6 @@ private theorem exists_right_of_forall₂_mem_left
       · exact ⟨headY, by simp, hhead⟩
       · rcases ih hmemTail with ⟨y, hy, hRy⟩
         exact ⟨y, by simp [hy], hRy⟩
-
-private theorem field_mem_of_findFieldWithResolvedSlot_some
-    {fields : List Field}
-    {fieldName : String}
-    {f : Field}
-    {slot : Nat}
-    (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    f ∈ fields := by
-  induction fields with
-  | nil =>
-      simp [CompilationModel.findFieldWithResolvedSlot, CompilationModel.findFieldByName] at hfind
-  | cons field rest ih =>
-      simp [CompilationModel.findFieldWithResolvedSlot, CompilationModel.findFieldByName] at hfind ⊢
-      by_cases hname : field.name = fieldName
-      · simp [hname] at hfind
-        injection hfind with hf _
-        subst hf
-        simp
-      · simp [hname] at hfind
-        exact Or.inr (ih hfind)
 -- SORRY'D:   induction fields with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind
@@ -691,36 +671,37 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
     (hSupported : SupportedSpec model selectors)
     (ir : IRContract)
     (hcore : compileValidatedCore model selectors = Except.ok ir) :
-    ir.internalFunctions = [] := by sorry
--- SORRY'D:   have hfallback :
--- SORRY'D:       pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
--- SORRY'D:     pickUniqueFunctionByName_eq_ok_none_of_absent
--- SORRY'D:       "fallback" model.functions hSupported.noFallback
--- SORRY'D:   have hreceive :
--- SORRY'D:       pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
--- SORRY'D:     pickUniqueFunctionByName_eq_ok_none_of_absent
--- SORRY'D:       "receive" model.functions hSupported.noReceive
--- SORRY'D:   have hnoInternalFns :
--- SORRY'D:       model.functions.filter (·.isInternal) = [] :=
--- SORRY'D:     filterInternalFunctions_eq_nil_of_supported model selectors hSupported
--- SORRY'D:   have harray : contractUsesArrayElement model = false :=
--- SORRY'D:     hSupported.contractUsesArrayElement_eq_false
--- SORRY'D:   have hstorageArray : contractUsesStorageArrayElement model = false :=
--- SORRY'D:     hSupported.contractUsesStorageArrayElement_eq_false
--- SORRY'D:   have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
--- SORRY'D:     hSupported.contractUsesDynamicBytesEq_eq_false
--- SORRY'D:   unfold compileValidatedCore at hcore
--- SORRY'D:   rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
--- SORRY'D:     hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
--- SORRY'D:   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
--- SORRY'D:   rcases hmap :
--- SORRY'D:       ((model.functions.filter
--- SORRY'D:           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
--- SORRY'D:         (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
--- SORRY'D:   · simp [hmap] at hcore
--- SORRY'D:   · simp [hmap] at hcore
--- SORRY'D:     injection hcore with _ _ _ _ _ _ _ hinternal
--- SORRY'D:     exact hinternal
+    ir.internalFunctions = [] := by
+  have hfallback :
+      pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "fallback" model.functions hSupported.noFallback
+  have hreceive :
+      pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "receive" model.functions hSupported.noReceive
+  have hnoInternalFns :
+      model.functions.filter (·.isInternal) = [] :=
+    filterInternalFunctions_eq_nil_of_supported model selectors hSupported
+  have harray : contractUsesArrayElement model = false :=
+    hSupported.contractUsesArrayElement_eq_false
+  have hstorageArray : contractUsesStorageArrayElement model = false :=
+    hSupported.contractUsesStorageArrayElement_eq_false
+  have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
+    hSupported.contractUsesDynamicBytesEq_eq_false
+  unfold compileValidatedCore at hcore
+  rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
+    hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
+  simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
+  rcases hmap :
+      ((model.functions.filter
+          (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
+        (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
+  · simp [hmap] at hcore
+  · simp [hmap, compileConstructor] at hcore
+    injection hcore with hir
+    cases hir
+    rfl
 
 theorem supported_params_of_supportedSpec
     (model : CompilationModel)
