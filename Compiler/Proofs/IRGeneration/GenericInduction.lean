@@ -4217,32 +4217,16 @@ private theorem compatValue_not_mem_scope_of_reservedPrefix
     {scope : List String}
     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope) :
     "__compat_value" ∉ scope := by sorry
--- SORRY'D:   intro hmem
--- SORRY'D:   have hreserved : ¬ "__compat_value".startsWith "__" :=
--- SORRY'D:     hscopeReserved "__compat_value" hmem
--- SORRY'D:   exact hreserved (by decide)
 
 private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
     {spec : CompilationModel}
     {name : String}
     (hvalidate : validateIdentifierShapes spec = Except.ok ())
     (hmem : name ∈ spec.fields.map (·.name)) :
-    ¬ name.startsWith "__" := by sorry
--- SORRY'D:   have hfield :
--- SORRY'D:       ∃ field, field ∈ spec.fields ∧ field.name = name := by
--- SORRY'D:     induction spec.fields with
--- SORRY'D:     | nil =>
--- SORRY'D:         cases hmem
--- SORRY'D:     | cons field rest ih =>
--- SORRY'D:         simp at hmem
--- SORRY'D:         rcases hmem with rfl | hmem
--- SORRY'D:         · exact ⟨field, by simp, rfl⟩
--- SORRY'D:         · rcases ih hmem with ⟨found, hfoundMem, hfoundName⟩
--- SORRY'D:           exact ⟨found, by simp [hfoundMem], hfoundName⟩
--- SORRY'D:   rcases hfield with ⟨field, hfieldMem, hfieldName⟩
--- SORRY'D:   subst hfieldName
--- SORRY'D:   exact CompilationModel.validateIdentifierShapes_field_avoidReservedCompilerPrefix
--- SORRY'D:     hvalidate hfieldMem
+    ¬ name.startsWith "__" := by
+  rcases List.mem_map.mp hmem with ⟨field, hfieldMem, hfieldName⟩
+  subst hfieldName
+  exact CompilationModel.validateIdentifierShapes_field_avoidReservedCompilerPrefix hvalidate hfieldMem
 
 private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
     {spec : CompilationModel}
@@ -4257,21 +4241,25 @@ private theorem scopeAvoidsReservedCompilerPrefix_of_validateIdentifierShapes
             collectStmtListBindNames fn.body ++
             collectStmtListAssignedNames fn.body ++
             spec.fields.map (·.name))) :
-    scopeAvoidsReservedCompilerPrefix scope := by sorry
--- SORRY'D:   intro name hmem
--- SORRY'D:   have hname := hscopeNames name hmem
--- SORRY'D:   repeat
--- SORRY'D:     rw [List.mem_append] at hname
--- SORRY'D:   rcases hname with hparam | hrest
--- SORRY'D:   · exact CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
--- SORRY'D:       hvalidate hfn hparam
--- SORRY'D:   rcases hrest with hlocal | hrest
--- SORRY'D:   · exact CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
--- SORRY'D:       hvalidate hfn hlocal
--- SORRY'D:   rcases hrest with hassign | hfield
--- SORRY'D:   · exact CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
--- SORRY'D:       hvalidate hfn hassign
--- SORRY'D:   · exact validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix hvalidate hfield
+    scopeAvoidsReservedCompilerPrefix scope := by
+  intro name hmem
+  have hname := hscopeNames name hmem
+  have hname' :
+      name ∈ fn.params.map (·.name) ∨
+      name ∈ collectStmtListBindNames fn.body ∨
+      name ∈ collectStmtListAssignedNames fn.body ∨
+      name ∈ spec.fields.map (·.name) := by
+    simpa [List.mem_append, or_assoc] using hname
+  rcases hname' with hparam | hrest
+  · exact CompilationModel.validateIdentifierShapes_functionParams_avoidReservedCompilerPrefix
+      hvalidate hfn hparam
+  rcases hrest with hlocal | hrest
+  · exact CompilationModel.validateIdentifierShapes_functionLocals_avoidReservedCompilerPrefix
+      hvalidate hfn hlocal
+  rcases hrest with hassign | hfield
+  · exact CompilationModel.validateIdentifierShapes_functionAssignTargets_avoidReservedCompilerPrefix
+      hvalidate hfn hassign
+  · exact validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix hvalidate hfield
 
 -- TYPESIG_SORRY: theorem compiledStmtStep_setStorage_singleSlot
 -- TYPESIG_SORRY:     {fields : List Field}
@@ -13073,58 +13061,73 @@ theorem stmtListDirectInternalHelperStepInterfaces_of_headStepCatalog
 
 private theorem internalFunctionYulName_ne_stop
     (calleeName : String) :
-    CompilationModel.internalFunctionYulName calleeName ≠ "stop" := by sorry
--- SORRY'D:   intro hEq
--- SORRY'D:   have hPrefix :
--- SORRY'D:       (CompilationModel.internalFunctionYulName calleeName).startsWith
--- SORRY'D:         CompilationModel.internalFunctionPrefix = true := by
--- SORRY'D:     simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix]
--- SORRY'D:   rw [hEq] at hPrefix
--- SORRY'D:   decide at hPrefix
+    CompilationModel.internalFunctionYulName calleeName ≠ "stop" := by
+  intro hEq
+  have hHead := congrArg (fun s => s.toList.head?) hEq
+  simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix] at hHead
+  cases hHead with
+  | inl h =>
+      have hcontra : (toString "").data.head? ≠ some 's' := by decide
+      exact hcontra h
+  | inr h =>
+      have hcontra : (toString "internal_").data.head? ≠ some 's' := by decide
+      exact hcontra h.2
 
 private theorem internalFunctionYulName_ne_sstore
     (calleeName : String) :
-    CompilationModel.internalFunctionYulName calleeName ≠ "sstore" := by sorry
--- SORRY'D:   intro hEq
--- SORRY'D:   have hPrefix :
--- SORRY'D:       (CompilationModel.internalFunctionYulName calleeName).startsWith
--- SORRY'D:         CompilationModel.internalFunctionPrefix = true := by
--- SORRY'D:     simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix]
--- SORRY'D:   rw [hEq] at hPrefix
--- SORRY'D:   decide at hPrefix
+    CompilationModel.internalFunctionYulName calleeName ≠ "sstore" := by
+  intro hEq
+  have hHead := congrArg (fun s => s.toList.head?) hEq
+  simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix] at hHead
+  cases hHead with
+  | inl h =>
+      have hcontra : (toString "").data.head? ≠ some 's' := by decide
+      exact hcontra h
+  | inr h =>
+      have hcontra : (toString "internal_").data.head? ≠ some 's' := by decide
+      exact hcontra h.2
 
 private theorem internalFunctionYulName_ne_mstore
     (calleeName : String) :
-    CompilationModel.internalFunctionYulName calleeName ≠ "mstore" := by sorry
--- SORRY'D:   intro hEq
--- SORRY'D:   have hPrefix :
--- SORRY'D:       (CompilationModel.internalFunctionYulName calleeName).startsWith
--- SORRY'D:         CompilationModel.internalFunctionPrefix = true := by
--- SORRY'D:     simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix]
--- SORRY'D:   rw [hEq] at hPrefix
--- SORRY'D:   decide at hPrefix
+    CompilationModel.internalFunctionYulName calleeName ≠ "mstore" := by
+  intro hEq
+  have hHead := congrArg (fun s => s.toList.head?) hEq
+  simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix] at hHead
+  cases hHead with
+  | inl h =>
+      have hcontra : (toString "").data.head? ≠ some 'm' := by decide
+      exact hcontra h
+  | inr h =>
+      have hcontra : (toString "internal_").data.head? ≠ some 'm' := by decide
+      exact hcontra h.2
 
 private theorem internalFunctionYulName_ne_revert
     (calleeName : String) :
-    CompilationModel.internalFunctionYulName calleeName ≠ "revert" := by sorry
--- SORRY'D:   intro hEq
--- SORRY'D:   have hPrefix :
--- SORRY'D:       (CompilationModel.internalFunctionYulName calleeName).startsWith
--- SORRY'D:         CompilationModel.internalFunctionPrefix = true := by
--- SORRY'D:     simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix]
--- SORRY'D:   rw [hEq] at hPrefix
--- SORRY'D:   decide at hPrefix
+    CompilationModel.internalFunctionYulName calleeName ≠ "revert" := by
+  intro hEq
+  have hHead := congrArg (fun s => s.toList.head?) hEq
+  simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix] at hHead
+  cases hHead with
+  | inl h =>
+      have hcontra : (toString "").data.head? ≠ some 'r' := by decide
+      exact hcontra h
+  | inr h =>
+      have hcontra : (toString "internal_").data.head? ≠ some 'r' := by decide
+      exact hcontra h.2
 
 private theorem internalFunctionYulName_ne_return
     (calleeName : String) :
-    CompilationModel.internalFunctionYulName calleeName ≠ "return" := by sorry
--- SORRY'D:   intro hEq
--- SORRY'D:   have hPrefix :
--- SORRY'D:       (CompilationModel.internalFunctionYulName calleeName).startsWith
--- SORRY'D:         CompilationModel.internalFunctionPrefix = true := by
--- SORRY'D:     simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix]
--- SORRY'D:   rw [hEq] at hPrefix
--- SORRY'D:   decide at hPrefix
+    CompilationModel.internalFunctionYulName calleeName ≠ "return" := by
+  intro hEq
+  have hHead := congrArg (fun s => s.toList.head?) hEq
+  simp [CompilationModel.internalFunctionYulName, CompilationModel.internalFunctionPrefix] at hHead
+  cases hHead with
+  | inl h =>
+      have hcontra : (toString "").data.head? ≠ some 'r' := by decide
+      exact hcontra h
+  | inr h =>
+      have hcontra : (toString "internal_").data.head? ≠ some 'r' := by decide
+      exact hcontra h.2
 
 -- SORRY'D: /-- Runtime-helper-table packaged version of
 -- SORRY'D: `execIRStmtsWithInternals_of_internalCallAssign_compile`: the caller no longer
