@@ -995,7 +995,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_revertPrefix_then_revert  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.execIRStmts_revertWithMessage_revert  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core_extraFuel  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_core_extraFuel
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_body_block_extraFuel_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_body_thenBranch_extraFuel_eq  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.compiled_terminal_ite_body_elseBranch_extraFuel_eq  -- private
@@ -1731,4 +1731,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1597 theorems/lemmas (1108 public, 421 private, 68 sorry'd)
+-- Total: 1597 theorems/lemmas (1109 public, 421 private, 67 sorry'd)
