@@ -1,6 +1,8 @@
 name: Verify proofs
 
 on:
+  schedule:
+    - cron: '17 3 * * *'
   push:
     branches: [main]
     paths:
@@ -83,10 +85,11 @@ env:
   SOLC_URL: "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21"
   SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
   VERIFY_CLEAN_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
-  VERIFY_FORCE_FULL_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_full_run && 'true' || 'false' }}
+  VERIFY_FORCE_FULL_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_full_run)) && 'true' || 'false' }}
   VERIFY_USE_STICKY_DISKS: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}
   VERIFY_DISABLE_LAKE_CACHE_RESTORE: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
   VERIFY_CACHE_BUCKET: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
+  VERIFY_MAIN_CACHE_BUCKET: ref-main
 
 jobs:
   changes:
@@ -248,8 +251,10 @@ jobs:
           cache-key-prefix: lake
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
           build-sticky-disk-key: verify-build-base-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-base-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
@@ -307,8 +312,10 @@ jobs:
           cache-key-prefix: lake
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
           build-sticky-disk-key: verify-build-macro-fuzz-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-macro-fuzz-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
@@ -350,6 +357,7 @@ jobs:
           cache-key-prefix: lake
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
@@ -449,6 +457,7 @@ jobs:
           cache-key-prefix: lake
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
@@ -488,8 +497,10 @@ jobs:
           cache-key-prefix: lake-compiler
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify-compiler
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify-compiler', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
           build-sticky-disk-key: verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
           cache-extra-restore-keys: |
@@ -516,6 +527,28 @@ jobs:
           key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
           path: ~/.cache/ccache
 
+      - name: Prepare compiler ccache fallback mount
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: mkdir -p "$RUNNER_TEMP/compiler-ccache-main"
+
+      - name: Mount main compiler ccache fallback sticky disk
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          path: ${{ runner.temp }}/compiler-ccache-main
+
+      - name: Seed compiler ccache sticky disk from main fallback
+        if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
+        run: |
+          if find "$CCACHE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          if ! find "$RUNNER_TEMP/compiler-ccache-main" -mindepth 1 -print -quit | grep -q .; then
+            exit 0
+          fi
+          cp -a "$RUNNER_TEMP/compiler-ccache-main/." "$CCACHE_DIR/"
+
       - name: Restore compiler ccache
         id: cache-compiler-ccache
         if: env.VERIFY_USE_STICKY_DISKS != 'true'
@@ -525,6 +558,7 @@ jobs:
           key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
           restore-keys: |
             compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
+            compiler-ccache-${{ env.VERIFY_MAIN_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
             compiler-ccache-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
 
       - name: Download prepared Lean workspace build
@@ -611,9 +645,11 @@ jobs:
           cache-key-prefix: lake-compiler
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify-compiler
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify-compiler', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v4
@@ -670,9 +706,11 @@ jobs:
           cache-key-prefix: lake-compiler
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify-compiler
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify-compiler', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v4
@@ -737,9 +775,11 @@ jobs:
           cache-key-prefix: lake-compiler
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify-compiler
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify-compiler', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v4
@@ -947,9 +987,11 @@ jobs:
           cache-key-prefix: lake-compiler
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify-compiler
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify-compiler', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
           cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download prepared Lean workspace build
         uses: actions/download-artifact@v4
@@ -986,6 +1028,7 @@ jobs:
         with:
           use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
           sticky-disk-key-prefix: verify
+          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-{0}-{1}-{2}-{3}-{4}', 'verify', runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
           disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
 
       - name: Profile Lean module timings

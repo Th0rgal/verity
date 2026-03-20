@@ -17,11 +17,17 @@ inputs:
   sticky-disk-key-prefix:
     description: Prefix used when deriving sticky disk keys for elan and Lake packages
     default: ""
+  lake-packages-main-fallback-sticky-key:
+    description: Optional sticky-disk key to seed `.lake/packages` when the primary sticky disk is cold
+    default: ""
   use-build-sticky-disk:
     description: Mount a sticky disk for `.lake/build` so Lake can incrementally rebuild repo targets across runs
     default: "false"
   build-sticky-disk-key:
     description: Fully qualified sticky-disk key to use for `.lake/build`
+    default: ""
+  build-main-fallback-sticky-key:
+    description: Optional sticky-disk key to seed `.lake/build` when the primary sticky disk is cold
     default: ""
   disable-lake-cache-restore:
     description: Skip restoring the GitHub Actions `.lake` cache (used by manual clean-build runs)
@@ -40,7 +46,9 @@ runs:
         STICKY_DISK_KEY_PREFIX: ${{ inputs.sticky-disk-key-prefix }}
         ELAN_STICKY_KEY: elan-${{ inputs.sticky-disk-key-prefix || inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}
         LAKE_PACKAGES_STICKY_KEY: lake-packages-${{ inputs.sticky-disk-key-prefix || inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+        LAKE_PACKAGES_MAIN_FALLBACK_STICKY_KEY: ${{ inputs.lake-packages-main-fallback-sticky-key }}
         BUILD_STICKY_DISK_KEY: ${{ inputs.build-sticky-disk-key }}
+        BUILD_MAIN_FALLBACK_STICKY_KEY: ${{ inputs.build-main-fallback-sticky-key }}
       run: |
         use_sticky="${STICKY_DISKS_ENABLED}"
         use_build_sticky="${BUILD_STICKY_DISK_ENABLED}"
@@ -54,7 +62,9 @@ runs:
           echo "key_prefix=${key_prefix}"
           echo "elan_sticky_key=${ELAN_STICKY_KEY}"
           echo "lake_packages_sticky_key=${LAKE_PACKAGES_STICKY_KEY}"
+          echo "lake_packages_main_fallback_sticky_key=${LAKE_PACKAGES_MAIN_FALLBACK_STICKY_KEY}"
           echo "build_sticky_disk_key=${BUILD_STICKY_DISK_KEY}"
+          echo "build_main_fallback_sticky_key=${BUILD_MAIN_FALLBACK_STICKY_KEY}"
         } >> "$GITHUB_OUTPUT"
 
     - name: Mount elan sticky disk
@@ -131,6 +141,12 @@ runs:
         mkdir -p .lake/packages .lake/build
         chmod u+rwx .lake .lake/packages .lake/build
 
+    - name: Prepare fallback sticky-disk mounts
+      if: steps.persistence.outputs.use_sticky_disks == 'true'
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/setup-lean-fallback/packages" "$RUNNER_TEMP/setup-lean-fallback/build"
+
     - name: Mount Lake packages sticky disk
       if: steps.persistence.outputs.use_sticky_disks == 'true'
       uses: useblacksmith/stickydisk@v1
@@ -138,12 +154,50 @@ runs:
         key: ${{ steps.persistence.outputs.lake_packages_sticky_key }}
         path: .lake/packages
 
+    - name: Mount main Lake packages fallback sticky disk
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != ''
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ steps.persistence.outputs.lake_packages_main_fallback_sticky_key }}
+        path: ${{ runner.temp }}/setup-lean-fallback/packages
+
+    - name: Seed Lake packages sticky disk from main fallback
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.lake_packages_main_fallback_sticky_key != ''
+      shell: bash
+      run: |
+        if find .lake/packages -mindepth 1 -print -quit | grep -q .; then
+          exit 0
+        fi
+        if ! find "$RUNNER_TEMP/setup-lean-fallback/packages" -mindepth 1 -print -quit | grep -q .; then
+          exit 0
+        fi
+        cp -a "$RUNNER_TEMP/setup-lean-fallback/packages/." .lake/packages/
+
     - name: Mount Lake build sticky disk
       if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true'
       uses: useblacksmith/stickydisk@v1
       with:
         key: ${{ steps.persistence.outputs.build_sticky_disk_key }}
         path: .lake/build
+
+    - name: Mount main Lake build fallback sticky disk
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true' && steps.persistence.outputs.build_main_fallback_sticky_key != ''
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ steps.persistence.outputs.build_main_fallback_sticky_key }}
+        path: ${{ runner.temp }}/setup-lean-fallback/build
+
+    - name: Seed Lake build sticky disk from main fallback
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true' && steps.persistence.outputs.build_main_fallback_sticky_key != ''
+      shell: bash
+      run: |
+        if find .lake/build -mindepth 1 -print -quit | grep -q .; then
+          exit 0
+        fi
+        if ! find "$RUNNER_TEMP/setup-lean-fallback/build" -mindepth 1 -print -quit | grep -q .; then
+          exit 0
+        fi
+        cp -a "$RUNNER_TEMP/setup-lean-fallback/build/." .lake/build/
 
     - name: Refresh Lake dependency state on partial cache hit
       if: steps.persistence.outputs.use_sticky_disks != 'true' && steps.cache-lake.outputs.cache-hit != 'true'
