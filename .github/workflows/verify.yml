@@ -480,7 +480,6 @@ jobs:
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
       LEAN_NUM_THREADS: 12
-      LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
       CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_NOHASHDIR: "true"
@@ -574,6 +573,8 @@ jobs:
         run: ccache -z
 
       - name: Build compiler binaries and regression targets
+        env:
+          LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
         run: |
           stdbuf -oL -eL lake build \
             verity-compiler \
