@@ -93,6 +93,21 @@ class TimeoutWatchdogTests(unittest.TestCase):
             {"build": 25, "macro-fuzz": 90},
         )
 
+    def test_load_timeouts_from_text_uses_default_numeric_literal_for_expression(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: Verify proofs
+            jobs:
+              build:
+                timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}
+                steps: []
+            """
+        ).lstrip()
+        self.assertEqual(
+            watchdog.load_timeouts_from_text(workflow, Path("verify.yml")),
+            {"build": 35},
+        )
+
     def test_summarize_risk_warns_only_after_minimum_samples(self) -> None:
         samples = {
             "macro-fuzz": [
