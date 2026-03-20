@@ -99,11 +99,13 @@ class TimeoutWatchdogTests(unittest.TestCase):
                 watchdog.Sample(1, "run 1", 78.0, 90, 78.0 / 90.0, "success"),
                 watchdog.Sample(2, "run 2", 74.0, 90, 74.0 / 90.0, "cancelled"),
                 watchdog.Sample(3, "run 3", 10.0, 90, 10.0 / 90.0, "success"),
+                watchdog.Sample(4, "run 4", 76.0, 90, 76.0 / 90.0, "success"),
             ]
         }
         warnings = watchdog.summarize_risk(samples, threshold=0.8, min_risk_samples=2)
         self.assertEqual(len(warnings), 1)
         self.assertIn("macro-fuzz", warnings[0])
+        self.assertIn("2/3 recent completed samples", warnings[0])
 
 
 if __name__ == "__main__":

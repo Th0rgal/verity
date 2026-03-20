@@ -163,12 +163,13 @@ def summarize_risk(
 ) -> list[str]:
     warnings: list[str] = []
     for job_name, job_samples in samples.items():
-        risky = [sample for sample in job_samples if sample.ratio >= threshold]
+        completed = [sample for sample in job_samples if sample.conclusion != "cancelled"]
+        risky = [sample for sample in completed if sample.ratio >= threshold]
         if len(risky) < min_risk_samples:
             continue
         latest = risky[0]
         warnings.append(
-            f"{job_name}: {len(risky)}/{len(job_samples)} recent samples hit >= {threshold:.0%} "
+            f"{job_name}: {len(risky)}/{len(completed)} recent completed samples hit >= {threshold:.0%} "
             f"of timeout; latest run {latest.run_id} used {latest.duration_minutes:.1f}/"
             f"{latest.timeout_minutes} minutes ({latest.ratio:.0%}, {latest.conclusion})"
         )
@@ -205,15 +206,6 @@ def main() -> int:
     if not token:
         print("GH_TOKEN or GITHUB_TOKEN is required", file=sys.stderr)
         return 1
-
-    tracked_timeouts = {
-        job: timeout
-        for job, timeout in load_timeouts().items()
-        if timeout >= args.min_timeout_minutes
-    }
-    if not tracked_timeouts:
-        print("No workflow jobs met the timeout threshold; nothing to inspect.")
-        return 0
 
     client = GitHubActionsClient(args.repo, token)
     try:

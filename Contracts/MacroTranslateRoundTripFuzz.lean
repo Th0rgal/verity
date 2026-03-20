@@ -159,7 +159,7 @@ private def parseNatEnv? (name : String) : IO (Option Nat) := do
   | some raw =>
       match raw.trim.toNat? with
       | some value => pure (some value)
-      | none => throw <| IO.userError s!"{name} must be a natural number, got {raw.inspect}"
+      | none => throw <| IO.userError s!"{name} must be a natural number, got {repr raw}"
 
 private def shardSpecs (specs : List CompilationModel) (shardIndex shardCount : Nat) :
     IO (List CompilationModel) := do

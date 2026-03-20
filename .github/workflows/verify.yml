@@ -188,7 +188,7 @@ jobs:
 
   build:
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 25
+    timeout-minutes: 35
     needs: [changes, checks]
     if: needs.checks.result == 'success' && needs.changes.outputs.build == 'true'
     env:
@@ -211,6 +211,9 @@ jobs:
         run: |
           set -o pipefail
           lake build 2>&1 | tee lake-build.log
+
+      - name: Prebuild shared downstream Lean targets
+        run: lake build PrintAxioms macro-roundtrip-fuzz verity-compiler verity-compiler-patched difftest-interpreter compiler-main-test Compiler.CompilationModelFeatureTest 2>&1 | tee -a lake-build.log
 
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log

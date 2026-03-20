@@ -146,7 +146,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
  'expected_job_timeouts': {'changes': 5,
                            'checks': 5,
                            'timeout-watchdog': 5,
-                           'build': 25,
+                           'build': 35,
                            'build-audits': 20,
                            'macro-fuzz': 90,
                            'build-compiler': 120,
@@ -197,6 +197,12 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                                       '}}-${{ '
                                                                       "hashFiles('lake-manifest.json') "
                                                                       '}}-${{ github.run_id }}'}},
+                                       {'name': 'Prebuild shared downstream Lean targets',
+                                        'run': 'lake build PrintAxioms macro-roundtrip-fuzz '
+                                               'verity-compiler verity-compiler-patched '
+                                               'difftest-interpreter compiler-main-test '
+                                               'Compiler.CompilationModelFeatureTest 2>&1 | tee '
+                                               '-a lake-build.log'},
                                        {'name': 'Upload prepared Lean workspace build',
                                         'uses': 'actions/upload-artifact@v4',
                                         'with': {'name': 'lean-workspace-build',
@@ -509,7 +515,13 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                       "python3 -m unittest discover -s scripts -p 'test_*.py' -v"],
  'expected_checks_other_commands': [],
  'expected_build_commands': ['check_lean_warning_regression.py --log lake-build.log'],
- 'required_build_run_commands': [],
+ 'required_build_run_commands': ['lake build PrintAxioms',
+                                 'macro-roundtrip-fuzz',
+                                 'verity-compiler',
+                                 'verity-compiler-patched',
+                                 'difftest-interpreter',
+                                 'compiler-main-test',
+                                 'Compiler.CompilationModelFeatureTest'],
  'expected_build_audit_commands': ['check_split_package_builds.py',
                                    'check_macro_roundtrip_fuzz_coverage.py',
                                    'check_proof_length.py --format=markdown >> '
