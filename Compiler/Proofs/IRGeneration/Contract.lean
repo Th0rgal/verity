@@ -432,40 +432,125 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 -- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList
 -- TYPESIG_SORRY:       (CompilationModel.genParamLoadBodyFrom
 -- TYPESIG_SORRY:         loadWord sizeExpr headSize baseOffset (param :: rest) headOffset) := by sorry
--- SORRY'D:   cases hty : param.ty <;> try cases hparam
--- SORRY'D:   case uint256 =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (loadWord (YulExpr.lit headOffset))
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint256))
--- SORRY'D:         hrest
--- SORRY'D:   case uint8 =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.lit 255])
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint8))
--- SORRY'D:         hrest
--- SORRY'D:   case address =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.hex addressMask])
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.address))
--- SORRY'D:         hrest
--- SORRY'D:   case bytes32 =>
--- SORRY'D:     simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
--- SORRY'D:       LegacyCompatibleExternalStmtList.let_
--- SORRY'D:         param.name
--- SORRY'D:         (loadWord (YulExpr.lit headOffset))
--- SORRY'D:         (CompilationModel.genParamLoadBodyFrom
--- SORRY'D:           loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.bytes32))
--- SORRY'D:         hrest
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint256
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.uint256))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.uint256 } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (loadWord (YulExpr.lit headOffset))
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint256))
+      hrest
 
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint8
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.uint8))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.uint8 } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.lit 255])
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.uint8))
+      hrest
+
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_address
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.address))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.address } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (YulExpr.call "and" [loadWord (YulExpr.lit headOffset), YulExpr.hex addressMask])
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.address))
+      hrest
+
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_bytes32
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (name : String)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize ParamType.bytes32))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset ({ name := name, ty := ParamType.bytes32 } :: rest) headOffset) := by
+  simpa [CompilationModel.genParamLoadBodyFrom, CompilationModel.genScalarLoad] using
+    LegacyCompatibleExternalStmtList.let_
+      name
+      (loadWord (YulExpr.lit headOffset))
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset rest (headOffset + paramHeadSize ParamType.bytes32))
+      hrest
+
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scalar
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (param : Param)
+    (rest : List Param)
+    (headOffset : Nat)
+    (hparam : SupportedExternalParamType param.ty)
+    (hrest :
+      LegacyCompatibleExternalStmtList
+        (CompilationModel.genParamLoadBodyFrom
+          loadWord sizeExpr headSize baseOffset rest
+            (headOffset + paramHeadSize param.ty))) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset (param :: rest) headOffset) := by
+  cases param with
+  | mk name ty =>
+      cases hty : ty <;> simp [SupportedExternalParamType, hty] at hparam ⊢
+      · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint256
+          loadWord sizeExpr headSize baseOffset name rest headOffset (by simpa [hty] using hrest)
+      · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_uint8
+          loadWord sizeExpr headSize baseOffset name rest headOffset (by simpa [hty] using hrest)
+      · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_address
+          loadWord sizeExpr headSize baseOffset name rest headOffset (by simpa [hty] using hrest)
+      · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_bytes32
+          loadWord sizeExpr headSize baseOffset name rest headOffset (by simpa [hty] using hrest)
 -- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
 -- TYPESIG_SORRY:     (loadWord : YulExpr → YulExpr)
 -- TYPESIG_SORRY:     (sizeExpr : YulExpr)
@@ -476,6 +561,26 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 -- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList
 -- TYPESIG_SORRY:       (CompilationModel.genParamLoadBodyFrom
 -- TYPESIG_SORRY:         loadWord sizeExpr headSize baseOffset params headOffset) := by sorry
+private theorem legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
+    (loadWord : YulExpr → YulExpr)
+    (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat)
+    (params : List Param)
+    (headOffset : Nat)
+    (hparams : ∀ param ∈ params, SupportedExternalParamType param.ty) :
+    LegacyCompatibleExternalStmtList
+      (CompilationModel.genParamLoadBodyFrom
+        loadWord sizeExpr headSize baseOffset params headOffset) := by
+  induction params generalizing headOffset with
+  | nil =>
+      exact LegacyCompatibleExternalStmtList.nil
+  | cons param rest ih =>
+      have hparam : SupportedExternalParamType param.ty := hparams param (by simp)
+      have hrest : ∀ other ∈ rest, SupportedExternalParamType other.ty := by
+        intro other hmem
+        exact hparams other (by simp [hmem])
+      exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_cons_scalar
+        loadWord sizeExpr headSize baseOffset param rest headOffset hparam (ih _ hrest)
 -- SORRY'D:   induction params generalizing headOffset with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp [CompilationModel.genParamLoadBodyFrom]
@@ -491,7 +596,21 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 private theorem legacyCompatibleExternalStmtList_genParamLoads_of_supported
     (params : List Param)
     (hparams : ∀ param ∈ params, SupportedExternalParamType param.ty) :
-    LegacyCompatibleExternalStmtList (CompilationModel.genParamLoads params) := by sorry
+    LegacyCompatibleExternalStmtList (CompilationModel.genParamLoads params) := by
+  unfold CompilationModel.genParamLoads CompilationModel.genParamLoadsFrom
+  apply LegacyCompatibleExternalStmtList.if_
+  · exact LegacyCompatibleExternalStmtList.expr
+      (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      []
+      LegacyCompatibleExternalStmtList.nil
+  · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
+      (loadWord := fun pos => YulExpr.call "calldataload" [pos])
+      (sizeExpr := YulExpr.call "calldatasize" [])
+      (headSize := (params.map (fun p => paramHeadSize p.ty)).foldl (· + ·) 0)
+      (baseOffset := 4)
+      (params := params)
+      (headOffset := 4)
+      hparams
 -- SORRY'D:   unfold CompilationModel.genParamLoads CompilationModel.genParamLoadsFrom
 -- SORRY'D:   apply LegacyCompatibleExternalStmtList.if_
 -- SORRY'D:   · exact LegacyCompatibleExternalStmtList.expr
