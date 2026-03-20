@@ -120,7 +120,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                           'foundry-multi-seed']},
  'expected_job_if_conditions': {'changes': None,
                                 'checks': None,
-                                'timeout-watchdog': "needs.checks.result == 'success'",
+                                'timeout-watchdog': "needs.checks.result == 'success' && "
+                                                    "!(github.event_name == 'workflow_dispatch' "
+                                                    '&& inputs.clean_build)',
                                 'build': "needs.checks.result == 'success' && "
                                          "needs.changes.outputs.build == 'true'",
                                 'prepare-macro-fuzz': "needs.checks.result == 'success' && "

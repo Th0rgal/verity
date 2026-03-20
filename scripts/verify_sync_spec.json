@@ -176,7 +176,7 @@
   "expected_job_if_conditions": {
     "changes": null,
     "checks": null,
-    "timeout-watchdog": "needs.checks.result == 'success'",
+    "timeout-watchdog": "needs.checks.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.clean_build)",
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
     "prepare-macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
     "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
