@@ -9825,26 +9825,26 @@ theorem stmtResultToSourceResult_matches_irExecResult
     (hmatch : stmtResultMatchesIRExec fields sourceResult irResult) :
     sourceResultMatchesIRResult
       (stmtResultToSourceResult spec initialWorld sourceResult)
-      (irResultOfExecResult rollback irResult) := by sorry
--- SORRY'D:   subst hfields
--- SORRY'D:   cases sourceResult <;> cases irResult <;> simp [stmtResultMatchesIRExec] at hmatch
--- SORRY'D:   ·
--- SORRY'D:     rcases hmatch with ⟨hstorage, _, _, _, _, _, hret, ⟨hnone, hevents⟩⟩
--- SORRY'D:     refine ⟨rfl, hnone.symm, ?_, hevents.symm⟩
--- SORRY'D:     simpa [sourceResultMatchesIRResult, stmtResultToSourceResult,
--- SORRY'D:       SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
--- SORRY'D:   ·
--- SORRY'D:     rcases hmatch with ⟨hstorage, _, _, _, _, _, hret, ⟨hnone, hevents⟩⟩
--- SORRY'D:     refine ⟨rfl, rfl, ?_, hevents.symm⟩
--- SORRY'D:     simpa [sourceResultMatchesIRResult, stmtResultToSourceResult,
--- SORRY'D:       SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
--- SORRY'D:   ·
--- SORRY'D:     rcases hmatch with ⟨rfl, hstorage, _, _, _, _, _, hret, ⟨hnone, hevents⟩⟩
--- SORRY'D:     refine ⟨rfl, rfl, ?_, hevents.symm⟩
--- SORRY'D:     simpa [sourceResultMatchesIRResult, stmtResultToSourceResult,
--- SORRY'D:       SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
--- SORRY'D:   ·
--- SORRY'D:     refine ⟨rfl, rfl, hrollbackStorage.symm, hrollbackEvents.symm⟩
+      (irResultOfExecResult rollback irResult) := by
+  subst hfields
+  cases sourceResult <;> cases irResult <;> simp [stmtResultMatchesIRExec] at hmatch
+  ·
+    rcases hmatch with ⟨hstorage, _, _, _, _, _, _, hnone, hevents⟩
+    refine ⟨rfl, hnone.symm, ?_, hevents.symm⟩
+    simpa [stmtResultToSourceResult, sourceResultMatchesIRResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
+  ·
+    rcases hmatch with ⟨hstorage, _, _, _, _, _, _, hnone, hevents⟩
+    refine ⟨rfl, rfl, ?_, hevents.symm⟩
+    simpa [stmtResultToSourceResult, sourceResultMatchesIRResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
+  ·
+    rcases hmatch with ⟨rfl, hstorage, _, _, _, _, _, hnone, hevents⟩
+    refine ⟨rfl, rfl, ?_, hevents.symm⟩
+    simpa [stmtResultToSourceResult, sourceResultMatchesIRResult,
+      SourceSemantics.successResult, SourceSemantics.encodeStorage] using hstorage.symm
+  ·
+    refine ⟨rfl, rfl, hrollbackStorage.symm, hrollbackEvents.symm⟩
 
 end FunctionBody
 

@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 182  # Reduced by proving helper-surface conservative extension for expressions/lists
+    expected_sorry = 181  # Reduced by proving stmtResultToSourceResult_matches_irExecResult
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
