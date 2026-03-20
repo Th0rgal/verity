@@ -946,6 +946,12 @@ class VerifySyncTests(unittest.TestCase):
                         "with": {"cache-key-prefix": "lake"},
                     },
                     {
+                        "name": "Save current run Lake cache",
+                        "uses": "actions/cache/save@v4",
+                        "if": "success() && needs.changes.outputs.code == 'true'",
+                        "with": {"path": ".lake", "key": "run-key"},
+                    },
+                    {
                         "name": "Save Lake packages cache",
                         "uses": "actions/cache/save@v4",
                         "if": "success() && needs.changes.outputs.code == 'true' && steps.setup-lean.outputs.cache-hit != 'true'",
@@ -1016,6 +1022,12 @@ class VerifySyncTests(unittest.TestCase):
                     uses: ./.github/actions/setup-lean
                     with:
                       cache-key-prefix: lake
+                  - name: Save current run Lake cache
+                    if: success() && needs.changes.outputs.code == 'true'
+                    uses: actions/cache/save@v4
+                    with:
+                      path: .lake
+                      key: run-key
                   - name: Save Lake packages cache
                     if: success() && needs.changes.outputs.code == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
                     uses: actions/cache/save@v4
@@ -1114,6 +1126,12 @@ class VerifySyncTests(unittest.TestCase):
                         "name": "Setup Lean",
                         "uses": "./.github/actions/setup-lean",
                         "with": {"cache-key-prefix": "lake"},
+                    },
+                    {
+                        "name": "Save current run Lake cache",
+                        "uses": "actions/cache/save@v4",
+                        "if": "success() && needs.changes.outputs.code == 'true'",
+                        "with": {"path": ".lake", "key": "run-key"},
                     },
                     {
                         "name": "Save Lake packages cache",

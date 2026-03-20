@@ -50,10 +50,15 @@
   "expected_jobs": [
     "changes",
     "checks",
+    "timeout-watchdog",
     "build",
+    "prepare-macro-fuzz",
     "build-audits",
     "macro-fuzz",
-    "build-compiler",
+    "build-compiler-binaries",
+    "generate-yul",
+    "generate-yul-patched",
+    "gas-report",
     "compiler-audits",
     "compiler-regressions",
     "lean-profile",
@@ -66,9 +71,17 @@
   "expected_job_needs": {
     "changes": [],
     "checks": [],
+    "timeout-watchdog": [
+      "checks"
+    ],
     "build": [
       "changes",
       "checks"
+    ],
+    "prepare-macro-fuzz": [
+      "changes",
+      "checks",
+      "build"
     ],
     "build-audits": [
       "changes",
@@ -78,50 +91,80 @@
     "macro-fuzz": [
       "changes",
       "checks",
-      "build"
+      "prepare-macro-fuzz"
     ],
-    "build-compiler": [
+    "build-compiler-binaries": [
       "changes",
       "checks",
       "build"
+    ],
+    "generate-yul": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-binaries"
+    ],
+    "generate-yul-patched": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-binaries"
+    ],
+    "gas-report": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-binaries"
     ],
     "compiler-audits": [
       "changes",
       "checks",
       "build",
-      "build-compiler"
+      "generate-yul",
+      "generate-yul-patched",
+      "gas-report",
+      "build-compiler-binaries"
     ],
     "compiler-regressions": [
       "changes",
       "checks",
       "build",
-      "build-compiler"
+      "build-compiler-binaries"
     ],
     "lean-profile": [
       "changes"
     ],
     "foundry-gas-calibration": [
       "changes",
-      "build-compiler"
+      "generate-yul",
+      "gas-report",
+      "build-compiler-binaries"
     ],
     "foundry": [
       "changes",
-      "build-compiler"
+      "generate-yul",
+      "build-compiler-binaries"
     ],
     "foundry-patched": [
       "changes",
-      "build-compiler"
+      "generate-yul-patched",
+      "build-compiler-binaries"
     ],
     "foundry-multi-seed": [
       "changes",
-      "build-compiler"
+      "generate-yul",
+      "build-compiler-binaries"
     ],
     "failure-hints": [
       "checks",
       "build",
+      "prepare-macro-fuzz",
       "build-audits",
       "macro-fuzz",
-      "build-compiler",
+      "build-compiler-binaries",
+      "generate-yul",
+      "generate-yul-patched",
+      "gas-report",
       "compiler-audits",
       "compiler-regressions",
       "foundry-gas-calibration",
@@ -133,12 +176,17 @@
   "expected_job_if_conditions": {
     "changes": null,
     "checks": null,
+    "timeout-watchdog": "needs.checks.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.clean_build)",
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
+    "prepare-macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
     "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
-    "macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
-    "build-compiler": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    "compiler-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    "compiler-regressions": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "macro-fuzz": "needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
+    "build-compiler-binaries": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "generate-yul": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "generate-yul-patched": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "gas-report": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-regressions": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "lean-profile": "github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'",
     "foundry-gas-calibration": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
     "foundry": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
@@ -149,10 +197,15 @@
   "expected_job_runs_on": {
     "changes": "blacksmith-2vcpu-ubuntu-2404",
     "checks": "blacksmith-2vcpu-ubuntu-2404",
+    "timeout-watchdog": "blacksmith-2vcpu-ubuntu-2404",
     "build": "blacksmith-8vcpu-ubuntu-2404",
+    "prepare-macro-fuzz": "blacksmith-16vcpu-ubuntu-2404",
     "build-audits": "blacksmith-4vcpu-ubuntu-2404",
     "macro-fuzz": "blacksmith-8vcpu-ubuntu-2404",
-    "build-compiler": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-binaries": "blacksmith-16vcpu-ubuntu-2404",
+    "generate-yul": "blacksmith-8vcpu-ubuntu-2404",
+    "generate-yul-patched": "blacksmith-8vcpu-ubuntu-2404",
+    "gas-report": "blacksmith-8vcpu-ubuntu-2404",
     "compiler-audits": "blacksmith-8vcpu-ubuntu-2404",
     "compiler-regressions": "blacksmith-16vcpu-ubuntu-2404",
     "lean-profile": "blacksmith-8vcpu-ubuntu-2404",
@@ -165,12 +218,17 @@
   "expected_job_timeouts": {
     "changes": 5,
     "checks": 5,
-    "build": 25,
+    "timeout-watchdog": 5,
+    "build": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}",
+    "prepare-macro-fuzz": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}",
     "build-audits": 20,
-    "macro-fuzz": 90,
-    "build-compiler": 120,
+    "macro-fuzz": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}",
+    "build-compiler-binaries": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}",
+    "generate-yul": 45,
+    "generate-yul-patched": 45,
+    "gas-report": 45,
     "compiler-audits": 45,
-    "compiler-regressions": 60,
+    "compiler-regressions": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '120' || '60') }}",
     "lean-profile": 45,
     "foundry-gas-calibration": 15,
     "foundry": 15,
@@ -178,6 +236,7 @@
     "foundry-multi-seed": 25
   },
   "expected_job_strategy_fail_fast": {
+    "macro-fuzz": false,
     "foundry": false,
     "foundry-multi-seed": false
   },
@@ -190,6 +249,10 @@
     }
   },
   "expected_job_permissions": {
+    "timeout-watchdog": {
+      "actions": "read",
+      "contents": "read"
+    },
     "failure-hints": {
       "contents": "read",
       "pull-requests": "write"
@@ -205,8 +268,18 @@
   "expected_workflow_env": {
     "SOLC_VERSION": "0.8.33",
     "SOLC_URL": "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21",
-    "SOLC_SHA256": "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
+    "SOLC_SHA256": "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468",
+    "VERIFY_CLEAN_BUILD": "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}",
+    "VERIFY_USE_STICKY_DISKS": "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}",
+    "VERIFY_DISABLE_LAKE_CACHE_RESTORE": "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}",
+    "VERIFY_CACHE_BUCKET": "${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}"
   },
+  "build_compiler_job_names": [
+    "build-compiler-binaries",
+    "generate-yul",
+    "generate-yul-patched",
+    "gas-report"
+  ],
   "expected_step_contracts": {
     "changes": [
       {
@@ -226,6 +299,15 @@
         "run": "make check"
       }
     ],
+    "timeout-watchdog": [
+      {
+        "name": "Warn on timeout-risk trend",
+        "env": {
+          "GH_TOKEN": "${{ github.token }}"
+        },
+        "run": "python3 scripts/ci_timeout_watchdog.py \\\n  --repo ${{ github.repository }} \\\n  --workflow verify.yml \\\n  --branch ${{ github.event.pull_request.base.ref || github.ref_name }}"
+      }
+    ],
     "build": [
       {
         "uses": "actions/checkout@v4",
@@ -237,16 +319,83 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake"
+          "cache-key-prefix": "lake",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify",
+          "use-build-sticky-disk": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "build-sticky-disk-key": "verify-build-base-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Prebuild shared audit Lean targets",
+        "run": "set -o pipefail\nlake build PrintAxioms 2>&1 | tee -a lake-build.log"
+      },
+      {
+        "name": "Upload prepared Lean workspace build",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build",
+          "path": "lean-workspace-build.tar"
+        }
+      },
+      {
+        "name": "Save current run Lake cache",
+        "uses": "actions/cache/save@v4",
+        "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true'",
+        "with": {
+          "path": ".lake",
+          "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
         "name": "Save Lake packages cache",
         "uses": "actions/cache/save@v4",
-        "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'",
+        "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true' && steps.setup-lean.outputs.cache-hit != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
+        }
+      }
+    ],
+    "prepare-macro-fuzz": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify",
+          "use-build-sticky-disk": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "build-sticky-disk-key": "verify-build-macro-fuzz-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Build macro round-trip fuzz executable",
+        "run": "stdbuf -oL -eL lake build macro-roundtrip-fuzz"
+      },
+      {
+        "name": "Upload macro-fuzz Lean workspace build",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "lean-workspace-macro-fuzz-build",
+          "path": "lean-workspace-macro-fuzz-build.tar"
         }
       }
     ],
@@ -261,7 +410,18 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake"
+          "cache-key-prefix": "lake",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
         }
       },
       {
@@ -284,7 +444,18 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake"
+          "cache-key-prefix": "lake",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-macro-fuzz-build"
         }
       },
       {
@@ -292,7 +463,7 @@
         "run": "lake exe macro-roundtrip-fuzz"
       }
     ],
-    "build-compiler": [
+    "build-compiler-binaries": [
       {
         "uses": "actions/checkout@v4",
         "with": {
@@ -303,16 +474,189 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake-compiler"
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "use-build-sticky-disk": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "build-sticky-disk-key": "verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Upload compiler workspace build",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build",
+          "path": "lean-workspace-compiler-build.tar"
         }
       },
       {
         "name": "Save Lake compiler cache",
         "uses": "actions/cache/save@v4",
-        "if": "always()",
+        "if": "always() && steps.setup-lean.outputs.using-sticky-disks != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      }
+    ],
+    "generate-yul": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
+        }
+      },
+      {
+        "name": "Download compiler binaries",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin"
+        }
+      },
+      {
+        "name": "Upload generated Yul",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "generated-yul",
+          "path": "compiler/yul"
+        }
+      }
+    ],
+    "generate-yul-patched": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
+        }
+      },
+      {
+        "name": "Download compiler binaries",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin"
+        }
+      },
+      {
+        "name": "Upload patched Yul",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "generated-yul-patched",
+          "path": "compiler/yul-patched"
+        }
+      },
+      {
+        "name": "Upload patch coverage report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "patch-coverage-report",
+          "path": "compiler/patch-report.tsv"
+        }
+      }
+    ],
+    "gas-report": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
+        }
+      },
+      {
+        "name": "Upload static gas report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "static-gas-report",
+          "path": "gas-report-static.tsv"
+        }
+      },
+      {
+        "name": "Upload patched static gas report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "static-gas-report-patched",
+          "path": "gas-report-static-patched.tsv"
         }
       }
     ],
@@ -321,13 +665,6 @@
         "uses": "actions/checkout@v4",
         "with": {
           "submodules": "recursive"
-        }
-      },
-      {
-        "name": "Setup Lean",
-        "uses": "./.github/actions/setup-lean",
-        "with": {
-          "cache-key-prefix": "lake-compiler"
         }
       },
       {
@@ -354,7 +691,26 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake-compiler"
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
         }
       },
       {
@@ -372,7 +728,12 @@
       },
       {
         "name": "Setup Lean",
-        "uses": "./.github/actions/setup-lean"
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "use-sticky-disks": "${{ env.VERIFY_USE_STICKY_DISKS }}",
+          "sticky-disk-key-prefix": "verify",
+          "disable-lake-cache-restore": "${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}"
+        }
       }
     ],
     "foundry-gas-calibration": [
@@ -452,6 +813,7 @@
     "python3 scripts/check_axioms.py",
     "python3 scripts/generate_verification_status.py --check",
     "python3 scripts/check_verification_status_doc.py",
+    "python3 scripts/generate_verify_sync_spec.py --check",
     "python3 scripts/check_verify_sync.py",
     "python3 scripts/check_bridge_coverage_sync.py",
     "python3 scripts/check_builtin_bridge_matrix_sync.py",
@@ -484,7 +846,9 @@
   "expected_build_commands": [
     "check_lean_warning_regression.py --log lake-build.log"
   ],
-  "required_build_run_commands": [],
+  "required_build_run_commands": [
+    "lake build PrintAxioms"
+  ],
   "expected_build_audit_commands": [
     "check_split_package_builds.py",
     "check_macro_roundtrip_fuzz_coverage.py",
@@ -498,7 +862,12 @@
   ],
   "expected_build_compiler_commands": [],
   "required_build_compiler_run_commands": [
+    "verity-compiler",
     "verity-compiler-patched",
+    "difftest-interpreter",
+    "gas-report",
+    "compiler-main-test",
+    "Compiler.CompilationModelFeatureTest",
     "--output compiler/yul",
     "--output compiler/yul-patched",
     "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
@@ -545,17 +914,30 @@
     "command": "python3 scripts/check_gas.py calibration --static-report gas-report-static.tsv"
   },
   "expected_uploaded_artifacts": {
+    "build": [
+      "lean-workspace-build"
+    ],
+    "prepare-macro-fuzz": [
+      "lean-workspace-macro-fuzz-build"
+    ],
     "build-audits": [
       "axiom-dependency-report"
     ],
-    "build-compiler": [
-      "generated-yul",
-      "generated-yul-patched",
+    "build-compiler-binaries": [
       "difftest-interpreter",
       "verity-compiler-binaries",
-      "static-gas-report",
-      "static-gas-report-patched",
+      "lean-workspace-compiler-build"
+    ],
+    "generate-yul": [
+      "generated-yul"
+    ],
+    "generate-yul-patched": [
+      "generated-yul-patched",
       "patch-coverage-report"
+    ],
+    "gas-report": [
+      "static-gas-report",
+      "static-gas-report-patched"
     ],
     "compiler-audits": [
       "parity-pack-identity-report"
@@ -565,17 +947,30 @@
     ]
   },
   "expected_uploaded_artifact_paths": {
+    "build": [
+      "lean-workspace-build.tar"
+    ],
+    "prepare-macro-fuzz": [
+      "lean-workspace-macro-fuzz-build.tar"
+    ],
     "build-audits": [
       "axiom-report.md\naxiom-report-raw.log"
     ],
-    "build-compiler": [
-      "compiler/yul",
-      "compiler/yul-patched",
+    "build-compiler-binaries": [
       ".lake/build/bin/difftest-interpreter",
       "compiler/bin",
-      "gas-report-static.tsv",
-      "gas-report-static-patched.tsv",
+      "lean-workspace-compiler-build.tar"
+    ],
+    "generate-yul": [
+      "compiler/yul"
+    ],
+    "generate-yul-patched": [
+      "compiler/yul-patched",
       "compiler/patch-report.tsv"
+    ],
+    "gas-report": [
+      "gas-report-static.tsv",
+      "gas-report-static-patched.tsv"
     ],
     "compiler-audits": [
       "compiler/parity-pack-identity-report.json"
@@ -585,6 +980,32 @@
     ]
   },
   "expected_downloaded_artifacts": {
+    "prepare-macro-fuzz": [
+      "lean-workspace-build"
+    ],
+    "build-audits": [
+      "lean-workspace-build"
+    ],
+    "macro-fuzz": [
+      "lean-workspace-macro-fuzz-build"
+    ],
+    "build-compiler-binaries": [
+      "lean-workspace-build"
+    ],
+    "generate-yul": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build",
+      "verity-compiler-binaries"
+    ],
+    "generate-yul-patched": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build",
+      "verity-compiler-binaries"
+    ],
+    "gas-report": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build"
+    ],
     "compiler-audits": [
       "generated-yul",
       "generated-yul-patched",
@@ -593,11 +1014,41 @@
       "patch-coverage-report",
       "verity-compiler-binaries"
     ],
+    "compiler-regressions": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build"
+    ],
     "foundry-gas-calibration": [
       "static-gas-report"
     ]
   },
   "expected_downloaded_artifact_paths": {
+    "prepare-macro-fuzz": [
+      null
+    ],
+    "build-audits": [
+      null
+    ],
+    "macro-fuzz": [
+      null
+    ],
+    "build-compiler-binaries": [
+      null
+    ],
+    "generate-yul": [
+      null,
+      null,
+      "compiler/bin"
+    ],
+    "generate-yul-patched": [
+      null,
+      null,
+      "compiler/bin"
+    ],
+    "gas-report": [
+      null,
+      null
+    ],
     "compiler-audits": [
       "compiler/yul",
       "compiler/yul-patched",
@@ -605,6 +1056,10 @@
       null,
       "compiler",
       "compiler/bin"
+    ],
+    "compiler-regressions": [
+      null,
+      null
     ],
     "foundry-gas-calibration": [
       null

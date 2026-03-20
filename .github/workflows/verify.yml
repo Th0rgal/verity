@@ -59,6 +59,12 @@ on:
       - 'README.md'
       - 'TRUST_ASSUMPTIONS.md'
   workflow_dispatch:
+    inputs:
+      clean_build:
+        description: 'Ignore persisted Lake build state and run a fresh CI build with larger timeouts'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -71,6 +77,10 @@ env:
   SOLC_VERSION: "0.8.33"
   SOLC_URL: "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21"
   SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
+  VERIFY_CLEAN_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
+  VERIFY_USE_STICKY_DISKS: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}
+  VERIFY_DISABLE_LAKE_CACHE_RESTORE: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
+  VERIFY_CACHE_BUCKET: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
 
 jobs:
   changes:
@@ -166,9 +176,29 @@ jobs:
       - name: Run all checks
         run: make check
 
+  timeout-watchdog:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    needs: checks
+    if: needs.checks.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.clean_build)
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Warn on timeout-risk trend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/ci_timeout_watchdog.py \
+            --repo ${{ github.repository }} \
+            --workflow verify.yml \
+            --branch ${{ github.event.pull_request.base.ref || github.ref_name }}
+
   build:
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 25
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}
     needs: [changes, checks]
     if: needs.checks.result == 'success' && needs.changes.outputs.build == 'true'
     env:
@@ -183,6 +213,12 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-base-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Build and verify all proofs
         run: |
@@ -192,12 +228,76 @@ jobs:
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 
+      - name: Prebuild shared audit Lean targets
+        run: |
+          set -o pipefail
+          lake build PrintAxioms 2>&1 | tee -a lake-build.log
+
+      - name: Package prepared Lean workspace build
+        run: tar -cf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
+
+      - name: Upload prepared Lean workspace build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace-build
+          path: lean-workspace-build.tar
+
+      - name: Save current run Lake cache
+        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
       - name: Save Lake packages cache
-        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
+        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true' && steps.setup-lean.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+
+  prepare-macro-fuzz:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}
+    needs: [changes, checks, build]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    env:
+      LEAN_NUM_THREADS: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-macro-fuzz-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Build macro round-trip fuzz executable
+        run: stdbuf -oL -eL lake build macro-roundtrip-fuzz
+
+      - name: Package macro-fuzz Lean workspace build
+        run: tar -cf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
+
+      - name: Upload macro-fuzz Lean workspace build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace-macro-fuzz-build
+          path: lean-workspace-macro-fuzz-build.tar
 
   build-audits:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -215,6 +315,18 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
 
       - name: Build split Lake packages independently
         run: python3 scripts/check_split_package_builds.py
@@ -281,11 +393,17 @@ jobs:
 
   macro-fuzz:
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 90
-    needs: [changes, checks, build]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}
+    needs: [changes, checks, prepare-macro-fuzz]
+    if: needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3]
     env:
       LEAN_NUM_THREADS: 8
+      MACRO_FUZZ_SHARD_INDEX: ${{ matrix.shard_index }}
+      MACRO_FUZZ_SHARD_COUNT: 4
     steps:
       - uses: actions/checkout@v4
         with:
@@ -296,13 +414,25 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-macro-fuzz-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-macro-fuzz-build.tar
 
       - name: Run macro round-trip fuzz harness
         run: lake exe macro-roundtrip-fuzz
 
-  build-compiler:
+  build-compiler-binaries:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: 120
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
@@ -317,39 +447,33 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          build-sticky-disk-key: verify-build-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
-      - name: Build compiler artifacts
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Build compiler binaries and regression targets
         run: |
-          set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
           stdbuf -oL -eL lake build \
-            "$@" \
             verity-compiler \
             verity-compiler-patched \
-            difftest-interpreter
-
-      - name: Generate Yul (all contracts + CryptoHash with linked libraries)
-        run: |
-          ./.lake/build/bin/verity-compiler \
-            --manifest packages/verity-examples/contracts.manifest \
-            --output compiler/yul \
-            --link examples/external-libs/PoseidonT3.yul \
-            --link examples/external-libs/PoseidonT4.yul
-
-      - name: Generate patched Yul + patch coverage report
-        run: |
-          ./.lake/build/bin/verity-compiler-patched \
-            --manifest packages/verity-examples/contracts.manifest \
-            --enable-patches \
-            --patch-report compiler/patch-report.tsv \
-            --output compiler/yul-patched \
-            --link examples/external-libs/PoseidonT3.yul \
-            --link examples/external-libs/PoseidonT4.yul
-
-      - name: Save static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
-
-      - name: Save patched static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+            difftest-interpreter \
+            gas-report \
+            compiler-main-test \
+            Compiler.CompilationModelFeatureTest \
+            $(grep -v '^[[:space:]]*#' packages/verity-examples/contracts.manifest | sed '/^[[:space:]]*$/d')
 
       - name: Package compiler binaries
         run: |
@@ -358,24 +482,15 @@ jobs:
           cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
           cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
+      - name: Package compiler workspace build
+        run: tar -cf lean-workspace-compiler-build.tar .lake/build
+
       - name: Save Lake compiler cache
-        if: always()
+        if: always() && steps.setup-lean.outputs.using-sticky-disks != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
           key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Upload generated Yul
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
-      - name: Upload patched Yul
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-yul-patched
-          path: compiler/yul-patched
 
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v4
@@ -389,6 +504,180 @@ jobs:
           name: verity-compiler-binaries
           path: compiler/bin
 
+      - name: Upload compiler workspace build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+          path: lean-workspace-compiler-build.tar
+
+  generate-yul:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
+
+      - name: Download compiler binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
+
+      - name: Restore compiler executable bits
+        run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+
+      - name: Generate Yul (all contracts + CryptoHash with linked libraries)
+        run: |
+          ./compiler/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
+            --output compiler/yul \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+      - name: Upload generated Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul
+          path: compiler/yul
+
+  generate-yul-patched:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
+
+      - name: Download compiler binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
+
+      - name: Restore compiler executable bits
+        run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
+
+      - name: Generate patched Yul + patch coverage report
+        run: |
+          ./compiler/bin/verity-compiler-patched \
+            --manifest packages/verity-examples/contracts.manifest \
+            --enable-patches \
+            --patch-report compiler/patch-report.tsv \
+            --output compiler/yul-patched \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+      - name: Upload patched Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul-patched
+          path: compiler/yul-patched
+
+      - name: Upload patch coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-coverage-report
+          path: compiler/patch-report.tsv
+
+  gas-report:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
+
+      - name: Save static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+
+      - name: Save patched static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+
       - name: Upload static gas report
         uses: actions/upload-artifact@v4
         with:
@@ -401,28 +690,15 @@ jobs:
           name: static-gas-report-patched
           path: gas-report-static-patched.tsv
 
-      - name: Upload patch coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: patch-coverage-report
-          path: compiler/patch-report.tsv
-
   compiler-audits:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 45
-    needs: [changes, checks, build, build-compiler]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
-    env:
-      LEAN_NUM_THREADS: 8
+    needs: [changes, checks, build, generate-yul, generate-yul-patched, gas-report, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Setup Lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake-compiler
 
       - name: Download generated Yul
         uses: actions/download-artifact@v4
@@ -457,6 +733,9 @@ jobs:
         with:
           name: verity-compiler-binaries
           path: compiler/bin
+
+      - name: Restore compiler executable bits
+        run: chmod +x compiler/bin/verity-compiler compiler/bin/verity-compiler-patched compiler/bin/difftest-interpreter
 
       - name: Setup solc
         uses: ./.github/actions/setup-solc
@@ -567,9 +846,9 @@ jobs:
 
   compiler-regressions:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: 60
-    needs: [changes, checks, build, build-compiler]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '120' || '60') }}
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
       LEAN_NUM_THREADS: 12
     steps:
@@ -581,6 +860,27 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify-compiler
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Run compiler CLI regression module
         run: stdbuf -oL -eL lake exe compiler-main-test
@@ -598,6 +898,10 @@ jobs:
 
       - name: Setup Lean
         uses: ./.github/actions/setup-lean
+        with:
+          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+          sticky-disk-key-prefix: verify
+          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
 
       - name: Profile Lean module timings
         run: python3 scripts/profile_lean_modules.py --output lean-perf-queue.md
@@ -614,7 +918,7 @@ jobs:
   foundry-gas-calibration:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul, gas-report, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v4
@@ -638,7 +942,7 @@ jobs:
   foundry:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     strategy:
       fail-fast: false
@@ -668,7 +972,7 @@ jobs:
   foundry-patched:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul-patched, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v4
@@ -697,7 +1001,7 @@ jobs:
   foundry-multi-seed:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 25
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
@@ -734,7 +1038,7 @@ jobs:
 
   failure-hints:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [checks, build, build-audits, macro-fuzz, build-compiler, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read

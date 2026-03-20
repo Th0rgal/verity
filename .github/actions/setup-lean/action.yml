@@ -5,24 +5,83 @@ inputs:
   cache-key-prefix:
     description: Cache key prefix for Lake packages (use different prefixes for separate caches)
     default: "lake"
+  cache-primary-key:
+    description: Exact Lake cache key to restore before falling back to the default prefix key
+    default: ""
+  cache-extra-restore-keys:
+    description: Additional Lake cache restore prefixes to try before the default fallback keys
+    default: ""
+  use-sticky-disks:
+    description: Mount Blacksmith sticky disks for stable Lean state instead of restoring GitHub caches
+    default: "false"
+  sticky-disk-key-prefix:
+    description: Prefix used when deriving sticky disk keys for elan and Lake packages
+    default: ""
+  use-build-sticky-disk:
+    description: Mount a sticky disk for `.lake/build` so Lake can incrementally rebuild repo targets across runs
+    default: "false"
+  build-sticky-disk-key:
+    description: Fully qualified sticky-disk key to use for `.lake/build`
+    default: ""
+  disable-lake-cache-restore:
+    description: Skip restoring the GitHub Actions `.lake` cache (used by manual clean-build runs)
+    default: "false"
 
 runs:
   using: composite
   steps:
+    - name: Resolve Lean persistence mode
+      id: persistence
+      shell: bash
+      env:
+        STICKY_DISKS_ENABLED: ${{ inputs.use-sticky-disks }}
+        BUILD_STICKY_DISK_ENABLED: ${{ inputs.use-build-sticky-disk }}
+        CACHE_KEY_PREFIX: ${{ inputs.cache-key-prefix }}
+        STICKY_DISK_KEY_PREFIX: ${{ inputs.sticky-disk-key-prefix }}
+        ELAN_STICKY_KEY: elan-${{ inputs.sticky-disk-key-prefix || inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}
+        LAKE_PACKAGES_STICKY_KEY: lake-packages-${{ inputs.sticky-disk-key-prefix || inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+        BUILD_STICKY_DISK_KEY: ${{ inputs.build-sticky-disk-key }}
+      run: |
+        use_sticky="${STICKY_DISKS_ENABLED}"
+        use_build_sticky="${BUILD_STICKY_DISK_ENABLED}"
+        key_prefix="${STICKY_DISK_KEY_PREFIX:-$CACHE_KEY_PREFIX}"
+        if [ -z "${BUILD_STICKY_DISK_KEY}" ]; then
+          use_build_sticky=false
+        fi
+        {
+          echo "use_sticky_disks=${use_sticky}"
+          echo "use_build_sticky_disk=${use_build_sticky}"
+          echo "key_prefix=${key_prefix}"
+          echo "elan_sticky_key=${ELAN_STICKY_KEY}"
+          echo "lake_packages_sticky_key=${LAKE_PACKAGES_STICKY_KEY}"
+          echo "build_sticky_disk_key=${BUILD_STICKY_DISK_KEY}"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Mount elan sticky disk
+      if: steps.persistence.outputs.use_sticky_disks == 'true'
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ steps.persistence.outputs.elan_sticky_key }}
+        path: ~/.elan
+
     - name: Cache elan + Lean toolchain
       id: cache-elan
+      if: steps.persistence.outputs.use_sticky_disks != 'true'
       uses: actions/cache@v4
       with:
         path: ~/.elan
         key: elan-${{ hashFiles('lean-toolchain') }}
 
     - name: Install elan
-      if: steps.cache-elan.outputs.cache-hit != 'true'
+      if: steps.persistence.outputs.use_sticky_disks == 'true' || steps.cache-elan.outputs.cache-hit != 'true'
       shell: bash
       env:
         ELAN_VERSION: "v4.1.2"
         ELAN_INIT_SHA256: "4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264"
       run: |
+        if [ -x "$HOME/.elan/bin/elan" ]; then
+          exit 0
+        fi
         curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/${ELAN_VERSION}/elan-init.sh" -o elan-init.sh
         echo "${ELAN_INIT_SHA256}  elan-init.sh" | sha256sum -c -
         bash elan-init.sh -y --default-toolchain none
@@ -32,31 +91,92 @@ runs:
       shell: bash
       run: echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
-    - name: Restore Lake packages cache
-      id: cache-lake
-      uses: actions/cache/restore@v4
-      with:
-        path: .lake
-        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-        restore-keys: |
+    - name: Resolve Lake cache keys
+      id: resolve-cache-keys
+      if: steps.persistence.outputs.use_sticky_disks != 'true' && inputs.disable-lake-cache-restore != 'true'
+      shell: bash
+      env:
+        DEFAULT_CACHE_KEY: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+        DEFAULT_RESTORE_KEYS: |
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
           lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
           lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
+        OVERRIDE_CACHE_KEY: ${{ inputs.cache-primary-key }}
+        EXTRA_RESTORE_KEYS: ${{ inputs.cache-extra-restore-keys }}
+      run: |
+        primary_key="${OVERRIDE_CACHE_KEY:-$DEFAULT_CACHE_KEY}"
+        {
+          echo "primary=$primary_key"
+          echo "restore_keys<<EOF"
+          if [ -n "${EXTRA_RESTORE_KEYS}" ]; then
+            printf '%s\n' "${EXTRA_RESTORE_KEYS}"
+          fi
+          printf '%s\n' "${DEFAULT_RESTORE_KEYS}"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore Lake packages cache
+      id: cache-lake
+      if: steps.persistence.outputs.use_sticky_disks != 'true' && inputs.disable-lake-cache-restore != 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: .lake
+        key: ${{ steps.resolve-cache-keys.outputs.primary }}
+        restore-keys: ${{ steps.resolve-cache-keys.outputs.restore_keys }}
+
+    - name: Prepare writable Lake root for sticky disks
+      if: steps.persistence.outputs.use_sticky_disks == 'true'
+      shell: bash
+      run: |
+        mkdir -p .lake/packages .lake/build
+        chmod u+rwx .lake .lake/packages .lake/build
+
+    - name: Mount Lake packages sticky disk
+      if: steps.persistence.outputs.use_sticky_disks == 'true'
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ steps.persistence.outputs.lake_packages_sticky_key }}
+        path: .lake/packages
+
+    - name: Mount Lake build sticky disk
+      if: steps.persistence.outputs.use_sticky_disks == 'true' && steps.persistence.outputs.use_build_sticky_disk == 'true'
+      uses: useblacksmith/stickydisk@v1
+      with:
+        key: ${{ steps.persistence.outputs.build_sticky_disk_key }}
+        path: .lake/build
 
     - name: Refresh Lake dependency state on partial cache hit
-      if: steps.cache-lake.outputs.cache-hit != 'true'
+      if: steps.persistence.outputs.use_sticky_disks != 'true' && steps.cache-lake.outputs.cache-hit != 'true'
       shell: bash
       run: |
         python3 scripts/prune_lake_cache.py
 
+    - name: Decide whether Lean dependency hydration is required
+      id: hydration
+      shell: bash
+      env:
+        USING_STICKY_DISKS: ${{ steps.persistence.outputs.use_sticky_disks }}
+        LAKE_CACHE_HIT: ${{ steps.cache-lake.outputs.cache-hit }}
+      run: |
+        required=true
+        if [ "${USING_STICKY_DISKS}" = "true" ]; then
+          if [ -d ".lake/packages/mathlib/.lake/build" ]; then
+            required=false
+          fi
+        elif [ "${LAKE_CACHE_HIT}" = "true" ]; then
+          required=false
+        fi
+        echo "required=${required}" >> "$GITHUB_OUTPUT"
+
     - name: Fetch mathlib compiled cache
       id: fetch-mathlib-cache
+      if: steps.hydration.outputs.required == 'true'
       shell: bash
       run: lake exe cache get
       continue-on-error: true
 
     - name: Retry mathlib compiled cache fetch on transient failures
-      if: steps.fetch-mathlib-cache.outcome != 'success'
+      if: steps.hydration.outputs.required == 'true' && steps.fetch-mathlib-cache.outcome != 'success'
       shell: bash
       run: |
         set -u
@@ -73,3 +193,9 @@ outputs:
   cache-hit:
     description: Whether the Lake cache was a full hit
     value: ${{ steps.cache-lake.outputs.cache-hit }}
+  using-sticky-disks:
+    description: Whether Blacksmith sticky disks were enabled for this invocation
+    value: ${{ steps.persistence.outputs.use_sticky_disks }}
+  using-build-sticky-disk:
+    description: Whether a sticky disk was mounted for `.lake/build`
+    value: ${{ steps.persistence.outputs.use_build_sticky_disk }}

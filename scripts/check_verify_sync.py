@@ -227,6 +227,8 @@ def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
     first = re.match(rf"^\s*-\s*{re.escape(key)}:\s*(?P<value>.*?)\s*$", lines[0])
     if first:
         raw = strip_yaml_inline_comment(first.group("value"))
+        if raw in {"|", "|-", "|+", ">", ">-", ">+"}:
+            return _decode_step_block_scalar(raw, lines, 0, len(lines[0]) - len(lines[0].lstrip(" ")))
         return unquote_yaml_scalar(raw) if raw else ""
 
     step_indent = len(lines[0]) - len(lines[0].lstrip(" "))
@@ -242,7 +244,7 @@ def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
     if min_child_indent is None:
         return None
 
-    for line in lines[1:]:
+    for idx, line in enumerate(lines[1:], start=1):
         if not line.strip():
             continue
         child_indent = len(line) - len(line.lstrip(" "))
@@ -252,6 +254,8 @@ def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
         if not m:
             continue
         raw = strip_yaml_inline_comment(m.group("value"))
+        if raw in {"|", "|-", "|+", ">", ">-", ">+"}:
+            return _decode_step_block_scalar(raw, lines, idx, child_indent)
         return unquote_yaml_scalar(raw) if raw else ""
     return None
 
@@ -755,6 +759,10 @@ def _extract_with_key_from_block(step_block: str, key: str) -> str | None:
 
 
 def _load_spec() -> dict:
+    if SPEC_PATH == ROOT / "scripts" / "verify_sync_spec.json":
+        from verify_sync_spec_source import build_spec
+
+        return build_spec()
     return json.loads(SPEC_PATH.read_text(encoding="utf-8"))
 
 
@@ -1087,6 +1095,8 @@ def _missing_required_run_commands(run_commands: list[str], required_commands: l
 
 def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors: list[str] = []
+    build_compiler_jobs = spec.get("build_compiler_job_names", ["build-compiler"])
+
     def safe_python_commands(job_name: str) -> list[str]:
         try:
             return snapshot.python_commands(job_name, include_args=True)
@@ -1098,6 +1108,18 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
             return snapshot.run_commands(job_name)
         except ValueError:
             return []
+
+    def combined_python_commands(job_names: list[str]) -> list[str]:
+        combined: list[str] = []
+        for job_name in job_names:
+            combined.extend(safe_python_commands(job_name))
+        return combined
+
+    def combined_run_commands(job_names: list[str]) -> list[str]:
+        combined: list[str] = []
+        for job_name in job_names:
+            combined.extend(safe_run_commands(job_name))
+        return combined
 
     expected_checks = spec["expected_checks_commands"]
     checks_run_cmds = snapshot.run_commands("checks")
@@ -1143,7 +1165,7 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors.extend(
         _compare_lists(
             "build-compiler python scripts",
-            safe_python_commands("build-compiler"),
+            combined_python_commands(build_compiler_jobs),
             "spec build-compiler scripts",
             spec["expected_build_compiler_commands"],
         )
@@ -1176,7 +1198,7 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
         )
 
     missing_build_compiler_run = _missing_required_run_commands(
-        safe_run_commands("build-compiler"),
+        combined_run_commands(build_compiler_jobs),
         spec.get("required_build_compiler_run_commands", []),
     )
     if missing_build_compiler_run:
