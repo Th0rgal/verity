@@ -1333,7 +1333,85 @@ theorem supported_function_correct_with_helper_proofs_body_goal
     (hcalldataSizeFits : TxCalldataSizeFitsEvm tx) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
-      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+      (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  rcases hbodyCorrect with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
+  have hcompiled := compileFunctionSpec_ok_of_components model.fields model.events model.errors
+      selector fn returns bodyStmts hvalidate hreturns hbodyCompile
+  have hirFn : irFn = compiledFunctionIR selector fn returns bodyStmts := by
+    rw [hcompile] at hcompiled
+    injection hcompiled
+  have hrollbackStorage :
+      initialState.storage =
+        SourceSemantics.encodeStorage model
+          (SourceSemantics.withTransactionContext initialWorld tx) := by
+    simpa [initialState, FunctionBody.initialIRStateForTx] using
+      (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
+  have hrollbackEvents :
+      initialState.events =
+        SourceSemantics.encodeEvents
+          (SourceSemantics.withTransactionContext initialWorld tx).events := by
+    simp [initialState, FunctionBody.initialIRStateForTx]
+  have hsourceMatch :
+      FunctionBody.sourceResultMatchesIRResult
+        (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+        (execResultToIRResult initialState irExec) := by
+    have hpack :=
+      FunctionBody.stmtResultToSourceResult_matches_irExecResult
+        (spec := model)
+        (fields := SourceSemantics.effectiveFields model)
+        (initialWorld := SourceSemantics.withTransactionContext initialWorld tx)
+        (rollback := initialState)
+        (sourceResult := sourceResult)
+        (irResult := irExec)
+        hrollbackStorage hrollbackEvents rfl hmatch
+    simpa [supportedSourceFunctionSemantics, SourceSemantics.interpretFunctionWithHelpers,
+      hbind, hsource, FunctionBody.stmtResultToSourceResult,
+      FunctionBody.sourceResultMatchesIRResult, FunctionBody.irResultOfExecResult,
+      execResultToIRResult] using hpack
+  have hcompiledExec :
+      Compiler.Proofs.YulGeneration.execIRFunctionFuel
+          ((genParamLoads fn.params ++ bodyStmts).length + extraFuel + 1)
+          (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState =
+        execResultToIRResult initialState irExec := by
+    exact exec_compiledFunctionIR_of_body_extraFuel
+      (state := initialState) (selector := selector) (spec := fn)
+      (returns := returns) (bodyStmts := bodyStmts) (bindings := bindings)
+      (tailResult := irExec) (extraFuel := extraFuel)
+      (hSupported.selectorFunctionParamsSupported hfn)
+      hcalldataSizeFits hbind hbodyExec
+  subst hirFn
+  have hcompiledBodyFuel' :
+      (genParamLoads fn.params ++ bodyStmts).length + extraFuel =
+        sizeOf (genParamLoads fn.params ++ bodyStmts) := by
+    simpa [compiledFunctionIR] using hcompiledBodyFuel
+  have hfuelEq'' :
+      extraFuel + (bodyStmts.length + (1 + (genParamLoads fn.params).length)) =
+        1 + sizeOf (genParamLoads fn.params ++ bodyStmts) := by
+    have hbodyFuel'' :
+        (genParamLoads fn.params).length + bodyStmts.length + extraFuel =
+          sizeOf (genParamLoads fn.params ++ bodyStmts) := by
+      simpa [List.length_append, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using
+        hcompiledBodyFuel'
+    omega
+  have hadequacy :
+      Compiler.Proofs.YulGeneration.execIRFunctionFuel
+          (sizeOf (compiledFunctionIR selector fn returns bodyStmts).body + 1)
+          (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState =
+        execIRFunction (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState := by
+    simpa [Compiler.Proofs.YulGeneration.execIRFunctionFuel_adequate_goal] using
+      (Compiler.Proofs.YulGeneration.execIRFunctionFuel_adequate
+        (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState)
+  have hfuel' :
+      FunctionBody.sourceResultMatchesIRResult
+        (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+        (Compiler.Proofs.YulGeneration.execIRFunctionFuel
+          (sizeOf (compiledFunctionIR selector fn returns bodyStmts).body + 1)
+          (compiledFunctionIR selector fn returns bodyStmts) tx.args initialState) := by
+    rw [← hcompiledExec] at hsourceMatch
+    simpa [compiledFunctionIR, hfuelEq'', Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+      using hsourceMatch
+  simpa [hadequacy] using hfuel'
 -- SORRY'D:   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
 -- SORRY'D:   rcases hbodyCorrect with ⟨sourceResult, irExec, hsource, hbodyExec, hmatch⟩
 -- SORRY'D:   have hcompiled := compileFunctionSpec_ok_of_components model.fields model.events model.errors
