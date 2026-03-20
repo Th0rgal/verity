@@ -631,22 +631,6 @@ mutual
             else
               execStmtList fields state elseBranch
         | none => .revert
-    | state, .forEach varName count body =>
-        match evalExpr fields state count with
-        | some resolvedCount =>
-            let rec loop (current : RuntimeState) (nextValue remaining : Nat) : StmtResult :=
-              match remaining with
-              | 0 => .continue current
-              | remaining + 1 =>
-                  let loopState :=
-                    { current with bindings := bindValue current.bindings varName nextValue }
-                  match execStmtList fields loopState body with
-                  | .continue next => loop next (nextValue + 1) remaining
-                  | .stop next => .stop next
-                  | .return value next => .return value next
-                  | .revert => .revert
-            loop state 0 resolvedCount
-        | none => .revert
     | _, _ => .revert
 
   def execStmtList (fields : List Field) : RuntimeState → List Stmt → StmtResult
@@ -1109,22 +1093,6 @@ mutual
               execStmtListWithHelpers spec fields fuel state thenBranch
             else
               execStmtListWithHelpers spec fields fuel state elseBranch
-        | none => .revert
-    | .forEach varName count body =>
-        match evalExprWithHelpers spec fields fuel state count with
-        | some resolvedCount =>
-            let rec loop (current : RuntimeState) (nextValue remaining : Nat) : StmtResult :=
-              match remaining with
-              | 0 => .continue current
-              | remaining + 1 =>
-                  let loopState :=
-                    { current with bindings := bindValue current.bindings varName nextValue }
-                  match execStmtListWithHelpers spec fields fuel loopState body with
-                  | .continue next => loop next (nextValue + 1) remaining
-                  | .stop next => .stop next
-                  | .return value next => .return value next
-                  | .revert => .revert
-            loop state 0 resolvedCount
         | none => .revert
     | .internalCall calleeName args =>
         match fuel with
@@ -1970,20 +1938,6 @@ private def storageArraySourceSpec : CompilationModel :=
 private def storageArrayInitialWorld : Verity.ContractState :=
   { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }
 
-private def forEachSourceSpec : CompilationModel :=
-  { name := "ForEachSource"
-    fields := [{ name := "acc", ty := .uint256, «slot» := some 7 }]
-    constructor := none
-    functions :=
-      [ { name := "run"
-          params := [{ name := "count", ty := .uint256 }]
-          returnType := some .uint256
-          body :=
-            [ Stmt.setStorage "acc" (.literal 0)
-            , Stmt.forEach "i" (.param "count")
-                [ Stmt.setStorage "acc" (Expr.add (Expr.storage "acc") (.literal 1)) ]
-            , Stmt.return (Expr.storage "acc") ] } ] }
-
 example :
     (sourceContractSemantics storageArraySourceSpec
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
@@ -2031,20 +1985,5 @@ example :
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x55555555, args := [] }
       Verity.defaultState).success = false := by
-  decide
-
-example :
-    (sourceContractSemantics forEachSourceSpec
-      [0x11111111]
-      { sender := 9, functionSelector := 0x11111111, args := [3] }
-      Verity.defaultState).returnValue = some 3 := by
-  decide
-
-example :
-    (sourceContractSemanticsWithHelpers forEachSourceSpec
-      [0x11111111]
-      0
-      { sender := 9, functionSelector := 0x11111111, args := [3] }
-      Verity.defaultState).returnValue = some 3 := by
   decide
 end Compiler.Proofs.IRGeneration
