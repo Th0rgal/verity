@@ -750,13 +750,11 @@ private theorem decodeSupportedParamWord_bool_lt_evmModulus
     value < Compiler.Constants.evmModulus := by
   by_cases hzero : word % Compiler.Constants.evmModulus = 0
   · simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero] at hdecode
-    injection hdecode with hvalue
-    subst hvalue
+    cases hdecode
     simp [Compiler.Constants.evmModulus]
   · by_cases hone : word % Compiler.Constants.evmModulus = 1
     · simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero, hone] at hdecode
-      injection hdecode with hvalue
-      subst hvalue
+      cases hdecode
       simp [Compiler.Constants.evmModulus]
     · exfalso
       simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero, hone] at hdecode
