@@ -907,6 +907,26 @@ def divViaLocalUsesSignedDivision : Bool :=
 
 example : divViaLocalUsesSignedDivision = true := by native_decide
 
+def bitAndComparisonUsesUnsignedLowering : Bool :=
+  match Contracts.Smoke.SignedBuiltinSmoke.bitAndSignBit_modelBody with
+  | [Stmt.return
+      (Compiler.CompilationModel.Expr.lt
+        (Expr.bitAnd (Expr.param "lhs") (Expr.param "rhs"))
+        (Expr.literal 0))] => true
+  | _ => false
+
+example : bitAndComparisonUsesUnsignedLowering = true := by native_decide
+
+def minComparisonUsesUnsignedLowering : Bool :=
+  match Contracts.Smoke.SignedBuiltinSmoke.minSignBit_modelBody with
+  | [Stmt.return
+      (Compiler.CompilationModel.Expr.lt
+        (Expr.min (Expr.param "lhs") (Expr.literal 0))
+        (Expr.literal 0))] => true
+  | _ => false
+
+example : minComparisonUsesUnsignedLowering = true := by native_decide
+
 run_cmd do
   let valueIdent := mkIdent `value
   let actualStx ← Verity.Macro.translatePureExpr

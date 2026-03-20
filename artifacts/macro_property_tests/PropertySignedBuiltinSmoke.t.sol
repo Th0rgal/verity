@@ -134,4 +134,22 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
+    // Property 14: TODO decode and assert `bitAndSignBit` result
+    function testTODO_BitAndSignBit_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("bitAndSignBit(int256,int256)", int256(1), int256(1)));
+        require(ok, "bitAndSignBit reverted unexpectedly");
+        assertEq(ret.length, 32, "bitAndSignBit ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 15: TODO decode and assert `minSignBit` result
+    function testTODO_MinSignBit_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("minSignBit(int256)", int256(1)));
+        require(ok, "minSignBit reverted unexpectedly");
+        assertEq(ret.length, 32, "minSignBit ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
 }

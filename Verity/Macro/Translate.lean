@@ -941,9 +941,6 @@ private def classifyUnsignedWordArithmeticResultType
     throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {reprStr lhsTy}"
   unless isWordLikeValueType rhsTy do
     throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {reprStr rhsTy}"
-  if isSignedWordValueType lhsTy || isSignedWordValueType rhsTy then
-    throwErrorAt stx
-      s!"{context} does not support Int256 operands; cast to Uint256 explicitly first"
   pure .uint256
 
 private def isNatLiteralTerm (stx : Term) : Bool :=
@@ -1222,34 +1219,40 @@ private partial def inferPureExprType
       | none => throwErrorAt stx s!"unknown variable '{name}'"
   | `(term| $n:num) =>
       pure .uint256
-  | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b)
-    | `(term| bitAnd $a $b)
-    | `(term| bitOr $a $b) | `(term| bitXor $a $b) | `(term| and $a $b)
-    | `(term| or $a $b) | `(term| xor $a $b) => do
+  | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       let (lhsTy, rhsTy) := preferSignedNumericLiteralPeer a b lhsTy rhsTy
       classifyWordArithmeticResultType stx "word arithmetic" lhsTy rhsTy
+  | `(term| bitAnd $a $b)
+    | `(term| bitOr $a $b) | `(term| bitXor $a $b) | `(term| and $a $b)
+    | `(term| or $a $b) | `(term| xor $a $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
+      classifyUnsignedWordArithmeticResultType stx "bitwise word arithmetic" lhsTy rhsTy
   | `(term| min $a $b) | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       classifyUnsignedWordArithmeticResultType stx "unsigned word arithmetic" lhsTy rhsTy
-  | `(term| div $a $b) | `(term| $a / $b) | `(term| mod $a $b) | `(term| $a % $b)
-    | `(term| sdiv $a $b) | `(term| smod $a $b) => do
+  | `(term| div $a $b) | `(term| $a / $b) | `(term| mod $a $b) | `(term| $a % $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       let (lhsTy, rhsTy) := preferSignedNumericLiteralPeer a b lhsTy rhsTy
       classifyWordArithmeticResultType stx "division/modulo" lhsTy rhsTy
+  | `(term| sdiv $a $b) | `(term| smod $a $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
+      classifyUnsignedWordArithmeticResultType stx "signed builtin arithmetic" lhsTy rhsTy
   | `(term| bitNot $a) | `(term| not $a) => do
       let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       requireWordLikeType a "bitwise not" ty
-      pure (if ty == .int256 then .int256 else .uint256)
+      pure .uint256
   | `(term| shl $shift $value) | `(term| shr $shift $value) | `(term| sar $shift $value)
     | `(term| signextend $shift $value) => do
       requireWordLikeType shift "shift" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals shift visitingConstants)
       let valueTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value visitingConstants
       requireWordLikeType value "shift" valueTy
-      pure (if valueTy == .int256 then .int256 else .uint256)
+      pure .uint256
   | `(term| slt $a $b) | `(term| sgt $a $b) => do
       requireWordLikeType a "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       requireWordLikeType b "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants)
