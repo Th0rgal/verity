@@ -1112,60 +1112,66 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
-    LegacyCompatibleExternalStmtList irFn.body := by sorry
--- SORRY'D:   rcases Function.compileFunctionSpec_ok_components
--- SORRY'D:       model.fields model.events model.errors sel fn irFn hcompileFn with
--- SORRY'D:     ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
--- SORRY'D:   subst hirFn
--- SORRY'D:   have hparams :=
--- SORRY'D:     legacyCompatibleExternalStmtList_genParamLoads_of_supported
--- SORRY'D:       fn.params
--- SORRY'D:       (hSupported.selectorFunctionParamsSupported hfn)
--- SORRY'D:   have hbody :=
--- SORRY'D:     legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
--- SORRY'D:       (hnoPacked := hSupported.noPackedFields)
--- SORRY'D:       (hsurface := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.surfaceClosed)
--- SORRY'D:       (hcompile := by
--- SORRY'D:         simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
--- SORRY'D:   exact legacyCompatibleExternalStmtList_append hparams hbody
+    LegacyCompatibleExternalStmtList irFn.body := by
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  have hparams :=
+    legacyCompatibleExternalStmtList_genParamLoads_of_supported
+      fn.params
+      (hSupported.selectorFunctionParamsSupported hfn)
+  have hbody :=
+    legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+      (hnoPacked := hSupported.noPackedFields)
+      (hsurface := by
+        let hbody := (hSupported.supportedFunctionOfSelectorDispatched hfn).body
+        exact stmtListTouchesUnsupportedContractSurface_eq_false_of_featureClosed fn.body
+          hbody.core.surfaceClosed
+          hbody.state.surfaceClosed
+          (SupportedBodyCallInterface.surfaceClosed hbody)
+          hbody.effects.surfaceClosed)
+      (hcompile := by
+        simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
+  exact legacyCompatibleExternalStmtList_append _ _ hparams hbody
 
--- TYPESIG_SORRY: private theorem compiled_functions_legacyCompatibleExternalBodies
--- TYPESIG_SORRY:     (model : CompilationModel)
--- TYPESIG_SORRY:     (selectors : List Nat)
--- TYPESIG_SORRY:     (hSupported : SupportedSpec model selectors) :
--- TYPESIG_SORRY:     ∀ {entries irFns},
--- TYPESIG_SORRY:       List.Forall₂
--- TYPESIG_SORRY:         (fun entry irFn =>
--- TYPESIG_SORRY:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- TYPESIG_SORRY:         entries
--- TYPESIG_SORRY:         irFns →
--- TYPESIG_SORRY:       (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
--- TYPESIG_SORRY:       ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body
--- TYPESIG_SORRY:   | [], [], .nil, _ => by
--- TYPESIG_SORRY:       intro irFn hmem
--- TYPESIG_SORRY:       cases hmem
--- TYPESIG_SORRY:   | entry :: entries, irFn :: irFns, .cons hhead htail, hentries => by
--- TYPESIG_SORRY:       intro target hmem
--- TYPESIG_SORRY:       cases hmem with
--- TYPESIG_SORRY:       | head =>
--- TYPESIG_SORRY:           exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
--- TYPESIG_SORRY:             (model := model)
--- TYPESIG_SORRY:             (selectors := selectors)
--- TYPESIG_SORRY:             (hSupported := hSupported)
--- TYPESIG_SORRY:             (fn := entry.1)
--- TYPESIG_SORRY:             (sel := entry.2)
--- TYPESIG_SORRY:             (irFn := irFn)
--- TYPESIG_SORRY:             (hfn := hentries entry (by simp))
--- TYPESIG_SORRY:             (hcompileFn := hhead)
--- TYPESIG_SORRY:       | tail hmem =>
--- TYPESIG_SORRY:           exact compiled_functions_legacyCompatibleExternalBodies
--- TYPESIG_SORRY:             (model := model)
--- TYPESIG_SORRY:             (selectors := selectors)
--- TYPESIG_SORRY:             (hSupported := hSupported)
--- TYPESIG_SORRY:             htail
--- TYPESIG_SORRY:             (fun other hmemEntry => hentries other (by simp [hmemEntry]))
--- TYPESIG_SORRY:             target
--- TYPESIG_SORRY:             hmem
+private theorem compiled_functions_legacyCompatibleExternalBodies
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors) :
+    ∀ {entries irFns},
+      List.Forall₂
+        (fun (entry : FunctionSpec × Nat) irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        entries
+        irFns →
+      (∀ entry ∈ entries, entry.1 ∈ selectorDispatchedFunctions model) →
+      ∀ irFn ∈ irFns, LegacyCompatibleExternalStmtList irFn.body
+  | [], [], .nil, _ => by
+      intro irFn hmem
+      cases hmem
+  | entry :: entries, irFn :: irFns, .cons hhead htail, hentries => by
+      intro target hmem
+      cases hmem with
+      | head =>
+          exact compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
+            (model := model)
+            (selectors := selectors)
+            (hSupported := hSupported)
+            (fn := entry.1)
+            (sel := entry.2)
+            (irFn := irFn)
+            (hfn := hentries entry (by simp))
+            (hcompileFn := hhead)
+      | tail _ hmemTail =>
+          exact compiled_functions_legacyCompatibleExternalBodies
+            (model := model)
+            (selectors := selectors)
+            (hSupported := hSupported)
+            htail
+            (fun other hmemEntry => hentries other (by simp [hmemEntry]))
+            target
+            hmemTail
 
 theorem compile_ok_yields_legacyCompatibleExternalBodies
     (model : CompilationModel)
@@ -1173,31 +1179,31 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies
     (hSupported : SupportedSpec model selectors)
     (ir : IRContract)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
-    LegacyCompatibleExternalBodies ir := by sorry
--- SORRY'D:   have hcompiled :
--- SORRY'D:       List.Forall₂
--- SORRY'D:         (fun entry irFn =>
--- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
--- SORRY'D:         ir.functions :=
--- SORRY'D:     compile_ok_yields_compiled_functions
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (ir := ir)
--- SORRY'D:       (hcompile := hcompile)
--- SORRY'D:   intro irFn hmem
--- SORRY'D:   exact compiled_functions_legacyCompatibleExternalBodies
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (hSupported := hSupported)
--- SORRY'D:     hcompiled
--- SORRY'D:     (by
--- SORRY'D:       intro entry hentry
--- SORRY'D:       simpa [SourceSemantics.selectorFunctionPairs] using
--- SORRY'D:         (List.mem_of_mem_zipLeft hentry : entry.1 ∈ selectorDispatchedFunctions model))
--- SORRY'D:     irFn
--- SORRY'D:     hmem
+    LegacyCompatibleExternalBodies ir := by
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  intro irFn hmem
+  exact compiled_functions_legacyCompatibleExternalBodies
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    hcompiled
+    (by
+      intro (entry : FunctionSpec × Nat) hentry
+      simpa [SourceSemantics.selectorFunctionPairs] using
+        (List.of_mem_zip hentry).1)
+    irFn
+    hmem
 
 theorem compile_ok_yields_legacyCompatibleRuntimeContract
     (model : CompilationModel)
