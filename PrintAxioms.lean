@@ -761,7 +761,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal  -- sorry'd
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
--- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
 -- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_goal  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs  -- sorry'd
 
@@ -1721,4 +1721,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1590 theorems/lemmas (1083 public, 416 private, 91 sorry'd)
+-- Total: 1590 theorems/lemmas (1084 public, 416 private, 90 sorry'd)

@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 187  # Reduced by proving storage/context invariance and initial IR/runtime matching on the Layer 2 function path
+    expected_sorry = 186  # Reduced by proving the helper-aware body/IR disjointness wrapper on the Layer 2 function path
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

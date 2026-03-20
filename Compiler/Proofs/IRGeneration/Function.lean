@@ -1582,34 +1582,34 @@ theorem supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   have hcompiled := compileFunctionSpec_ok_of_components model.fields model.events model.errors
--- SORRY'D:       selector fn returns bodyStmts hvalidate hreturns hbodyCompile
--- SORRY'D:   have hirFn : irFn = compiledFunctionIR selector fn returns bodyStmts := by
--- SORRY'D:     rw [hcompile] at hcompiled
--- SORRY'D:     injection hcompiled
--- SORRY'D:   have hbodyDisjoint :
--- SORRY'D:       YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts := by
--- SORRY'D:     subst hirFn
--- SORRY'D:     simpa [compiledFunctionIR] using
--- SORRY'D:       YulStmtListCallsDisjointFromInternalTable.of_append_prefix
--- SORRY'D:         (contract := runtimeContract)
--- SORRY'D:         (pre := genParamLoads fn.params)
--- SORRY'D:         (suf := bodyStmts)
--- SORRY'D:         hfnBodyDisjoint
--- SORRY'D:   exact
--- SORRY'D:     supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
--- SORRY'D:       model selectors hSupported hHelperProofs hvalidateInputs runtimeContract
--- SORRY'D:       fn selector returns bodyStmts irFn tx initialWorld bindings hfn hvalidate
--- SORRY'D:       hreturns hbodyCompile hcompile hbind htxNormalized extraFuel hcompiledBodyFuel hbodyCorrect
--- SORRY'D:       hbodyDisjoint
--- SORRY'D:       (execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
--- SORRY'D:         runtimeContract
--- SORRY'D:         irFn
--- SORRY'D:         tx.args
--- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)
--- SORRY'D:         hfnBodyDisjoint)
--- SORRY'D:       hcalldataSizeFits
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hcompiled := compileFunctionSpec_ok_of_components model.fields model.events model.errors
+      selector fn returns bodyStmts hvalidate hreturns hbodyCompile
+  have hirFn : irFn = compiledFunctionIR selector fn returns bodyStmts := by
+    rw [hcompile] at hcompiled
+    injection hcompiled
+  have hbodyDisjoint :
+      YulStmtListCallsDisjointFromInternalTable runtimeContract bodyStmts := by
+    subst hirFn
+    simpa [compiledFunctionIR] using
+      YulStmtListCallsDisjointFromInternalTable.of_append_prefix
+        (contract := runtimeContract)
+        (pre := genParamLoads fn.params)
+        (suf := bodyStmts)
+        hfnBodyDisjoint
+  exact
+    supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
+      model selectors hSupported hHelperProofs hvalidateInputs runtimeContract
+      fn selector returns bodyStmts irFn tx initialWorld bindings hfn hvalidate
+      hreturns hbodyCompile hcompile hbind htxNormalized extraFuel hcompiledBodyFuel hbodyCorrect
+      hbodyDisjoint
+      (execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+        runtimeContract
+        irFn
+        tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        hfnBodyDisjoint)
+      hcalldataSizeFits
 
 -- SORRY'D: /-- Function-level exact helper-aware theorem over the fully split internal-helper
 -- SORRY'D: interfaces, under per-body compiled disjointness. This is the direct wrapper

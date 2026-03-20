@@ -3156,8 +3156,11 @@ theorem bindingsExactlyMatchIRVarsOnScope_setVar_bindValue
     SourceSemantics.encodeStorage spec (SourceSemantics.withTransactionContext world tx) =
       SourceSemantics.encodeStorage spec world := by
   funext slot
-  simp [SourceSemantics.encodeStorage, SourceSemantics.withTransactionContext,
-    SourceSemantics.encodeStorageAt]
+  unfold SourceSemantics.encodeStorage SourceSemantics.encodeStorageAt
+  cases hfield :
+      Compiler.Proofs.IRGeneration.SourceSemantics.findResolvedFieldAtSlot✝
+        (SourceSemantics.effectiveFields spec) slot <;>
+    simp [SourceSemantics.withTransactionContext, hfield]
 
 def stmtResultMatchesIRExec
     (fields : List Field) :
