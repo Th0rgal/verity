@@ -97,7 +97,8 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
 -- Use `Compiler.Selector.compileChecked` on caller-provided selector lists.
 -- WARNING: Order matters! If selector list is reordered but function list isn't,
 -- functions will be mapped to wrong selectors with no runtime error.
-def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Except String Unit := do
+private def validateCompileInputsBeforeFieldWriteConflict
+    (spec : CompilationModel) : Except String Unit := do
   validateIdentifierShapes spec
   match firstInvalidSlotAliasRange spec.slotAliasRanges with
   | some (idx, range) =>
@@ -109,8 +110,6 @@ def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Exc
       throw s!"Compilation error: slotAliasRanges[{idxA}]={a.sourceStart}..{a.sourceEnd} and slotAliasRanges[{idxB}]={b.sourceStart}..{b.sourceEnd} overlap in source slots in {spec.name} ({issue623Ref}). Ensure slotAliasRanges source intervals are disjoint."
   | none =>
       pure ()
-  let fields := applySlotAliasRanges spec.fields spec.slotAliasRanges
-  let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
   match firstInternalDynamicParam spec.functions with
   | some (fnName, paramName, ty) =>
       throw s!"Compilation error: internal function '{fnName}' parameter '{paramName}' has dynamic type {repr ty}, which is currently unsupported ({issue753Ref}). Internal dynamic ABI lowering is not implemented yet."
@@ -177,6 +176,11 @@ def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Exc
   | none =>
       pure ()
   firstInvalidStructField spec.fields
+
+def validateCompileInputs (spec : CompilationModel) (selectors : List Nat) : Except String Unit := do
+  validateCompileInputsBeforeFieldWriteConflict spec
+  let fields := applySlotAliasRanges spec.fields spec.slotAliasRanges
+  let externalFns := spec.functions.filter (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)
   match firstFieldWriteSlotConflict fields with
   | some (slot, existingField, conflictingField) =>
       throw s!"Compilation error: storage slot {slot} has overlapping write ranges for '{existingField}' and '{conflictingField}' in {spec.name} ({issue623Ref}). Ensure full-slot writes are unique and packed bit ranges are disjoint per slot."
@@ -288,12 +292,32 @@ theorem validateCompileInputs_identifierShapes_ok
     {selectors : List Nat}
     (hvalidate : validateCompileInputs spec selectors = Except.ok ()) :
     validateIdentifierShapes spec = Except.ok () := by
-  unfold validateCompileInputs at hvalidate
+  unfold validateCompileInputs validateCompileInputsBeforeFieldWriteConflict at hvalidate
   cases hshapes : validateIdentifierShapes spec with
   | error err =>
       simp [hshapes] at hvalidate
       cases hvalidate
   | ok _ =>
       simp
+
+theorem validateCompileInputs_firstFieldWriteSlotConflict_eq_none
+    {spec : CompilationModel}
+    {selectors : List Nat}
+    (hvalidate : validateCompileInputs spec selectors = Except.ok ()) :
+    firstFieldWriteSlotConflict
+        (applySlotAliasRanges spec.fields spec.slotAliasRanges) = none := by
+  unfold validateCompileInputs at hvalidate
+  cases hprefix : validateCompileInputsBeforeFieldWriteConflict spec with
+  | error err =>
+      simp [hprefix] at hvalidate
+      cases hvalidate
+  | ok _ =>
+      cases hconflict : firstFieldWriteSlotConflict
+          (applySlotAliasRanges spec.fields spec.slotAliasRanges) with
+      | some conflict =>
+          simp [hprefix, hconflict] at hvalidate
+          cases hvalidate
+      | none =>
+          simp
 
 end Compiler.CompilationModel
