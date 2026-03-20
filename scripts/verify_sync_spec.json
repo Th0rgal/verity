@@ -258,13 +258,23 @@
         "uses": "./.github/actions/setup-lean",
         "with": {
           "cache-key-prefix": "lake",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify",
           "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Upload prepared Lean workspace build",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build",
+          "path": "lean-workspace-build.tar"
         }
       },
       {
         "name": "Save current run Lake cache",
         "uses": "actions/cache/save@v4",
-        "if": "success() && needs.changes.outputs.build == 'true'",
+        "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
@@ -273,7 +283,7 @@
       {
         "name": "Save Lake packages cache",
         "uses": "actions/cache/save@v4",
-        "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'",
+        "if": "success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true' && steps.setup-lean.outputs.cache-hit != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}"
@@ -292,7 +302,16 @@
         "uses": "./.github/actions/setup-lean",
         "with": {
           "cache-key-prefix": "lake",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify",
           "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
         }
       },
       {
@@ -315,7 +334,17 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake"
+          "cache-key-prefix": "lake",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
         }
       },
       {
@@ -335,14 +364,23 @@
         "uses": "./.github/actions/setup-lean",
         "with": {
           "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify-compiler",
           "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
           "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
+        }
+      },
+      {
         "name": "Save Lake compiler cache",
         "uses": "actions/cache/save@v4",
-        "if": "always()",
+        "if": "always() && steps.setup-lean.outputs.using-sticky-disks != 'true'",
         "with": {
           "path": ".lake",
           "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
@@ -354,15 +392,6 @@
         "uses": "actions/checkout@v4",
         "with": {
           "submodules": "recursive"
-        }
-      },
-      {
-        "name": "Setup Lean",
-        "uses": "./.github/actions/setup-lean",
-        "with": {
-          "cache-key-prefix": "lake-compiler",
-          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
-          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
@@ -390,8 +419,17 @@
         "uses": "./.github/actions/setup-lean",
         "with": {
           "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify-compiler",
           "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
           "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download prepared Lean workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-build"
         }
       },
       {
@@ -409,7 +447,11 @@
       },
       {
         "name": "Setup Lean",
-        "uses": "./.github/actions/setup-lean"
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify"
+        }
       }
     ],
     "foundry-gas-calibration": [
@@ -583,6 +625,9 @@
     "command": "python3 scripts/check_gas.py calibration --static-report gas-report-static.tsv"
   },
   "expected_uploaded_artifacts": {
+    "build": [
+      "lean-workspace-build"
+    ],
     "build-audits": [
       "axiom-dependency-report"
     ],
@@ -603,6 +648,9 @@
     ]
   },
   "expected_uploaded_artifact_paths": {
+    "build": [
+      "lean-workspace-build.tar"
+    ],
     "build-audits": [
       "axiom-report.md\naxiom-report-raw.log"
     ],
@@ -623,6 +671,15 @@
     ]
   },
   "expected_downloaded_artifacts": {
+    "build-audits": [
+      "lean-workspace-build"
+    ],
+    "macro-fuzz": [
+      "lean-workspace-build"
+    ],
+    "build-compiler": [
+      "lean-workspace-build"
+    ],
     "compiler-audits": [
       "generated-yul",
       "generated-yul-patched",
@@ -631,11 +688,23 @@
       "patch-coverage-report",
       "verity-compiler-binaries"
     ],
+    "compiler-regressions": [
+      "lean-workspace-build"
+    ],
     "foundry-gas-calibration": [
       "static-gas-report"
     ]
   },
   "expected_downloaded_artifact_paths": {
+    "build-audits": [
+      null
+    ],
+    "macro-fuzz": [
+      null
+    ],
+    "build-compiler": [
+      null
+    ],
     "compiler-audits": [
       "compiler/yul",
       "compiler/yul-patched",
@@ -643,6 +712,9 @@
       null,
       "compiler",
       "compiler/bin"
+    ],
+    "compiler-regressions": [
+      null
     ],
     "foundry-gas-calibration": [
       null

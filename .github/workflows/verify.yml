@@ -203,6 +203,8 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Build and verify all proofs
@@ -213,15 +215,24 @@ jobs:
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 
+      - name: Package prepared Lean workspace build
+        run: tar -cf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
+
+      - name: Upload prepared Lean workspace build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace-build
+          path: lean-workspace-build.tar
+
       - name: Save current run Lake cache
-        if: success() && needs.changes.outputs.build == 'true'
+        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Save Lake packages cache
-        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
+        if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.using-sticky-disks != 'true' && steps.setup-lean.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
@@ -243,7 +254,17 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
 
       - name: Build split Lake packages independently
         run: python3 scripts/check_split_package_builds.py
@@ -331,7 +352,17 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
 
       - name: Run macro round-trip fuzz harness
         run: lake exe macro-roundtrip-fuzz
@@ -353,9 +384,19 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify-compiler
           cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
           cache-extra-restore-keys: |
             lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
 
       - name: Build compiler artifacts
         run: |
@@ -398,7 +439,7 @@ jobs:
           cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
       - name: Save Lake compiler cache
-        if: always()
+        if: always() && steps.setup-lean.outputs.using-sticky-disks != 'true'
         uses: actions/cache/save@v4
         with:
           path: .lake
@@ -451,19 +492,10 @@ jobs:
     timeout-minutes: 45
     needs: [changes, checks, build, build-compiler]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
-    env:
-      LEAN_NUM_THREADS: 8
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Setup Lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake-compiler
-          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download generated Yul
         uses: actions/download-artifact@v4
@@ -622,8 +654,18 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify-compiler
           cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
           cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
 
       - name: Run compiler CLI regression module
         run: stdbuf -oL -eL lake exe compiler-main-test
@@ -641,6 +683,9 @@ jobs:
 
       - name: Setup Lean
         uses: ./.github/actions/setup-lean
+        with:
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify
 
       - name: Profile Lean module timings
         run: python3 scripts/profile_lean_modules.py --output lean-perf-queue.md
