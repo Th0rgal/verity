@@ -213,7 +213,9 @@ jobs:
           lake build 2>&1 | tee lake-build.log
 
       - name: Prebuild shared downstream Lean targets
-        run: lake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log
+        run: |
+          set -o pipefail
+          lake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log
 
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log

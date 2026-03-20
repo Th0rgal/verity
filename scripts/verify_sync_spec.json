@@ -313,7 +313,7 @@
       },
       {
         "name": "Prebuild shared downstream Lean targets",
-        "run": "lake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log"
+        "run": "set -o pipefail\nlake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log"
       },
       {
         "name": "Upload prepared Lean workspace build",

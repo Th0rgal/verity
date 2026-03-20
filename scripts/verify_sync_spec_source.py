@@ -259,7 +259,8 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                                       "hashFiles('lake-manifest.json') "
                                                                       '}}-${{ github.run_id }}'}},
                                        {'name': 'Prebuild shared downstream Lean targets',
-                                        'run': 'lake build PrintAxioms macro-roundtrip-fuzz '
+                                        'run': 'set -o pipefail\n'
+                                               'lake build PrintAxioms macro-roundtrip-fuzz '
                                                '2>&1 | tee -a lake-build.log'},
                                        {'name': 'Upload prepared Lean workspace build',
                                         'uses': 'actions/upload-artifact@v4',
