@@ -1406,10 +1406,9 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.supportedExternalParamType_cases  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.execIRStmts_cons_of_execIRStmt_continue  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.execIRStmts_cons_of_execIRStmt_continue_extraFuel  -- private
--- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_uint256  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_word_passthrough  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_uint8  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_address  -- private
--- #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then_bytes32  -- private
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.exec_genScalarLoad_supported_then
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_names
 #print axioms Compiler.Proofs.IRGeneration.ParamLoading.bindSupportedParams_names_nodup
@@ -1713,4 +1712,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1582 theorems/lemmas (1070 public, 408 private, 104 sorry'd)
+-- Total: 1581 theorems/lemmas (1070 public, 407 private, 104 sorry'd)

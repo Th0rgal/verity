@@ -98,7 +98,16 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 10: TODO decode and assert `castToInt` result
+    // Property 10: TODO decode and assert `signedDivViaLocal` result
+    function testTODO_SignedDivViaLocal_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("signedDivViaLocal(uint256,int256)", uint256(1), int256(1)));
+        require(ok, "signedDivViaLocal reverted unexpectedly");
+        assertEq(ret.length, 32, "signedDivViaLocal ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 11: TODO decode and assert `castToInt` result
     function testTODO_CastToInt_DecodeAndAssert() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("castToInt(uint256)", uint256(1)));
@@ -107,7 +116,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 11: TODO decode and assert `castToUint` result
+    // Property 12: TODO decode and assert `castToUint` result
     function testTODO_CastToUint_DecodeAndAssert() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("castToUint(int256)", int256(1)));
@@ -116,7 +125,7 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 12: TODO decode and assert `minusOne` result
+    // Property 13: TODO decode and assert `minusOne` result
     function testTODO_MinusOne_DecodeAndAssert() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("minusOne()"));
