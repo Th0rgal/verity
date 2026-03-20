@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 158  # Reduced by clearing the remaining FunctionBody terminal proof cluster
+    expected_sorry = 157  # Reduced by closing the local Function terminal-core extra-fuel theorem
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
