@@ -227,6 +227,8 @@ def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
     first = re.match(rf"^\s*-\s*{re.escape(key)}:\s*(?P<value>.*?)\s*$", lines[0])
     if first:
         raw = strip_yaml_inline_comment(first.group("value"))
+        if raw in {"|", "|-", "|+", ">", ">-", ">+"}:
+            return _decode_step_block_scalar(raw, lines, 0, len(lines[0]) - len(lines[0].lstrip(" ")))
         return unquote_yaml_scalar(raw) if raw else ""
 
     step_indent = len(lines[0]) - len(lines[0].lstrip(" "))
@@ -242,7 +244,7 @@ def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
     if min_child_indent is None:
         return None
 
-    for line in lines[1:]:
+    for idx, line in enumerate(lines[1:], start=1):
         if not line.strip():
             continue
         child_indent = len(line) - len(line.lstrip(" "))
@@ -252,6 +254,8 @@ def _extract_top_level_step_value(step_block: str, key: str) -> str | None:
         if not m:
             continue
         raw = strip_yaml_inline_comment(m.group("value"))
+        if raw in {"|", "|-", "|+", ">", ">-", ">+"}:
+            return _decode_step_block_scalar(raw, lines, idx, child_indent)
         return unquote_yaml_scalar(raw) if raw else ""
     return None
 
@@ -755,6 +759,10 @@ def _extract_with_key_from_block(step_block: str, key: str) -> str | None:
 
 
 def _load_spec() -> dict:
+    if SPEC_PATH == ROOT / "scripts" / "verify_sync_spec.json":
+        from verify_sync_spec_source import build_spec
+
+        return build_spec()
     return json.loads(SPEC_PATH.read_text(encoding="utf-8"))
 
 

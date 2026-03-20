@@ -166,6 +166,26 @@ jobs:
       - name: Run all checks
         run: make check
 
+  timeout-watchdog:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    needs: checks
+    if: needs.checks.result == 'success'
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Warn on timeout-risk trend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/ci_timeout_watchdog.py \
+            --repo ${{ github.repository }} \
+            --workflow verify.yml \
+            --branch ${{ github.event.pull_request.base.ref || github.ref_name }}
+
   build:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 25
@@ -183,6 +203,7 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Build and verify all proofs
         run: |
@@ -191,6 +212,13 @@ jobs:
 
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
+
+      - name: Save current run Lake cache
+        if: success() && needs.changes.outputs.build == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Save Lake packages cache
         if: success() && needs.changes.outputs.build == 'true' && steps.setup-lean.outputs.cache-hit != 'true'
@@ -215,6 +243,7 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Build split Lake packages independently
         run: python3 scripts/check_split_package_builds.py
@@ -284,8 +313,14 @@ jobs:
     timeout-minutes: 90
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3]
     env:
       LEAN_NUM_THREADS: 8
+      MACRO_FUZZ_SHARD_INDEX: ${{ matrix.shard_index }}
+      MACRO_FUZZ_SHARD_COUNT: 4
     steps:
       - uses: actions/checkout@v4
         with:
@@ -296,6 +331,7 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Run macro round-trip fuzz harness
         run: lake exe macro-roundtrip-fuzz
@@ -317,6 +353,9 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Build compiler artifacts
         run: |
@@ -423,6 +462,8 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Download generated Yul
         uses: actions/download-artifact@v4
@@ -581,6 +622,8 @@ jobs:
         uses: ./.github/actions/setup-lean
         with:
           cache-key-prefix: lake-compiler
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Run compiler CLI regression module
         run: stdbuf -oL -eL lake exe compiler-main-test

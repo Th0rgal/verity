@@ -20,7 +20,8 @@ make test-foundry
 
 ## Sources of truth
 
-- Verify workflow sync contract: `scripts/verify_sync_spec.json`
+- Verify workflow sync contract source: `scripts/verify_sync_spec_source.py`
+- Generated verify workflow sync artifact: `scripts/verify_sync_spec.json`
 - Unified verify workflow validator: `scripts/check_verify_sync.py`
 - Docs workflow trigger contract: `scripts/check_docs_workflow_sync.py`
 - Verification metrics: `artifacts/verification_status.json`

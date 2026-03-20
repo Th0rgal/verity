@@ -117,6 +117,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_verification_status_doc.py
 	python3 scripts/check_layer2_boundary_sync.py
 	python3 scripts/check_layer2_boundary_catalog_sync.py
+	python3 scripts/generate_verify_sync_spec.py --check
 	python3 scripts/check_verify_sync.py
 	python3 scripts/check_bridge_coverage_sync.py
 	python3 scripts/check_builtin_bridge_matrix_sync.py

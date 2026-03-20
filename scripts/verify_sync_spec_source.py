@@ -1,0 +1,576 @@
+#!/usr/bin/env python3
+"""Authoritative verify workflow sync spec.
+
+Edit this module and regenerate `verify_sync_spec.json` via
+`python3 scripts/generate_verify_sync_spec.py` instead of hand-editing the JSON artifact.
+"""
+
+from __future__ import annotations
+
+import copy
+
+SPEC = {'check_only_paths': ['.github/workflows/**',
+                      '.github/ISSUE_TEMPLATE/**',
+                      'artifacts/**',
+                      'docs/**',
+                      'docs-site/**',
+                      'Makefile',
+                      'AUDIT.md',
+                      'AXIOMS.md',
+                      'README.md',
+                      'TRUST_ASSUMPTIONS.md'],
+ 'compiler_paths': ['.github/actions/**',
+                    '.github/workflows/verify.yml',
+                    'Verity/**',
+                    '!Verity/Proofs/**',
+                    'Compiler/**',
+                    '!Compiler/Proofs/**',
+                    'Compiler.lean',
+                    'Contracts/**',
+                    '!Contracts/**/Proofs/**',
+                    'Contracts.lean',
+                    'examples/**',
+                    'packages/**',
+                    'test/**',
+                    'scripts/check_gas.py',
+                    'scripts/check_patch_gas_delta.py',
+                    'scripts/check_parity_pack_metrics.py',
+                    'scripts/check_selectors.py',
+                    'scripts/check_yul.py',
+                    'scripts/generate_yul_identity_diff_report.py',
+                    'scripts/keccak256.py',
+                    'scripts/property_utils.py',
+                    'lakefile.lean',
+                    'lake-manifest.json',
+                    'lean-toolchain',
+                    'foundry.toml'],
+ 'expected_push_branches': ['main'],
+ 'expected_trigger_keys': ['push', 'pull_request', 'workflow_dispatch'],
+ 'require_workflow_dispatch': True,
+ 'expected_jobs': ['changes',
+                   'checks',
+                   'timeout-watchdog',
+                   'build',
+                   'build-audits',
+                   'macro-fuzz',
+                   'build-compiler',
+                   'compiler-audits',
+                   'compiler-regressions',
+                   'lean-profile',
+                   'foundry-gas-calibration',
+                   'foundry',
+                   'foundry-patched',
+                   'foundry-multi-seed',
+                   'failure-hints'],
+ 'expected_job_needs': {'changes': [],
+                        'checks': [],
+                        'timeout-watchdog': ['checks'],
+                        'build': ['changes', 'checks'],
+                        'build-audits': ['changes', 'checks', 'build'],
+                        'macro-fuzz': ['changes', 'checks', 'build'],
+                        'build-compiler': ['changes', 'checks', 'build'],
+                        'compiler-audits': ['changes', 'checks', 'build', 'build-compiler'],
+                        'compiler-regressions': ['changes', 'checks', 'build', 'build-compiler'],
+                        'lean-profile': ['changes'],
+                        'foundry-gas-calibration': ['changes', 'build-compiler'],
+                        'foundry': ['changes', 'build-compiler'],
+                        'foundry-patched': ['changes', 'build-compiler'],
+                        'foundry-multi-seed': ['changes', 'build-compiler'],
+                        'failure-hints': ['checks',
+                                          'build',
+                                          'build-audits',
+                                          'macro-fuzz',
+                                          'build-compiler',
+                                          'compiler-audits',
+                                          'compiler-regressions',
+                                          'foundry-gas-calibration',
+                                          'foundry',
+                                          'foundry-patched',
+                                          'foundry-multi-seed']},
+ 'expected_job_if_conditions': {'changes': None,
+                                'checks': None,
+                                'timeout-watchdog': "needs.checks.result == 'success'",
+                                'build': "needs.checks.result == 'success' && "
+                                         "needs.changes.outputs.build == 'true'",
+                                'build-audits': "needs.checks.result == 'success' && "
+                                                "needs.build.result == 'success' && "
+                                                "needs.changes.outputs.build == 'true'",
+                                'macro-fuzz': "needs.checks.result == 'success' && "
+                                              "needs.build.result == 'success' && "
+                                              "needs.changes.outputs.macro_fuzz == 'true'",
+                                'build-compiler': "needs.checks.result == 'success' && "
+                                                  "needs.build.result == 'success' && "
+                                                  "needs.changes.outputs.compiler == 'true'",
+                                'compiler-audits': "needs.checks.result == 'success' && "
+                                                   "needs.build.result == 'success' && "
+                                                   "needs.build-compiler.result == 'success' && "
+                                                   "needs.changes.outputs.compiler == 'true'",
+                                'compiler-regressions': "needs.checks.result == 'success' && "
+                                                        "needs.build.result == 'success' && "
+                                                        "needs.build-compiler.result == 'success' "
+                                                        '&& needs.changes.outputs.compiler == '
+                                                        "'true'",
+                                'lean-profile': "github.event_name == 'workflow_dispatch' && "
+                                                "needs.changes.outputs.build == 'true'",
+                                'foundry-gas-calibration': 'needs.changes.outputs.compiler == '
+                                                           "'true' && (github.event_name != "
+                                                           "'pull_request' || "
+                                                           'github.event.pull_request.draft == '
+                                                           'false)',
+                                'foundry': "needs.changes.outputs.compiler == 'true' && "
+                                           "(github.event_name != 'pull_request' || "
+                                           'github.event.pull_request.draft == false)',
+                                'foundry-patched': "needs.changes.outputs.compiler == 'true' && "
+                                                   "(github.event_name != 'pull_request' || "
+                                                   'github.event.pull_request.draft == false)',
+                                'foundry-multi-seed': "needs.changes.outputs.compiler == 'true' && "
+                                                      "github.event_name != 'pull_request'",
+                                'failure-hints': "always() && github.event_name == 'pull_request' "
+                                                 "&& contains(join(needs.*.result, ','), "
+                                                 "'failure')"},
+ 'expected_job_runs_on': {'changes': 'blacksmith-2vcpu-ubuntu-2404',
+                          'checks': 'blacksmith-2vcpu-ubuntu-2404',
+                          'timeout-watchdog': 'blacksmith-2vcpu-ubuntu-2404',
+                          'build': 'blacksmith-8vcpu-ubuntu-2404',
+                          'build-audits': 'blacksmith-4vcpu-ubuntu-2404',
+                          'macro-fuzz': 'blacksmith-8vcpu-ubuntu-2404',
+                          'build-compiler': 'blacksmith-16vcpu-ubuntu-2404',
+                          'compiler-audits': 'blacksmith-8vcpu-ubuntu-2404',
+                          'compiler-regressions': 'blacksmith-16vcpu-ubuntu-2404',
+                          'lean-profile': 'blacksmith-8vcpu-ubuntu-2404',
+                          'foundry-gas-calibration': 'blacksmith-4vcpu-ubuntu-2404',
+                          'foundry': 'blacksmith-4vcpu-ubuntu-2404',
+                          'foundry-patched': 'blacksmith-4vcpu-ubuntu-2404',
+                          'foundry-multi-seed': 'blacksmith-4vcpu-ubuntu-2404',
+                          'failure-hints': 'blacksmith-2vcpu-ubuntu-2404'},
+ 'expected_job_timeouts': {'changes': 5,
+                           'checks': 5,
+                           'timeout-watchdog': 5,
+                           'build': 25,
+                           'build-audits': 20,
+                           'macro-fuzz': 90,
+                           'build-compiler': 120,
+                           'compiler-audits': 45,
+                           'compiler-regressions': 60,
+                           'lean-profile': 45,
+                           'foundry-gas-calibration': 15,
+                           'foundry': 15,
+                           'foundry-patched': 15,
+                           'foundry-multi-seed': 25},
+ 'expected_job_strategy_fail_fast': {'foundry': False, 'foundry-multi-seed': False},
+ 'expected_job_outputs': {'changes': {'code': '${{ steps.filter.outputs.code }}',
+                                      'build': '${{ steps.filter.outputs.build }}',
+                                      'compiler': '${{ steps.filter.outputs.compiler }}',
+                                      'macro_fuzz': '${{ steps.filter.outputs.macro_fuzz }}'}},
+ 'expected_job_permissions': {'timeout-watchdog': {'actions': 'read', 'contents': 'read'},
+                              'failure-hints': {'contents': 'read', 'pull-requests': 'write'}},
+ 'expected_workflow_permissions': {'contents': 'read'},
+ 'expected_workflow_concurrency': {'group': '${{ github.workflow }}-${{ github.ref }}',
+                                   'cancel-in-progress': 'true'},
+ 'expected_workflow_env': {'SOLC_VERSION': '0.8.33',
+                           'SOLC_URL': 'https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21',
+                           'SOLC_SHA256': '1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468'},
+ 'expected_step_contracts': {'changes': [{'uses': 'actions/checkout@v4'},
+                                         {'id': 'filter', 'uses': 'dorny/paths-filter@v3'}],
+                             'checks': [{'uses': 'actions/checkout@v4'},
+                                        {'name': 'Run all checks', 'run': 'make check'}],
+                             'timeout-watchdog': [{'name': 'Warn on timeout-risk trend',
+                                                   'env': {'GH_TOKEN': '${{ github.token }}'},
+                                                   'run': 'python3 scripts/ci_timeout_watchdog.py '
+                                                          '\\\n'
+                                                          '  --repo ${{ github.repository }} \\\n'
+                                                          '  --workflow verify.yml \\\n'
+                                                          '  --branch ${{ '
+                                                          'github.event.pull_request.base.ref || '
+                                                          'github.ref_name }}'}],
+                             'build': [{'uses': 'actions/checkout@v4',
+                                        'with': {'submodules': 'recursive'}},
+                                       {'name': 'Setup Lean',
+                                        'uses': './.github/actions/setup-lean',
+                                        'with': {'cache-key-prefix': 'lake',
+                                                 'cache-primary-key': 'lake-${{ runner.os }}-${{ '
+                                                                      "hashFiles('lean-toolchain') "
+                                                                      '}}-${{ '
+                                                                      "hashFiles('lakefile.lean') "
+                                                                      '}}-${{ '
+                                                                      "hashFiles('lake-manifest.json') "
+                                                                      '}}-${{ github.run_id }}'}},
+                                       {'name': 'Save current run Lake cache',
+                                        'uses': 'actions/cache/save@v4',
+                                        'if': "success() && needs.changes.outputs.build == 'true'",
+                                        'with': {'path': '.lake',
+                                                 'key': 'lake-${{ runner.os }}-${{ '
+                                                        "hashFiles('lean-toolchain') }}-${{ "
+                                                        "hashFiles('lakefile.lean') }}-${{ "
+                                                        "hashFiles('lake-manifest.json') }}-${{ "
+                                                        'github.run_id }}'}},
+                                       {'name': 'Save Lake packages cache',
+                                        'uses': 'actions/cache/save@v4',
+                                        'if': "success() && needs.changes.outputs.build == 'true' "
+                                              "&& steps.setup-lean.outputs.cache-hit != 'true'",
+                                        'with': {'path': '.lake',
+                                                 'key': 'lake-${{ runner.os }}-${{ '
+                                                        "hashFiles('lean-toolchain') }}-${{ "
+                                                        "hashFiles('lakefile.lean') }}-${{ "
+                                                        "hashFiles('lake-manifest.json') }}"}}],
+                             'build-audits': [{'uses': 'actions/checkout@v4',
+                                               'with': {'submodules': 'recursive'}},
+                                              {'name': 'Setup Lean',
+                                               'uses': './.github/actions/setup-lean',
+                                               'with': {'cache-key-prefix': 'lake',
+                                                        'cache-primary-key': 'lake-${{ runner.os '
+                                                                             '}}-${{ '
+                                                                             "hashFiles('lean-toolchain') "
+                                                                             '}}-${{ '
+                                                                             "hashFiles('lakefile.lean') "
+                                                                             '}}-${{ '
+                                                                             "hashFiles('lake-manifest.json') "
+                                                                             '}}-${{ github.run_id '
+                                                                             '}}'}},
+                                              {'name': 'Upload axiom dependency report',
+                                               'uses': 'actions/upload-artifact@v4',
+                                               'with': {'name': 'axiom-dependency-report',
+                                                        'path': 'axiom-report.md\n'
+                                                                'axiom-report-raw.log'}}],
+                             'macro-fuzz': [{'uses': 'actions/checkout@v4',
+                                             'with': {'submodules': 'recursive'}},
+                                            {'name': 'Setup Lean',
+                                             'uses': './.github/actions/setup-lean',
+                                             'with': {'cache-key-prefix': 'lake'}},
+                                            {'name': 'Run macro round-trip fuzz harness',
+                                             'run': 'lake exe macro-roundtrip-fuzz'}],
+                             'build-compiler': [{'uses': 'actions/checkout@v4',
+                                                 'with': {'submodules': 'recursive'}},
+                                                {'name': 'Setup Lean',
+                                                 'uses': './.github/actions/setup-lean',
+                                                 'with': {'cache-key-prefix': 'lake-compiler',
+                                                          'cache-primary-key': 'lake-${{ runner.os '
+                                                                               '}}-${{ '
+                                                                               "hashFiles('lean-toolchain') "
+                                                                               '}}-${{ '
+                                                                               "hashFiles('lakefile.lean') "
+                                                                               '}}-${{ '
+                                                                               "hashFiles('lake-manifest.json') "
+                                                                               '}}-${{ '
+                                                                               'github.run_id }}',
+                                                          'cache-extra-restore-keys': 'lake-${{ '
+                                                                                      'runner.os '
+                                                                                      '}}-${{ '
+                                                                                      "hashFiles('lean-toolchain') "
+                                                                                      '}}-${{ '
+                                                                                      "hashFiles('lakefile.lean') "
+                                                                                      '}}-${{ '
+                                                                                      "hashFiles('lake-manifest.json') "
+                                                                                      '}}-${{ '
+                                                                                      'github.run_id '
+                                                                                      '}}'}},
+                                                {'name': 'Save Lake compiler cache',
+                                                 'uses': 'actions/cache/save@v4',
+                                                 'if': 'always()',
+                                                 'with': {'path': '.lake',
+                                                          'key': 'lake-compiler-${{ runner.os '
+                                                                 '}}-${{ '
+                                                                 "hashFiles('lean-toolchain') "
+                                                                 '}}-${{ '
+                                                                 "hashFiles('lakefile.lean') "
+                                                                 '}}-${{ '
+                                                                 "hashFiles('lake-manifest.json') "
+                                                                 '}}-${{ github.run_id }}'}}],
+                             'compiler-audits': [{'uses': 'actions/checkout@v4',
+                                                  'with': {'submodules': 'recursive'}},
+                                                 {'name': 'Setup Lean',
+                                                  'uses': './.github/actions/setup-lean',
+                                                  'with': {'cache-key-prefix': 'lake-compiler',
+                                                           'cache-primary-key': 'lake-compiler-${{ '
+                                                                                'runner.os }}-${{ '
+                                                                                "hashFiles('lean-toolchain') "
+                                                                                '}}-${{ '
+                                                                                "hashFiles('lakefile.lean') "
+                                                                                '}}-${{ '
+                                                                                "hashFiles('lake-manifest.json') "
+                                                                                '}}-${{ '
+                                                                                'github.run_id }}',
+                                                           'cache-extra-restore-keys': 'lake-${{ '
+                                                                                       'runner.os '
+                                                                                       '}}-${{ '
+                                                                                       "hashFiles('lean-toolchain') "
+                                                                                       '}}-${{ '
+                                                                                       "hashFiles('lakefile.lean') "
+                                                                                       '}}-${{ '
+                                                                                       "hashFiles('lake-manifest.json') "
+                                                                                       '}}-${{ '
+                                                                                       'github.run_id '
+                                                                                       '}}'}},
+                                                 {'name': 'Setup solc',
+                                                  'uses': './.github/actions/setup-solc'},
+                                                 {'name': 'Upload parity-pack identity report',
+                                                  'uses': 'actions/upload-artifact@v4',
+                                                  'with': {'name': 'parity-pack-identity-report',
+                                                           'path': 'compiler/parity-pack-identity-report.json'}}],
+                             'compiler-regressions': [{'uses': 'actions/checkout@v4',
+                                                       'with': {'submodules': 'recursive'}},
+                                                      {'name': 'Setup Lean',
+                                                       'uses': './.github/actions/setup-lean',
+                                                       'with': {'cache-key-prefix': 'lake-compiler',
+                                                                'cache-primary-key': 'lake-compiler-${{ '
+                                                                                     'runner.os '
+                                                                                     '}}-${{ '
+                                                                                     "hashFiles('lean-toolchain') "
+                                                                                     '}}-${{ '
+                                                                                     "hashFiles('lakefile.lean') "
+                                                                                     '}}-${{ '
+                                                                                     "hashFiles('lake-manifest.json') "
+                                                                                     '}}-${{ '
+                                                                                     'github.run_id '
+                                                                                     '}}',
+                                                                'cache-extra-restore-keys': 'lake-${{ '
+                                                                                            'runner.os '
+                                                                                            '}}-${{ '
+                                                                                            "hashFiles('lean-toolchain') "
+                                                                                            '}}-${{ '
+                                                                                            "hashFiles('lakefile.lean') "
+                                                                                            '}}-${{ '
+                                                                                            "hashFiles('lake-manifest.json') "
+                                                                                            '}}-${{ '
+                                                                                            'github.run_id '
+                                                                                            '}}'}},
+                                                      {'name': 'Run compiler CLI regression module',
+                                                       'run': 'stdbuf -oL -eL lake exe '
+                                                              'compiler-main-test'},
+                                                      {'name': 'Run CompilationModel feature '
+                                                               'regression module',
+                                                       'run': 'lake build '
+                                                              'Compiler.CompilationModelFeatureTest'}],
+                             'lean-profile': [{'uses': 'actions/checkout@v4'},
+                                              {'name': 'Setup Lean',
+                                               'uses': './.github/actions/setup-lean'}],
+                             'foundry-gas-calibration': [{'uses': 'actions/checkout@v4',
+                                                          'with': {'submodules': 'recursive'}},
+                                                         {'name': 'Setup Foundry environment',
+                                                          'uses': './.github/actions/setup-foundry'}],
+                             'foundry': [{'uses': 'actions/checkout@v4',
+                                          'with': {'submodules': 'recursive'}},
+                                         {'name': 'Setup Foundry environment',
+                                          'uses': './.github/actions/setup-foundry'}],
+                             'foundry-patched': [{'uses': 'actions/checkout@v4',
+                                                  'with': {'submodules': 'recursive'}},
+                                                 {'name': 'Setup Foundry environment',
+                                                  'uses': './.github/actions/setup-foundry',
+                                                  'with': {'yul-artifact-name': 'generated-yul-patched',
+                                                           'yul-artifact-path': 'compiler/yul-patched'}}],
+                             'foundry-multi-seed': [{'uses': 'actions/checkout@v4',
+                                                     'with': {'submodules': 'recursive'}},
+                                                    {'name': 'Setup Foundry environment',
+                                                     'uses': './.github/actions/setup-foundry'}],
+                             'failure-hints': [{'name': 'Post CI failure hints',
+                                                'uses': 'actions/github-script@v7',
+                                                'env': {'NEEDS_JSON': '${{ toJson(needs) }}'},
+                                                'with': {'script': 'const marker = "<!-- '
+                                                                   'ci-failure-hints -->";\n'
+                                                                   'const needs = '
+                                                                   'JSON.parse(process.env.NEEDS_JSON '
+                                                                   '|| "{}");\n'
+                                                                   'const failed = '
+                                                                   'Object.entries(needs)\n'
+                                                                   '  .filter(([, info]) => info '
+                                                                   '&& info.result === "failure")\n'
+                                                                   '  .map(([name]) => name);\n'
+                                                                   'if (failed.length === 0) {\n'
+                                                                   '  core.info("No failed jobs; '
+                                                                   'no hint comment needed.");\n'
+                                                                   '  return;\n'
+                                                                   '}\n'
+                                                                   '\n'
+                                                                   'const lines = [];\n'
+                                                                   'lines.push(marker);\n'
+                                                                   'lines.push("### CI Failure '
+                                                                   'Hints");\n'
+                                                                   'lines.push("");\n'
+                                                                   'lines.push("Failed jobs: " + '
+                                                                   'failed.map((n) => "`" + n + '
+                                                                   '"`").join(", "));\n'
+                                                                   'lines.push("");\n'
+                                                                   'lines.push("Copy-paste local '
+                                                                   'triage:");\n'
+                                                                   'lines.push("```bash");\n'
+                                                                   'lines.push("make check");\n'
+                                                                   'lines.push("lake build");\n'
+                                                                   'lines.push("FOUNDRY_PROFILE=difftest '
+                                                                   'forge test -vv");\n'
+                                                                   'lines.push("```");\n'
+                                                                   'const body = '
+                                                                   'lines.join("\\\\n");\n'
+                                                                   '\n'
+                                                                   'const owner = '
+                                                                   'context.repo.owner;\n'
+                                                                   'const repo = '
+                                                                   'context.repo.repo;\n'
+                                                                   'const issue_number = '
+                                                                   'context.issue.number;\n'
+                                                                   'const comments = await '
+                                                                   'github.paginate(github.rest.issues.listComments, '
+                                                                   '{\n'
+                                                                   '  owner,\n'
+                                                                   '  repo,\n'
+                                                                   '  issue_number,\n'
+                                                                   '  per_page: 100\n'
+                                                                   '});\n'
+                                                                   'const existing = '
+                                                                   'comments.find((c) =>\n'
+                                                                   '  c.user && c.user.type === '
+                                                                   '"Bot" && typeof c.body === '
+                                                                   '"string" && '
+                                                                   'c.body.includes(marker)\n'
+                                                                   ');\n'
+                                                                   'if (existing) {\n'
+                                                                   '  await '
+                                                                   'github.rest.issues.updateComment({\n'
+                                                                   '    owner,\n'
+                                                                   '    repo,\n'
+                                                                   '    comment_id: existing.id,\n'
+                                                                   '    body\n'
+                                                                   '  });\n'
+                                                                   '} else {\n'
+                                                                   '  await '
+                                                                   'github.rest.issues.createComment({\n'
+                                                                   '    owner,\n'
+                                                                   '    repo,\n'
+                                                                   '    issue_number,\n'
+                                                                   '    body\n'
+                                                                   '  });\n'
+                                                                   '}'}}]},
+ 'expected_checks_commands': ['make check'],
+ 'required_makefile_check_commands': ['python3 scripts/check_property_manifest.py',
+                                      'python3 scripts/check_property_coverage.py',
+                                      'python3 scripts/check_contract_structure.py',
+                                      'python3 scripts/check_paths.py',
+                                      'python3 scripts/check_compilationmodel_split.py',
+                                      'python3 scripts/check_axioms.py',
+                                      'python3 scripts/generate_verification_status.py --check',
+                                      'python3 scripts/check_verification_status_doc.py',
+                                      'python3 scripts/generate_verify_sync_spec.py --check',
+                                      'python3 scripts/check_verify_sync.py',
+                                      'python3 scripts/check_bridge_coverage_sync.py',
+                                      'python3 scripts/check_builtin_bridge_matrix_sync.py',
+                                      'python3 '
+                                      'scripts/check_interpreter_feature_boundary_catalog_sync.py',
+                                      'python3 scripts/check_interpreter_feature_summary_sync.py',
+                                      'python3 scripts/check_low_level_call_boundary_sync.py',
+                                      'python3 scripts/check_linear_memory_boundary_sync.py',
+                                      'python3 '
+                                      'scripts/check_axiomatized_primitive_boundary_sync.py',
+                                      'python3 scripts/check_struct_mapping_surface_sync.py',
+                                      'python3 scripts/check_issue_templates.py',
+                                      'python3 scripts/check_docs_workflow_sync.py',
+                                      'python3 scripts/check_solc_pin.py',
+                                      'python3 scripts/check_property_manifest_sync.py',
+                                      'python3 scripts/check_macro_health.py',
+                                      'python3 scripts/check_storage_layout.py',
+                                      'python3 scripts/check_lean_hygiene.py',
+                                      'python3 scripts/check_gas.py coverage',
+                                      'python3 scripts/check_compiler_boundaries.py',
+                                      'python3 scripts/check_split_compiler_test_artifacts.py',
+                                      'python3 scripts/check_yul.py --builtin-boundary-only',
+                                      'python3 scripts/check_rewrite_proof_metadata.py',
+                                      'python3 scripts/generate_evmyullean_capability_report.py '
+                                      '--check',
+                                      'python3 scripts/generate_evmyullean_adapter_report.py '
+                                      '--check',
+                                      'python3 scripts/generate_print_axioms.py --check',
+                                      'python3 scripts/check_proof_length.py',
+                                      'python3 scripts/check_issue_1060_integrity.py',
+                                      "python3 -m unittest discover -s scripts -p 'test_*.py' -v"],
+ 'expected_checks_other_commands': [],
+ 'expected_build_commands': ['check_lean_warning_regression.py --log lake-build.log'],
+ 'required_build_run_commands': [],
+ 'expected_build_audit_commands': ['check_split_package_builds.py',
+                                   'check_macro_roundtrip_fuzz_coverage.py',
+                                   'check_proof_length.py --format=markdown >> '
+                                   '$GITHUB_STEP_SUMMARY',
+                                   'report_property_coverage.py --format=markdown >> '
+                                   '$GITHUB_STEP_SUMMARY',
+                                   'check_storage_layout.py --format=markdown >> '
+                                   '$GITHUB_STEP_SUMMARY'],
+ 'required_build_audit_run_commands': ['lake build PrintAxioms', 'lake env lean PrintAxioms.lean'],
+ 'expected_build_compiler_commands': [],
+ 'required_build_compiler_run_commands': ['verity-compiler-patched',
+                                          '--output compiler/yul',
+                                          '--output compiler/yul-patched',
+                                          'lake exe gas-report --manifest '
+                                          'packages/verity-examples/contracts.manifest > '
+                                          'gas-report-static.tsv',
+                                          'lake exe gas-report --manifest '
+                                          'packages/verity-examples/contracts.manifest '
+                                          '--enable-patches --patch-max-iterations 2 > '
+                                          'gas-report-static-patched.tsv'],
+ 'expected_compiler_audit_commands': ['generate_yul_identity_diff_report.py --verity-dir '
+                                      'compiler/yul-parity-pack --solc-dir '
+                                      'compiler/yul-parity-reference --output '
+                                      'compiler/parity-pack-identity-report.json',
+                                      'check_parity_pack_metrics.py --report '
+                                      'compiler/parity-pack-identity-report.json '
+                                      '--max-only-in-verity 0 --max-only-in-solidity 0 '
+                                      '--max-hash-mismatch 0 --format markdown >> '
+                                      '"$GITHUB_STEP_SUMMARY"',
+                                      'check_gas.py coverage --dir compiler/yul --dir '
+                                      'compiler/yul-patched',
+                                      'keccak256.py --self-test',
+                                      'check_selectors.py --check-fixtures',
+                                      'check_yul.py --dir compiler/yul --dir compiler/yul-patched '
+                                      '--require-same-files compiler/yul compiler/yul-patched',
+                                      'check_gas.py report',
+                                      'check_patch_gas_delta.py --baseline-report '
+                                      'gas-report-static.tsv --patched-report '
+                                      'gas-report-static-patched.tsv --min-improved-contracts 0 '
+                                      '--summary-markdown patch-gas-delta-summary.md >> '
+                                      '"$GITHUB_STEP_SUMMARY"'],
+ 'required_compiler_audit_run_commands': ['--parity-pack solc-0.8.33-o200-viair-false-evm-shanghai',
+                                          '--backend-profile solidity-parity'],
+ 'expected_foundry': {'shards': 8, 'seed': 42},
+ 'expected_foundry_patched': {'seed': 42,
+                              'shard_count': 1,
+                              'shard_index': 0,
+                              'no_match_test': 'Random10000'},
+ 'expected_foundry_multi_seed': {'seeds': [0, 1, 42, 123, 999, 12345, 67890]},
+ 'expected_foundry_gas_calibration': {'profile': 'difftest',
+                                      'artifact': 'static-gas-report',
+                                      'command': 'python3 scripts/check_gas.py calibration '
+                                                 '--static-report gas-report-static.tsv'},
+ 'expected_uploaded_artifacts': {'build-audits': ['axiom-dependency-report'],
+                                 'build-compiler': ['generated-yul',
+                                                    'generated-yul-patched',
+                                                    'difftest-interpreter',
+                                                    'verity-compiler-binaries',
+                                                    'static-gas-report',
+                                                    'static-gas-report-patched',
+                                                    'patch-coverage-report'],
+                                 'compiler-audits': ['parity-pack-identity-report'],
+                                 'lean-profile': ['lean-perf-queue']},
+ 'expected_uploaded_artifact_paths': {'build-audits': ['axiom-report.md\naxiom-report-raw.log'],
+                                      'build-compiler': ['compiler/yul',
+                                                         'compiler/yul-patched',
+                                                         '.lake/build/bin/difftest-interpreter',
+                                                         'compiler/bin',
+                                                         'gas-report-static.tsv',
+                                                         'gas-report-static-patched.tsv',
+                                                         'compiler/patch-report.tsv'],
+                                      'compiler-audits': ['compiler/parity-pack-identity-report.json'],
+                                      'lean-profile': ['lean-perf-queue.md']},
+ 'expected_downloaded_artifacts': {'compiler-audits': ['generated-yul',
+                                                       'generated-yul-patched',
+                                                       'static-gas-report',
+                                                       'static-gas-report-patched',
+                                                       'patch-coverage-report',
+                                                       'verity-compiler-binaries'],
+                                   'foundry-gas-calibration': ['static-gas-report']},
+ 'expected_downloaded_artifact_paths': {'compiler-audits': ['compiler/yul',
+                                                            'compiler/yul-patched',
+                                                            None,
+                                                            None,
+                                                            'compiler',
+                                                            'compiler/bin'],
+                                        'foundry-gas-calibration': [None]}}
+
+
+def build_spec() -> dict:
+    return copy.deepcopy(SPEC)

@@ -5,6 +5,12 @@ inputs:
   cache-key-prefix:
     description: Cache key prefix for Lake packages (use different prefixes for separate caches)
     default: "lake"
+  cache-primary-key:
+    description: Exact Lake cache key to restore before falling back to the default prefix key
+    default: ""
+  cache-extra-restore-keys:
+    description: Additional Lake cache restore prefixes to try before the default fallback keys
+    default: ""
 
 runs:
   using: composite
@@ -32,16 +38,35 @@ runs:
       shell: bash
       run: echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
+    - name: Resolve Lake cache keys
+      id: resolve-cache-keys
+      shell: bash
+      env:
+        DEFAULT_CACHE_KEY: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+        DEFAULT_RESTORE_KEYS: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
+          lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
+        OVERRIDE_CACHE_KEY: ${{ inputs.cache-primary-key }}
+        EXTRA_RESTORE_KEYS: ${{ inputs.cache-extra-restore-keys }}
+      run: |
+        primary_key="${OVERRIDE_CACHE_KEY:-$DEFAULT_CACHE_KEY}"
+        {
+          echo "primary=$primary_key"
+          echo "restore_keys<<EOF"
+          if [ -n "${EXTRA_RESTORE_KEYS}" ]; then
+            printf '%s\n' "${EXTRA_RESTORE_KEYS}"
+          fi
+          printf '%s\n' "${DEFAULT_RESTORE_KEYS}"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
     - name: Restore Lake packages cache
       id: cache-lake
       uses: actions/cache/restore@v4
       with:
         path: .lake
-        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-        restore-keys: |
-          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
-          lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-
+        key: ${{ steps.resolve-cache-keys.outputs.primary }}
+        restore-keys: ${{ steps.resolve-cache-keys.outputs.restore_keys }}
 
     - name: Refresh Lake dependency state on partial cache hit
       if: steps.cache-lake.outputs.cache-hit != 'true'

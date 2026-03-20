@@ -50,6 +50,7 @@
   "expected_jobs": [
     "changes",
     "checks",
+    "timeout-watchdog",
     "build",
     "build-audits",
     "macro-fuzz",
@@ -66,6 +67,9 @@
   "expected_job_needs": {
     "changes": [],
     "checks": [],
+    "timeout-watchdog": [
+      "checks"
+    ],
     "build": [
       "changes",
       "checks"
@@ -133,6 +137,7 @@
   "expected_job_if_conditions": {
     "changes": null,
     "checks": null,
+    "timeout-watchdog": "needs.checks.result == 'success'",
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
     "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
     "macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
@@ -149,6 +154,7 @@
   "expected_job_runs_on": {
     "changes": "blacksmith-2vcpu-ubuntu-2404",
     "checks": "blacksmith-2vcpu-ubuntu-2404",
+    "timeout-watchdog": "blacksmith-2vcpu-ubuntu-2404",
     "build": "blacksmith-8vcpu-ubuntu-2404",
     "build-audits": "blacksmith-4vcpu-ubuntu-2404",
     "macro-fuzz": "blacksmith-8vcpu-ubuntu-2404",
@@ -165,6 +171,7 @@
   "expected_job_timeouts": {
     "changes": 5,
     "checks": 5,
+    "timeout-watchdog": 5,
     "build": 25,
     "build-audits": 20,
     "macro-fuzz": 90,
@@ -190,6 +197,10 @@
     }
   },
   "expected_job_permissions": {
+    "timeout-watchdog": {
+      "actions": "read",
+      "contents": "read"
+    },
     "failure-hints": {
       "contents": "read",
       "pull-requests": "write"
@@ -226,6 +237,15 @@
         "run": "make check"
       }
     ],
+    "timeout-watchdog": [
+      {
+        "name": "Warn on timeout-risk trend",
+        "env": {
+          "GH_TOKEN": "${{ github.token }}"
+        },
+        "run": "python3 scripts/ci_timeout_watchdog.py \\\n  --repo ${{ github.repository }} \\\n  --workflow verify.yml \\\n  --branch ${{ github.event.pull_request.base.ref || github.ref_name }}"
+      }
+    ],
     "build": [
       {
         "uses": "actions/checkout@v4",
@@ -237,7 +257,17 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake"
+          "cache-key-prefix": "lake",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Save current run Lake cache",
+        "uses": "actions/cache/save@v4",
+        "if": "success() && needs.changes.outputs.build == 'true'",
+        "with": {
+          "path": ".lake",
+          "key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
@@ -261,7 +291,8 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake"
+          "cache-key-prefix": "lake",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
@@ -303,7 +334,9 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake-compiler"
+          "cache-key-prefix": "lake-compiler",
+          "cache-primary-key": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
@@ -327,7 +360,9 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake-compiler"
+          "cache-key-prefix": "lake-compiler",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
@@ -354,7 +389,9 @@
         "name": "Setup Lean",
         "uses": "./.github/actions/setup-lean",
         "with": {
-          "cache-key-prefix": "lake-compiler"
+          "cache-key-prefix": "lake-compiler",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
         }
       },
       {
@@ -452,6 +489,7 @@
     "python3 scripts/check_axioms.py",
     "python3 scripts/generate_verification_status.py --check",
     "python3 scripts/check_verification_status_doc.py",
+    "python3 scripts/generate_verify_sync_spec.py --check",
     "python3 scripts/check_verify_sync.py",
     "python3 scripts/check_bridge_coverage_sync.py",
     "python3 scripts/check_builtin_bridge_matrix_sync.py",

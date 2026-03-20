@@ -153,6 +153,34 @@ private def roundTripTrialsPerFunction : Nat := 1
 private def roundTripFuelBudget : Nat := 512
 private def roundTripInitialSeed : Nat := 0xC0DEC0DE
 
+private def parseNatEnv? (name : String) : IO (Option Nat) := do
+  match ← IO.getEnv name with
+  | none => pure none
+  | some raw =>
+      match raw.trim.toNat? with
+      | some value => pure (some value)
+      | none => throw <| IO.userError s!"{name} must be a natural number, got {raw.inspect}"
+
+private def shardSpecs (specs : List CompilationModel) (shardIndex shardCount : Nat) :
+    IO (List CompilationModel) := do
+  if shardCount == 0 then
+    throw <| IO.userError "MACRO_FUZZ_SHARD_COUNT must be >= 1"
+  if shardIndex >= shardCount then
+    throw <| IO.userError
+      s!"MACRO_FUZZ_SHARD_INDEX must be less than MACRO_FUZZ_SHARD_COUNT ({shardIndex} >= {shardCount})"
+  let sharded :=
+    specs.enum.filterMap fun (idx, spec) =>
+      if idx % shardCount == shardIndex then some spec else none
+  if sharded.isEmpty then
+    throw <| IO.userError
+      s!"macro fuzz shard {shardIndex}/{shardCount} selected no specs; reduce the shard count"
+  pure sharded
+
+private def loadShardConfig : IO (Nat × Nat) := do
+  let shardCount := (← parseNatEnv? "MACRO_FUZZ_SHARD_COUNT").getD 1
+  let shardIndex := (← parseNatEnv? "MACRO_FUZZ_SHARD_INDEX").getD 0
+  pure (shardIndex, shardCount)
+
 private def runRoundTripTrials
     (spec : CompilationModel)
     (irFn : IRFunction)
@@ -227,8 +255,11 @@ private def checkRoundTripSpec (spec : CompilationModel) (rng : FuzzRng) : IO Fu
   pure rng
 
 def main : IO Unit := do
+  let (shardIndex, shardCount) ← loadShardConfig
+  let specs ← shardSpecs macroSpecs shardIndex shardCount
+  IO.println s!"Running macro round-trip fuzz shard {shardIndex + 1}/{shardCount} over {specs.length} spec(s)"
   let mut rng : FuzzRng := { seed := roundTripInitialSeed }
-  for spec in macroSpecs do
+  for spec in specs do
     rng ← checkRoundTripSpec spec rng
   IO.println "✓ macro round-trip fuzz harness passed"
 

@@ -5,7 +5,10 @@ This document is the long-form reference for script responsibilities.
 ## Verify workflow sync
 
 - `check_verify_sync.py`: unified table-driven validator for workflow invariants.
-- `verify_sync_spec.json`: expected trigger keys/paths/branches, job order, top-level workflow/job/strategy contracts, critical step contracts (including multiline `with.script` bodies for inline GitHub Script steps), command lists, foundry settings, and artifact producers.
+- `verify_sync_spec_source.py`: authoritative verify workflow sync contract.
+- `generate_verify_sync_spec.py`: regenerates/checks the committed JSON artifact from the Python source.
+- `verify_sync_spec.json`: generated mirror of the verify workflow contract for easy inspection and diff review.
+- `ci_timeout_watchdog.py`: warns when recent verify jobs spend too much of their timeout budget.
 - `check_docs_workflow_sync.py`: keep the docs workflow self-triggering and aligned across push/pull_request path filters.
 
 ## Issue #1060 automation
