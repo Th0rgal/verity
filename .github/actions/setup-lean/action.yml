@@ -106,6 +106,13 @@ runs:
         key: ${{ steps.resolve-cache-keys.outputs.primary }}
         restore-keys: ${{ steps.resolve-cache-keys.outputs.restore_keys }}
 
+    - name: Prepare writable Lake root for sticky disks
+      if: steps.persistence.outputs.use_sticky_disks == 'true'
+      shell: bash
+      run: |
+        mkdir -p .lake/packages
+        chmod u+rwx .lake .lake/packages
+
     - name: Mount Lake packages sticky disk
       if: steps.persistence.outputs.use_sticky_disks == 'true'
       uses: useblacksmith/stickydisk@v1
