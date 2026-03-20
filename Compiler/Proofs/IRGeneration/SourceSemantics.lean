@@ -232,15 +232,13 @@ def writeAddressKeyedMapping2WordSlots
 def decodeSupportedParamWord (ty : ParamType) (word : Nat) : Option Nat :=
   let word := wordNormalize word
   match ty with
-  | .uint256 => some word
-  | .int256 => some word
+  | .uint256 | .int256 | .bytes32 => some word
   | .uint8 => some (word &&& (uint8Modulus - 1))
   | .address => some (word &&& Compiler.Constants.addressMask)
   | .bool =>
       if word = 0 then some 0
       else if word = 1 then some 1
       else none
-  | .bytes32 => some word
   | _ => none
 
 def bindValue (bindings : List (String × Nat)) (name : String) (value : Nat) :
