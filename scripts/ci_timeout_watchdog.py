@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -47,6 +48,10 @@ def _extract_top_level_job_value(job_body: str, key: str) -> str | None:
 
 def load_timeouts(workflow_path: Path = VERIFY_YML) -> dict[str, int]:
     workflow_text = workflow_path.read_text(encoding="utf-8")
+    return load_timeouts_from_text(workflow_text, workflow_path)
+
+
+def load_timeouts_from_text(workflow_text: str, workflow_path: Path = VERIFY_YML) -> dict[str, int]:
     timeouts: dict[str, int] = {}
     for job in extract_top_level_jobs(workflow_text, workflow_path):
         raw = _extract_top_level_job_value(extract_job_body(workflow_text, job, workflow_path), "timeout-minutes")
@@ -110,6 +115,13 @@ class GitHubActionsClient:
                 return jobs
             page += 1
 
+    def get_file_text(self, path: str, ref: str) -> str:
+        payload = self.get_json(f"/contents/{path}", {"ref": ref})
+        content = payload.get("content")
+        if not isinstance(content, str):
+            raise ValueError(f"GitHub contents response for {path} did not include text content")
+        return base64.b64decode(content).decode("utf-8")
+
 
 def collect_timeout_risk_samples(
     runs: list[dict],
@@ -123,20 +135,23 @@ def collect_timeout_risk_samples(
             matching_jobs = [
                 job for job in run_jobs.get(run_id, []) if _job_name_matches(job.get("name", ""), workflow_job)
             ]
-            for job in matching_jobs:
-                duration = _duration_minutes(job.get("started_at"), job.get("completed_at"))
-                if duration is None:
-                    continue
-                samples[workflow_job].append(
-                    Sample(
-                        run_id=run_id,
-                        title=run.get("display_title", ""),
-                        duration_minutes=duration,
-                        timeout_minutes=timeout,
-                        ratio=duration / timeout,
-                        conclusion=job.get("conclusion") or "unknown",
-                    )
+            durations = [
+                (job, _duration_minutes(job.get("started_at"), job.get("completed_at"))) for job in matching_jobs
+            ]
+            durations = [(job, duration) for job, duration in durations if duration is not None]
+            if not durations:
+                continue
+            slowest_job, slowest_duration = max(durations, key=lambda pair: pair[1])
+            samples[workflow_job].append(
+                Sample(
+                    run_id=run_id,
+                    title=run.get("display_title", ""),
+                    duration_minutes=slowest_duration,
+                    timeout_minutes=timeout,
+                    ratio=slowest_duration / timeout,
+                    conclusion=slowest_job.get("conclusion") or "unknown",
                 )
+            )
     return samples
 
 
@@ -202,6 +217,17 @@ def main() -> int:
 
     client = GitHubActionsClient(args.repo, token)
     try:
+        tracked_timeouts = {
+            job: timeout
+            for job, timeout in load_timeouts_from_text(
+                client.get_file_text(f".github/workflows/{args.workflow}", args.branch),
+                Path(args.workflow),
+            ).items()
+            if timeout >= args.min_timeout_minutes
+        }
+        if not tracked_timeouts:
+            print("No workflow jobs met the timeout threshold; nothing to inspect.")
+            return 0
         runs = client.list_workflow_runs(args.workflow, args.branch, args.limit_runs)
         run_jobs = {run["id"]: client.list_run_jobs(run["id"]) for run in runs}
     except urllib.error.URLError as exc:

@@ -51,6 +51,12 @@ class TimeoutWatchdogTests(unittest.TestCase):
                     "conclusion": "success",
                 },
                 {
+                    "name": "macro-fuzz (1)",
+                    "started_at": "2026-03-19T23:00:00Z",
+                    "completed_at": "2026-03-20T00:25:00Z",
+                    "conclusion": "success",
+                },
+                {
                     "name": "build-compiler",
                     "started_at": "2026-03-19T23:00:00Z",
                     "completed_at": "2026-03-20T00:50:00Z",
@@ -64,8 +70,28 @@ class TimeoutWatchdogTests(unittest.TestCase):
             {"macro-fuzz": 90, "build-compiler": 120},
         )
         self.assertEqual(len(samples["macro-fuzz"]), 1)
-        self.assertAlmostEqual(samples["macro-fuzz"][0].ratio, 78 / 90, places=3)
+        self.assertAlmostEqual(samples["macro-fuzz"][0].ratio, 85 / 90, places=3)
         self.assertEqual(len(samples["build-compiler"]), 1)
+
+    def test_load_timeouts_from_text_extracts_top_level_job_timeouts(self) -> None:
+        workflow = textwrap.dedent(
+            """
+            name: Verify proofs
+            jobs:
+              build:
+                timeout-minutes: 25
+                steps: []
+              macro-fuzz:
+                timeout-minutes: 90
+                strategy:
+                  fail-fast: false
+                steps: []
+            """
+        ).lstrip()
+        self.assertEqual(
+            watchdog.load_timeouts_from_text(workflow, Path("verify.yml")),
+            {"build": 25, "macro-fuzz": 90},
+        )
 
     def test_summarize_risk_warns_only_after_minimum_samples(self) -> None:
         samples = {

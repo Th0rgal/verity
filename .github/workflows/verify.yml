@@ -438,6 +438,9 @@ jobs:
           cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
           cp ./.lake/build/bin/difftest-interpreter compiler/bin/
 
+      - name: Package compiler workspace build
+        run: tar -cf lean-workspace-compiler-build.tar .lake/build
+
       - name: Save Lake compiler cache
         if: always() && steps.setup-lean.outputs.using-sticky-disks != 'true'
         uses: actions/cache/save@v4
@@ -468,6 +471,12 @@ jobs:
         with:
           name: verity-compiler-binaries
           path: compiler/bin
+
+      - name: Upload compiler workspace build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+          path: lean-workspace-compiler-build.tar
 
       - name: Upload static gas report
         uses: actions/upload-artifact@v4
@@ -666,6 +675,14 @@ jobs:
 
       - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
 
       - name: Run compiler CLI regression module
         run: stdbuf -oL -eL lake exe compiler-main-test

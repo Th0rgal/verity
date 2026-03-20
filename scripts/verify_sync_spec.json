@@ -185,6 +185,7 @@
     "foundry-multi-seed": 25
   },
   "expected_job_strategy_fail_fast": {
+    "macro-fuzz": false,
     "foundry": false,
     "foundry-multi-seed": false
   },
@@ -378,6 +379,14 @@
         }
       },
       {
+        "name": "Upload compiler workspace build",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build",
+          "path": "lean-workspace-compiler-build.tar"
+        }
+      },
+      {
         "name": "Save Lake compiler cache",
         "uses": "actions/cache/save@v4",
         "if": "always() && steps.setup-lean.outputs.using-sticky-disks != 'true'",
@@ -430,6 +439,13 @@
         "uses": "actions/download-artifact@v4",
         "with": {
           "name": "lean-workspace-build"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
         }
       },
       {
@@ -636,6 +652,7 @@
       "generated-yul-patched",
       "difftest-interpreter",
       "verity-compiler-binaries",
+      "lean-workspace-compiler-build",
       "static-gas-report",
       "static-gas-report-patched",
       "patch-coverage-report"
@@ -659,6 +676,7 @@
       "compiler/yul-patched",
       ".lake/build/bin/difftest-interpreter",
       "compiler/bin",
+      "lean-workspace-compiler-build.tar",
       "gas-report-static.tsv",
       "gas-report-static-patched.tsv",
       "compiler/patch-report.tsv"
@@ -689,7 +707,8 @@
       "verity-compiler-binaries"
     ],
     "compiler-regressions": [
-      "lean-workspace-build"
+      "lean-workspace-build",
+      "lean-workspace-compiler-build"
     ],
     "foundry-gas-calibration": [
       "static-gas-report"
@@ -714,6 +733,7 @@
       "compiler/bin"
     ],
     "compiler-regressions": [
+      null,
       null
     ],
     "foundry-gas-calibration": [
