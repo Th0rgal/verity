@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 185  # Reduced by proving the slot-conflict validator consequence on the function path
+    expected_sorry = 184  # Reduced by proving evalExpr_lt_evmModulus_core_onExpr on the function-body path
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

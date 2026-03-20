@@ -2427,141 +2427,141 @@ theorem evalExpr_lt_evmModulus_core_onExpr
     (hbounded : bindingsBounded runtime.bindings)
     (hpresent : exprBoundNamesPresent expr runtime.bindings)
     (hruntime : runtimeStateMatchesIR fields runtime state) :
-    SourceSemantics.evalExpr fields runtime expr < Compiler.Constants.evmModulus := by sorry
--- SORRY'D:   induction hcore generalizing runtime state with
--- SORRY'D:   | literal value =>
--- SORRY'D:       exact evalExpr_literal_lt_evmModulus fields runtime value
--- SORRY'D:   | param name =>
--- SORRY'D:       exact evalExpr_param_lt_evmModulus_of_bindingsBounded fields runtime name hbounded
--- SORRY'D:   | localVar name =>
--- SORRY'D:       exact evalExpr_localVar_lt_evmModulus_of_bindingsBounded fields runtime name hbounded
--- SORRY'D:   | caller =>
--- SORRY'D:       have haddrLt : runtime.world.sender.val < Verity.Core.ADDRESS_MODULUS := by
--- SORRY'D:         simpa [Verity.Core.Address.modulus] using
--- SORRY'D:           Verity.Core.Address.val_lt_modulus runtime.world.sender
--- SORRY'D:       have hmodLt : Verity.Core.ADDRESS_MODULUS < Compiler.Constants.evmModulus := by
--- SORRY'D:         norm_num [Verity.Core.ADDRESS_MODULUS, Compiler.Constants.evmModulus]
--- SORRY'D:       change runtime.world.sender.val < Compiler.Constants.evmModulus
--- SORRY'D:       exact Nat.lt_trans haddrLt hmodLt
--- SORRY'D:   | contractAddress =>
--- SORRY'D:       have haddrLt : runtime.world.thisAddress.val < Verity.Core.ADDRESS_MODULUS := by
--- SORRY'D:         simpa [Verity.Core.Address.modulus] using
--- SORRY'D:           Verity.Core.Address.val_lt_modulus runtime.world.thisAddress
--- SORRY'D:       have hmodLt : Verity.Core.ADDRESS_MODULUS < Compiler.Constants.evmModulus := by
--- SORRY'D:         norm_num [Verity.Core.ADDRESS_MODULUS, Compiler.Constants.evmModulus]
--- SORRY'D:       change runtime.world.thisAddress.val < Compiler.Constants.evmModulus
--- SORRY'D:       exact Nat.lt_trans haddrLt hmodLt
--- SORRY'D:   | msgValue =>
--- SORRY'D:       change runtime.world.msgValue.val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.msgValue.isLt
--- SORRY'D:   | blockTimestamp =>
--- SORRY'D:       change runtime.world.blockTimestamp.val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.blockTimestamp.isLt
--- SORRY'D:   | blockNumber =>
--- SORRY'D:       change runtime.world.blockNumber.val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.blockNumber.isLt
--- SORRY'D:   | chainid =>
--- SORRY'D:       change runtime.world.chainId.val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.chainId.isLt
--- SORRY'D:   | add hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       change
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) +
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) +
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).isLt
--- SORRY'D:   | sub hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       change
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) -
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) -
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).isLt
--- SORRY'D:   | mul hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       change
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) *
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) *
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).isLt
--- SORRY'D:   | div hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       change
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) /
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) /
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).isLt
--- SORRY'D:   | mod hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       change
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) %
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
--- SORRY'D:       simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
--- SORRY'D:         ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) %
--- SORRY'D:           (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
--- SORRY'D:             Verity.Core.Uint256)).isLt
--- SORRY'D:   | eq hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.eq lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs =
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | lt hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.lt lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs <
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | gt hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.gt lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs <
--- SORRY'D:             SourceSemantics.evalExpr fields runtime lhs)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | ge hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs ≤
--- SORRY'D:             SourceSemantics.evalExpr fields runtime lhs)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | le hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs ≤
--- SORRY'D:             SourceSemantics.evalExpr fields runtime rhs)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | logicalNot h ih =>
--- SORRY'D:       rename_i expr
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.logicalNot expr) =
--- SORRY'D:           SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime expr = 0)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | logicalAnd hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.logicalAnd lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord
--- SORRY'D:             (decide (SourceSemantics.evalExpr fields runtime lhs != 0) &&
--- SORRY'D:               decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
--- SORRY'D:   | logicalOr hL hR ihL ihR =>
--- SORRY'D:       rename_i lhs rhs
--- SORRY'D:       rw [show SourceSemantics.evalExpr fields runtime (.logicalOr lhs rhs) =
--- SORRY'D:           SourceSemantics.boolWord
--- SORRY'D:             (decide (SourceSemantics.evalExpr fields runtime lhs != 0) ||
--- SORRY'D:               decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by rfl]
--- SORRY'D:       exact boolWord_lt_evmModulus _
+    SourceSemantics.evalExpr fields runtime expr < Compiler.Constants.evmModulus := by
+  induction hcore generalizing runtime state with
+  | literal value =>
+      exact evalExpr_literal_lt_evmModulus fields runtime value
+  | param name =>
+      exact evalExpr_param_lt_evmModulus_of_bindingsBounded fields runtime name hbounded
+  | localVar name =>
+      exact evalExpr_localVar_lt_evmModulus_of_bindingsBounded fields runtime name hbounded
+  | caller =>
+      have haddrLt : runtime.world.sender.val < Verity.Core.ADDRESS_MODULUS := by
+        simpa [Verity.Core.Address.modulus] using
+          Verity.Core.Address.val_lt_modulus runtime.world.sender
+      have hmodLt : Verity.Core.ADDRESS_MODULUS < Compiler.Constants.evmModulus := by
+        norm_num [Verity.Core.ADDRESS_MODULUS, Compiler.Constants.evmModulus]
+      change runtime.world.sender.val < Compiler.Constants.evmModulus
+      exact Nat.lt_trans haddrLt hmodLt
+  | contractAddress =>
+      have haddrLt : runtime.world.thisAddress.val < Verity.Core.ADDRESS_MODULUS := by
+        simpa [Verity.Core.Address.modulus] using
+          Verity.Core.Address.val_lt_modulus runtime.world.thisAddress
+      have hmodLt : Verity.Core.ADDRESS_MODULUS < Compiler.Constants.evmModulus := by
+        norm_num [Verity.Core.ADDRESS_MODULUS, Compiler.Constants.evmModulus]
+      change runtime.world.thisAddress.val < Compiler.Constants.evmModulus
+      exact Nat.lt_trans haddrLt hmodLt
+  | msgValue =>
+      change runtime.world.msgValue.val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.msgValue.isLt
+  | blockTimestamp =>
+      change runtime.world.blockTimestamp.val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.blockTimestamp.isLt
+  | blockNumber =>
+      change runtime.world.blockNumber.val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.blockNumber.isLt
+  | chainid =>
+      change runtime.world.chainId.val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using runtime.world.chainId.isLt
+  | add hL hR ihL ihR =>
+      rename_i lhs rhs
+      change
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) +
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) +
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).isLt
+  | sub hL hR ihL ihR =>
+      rename_i lhs rhs
+      change
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) -
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) -
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).isLt
+  | mul hL hR ihL ihR =>
+      rename_i lhs rhs
+      change
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) *
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) *
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).isLt
+  | div hL hR ihL ihR =>
+      rename_i lhs rhs
+      change
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) /
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) /
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).isLt
+  | mod hL hR ihL ihR =>
+      rename_i lhs rhs
+      change
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) %
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).val < Compiler.Constants.evmModulus
+      simpa [Verity.Core.Uint256.modulus, Compiler.Constants.evmModulus] using
+        ((((SourceSemantics.evalExpr fields runtime lhs : Verity.Core.Uint256) %
+          (SourceSemantics.evalExpr fields runtime rhs : Verity.Core.Uint256)) :
+            Verity.Core.Uint256)).isLt
+  | eq hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.eq lhs rhs) =
+          SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs =
+            SourceSemantics.evalExpr fields runtime rhs)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | lt hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.lt lhs rhs) =
+          SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs <
+            SourceSemantics.evalExpr fields runtime rhs)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | gt hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.gt lhs rhs) =
+          SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs <
+            SourceSemantics.evalExpr fields runtime lhs)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | ge hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.ge lhs rhs) =
+          SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime rhs ≤
+            SourceSemantics.evalExpr fields runtime lhs)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | le hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.le lhs rhs) =
+          SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime lhs ≤
+            SourceSemantics.evalExpr fields runtime rhs)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | logicalNot h ih =>
+      rename_i expr
+      rw [show SourceSemantics.evalExpr fields runtime (.logicalNot expr) =
+          SourceSemantics.boolWord (decide (SourceSemantics.evalExpr fields runtime expr = 0)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | logicalAnd hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.logicalAnd lhs rhs) =
+          SourceSemantics.boolWord
+            (decide (SourceSemantics.evalExpr fields runtime lhs != 0) &&
+              decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by rfl]
+      exact boolWord_lt_evmModulus _
+  | logicalOr hL hR ihL ihR =>
+      rename_i lhs rhs
+      rw [show SourceSemantics.evalExpr fields runtime (.logicalOr lhs rhs) =
+          SourceSemantics.boolWord
+            (decide (SourceSemantics.evalExpr fields runtime lhs != 0) ||
+              decide (SourceSemantics.evalExpr fields runtime rhs != 0)) by rfl]
+      exact boolWord_lt_evmModulus _
 end
 
 theorem evalExpr_lt_evmModulus_core
