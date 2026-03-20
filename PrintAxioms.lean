@@ -767,19 +767,19 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsExactlyMatchIRVars_nil_initialIRStateForTx
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_ident_of_exact_bindings
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_ident_of_scope_bindings
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_caller_of_runtimeStateMatchesIR  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_contractAddress_of_runtimeStateMatchesIR  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_msgValue_of_runtimeStateMatchesIR  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blockNumber_of_runtimeStateMatchesIR  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_chainid_of_runtimeStateMatchesIR  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_caller_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_contractAddress_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_msgValue_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_blockNumber_of_runtimeStateMatchesIR
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_chainid_of_runtimeStateMatchesIR
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_caller
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_contractAddress
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_msgValue
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blockTimestamp
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_blockNumber
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_chainid
--- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_literal  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.FunctionBody.eval_compileExpr_literal
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.boolWord_eq_if
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_iszero_of_lt
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.evalIRExpr_yulToBool_of_lt
@@ -1713,4 +1713,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1582 theorems/lemmas (1063 public, 408 private, 111 sorry'd)
+-- Total: 1582 theorems/lemmas (1070 public, 408 private, 104 sorry'd)
