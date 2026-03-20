@@ -170,7 +170,11 @@ theorem evalIRExpr_caller_of_runtimeStateMatchesIR
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "caller" []) =
-      some (SourceSemantics.evalExpr fields runtime (.caller)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.caller)) := by
+  rcases hmatch with ⟨_, _, hsender, _, _, _, _, _, _, _⟩
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hsender]
+  rfl
 
 theorem evalIRExpr_contractAddress_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -178,7 +182,18 @@ theorem evalIRExpr_contractAddress_of_runtimeStateMatchesIR
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "address" []) =
-      some (SourceSemantics.evalExpr fields runtime (.contractAddress)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.contractAddress)) := by
+  rcases hmatch with ⟨_, _, _, _, hthisAddress, _, _, _, _, _⟩
+  have hthisLt : runtime.world.thisAddress.val < Compiler.Constants.evmModulus := by
+    have haddrLt : runtime.world.thisAddress.val < Verity.Core.Address.modulus :=
+      Verity.Core.Address.val_lt_modulus runtime.world.thisAddress
+    dsimp [Verity.Core.Address.modulus, Verity.Core.ADDRESS_MODULUS, Compiler.Constants.evmModulus] at haddrLt ⊢
+    omega
+  have hthisMod : runtime.world.thisAddress.val % Compiler.Constants.evmModulus =
+      runtime.world.thisAddress.val := Nat.mod_eq_of_lt hthisLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hthisAddress, hthisMod]
+  rfl
 
 theorem evalIRExpr_msgValue_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -186,7 +201,15 @@ theorem evalIRExpr_msgValue_of_runtimeStateMatchesIR
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "callvalue" []) =
-      some (SourceSemantics.evalExpr fields runtime (.msgValue)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.msgValue)) := by
+  rcases hmatch with ⟨_, _, _, hmsgValue, _, _, _, _, _, _⟩
+  have hmsgLt : runtime.world.msgValue.val < Compiler.Constants.evmModulus := by
+    simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.msgValue.isLt
+  have hmsgMod : runtime.world.msgValue.val % Compiler.Constants.evmModulus =
+      runtime.world.msgValue.val := Nat.mod_eq_of_lt hmsgLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hmsgValue, hmsgMod]
+  rfl
 
 theorem evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -194,7 +217,15 @@ theorem evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "timestamp" []) =
-      some (SourceSemantics.evalExpr fields runtime (.blockTimestamp)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.blockTimestamp)) := by
+  rcases hmatch with ⟨_, _, _, _, _, hblockTimestamp, _, _, _, _⟩
+  have htimeLt : runtime.world.blockTimestamp.val < Compiler.Constants.evmModulus := by
+    simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blockTimestamp.isLt
+  have htimeMod : runtime.world.blockTimestamp.val % Compiler.Constants.evmModulus =
+      runtime.world.blockTimestamp.val := Nat.mod_eq_of_lt htimeLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hblockTimestamp, htimeMod]
+  rfl
 
 theorem evalIRExpr_blockNumber_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -202,7 +233,15 @@ theorem evalIRExpr_blockNumber_of_runtimeStateMatchesIR
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "number" []) =
-      some (SourceSemantics.evalExpr fields runtime (.blockNumber)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.blockNumber)) := by
+  rcases hmatch with ⟨_, _, _, _, _, _, hblockNumber, _, _, _⟩
+  have hnumberLt : runtime.world.blockNumber.val < Compiler.Constants.evmModulus := by
+    simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blockNumber.isLt
+  have hnumberMod : runtime.world.blockNumber.val % Compiler.Constants.evmModulus =
+      runtime.world.blockNumber.val := Nat.mod_eq_of_lt hnumberLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hblockNumber, hnumberMod]
+  rfl
 
 theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     {fields : List Field}
@@ -210,7 +249,15 @@ theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     {state : IRState}
     (hmatch : runtimeStateMatchesIR fields runtime state) :
     evalIRExpr state (YulExpr.call "chainid" []) =
-      some (SourceSemantics.evalExpr fields runtime (.chainid)) := by sorry
+      some (SourceSemantics.evalExpr fields runtime (.chainid)) := by
+  rcases hmatch with ⟨_, _, _, _, _, _, _, hchainId, _, _⟩
+  have hchainLt : runtime.world.chainId.val < Compiler.Constants.evmModulus := by
+    simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.chainId.isLt
+  have hchainMod : runtime.world.chainId.val % Compiler.Constants.evmModulus =
+      runtime.world.chainId.val := Nat.mod_eq_of_lt hchainLt
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, hchainId, hchainMod]
+  rfl
 
 theorem eval_compileExpr_caller
     {fields : List Field}
@@ -278,12 +325,11 @@ theorem eval_compileExpr_literal
     (state : IRState)
     (value : Nat) :
     evalIRExpr state (YulExpr.lit (value % CompilationModel.uint256Modulus)) =
-      some (SourceSemantics.evalExpr fields runtime (.literal value)) := by sorry
--- SORRY'D:   simp [evalIRExpr]
--- SORRY'D:   change value % CompilationModel.uint256Modulus =
--- SORRY'D:     SourceSemantics.wordNormalize value
--- SORRY'D:   rw [ParamLoading.wordNormalize_eq_mod]
--- SORRY'D:   rfl
+      some (SourceSemantics.evalExpr fields runtime (.literal value)) := by
+  simp [evalIRExpr]
+  change some (value % CompilationModel.uint256Modulus) = some (SourceSemantics.wordNormalize value)
+  rw [ParamLoading.wordNormalize_eq_mod]
+  simp [CompilationModel.uint256Modulus, Compiler.Constants.evmModulus]
 
 @[simp] theorem boolWord_eq_if (p : Prop) [Decidable p] :
     SourceSemantics.boolWord (decide p) = (if p then 1 else 0) := by
