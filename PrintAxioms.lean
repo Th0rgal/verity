@@ -804,6 +804,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.lookupValue_bindValue_ne
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsBounded_nil
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.wordNormalize_lt_evmModulus
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.maskedWordNormalize_lt_evmModulus  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.decodeSupportedParamWord_passthrough_lt_evmModulus  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.decodeSupportedParamWord_masked_lt_evmModulus  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.decodeSupportedParamWord_bool_lt_evmModulus  -- private
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.decodeSupportedParamWord_lt_evmModulus
 #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsBounded_bindValue
 -- #print axioms Compiler.Proofs.IRGeneration.FunctionBody.bindingsBounded_cons  -- private
@@ -1712,4 +1716,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1581 theorems/lemmas (1070 public, 407 private, 104 sorry'd)
+-- Total: 1585 theorems/lemmas (1070 public, 411 private, 104 sorry'd)

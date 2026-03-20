@@ -220,6 +220,16 @@ verity_contract SignedBuiltinSmoke where
   function minusOne () : Int256 := do
     return negativeOne
 
+/--
+error: unsigned word arithmetic does not support Int256 operands; cast to Uint256 explicitly first
+-/
+#guard_msgs in
+verity_contract SignedMinRejected where
+  storage
+
+  function badMin (lhs : Int256) : Int256 := do
+    return (min lhs 0)
+
 verity_contract StatelessSmoke where
   storage
 

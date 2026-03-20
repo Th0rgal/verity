@@ -933,6 +933,19 @@ private def classifyWordArithmeticResultType
   else
     pure .uint256
 
+private def classifyUnsignedWordArithmeticResultType
+    (stx : Syntax)
+    (context : String)
+    (lhsTy rhsTy : ValueType) : CommandElabM ValueType := do
+  unless isWordLikeValueType lhsTy do
+    throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {reprStr lhsTy}"
+  unless isWordLikeValueType rhsTy do
+    throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {reprStr rhsTy}"
+  if isSignedWordValueType lhsTy || isSignedWordValueType rhsTy then
+    throwErrorAt stx
+      s!"{context} does not support Int256 operands; cast to Uint256 explicitly first"
+  pure .uint256
+
 private def isNatLiteralTerm (stx : Term) : Bool :=
   match stripParens stx with
   | `(term| $_n:num) => true
@@ -1212,12 +1225,15 @@ private partial def inferPureExprType
   | `(term| add $a $b) | `(term| sub $a $b) | `(term| mul $a $b)
     | `(term| bitAnd $a $b)
     | `(term| bitOr $a $b) | `(term| bitXor $a $b) | `(term| and $a $b)
-    | `(term| or $a $b) | `(term| xor $a $b) | `(term| min $a $b)
-    | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b) => do
+    | `(term| or $a $b) | `(term| xor $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       let (lhsTy, rhsTy) := preferSignedNumericLiteralPeer a b lhsTy rhsTy
       classifyWordArithmeticResultType stx "word arithmetic" lhsTy rhsTy
+  | `(term| min $a $b) | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b) => do
+      let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
+      let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
+      classifyUnsignedWordArithmeticResultType stx "unsigned word arithmetic" lhsTy rhsTy
   | `(term| div $a $b) | `(term| $a / $b) | `(term| mod $a $b) | `(term| $a % $b)
     | `(term| sdiv $a $b) | `(term| smod $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
