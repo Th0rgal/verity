@@ -434,7 +434,20 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    interpretContract_correct_of_compiled_functions_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      hHelperProofs
+      (irFns := irFns)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [hhelperIR] using hlegacy
 -- SORRY'D:   have hlegacy :=
 -- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs
 -- SORRY'D:       (model := model)
@@ -538,7 +551,24 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (irFns := irFns)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := hfunction)
+    (hhelperIR :=
+      interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
+        (runtimeContractOfFunctions model.name irFns)
+        hdisjointIR
+        tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld))
 -- SORRY'D:   exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
 -- SORRY'D:     (model := model)
 -- SORRY'D:     (selectors := selectors)

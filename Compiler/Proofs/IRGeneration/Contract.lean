@@ -1459,7 +1459,32 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (hvalidateInputs := hvalidateInputs)
+    (runtimeContract := runtimeContract)
+    (fn := fn)
+    (sel := sel)
+    (irFn := irFn)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (bindings := bindings)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hfn := hfn)
+    (hcompileFn := hcompileFn)
+    (hbind := hbind)
+    (hhelperIR :=
+      execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+        runtimeContract
+        irFn
+        tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        hbodyDisjoint)
 -- SORRY'D:   exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
 -- SORRY'D:     (model := model)
 -- SORRY'D:     (selectors := selectors)
@@ -2651,7 +2676,69 @@ theorem compile_preserves_semantics
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+      (hSupported := hSupported) hfn tx initialWorld] using
+      (compileFunctionSpec_correct_generic
+        (model := model)
+        (selectors := selectors)
+        (hSupported := hSupported)
+        (hvalidateInputs := hvalidateInputs)
+        (fn := fn)
+        (sel := sel)
+        (irFn := irFn)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (htxNormalized := htxNormalized)
+        (bindings := bindings)
+        (hcalldataSizeFits := hcalldataSizeFits)
+        (hfn := hfn)
+        (hcompileFn := hcompileFn)
+        (hbind := hbind))
+  have hcontract :=
+    compile_preserves_semantics_of_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (_hcompile := hcompile)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hcontract
 -- SORRY'D:   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
 -- SORRY'D:     unfold CompilationModel.compile at hcompile
 -- SORRY'D:     simp only [bind, Except.bind] at hcompile
@@ -2805,7 +2892,70 @@ theorem compile_preserves_semantics_with_helper_proofs
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+      (hSupported := hSupported) hfn tx initialWorld] using
+      (compileFunctionSpec_correct_generic_with_helper_proofs
+        (model := model)
+        (selectors := selectors)
+        (hSupported := hSupported)
+        (hHelperProofs := hHelperProofs)
+        (hvalidateInputs := hvalidateInputs)
+        (fn := fn)
+        (sel := sel)
+        (irFn := irFn)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (htxNormalized := htxNormalized)
+        (bindings := bindings)
+        (hcalldataSizeFits := hcalldataSizeFits)
+        (hfn := hfn)
+        (hcompileFn := hcompileFn)
+        (hbind := hbind))
+  have hcontract :=
+    compile_preserves_semantics_of_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (ir := ir)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (_hcompile := hcompile)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hcontract
 -- SORRY'D:   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
 -- SORRY'D:     unfold CompilationModel.compile at hcompile
 -- SORRY'D:     simp only [bind, Except.bind] at hcompile
