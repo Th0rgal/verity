@@ -1407,7 +1407,8 @@ theorem execStmtWithHelpers_internalCallAssign_of_witness
         else
           .revert
     | none => .revert := by
-  simpa [execStmtWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup]
+  cases hargs : evalExprListWithHelpers spec fields (fuel + 1) state args <;>
+    simp [execStmtWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup, hargs]
 
 /-- Version of `execStmtWithHelpers_internalCallAssign_obeys_summary` that takes
 a `SupportedInternalHelperWitness` instead of the private `findUniqueInternalFunction?`
@@ -1455,7 +1456,8 @@ theorem execStmtWithHelpers_internalCall_of_witness
         else
           .revert
     | none => .revert := by
-  simpa [execStmtWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup]
+  cases hargs : evalExprListWithHelpers spec fields (fuel + 1) state args <;>
+    simp [execStmtWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup, hargs]
 
 /-- Public characterization of `evalExprWithHelpers` for `Expr.internalCall`
 (expression-position helper call) via a `SupportedInternalHelperWitness` and
@@ -1896,18 +1898,9 @@ theorem supportedSourceContractSemanticsExceptMappingWrites_eq_sourceContractSem
   exact sourceContractSemanticsWithHelpers_eq_sourceContractSemantics_of_supportedSpecExceptMappingWrites
     hSupported hSupported.helperFuel tx initialWorld
 
-example :
-    (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
-      { sender := 7, functionSelector := 0x2e64cec1, args := [] }
-      Verity.defaultState).success = true := by
-  decide
-
-example :
-    (sourceContractSemantics counterSupportedSpecModel
-      [0xa87d942c]
-      { sender := 9, functionSelector := 0xa87d942c, args := [] }
-      Verity.defaultState).returnValue = some 42 := by
-  decide
+-- Concrete executable smoke checks for these semantics live in
+-- `SourceSemanticsFeatureTest.lean`, where runtime normalization is allowed
+-- without making the proof/audit import path depend on large `decide` reductions.
 
 private def storageArraySourceSpec : CompilationModel :=
   { name := "StorageArraySource"
@@ -1938,52 +1931,4 @@ private def storageArraySourceSpec : CompilationModel :=
 private def storageArrayInitialWorld : Verity.ContractState :=
   { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }
 
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x11111111, args := [] }
-      storageArrayInitialWorld).returnValue = some 2 := by
-  decide
-
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x22222222, args := [] }
-      storageArrayInitialWorld).returnValue = some 11 := by
-  decide
-
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x33333333, args := [23] }
-      storageArrayInitialWorld).finalStorage 7 = 3 := by
-  decide
-
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x44444444, args := [29] }
-      storageArrayInitialWorld).success = true := by
-  decide
-
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x55555555, args := [] }
-      storageArrayInitialWorld).finalStorage 7 = 1 := by
-  decide
-
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x22222222, args := [] }
-      Verity.defaultState).success = false := by
-  decide
-
-example :
-    (sourceContractSemantics storageArraySourceSpec
-      [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
-      { sender := 9, functionSelector := 0x55555555, args := [] }
-      Verity.defaultState).success = false := by
-  decide
 end Compiler.Proofs.IRGeneration
