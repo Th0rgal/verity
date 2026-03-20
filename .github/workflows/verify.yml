@@ -213,7 +213,7 @@ jobs:
           lake build 2>&1 | tee lake-build.log
 
       - name: Prebuild shared downstream Lean targets
-        run: lake build PrintAxioms macro-roundtrip-fuzz verity-compiler verity-compiler-patched difftest-interpreter compiler-main-test Compiler.CompilationModelFeatureTest 2>&1 | tee -a lake-build.log
+        run: lake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log
 
       - name: Check Lean warning non-regression
         run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
@@ -370,9 +370,9 @@ jobs:
       - name: Run macro round-trip fuzz harness
         run: lake exe macro-roundtrip-fuzz
 
-  build-compiler:
+  build-compiler-binaries:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: 120
+    timeout-minutes: 75
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
@@ -401,38 +401,15 @@ jobs:
       - name: Restore prepared Lean workspace build
         run: tar -xf lean-workspace-build.tar
 
-      - name: Build compiler artifacts
+      - name: Build compiler binaries and regression targets
         run: |
-          set -- $(grep -vE '^[[:space:]]*($|#)' packages/verity-examples/contracts.manifest)
           stdbuf -oL -eL lake build \
-            "$@" \
             verity-compiler \
             verity-compiler-patched \
-            difftest-interpreter
-
-      - name: Generate Yul (all contracts + CryptoHash with linked libraries)
-        run: |
-          ./.lake/build/bin/verity-compiler \
-            --manifest packages/verity-examples/contracts.manifest \
-            --output compiler/yul \
-            --link examples/external-libs/PoseidonT3.yul \
-            --link examples/external-libs/PoseidonT4.yul
-
-      - name: Generate patched Yul + patch coverage report
-        run: |
-          ./.lake/build/bin/verity-compiler-patched \
-            --manifest packages/verity-examples/contracts.manifest \
-            --enable-patches \
-            --patch-report compiler/patch-report.tsv \
-            --output compiler/yul-patched \
-            --link examples/external-libs/PoseidonT3.yul \
-            --link examples/external-libs/PoseidonT4.yul
-
-      - name: Save static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
-
-      - name: Save patched static gas report snapshot
-        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+            difftest-interpreter \
+            gas-report \
+            compiler-main-test \
+            Compiler.CompilationModelFeatureTest
 
       - name: Package compiler binaries
         run: |
@@ -450,18 +427,6 @@ jobs:
         with:
           path: .lake
           key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Upload generated Yul
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-yul
-          path: compiler/yul
-
-      - name: Upload patched Yul
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-yul-patched
-          path: compiler/yul-patched
 
       - name: Upload difftest interpreter
         uses: actions/upload-artifact@v4
@@ -481,6 +446,115 @@ jobs:
           name: lean-workspace-compiler-build
           path: lean-workspace-compiler-build.tar
 
+  generate-yul:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download compiler binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
+
+      - name: Generate Yul (all contracts + CryptoHash with linked libraries)
+        run: |
+          ./compiler/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
+            --output compiler/yul \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+      - name: Upload generated Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul
+          path: compiler/yul
+
+  generate-yul-patched:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download compiler binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: verity-compiler-binaries
+          path: compiler/bin
+
+      - name: Generate patched Yul + patch coverage report
+        run: |
+          ./compiler/bin/verity-compiler-patched \
+            --manifest packages/verity-examples/contracts.manifest \
+            --enable-patches \
+            --patch-report compiler/patch-report.tsv \
+            --output compiler/yul-patched \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+      - name: Upload patched Yul
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-yul-patched
+          path: compiler/yul-patched
+
+      - name: Upload patch coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-coverage-report
+          path: compiler/patch-report.tsv
+
+  gas-report:
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 45
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: lake-compiler
+          use-sticky-disks: 'true'
+          sticky-disk-key-prefix: verify-compiler
+          cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+          cache-extra-restore-keys: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
+      - name: Download prepared Lean workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-build
+
+      - name: Restore prepared Lean workspace build
+        run: tar -xf lean-workspace-build.tar
+
+      - name: Download compiler workspace build
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-workspace-compiler-build
+
+      - name: Restore compiler workspace build
+        run: tar -xf lean-workspace-compiler-build.tar
+
+      - name: Save static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv
+
+      - name: Save patched static gas report snapshot
+        run: lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2 > gas-report-static-patched.tsv
+
       - name: Upload static gas report
         uses: actions/upload-artifact@v4
         with:
@@ -493,17 +567,11 @@ jobs:
           name: static-gas-report-patched
           path: gas-report-static-patched.tsv
 
-      - name: Upload patch coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: patch-coverage-report
-          path: compiler/patch-report.tsv
-
   compiler-audits:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 45
-    needs: [changes, checks, build, build-compiler]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
+    needs: [changes, checks, build, generate-yul, generate-yul-patched, gas-report, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -653,8 +721,8 @@ jobs:
   compiler-regressions:
     runs-on: blacksmith-16vcpu-ubuntu-2404
     timeout-minutes: 60
-    needs: [changes, checks, build, build-compiler]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'
+    needs: [changes, checks, build, build-compiler-binaries]
+    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
       LEAN_NUM_THREADS: 12
     steps:
@@ -722,7 +790,7 @@ jobs:
   foundry-gas-calibration:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul, gas-report, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v4
@@ -746,7 +814,7 @@ jobs:
   foundry:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     strategy:
       fail-fast: false
@@ -776,7 +844,7 @@ jobs:
   foundry-patched:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul-patched, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     steps:
       - uses: actions/checkout@v4
@@ -805,7 +873,7 @@ jobs:
   foundry-multi-seed:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 25
-    needs: [changes, build-compiler]
+    needs: [changes, generate-yul, build-compiler-binaries]
     if: needs.changes.outputs.compiler == 'true' && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
@@ -842,7 +910,7 @@ jobs:
 
   failure-hints:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    needs: [checks, build, build-audits, macro-fuzz, build-compiler, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, build-audits, macro-fuzz, build-compiler-binaries, generate-yul, generate-yul-patched, gas-report, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read

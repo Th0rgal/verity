@@ -1095,6 +1095,8 @@ def _missing_required_run_commands(run_commands: list[str], required_commands: l
 
 def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors: list[str] = []
+    build_compiler_jobs = spec.get("build_compiler_job_names", ["build-compiler"])
+
     def safe_python_commands(job_name: str) -> list[str]:
         try:
             return snapshot.python_commands(job_name, include_args=True)
@@ -1106,6 +1108,18 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
             return snapshot.run_commands(job_name)
         except ValueError:
             return []
+
+    def combined_python_commands(job_names: list[str]) -> list[str]:
+        combined: list[str] = []
+        for job_name in job_names:
+            combined.extend(safe_python_commands(job_name))
+        return combined
+
+    def combined_run_commands(job_names: list[str]) -> list[str]:
+        combined: list[str] = []
+        for job_name in job_names:
+            combined.extend(safe_run_commands(job_name))
+        return combined
 
     expected_checks = spec["expected_checks_commands"]
     checks_run_cmds = snapshot.run_commands("checks")
@@ -1151,7 +1165,7 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
     errors.extend(
         _compare_lists(
             "build-compiler python scripts",
-            safe_python_commands("build-compiler"),
+            combined_python_commands(build_compiler_jobs),
             "spec build-compiler scripts",
             spec["expected_build_compiler_commands"],
         )
@@ -1184,7 +1198,7 @@ def check_python_commands(snapshot: Snapshot, spec: dict) -> CheckResult:
         )
 
     missing_build_compiler_run = _missing_required_run_commands(
-        safe_run_commands("build-compiler"),
+        combined_run_commands(build_compiler_jobs),
         spec.get("required_build_compiler_run_commands", []),
     )
     if missing_build_compiler_run:

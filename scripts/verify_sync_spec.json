@@ -54,7 +54,10 @@
     "build",
     "build-audits",
     "macro-fuzz",
-    "build-compiler",
+    "build-compiler-binaries",
+    "generate-yul",
+    "generate-yul-patched",
+    "gas-report",
     "compiler-audits",
     "compiler-regressions",
     "lean-profile",
@@ -84,48 +87,77 @@
       "checks",
       "build"
     ],
-    "build-compiler": [
+    "build-compiler-binaries": [
       "changes",
       "checks",
       "build"
+    ],
+    "generate-yul": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-binaries"
+    ],
+    "generate-yul-patched": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-binaries"
+    ],
+    "gas-report": [
+      "changes",
+      "checks",
+      "build",
+      "build-compiler-binaries"
     ],
     "compiler-audits": [
       "changes",
       "checks",
       "build",
-      "build-compiler"
+      "generate-yul",
+      "generate-yul-patched",
+      "gas-report",
+      "build-compiler-binaries"
     ],
     "compiler-regressions": [
       "changes",
       "checks",
       "build",
-      "build-compiler"
+      "build-compiler-binaries"
     ],
     "lean-profile": [
       "changes"
     ],
     "foundry-gas-calibration": [
       "changes",
-      "build-compiler"
+      "generate-yul",
+      "gas-report",
+      "build-compiler-binaries"
     ],
     "foundry": [
       "changes",
-      "build-compiler"
+      "generate-yul",
+      "build-compiler-binaries"
     ],
     "foundry-patched": [
       "changes",
-      "build-compiler"
+      "generate-yul-patched",
+      "build-compiler-binaries"
     ],
     "foundry-multi-seed": [
       "changes",
-      "build-compiler"
+      "generate-yul",
+      "build-compiler-binaries"
     ],
     "failure-hints": [
       "checks",
       "build",
       "build-audits",
       "macro-fuzz",
-      "build-compiler",
+      "build-compiler-binaries",
+      "generate-yul",
+      "generate-yul-patched",
+      "gas-report",
       "compiler-audits",
       "compiler-regressions",
       "foundry-gas-calibration",
@@ -141,9 +173,12 @@
     "build": "needs.checks.result == 'success' && needs.changes.outputs.build == 'true'",
     "build-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.build == 'true'",
     "macro-fuzz": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'",
-    "build-compiler": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    "compiler-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
-    "compiler-regressions": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "build-compiler-binaries": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "generate-yul": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "generate-yul-patched": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "gas-report": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-audits": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.generate-yul.result == 'success' && needs.generate-yul-patched.result == 'success' && needs.gas-report.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
+    "compiler-regressions": "needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'",
     "lean-profile": "github.event_name == 'workflow_dispatch' && needs.changes.outputs.build == 'true'",
     "foundry-gas-calibration": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
     "foundry": "needs.changes.outputs.compiler == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)",
@@ -158,7 +193,10 @@
     "build": "blacksmith-8vcpu-ubuntu-2404",
     "build-audits": "blacksmith-4vcpu-ubuntu-2404",
     "macro-fuzz": "blacksmith-8vcpu-ubuntu-2404",
-    "build-compiler": "blacksmith-16vcpu-ubuntu-2404",
+    "build-compiler-binaries": "blacksmith-16vcpu-ubuntu-2404",
+    "generate-yul": "blacksmith-8vcpu-ubuntu-2404",
+    "generate-yul-patched": "blacksmith-8vcpu-ubuntu-2404",
+    "gas-report": "blacksmith-8vcpu-ubuntu-2404",
     "compiler-audits": "blacksmith-8vcpu-ubuntu-2404",
     "compiler-regressions": "blacksmith-16vcpu-ubuntu-2404",
     "lean-profile": "blacksmith-8vcpu-ubuntu-2404",
@@ -175,7 +213,10 @@
     "build": 35,
     "build-audits": 20,
     "macro-fuzz": 90,
-    "build-compiler": 120,
+    "build-compiler-binaries": 75,
+    "generate-yul": 45,
+    "generate-yul-patched": 45,
+    "gas-report": 45,
     "compiler-audits": 45,
     "compiler-regressions": 60,
     "lean-profile": 45,
@@ -219,6 +260,12 @@
     "SOLC_URL": "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21",
     "SOLC_SHA256": "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
   },
+  "build_compiler_job_names": [
+    "build-compiler-binaries",
+    "generate-yul",
+    "generate-yul-patched",
+    "gas-report"
+  ],
   "expected_step_contracts": {
     "changes": [
       {
@@ -266,7 +313,7 @@
       },
       {
         "name": "Prebuild shared downstream Lean targets",
-        "run": "lake build PrintAxioms macro-roundtrip-fuzz verity-compiler verity-compiler-patched difftest-interpreter compiler-main-test Compiler.CompilationModelFeatureTest 2>&1 | tee -a lake-build.log"
+        "run": "lake build PrintAxioms macro-roundtrip-fuzz 2>&1 | tee -a lake-build.log"
       },
       {
         "name": "Upload prepared Lean workspace build",
@@ -357,7 +404,7 @@
         "run": "lake exe macro-roundtrip-fuzz"
       }
     ],
-    "build-compiler": [
+    "build-compiler-binaries": [
       {
         "uses": "actions/checkout@v4",
         "with": {
@@ -397,6 +444,104 @@
         "with": {
           "path": ".lake",
           "key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      }
+    ],
+    "generate-yul": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Download compiler binaries",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin"
+        }
+      },
+      {
+        "name": "Upload generated Yul",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "generated-yul",
+          "path": "compiler/yul"
+        }
+      }
+    ],
+    "generate-yul-patched": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Download compiler binaries",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "verity-compiler-binaries",
+          "path": "compiler/bin"
+        }
+      },
+      {
+        "name": "Upload patched Yul",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "generated-yul-patched",
+          "path": "compiler/yul-patched"
+        }
+      },
+      {
+        "name": "Upload patch coverage report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "patch-coverage-report",
+          "path": "compiler/patch-report.tsv"
+        }
+      }
+    ],
+    "gas-report": [
+      {
+        "uses": "actions/checkout@v4",
+        "with": {
+          "submodules": "recursive"
+        }
+      },
+      {
+        "name": "Setup Lean",
+        "uses": "./.github/actions/setup-lean",
+        "with": {
+          "cache-key-prefix": "lake-compiler",
+          "use-sticky-disks": "true",
+          "sticky-disk-key-prefix": "verify-compiler",
+          "cache-primary-key": "lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}",
+          "cache-extra-restore-keys": "lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}"
+        }
+      },
+      {
+        "name": "Download compiler workspace build",
+        "uses": "actions/download-artifact@v4",
+        "with": {
+          "name": "lean-workspace-compiler-build"
+        }
+      },
+      {
+        "name": "Upload static gas report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "static-gas-report",
+          "path": "gas-report-static.tsv"
+        }
+      },
+      {
+        "name": "Upload patched static gas report",
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "static-gas-report-patched",
+          "path": "gas-report-static-patched.tsv"
         }
       }
     ],
@@ -586,12 +731,7 @@
   ],
   "required_build_run_commands": [
     "lake build PrintAxioms",
-    "macro-roundtrip-fuzz",
-    "verity-compiler",
-    "verity-compiler-patched",
-    "difftest-interpreter",
-    "compiler-main-test",
-    "Compiler.CompilationModelFeatureTest"
+    "macro-roundtrip-fuzz"
   ],
   "expected_build_audit_commands": [
     "check_split_package_builds.py",
@@ -606,7 +746,12 @@
   ],
   "expected_build_compiler_commands": [],
   "required_build_compiler_run_commands": [
+    "verity-compiler",
     "verity-compiler-patched",
+    "difftest-interpreter",
+    "gas-report",
+    "compiler-main-test",
+    "Compiler.CompilationModelFeatureTest",
     "--output compiler/yul",
     "--output compiler/yul-patched",
     "lake exe gas-report --manifest packages/verity-examples/contracts.manifest > gas-report-static.tsv",
@@ -659,15 +804,21 @@
     "build-audits": [
       "axiom-dependency-report"
     ],
-    "build-compiler": [
-      "generated-yul",
-      "generated-yul-patched",
+    "build-compiler-binaries": [
       "difftest-interpreter",
       "verity-compiler-binaries",
-      "lean-workspace-compiler-build",
-      "static-gas-report",
-      "static-gas-report-patched",
+      "lean-workspace-compiler-build"
+    ],
+    "generate-yul": [
+      "generated-yul"
+    ],
+    "generate-yul-patched": [
+      "generated-yul-patched",
       "patch-coverage-report"
+    ],
+    "gas-report": [
+      "static-gas-report",
+      "static-gas-report-patched"
     ],
     "compiler-audits": [
       "parity-pack-identity-report"
@@ -683,15 +834,21 @@
     "build-audits": [
       "axiom-report.md\naxiom-report-raw.log"
     ],
-    "build-compiler": [
-      "compiler/yul",
-      "compiler/yul-patched",
+    "build-compiler-binaries": [
       ".lake/build/bin/difftest-interpreter",
       "compiler/bin",
-      "lean-workspace-compiler-build.tar",
-      "gas-report-static.tsv",
-      "gas-report-static-patched.tsv",
+      "lean-workspace-compiler-build.tar"
+    ],
+    "generate-yul": [
+      "compiler/yul"
+    ],
+    "generate-yul-patched": [
+      "compiler/yul-patched",
       "compiler/patch-report.tsv"
+    ],
+    "gas-report": [
+      "gas-report-static.tsv",
+      "gas-report-static-patched.tsv"
     ],
     "compiler-audits": [
       "compiler/parity-pack-identity-report.json"
@@ -707,8 +864,18 @@
     "macro-fuzz": [
       "lean-workspace-build"
     ],
-    "build-compiler": [
+    "build-compiler-binaries": [
       "lean-workspace-build"
+    ],
+    "generate-yul": [
+      "verity-compiler-binaries"
+    ],
+    "generate-yul-patched": [
+      "verity-compiler-binaries"
+    ],
+    "gas-report": [
+      "lean-workspace-build",
+      "lean-workspace-compiler-build"
     ],
     "compiler-audits": [
       "generated-yul",
@@ -733,7 +900,17 @@
     "macro-fuzz": [
       null
     ],
-    "build-compiler": [
+    "build-compiler-binaries": [
+      null
+    ],
+    "generate-yul": [
+      "compiler/bin"
+    ],
+    "generate-yul-patched": [
+      "compiler/bin"
+    ],
+    "gas-report": [
+      null,
       null
     ],
     "compiler-audits": [
