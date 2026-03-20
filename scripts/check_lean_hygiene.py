@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 156  # Reduced by closing the helper-aware Function body-goal wrapper
+    expected_sorry = 153  # Reduced by closing the remaining Function theorem wrappers
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
