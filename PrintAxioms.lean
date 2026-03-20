@@ -1059,17 +1059,17 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledLegacyCompatible_of_supportedContractSurface_exceptMappingWrites
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface_exceptMappingWrites  -- sorry'd
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperFreeStepInterface_of_core
--- #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperStepInterface_of_callStepInterface_and_assignStepInterface
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperStepInterface_of_helperSurfaceClosed
--- #print axioms Compiler.Proofs.IRGeneration.stmtListExprInternalHelperStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListStructuralInternalHelperStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.stmtListExprInternalHelperStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListStructuralInternalHelperStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
+#print axioms Compiler.Proofs.IRGeneration.stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible  -- sorry'd
@@ -1738,4 +1738,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1604 theorems/lemmas (1122 public, 427 private, 55 sorry'd)
+-- Total: 1604 theorems/lemmas (1132 public, 427 private, 45 sorry'd)
