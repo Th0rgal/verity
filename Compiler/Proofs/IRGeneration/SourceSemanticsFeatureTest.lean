@@ -35,6 +35,17 @@ private def storageArraySourceSpec : CompilationModel :=
 private def storageArrayInitialWorld : Verity.ContractState :=
   { Verity.defaultState with storageArray := fun slot => if slot = 7 then [11, 17] else [] }
 
+private def signedScalarSourceSpec : CompilationModel :=
+  { name := "SignedScalarSource"
+    fields := []
+    constructor := none
+    functions :=
+      [ { name := "echoSigned"
+          params := [{ name := "x", ty := .int256 }]
+          returnType := none
+          returns := [.int256]
+          body := [Stmt.return (Expr.param "x")] } ] }
+
 example :
     (sourceContractSemantics simpleStorageSupportedSpecModel [0x2e64cec1]
       { sender := 7, functionSelector := 0x2e64cec1, args := [] }
@@ -95,6 +106,17 @@ example :
       [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555]
       { sender := 9, functionSelector := 0x55555555, args := [] }
       Verity.defaultState).success = false := by
+  native_decide
+
+example :
+    SourceSemantics.decodeSupportedParamWord .int256 (2 ^ 256 - 1) = some (2 ^ 256 - 1) := by
+  native_decide
+
+example :
+    (sourceContractSemantics signedScalarSourceSpec
+      [0xabcdef01]
+      { sender := 9, functionSelector := 0xabcdef01, args := [2 ^ 256 - 1] }
+      Verity.defaultState).returnValue = some (2 ^ 256 - 1) := by
   native_decide
 
 end Compiler.Proofs.IRGeneration.SourceSemanticsFeatureTest

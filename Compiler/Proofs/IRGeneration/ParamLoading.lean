@@ -115,6 +115,14 @@ theorem exec_genScalarLoad_supported
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, calldataloadWord_aligned]
+  case int256 =>
+    have hvalue : value = state.calldata.getD idx 0 % Compiler.Constants.evmModulus := by
+      simpa [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
+        Verity.Core.UINT256_MODULUS, uint256_modulus_eq_evm] using hdecode.symm
+    cases hvalue
+    simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, calldataloadWord_aligned]
   case uint8 =>
     simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
       SourceSemantics.uint8Modulus] at hdecode
@@ -172,7 +180,7 @@ private theorem genScalarLoad_length_supported
 
 private theorem supportedExternalParamType_cases
     {ty : ParamType} (hsupported : SupportedExternalParamType ty) :
-    ty = .uint256 ∨ ty = .uint8 ∨ ty = .address ∨ ty = .bytes32 := by
+    ty = .uint256 ∨ ty = .int256 ∨ ty = .uint8 ∨ ty = .address ∨ ty = .bytes32 := by
   cases ty <;> simp [SupportedExternalParamType] at hsupported ⊢
 
 private theorem execIRStmts_cons_of_execIRStmt_continue
@@ -239,6 +247,29 @@ private theorem exec_genScalarLoad_supported_then_uint8
       (YulStmt.let_ name
         (YulExpr.call "and" [YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)], YulExpr.lit 255])) rest hstmt
 
+private theorem exec_genScalarLoad_supported_then_int256
+    (state : IRState) (rest : List YulStmt) (name : String) (idx value extraFuel : Nat)
+    (hdecode : SourceSemantics.decodeSupportedParamWord .int256 (state.calldata.getD idx 0) = some value) :
+    execIRStmts ((genScalarLoad (fun pos => YulExpr.call "calldataload" [pos]) name .int256 (4 + 32 * idx)).length +
+        rest.length + extraFuel + 1)
+      state
+      (genScalarLoad (fun pos => YulExpr.call "calldataload" [pos]) name .int256 (4 + 32 * idx) ++ rest) =
+      execIRStmts (rest.length + extraFuel + 1) (state.setVar name value) rest := by
+  have hstmt :
+      execIRStmt (rest.length + extraFuel + 1) state
+        (YulStmt.let_ name (YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)])) =
+        .continue (state.setVar name value) := by
+      have hvalue : value = state.calldata.getD idx 0 % Compiler.Constants.evmModulus := by
+        simpa [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
+          Verity.Core.UINT256_MODULUS, uint256_modulus_eq_evm] using hdecode.symm
+      cases hvalue
+      simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
+        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+        Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, calldataloadWord_aligned]
+  simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+    execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
+      (YulStmt.let_ name (YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)])) rest hstmt
+
 private theorem exec_genScalarLoad_supported_then_address
     (state : IRState) (rest : List YulStmt) (name : String) (idx value extraFuel : Nat)
     (hdecode : SourceSemantics.decodeSupportedParamWord .address (state.calldata.getD idx 0) = some value) :
@@ -303,8 +334,9 @@ theorem exec_genScalarLoad_supported_then
       state
       (genScalarLoad (fun pos => YulExpr.call "calldataload" [pos]) name ty (4 + 32 * idx) ++ rest) =
       execIRStmts (rest.length + extraFuel + 1) (state.setVar name value) rest := by
-  rcases supportedExternalParamType_cases hsupported with rfl | rfl | rfl | rfl
+  rcases supportedExternalParamType_cases hsupported with rfl | rfl | rfl | rfl | rfl
   · exact exec_genScalarLoad_supported_then_uint256 state rest name idx value extraFuel hdecode
+  · exact exec_genScalarLoad_supported_then_int256 state rest name idx value extraFuel hdecode
   · exact exec_genScalarLoad_supported_then_uint8 state rest name idx value extraFuel hdecode
   · exact exec_genScalarLoad_supported_then_address state rest name idx value extraFuel hdecode
   · exact exec_genScalarLoad_supported_then_bytes32 state rest name idx value extraFuel hdecode
@@ -402,7 +434,7 @@ theorem exec_genParamLoadBodyFrom_supported_then
               have htail :
                   (state.setVar param.name value).calldata.drop (idx + 1) = restArgs := by
                 simpa [IRState.setVar] using drop_succ_eq_of_drop_eq_cons hdrop
-              rcases supportedExternalParamType_cases hparam with hty | hty | hty | hty
+              rcases supportedExternalParamType_cases hparam with hty | hty | hty | hty | hty
               ·
                 have hdecode_uint256 :
                     SourceSemantics.decodeSupportedParamWord .uint256 (state.calldata.getD idx 0) =
@@ -418,6 +450,29 @@ theorem exec_genParamLoadBodyFrom_supported_then
                     (name := param.name) (ty := .uint256) (idx := idx) (value := value)
                     (extraFuel := extraFuel)
                     (hsupported := trivial) (hdecode := hdecode_uint256)).trans
+                    (by
+                      simpa [IRState.setVar, htail, applyBindingsToIRState, paramHeadSize,
+                        Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+                        ih (state := state.setVar param.name value) (headSize := headSize)
+                          (baseOffset := baseOffset) (idx := idx + 1)
+                          (bindings := restBindings) (rest := rest)
+                          hrestSupported
+                          (by simpa [htail] using hrest))
+              ·
+                have hdecode_int256 :
+                    SourceSemantics.decodeSupportedParamWord .int256 (state.calldata.getD idx 0) =
+                      some value := by
+                  simpa [hty] using hdecode'
+                have hoff : 4 + 32 * (idx + 1) = 4 + (32 + 32 * idx) := by omega
+                simpa [Compiler.CompilationModel.genParamLoadBodyFrom, paramHeadSize, IRState.setVar,
+                  Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, applyBindingsToIRState, hty, hoff] using
+                  (exec_genScalarLoad_supported_then (state := state)
+                    (rest := genParamLoadBodyFrom (fun pos => YulExpr.call "calldataload" [pos])
+                      (YulExpr.call "calldatasize" []) headSize baseOffset restParams
+                      (4 + 32 * (idx + 1)) ++ rest)
+                    (name := param.name) (ty := .int256) (idx := idx) (value := value)
+                    (extraFuel := extraFuel)
+                    (hsupported := trivial) (hdecode := hdecode_int256)).trans
                     (by
                       simpa [IRState.setVar, htail, applyBindingsToIRState, paramHeadSize,
                         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using

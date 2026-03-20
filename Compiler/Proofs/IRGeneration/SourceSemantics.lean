@@ -233,6 +233,7 @@ def decodeSupportedParamWord (ty : ParamType) (word : Nat) : Option Nat :=
   let word := wordNormalize word
   match ty with
   | .uint256 => some word
+  | .int256 => some word
   | .uint8 => some (word &&& (uint8Modulus - 1))
   | .address => some (word &&& Compiler.Constants.addressMask)
   | .bool =>
