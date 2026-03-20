@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,6 +42,24 @@ def display_path(package_dir: Path) -> Path:
         return package_dir
 
 
+def seed_packages_dir(package_dir: Path) -> None:
+    root_packages_dir = ROOT / ".lake" / "packages"
+    if not root_packages_dir.is_dir():
+        return
+
+    package_lake_dir = package_dir / ".lake"
+    package_lake_dir.mkdir(exist_ok=True)
+    package_packages_dir = package_lake_dir / "packages"
+    if package_packages_dir.exists():
+        return
+
+    try:
+        package_packages_dir.symlink_to(root_packages_dir, target_is_directory=True)
+    except OSError:
+        # Fall back to a local copy when symlinks are unavailable.
+        shutil.copytree(root_packages_dir, package_packages_dir, symlinks=True)
+
+
 def run_lake_build(package_dir: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["lake", "build"],
@@ -66,6 +85,7 @@ def check_split_package_builds(package_dirs: list[Path]) -> int:
             continue
 
         print(f"Building {rel_path}...")
+        seed_packages_dir(package_dir)
         proc = run_lake_build(package_dir)
         if proc.returncode == 0:
             print(f"  OK {rel_path}")
