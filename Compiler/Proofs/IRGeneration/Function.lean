@@ -848,60 +848,62 @@ theorem supported_function_body_correct_from_exact_state_terminal_core_extraFuel
         fn.body = sourceResult ∧
       execIRStmts (bodyStmts.length + extraFuel + 1) state bodyStmts = irExec ∧
       FunctionBody.stmtResultMatchesIRExec
-        (SourceSemantics.effectiveFields model) sourceResult irExec := by sorry
--- SORRY'D:   have hscope :
--- SORRY'D:       FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
--- SORRY'D:     intro name hmem
--- SORRY'D:     have hmemBindings : name ∈ bindings.map Prod.fst := by
--- SORRY'D:       rw [ParamLoading.bindSupportedParams_names hbind]
--- SORRY'D:       simpa using hmem
--- SORRY'D:     exact lookupBinding?_some_of_mem bindings name hmemBindings
--- SORRY'D:   have hscopeExact :
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVarsOnScope
--- SORRY'D:         (fn.params.map (·.name)) bindings state :=
--- SORRY'D:     FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
--- SORRY'D:   have hbounded : FunctionBody.bindingsBounded bindings :=
--- SORRY'D:     FunctionBody.bindingsBounded_of_bindSupportedParams hbind
--- SORRY'D:   have hstateRuntime' :
--- SORRY'D:       FunctionBody.runtimeStateMatchesIR
--- SORRY'D:         (SourceSemantics.effectiveFields model)
--- SORRY'D:         { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:           bindings := bindings }
--- SORRY'D:         state := by
--- SORRY'D:     simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
--- SORRY'D:   have hbodyCompile' :
--- SORRY'D:       compileStmtList (SourceSemantics.effectiveFields model) [] []
--- SORRY'D:         .calldata [] false (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
--- SORRY'D:     simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
--- SORRY'D:   let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
--- SORRY'D:   rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
--- SORRY'D:       (fields := SourceSemantics.effectiveFields model)
--- SORRY'D:       (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
--- SORRY'D:                     bindings := bindings })
--- SORRY'D:       (state := state)
--- SORRY'D:       (scope := fn.params.map (·.name))
--- SORRY'D:       (inScopeNames := fn.params.map (·.name))
--- SORRY'D:       (stmts := fn.body)
--- SORRY'D:       (extraFuel := sizeSlack)
--- SORRY'D:       hterminal
--- SORRY'D:       FunctionBody.scopeNamesIncluded_refl
--- SORRY'D:       hscope
--- SORRY'D:       hscopeExact
--- SORRY'D:       hbounded
--- SORRY'D:       hstateRuntime' with
--- SORRY'D:     ⟨bodyIR, hbodyTerminalCompile, hterminalSem⟩
--- SORRY'D:   have hbodyEq : bodyIR = bodyStmts := by
--- SORRY'D:     rw [hbodyCompile'] at hbodyTerminalCompile
--- SORRY'D:     injection hbodyTerminalCompile with hEq
--- SORRY'D:     exact hEq.symm
--- SORRY'D:   subst bodyIR
--- SORRY'D:   have hfuel :
--- SORRY'D:       sizeOf bodyStmts + sizeSlack + 1 =
--- SORRY'D:         bodyStmts.length + extraFuel + 1 := by
--- SORRY'D:     dsimp [sizeSlack]
--- SORRY'D:     omega
--- SORRY'D:   refine ⟨_, _, rfl, rfl, ?_⟩
--- SORRY'D:   simpa [hfuel, sizeSlack] using hterminalSem
+        (SourceSemantics.effectiveFields model) sourceResult irExec := by
+  have hscope :
+      FunctionBody.scopeNamesPresent (fn.params.map (·.name)) bindings := by
+    intro name hmem
+    have hmemBindings : name ∈ bindings.map Prod.fst := by
+      rw [ParamLoading.bindSupportedParams_names hbind]
+      simpa using hmem
+    exact lookupBinding?_some_of_mem bindings name hmemBindings
+  have hscopeExact :
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope
+        (fn.params.map (·.name)) bindings state :=
+    FunctionBody.bindingsExactlyMatchIRVars_implies_onScope hstateBindings
+  have hbounded : FunctionBody.bindingsBounded bindings :=
+    FunctionBody.bindingsBounded_of_bindSupportedParams hbind
+  have hstateRuntime' :
+      FunctionBody.runtimeStateMatchesIR
+        (SourceSemantics.effectiveFields model)
+        { world := SourceSemantics.withTransactionContext initialWorld tx
+          bindings := bindings }
+        state := by
+    simpa [FunctionBody.runtimeStateMatchesIR] using hstateRuntime
+  have hbodyCompile' :
+      compileStmtList (SourceSemantics.effectiveFields model) [] []
+        .calldata [] false (fn.params.map (·.name)) fn.body = Except.ok bodyStmts := by
+    simpa [hnormalized, hnoEvents, hnoErrors] using hbodyCompile
+  let sizeSlack := extraFuel - (sizeOf bodyStmts - bodyStmts.length)
+  rcases FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
+      (fields := SourceSemantics.effectiveFields model)
+      (runtime := { world := SourceSemantics.withTransactionContext initialWorld tx
+                    bindings := bindings })
+      (state := state)
+      (scope := fn.params.map (·.name))
+      (inScopeNames := fn.params.map (·.name))
+      (stmts := fn.body)
+      (extraFuel := sizeSlack)
+      hterminal
+      FunctionBody.scopeNamesIncluded_refl
+      hscope
+      hscopeExact
+      hbounded
+      hstateRuntime' with
+    ⟨bodyIR, hbodyTerminalCompile, hterminalSem⟩
+  have hbodyEq : bodyIR = bodyStmts := by
+    rw [hbodyCompile'] at hbodyTerminalCompile
+    injection hbodyTerminalCompile with hEq
+    exact hEq.symm
+  subst bodyIR
+  have hfuel :
+      sizeOf bodyStmts + sizeSlack + 1 =
+        bodyStmts.length + extraFuel + 1 := by
+    dsimp [sizeSlack]
+    have hlenle : bodyStmts.length ≤ sizeOf bodyStmts :=
+      yulStmtList_length_le_sizeOf bodyStmts
+    omega
+  refine ⟨_, _, rfl, rfl, ?_⟩
+  simpa [hfuel, sizeSlack] using hterminalSem
 
 private theorem firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs
     {spec : CompilationModel}
