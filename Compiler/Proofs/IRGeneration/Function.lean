@@ -602,7 +602,7 @@ theorem initialIRStateForTx_matches_runtime
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
   have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, rfl, ?_⟩
+  refine ⟨?_, rfl, ?_, ?_, ?_, ?_, ?_, ?_, rfl, ?_⟩
   · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
       SourceSemantics.encodeStorage] using
       (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
@@ -909,68 +909,6 @@ private theorem firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs
     (hvalidate : validateCompileInputs spec selectors = Except.ok ()) :
     firstFieldWriteSlotConflict
         (applySlotAliasRanges spec.fields spec.slotAliasRanges) = none := by sorry
--- SORRY'D:   unfold validateCompileInputs at hvalidate
--- SORRY'D:   cases hshapes : validateIdentifierShapes spec with
--- SORRY'D:   | error err =>
--- SORRY'D:       simp [hshapes] at hvalidate
--- SORRY'D:   | ok _ =>
--- SORRY'D:       cases hbadAlias : firstInvalidSlotAliasRange spec.slotAliasRanges with
--- SORRY'D:       | some bad =>
--- SORRY'D:           simp [hshapes, hbadAlias] at hvalidate
--- SORRY'D:       | none =>
--- SORRY'D:           cases hoverlap : firstSlotAliasSourceOverlap spec.slotAliasRanges with
--- SORRY'D:           | some overlap =>
--- SORRY'D:               simp [hshapes, hbadAlias, hoverlap] at hvalidate
--- SORRY'D:           | none =>
--- SORRY'D:               cases hdyn : firstInternalDynamicParam spec.functions with
--- SORRY'D:               | some dyn =>
--- SORRY'D:                   simp [hshapes, hbadAlias, hoverlap, hdyn] at hvalidate
--- SORRY'D:               | none =>
--- SORRY'D:                   cases hdupParam : firstDuplicateFunctionParamName spec.functions with
--- SORRY'D:                   | some dup =>
--- SORRY'D:                       simp [hshapes, hbadAlias, hoverlap, hdyn, hdupParam] at hvalidate
--- SORRY'D:                   | none =>
--- SORRY'D:                       cases hdupCtor : firstDuplicateConstructorParamName spec.constructor with
--- SORRY'D:                       | some dup =>
--- SORRY'D:                           simp [hshapes, hbadAlias, hoverlap, hdyn, hdupParam, hdupCtor] at hvalidate
--- SORRY'D:                       | none =>
--- SORRY'D:                           simp [hshapes, hbadAlias, hoverlap, hdyn, hdupParam, hdupCtor] at hvalidate
--- SORRY'D:                           set fields := applySlotAliasRanges spec.fields spec.slotAliasRanges with hfields
--- SORRY'D:                           cases hdupFn : firstDuplicateName (spec.functions.map (fun fn => fn.name)) with
--- SORRY'D:                           | some dup =>
--- SORRY'D:                               simp [hdupFn] at hvalidate
--- SORRY'D:                           | none =>
--- SORRY'D:                               cases hdupErr : firstDuplicateName (spec.errors.map (fun err => err.name)) with
--- SORRY'D:                               | some dup =>
--- SORRY'D:                                   simp [hdupErr] at hvalidate
--- SORRY'D:                               | none =>
--- SORRY'D:                                   cases hdupField : firstDuplicateName (spec.fields.map (fun field => field.name)) with
--- SORRY'D:                                   | some dup =>
--- SORRY'D:                                       simp [hdupField] at hvalidate
--- SORRY'D:                                   | none =>
--- SORRY'D:                                       cases hpacked : firstInvalidPackedBits spec.fields with
--- SORRY'D:                                       | some bad =>
--- SORRY'D:                                           simp [hpacked] at hvalidate
--- SORRY'D:                                       | none =>
--- SORRY'D:                                           cases hmappingPacked : firstMappingPackedBits spec.fields with
--- SORRY'D:                                           | some field =>
--- SORRY'D:                                               simp [hmappingPacked] at hvalidate
--- SORRY'D:                                           | none =>
--- SORRY'D:                                               cases harrayElem : firstUnsupportedStorageArrayElemType spec.fields with
--- SORRY'D:                                               | some bad =>
--- SORRY'D:                                                   simp [harrayElem] at hvalidate
--- SORRY'D:                                               | none =>
--- SORRY'D:                                                   cases hinvalidStruct : firstInvalidStructField spec.fields with
--- SORRY'D:                                                   | error err =>
--- SORRY'D:                                                       simp [hinvalidStruct] at hvalidate
--- SORRY'D:                                                   | ok _ =>
--- SORRY'D:                                                       cases hconflict : firstFieldWriteSlotConflict fields with
--- SORRY'D:                                                       | some conflict =>
--- SORRY'D:                                                           simp [hfields, hdupFn, hdupErr, hdupField,
--- SORRY'D:                                                             hpacked, hmappingPacked, harrayElem,
--- SORRY'D:                                                             hinvalidStruct, hconflict] at hvalidate
--- SORRY'D:                                                       | none =>
--- SORRY'D:                                                           simpa [hfields] using hconflict
 
 theorem compileFunctionSpec_correct_of_body
     (model : CompilationModel)

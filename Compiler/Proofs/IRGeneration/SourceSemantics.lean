@@ -699,6 +699,69 @@ def withTransactionContext (world : Verity.ContractState) (tx : IRTransaction) :
     blockNumber := tx.blockNumber
     chainId := tx.chainId }
 
+private theorem findDynamicArrayElementAtSlot_withTransactionContext
+    (fields : List Field)
+    (world : Verity.ContractState)
+    (tx : IRTransaction)
+    (slot : Nat) :
+    findDynamicArrayElementAtSlot fields (withTransactionContext world tx) slot =
+      findDynamicArrayElementAtSlot fields world slot := by
+  unfold findDynamicArrayElementAtSlot
+  suffices
+      ∀ remaining idx,
+        findDynamicArrayElementAtSlot.go (withTransactionContext world tx) slot remaining idx =
+          findDynamicArrayElementAtSlot.go world slot remaining idx by
+    simpa using this fields 0
+  intro remaining idx
+  induction remaining generalizing idx with
+  | nil =>
+      rfl
+  | cons field rest ih =>
+      cases hty : field.ty with
+      | uint256 =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | address =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | dynamicArray elemType =>
+          cases hscan :
+              findDynamicArrayElementAtSlot.scanElements slot
+                (field.slot.getD idx)
+                (world.storageArray (field.slot.getD idx)) 0 with
+          | none =>
+              simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty, hscan] using
+                ih (idx + 1)
+          | some value =>
+              simp [findDynamicArrayElementAtSlot.go, withTransactionContext, hty, hscan]
+      | mappingTyped mt =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | mappingStruct keyType members =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+      | mappingStruct2 outerKey innerKey members =>
+          simpa [findDynamicArrayElementAtSlot.go, withTransactionContext, hty] using ih (idx + 1)
+
+@[simp] theorem encodeStorageAt_withTransactionContext
+    (fields : List Field)
+    (world : Verity.ContractState)
+    (tx : IRTransaction)
+    (slot : Nat) :
+    encodeStorageAt fields (withTransactionContext world tx) slot =
+      encodeStorageAt fields world slot := by
+  unfold encodeStorageAt
+  split
+  · simp [withTransactionContext]
+  · rw [findDynamicArrayElementAtSlot_withTransactionContext]
+    simp [withTransactionContext]
+
+@[simp] theorem encodeStorage_withTransactionContext
+    (spec : CompilationModel)
+    (world : Verity.ContractState)
+    (tx : IRTransaction) :
+    encodeStorage spec (withTransactionContext world tx) =
+      encodeStorage spec world := by
+  funext slot
+  simpa [encodeStorage] using
+    encodeStorageAt_withTransactionContext (effectiveFields spec) world tx slot
+
 def selectorFunctionPairs (spec : CompilationModel) (selectors : List Nat) :
     List (FunctionSpec × Nat) :=
   (selectorDispatchedFunctions spec).zip selectors
