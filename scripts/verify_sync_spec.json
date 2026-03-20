@@ -32,6 +32,7 @@
     "scripts/check_yul.py",
     "scripts/generate_yul_identity_diff_report.py",
     "scripts/keccak256.py",
+    "scripts/lean_cc_ccache_clang.sh",
     "scripts/property_utils.py",
     "lakefile.lean",
     "lake-manifest.json",

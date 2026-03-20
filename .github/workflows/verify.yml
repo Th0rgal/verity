@@ -158,6 +158,7 @@ jobs:
               - 'scripts/check_yul.py'
               - 'scripts/generate_yul_identity_diff_report.py'
               - 'scripts/keccak256.py'
+              - 'scripts/lean_cc_ccache_clang.sh'
               - 'scripts/property_utils.py'
               - 'lakefile.lean'
               - 'lake-manifest.json'
@@ -480,7 +481,7 @@ jobs:
     env:
       LEAN_NUM_THREADS: 12
       LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
-      CCACHE_DIR: ~/.cache/ccache
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_NOHASHDIR: "true"
       CCACHE_COMPILERCHECK: content
@@ -525,7 +526,7 @@ jobs:
         uses: useblacksmith/stickydisk@v1
         with:
           key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          path: ~/.cache/ccache
+          path: ${{ github.workspace }}/.cache/ccache
 
       - name: Prepare compiler ccache fallback mount
         if: env.VERIFY_USE_STICKY_DISKS == 'true' && github.event_name == 'pull_request'
@@ -551,10 +552,10 @@ jobs:
 
       - name: Restore compiler ccache
         id: cache-compiler-ccache
-        if: env.VERIFY_USE_STICKY_DISKS != 'true'
+        if: env.VERIFY_USE_STICKY_DISKS != 'true' && env.VERIFY_DISABLE_LAKE_CACHE_RESTORE != 'true'
         uses: actions/cache/restore@v4
         with:
-          path: ~/.cache/ccache
+          path: ${{ github.workspace }}/.cache/ccache
           key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
           restore-keys: |
             compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-
@@ -605,10 +606,10 @@ jobs:
           key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Save compiler ccache
-        if: always() && env.VERIFY_USE_STICKY_DISKS != 'true' && steps.cache-compiler-ccache.outputs.cache-hit != 'true'
+        if: always() && env.VERIFY_USE_STICKY_DISKS != 'true' && env.VERIFY_DISABLE_LAKE_CACHE_RESTORE != 'true' && steps.cache-compiler-ccache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~/.cache/ccache
+          path: ${{ github.workspace }}/.cache/ccache
           key: compiler-ccache-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
 
       - name: Upload difftest interpreter
