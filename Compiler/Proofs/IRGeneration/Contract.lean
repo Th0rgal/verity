@@ -4,6 +4,7 @@ namespace Compiler.Proofs.IRGeneration
 
 open Compiler
 open Compiler.CompilationModel
+open Compiler.Yul
 
 namespace Contract
 
@@ -125,11 +126,32 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 -- SORRY'D:       · simp [hname] at hfind
 -- SORRY'D:         exact Or.inr (ih hfind)
 
--- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_append
--- TYPESIG_SORRY:     (prefix suffix : List YulStmt)
--- TYPESIG_SORRY:     (hprefix : LegacyCompatibleExternalStmtList prefix)
--- TYPESIG_SORRY:     (hsuffix : LegacyCompatibleExternalStmtList suffix) :
--- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList (prefix ++ suffix) := by sorry
+private theorem legacyCompatibleExternalStmtList_append
+    (before : List YulStmt)
+    (after : List YulStmt)
+    (hbefore : LegacyCompatibleExternalStmtList before)
+    (hafter : LegacyCompatibleExternalStmtList after) :
+    LegacyCompatibleExternalStmtList (before ++ after) := by
+  revert after hafter
+  induction hbefore with
+  | nil => intro after hafter; simpa using hafter
+  | comment msg rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.comment msg (rest ++ after) (ih after hafter)
+  | let_ name value rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.let_ name value (rest ++ after) (ih after hafter)
+  | assign name value rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.assign name value (rest ++ after) (ih after hafter)
+  | expr value rest hrest ih =>
+      intro after hafter; simpa using LegacyCompatibleExternalStmtList.expr value (rest ++ after) (ih after hafter)
+  | if_ cond body rest hbody hrest ihBody ihRest =>
+      intro after hafter
+      simpa using LegacyCompatibleExternalStmtList.if_ cond body (rest ++ after) hbody (ihRest after hafter)
+  | block body rest hbody hrest ihBody ihRest =>
+      intro after hafter
+      simpa using LegacyCompatibleExternalStmtList.block body (rest ++ after) hbody (ihRest after hafter)
+  | funcDef name params rets body rest hbody hrest ihBody ihRest =>
+      intro after hafter
+      simpa using LegacyCompatibleExternalStmtList.funcDef name params rets body (rest ++ after) hbody (ihRest after hafter)
 -- SORRY'D:   induction hprefix generalizing suffix with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simpa using hsuffix
@@ -149,9 +171,14 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 -- SORRY'D:       simpa using
 -- SORRY'D:         LegacyCompatibleExternalStmtList.funcDef name params rets body (rest ++ suffix) hbody (ih hsuffix)
 
--- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_of_exprStmtExprs
--- TYPESIG_SORRY:     (exprs : List YulExpr) :
--- TYPESIG_SORRY:     LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by sorry
+private theorem legacyCompatibleExternalStmtList_of_exprStmtExprs
+    (exprs : List YulExpr) :
+    LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by
+  induction exprs with
+  | nil =>
+      exact LegacyCompatibleExternalStmtList.nil
+  | cons expr rest ih =>
+      simpa using LegacyCompatibleExternalStmtList.expr expr (rest.map YulStmt.expr) ih
 -- SORRY'D:   induction exprs with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       exact LegacyCompatibleExternalStmtList.nil
@@ -160,7 +187,44 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 
 private theorem legacyCompatibleExternalStmtList_revertWithMessage
     (message : String) :
-    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by sorry
+    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by
+  unfold CompilationModel.revertWithMessage
+  let headerExprs :=
+    [ YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex errorStringSelectorWord]
+    , YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]
+    , YulExpr.call "mstore"
+        [YulExpr.lit 36, YulExpr.lit (CompilationModel.bytesFromString message).length]
+    ]
+  let dataExprs :=
+    (((CompilationModel.chunkBytes32 (CompilationModel.bytesFromString message)).zipIdx).map
+      (fun (chunk, idx) =>
+        let offset := 68 + idx * 32
+        let word := CompilationModel.wordFromBytes chunk
+        YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex word]))
+  let revertStmt :=
+    YulStmt.expr
+      (YulExpr.call "revert"
+        [ YulExpr.lit 0
+        , YulExpr.lit
+            (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+        ])
+  simpa [headerExprs, dataExprs, revertStmt, List.append_assoc] using
+    legacyCompatibleExternalStmtList_append
+      (before := headerExprs.map YulStmt.expr)
+      (after := dataExprs.map YulStmt.expr ++ [revertStmt])
+      (legacyCompatibleExternalStmtList_of_exprStmtExprs headerExprs)
+      (legacyCompatibleExternalStmtList_append
+        (before := dataExprs.map YulStmt.expr)
+        (after := [revertStmt])
+        (legacyCompatibleExternalStmtList_of_exprStmtExprs dataExprs)
+        (LegacyCompatibleExternalStmtList.expr
+          (YulExpr.call "revert"
+            [ YulExpr.lit 0
+            , YulExpr.lit
+                (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+            ])
+          []
+          LegacyCompatibleExternalStmtList.nil))
 -- SORRY'D:   unfold CompilationModel.revertWithMessage
 -- SORRY'D:   apply legacyCompatibleExternalStmtList_append
 -- SORRY'D:   · exact legacyCompatibleExternalStmtList_of_exprStmtExprs
