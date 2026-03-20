@@ -1439,8 +1439,7 @@ theorem execStmtWithHelpers_internalCallAssign_of_witness
         else
           .revert
     | none => .revert := by
-  -- TODO(#1645): unfold execStmtWithHelpers broken after mutual-block termination refactor
-  sorry
+  simpa [execStmtWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup]
 
 /-- Version of `execStmtWithHelpers_internalCallAssign_obeys_summary` that takes
 a `SupportedInternalHelperWitness` instead of the private `findUniqueInternalFunction?`
@@ -1488,8 +1487,7 @@ theorem execStmtWithHelpers_internalCall_of_witness
         else
           .revert
     | none => .revert := by
-  -- TODO(#1645): unfold execStmtWithHelpers broken after mutual-block termination refactor
-  sorry
+  simpa [execStmtWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup]
 
 /-- Public characterization of `evalExprWithHelpers` for `Expr.internalCall`
 (expression-position helper call) via a `SupportedInternalHelperWitness` and
@@ -1508,8 +1506,7 @@ theorem evalExprWithHelpers_internalCall_of_witness
     (do let argVals ← evalExprListWithHelpers spec fields (fuel + 1) state args
         let hresult := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
         if hresult.success then hresult.returnValue else none) := by
-  -- TODO(#1645): unfold evalExprWithHelpers broken after mutual-block termination refactor
-  sorry
+  simpa [evalExprWithHelpers, findUniqueInternalFunction?_of_witness witness hnodup]
 
 theorem SupportedBodyHelperInterface.summarySoundOfCall
     {spec : CompilationModel}

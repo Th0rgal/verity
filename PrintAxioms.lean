@@ -1427,10 +1427,10 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_obeys_summary
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary
 -- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.findUniqueInternalFunction?_of_witness  -- private
--- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_of_witness  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_of_witness
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCallAssign_obeys_summary_of_witness
--- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_of_witness  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_of_witness  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.execStmtWithHelpers_internalCall_of_witness
+#print axioms Compiler.Proofs.IRGeneration.SourceSemantics.evalExprWithHelpers_internalCall_of_witness
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperInterface.summarySoundOfCall
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedBodyHelperInterface.exprCallSummaryPreservesWorld
 #print axioms Compiler.Proofs.IRGeneration.SourceSemantics.SupportedHelperSummaryProofCatalog.soundOfWitness
@@ -1713,4 +1713,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1582 theorems/lemmas (1060 public, 408 private, 114 sorry'd)
+-- Total: 1582 theorems/lemmas (1063 public, 408 private, 111 sorry'd)

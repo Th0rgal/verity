@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 222  # PR #1645: 8 SourceSemantics + 214 pre-existing proof failures exposed by from-scratch build (FunctionBody, GenericInduction, Function, Dispatch, Contract)
+    expected_sorry = 219  # PR #1645 follow-up: 5 remaining SourceSemantics admissions + 214 pre-existing proof failures exposed by from-scratch build (FunctionBody, GenericInduction, Function, Dispatch, Contract)
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
