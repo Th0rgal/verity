@@ -113,7 +113,19 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
     {f : Field}
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    f ∈ fields := by sorry
+    f ∈ fields := by
+  induction fields with
+  | nil =>
+      simp [CompilationModel.findFieldWithResolvedSlot, CompilationModel.findFieldByName] at hfind
+  | cons field rest ih =>
+      simp [CompilationModel.findFieldWithResolvedSlot, CompilationModel.findFieldByName] at hfind ⊢
+      by_cases hname : field.name = fieldName
+      · simp [hname] at hfind
+        injection hfind with hf _
+        subst hf
+        simp
+      · simp [hname] at hfind
+        exact Or.inr (ih hfind)
 -- SORRY'D:   induction fields with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind
