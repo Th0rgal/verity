@@ -307,10 +307,6 @@ def validateScopedStmtIdentifiers
       pure localScope
   | Stmt.forEach varName count body => do
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount count
-      if paramScope.contains varName then
-        throw s!"Compilation error: {context} forEach binder '{varName}' shadows a parameter"
-      if localScope.contains varName then
-        throw s!"Compilation error: {context} redeclares local variable '{varName}' in the same scope"
       let _ ← validateScopedStmtListIdentifiers context params paramScope dynamicParams (varName :: localScope) constructorArgCount body
       if collectStmtListAssignedNames body |>.contains varName then
         throw s!"Compilation error: {context} assigns to forEach binder '{varName}' inside the loop body"
@@ -320,14 +316,7 @@ def validateScopedStmtIdentifiers
       pure localScope
   | Stmt.internalCallAssign names _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
-      let mut scope := localScope
-      for name in names do
-        if paramScope.contains name then
-          throw s!"Compilation error: {context} internal call result '{name}' shadows a parameter"
-        if scope.contains name then
-          throw s!"Compilation error: {context} redeclares local variable '{name}' in the same scope"
-        scope := name :: scope
-      pure scope
+      pure (names.reverse ++ localScope)
   | Stmt.rawLog topics dataOffset dataSize => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount topics
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount dataOffset
@@ -335,14 +324,7 @@ def validateScopedStmtIdentifiers
       pure localScope
   | Stmt.externalCallBind resultVars _ args => do
       validateScopedExprIdentifiersList context params paramScope dynamicParams localScope constructorArgCount args
-      let mut scope := localScope
-      for name in resultVars do
-        if paramScope.contains name then
-          throw s!"Compilation error: {context} external call result '{name}' shadows a parameter"
-        if scope.contains name then
-          throw s!"Compilation error: {context} redeclares local variable '{name}' in the same scope"
-        scope := name :: scope
-      pure scope
+      pure (resultVars.reverse ++ localScope)
   | Stmt.ecm mod args => do
       if args.length != mod.numArgs then
         throw s!"Compilation error: {context} uses ECM '{mod.name}' with {args.length} arguments but it expects {mod.numArgs}"

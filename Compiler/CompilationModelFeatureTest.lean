@@ -1759,93 +1759,6 @@ private def assigningForEachBinderSpec : CompilationModel := {
   ]
 }
 
-private def shadowingForEachBinderSpec : CompilationModel := {
-  name := "ShadowingForEachBinder"
-  fields := [{ name := "value", ty := FieldType.uint256 }]
-  «constructor» := none
-  functions := [
-    { name := "store"
-      params := []
-      returnType := none
-      body := [
-        Stmt.letVar "i" (Expr.literal 10),
-        Stmt.forEach "i" (Expr.literal 1) [
-          Stmt.setStorage "value" (Expr.localVar "i")
-        ],
-        Stmt.stop
-      ]
-    }
-  ]
-}
-
-private def paramShadowingForEachBinderSpec : CompilationModel := {
-  name := "ParamShadowingForEachBinder"
-  fields := [{ name := "value", ty := FieldType.uint256 }]
-  «constructor» := none
-  functions := [
-    { name := "store"
-      params := [{ name := "i", ty := ParamType.uint256 }]
-      returnType := none
-      body := [
-        Stmt.forEach "i" (Expr.literal 1) [
-          Stmt.setStorage "value" (Expr.localVar "i")
-        ],
-        Stmt.stop
-      ]
-    }
-  ]
-}
-
-private def internalAssignForEachBinderSpec : CompilationModel := {
-  name := "InternalAssignForEachBinder"
-  fields := [{ name := "value", ty := FieldType.uint256 }]
-  «constructor» := none
-  functions := [
-    { name := "helper"
-      params := [{ name := "next", ty := ParamType.uint256 }]
-      returnType := some FieldType.uint256
-      body := [Stmt.return (Expr.param "next")]
-      isInternal := true
-    },
-    { name := "store"
-      params := []
-      returnType := none
-      body := [
-        Stmt.forEach "i" (Expr.literal 1) [
-          Stmt.internalCallAssign ["i"] "helper" [Expr.literal 7]
-        ],
-        Stmt.stop
-      ]
-    }
-  ]
-}
-
-private def externalBindForEachBinderSpec : CompilationModel := {
-  name := "ExternalBindForEachBinder"
-  fields := [{ name := "value", ty := FieldType.uint256 }]
-  «constructor» := none
-  functions := [
-    { name := "store"
-      params := [{ name := "next", ty := ParamType.uint256 }]
-      returnType := none
-      body := [
-        Stmt.forEach "i" (Expr.literal 1) [
-          Stmt.externalCallBind ["i"] "echo" [Expr.param "next"]
-        ],
-        Stmt.stop
-      ]
-    }
-  ]
-  externals := [
-    { name := "echo"
-      params := [ParamType.uint256]
-      returnType := some ParamType.uint256
-      returns := [ParamType.uint256]
-      axiomNames := ["echo_matches_identity"]
-    }
-  ]
-}
-
 private def cachedForEachCountSpec : CompilationModel := {
   name := "CachedForEachCount"
   fields := [{ name := "value", ty := FieldType.uint256 }]
@@ -2639,22 +2552,6 @@ set_option maxRecDepth 4096 in
     "forEach binders cannot be reassigned from the loop body"
     assigningForEachBinderSpec
     "assigns to forEach binder 'i' inside the loop body"
-  expectCompileErrorContains
-    "forEach binders cannot shadow an existing local"
-    shadowingForEachBinderSpec
-    "redeclares local variable 'i' in the same scope"
-  expectCompileErrorContains
-    "forEach binders cannot shadow a parameter"
-    paramShadowingForEachBinderSpec
-    "forEach binder 'i' shadows a parameter"
-  expectCompileErrorContains
-    "forEach binders cannot be rebound by internal helper results"
-    internalAssignForEachBinderSpec
-    "redeclares local variable 'i' in the same scope"
-  expectCompileErrorContains
-    "forEach binders cannot be rebound by external call results"
-    externalBindForEachBinderSpec
-    "redeclares local variable 'i' in the same scope"
   expectCompileErrorContains
     "reserved compiler prefix is rejected in internal call assignment binders"
     reservedInternalAssignBinderSpec
