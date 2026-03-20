@@ -3441,10 +3441,10 @@ theorem runtimeStateMatchesIR_setTransientStorage
             transientStorage := fun o => if o = offset then value else runtime.world.transientStorage o
           } }
       { state with
-          transientStorage := fun o => if o = offset then value else state.transientStorage o } := by sorry
--- SORRY'D:   cases runtime
--- SORRY'D:   cases state
--- SORRY'D:   simpa [runtimeStateMatchesIR]
+          transientStorage := fun o => if o = offset then value else state.transientStorage o } := by
+  cases runtime
+  cases state
+  simpa [runtimeStateMatchesIR]
 
 theorem bindingsExactlyMatchIRVars_setMemory
     {bindings : List (String × Nat)}
@@ -8621,59 +8621,59 @@ theorem execStmtList_terminal_core_not_continue
     {scope : List String}
     {stmts : List Stmt}
     (hterminal : StmtListTerminalCore scope stmts) :
-    ∀ next, SourceSemantics.execStmtList fields runtime stmts ≠ .continue next := by sorry
--- SORRY'D:   induction hterminal generalizing runtime with
--- SORRY'D:   | letVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with
--- SORRY'D:           bindings := SourceSemantics.bindValue runtime.bindings name
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime value) }
--- SORRY'D:       simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, runtime'] using
--- SORRY'D:         ih (runtime := runtime')
--- SORRY'D:   | assignVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with
--- SORRY'D:           bindings := SourceSemantics.bindValue runtime.bindings name
--- SORRY'D:             (SourceSemantics.evalExpr fields runtime value) }
--- SORRY'D:       simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, runtime'] using
--- SORRY'D:         ih (runtime := runtime')
--- SORRY'D:   | require_ hcond hinScope hrest ih =>
--- SORRY'D:       rename_i scope cond message rest
--- SORRY'D:       by_cases hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true
--- SORRY'D:       · simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue] using
--- SORRY'D:           ih (runtime := runtime)
--- SORRY'D:       · have hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false := by
--- SORRY'D:           cases hbool : (SourceSemantics.evalExpr fields runtime cond != 0) <;> simp_all
--- SORRY'D:         simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
--- SORRY'D:   | return_ hvalue hinScope hrest =>
--- SORRY'D:       rename_i scope value rest
--- SORRY'D:       intro next
--- SORRY'D:       simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:   | stop hrest =>
--- SORRY'D:       rename_i scope rest
--- SORRY'D:       intro next
--- SORRY'D:       simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:   | ite hcond hinScope hthen helse hrest ihThen ihElse =>
--- SORRY'D:       rename_i scope cond thenBranch elseBranch rest
--- SORRY'D:       by_cases hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true
--- SORRY'D:       · intro next
--- SORRY'D:         have hthenNoContinue := ihThen (runtime := runtime)
--- SORRY'D:         simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue]
--- SORRY'D:         intro hEq
--- SORRY'D:         cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec] at hEq
--- SORRY'D:         · rename_i next'
--- SORRY'D:           exact hthenNoContinue next' hthenExec
--- SORRY'D:       · intro next
--- SORRY'D:         have helseNoContinue := ihElse (runtime := runtime)
--- SORRY'D:         have hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false := by
--- SORRY'D:           cases hbool : (SourceSemantics.evalExpr fields runtime cond != 0) <;> simp_all
--- SORRY'D:         simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
--- SORRY'D:         intro hEq
--- SORRY'D:         cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp [helseExec] at hEq
--- SORRY'D:         · rename_i next'
--- SORRY'D:           exact helseNoContinue next' helseExec
+    ∀ next, SourceSemantics.execStmtList fields runtime stmts ≠ .continue next := by
+  induction hterminal generalizing runtime with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      let runtime' :=
+        { runtime with
+          bindings := SourceSemantics.bindValue runtime.bindings name
+            (SourceSemantics.evalExpr fields runtime value) }
+      simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, runtime'] using
+        ih (runtime := runtime')
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      let runtime' :=
+        { runtime with
+          bindings := SourceSemantics.bindValue runtime.bindings name
+            (SourceSemantics.evalExpr fields runtime value) }
+      simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, runtime'] using
+        ih (runtime := runtime')
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      by_cases hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true
+      · simpa [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue] using
+          ih (runtime := runtime)
+      · have hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false := by
+          cases hbool : (SourceSemantics.evalExpr fields runtime cond != 0) <;> simp_all
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      intro next
+      simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | stop hrest =>
+      rename_i scope rest
+      intro next
+      simp [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rename_i scope cond thenBranch elseBranch rest
+      by_cases hcondTrue : (SourceSemantics.evalExpr fields runtime cond != 0) = true
+      · intro next
+        have hthenNoContinue := ihThen (runtime := runtime)
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondTrue]
+        intro hEq
+        cases hthenExec : SourceSemantics.execStmtList fields runtime thenBranch <;> simp [hthenExec] at hEq
+        · rename_i next'
+          exact hthenNoContinue next' hthenExec
+      · intro next
+        have helseNoContinue := ihElse (runtime := runtime)
+        have hcondFalse : (SourceSemantics.evalExpr fields runtime cond != 0) = false := by
+          cases hbool : (SourceSemantics.evalExpr fields runtime cond != 0) <;> simp_all
+        simp [SourceSemantics.execStmtList, SourceSemantics.execStmt, hcondFalse]
+        intro hEq
+        cases helseExec : SourceSemantics.execStmtList fields runtime elseBranch <;> simp [helseExec] at hEq
+        · rename_i next'
+          exact helseNoContinue next' helseExec
 
 theorem stmtResultMatchesIRExec_ir_not_continue_of_source_not_continue
     {fields : List Field}
@@ -9086,34 +9086,137 @@ theorem stmtResultMatchesIRExec_ir_not_continue_of_terminal_core
 -- SORRY'D:     hmstore
 -- SORRY'D:     hreturn
 
--- TYPESIG_SORRY: theorem execIRStmts_compiled_return_core_append_wholeFuel_of_scope
--- TYPESIG_SORRY:     {fields : List Field}
--- TYPESIG_SORRY:     {runtime : SourceSemantics.RuntimeState}
--- TYPESIG_SORRY:     {state : IRState}
--- TYPESIG_SORRY:     {scope : List String}
--- TYPESIG_SORRY:     {value : Expr}
--- TYPESIG_SORRY:     {tailIR : List YulStmt}
--- TYPESIG_SORRY:     {extraFuel : Nat}
--- TYPESIG_SORRY:     (hcore : ExprCompileCore value)
--- TYPESIG_SORRY:     (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
--- TYPESIG_SORRY:     (hinScope : exprBoundNamesInScope value scope)
--- TYPESIG_SORRY:     (hbounded : bindingsBounded runtime.bindings)
--- TYPESIG_SORRY:     (hpresent : exprBoundNamesPresent value runtime.bindings)
--- TYPESIG_SORRY:     (hruntime : runtimeStateMatchesIR fields runtime state) :
--- TYPESIG_SORRY:     let retVal := SourceSemantics.evalExpr fields runtime value
--- TYPESIG_SORRY:     let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
--- TYPESIG_SORRY:     ∃ valueIR,
--- TYPESIG_SORRY:       CompilationModel.compileExpr fields .calldata value = Except.ok valueIR ∧
--- TYPESIG_SORRY:       execIRStmts
--- TYPESIG_SORRY:         (sizeOf
--- TYPESIG_SORRY:             ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- TYPESIG_SORRY:              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- TYPESIG_SORRY:               tailIR) + extraFuel + 1)
--- TYPESIG_SORRY:         state
--- TYPESIG_SORRY:         ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- TYPESIG_SORRY:          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
--- TYPESIG_SORRY:           tailIR) =
--- TYPESIG_SORRY:         .return retVal state' := by sorry
+theorem execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+    {fields : List Field}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    {scope : List String}
+    {value : Expr}
+    {tailIR : List YulStmt}
+    {extraFuel : Nat}
+    (hcore : ExprCompileCore value)
+    (hexact : bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : exprBoundNamesInScope value scope)
+    (hbounded : bindingsBounded runtime.bindings)
+    (hpresent : exprBoundNamesPresent value runtime.bindings)
+    (hruntime : runtimeStateMatchesIR fields runtime state) :
+    let retVal := SourceSemantics.evalExpr fields runtime value
+    let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
+    ∃ valueIR,
+      CompilationModel.compileExpr fields .calldata value = Except.ok valueIR ∧
+      execIRStmts
+        (sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel + 1)
+        state
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+          tailIR) =
+        .return retVal state' := by
+  rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
+  let retVal := SourceSemantics.evalExpr fields runtime value
+  let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
+  have heval :=
+    eval_compileExpr_core_of_scope hcore hexact hinScope hbounded hpresent hruntime
+  rw [hvalueIR] at heval
+  have heval' : evalIRExpr state valueIR = some retVal := by
+    simpa [retVal] using heval
+  have hmstoreFuelNeZero :
+      sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel ≠ 0 := by
+    have hprefixLen :
+        2 ≤
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR).length := by
+      simp
+    have hlen :
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+          tailIR).length ≤
+          sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) := by
+      exact yulStmtList_length_le_sizeOf _
+    omega
+  have hreturnFuelNeZero :
+      sizeOf
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR) + extraFuel - 1 ≠ 0 := by
+    have hprefixLen :
+        2 ≤
+          ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+           , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+            tailIR).length := by
+      simp
+    have hlen :
+        ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+         , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+          tailIR).length ≤
+          sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) := by
+      exact yulStmtList_length_le_sizeOf _
+    omega
+  have hmstore :
+      execIRStmt
+          (sizeOf
+              ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+               , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+                tailIR) + extraFuel)
+          state
+          (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
+        .continue state' := by
+    simpa [state'] using
+      execIRStmt_mstore_of_eval_nonzeroFuel
+        (fuel :=
+          sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel)
+        (state := state)
+        (offset := 0)
+        (valueExpr := valueIR)
+        (value := retVal)
+        hmstoreFuelNeZero
+        heval'
+  have hreturn :
+      execIRStmt
+          (sizeOf
+              ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+               , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+                tailIR) + extraFuel - 1)
+          state'
+          (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
+        .return retVal state' := by
+    simpa [state', retVal] using
+      execIRStmt_return32_of_memory_nonzeroFuel
+        (fuel :=
+          sizeOf
+            ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+             , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
+              tailIR) + extraFuel - 1)
+        (state := state')
+        (offset := 0)
+        hreturnFuelNeZero
+  refine ⟨valueIR, hvalueIR, ?_⟩
+  exact execIRStmts_two_append_of_continue_then_return_wholeFuel
+    (extraFuel := extraFuel)
+    (state := state)
+    (mid := state')
+    (next := state')
+    (stmt1 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
+    (stmt2 := YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
+    (rest := tailIR)
+    (value := retVal)
+    hmstore
+    hreturn
 -- SORRY'D:   rcases compileExpr_core_ok (fields := fields) hcore with ⟨valueIR, hvalueIR⟩
 -- SORRY'D:   let retVal := SourceSemantics.evalExpr fields runtime value
 -- SORRY'D:   let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
@@ -10067,43 +10170,43 @@ theorem stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
         state
         ([ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
          , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++
-          tailIR)) := by sorry
--- SORRY'D:   rcases execIRStmts_compiled_return_core_append_wholeFuel_of_scope
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (runtime := runtime)
--- SORRY'D:       (state := state)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (value := value)
--- SORRY'D:       (tailIR := tailIR)
--- SORRY'D:       (extraFuel := extraFuel)
--- SORRY'D:       hcore hexact hinScope hbounded
--- SORRY'D:       (exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:       hruntime with
--- SORRY'D:     ⟨valueIR', hvalueIR', hwhole⟩
--- SORRY'D:   rw [hvalueIR] at hvalueIR'
--- SORRY'D:   injection hvalueIR' with hEq
--- SORRY'D:   subst hEq
--- SORRY'D:   let retVal := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:   let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
--- SORRY'D:   have hmatch :
--- SORRY'D:       stmtResultMatchesIRExec fields
--- SORRY'D:         (SourceSemantics.StmtResult.return retVal runtime)
--- SORRY'D:         (.return retVal state') := by
--- SORRY'D:     exact ⟨rfl, runtimeStateMatchesIR_setMemory hruntime 0 retVal⟩
--- SORRY'D:   have hwhole' :
--- SORRY'D:       execIRStmts
--- SORRY'D:         (1 + (1 + sizeOf (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) +
--- SORRY'D:             (1 + (1 + sizeOf (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) + sizeOf tailIR) +
--- SORRY'D:           extraFuel + 1)
--- SORRY'D:         state
--- SORRY'D:         (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
--- SORRY'D:           YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) :: tailIR) =
--- SORRY'D:       .return retVal state' := by
--- SORRY'D:     simpa [retVal, state'] using hwhole
--- SORRY'D:   rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:   dsimp [retVal, state']
--- SORRY'D:   rw [hwhole']
--- SORRY'D:   exact hmatch
+          tailIR)) := by
+  rcases execIRStmts_compiled_return_core_append_wholeFuel_of_scope
+      (fields := fields)
+      (runtime := runtime)
+      (state := state)
+      (scope := scope)
+      (value := value)
+      (tailIR := tailIR)
+      (extraFuel := extraFuel)
+      hcore hexact hinScope hbounded
+      (exprBoundNamesPresent_of_scope hscope hinScope)
+      hruntime with
+    ⟨valueIR', hvalueIR', hwhole⟩
+  rw [hvalueIR] at hvalueIR'
+  injection hvalueIR' with hEq
+  subst hEq
+  let retVal := SourceSemantics.evalExpr fields runtime value
+  let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
+  have hmatch :
+      stmtResultMatchesIRExec fields
+        (SourceSemantics.StmtResult.return retVal runtime)
+        (.return retVal state') := by
+    exact ⟨rfl, runtimeStateMatchesIR_setMemory hruntime 0 retVal⟩
+  have hwhole' :
+      execIRStmts
+        (1 + (1 + sizeOf (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) +
+            (1 + (1 + sizeOf (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) + sizeOf tailIR) +
+          extraFuel + 1)
+        state
+        (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
+          YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) :: tailIR) =
+      .return retVal state' := by
+    simpa [retVal, state'] using hwhole
+  rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+  dsimp [retVal, state']
+  rw [hwhole']
+  exact hmatch
 
 theorem stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
     {fields : List Field}
@@ -10255,424 +10358,424 @@ theorem exec_compileStmtList_terminal_core_sizeOf_extraFuel
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR ∧
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (sizeOf bodyIR + extraFuel + 1) state bodyIR
-      stmtResultMatchesIRExec fields sourceResult irExec := by sorry
--- SORRY'D:   induction hterminal generalizing runtime state inScopeNames extraFuel with
--- SORRY'D:   | letVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       rcases compileStmtList_terminal_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := name :: scope)
--- SORRY'D:           (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
--- SORRY'D:           (stmts := rest)
--- SORRY'D:           hrest with
--- SORRY'D:         ⟨tailIR, htailCompile⟩
--- SORRY'D:       let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
--- SORRY'D:       let state' := state.setVar name valueNat
--- SORRY'D:       let tailExtraFuel :=
--- SORRY'D:         sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) - (sizeOf tailIR + 1) + extraFuel
--- SORRY'D:       rcases ih
--- SORRY'D:           (runtime := runtime')
--- SORRY'D:           (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
--- SORRY'D:           (extraFuel := tailExtraFuel)
--- SORRY'D:           (scopeNamesIncluded_collectStmtNames_letVar (name := name) (value := value) hincluded)
--- SORRY'D:           (scopeNamesPresent_cons_bindValue hscope)
--- SORRY'D:           (bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact)
--- SORRY'D:           (bindingsBounded_bindValue hbounded name valueNat
--- SORRY'D:             (evalExpr_lt_evmModulus_core_of_scope
--- SORRY'D:               hvalue
--- SORRY'D:               hexact
--- SORRY'D:               hinScope
--- SORRY'D:               hbounded
--- SORRY'D:               (exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:               hruntime))
--- SORRY'D:           (runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat) with
--- SORRY'D:         ⟨tailIR', htailCompile', htailSem⟩
--- SORRY'D:       rw [htailCompile] at htailCompile'
--- SORRY'D:       injection htailCompile' with htailEq
--- SORRY'D:       subst htailEq
--- SORRY'D:       refine ⟨[YulStmt.let_ name valueIR] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:       · exact stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (name := name)
--- SORRY'D:           (value := value)
--- SORRY'D:           (valueIR := valueIR)
--- SORRY'D:           (rest := rest)
--- SORRY'D:           (tailIR := tailIR)
--- SORRY'D:           (extraFuel := extraFuel)
--- SORRY'D:           hvalue
--- SORRY'D:           hvalueIR
--- SORRY'D:           hexact
--- SORRY'D:           hinScope
--- SORRY'D:           hscope
--- SORRY'D:           hbounded
--- SORRY'D:           hruntime
--- SORRY'D:           (by
--- SORRY'D:             simpa [tailExtraFuel] using htailSem)
--- SORRY'D:   | assignVar hvalue hinScope hrest ih =>
--- SORRY'D:       rename_i scope name value rest
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       rcases compileStmtList_terminal_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := name :: scope)
--- SORRY'D:           (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
--- SORRY'D:           (stmts := rest)
--- SORRY'D:           hrest with
--- SORRY'D:         ⟨tailIR, htailCompile⟩
--- SORRY'D:       let valueNat := SourceSemantics.evalExpr fields runtime value
--- SORRY'D:       let runtime' :=
--- SORRY'D:         { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
--- SORRY'D:       let state' := state.setVar name valueNat
--- SORRY'D:       let tailExtraFuel :=
--- SORRY'D:         sizeOf ([YulStmt.assign name valueIR] ++ tailIR) - (sizeOf tailIR + 1) + extraFuel
--- SORRY'D:       rcases ih
--- SORRY'D:           (runtime := runtime')
--- SORRY'D:           (state := state')
--- SORRY'D:           (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
--- SORRY'D:           (extraFuel := tailExtraFuel)
--- SORRY'D:           (scopeNamesIncluded_collectStmtNames_assignVar (name := name) (value := value) hincluded)
--- SORRY'D:           (scopeNamesPresent_cons_bindValue hscope)
--- SORRY'D:           (bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact)
--- SORRY'D:           (bindingsBounded_bindValue hbounded name valueNat
--- SORRY'D:             (evalExpr_lt_evmModulus_core_of_scope
--- SORRY'D:               hvalue
--- SORRY'D:               hexact
--- SORRY'D:               hinScope
--- SORRY'D:               hbounded
--- SORRY'D:               (exprBoundNamesPresent_of_scope hscope hinScope)
--- SORRY'D:               hruntime))
--- SORRY'D:           (runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat) with
--- SORRY'D:         ⟨tailIR', htailCompile', htailSem⟩
--- SORRY'D:       rw [htailCompile] at htailCompile'
--- SORRY'D:       injection htailCompile' with htailEq
--- SORRY'D:       subst htailEq
--- SORRY'D:       refine ⟨[YulStmt.assign name valueIR] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:       · exact stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (name := name)
--- SORRY'D:           (value := value)
--- SORRY'D:           (valueIR := valueIR)
--- SORRY'D:           (rest := rest)
--- SORRY'D:           (tailIR := tailIR)
--- SORRY'D:           (extraFuel := extraFuel)
--- SORRY'D:           hvalue
--- SORRY'D:           hvalueIR
--- SORRY'D:           hexact
--- SORRY'D:           hinScope
--- SORRY'D:           hscope
--- SORRY'D:           hbounded
--- SORRY'D:           hruntime
--- SORRY'D:           (by
--- SORRY'D:             simpa [tailExtraFuel] using htailSem)
--- SORRY'D:   | require_ hcond hinScope hrest ih =>
--- SORRY'D:       rename_i scope cond message rest
--- SORRY'D:       have hpresent : exprBoundNamesPresent cond runtime.bindings :=
--- SORRY'D:         exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:       rcases eval_compileRequireFailCond_core_of_scope
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (cond := cond)
--- SORRY'D:           hcond hexact hinScope hbounded hpresent hruntime with
--- SORRY'D:         ⟨failCond, hfailCompile, hfailEval⟩
--- SORRY'D:       rcases compileStmtList_terminal_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
--- SORRY'D:           (stmts := rest)
--- SORRY'D:           hrest with
--- SORRY'D:         ⟨tailIR, htailCompile⟩
--- SORRY'D:       refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hfailCompile]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:       · by_cases hcondZero : SourceSemantics.evalExpr fields runtime cond = 0
--- SORRY'D:         · rcases execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (runtime := runtime)
--- SORRY'D:             (state := state)
--- SORRY'D:             (scope := scope)
--- SORRY'D:             (cond := cond)
--- SORRY'D:             (message := message)
--- SORRY'D:             (tailIR := tailIR)
--- SORRY'D:             (extraFuel := extraFuel)
--- SORRY'D:             hcond
--- SORRY'D:             hexact
--- SORRY'D:             hinScope
--- SORRY'D:             hscope
--- SORRY'D:             hbounded
--- SORRY'D:             hruntime
--- SORRY'D:             hcondZero with
--- SORRY'D:             ⟨_, _, _, hwhole⟩
--- SORRY'D:           rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
--- SORRY'D:           simp [hcondZero, hwhole, stmtResultMatchesIRExec]
--- SORRY'D:         · let tailExtraFuel :=
--- SORRY'D:             sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) -
--- SORRY'D:               (sizeOf tailIR + 1) + extraFuel
--- SORRY'D:           rcases ih
--- SORRY'D:               (runtime := runtime)
--- SORRY'D:               (state := state)
--- SORRY'D:               (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
--- SORRY'D:               (extraFuel := tailExtraFuel)
--- SORRY'D:               (scopeNamesIncluded_collectStmtNames_tail (stmt := .require cond message) hincluded)
--- SORRY'D:               hscope
--- SORRY'D:               hexact
--- SORRY'D:               hbounded
--- SORRY'D:               hruntime with
--- SORRY'D:             ⟨tailIR', htailCompile', htailSem⟩
--- SORRY'D:           rw [htailCompile] at htailCompile'
--- SORRY'D:           injection htailCompile' with htailEq
--- SORRY'D:           subst htailEq
--- SORRY'D:           exact stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (runtime := runtime)
--- SORRY'D:             (state := state)
--- SORRY'D:             (scope := scope)
--- SORRY'D:             (cond := cond)
--- SORRY'D:             (message := message)
--- SORRY'D:             (failCond := failCond)
--- SORRY'D:             (rest := rest)
--- SORRY'D:             (tailIR := tailIR)
--- SORRY'D:             (extraFuel := extraFuel)
--- SORRY'D:             hcond
--- SORRY'D:             hfailCompile
--- SORRY'D:             hexact
--- SORRY'D:             hinScope
--- SORRY'D:             hscope
--- SORRY'D:             hbounded
--- SORRY'D:             hruntime
--- SORRY'D:             (by
--- SORRY'D:               intro hzero
--- SORRY'D:               exact hcondZero hzero)
--- SORRY'D:             (by
--- SORRY'D:               simpa [tailExtraFuel] using htailSem)
--- SORRY'D:   | return_ hvalue hinScope hrest =>
--- SORRY'D:       rename_i scope value rest
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
--- SORRY'D:       rcases compileStmtList_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
--- SORRY'D:           (stmts := rest)
--- SORRY'D:           hrest with
--- SORRY'D:         ⟨tailIR, htailCompile⟩
--- SORRY'D:       refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
--- SORRY'D:               , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
--- SORRY'D:         ?_, ?_⟩
--- SORRY'D:       · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
--- SORRY'D:         rw [hvalueIR]
--- SORRY'D:         simp [htailCompile]
--- SORRY'D:       · exact stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (value := value)
--- SORRY'D:           (valueIR := valueIR)
--- SORRY'D:           (rest := rest)
--- SORRY'D:           (tailIR := tailIR)
--- SORRY'D:           (extraFuel := extraFuel)
--- SORRY'D:           hvalue
--- SORRY'D:           hvalueIR
--- SORRY'D:           hexact
--- SORRY'D:           hinScope
--- SORRY'D:           hscope
--- SORRY'D:           hbounded
--- SORRY'D:           hruntime
--- SORRY'D:   | stop hrest =>
--- SORRY'D:       rename_i scope rest
--- SORRY'D:       rcases compileStmtList_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
--- SORRY'D:           (stmts := rest)
--- SORRY'D:           hrest with
--- SORRY'D:         ⟨tailIR, htailCompile⟩
--- SORRY'D:       refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
--- SORRY'D:       · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
--- SORRY'D:       · exact stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (runtime := runtime)
--- SORRY'D:           (state := state)
--- SORRY'D:           (rest := rest)
--- SORRY'D:           (tailIR := tailIR)
--- SORRY'D:           (extraFuel := extraFuel)
--- SORRY'D:           hruntime
--- SORRY'D:   | ite hcond hinScope hthen helse hrest ihThen ihElse =>
--- SORRY'D:       rename_i scope cond thenBranch elseBranch rest
--- SORRY'D:       rcases compileExpr_core_ok (fields := fields) hcond with ⟨condIR, hcondIR⟩
--- SORRY'D:       rcases compileStmtList_terminal_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (inScopeNames := inScopeNames)
--- SORRY'D:           (stmts := thenBranch)
--- SORRY'D:           hthen with
--- SORRY'D:         ⟨thenIR, hthenIR⟩
--- SORRY'D:       rcases compileStmtList_terminal_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (inScopeNames := inScopeNames)
--- SORRY'D:           (stmts := elseBranch)
--- SORRY'D:           helse with
--- SORRY'D:         ⟨elseIR, helseIR⟩
--- SORRY'D:       rcases compileStmtList_core_ok
--- SORRY'D:           (fields := fields)
--- SORRY'D:           (scope := scope)
--- SORRY'D:           (inScopeNames := collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames)
--- SORRY'D:           (stmts := rest)
--- SORRY'D:           hrest with
--- SORRY'D:         ⟨tailIR, htailIR⟩
--- SORRY'D:       have helseNonempty : elseBranch.isEmpty = false := by
--- SORRY'D:         cases elseBranch with
--- SORRY'D:         | nil =>
--- SORRY'D:             exfalso
--- SORRY'D:             exact stmtListTerminalCore_ne_nil helse rfl
--- SORRY'D:         | cons =>
--- SORRY'D:             simp
--- SORRY'D:       let tempName :=
--- SORRY'D:         CompilationModel.pickFreshName "__ite_cond"
--- SORRY'D:           (inScopeNames ++ collectExprNames cond ++
--- SORRY'D:             collectStmtListNames thenBranch ++ collectStmtListNames elseBranch)
--- SORRY'D:       let bodyIR :=
--- SORRY'D:         [YulStmt.block
--- SORRY'D:           [ YulStmt.let_ tempName condIR
--- SORRY'D:           , YulStmt.if_ (YulExpr.ident tempName) thenIR
--- SORRY'D:           , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]] ++
--- SORRY'D:           tailIR
--- SORRY'D:       refine ⟨bodyIR, ?_, ?_⟩
--- SORRY'D:       · unfold bodyIR tempName
--- SORRY'D:         rw [CompilationModel.compileStmtList]
--- SORRY'D:         unfold CompilationModel.compileStmt
--- SORRY'D:         rw [hcondIR, hthenIR, helseIR]
--- SORRY'D:         dsimp
--- SORRY'D:         rw [htailIR]
--- SORRY'D:         simp [helseNonempty]
--- SORRY'D:       · have hpresent : exprBoundNamesPresent cond runtime.bindings :=
--- SORRY'D:           exprBoundNamesPresent_of_scope hscope hinScope
--- SORRY'D:         let condValue := SourceSemantics.evalExpr fields runtime cond
--- SORRY'D:         have hcondEval :
--- SORRY'D:             evalIRExpr state condIR = some condValue := by
--- SORRY'D:           have heval :=
--- SORRY'D:             eval_compileExpr_core_of_scope hcond hexact hinScope hbounded hpresent hruntime
--- SORRY'D:           rw [hcondIR] at heval
--- SORRY'D:           simpa [condValue] using heval
--- SORRY'D:         by_cases hcondZero : condValue = 0
--- SORRY'D:         · let tailExtraFuel :=
--- SORRY'D:             sizeOf bodyIR - (sizeOf elseIR + 5) + extraFuel
--- SORRY'D:           rcases ihElse
--- SORRY'D:               (runtime := runtime)
--- SORRY'D:               (state := state.setVar tempName condValue)
--- SORRY'D:               (inScopeNames := inScopeNames)
--- SORRY'D:               (extraFuel := tailExtraFuel)
--- SORRY'D:               hincluded
--- SORRY'D:               hscope
--- SORRY'D:               (bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
--- SORRY'D:                 (scope := scope)
--- SORRY'D:                 (inScopeNames := inScopeNames)
--- SORRY'D:                 (cond := cond)
--- SORRY'D:                 (thenBranch := thenBranch)
--- SORRY'D:                 (elseBranch := elseBranch)
--- SORRY'D:                 (value := condValue)
--- SORRY'D:                 hexact
--- SORRY'D:                 hincluded)
--- SORRY'D:               hbounded
--- SORRY'D:               (runtimeStateMatchesIR_setVar_irrelevant hruntime) with
--- SORRY'D:             ⟨elseIR', helseIR', helseSem⟩
--- SORRY'D:           rw [helseIR] at helseIR'
--- SORRY'D:           injection helseIR' with helseEq
--- SORRY'D:           subst helseEq
--- SORRY'D:           exact stmtResultMatchesIRExec_compiled_terminal_ite_else
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (runtime := runtime)
--- SORRY'D:             (state := state)
--- SORRY'D:             (scope := scope)
--- SORRY'D:             (cond := cond)
--- SORRY'D:             (thenBranch := thenBranch)
--- SORRY'D:             (elseBranch := elseBranch)
--- SORRY'D:             (rest := rest)
--- SORRY'D:             (extraFuel := extraFuel)
--- SORRY'D:             (tempName := tempName)
--- SORRY'D:             (condIR := condIR)
--- SORRY'D:             (thenIR := thenIR)
--- SORRY'D:             (elseIR := elseIR)
--- SORRY'D:             (tailIR := tailIR)
--- SORRY'D:             (condValue := condValue)
--- SORRY'D:             (irExec := execIRStmts (sizeOf elseIR + tailExtraFuel) (state.setVar tempName condValue) elseIR)
--- SORRY'D:             helse
--- SORRY'D:             helseSem
--- SORRY'D:             (by simp [condValue, hcondZero])
--- SORRY'D:             hcondEval
--- SORRY'D:             hcondZero
--- SORRY'D:             (by
--- SORRY'D:               simpa [bodyIR, tailExtraFuel, tempName, condValue] using rfl)
--- SORRY'D:         · let tailExtraFuel :=
--- SORRY'D:             sizeOf bodyIR - (sizeOf thenIR + 5) + extraFuel
--- SORRY'D:           rcases ihThen
--- SORRY'D:               (runtime := runtime)
--- SORRY'D:               (state := state.setVar tempName condValue)
--- SORRY'D:               (inScopeNames := inScopeNames)
--- SORRY'D:               (extraFuel := tailExtraFuel)
--- SORRY'D:               hincluded
--- SORRY'D:               hscope
--- SORRY'D:               (bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
--- SORRY'D:                 (scope := scope)
--- SORRY'D:                 (inScopeNames := inScopeNames)
--- SORRY'D:                 (cond := cond)
--- SORRY'D:                 (thenBranch := thenBranch)
--- SORRY'D:                 (elseBranch := elseBranch)
--- SORRY'D:                 (value := condValue)
--- SORRY'D:                 hexact
--- SORRY'D:                 hincluded)
--- SORRY'D:               hbounded
--- SORRY'D:               (runtimeStateMatchesIR_setVar_irrelevant hruntime) with
--- SORRY'D:             ⟨thenIR', hthenIR', hthenSem⟩
--- SORRY'D:           rw [hthenIR] at hthenIR'
--- SORRY'D:           injection hthenIR' with hthenEq
--- SORRY'D:           subst hthenEq
--- SORRY'D:           exact stmtResultMatchesIRExec_compiled_terminal_ite_then
--- SORRY'D:             (fields := fields)
--- SORRY'D:             (runtime := runtime)
--- SORRY'D:             (state := state)
--- SORRY'D:             (scope := scope)
--- SORRY'D:             (cond := cond)
--- SORRY'D:             (thenBranch := thenBranch)
--- SORRY'D:             (elseBranch := elseBranch)
--- SORRY'D:             (rest := rest)
--- SORRY'D:             (extraFuel := extraFuel)
--- SORRY'D:             (tempName := tempName)
--- SORRY'D:             (condIR := condIR)
--- SORRY'D:             (thenIR := thenIR)
--- SORRY'D:             (elseIR := elseIR)
--- SORRY'D:             (tailIR := tailIR)
--- SORRY'D:             (condValue := condValue)
--- SORRY'D:             (irExec := execIRStmts (sizeOf thenIR + tailExtraFuel + 1)
--- SORRY'D:               (state.setVar tempName condValue) thenIR)
--- SORRY'D:             hthen
--- SORRY'D:             hthenSem
--- SORRY'D:             (by simp [condValue, hcondZero])
--- SORRY'D:             hcondEval
--- SORRY'D:             (by
--- SORRY'D:               intro hzero
--- SORRY'D:               exact hcondZero hzero)
--- SORRY'D:             (by
--- SORRY'D:               simpa [bodyIR, tailExtraFuel, tempName, condValue, Nat.add_assoc, Nat.add_left_comm,
--- SORRY'D:                 Nat.add_comm] using rfl)
+      stmtResultMatchesIRExec fields sourceResult irExec := by
+  induction hterminal generalizing runtime state inScopeNames extraFuel with
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_terminal_core_ok
+          (fields := fields)
+          (scope := name :: scope)
+          (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
+          (stmts := rest)
+          hrest with
+        ⟨tailIR, htailCompile⟩
+      let valueNat := SourceSemantics.evalExpr fields runtime value
+      let runtime' :=
+        { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+      let state' := state.setVar name valueNat
+      let tailExtraFuel :=
+        sizeOf ([YulStmt.let_ name valueIR] ++ tailIR) - (sizeOf tailIR + 1) + extraFuel
+      rcases ih
+          (runtime := runtime')
+          (state := state')
+          (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
+          (extraFuel := tailExtraFuel)
+          (scopeNamesIncluded_collectStmtNames_letVar (name := name) (value := value) hincluded)
+          (scopeNamesPresent_cons_bindValue hscope)
+          (bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact)
+          (bindingsBounded_bindValue hbounded name valueNat
+            (evalExpr_lt_evmModulus_core_of_scope
+              hvalue
+              hexact
+              hinScope
+              hbounded
+              (exprBoundNamesPresent_of_scope hscope hinScope)
+              hruntime))
+          (runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat) with
+        ⟨tailIR', htailCompile', htailSem⟩
+      rw [htailCompile] at htailCompile'
+      injection htailCompile' with htailEq
+      subst htailEq
+      refine ⟨[YulStmt.let_ name valueIR] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+      · exact stmtResultMatchesIRExec_compiled_let_core_tailExtraFuel_of_scope
+          (fields := fields)
+          (runtime := runtime)
+          (state := state)
+          (scope := scope)
+          (name := name)
+          (value := value)
+          (valueIR := valueIR)
+          (rest := rest)
+          (tailIR := tailIR)
+          (extraFuel := extraFuel)
+          hvalue
+          hvalueIR
+          hexact
+          hinScope
+          hscope
+          hbounded
+          hruntime
+          (by
+            simpa [tailExtraFuel] using htailSem)
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_terminal_core_ok
+          (fields := fields)
+          (scope := name :: scope)
+          (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
+          (stmts := rest)
+          hrest with
+        ⟨tailIR, htailCompile⟩
+      let valueNat := SourceSemantics.evalExpr fields runtime value
+      let runtime' :=
+        { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+      let state' := state.setVar name valueNat
+      let tailExtraFuel :=
+        sizeOf ([YulStmt.assign name valueIR] ++ tailIR) - (sizeOf tailIR + 1) + extraFuel
+      rcases ih
+          (runtime := runtime')
+          (state := state')
+          (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
+          (extraFuel := tailExtraFuel)
+          (scopeNamesIncluded_collectStmtNames_assignVar (name := name) (value := value) hincluded)
+          (scopeNamesPresent_cons_bindValue hscope)
+          (bindingsExactlyMatchIRVarsOnScope_setVar_bindValue hexact)
+          (bindingsBounded_bindValue hbounded name valueNat
+            (evalExpr_lt_evmModulus_core_of_scope
+              hvalue
+              hexact
+              hinScope
+              hbounded
+              (exprBoundNamesPresent_of_scope hscope hinScope)
+              hruntime))
+          (runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat) with
+        ⟨tailIR', htailCompile', htailSem⟩
+      rw [htailCompile] at htailCompile'
+      injection htailCompile' with htailEq
+      subst htailEq
+      refine ⟨[YulStmt.assign name valueIR] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+      · exact stmtResultMatchesIRExec_compiled_assign_core_tailExtraFuel_of_scope
+          (fields := fields)
+          (runtime := runtime)
+          (state := state)
+          (scope := scope)
+          (name := name)
+          (value := value)
+          (valueIR := valueIR)
+          (rest := rest)
+          (tailIR := tailIR)
+          (extraFuel := extraFuel)
+          hvalue
+          hvalueIR
+          hexact
+          hinScope
+          hscope
+          hbounded
+          hruntime
+          (by
+            simpa [tailExtraFuel] using htailSem)
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases eval_compileRequireFailCond_core_of_scope
+          (fields := fields)
+          (runtime := runtime)
+          (state := state)
+          (scope := scope)
+          (cond := cond)
+          hcond hexact hinScope hbounded hpresent hruntime with
+        ⟨failCond, hfailCompile, hfailEval⟩
+      rcases compileStmtList_terminal_core_ok
+          (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
+          (stmts := rest)
+          hrest with
+        ⟨tailIR, htailCompile⟩
+      refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hfailCompile]
+        simp [htailCompile]
+      · by_cases hcondZero : SourceSemantics.evalExpr fields runtime cond = 0
+        · rcases execIRStmts_compiled_require_core_fail_append_wholeFuel_of_scope
+            (fields := fields)
+            (runtime := runtime)
+            (state := state)
+            (scope := scope)
+            (cond := cond)
+            (message := message)
+            (tailIR := tailIR)
+            (extraFuel := extraFuel)
+            hcond
+            hexact
+            hinScope
+            hscope
+            hbounded
+            hruntime
+            hcondZero with
+            ⟨_, _, _, hwhole⟩
+          rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+          simp [hcondZero, hwhole, stmtResultMatchesIRExec]
+        · let tailExtraFuel :=
+            sizeOf ([YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR) -
+              (sizeOf tailIR + 1) + extraFuel
+          rcases ih
+              (runtime := runtime)
+              (state := state)
+              (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
+              (extraFuel := tailExtraFuel)
+              (scopeNamesIncluded_collectStmtNames_tail (stmt := .require cond message) hincluded)
+              hscope
+              hexact
+              hbounded
+              hruntime with
+            ⟨tailIR', htailCompile', htailSem⟩
+          rw [htailCompile] at htailCompile'
+          injection htailCompile' with htailEq
+          subst htailEq
+          exact stmtResultMatchesIRExec_compiled_require_core_pass_tailExtraFuel_of_scope
+            (fields := fields)
+            (runtime := runtime)
+            (state := state)
+            (scope := scope)
+            (cond := cond)
+            (message := message)
+            (failCond := failCond)
+            (rest := rest)
+            (tailIR := tailIR)
+            (extraFuel := extraFuel)
+            hcond
+            hfailCompile
+            hexact
+            hinScope
+            hscope
+            hbounded
+            hruntime
+            (by
+              intro hzero
+              exact hcondZero hzero)
+            (by
+              simpa [tailExtraFuel] using htailSem)
+  | return_ hvalue hinScope hrest =>
+      rename_i scope value rest
+      rcases compileExpr_core_ok (fields := fields) hvalue with ⟨valueIR, hvalueIR⟩
+      rcases compileStmtList_core_ok
+          (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
+          (stmts := rest)
+          hrest with
+        ⟨tailIR, htailCompile⟩
+      refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
+        ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+      · exact stmtResultMatchesIRExec_compiled_return_core_append_wholeFuel_of_scope
+          (fields := fields)
+          (runtime := runtime)
+          (state := state)
+          (scope := scope)
+          (value := value)
+          (valueIR := valueIR)
+          (rest := rest)
+          (tailIR := tailIR)
+          (extraFuel := extraFuel)
+          hvalue
+          hvalueIR
+          hexact
+          hinScope
+          hscope
+          hbounded
+          hruntime
+  | stop hrest =>
+      rename_i scope rest
+      rcases compileStmtList_core_ok
+          (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
+          (stmts := rest)
+          hrest with
+        ⟨tailIR, htailCompile⟩
+      refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
+      · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
+      · exact stmtResultMatchesIRExec_compiled_stop_core_append_wholeFuel
+          (fields := fields)
+          (runtime := runtime)
+          (state := state)
+          (rest := rest)
+          (tailIR := tailIR)
+          (extraFuel := extraFuel)
+          hruntime
+  | ite hcond hinScope hthen helse hrest ihThen ihElse =>
+      rename_i scope cond thenBranch elseBranch rest
+      rcases compileExpr_core_ok (fields := fields) hcond with ⟨condIR, hcondIR⟩
+      rcases compileStmtList_terminal_core_ok
+          (fields := fields)
+          (scope := scope)
+          (inScopeNames := inScopeNames)
+          (stmts := thenBranch)
+          hthen with
+        ⟨thenIR, hthenIR⟩
+      rcases compileStmtList_terminal_core_ok
+          (fields := fields)
+          (scope := scope)
+          (inScopeNames := inScopeNames)
+          (stmts := elseBranch)
+          helse with
+        ⟨elseIR, helseIR⟩
+      rcases compileStmtList_core_ok
+          (fields := fields)
+          (scope := scope)
+          (inScopeNames := collectStmtNames (.ite cond thenBranch elseBranch) ++ inScopeNames)
+          (stmts := rest)
+          hrest with
+        ⟨tailIR, htailIR⟩
+      have helseNonempty : elseBranch.isEmpty = false := by
+        cases elseBranch with
+        | nil =>
+            exfalso
+            exact stmtListTerminalCore_ne_nil helse rfl
+        | cons =>
+            simp
+      let tempName :=
+        CompilationModel.pickFreshName "__ite_cond"
+          (inScopeNames ++ collectExprNames cond ++
+            collectStmtListNames thenBranch ++ collectStmtListNames elseBranch)
+      let bodyIR :=
+        [YulStmt.block
+          [ YulStmt.let_ tempName condIR
+          , YulStmt.if_ (YulExpr.ident tempName) thenIR
+          , YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident tempName]) elseIR ]] ++
+          tailIR
+      refine ⟨bodyIR, ?_, ?_⟩
+      · unfold bodyIR tempName
+        rw [CompilationModel.compileStmtList]
+        unfold CompilationModel.compileStmt
+        rw [hcondIR, hthenIR, helseIR]
+        dsimp
+        rw [htailIR]
+        simp [helseNonempty]
+      · have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+          exprBoundNamesPresent_of_scope hscope hinScope
+        let condValue := SourceSemantics.evalExpr fields runtime cond
+        have hcondEval :
+            evalIRExpr state condIR = some condValue := by
+          have heval :=
+            eval_compileExpr_core_of_scope hcond hexact hinScope hbounded hpresent hruntime
+          rw [hcondIR] at heval
+          simpa [condValue] using heval
+        by_cases hcondZero : condValue = 0
+        · let tailExtraFuel :=
+            sizeOf bodyIR - (sizeOf elseIR + 5) + extraFuel
+          rcases ihElse
+              (runtime := runtime)
+              (state := state.setVar tempName condValue)
+              (inScopeNames := inScopeNames)
+              (extraFuel := tailExtraFuel)
+              hincluded
+              hscope
+              (bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
+                (scope := scope)
+                (inScopeNames := inScopeNames)
+                (cond := cond)
+                (thenBranch := thenBranch)
+                (elseBranch := elseBranch)
+                (value := condValue)
+                hexact
+                hincluded)
+              hbounded
+              (runtimeStateMatchesIR_setVar_irrelevant hruntime) with
+            ⟨elseIR', helseIR', helseSem⟩
+          rw [helseIR] at helseIR'
+          injection helseIR' with helseEq
+          subst helseEq
+          exact stmtResultMatchesIRExec_compiled_terminal_ite_else
+            (fields := fields)
+            (runtime := runtime)
+            (state := state)
+            (scope := scope)
+            (cond := cond)
+            (thenBranch := thenBranch)
+            (elseBranch := elseBranch)
+            (rest := rest)
+            (extraFuel := extraFuel)
+            (tempName := tempName)
+            (condIR := condIR)
+            (thenIR := thenIR)
+            (elseIR := elseIR)
+            (tailIR := tailIR)
+            (condValue := condValue)
+            (irExec := execIRStmts (sizeOf elseIR + tailExtraFuel) (state.setVar tempName condValue) elseIR)
+            helse
+            helseSem
+            (by simp [condValue, hcondZero])
+            hcondEval
+            hcondZero
+            (by
+              simpa [bodyIR, tailExtraFuel, tempName, condValue] using rfl)
+        · let tailExtraFuel :=
+            sizeOf bodyIR - (sizeOf thenIR + 5) + extraFuel
+          rcases ihThen
+              (runtime := runtime)
+              (state := state.setVar tempName condValue)
+              (inScopeNames := inScopeNames)
+              (extraFuel := tailExtraFuel)
+              hincluded
+              hscope
+              (bindingsExactlyMatchIRVarsOnScope_setCompiledTerminalIteTemp_irrelevant
+                (scope := scope)
+                (inScopeNames := inScopeNames)
+                (cond := cond)
+                (thenBranch := thenBranch)
+                (elseBranch := elseBranch)
+                (value := condValue)
+                hexact
+                hincluded)
+              hbounded
+              (runtimeStateMatchesIR_setVar_irrelevant hruntime) with
+            ⟨thenIR', hthenIR', hthenSem⟩
+          rw [hthenIR] at hthenIR'
+          injection hthenIR' with hthenEq
+          subst hthenEq
+          exact stmtResultMatchesIRExec_compiled_terminal_ite_then
+            (fields := fields)
+            (runtime := runtime)
+            (state := state)
+            (scope := scope)
+            (cond := cond)
+            (thenBranch := thenBranch)
+            (elseBranch := elseBranch)
+            (rest := rest)
+            (extraFuel := extraFuel)
+            (tempName := tempName)
+            (condIR := condIR)
+            (thenIR := thenIR)
+            (elseIR := elseIR)
+            (tailIR := tailIR)
+            (condValue := condValue)
+            (irExec := execIRStmts (sizeOf thenIR + tailExtraFuel + 1)
+              (state.setVar tempName condValue) thenIR)
+            hthen
+            hthenSem
+            (by simp [condValue, hcondZero])
+            hcondEval
+            (by
+              intro hzero
+              exact hcondZero hzero)
+            (by
+              simpa [bodyIR, tailExtraFuel, tempName, condValue, Nat.add_assoc, Nat.add_left_comm,
+                Nat.add_comm] using rfl)
 
 def irResultOfExecResult (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
