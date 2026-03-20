@@ -65,6 +65,11 @@ on:
         required: false
         default: false
         type: boolean
+      force_full_run:
+        description: 'Bypass change filters and run the full verification workflow for prewarming or manual validation'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -78,6 +83,7 @@ env:
   SOLC_URL: "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21"
   SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
   VERIFY_CLEAN_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
+  VERIFY_FORCE_FULL_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_full_run && 'true' || 'false' }}
   VERIFY_USE_STICKY_DISKS: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}
   VERIFY_DISABLE_LAKE_CACHE_RESTORE: ${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}
   VERIFY_CACHE_BUCKET: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}
@@ -87,10 +93,10 @@ jobs:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     outputs:
-      code: ${{ steps.filter.outputs.code }}
-      build: ${{ steps.filter.outputs.build }}
-      compiler: ${{ steps.filter.outputs.compiler }}
-      macro_fuzz: ${{ steps.filter.outputs.macro_fuzz }}
+      code: ${{ steps.effective.outputs.code }}
+      build: ${{ steps.effective.outputs.build }}
+      compiler: ${{ steps.effective.outputs.compiler }}
+      macro_fuzz: ${{ steps.effective.outputs.macro_fuzz }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -167,6 +173,33 @@ jobs:
               - 'lakefile.lean'
               - 'lake-manifest.json'
               - 'lean-toolchain'
+      - name: Resolve effective change flags
+        id: effective
+        env:
+          FORCE_FULL_RUN: ${{ env.VERIFY_FORCE_FULL_RUN }}
+          CODE_CHANGED: ${{ steps.filter.outputs.code }}
+          BUILD_CHANGED: ${{ steps.filter.outputs.build }}
+          COMPILER_CHANGED: ${{ steps.filter.outputs.compiler }}
+          MACRO_FUZZ_CHANGED: ${{ steps.filter.outputs.macro_fuzz }}
+        run: |
+          if [ "$FORCE_FULL_RUN" = "true" ]; then
+            code=true
+            build=true
+            compiler=true
+            macro_fuzz=true
+          else
+            code="$CODE_CHANGED"
+            build="$BUILD_CHANGED"
+            compiler="$COMPILER_CHANGED"
+            macro_fuzz="$MACRO_FUZZ_CHANGED"
+          fi
+
+          {
+            echo "code=$code"
+            echo "build=$build"
+            echo "compiler=$compiler"
+            echo "macro_fuzz=$macro_fuzz"
+          } >> "$GITHUB_OUTPUT"
 
   checks:
     runs-on: blacksmith-2vcpu-ubuntu-2404
