@@ -1725,6 +1725,155 @@ mutual
             spec fields fuel state expr (by simpa using hsurface.1),
           ih hsurface.2]
 
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_keyValue
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (stmt : Stmt)
+      (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false)
+      (hshape :
+        stmt = Stmt.setMapping "" (Expr.literal 0) (Expr.literal 0) ∨
+        stmt = Stmt.setMappingWord "" (Expr.literal 0) 0 (Expr.literal 0) ∨
+        stmt = Stmt.setMappingPackedWord "" (Expr.literal 0) 0 PackedBits.zero (Expr.literal 0) ∨
+        stmt = Stmt.setMappingUint "" (Expr.literal 0) (Expr.literal 0) ∨
+        stmt = Stmt.setStructMember "" (Expr.literal 0) "" (Expr.literal 0)) :
+      execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+    cases stmt <;> cases hshape
+    all_goals
+      simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.1,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_keyListValue
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (fieldName : String)
+      (keys : List Expr)
+      (value : Expr)
+      (hsurface : stmtTouchesUnsupportedHelperSurface (.setMappingChain fieldName keys value) = false) :
+      execStmtWithHelpers spec fields fuel state (.setMappingChain fieldName keys value) =
+        execStmt fields state (.setMappingChain fieldName keys value) := by
+    simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+    simp [execStmtWithHelpers, execStmt,
+      evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed spec fields fuel state keys hsurface.1,
+      evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_twoKeysValue
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (stmt : Stmt)
+      (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false)
+      (hshape :
+        stmt = Stmt.setMapping2 "" (Expr.literal 0) (Expr.literal 0) (Expr.literal 0) ∨
+        stmt = Stmt.setMapping2Word "" (Expr.literal 0) (Expr.literal 0) 0 (Expr.literal 0) ∨
+        stmt = Stmt.setStructMember2 "" (Expr.literal 0) (Expr.literal 0) "" (Expr.literal 0)) :
+      execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+    cases stmt <;> cases hshape
+    all_goals
+      simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff, Bool.or_assoc] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.1,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.2.1,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.2.2]
+
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_indexValue
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (stmt : Stmt)
+      (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false)
+      (hshape :
+        stmt = Stmt.setStorageArrayElement "" (Expr.literal 0) (Expr.literal 0) ∨
+        stmt = Stmt.mstore (Expr.literal 0) (Expr.literal 0) ∨
+        stmt = Stmt.tstore (Expr.literal 0) (Expr.literal 0)) :
+      execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+    cases stmt <;> cases hshape
+    all_goals
+      simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      simp [execStmtWithHelpers, execStmt,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.1,
+        evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state _ hsurface.2]
+
+  mutual
+  private theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (stmt : Stmt)
+      (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
+      execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
+    cases stmt with
+    | letVar _ value | assignVar _ value | setStorage _ value
+    | setStorageAddr _ value | storageArrayPush _ value =>
+        simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+        simp [execStmtWithHelpers, execStmt,
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state value hsurface]
+    | setMapping _ _ _ | setMappingWord _ _ _ _ | setMappingPackedWord _ _ _ _ _
+    | setMappingUint _ _ _ | setStructMember _ _ _ _ =>
+        exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_keyValue
+          spec fields fuel state stmt hsurface (by first | left; rfl | right; left; rfl | right; right; left; rfl | right; right; right; left; rfl | right; right; right; right; rfl)
+    | setMappingChain fieldName keys value =>
+        exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_keyListValue
+          spec fields fuel state fieldName keys value hsurface
+    | setMapping2 _ _ _ _ | setMapping2Word _ _ _ _ _ | setStructMember2 _ _ _ _ _ =>
+        exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_twoKeysValue
+          spec fields fuel state stmt hsurface (by first | left; rfl | right; left; rfl | right; right; rfl)
+    | setStorageArrayElement _ _ _ | mstore _ _ | tstore _ _ =>
+        exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_indexValue
+          spec fields fuel state stmt hsurface (by first | left; rfl | right; left; rfl | right; right; rfl)
+    | require cond _ | «return» cond =>
+        simp only [stmtTouchesUnsupportedHelperSurface] at hsurface
+        simp [execStmtWithHelpers, execStmt,
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state cond hsurface]
+    | stop =>
+        simp [execStmtWithHelpers, execStmt]
+    | ite cond thenBranch elseBranch =>
+        simp only [stmtTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff, Bool.or_assoc] at hsurface
+        simp [execStmtWithHelpers, execStmt,
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state cond hsurface.1,
+          execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
+            spec fields fuel state thenBranch hsurface.2.1,
+          execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
+            spec fields fuel state elseBranch hsurface.2.2]
+    | internalCall _ _ | internalCallAssign _ _ _ =>
+        simp [stmtTouchesUnsupportedHelperSurface] at hsurface
+    | storageArrayPop _ | requireError _ _ _ | revertError _ _
+    | returnValues _ | returnArray _ | returnBytes _ | returnStorageWords _
+    | calldatacopy _ _ _ | returndataCopy _ _ _ | revertReturndata
+    | forEach _ _ _ | emit _ _ | rawLog _ _ _ | externalCallBind _ _ _
+    | ecm _ _ =>
+        simp [execStmtWithHelpers, execStmt]
+
+  private theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
+      (spec : CompilationModel)
+      (fields : List Field)
+      (fuel : Nat)
+      (state : RuntimeState)
+      (stmts : List Stmt)
+      (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
+      execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
+    induction stmts generalizing state with
+    | nil =>
+        simp [execStmtListWithHelpers, execStmtList]
+    | cons stmt rest ih =>
+        simp only [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+        simp [execStmtListWithHelpers, execStmtList,
+          execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+            spec fields fuel state stmt hsurface.1,
+          ih hsurface.2]
+  termination_by
+    execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux spec fields fuel state stmt _ => sizeOf stmt
+    execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux spec fields fuel state stmts _ => sizeOf stmts
+  end
+
   theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
       (spec : CompilationModel)
       (fields : List Field)
@@ -1733,9 +1882,8 @@ mutual
       (stmt : Stmt)
       (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
       execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; needs per-constructor
-    -- proofs with targeted unfold instead of blanket simp.
-    sorry
+    exact execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed_aux
+      spec fields fuel state stmt hsurface
 
 theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1745,8 +1893,8 @@ theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (stmts : List Stmt)
       (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
       execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
-    -- TODO(#1645): depends on execStmtWithHelpers_eq_execStmt fix above
-    sorry
+    exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed_aux
+      spec fields fuel state stmts hsurface
 end
 
 /-- Exact source-side helper-composition target for a statement list: the
@@ -1788,9 +1936,20 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     (hsurface : stmtListTouchesUnsupportedHelperSurface fn.body = false) :
     interpretFunctionWithHelpers spec fuel fn tx initialWorld =
       interpretFunction spec fn tx initialWorld := by
-  -- TODO(#1645): simp [interpretFunctionWithHelpers, interpretFunction] no longer makes progress
-  -- after mutual-block termination refactor; needs unfold or simp_only approach.
-  sorry
+  unfold interpretFunctionWithHelpers interpretFunction
+  simp only
+  cases hbind : bindSupportedParams fn.params tx.args with
+  | none =>
+      simp [hbind]
+  | some bindings =>
+      simp [hbind,
+        execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+          (spec := spec)
+          (fields := effectiveFields spec)
+          (fuel := fuel)
+          (state := { world := withTransactionContext initialWorld tx, bindings := bindings })
+          (stmts := fn.body)
+          hsurface]
 
 private theorem mem_of_find?_some_local
     {α : Type} (p : α → Bool) :
