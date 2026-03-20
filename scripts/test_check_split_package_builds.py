@@ -36,6 +36,38 @@ class CheckSplitPackageBuildsTests(unittest.TestCase):
         outside = Path("/tmp/verity-edsl")
         self.assertEqual(check.display_path(outside), outside)
 
+    def test_seed_packages_dir_reuses_root_lake_packages(self) -> None:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tmpdir:
+            root = Path(tmpdir)
+            root_packages = root / ".lake" / "packages"
+            root_packages.mkdir(parents=True, exist_ok=True)
+            (root_packages / "marker.txt").write_text("cached\n", encoding="utf-8")
+            package_dir = root / "packages" / "verity-edsl"
+            package_dir.mkdir(parents=True, exist_ok=True)
+
+            with patch.object(check, "ROOT", root):
+                check.seed_packages_dir(package_dir)
+
+            package_packages = package_dir / ".lake" / "packages"
+            self.assertTrue(package_packages.exists())
+            self.assertEqual((package_packages / "marker.txt").read_text(encoding="utf-8"), "cached\n")
+
+    def test_seed_packages_dir_leaves_existing_package_cache_untouched(self) -> None:
+        with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tmpdir:
+            root = Path(tmpdir)
+            root_packages = root / ".lake" / "packages"
+            root_packages.mkdir(parents=True, exist_ok=True)
+            (root_packages / "marker.txt").write_text("root\n", encoding="utf-8")
+            package_dir = root / "packages" / "verity-edsl"
+            package_packages = package_dir / ".lake" / "packages"
+            package_packages.mkdir(parents=True, exist_ok=True)
+            (package_packages / "marker.txt").write_text("local\n", encoding="utf-8")
+
+            with patch.object(check, "ROOT", root):
+                check.seed_packages_dir(package_dir)
+
+            self.assertEqual((package_packages / "marker.txt").read_text(encoding="utf-8"), "local\n")
+
     def test_check_split_package_builds_passes_when_all_builds_succeed(self) -> None:
         with tempfile.TemporaryDirectory(dir=SCRIPT_DIR.parent) as tmpdir:
             root = Path(tmpdir)
