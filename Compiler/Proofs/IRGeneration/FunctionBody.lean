@@ -5289,7 +5289,245 @@ theorem exec_compileStmtList_core
       let sourceResult := SourceSemantics.execStmtList fields runtime stmts
       let irExec := execIRStmts (bodyIR.length + 1) state bodyIR
       stmtResultMatchesIRExec fields sourceResult irExec ∧
-      stmtResultMatchesIRExecExact sourceResult irExec := by sorry
+      stmtResultMatchesIRExecExact sourceResult irExec := by
+  induction hcore generalizing runtime state inScopeNames with
+  | nil =>
+      refine ⟨[], rfl, ?_⟩
+      constructor
+      · simpa [SourceSemantics.execStmtList, execIRStmts, stmtResultMatchesIRExec] using hruntime
+      · simpa [SourceSemantics.execStmtList, execIRStmts, stmtResultMatchesIRExecExact] using
+          And.intro hexact hbounded
+  | letVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      have hpresent : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      let valueNat := SourceSemantics.evalExpr fields runtime value
+      let runtime' :=
+        { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+      let state' := state.setVar name valueNat
+      have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
+      rw [hvalueIR] at heval
+      have heval' : evalIRExpr state valueIR = some valueNat := by
+        simpa [valueNat] using heval
+      have hvalueLt := evalExpr_lt_evmModulus_core hvalue hexact hbounded hpresent hruntime
+      have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+        runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
+      have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
+        bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
+      have hbounded' : bindingsBounded runtime'.bindings :=
+        bindingsBounded_bindValue hbounded name valueNat hvalueLt
+      have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
+        scopeNamesPresent_cons_bindValue hscope
+      rcases ih (runtime := runtime') (state := state')
+          (inScopeNames := collectStmtNames (.letVar name value) ++ inScopeNames)
+          hscope' hexact' hbounded' hruntime' with
+        ⟨tailIR, htailCompile, htailSem, htailExact⟩
+      refine ⟨[YulStmt.let_ name valueIR] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+        exact rfl
+      · have hstmt :
+            execIRStmt (tailIR.length + 1) state (YulStmt.let_ name valueIR) =
+              .continue state' := by
+          simp [execIRStmt, heval', state', valueNat]
+        have hirExec :
+            execIRStmts (tailIR.length + 2) state
+              (YulStmt.let_ name valueIR :: tailIR) =
+              execIRStmts (tailIR.length + 1) state' tailIR := by
+          simpa using
+            (execIRStmts_cons_of_execIRStmt_continue state state'
+              (YulStmt.let_ name valueIR) tailIR hstmt)
+        rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+        dsimp [runtime', state']
+        constructor
+        · simpa [hirExec, runtime', valueNat] using htailSem
+        · simpa [hirExec, runtime', valueNat] using htailExact
+  | assignVar hvalue hinScope hrest ih =>
+      rename_i scope name value rest
+      have hpresent : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      let valueNat := SourceSemantics.evalExpr fields runtime value
+      let runtime' :=
+        { runtime with bindings := SourceSemantics.bindValue runtime.bindings name valueNat }
+      let state' := state.setVar name valueNat
+      have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
+      rw [hvalueIR] at heval
+      have heval' : evalIRExpr state valueIR = some valueNat := by
+        simpa [valueNat] using heval
+      have hvalueLt := evalExpr_lt_evmModulus_core hvalue hexact hbounded hpresent hruntime
+      have hruntime' : runtimeStateMatchesIR fields runtime' state' :=
+        runtimeStateMatchesIR_setVar_bindValue hruntime name valueNat
+      have hexact' : bindingsExactlyMatchIRVars runtime'.bindings state' :=
+        bindingsExactlyMatchIRVars_setVar_bindValue hexact name valueNat
+      have hbounded' : bindingsBounded runtime'.bindings :=
+        bindingsBounded_bindValue hbounded name valueNat hvalueLt
+      have hscope' : scopeNamesPresent (name :: scope) runtime'.bindings :=
+        scopeNamesPresent_cons_bindValue hscope
+      rcases ih (runtime := runtime') (state := state')
+          (inScopeNames := collectStmtNames (.assignVar name value) ++ inScopeNames)
+          hscope' hexact' hbounded' hruntime' with
+        ⟨tailIR, htailCompile, htailSem, htailExact⟩
+      refine ⟨[YulStmt.assign name valueIR] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+        exact rfl
+      · have hstmt :
+            execIRStmt (tailIR.length + 1) state (YulStmt.assign name valueIR) =
+              .continue state' := by
+          simp [execIRStmt, heval', state', valueNat]
+        have hirExec :
+            execIRStmts (tailIR.length + 2) state
+              (YulStmt.assign name valueIR :: tailIR) =
+              execIRStmts (tailIR.length + 1) state' tailIR := by
+          simpa using
+            (execIRStmts_cons_of_execIRStmt_continue state state'
+              (YulStmt.assign name valueIR) tailIR hstmt)
+        rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+        dsimp [runtime', state']
+        constructor
+        · simpa [hirExec, runtime', valueNat] using htailSem
+        · simpa [hirExec, runtime', valueNat] using htailExact
+  | require_ hcond hinScope hrest ih =>
+      rename_i scope cond message rest
+      have hpresent : exprBoundNamesPresent cond runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases eval_compileRequireFailCond_core hcond hexact hbounded hpresent hruntime with
+        ⟨failCond, hfailCompile, hfailEval⟩
+      rcases ih (runtime := runtime) (state := state)
+          (inScopeNames := collectStmtNames (.require cond message) ++ inScopeNames)
+          hscope hexact hbounded hruntime with
+        ⟨tailIR, htailCompile, htailSem, htailExact⟩
+      refine ⟨[YulStmt.if_ failCond (CompilationModel.revertWithMessage message)] ++ tailIR, ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hfailCompile]
+        simp [htailCompile]
+        exact rfl
+      · by_cases hcondZero : SourceSemantics.evalExpr fields runtime cond = 0
+        · rcases execIRStmts_revertWithMessage_revert (fuel := tailIR.length) (state := state) message with
+            ⟨revState, hrev⟩
+          have hfailEval' : evalIRExpr state failCond = some 1 := by
+            simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
+          have hstmt :
+              execIRStmt (tailIR.length + 1) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                  .revert revState := by
+            simp [execIRStmt, hfailEval', hrev]
+          have hirExec :
+              execIRStmts (tailIR.length + 2) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
+                  .revert revState := by
+            simpa using
+              (execIRStmts_cons_of_execIRStmt_revert state revState
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
+          rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+          simp [hcondZero, hirExec, stmtResultMatchesIRExec, stmtResultMatchesIRExecExact]
+        · have hfailEval' : evalIRExpr state failCond = some 0 := by
+            simpa [hcondZero, SourceSemantics.boolWord] using hfailEval
+          have hstmt :
+              execIRStmt (tailIR.length + 1) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) =
+                  .continue state := by
+            simp [execIRStmt, hfailEval']
+          have hirExec :
+              execIRStmts (tailIR.length + 2) state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message) :: tailIR) =
+                  execIRStmts (tailIR.length + 1) state tailIR := by
+            simpa using
+              (execIRStmts_cons_of_execIRStmt_continue state state
+                (YulStmt.if_ failCond (CompilationModel.revertWithMessage message)) tailIR hstmt)
+          rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+          simp [hcondZero, hirExec]
+          constructor
+          · simpa [hirExec] using htailSem
+          · simpa [hirExec] using htailExact
+  | return_ hvalue hinScope hrest ih =>
+      rename_i scope value rest
+      have hpresent : exprBoundNamesPresent value runtime.bindings :=
+        exprBoundNamesPresent_of_scope hscope hinScope
+      rcases compileExpr_core_ok hvalue with ⟨valueIR, hvalueIR⟩
+      let retVal := SourceSemantics.evalExpr fields runtime value
+      let state' := { state with memory := fun o => if o = 0 then retVal else state.memory o }
+      rcases ih (runtime := runtime) (state := state')
+          (inScopeNames := collectStmtNames (.return value) ++ inScopeNames)
+          hscope
+          (bindingsExactlyMatchIRVars_setMemory hexact 0 retVal)
+          hbounded
+          (runtimeStateMatchesIR_setMemory hruntime 0 retVal) with
+        ⟨tailIR, htailCompile, htailSem, htailExact⟩
+      refine ⟨[ YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])
+              , YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ] ++ tailIR,
+        ?_, ?_⟩
+      · unfold CompilationModel.compileStmtList CompilationModel.compileStmt
+        rw [hvalueIR]
+        simp [htailCompile]
+        exact rfl
+      · have heval := eval_compileExpr_core hvalue hexact hbounded hpresent hruntime
+        rw [hvalueIR] at heval
+        have heval' : evalIRExpr state valueIR = some retVal := by
+          simpa [retVal] using heval
+        have hruntime' : runtimeStateMatchesIR fields runtime state' :=
+          runtimeStateMatchesIR_setMemory hruntime 0 retVal
+        have hexact' : bindingsExactlyMatchIRVars runtime.bindings state' :=
+          bindingsExactlyMatchIRVars_setMemory hexact 0 retVal
+        have hmstore :
+            execIRStmt (tailIR.length + 2) state
+              (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR])) =
+              .continue state' := by
+          simp [execIRStmt, evalIRExpr, heval', retVal, state']
+        have hreturn :
+            execIRStmt (tailIR.length + 1) state'
+              (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])) =
+              .return retVal state' := by
+          simp [execIRStmt, evalIRExpr, retVal, state']
+        have hirExec :
+            execIRStmts (tailIR.length + 3)
+              state
+              (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]) ::
+                YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]) ::
+                tailIR) =
+              .return retVal state' := by
+          simpa using
+            (execIRStmts_two_of_continue_then_return state state' state'
+              (YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, valueIR]))
+              (YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32]))
+              tailIR retVal hmstore hreturn)
+        rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+        dsimp [retVal, state']
+        constructor
+        · simpa [hirExec] using (show
+            stmtResultMatchesIRExec fields
+              (SourceSemantics.StmtResult.return retVal runtime)
+              (.return retVal state') from ⟨rfl, hruntime'⟩)
+        · simpa [hirExec] using (show
+            stmtResultMatchesIRExecExact
+              (SourceSemantics.StmtResult.return retVal runtime)
+              (.return retVal state') from ⟨hexact', hbounded⟩)
+  | stop hrest ih =>
+      rename_i scope rest
+      rcases ih (runtime := runtime) (state := state)
+          (inScopeNames := collectStmtNames (.stop) ++ inScopeNames)
+          hscope hexact hbounded hruntime with
+        ⟨tailIR, htailCompile, htailSem, htailExact⟩
+      refine ⟨[YulStmt.expr (YulExpr.call "stop" [])] ++ tailIR, ?_, ?_⟩
+      · simpa [CompilationModel.compileStmtList, CompilationModel.compileStmt, htailCompile]
+      · have hstmt :
+            execIRStmt (tailIR.length + 1) state (YulStmt.expr (YulExpr.call "stop" [])) =
+              .stop state := by
+          simp [execIRStmt]
+        have hirExec :
+            execIRStmts (tailIR.length + 2) state
+              (YulStmt.expr (YulExpr.call "stop" []) :: tailIR) =
+              .stop state := by
+          simpa using
+            (execIRStmts_cons_of_execIRStmt_stop state state
+              (YulStmt.expr (YulExpr.call "stop" [])) tailIR hstmt)
+        rw [SourceSemantics.execStmtList, SourceSemantics.execStmt]
+        simp [hirExec]
+        exact ⟨hruntime, ⟨hexact, hbounded⟩⟩
 -- SORRY'D:   induction hcore generalizing runtime state inScopeNames with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       refine ⟨[], rfl, ?_⟩

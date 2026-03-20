@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 177  # Reduced by proving the single-statement core exactness lemmas
+    expected_sorry = 176  # Reduced by proving exec_compileStmtList_core
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
