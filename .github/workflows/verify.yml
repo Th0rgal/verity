@@ -212,13 +212,13 @@ jobs:
           set -o pipefail
           lake build 2>&1 | tee lake-build.log
 
+      - name: Check Lean warning non-regression
+        run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
+
       - name: Prebuild shared audit Lean targets
         run: |
           set -o pipefail
           lake build PrintAxioms 2>&1 | tee -a lake-build.log
-
-      - name: Check Lean warning non-regression
-        run: python3 scripts/check_lean_warning_regression.py --log lake-build.log
 
       - name: Package prepared Lean workspace build
         run: tar -cf lean-workspace-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
