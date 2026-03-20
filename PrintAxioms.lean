@@ -759,7 +759,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_normalized_extraFuel
 #print axioms Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_correct_of_body_supported_extraFuel
 -- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir
 #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_body_goal_and_helper_ir_of_bodyCallsDisjoint
 -- #print axioms Compiler.Proofs.IRGeneration.Function.supported_function_correct_with_helper_proofs_goal  -- sorry'd
@@ -1732,4 +1732,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1598 theorems/lemmas (1115 public, 421 private, 62 sorry'd)
+-- Total: 1598 theorems/lemmas (1116 public, 421 private, 61 sorry'd)
