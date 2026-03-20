@@ -908,7 +908,8 @@ private theorem firstFieldWriteSlotConflict_eq_none_of_validateCompileInputs
     {selectors : List Nat}
     (hvalidate : validateCompileInputs spec selectors = Except.ok ()) :
     firstFieldWriteSlotConflict
-        (applySlotAliasRanges spec.fields spec.slotAliasRanges) = none := by sorry
+        (applySlotAliasRanges spec.fields spec.slotAliasRanges) = none := by
+  exact validateCompileInputs_firstFieldWriteSlotConflict_eq_none hvalidate
 
 theorem compileFunctionSpec_correct_of_body
     (model : CompilationModel)
