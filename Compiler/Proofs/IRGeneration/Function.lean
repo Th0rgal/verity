@@ -589,52 +589,52 @@ theorem initialIRStateForTx_matches_runtime
       (SourceSemantics.effectiveFields model)
       { world := SourceSemantics.withTransactionContext initialWorld tx
         bindings := [] }
-      (FunctionBody.initialIRStateForTx model tx initialWorld) := by sorry
--- SORRY'D:   rcases htxNormalized with
--- SORRY'D:     ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain⟩
--- SORRY'D:   have hsenderEvm : tx.sender < Compiler.Constants.evmModulus := by
--- SORRY'D:     dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hsender ⊢
--- SORRY'D:     omega
--- SORRY'D:   have hthisEvm : tx.thisAddress < Compiler.Constants.evmModulus := by
--- SORRY'D:     dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hthis ⊢
--- SORRY'D:     omega
--- SORRY'D:   have hsenderAddr : tx.sender < Verity.Core.Address.modulus := by
--- SORRY'D:     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
--- SORRY'D:   have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
--- SORRY'D:     simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
--- SORRY'D:   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, rfl, ?_⟩
--- SORRY'D:   · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
--- SORRY'D:       SourceSemantics.encodeStorage] using
--- SORRY'D:       (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
--- SORRY'D:       Verity.wordToAddress]
--- SORRY'D:     symm
--- SORRY'D:     calc
--- SORRY'D:       tx.sender % Compiler.Constants.evmModulus % Verity.Core.Address.modulus
--- SORRY'D:           = tx.sender % Verity.Core.Address.modulus := by
--- SORRY'D:               rw [Nat.mod_eq_of_lt hsenderEvm]
--- SORRY'D:       _ = tx.sender := Nat.mod_eq_of_lt hsenderAddr
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
--- SORRY'D:     symm
--- SORRY'D:     exact Nat.mod_eq_of_lt hmsgValue
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
--- SORRY'D:       Verity.wordToAddress]
--- SORRY'D:     symm
--- SORRY'D:     calc
--- SORRY'D:       tx.thisAddress % Compiler.Constants.evmModulus % Verity.Core.Address.modulus
--- SORRY'D:           = tx.thisAddress % Verity.Core.Address.modulus := by
--- SORRY'D:               rw [Nat.mod_eq_of_lt hthisEvm]
--- SORRY'D:       _ = tx.thisAddress := Nat.mod_eq_of_lt hthisAddr
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
--- SORRY'D:     symm
--- SORRY'D:     exact Nat.mod_eq_of_lt htimestamp
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
--- SORRY'D:     symm
--- SORRY'D:     exact Nat.mod_eq_of_lt hnumber
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
--- SORRY'D:     symm
--- SORRY'D:     exact Nat.mod_eq_of_lt hchain
--- SORRY'D:   · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+      (FunctionBody.initialIRStateForTx model tx initialWorld) := by
+  rcases htxNormalized with
+    ⟨hsender, hthis, hmsgValue, htimestamp, hnumber, hchain⟩
+  have hsenderEvm : tx.sender < Compiler.Constants.evmModulus := by
+    dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hsender ⊢
+    omega
+  have hthisEvm : tx.thisAddress < Compiler.Constants.evmModulus := by
+    dsimp [Compiler.Constants.addressModulus, Compiler.Constants.evmModulus] at hthis ⊢
+    omega
+  have hsenderAddr : tx.sender < Verity.Core.Address.modulus := by
+    simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hsender
+  have hthisAddr : tx.thisAddress < Verity.Core.Address.modulus := by
+    simpa [Verity.Core.Address.modulus, Compiler.Constants.addressModulus] using hthis
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, rfl, ?_⟩
+  · simpa [FunctionBody.initialIRStateForTx, SourceSemantics.effectiveFields,
+      SourceSemantics.encodeStorage] using
+      (FunctionBody.encodeStorage_withTransactionContext model initialWorld tx).symm
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
+      Verity.wordToAddress]
+    symm
+    calc
+      tx.sender % Compiler.Constants.evmModulus % Verity.Core.Address.modulus
+          = tx.sender % Verity.Core.Address.modulus := by
+              rw [Nat.mod_eq_of_lt hsenderEvm]
+      _ = tx.sender := Nat.mod_eq_of_lt hsenderAddr
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hmsgValue
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext,
+      Verity.wordToAddress]
+    symm
+    calc
+      tx.thisAddress % Compiler.Constants.evmModulus % Verity.Core.Address.modulus
+          = tx.thisAddress % Verity.Core.Address.modulus := by
+              rw [Nat.mod_eq_of_lt hthisEvm]
+      _ = tx.thisAddress := Nat.mod_eq_of_lt hthisAddr
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt htimestamp
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hnumber
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
+    symm
+    exact Nat.mod_eq_of_lt hchain
+  · simp [FunctionBody.initialIRStateForTx, SourceSemantics.withTransactionContext]
 
 -- SORRY'D: /-- The ABI parameter-loading prefix reconstructs exactly the decoded source
 -- SORRY'D: bindings for any supported function with pairwise-distinct parameter names. -/
