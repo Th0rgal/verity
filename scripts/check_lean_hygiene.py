@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 140  # Reduced by closing the helper-surface interface assembly cluster in GenericInduction
+    expected_sorry = 134  # Reduced by closing the direct-helper interface and compiled-helper witness cluster in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

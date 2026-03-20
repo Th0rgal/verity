@@ -12853,6 +12853,82 @@ theorem directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCat
         hbody
         hassign)
 
+private theorem eraseDups_nodup_and_mem_aux_local [BEq α] [LawfulBEq α]
+    (n : Nat) (l : List α) (hlen : l.length ≤ n) :
+    (l.eraseDups).Nodup ∧ (∀ a, a ∈ l.eraseDups ↔ a ∈ l) := by
+  induction n generalizing l with
+  | zero =>
+      have : l = [] := List.eq_nil_of_length_eq_zero (Nat.eq_zero_of_le_zero hlen)
+      subst this
+      exact ⟨List.Pairwise.nil, fun _ => Iff.rfl⟩
+  | succ n ih =>
+      match l with
+      | [] => exact ⟨List.Pairwise.nil, fun _ => Iff.rfl⟩
+      | x :: xs =>
+          rw [List.eraseDups_cons]
+          have hfilt_len : (xs.filter fun b => !b == x).length ≤ n := by
+            have := List.length_filter_le (fun b => !b == x) xs
+            simp [List.length_cons] at hlen
+            omega
+          have ⟨ihNd, ihMem⟩ := ih _ hfilt_len
+          constructor
+          · rw [List.nodup_cons]
+            constructor
+            · intro h
+              have hmf := (ihMem x).mp h
+              rw [List.mem_filter] at hmf
+              have := hmf.2
+              simp at this
+            · exact ihNd
+          · intro a
+            constructor
+            · intro h
+              rw [List.mem_cons] at h ⊢
+              rcases h with rfl | h
+              · exact Or.inl rfl
+              · exact Or.inr (List.mem_filter.mp ((ihMem a).mp h)).1
+            · intro h
+              rw [List.mem_cons] at h ⊢
+              rcases h with rfl | h
+              · exact Or.inl rfl
+              · by_cases heq : a == x
+                · exact Or.inl (beq_iff_eq.mp heq)
+                · exact Or.inr ((ihMem a).mpr (List.mem_filter.mpr ⟨h, by simp [heq]⟩))
+
+private theorem List.mem_eraseDups_iff_local [BEq α] [LawfulBEq α]
+    {a : α} {l : List α} : a ∈ l.eraseDups ↔ a ∈ l :=
+  (eraseDups_nodup_and_mem_aux_local l.length l (Nat.le_refl _)).2 a
+
+private theorem List.mem_eraseDups_of_mem_local [BEq α] [LawfulBEq α]
+    {a : α} {l : List α} (h : a ∈ l) : a ∈ l.eraseDups :=
+  List.mem_eraseDups_iff_local.mpr h
+
+private theorem List.mem_of_mem_eraseDups_local [BEq α] [LawfulBEq α]
+    {a : α} {l : List α} (h : a ∈ l.eraseDups) : a ∈ l :=
+  List.mem_eraseDups_iff_local.mp h
+
+private theorem internalCallAssign_callee_mem_stmtListInternalHelperCallNames_eraseDups
+    {names : List String} {calleeName : String} {args : List Expr} {rest : List Stmt} :
+    calleeName ∈
+      (stmtListInternalHelperCallNames
+        (Stmt.internalCallAssign names calleeName args :: rest)).eraseDups := by
+  apply List.mem_eraseDups_of_mem_local
+  simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
+
+private theorem internalCall_callee_mem_stmtListInternalHelperCallNames_eraseDups
+    {calleeName : String} {args : List Expr} {rest : List Stmt} :
+    calleeName ∈
+      (stmtListInternalHelperCallNames
+        (Stmt.internalCall calleeName args :: rest)).eraseDups := by
+  apply List.mem_eraseDups_of_mem_local
+  simp [stmtListInternalHelperCallNames, stmtInternalHelperCallNames]
+
+private theorem mem_stmtListInternalHelperCallNames_cons_of_mem_tail
+    {stmt : Stmt} {rest : List Stmt} {calleeName : String}
+    (hrest : calleeName ∈ stmtListInternalHelperCallNames rest) :
+    calleeName ∈ stmtListInternalHelperCallNames (stmt :: rest) := by
+  simp [stmtListInternalHelperCallNames, hrest]
+
 /-- Assemble the exact direct-helper-assign list interface from a reusable
 single-head constructor. This pushes future helper-rank induction down to the
 only genuinely new work: constructing the `Stmt.internalCallAssign` head step
@@ -12870,17 +12946,20 @@ theorem stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSte
             runtimeContract spec fields scope
             (Stmt.internalCallAssign names calleeName args)
             compiledIR) :
-    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       refine .cons ?_ (ih hstep)
--- SORRY'D:       intro hdirect
--- SORRY'D:       cases stmt <;> simp [stmtTouchesDirectInternalHelperAssignSurface] at hdirect
--- SORRY'D:       rcases hstep (scope := scope) (names := names) (calleeName := calleeName) (args := args) with
--- SORRY'D:         ⟨compiledIR, hcompiled⟩
--- SORRY'D:       exact ⟨compiledIR, hcompiled⟩
+    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      refine .cons ?_ ih
+      intro hdirect
+      cases stmt with
+      | internalCallAssign names calleeName args =>
+          rcases hstep (scope := scope) (names := names) (calleeName := calleeName) (args := args) with
+            ⟨compiledIR, hcompiled⟩
+          exact ⟨compiledIR, hcompiled⟩
+      | _ =>
+          simp [stmtTouchesDirectInternalHelperAssignSurface] at hdirect
 
 -- SORRY'D: /-- Assemble the exact direct-helper-assign list interface from head-step
 -- SORRY'D: constructors indexed only by helper callees that actually occur in the current
@@ -12901,26 +12980,32 @@ theorem stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSte
             runtimeContract spec fields scope
             (Stmt.internalCallAssign names calleeName args)
             compiledIR) :
-    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       refine .cons ?_ ?_
--- SORRY'D:       · intro hdirect
--- SORRY'D:         cases stmt <;> simp [stmtTouchesDirectInternalHelperAssignSurface] at hdirect
--- SORRY'D:         rcases hstep
--- SORRY'D:             (scope := scope)
--- SORRY'D:             (names := names)
--- SORRY'D:             (calleeName := calleeName)
--- SORRY'D:             (args := args)
--- SORRY'D:             (by simp [stmtListInternalHelperCallNames, helperCallNames]) with
--- SORRY'D:           ⟨compiledIR, hcompiled⟩
--- SORRY'D:         exact ⟨compiledIR, hcompiled⟩
--- SORRY'D:       · apply ih
--- SORRY'D:         intro scope names calleeName args hmem
--- SORRY'D:         exact hstep (scope := scope) (names := names) (calleeName := calleeName) (args := args)
--- SORRY'D:           (by simp [stmtListInternalHelperCallNames, hmem])
+    StmtListDirectInternalHelperAssignStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      refine .cons ?_ ?_
+      · intro hdirect
+        cases stmt with
+        | internalCallAssign names calleeName args =>
+            rcases hstep
+                (scope := scope)
+                (names := names)
+                (calleeName := calleeName)
+                (args := args)
+                internalCallAssign_callee_mem_stmtListInternalHelperCallNames_eraseDups with
+              ⟨compiledIR, hcompiled⟩
+            exact ⟨compiledIR, hcompiled⟩
+        | _ =>
+            simp [stmtTouchesDirectInternalHelperAssignSurface] at hdirect
+      · apply ih
+        intro scope names calleeName args hmem
+        have hrest : calleeName ∈ stmtListInternalHelperCallNames rest :=
+          List.mem_of_mem_eraseDups_local hmem
+        exact hstep (scope := scope) (names := names) (calleeName := calleeName) (args := args)
+          (List.mem_eraseDups_of_mem_local
+            (mem_stmtListInternalHelperCallNames_cons_of_mem_tail hrest))
 
 -- SORRY'D: /-- Non-vacuous list-level constructor for a direct helper statement head.
 -- SORRY'D: This packages `compiledStmtStepWithHelpersAndHelperIR_internalCall` into the
@@ -12974,17 +13059,20 @@ theorem stmtListDirectInternalHelperCallStepInterface_of_internalCallSteps
             runtimeContract spec fields scope
             (Stmt.internalCall calleeName args)
             compiledIR) :
-    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       refine .cons ?_ (ih hstep)
--- SORRY'D:       intro hdirect
--- SORRY'D:       cases stmt <;> simp [stmtTouchesDirectInternalHelperCallSurface] at hdirect
--- SORRY'D:       rcases hstep (scope := scope) (calleeName := calleeName) (args := args) with
--- SORRY'D:         ⟨compiledIR, hcompiled⟩
--- SORRY'D:       exact ⟨compiledIR, hcompiled⟩
+    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      refine .cons ?_ ih
+      intro hdirect
+      cases stmt with
+      | internalCall calleeName args =>
+          rcases hstep (scope := scope) (calleeName := calleeName) (args := args) with
+            ⟨compiledIR, hcompiled⟩
+          exact ⟨compiledIR, hcompiled⟩
+      | _ =>
+          simp [stmtTouchesDirectInternalHelperCallSurface] at hdirect
 
 -- SORRY'D: /-- Assemble the exact direct-helper-call list interface from head-step
 -- SORRY'D: constructors indexed only by helper callees that actually occur in the current
@@ -13005,25 +13093,31 @@ theorem stmtListDirectInternalHelperCallStepInterface_of_internalCallSteps_of_he
             runtimeContract spec fields scope
             (Stmt.internalCall calleeName args)
             compiledIR) :
-    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       refine .cons ?_ ?_
--- SORRY'D:       · intro hdirect
--- SORRY'D:         cases stmt <;> simp [stmtTouchesDirectInternalHelperCallSurface] at hdirect
--- SORRY'D:         rcases hstep
--- SORRY'D:             (scope := scope)
--- SORRY'D:             (calleeName := calleeName)
--- SORRY'D:             (args := args)
--- SORRY'D:             (by simp [stmtListInternalHelperCallNames, helperCallNames]) with
--- SORRY'D:           ⟨compiledIR, hcompiled⟩
--- SORRY'D:         exact ⟨compiledIR, hcompiled⟩
--- SORRY'D:       · apply ih
--- SORRY'D:         intro scope calleeName args hmem
--- SORRY'D:         exact hstep (scope := scope) (calleeName := calleeName) (args := args)
--- SORRY'D:           (by simp [stmtListInternalHelperCallNames, hmem])
+    StmtListDirectInternalHelperCallStepInterface runtimeContract spec fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      refine .cons ?_ ?_
+      · intro hdirect
+        cases stmt with
+        | internalCall calleeName args =>
+            rcases hstep
+                (scope := scope)
+                (calleeName := calleeName)
+                (args := args)
+                internalCall_callee_mem_stmtListInternalHelperCallNames_eraseDups with
+              ⟨compiledIR, hcompiled⟩
+            exact ⟨compiledIR, hcompiled⟩
+        | _ =>
+            simp [stmtTouchesDirectInternalHelperCallSurface] at hdirect
+      · apply ih
+        intro scope calleeName args hmem
+        have hrest : calleeName ∈ stmtListInternalHelperCallNames rest :=
+          List.mem_of_mem_eraseDups_local hmem
+        exact hstep (scope := scope) (calleeName := calleeName) (args := args)
+          (List.mem_eraseDups_of_mem_local
+            (mem_stmtListInternalHelperCallNames_cons_of_mem_tail hrest))
 
 -- SORRY'D: /-- Assemble both exact direct-helper list interfaces from a single body-local
 -- SORRY'D: head-step catalog. This keeps the list recursion mechanical so future
@@ -13177,34 +13271,44 @@ theorem execIRStmtsWithInternals_of_internalCallAssign_compiledHelperWitness
             else .revert state''
         | .stop state'' => .stop state''
         | .return value' state'' => .return value' state''
-        | .revert state'' => .revert state'' := by sorry
--- SORRY'D:   have hfindSome :
--- SORRY'D:       (findInternalFunction? runtimeContract
--- SORRY'D:         (CompilationModel.internalFunctionYulName calleeName)).isSome = true :=
--- SORRY'D:     findInternalFunction?_of_compileInternalFunction_mem
--- SORRY'D:       compiledHelper.compileOk
--- SORRY'D:       compiledHelper.presentInRuntime
--- SORRY'D:   rcases Option.isSome_iff_exists.mp hfindSome with ⟨helper, hfind⟩
--- SORRY'D:   refine ⟨helper, ?_, hfind, ?_⟩
--- SORRY'D:   exact
--- SORRY'D:     (execIRStmtsWithInternals_of_internalCallAssign_compile
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (names := names)
--- SORRY'D:       (functionName := calleeName)
--- SORRY'D:       (args := args)
--- SORRY'D:       (compiledIR := compiledIR)
--- SORRY'D:       runtimeContract
--- SORRY'D:       irFuel
--- SORRY'D:       state
--- SORRY'D:       helper
--- SORRY'D:       argVals
--- SORRY'D:       state'
--- SORRY'D:       hcompile
--- SORRY'D:       hfind
--- SORRY'D:       argExprs
--- SORRY'D:       hargCompile
--- SORRY'D:       hargs)
+        | .revert state'' => .revert state'' := by
+  have hcalleeName : compiledHelper.sourceWitness.callee.name = calleeName :=
+    compiledHelper.sourceWitness.nameEq
+  have hfindSome :
+      (findInternalFunction? runtimeContract
+        (CompilationModel.internalFunctionYulName calleeName)).isSome = true :=
+    by
+      simpa [hcalleeName] using
+        (findInternalFunction?_of_compileInternalFunction_mem
+          compiledHelper.compileOk
+          compiledHelper.presentInRuntime)
+  cases hfind : findInternalFunction? runtimeContract
+      (CompilationModel.internalFunctionYulName calleeName) with
+  | none =>
+      simp [hfind] at hfindSome
+  | some helper =>
+      rcases
+          execIRStmtsWithInternals_of_internalCallAssign_compile
+            (fields := fields)
+            (scope := scope)
+            (names := names)
+            (functionName := calleeName)
+            (args := args)
+            (compiledIR := compiledIR)
+            runtimeContract
+            irFuel
+            state
+            helper
+            argVals
+            state'
+            hcompile
+            hfind
+            argExprs
+            hargCompile
+            hargs with
+        ⟨hshape, hexec⟩
+      refine ⟨helper, ?_⟩
+      exact ⟨hshape, ⟨rfl, hexec⟩⟩
 
 -- SORRY'D: /-- Runtime-helper-table packaged version of
 -- SORRY'D: `execIRStmtsWithInternals_of_internalCall_compile`: the caller no longer threads
@@ -13242,37 +13346,47 @@ theorem execIRStmtsWithInternals_of_internalCall_compiledHelperWitness
         | .values _ state'' => .continue state''
         | .stop state'' => .stop state''
         | .return value' state'' => .return value' state''
-        | .revert state'' => .revert state'' := by sorry
--- SORRY'D:   have hfindSome :
--- SORRY'D:       (findInternalFunction? runtimeContract
--- SORRY'D:         (CompilationModel.internalFunctionYulName calleeName)).isSome = true :=
--- SORRY'D:     findInternalFunction?_of_compileInternalFunction_mem
--- SORRY'D:       compiledHelper.compileOk
--- SORRY'D:       compiledHelper.presentInRuntime
--- SORRY'D:   rcases Option.isSome_iff_exists.mp hfindSome with ⟨helper, hfind⟩
--- SORRY'D:   refine ⟨helper, ?_, hfind, ?_⟩
--- SORRY'D:   exact
--- SORRY'D:     (execIRStmtsWithInternals_of_internalCall_compile
--- SORRY'D:       (fields := fields)
--- SORRY'D:       (scope := scope)
--- SORRY'D:       (functionName := calleeName)
--- SORRY'D:       (args := args)
--- SORRY'D:       (compiledIR := compiledIR)
--- SORRY'D:       runtimeContract
--- SORRY'D:       irFuel
--- SORRY'D:       state
--- SORRY'D:       helper
--- SORRY'D:       argVals
--- SORRY'D:       state'
--- SORRY'D:       hcompile
--- SORRY'D:       hfind
--- SORRY'D:       argExprs
--- SORRY'D:       hargCompile
--- SORRY'D:       hargs
--- SORRY'D:       (internalFunctionYulName_ne_stop calleeName)
--- SORRY'D:       (internalFunctionYulName_ne_sstore calleeName)
--- SORRY'D:       (internalFunctionYulName_ne_mstore calleeName)
--- SORRY'D:       (internalFunctionYulName_ne_revert calleeName)
--- SORRY'D:       (internalFunctionYulName_ne_return calleeName))
+        | .revert state'' => .revert state'' := by
+  have hcalleeName : compiledHelper.sourceWitness.callee.name = calleeName :=
+    compiledHelper.sourceWitness.nameEq
+  have hfindSome :
+      (findInternalFunction? runtimeContract
+        (CompilationModel.internalFunctionYulName calleeName)).isSome = true :=
+    by
+      simpa [hcalleeName] using
+        (findInternalFunction?_of_compileInternalFunction_mem
+          compiledHelper.compileOk
+          compiledHelper.presentInRuntime)
+  cases hfind : findInternalFunction? runtimeContract
+      (CompilationModel.internalFunctionYulName calleeName) with
+  | none =>
+      simp [hfind] at hfindSome
+  | some helper =>
+      rcases
+          execIRStmtsWithInternals_of_internalCall_compile
+            (fields := fields)
+            (scope := scope)
+            (functionName := calleeName)
+            (args := args)
+            (compiledIR := compiledIR)
+            runtimeContract
+            irFuel
+            state
+            helper
+            argVals
+            state'
+            hcompile
+            hfind
+            argExprs
+            hargCompile
+            hargs
+            (internalFunctionYulName_ne_stop calleeName)
+            (internalFunctionYulName_ne_sstore calleeName)
+            (internalFunctionYulName_ne_mstore calleeName)
+            (internalFunctionYulName_ne_revert calleeName)
+            (internalFunctionYulName_ne_return calleeName) with
+        ⟨hshape, hexec⟩
+      refine ⟨helper, ?_⟩
+      exact ⟨hshape, ⟨rfl, hexec⟩⟩
 
 -- SORRY'D: end Compiler.Proofs.IRGeneration

@@ -1253,19 +1253,26 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_bridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_perCalleeBridgeCatalog
 #print axioms Compiler.Proofs.IRGeneration.directInternalHelperHeadStepCatalog_of_supportedBody_and_assignBridgeCatalog
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSteps  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSteps_of_helperCallNames  -- sorry'd
+-- #print axioms Compiler.Proofs.IRGeneration.eraseDups_nodup_and_mem_aux_local  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.List.mem_eraseDups_iff_local  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.List.mem_eraseDups_of_mem_local  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.List.mem_of_mem_eraseDups_local  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.internalCallAssign_callee_mem_stmtListInternalHelperCallNames_eraseDups  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.internalCall_callee_mem_stmtListInternalHelperCallNames_eraseDups  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.mem_stmtListInternalHelperCallNames_cons_of_mem_tail  -- private
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSteps
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperAssignStepInterface_of_internalCallAssignSteps_of_helperCallNames
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_cons_internalCall
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_internalCallSteps  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_internalCallSteps_of_helperCallNames  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_internalCallSteps
+#print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperCallStepInterface_of_internalCallSteps_of_helperCallNames
 #print axioms Compiler.Proofs.IRGeneration.stmtListDirectInternalHelperStepInterfaces_of_headStepCatalog
 -- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_stop  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_sstore  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_mstore  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_revert  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.internalFunctionYulName_ne_return  -- private
--- #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCallAssign_compiledHelperWitness  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCall_compiledHelperWitness  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCallAssign_compiledHelperWitness
+#print axioms Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCall_compiledHelperWitness
 
 -- Compiler/Proofs/IRGeneration/IRInterpreter.lean
 -- #print axioms Compiler.Proofs.IRGeneration.exprSize_lt_exprsSize_cons  -- private
@@ -1735,4 +1742,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1604 theorems/lemmas (1132 public, 427 private, 45 sorry'd)
+-- Total: 1611 theorems/lemmas (1138 public, 434 private, 39 sorry'd)
