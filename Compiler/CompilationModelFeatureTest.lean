@@ -10,8 +10,10 @@ import Contracts.Common
 import Contracts.Counter.Counter
 import Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
+import Contracts.Smoke
 import Contracts.StringArrayErrorSmoke
 import Contracts.StringArrayEventSmoke
+import Verity.Macro.Translate
 
 namespace Compiler.CompilationModelFeatureTest
 
@@ -889,6 +891,62 @@ def failWithModelUsesDeclaredCustomError : Bool :=
 example : failWithModelUsesDeclaredCustomError = true := by native_decide
 
 end MacroStatelessSectionsSmoke
+
+namespace MacroInt256LoweringSmoke
+
+open Contracts.Smoke
+open Lean
+open Lean.Elab.Command
+open Lean.Meta
+
+def divViaLocalUsesSignedDivision : Bool :=
+  match Contracts.Smoke.SignedBuiltinSmoke.signedDivViaLocal_modelBody with
+  | [Stmt.letVar "signedRaw" (Expr.param "raw"),
+      Stmt.return (Expr.sdiv (Expr.localVar "signedRaw") (Expr.param "denom"))] => true
+  | _ => false
+
+example : divViaLocalUsesSignedDivision = true := by native_decide
+
+def bitAndComparisonUsesUnsignedLowering : Bool :=
+  match Contracts.Smoke.SignedBuiltinSmoke.bitAndSignBit_modelBody with
+  | [Stmt.return
+      (Compiler.CompilationModel.Expr.lt
+        (Expr.bitAnd (Expr.param "lhs") (Expr.param "rhs"))
+        (Expr.literal 0))] => true
+  | _ => false
+
+example : bitAndComparisonUsesUnsignedLowering = true := by native_decide
+
+def minComparisonUsesUnsignedLowering : Bool :=
+  match Contracts.Smoke.SignedBuiltinSmoke.minSignBit_modelBody with
+  | [Stmt.return
+      (Compiler.CompilationModel.Expr.lt
+        (Expr.min (Expr.param "lhs") (Expr.literal 0))
+        (Expr.literal 0))] => true
+  | _ => false
+
+example : minComparisonUsesUnsignedLowering = true := by native_decide
+
+run_cmd do
+  let valueIdent := mkIdent `value
+  let actualStx ← Verity.Macro.translatePureExpr
+    #[] #[] #[]
+    #[{ ident := valueIdent, name := "value", ty := Verity.Macro.ValueType.int256 }]
+    #[]
+    (← `($valueIdent < 0))
+  liftTermElabM do
+    let expectedStx ← `(
+      Compiler.CompilationModel.Expr.slt
+        (Compiler.CompilationModel.Expr.param "value")
+        (Compiler.CompilationModel.Expr.literal 0))
+    let actualExpr ← Lean.Elab.Term.elabTerm actualStx (some (mkConst ``Compiler.CompilationModel.Expr))
+    let expectedExpr ← Lean.Elab.Term.elabTerm expectedStx (some (mkConst ``Compiler.CompilationModel.Expr))
+    let actualExpr ← instantiateMVars actualExpr
+    let expectedExpr ← instantiateMVars expectedExpr
+    unless ← isDefEq actualExpr expectedExpr do
+      throwError m!"expected signed comparison lowering, got {actualStx}"
+
+end MacroInt256LoweringSmoke
 
 namespace MacroPayableConstructorSmoke
 

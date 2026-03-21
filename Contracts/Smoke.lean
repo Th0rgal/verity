@@ -207,6 +207,10 @@ verity_contract SignedBuiltinSmoke where
   function signedModSurface (lhs : Int256, rhs : Int256) : Int256 := do
     return (lhs % rhs)
 
+  function signedDivViaLocal (raw : Uint256, denom : Int256) : Int256 := do
+    let signedRaw := toInt256 raw
+    return (signedRaw / denom)
+
   function castToInt (value : Uint256) : Int256 := do
     return (toInt256 value)
 
@@ -215,6 +219,12 @@ verity_contract SignedBuiltinSmoke where
 
   function minusOne () : Int256 := do
     return negativeOne
+
+  function bitAndSignBit (lhs : Int256, rhs : Int256) : Bool := do
+    return (bitAnd lhs rhs < 0)
+
+  function minSignBit (lhs : Int256) : Bool := do
+    return (min lhs 0 < 0)
 
 verity_contract StatelessSmoke where
   storage
