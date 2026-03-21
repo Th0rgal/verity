@@ -32,6 +32,7 @@
     "scripts/check_yul.py",
     "scripts/generate_yul_identity_diff_report.py",
     "scripts/keccak256.py",
+    "scripts/lean_cc_ccache_clang.sh",
     "scripts/property_utils.py",
     "lakefile.lean",
     "lake-manifest.json",
@@ -42,6 +43,7 @@
     "main"
   ],
   "expected_trigger_keys": [
+    "schedule",
     "push",
     "pull_request",
     "workflow_dispatch"
@@ -263,17 +265,18 @@
   },
   "expected_workflow_concurrency": {
     "group": "${{ github.workflow }}-${{ github.ref }}",
-    "cancel-in-progress": "true"
+    "cancel-in-progress": "${{ github.event_name != 'schedule' }}"
   },
   "expected_workflow_env": {
     "SOLC_VERSION": "0.8.33",
     "SOLC_URL": "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21",
     "SOLC_SHA256": "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468",
     "VERIFY_CLEAN_BUILD": "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}",
-    "VERIFY_FORCE_FULL_RUN": "${{ github.event_name == 'workflow_dispatch' && inputs.force_full_run && 'true' || 'false' }}",
+    "VERIFY_FORCE_FULL_RUN": "${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_full_run)) && 'true' || 'false' }}",
     "VERIFY_USE_STICKY_DISKS": "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}",
     "VERIFY_DISABLE_LAKE_CACHE_RESTORE": "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}",
-    "VERIFY_CACHE_BUCKET": "${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}"
+    "VERIFY_CACHE_BUCKET": "${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}",
+    "VERIFY_MAIN_CACHE_BUCKET": "ref-main"
   },
   "build_compiler_job_names": [
     "build-compiler-binaries",
