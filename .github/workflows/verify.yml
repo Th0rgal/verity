@@ -513,14 +513,28 @@ jobs:
 
       - name: Ensure compiler acceleration toolchain
         run: |
-          if command -v clang >/dev/null && command -v ld.lld >/dev/null && command -v ccache >/dev/null; then
+          if \
+            command -v clang >/dev/null && \
+            command -v clang++ >/dev/null && \
+            command -v ld.lld >/dev/null && \
+            command -v ccache >/dev/null && \
+            printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke >/dev/null 2>&1 && \
+            printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke >/dev/null 2>&1
+          then
             clang --version
             ld.lld --version
             ccache --version
             exit 0
           fi
           sudo apt-get update
-          sudo apt-get install -y clang lld ccache
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libuv1-dev
+
+          printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke
+          printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke
+
+          clang --version
+          ld.lld --version
+          ccache --version
 
       - name: Prepare ccache directory
         run: mkdir -p "$CCACHE_DIR"
