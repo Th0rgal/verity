@@ -9219,15 +9219,16 @@ theorem stmtStepMatchesIRExecWithInternals_of_included
     {irExec : IRExecResultWithInternals}
     (hmatch : stmtStepMatchesIRExecWithInternals fields largerScope sourceResult irExec)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
-    stmtStepMatchesIRExecWithInternals fields scope sourceResult irExec := by sorry
--- SORRY'D:   cases sourceResult <;> cases irExec <;>
--- SORRY'D:     simp [stmtStepMatchesIRExecWithInternals] at hmatch ⊢
--- SORRY'D:   case continue runtime state =>
--- SORRY'D:     rcases hmatch with ⟨hruntime, hexact, hbounded, hscope⟩
--- SORRY'D:     exact ⟨hruntime,
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact hincluded,
--- SORRY'D:       hbounded,
--- SORRY'D:       FunctionBody.scopeNamesPresent_of_included hscope hincluded⟩
+    stmtStepMatchesIRExecWithInternals fields scope sourceResult irExec := by
+  cases sourceResult <;> cases irExec <;>
+    simp [stmtStepMatchesIRExecWithInternals] at hmatch ⊢
+  rcases hmatch with ⟨hruntime, hexact, hbounded, hscope⟩
+  exact ⟨hruntime,
+    FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact hincluded,
+    hbounded,
+    FunctionBody.scopeNamesPresent_of_included hscope hincluded⟩
+  · exact hmatch
+  · exact hmatch
 
 theorem stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
     {fields : List Field}
@@ -9246,10 +9247,12 @@ theorem stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithIn
     {irExec : IRExecResultWithInternals}
     (hmatch :
       stmtStepMatchesIRExecWithInternals fields scope sourceResult irExec) :
-    stmtResultMatchesIRExecWithInternals fields sourceResult irExec := by sorry
--- SORRY'D:   cases sourceResult <;> cases irExec <;>
--- SORRY'D:     simp [stmtStepMatchesIRExecWithInternals, stmtResultMatchesIRExecWithInternals] at hmatch ⊢ <;>
--- SORRY'D:     simp [stmtResultMatchesIRExecWithInternals, hmatch]
+    stmtResultMatchesIRExecWithInternals fields sourceResult irExec := by
+  cases sourceResult <;> cases irExec <;>
+    simp [stmtStepMatchesIRExecWithInternals, stmtResultMatchesIRExecWithInternals,
+      FunctionBody.stmtResultMatchesIRExec] at hmatch ⊢ <;>
+    try exact hmatch
+  · exact hmatch.1
 
 private theorem yulStmtList_sizeOf_append_left_le
     (head tail : List YulStmt) :
