@@ -3806,8 +3806,8 @@ private theorem encodeStorageAt_eq_storage_of_resolvedSlot
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
-    SourceSemantics.encodeStorageAt fields world slot = (world.storage slot).val := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hnotAddr, hnotDyn]
+    SourceSemantics.encodeStorageAt fields world slot = (world.storage slot).val := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hnotAddr, hnotDyn]
 
 private theorem encodeStorageAt_eq_storageAddr_of_resolvedSlot
     {fields : List Field}
@@ -3817,8 +3817,8 @@ private theorem encodeStorageAt_eq_storageAddr_of_resolvedSlot
     (hresolved : findResolvedFieldAtSlotCopy fields slot = some f)
     (haddr : SourceSemantics.fieldUsesAddressStorage f = true)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
-    SourceSemantics.encodeStorageAt fields world slot = (world.storageAddr slot).val := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr, hnotDyn]
+    SourceSemantics.encodeStorageAt fields world slot = (world.storageAddr slot).val := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr, hnotDyn]
 
 private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
     {fields : List Field}
@@ -3832,10 +3832,10 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
         (Compiler.Proofs.abstractMappingSlot slot key) = none) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
-      (Compiler.Proofs.abstractMappingSlot slot key) = value := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
--- SORRY'D:   simp [SourceSemantics.writeUintKeyedMappingSlots, Compiler.Proofs.abstractStoreMappingEntry_eq,
--- SORRY'D:     Compiler.Proofs.abstractMappingSlot_eq_solidity]
+      (Compiler.Proofs.abstractMappingSlot slot key) = value := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
+  simp [SourceSemantics.writeUintKeyedMappingSlots, Compiler.Proofs.abstractStoreMappingEntry_eq,
+    Compiler.Proofs.abstractMappingSlot_eq_solidity]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
     {fields : List Field}
@@ -3851,9 +3851,9 @@ private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_
         (SourceSemantics.mappingSlotChain slot keys) = none) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
-      (SourceSemantics.mappingSlotChain slot keys) = value := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
--- SORRY'D:   simp [SourceSemantics.writeAddressKeyedMappingChainSlots, SourceSemantics.mappingSlotChain]
+      (SourceSemantics.mappingSlotChain slot keys) = value := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
+  simp [SourceSemantics.writeAddressKeyedMappingChainSlots, SourceSemantics.mappingSlotChain]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
     {fields : List Field}
@@ -3867,9 +3867,9 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_w
         (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = none) :
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
-      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = value := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
--- SORRY'D:   simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
+      (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = value := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
+  simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
     {fields : List Field}
@@ -3889,10 +3889,10 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
       SourceSemantics.packedWordWrite
         (world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val
         value
-        packed := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
--- SORRY'D:   simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots,
--- SORRY'D:     SourceSemantics.packedWordWrite]
+        packed := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
+  simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots,
+    SourceSemantics.packedWordWrite]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
     {fields : List Field}
