@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 120  # Reduced by closing contract-surface list compatibility theorems in GenericInduction
+    expected_sorry = 118  # Reduced by closing mapping-write singleton legacy-compatibility theorems in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
