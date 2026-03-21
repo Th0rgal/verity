@@ -443,6 +443,80 @@ inductive StmtListResidualHelperSurfaceStepInterface
         runtimeContract spec fields (stmtNextScope scope stmt) rest →
       StmtListResidualHelperSurfaceStepInterface runtimeContract spec fields scope (stmt :: rest)
 
+private theorem legacyCompatibleExternalStmtList_append
+    {before after : List YulStmt}
+    (hbefore : LegacyCompatibleExternalStmtList before)
+    (hafter : LegacyCompatibleExternalStmtList after) :
+    LegacyCompatibleExternalStmtList (before ++ after) := by
+  induction hbefore generalizing after with
+  | nil =>
+      simpa using hafter
+  | comment msg rest hrest ih =>
+      simpa using LegacyCompatibleExternalStmtList.comment msg (rest ++ after) (ih hafter)
+  | let_ name value rest hrest ih =>
+      simpa using LegacyCompatibleExternalStmtList.let_ name value (rest ++ after) (ih hafter)
+  | assign name value rest hrest ih =>
+      simpa using LegacyCompatibleExternalStmtList.assign name value (rest ++ after) (ih hafter)
+  | expr value rest hrest ih =>
+      simpa using LegacyCompatibleExternalStmtList.expr value (rest ++ after) (ih hafter)
+  | if_ cond body rest hbody hrest ihBody ihRest =>
+      simpa using LegacyCompatibleExternalStmtList.if_ cond body (rest ++ after) hbody (ihRest hafter)
+  | block body rest hbody hrest ihBody ihRest =>
+      simpa using LegacyCompatibleExternalStmtList.block body (rest ++ after) hbody (ihRest hafter)
+  | funcDef name params rets body rest hbody hrest ihBody ihRest =>
+      simpa using
+        LegacyCompatibleExternalStmtList.funcDef name params rets body (rest ++ after) hbody (ihRest hafter)
+
+private theorem legacyCompatibleExternalStmtList_of_exprStmtExprs
+    (exprs : List YulExpr) :
+    LegacyCompatibleExternalStmtList (exprs.map YulStmt.expr) := by
+  induction exprs with
+  | nil =>
+      exact LegacyCompatibleExternalStmtList.nil
+  | cons expr rest ih =>
+      simpa using LegacyCompatibleExternalStmtList.expr expr (rest.map YulStmt.expr) ih
+
+private theorem legacyCompatibleExternalStmtList_revertWithMessage
+    (message : String) :
+    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by
+  unfold CompilationModel.revertWithMessage
+  let headerExprs :=
+    [ YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex errorStringSelectorWord]
+    , YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]
+    , YulExpr.call "mstore"
+        [YulExpr.lit 36, YulExpr.lit (CompilationModel.bytesFromString message).length]
+    ]
+  let dataExprs :=
+    (((CompilationModel.chunkBytes32 (CompilationModel.bytesFromString message)).zipIdx).map
+      (fun (chunk, idx) =>
+        let offset := 68 + idx * 32
+        let word := CompilationModel.wordFromBytes chunk
+        YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex word]))
+  let revertStmt :=
+    YulStmt.expr
+      (YulExpr.call "revert"
+        [ YulExpr.lit 0
+        , YulExpr.lit
+            (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+        ])
+  simpa [headerExprs, dataExprs, revertStmt, List.append_assoc] using
+    legacyCompatibleExternalStmtList_append
+      (before := headerExprs.map YulStmt.expr)
+      (after := dataExprs.map YulStmt.expr ++ [revertStmt])
+      (legacyCompatibleExternalStmtList_of_exprStmtExprs headerExprs)
+      (legacyCompatibleExternalStmtList_append
+        (before := dataExprs.map YulStmt.expr)
+        (after := [revertStmt])
+        (legacyCompatibleExternalStmtList_of_exprStmtExprs dataExprs)
+        (LegacyCompatibleExternalStmtList.expr
+          (YulExpr.call "revert"
+            [ YulExpr.lit 0
+            , YulExpr.lit
+                (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+            ])
+          []
+          LegacyCompatibleExternalStmtList.nil))
+
 /-- The current helper-free compiled theorem target already accepts the scalar
 storage write emitted by `compileSetStorage` when packed-field writes are
 excluded. -/
@@ -503,7 +577,18 @@ private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_require
       CompilationModel.compileStmt
         fields [] [] .calldata [] false inScopeNames (.require cond message) =
           Except.ok bodyIR) :
-    LegacyCompatibleExternalStmtList bodyIR := by sorry
+    LegacyCompatibleExternalStmtList bodyIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  rcases hfail : CompilationModel.compileRequireFailCond fields .calldata cond with _ | failCond
+  · simp [hfail] at hcompile
+  · simp [hfail] at hcompile
+    cases hcompile
+    exact LegacyCompatibleExternalStmtList.if_
+      failCond
+      (CompilationModel.revertWithMessage message)
+      []
+      (legacyCompatibleExternalStmtList_revertWithMessage message)
+      LegacyCompatibleExternalStmtList.nil
 
 private theorem legacyCompatibleExternalStmtList_of_compileStmt_ok_return
     {fields : List Field}
