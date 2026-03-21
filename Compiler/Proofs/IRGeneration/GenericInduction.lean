@@ -2939,7 +2939,9 @@ private theorem collectExprNames_mem_exprBoundNames_of_core
       · exact Or.inl (ihL _ hmem)
       · exact Or.inr (ihR _ hmem)
   | logicalNot h ih =>
-      intro name hmem; simpa [collectExprNames, FunctionBody.exprBoundNames] using ih _ hmem
+      intro name hmem
+      simp [collectExprNames] at hmem
+      simpa [FunctionBody.exprBoundNames] using ih _ hmem
 
 private theorem stmtListScopeDiscipline_scope_names
     {fieldNames : List String}
@@ -4331,7 +4333,31 @@ private theorem compatValue_not_mem_scope_of_reservedPrefix
     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope) :
     "__compat_value" ∉ scope := by
   intro hmem
-  exact hscopeReserved "__compat_value" hmem (by decide)
+  have hprefix : "__compat_value".startsWith "__" := by
+    unfold String.startsWith
+    change Substring.beq ("__compat_value".toSubstring.take "__".length) "__".toSubstring = true
+    simp [Substring.beq, String.toSubstring, Substring.take]
+    constructor
+    · rfl
+    · unfold String.substrEq
+      simp
+      constructor
+      · decide
+      · unfold String.substrEq.loop
+        simp
+        right
+        constructor
+        · rfl
+        · unfold String.substrEq.loop
+          simp
+          right
+          constructor
+          · rfl
+          · unfold String.substrEq.loop
+            simp
+            left
+            decide
+  exact hscopeReserved "__compat_value" hmem hprefix
 
 private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
     {spec : CompilationModel}
