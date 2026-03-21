@@ -77,6 +77,34 @@ def stmtResultMatchesIRExecWithInternals
       FunctionBody.stmtResultMatchesIRExec fields sourceResult (.revert state)
   | .leave _ => False
 
+private def externalIRExecResultToWithInternals : IRExecResult → IRExecResultWithInternals
+  | .continue next => .continue next
+  | .return value next => .return value next
+  | .stop next => .stop next
+  | .revert next => .revert next
+
+private theorem stmtStepMatchesIRExecWithInternals_of_stmtStepMatchesIRExec
+    {fields : List Field}
+    {nextScope : List String}
+    {sourceResult : SourceSemantics.StmtResult}
+    {irExec : IRExecResult}
+    (hmatch : stmtStepMatchesIRExec fields nextScope sourceResult irExec) :
+    stmtStepMatchesIRExecWithInternals fields nextScope sourceResult
+      (externalIRExecResultToWithInternals irExec) := by
+  cases sourceResult <;> cases irExec <;>
+    simp [externalIRExecResultToWithInternals, stmtStepMatchesIRExec,
+      stmtStepMatchesIRExecWithInternals] at hmatch ⊢ <;>
+    exact hmatch
+
+private abbrev compiledIRWithInternalsCompat
+    (runtimeContract : IRContract)
+    (compiledIR : List YulStmt) : Prop :=
+  ∀ state extraFuel,
+    execIRStmtsWithInternals runtimeContract
+        (compiledIR.length + extraFuel + 1) state compiledIR =
+      externalIRExecResultToWithInternals
+        (execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR)
+
 /-- A compiled statement head that preserves the exact-state invariant needed to
 continue generic statement-list induction on the remaining tail. -/
 structure CompiledStmtStep
@@ -1301,11 +1329,39 @@ theorem stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceC
       exact .cons
         (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
         (ih hsurface.2)
--- SORRY'D:   induction hhelperFree generalizing hsurface with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt rest hhead htail ih =>
--- SORRY'D:       simp [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false] at hsurface
+
+private theorem compiledStmtStepWithHelpers_preserves_withCompat
+    {runtimeContract : IRContract}
+    {spec : CompilationModel}
+    {fields : List Field}
+    {scope : List String}
+    {stmt : Stmt}
+    {compiledIR : List YulStmt}
+    (hstep : CompiledStmtStepWithHelpers spec fields scope stmt compiledIR)
+    (hcompat : compiledIRWithInternalsCompat runtimeContract compiledIR) :
+    ∀ (runtime : SourceSemantics.RuntimeState)
+      (state : IRState)
+      (helperFuel : Nat)
+      (extraFuel : Nat),
+      0 < helperFuel →
+      FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state →
+      FunctionBody.scopeNamesPresent scope runtime.bindings →
+      FunctionBody.bindingsBounded runtime.bindings →
+      FunctionBody.runtimeStateMatchesIR fields runtime state →
+      sizeOf compiledIR - compiledIR.length ≤ extraFuel →
+      ∃ sourceResult irExec,
+        SourceSemantics.execStmtWithHelpers spec fields helperFuel runtime stmt = sourceResult ∧
+        execIRStmtsWithInternals runtimeContract
+          (compiledIR.length + extraFuel + 1) state compiledIR = irExec ∧
+        stmtStepMatchesIRExecWithInternals
+          fields (stmtNextScope scope stmt) sourceResult irExec := by
+  intro runtime state helperFuel extraFuel _ hexact hscope hbounded hruntime hslack
+  rcases hstep.preserves runtime state helperFuel extraFuel
+      hexact hscope hbounded hruntime hslack with
+    ⟨sourceResult, irExec, hsource, hir, hmatch⟩
+  refine ⟨sourceResult, externalIRExecResultToWithInternals irExec, hsource, ?_, ?_⟩
+  · simpa [externalIRExecResultToWithInternals, hir] using hcompat state extraFuel
+  · exact stmtStepMatchesIRExecWithInternals_of_stmtStepMatchesIRExec hmatch
 -- SORRY'D:       rcases hhead hsurface.1 with ⟨compiledIR, hstep⟩
 -- SORRY'D:       exact .cons
 -- SORRY'D:         (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
@@ -1329,31 +1385,20 @@ theorem CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible
     CompiledStmtStepWithHelpersAndHelperIR
       runtimeContract spec fields scope stmt compiledIR where
   compileOk := hstep.compileOk
-  preserves := by sorry
--- SORRY'D:     intro runtime state helperFuel extraFuel _ hexact hscope hbounded hruntime hslack
--- SORRY'D:     rcases hstep.preserves runtime state helperFuel extraFuel
--- SORRY'D:         hexact hscope hbounded hruntime hslack with
--- SORRY'D:       ⟨sourceResult, irExec, hsource, hir, hmatch⟩
--- SORRY'D:     refine ⟨sourceResult,
--- SORRY'D:       match irExec with
--- SORRY'D:       | .continue next => .continue next
--- SORRY'D:       | .return value next => .return value next
--- SORRY'D:       | .stop next => .stop next
--- SORRY'D:       | .revert next => .revert next,
--- SORRY'D:       hsource, ?_, ?_⟩
--- SORRY'D:     · have hcompat :=
--- SORRY'D:         execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility runtimeContract
--- SORRY'D:           (execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
--- SORRY'D:             runtimeContract
--- SORRY'D:             (interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed
--- SORRY'D:               runtimeContract))
--- SORRY'D:           hinternal
--- SORRY'D:           (compiledIR.length + extraFuel + 1)
--- SORRY'D:           state
--- SORRY'D:           compiledIR
--- SORRY'D:           hlegacy
--- SORRY'D:       simpa [hir] using hcompat
--- SORRY'D:     · cases irExec <;> simpa [stmtStepMatchesIRExecWithInternals] using hmatch
+  preserves := by
+    apply compiledStmtStepWithHelpers_preserves_withCompat hstep
+    intro state extraFuel
+    exact
+      execIRStmtsWithInternals_eq_execIRStmts_of_stmtCompatibility runtimeContract
+        (execIRStmtWithInternals_eq_execIRStmt_of_stmtSubgoals
+          runtimeContract
+          (interpretIRWithInternalsZeroConservativeExtensionStmtSubgoals_closed
+            runtimeContract))
+        hinternal
+        (compiledIR.length + extraFuel + 1)
+        state
+        compiledIR
+        hlegacy
 
 -- SORRY'D: /-- Disjoint-based bridge: any helper-aware generic statement-step proof closes
 -- SORRY'D: the exact helper-aware compiled-side step goal when the compiled IR is disjoint
@@ -1371,26 +1416,15 @@ theorem CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint
     CompiledStmtStepWithHelpersAndHelperIR
       runtimeContract spec fields scope stmt compiledIR where
   compileOk := hstep.compileOk
-  preserves := by sorry
--- SORRY'D:     intro runtime state helperFuel extraFuel _ hexact hscope hbounded hruntime hslack
--- SORRY'D:     rcases hstep.preserves runtime state helperFuel extraFuel
--- SORRY'D:         hexact hscope hbounded hruntime hslack with
--- SORRY'D:       ⟨sourceResult, irExec, hsource, hir, hmatch⟩
--- SORRY'D:     refine ⟨sourceResult,
--- SORRY'D:       match irExec with
--- SORRY'D:       | .continue next => .continue next
--- SORRY'D:       | .return value next => .return value next
--- SORRY'D:       | .stop next => .stop next
--- SORRY'D:       | .revert next => .revert next,
--- SORRY'D:       hsource, ?_, ?_⟩
--- SORRY'D:     · have hcompat :=
--- SORRY'D:         execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
--- SORRY'D:           (compiledIR.length + extraFuel + 1)
--- SORRY'D:           state
--- SORRY'D:           compiledIR
--- SORRY'D:           hdisjoint
--- SORRY'D:       simpa [hir] using hcompat
--- SORRY'D:     · cases irExec <;> simpa [stmtStepMatchesIRExecWithInternals] using hmatch
+  preserves := by
+    apply compiledStmtStepWithHelpers_preserves_withCompat hstep
+    intro state extraFuel
+    exact
+      execIRStmtsWithInternals_eq_execIRStmts_of_callsDisjoint runtimeContract
+        (compiledIR.length + extraFuel + 1)
+        state
+        compiledIR
+        hdisjoint
 
 -- SORRY'D: /-- Lift helper-aware statement-list proofs into the exact helper-aware compiled
 -- SORRY'D: induction seam on the current legacy-compatible compiled subset. This isolates
@@ -1406,16 +1440,16 @@ theorem stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyC
     (hgeneric : StmtListGenericWithHelpers spec fields scope stmts)
     (hlegacy : StmtListCompiledLegacyCompatible fields scope stmts)
     (hinternal : runtimeContract.internalFunctions = []) :
-    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by sorry
--- SORRY'D:   induction hgeneric generalizing hlegacy with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact .nil
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       cases hlegacy with
--- SORRY'D:       | cons hhead htail =>
--- SORRY'D:           exact .cons
--- SORRY'D:             (hstep.withHelperIR_of_legacyCompatible (hhead compiledIR hstep.compileOk) hinternal)
--- SORRY'D:             (ih htail)
+    StmtListGenericWithHelpersAndHelperIR runtimeContract spec fields scope stmts := by
+  induction hgeneric with
+  | nil =>
+      exact .nil
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      cases hlegacy with
+      | cons hhead htail =>
+          exact .cons
+            (hstep.withHelperIR_of_legacyCompatible (hhead compiledIR hstep.compileOk) hinternal)
+            (ih htail)
 
 -- SORRY'D: /-- Exact helper-aware list bridge that splits the remaining work cleanly:
 -- SORRY'D: helper-free heads still reuse the legacy generic step library plus the weaker

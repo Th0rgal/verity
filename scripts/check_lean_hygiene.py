@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 126  # Reduced by closing two helper-surface lift theorems in GenericInduction
+    expected_sorry = 123  # Reduced by closing helper-IR bridge theorems in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
