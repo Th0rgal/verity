@@ -7623,6 +7623,43 @@ private theorem compileExprList_core_ok
 -- SORRY'D:       rcases ih htail with ⟨restIR, hrestIR⟩
 -- SORRY'D:       exact ⟨exprIR :: restIR, by simp [CompilationModel.compileExprList, hexprIR, hrestIR]⟩
 
+private theorem eval_compileExpr_core_some_of_scope
+    {fields : List Field}
+    {scope : List String}
+    {expr : Expr}
+    {exprIR : YulExpr}
+    {runtime : SourceSemantics.RuntimeState}
+    {state : IRState}
+    (hcore : FunctionBody.ExprCompileCore expr)
+    (hexact : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state)
+    (hinScope : FunctionBody.exprBoundNamesInScope expr scope)
+    (hbounded : FunctionBody.bindingsBounded runtime.bindings)
+    (hscope : FunctionBody.scopeNamesPresent scope runtime.bindings)
+    (hruntime : FunctionBody.runtimeStateMatchesIR fields runtime state)
+    (hcompiled : CompilationModel.compileExpr fields .calldata expr = Except.ok exprIR) :
+    ∃ value,
+      SourceSemantics.evalExpr fields runtime expr = some value ∧
+      evalIRExpr state exprIR = some value := by
+  have hpresent : FunctionBody.exprBoundNamesPresent expr runtime.bindings :=
+    FunctionBody.exprBoundNamesPresent_of_scope hscope hinScope
+  have heval :
+      evalIRExpr state exprIR = some (SourceSemantics.evalExpr fields runtime expr) := by
+    have h :=
+      FunctionBody.eval_compileExpr_core_of_scope
+        hcore hexact hinScope hbounded hpresent hruntime
+    simpa [hcompiled] using h
+  rcases he : SourceSemantics.evalExpr fields runtime expr with _ | value
+  · cases hIR : evalIRExpr state exprIR <;> simp [hIR, he] at heval
+  · have hIRsome : evalIRExpr state exprIR = some value := by
+      cases hIR : evalIRExpr state exprIR with
+      | none =>
+          simp [hIR, he] at heval
+      | some actual =>
+          simp [hIR, he] at heval
+          subst heval
+          exact rfl
+    exact ⟨value, rfl, hIRsome⟩
+
 private theorem eval_compileExprList_core_of_scope
     {fields : List Field}
     {scope : List String}
@@ -7639,7 +7676,36 @@ private theorem eval_compileExprList_core_of_scope
     (hcompiled : CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs) :
     ∃ values,
       SourceSemantics.evalExprList fields runtime exprs = some values ∧
-      List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) exprIRs values := by sorry
+      List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) exprIRs values := by
+  induction exprs generalizing exprIRs with
+  | nil =>
+      simp [CompilationModel.compileExprList] at hcompiled
+      cases hcompiled
+      exact ⟨[], rfl, .nil⟩
+  | cons expr rest ih =>
+      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
+      have htail :
+          ∀ expr' ∈ rest, FunctionBody.ExprCompileCore expr' := by
+        intro expr' hexpr'
+        exact hcore expr' (by simp [hexpr'])
+      have htailScope :
+          ∀ expr' ∈ rest, FunctionBody.exprBoundNamesInScope expr' scope := by
+        intro expr' hexpr'
+        exact hinScope expr' (by simp [hexpr'])
+      rcases compileExprList_core_ok (fields := fields) htail with ⟨restIRs, hrestIRs⟩
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
+      rw [CompilationModel.compileExprList, hexprIR, hrestIRs] at hcompiled
+      injection hcompiled with hcompiledTail
+      subst hcompiledTail
+      rcases eval_compileExpr_core_some_of_scope
+          (expr := expr) (exprIR := exprIR) hhead hexact (hinScope expr (by simp))
+          hbounded hscope hruntime hexprIR with
+        ⟨headVal, hheadVal, hheadEval⟩
+      rcases ih htail htailScope hrestIRs with
+        ⟨restVals, hrestVals, hrestEval⟩
+      refine ⟨headVal :: restVals, ?_, ?_⟩
+      · simp [SourceSemantics.evalExprList, hheadVal, hrestVals]
+      · exact .cons hheadEval hrestEval
 
 private theorem evalIRExpr_mappingSlotChain
     {state : IRState}

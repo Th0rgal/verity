@@ -1180,6 +1180,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_mstoreSingle_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_of_supportedStmtList_tstoreSingle_of_surface  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.compileExprList_core_ok  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.eval_compileExpr_core_some_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.eval_compileExprList_core_of_scope  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.evalIRExpr_mappingSlotChain  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericCore_singleton_setMappingUintSingle_of_slotSafety  -- private
@@ -1751,4 +1752,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1617 theorems/lemmas (1150 public, 440 private, 27 sorry'd)
+-- Total: 1618 theorems/lemmas (1150 public, 441 private, 27 sorry'd)
