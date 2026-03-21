@@ -1015,8 +1015,11 @@ jobs:
       - name: Restore compiler workspace build
         run: tar -xf lean-workspace-compiler-build.tar
 
+      - name: Restore compiler regression executable bit
+        run: chmod +x .lake/build/bin/compiler-main-test
+
       - name: Run compiler CLI regression module
-        run: stdbuf -oL -eL lake exe compiler-main-test
+        run: stdbuf -oL -eL ./.lake/build/bin/compiler-main-test
 
       - name: Run CompilationModel feature regression module
         run: lake build Compiler.CompilationModelFeatureTest

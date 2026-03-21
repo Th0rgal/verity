@@ -522,6 +522,9 @@ private def ensureNonReservedYulIdentifier (kind name : String) : Except String 
   if name.startsWith "__" then
     throw s!"Compilation error: {kind} '{name}' uses reserved compiler prefix '__' ({issue756Ref}). Rename it."
 
+private def isInternalImmutableStorageName (name : String) : Bool :=
+  name.startsWith "__immutable_"
+
 private def validateContractIdentifiers (kind : String) : List String → Except String Unit
   | [] => pure ()
   | name :: rest => do
@@ -533,7 +536,8 @@ private def validateFieldIdentifiers : List Field → Except String Unit
   | [] => pure ()
   | field :: rest => do
       ensureContractIdentifier "field" field.name
-      ensureNonReservedYulIdentifier "field" field.name
+      if !isInternalImmutableStorageName field.name then
+        ensureNonReservedYulIdentifier "field" field.name
       validateFieldIdentifiers rest
 
 private def validateFunctionYulIdentifiers (fn : FunctionSpec) : Except String Unit := do
@@ -548,7 +552,10 @@ def validateFunctionIdentifiers (fn : FunctionSpec) : Except String Unit := do
 private def validateConstructorYulIdentifiers (ctor : ConstructorSpec) : Except String Unit := do
   validateContractIdentifiers "constructor parameter" (ctor.params.map (·.name))
   validateContractIdentifiers "local binder" (collectStmtListBindNames ctor.body)
-  validateContractIdentifiers "assignment target" (collectStmtListAssignedNames ctor.body)
+  for name in collectStmtListAssignedNames ctor.body do
+    ensureContractIdentifier "assignment target" name
+    if !isInternalImmutableStorageName name then
+      ensureNonReservedYulIdentifier "assignment target" name
 
 def validateConstructorIdentifiers (ctor : ConstructorSpec) : Except String Unit :=
   validateConstructorYulIdentifiers ctor

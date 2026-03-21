@@ -15,6 +15,17 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Setup Lean
+      uses: ./.github/actions/setup-lean
+      with:
+        cache-key-prefix: lake-compiler
+        use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
+        sticky-disk-key-prefix: verify-compiler
+        lake-packages-sticky-key: lake-packages-verify-compiler-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+        lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-compiler-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
+        disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
+        cache-primary-key: lake-compiler-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
+
     - name: Download generated Yul
       if: inputs.download-yul == 'true'
       uses: actions/download-artifact@v4
@@ -96,3 +107,29 @@ runs:
 
     - name: Setup solc
       uses: ./.github/actions/setup-solc
+
+    - name: Prepare extra Verity smoke Yul artifacts
+      if: inputs.download-yul == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        out_dir="${{ inputs.yul-artifact-path }}"
+        compiler_bin="verity-compiler"
+        compiler_args=()
+        if [ "${{ inputs.yul-artifact-name }}" = "generated-yul-patched" ]; then
+          compiler_bin="verity-compiler-patched"
+          compiler_args+=(--enable-patches)
+        fi
+
+        artifact_path="${out_dir}/LocalObligationMacroSmoke.yul"
+        if [ -f "${artifact_path}" ]; then
+          exit 0
+        fi
+
+        mkdir -p "${out_dir}"
+        lake build Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke "${compiler_bin}" >/dev/null
+        "./.lake/build/bin/${compiler_bin}" \
+          --module Contracts.LocalObligationMacroSmoke.LocalObligationMacroSmoke \
+          --output "${out_dir}" \
+          "${compiler_args[@]}" >/dev/null
