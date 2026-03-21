@@ -9134,14 +9134,13 @@ theorem stmtListGenericCore_of_stmtListTerminalCore
 private theorem scopeNamesIncluded_foldl_stmtNextScope
     {scope : List String}
     {stmts : List Stmt} :
-    FunctionBody.scopeNamesIncluded scope (List.foldl stmtNextScope scope stmts) := by sorry
--- SORRY'D:   induction stmts generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       simpa using FunctionBody.scopeNamesIncluded_refl
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       exact
--- SORRY'D:         FunctionBody.scopeNamesIncluded_collectStmtNames_tail
--- SORRY'D:           (ih (scope := stmtNextScope scope stmt))
+    FunctionBody.scopeNamesIncluded scope (List.foldl stmtNextScope scope stmts) := by
+  induction stmts generalizing scope with
+  | nil =>
+      simpa using FunctionBody.scopeNamesIncluded_refl
+  | cons stmt rest ih =>
+      intro name hname
+      exact ih (scope := stmtNextScope scope stmt) name (mem_stmtNextScope_of_mem_scope hname)
 
 theorem compileStmtList_ok_of_stmtListGenericCore
     {fields : List Field}
@@ -9152,17 +9151,6 @@ theorem compileStmtList_ok_of_stmtListGenericCore
     ∃ bodyIR,
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
--- SORRY'D:   induction hgeneric generalizing inScopeNames with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact ⟨[], by simp [CompilationModel.compileStmtList]⟩
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       rcases ih
--- SORRY'D:           (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:           (scopeNamesIncluded_stmtNextScope hincluded) with
--- SORRY'D:         ⟨tailIR, htail⟩
--- SORRY'D:       refine ⟨compiledIR ++ tailIR, ?_⟩
--- SORRY'D:       exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- SORRY'D:         hstep.compileOk htail
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     {spec : CompilationModel}
@@ -9174,17 +9162,6 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpers
     ∃ bodyIR,
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
--- SORRY'D:   induction hgeneric generalizing inScopeNames with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact ⟨[], by simp [CompilationModel.compileStmtList]⟩
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       rcases ih
--- SORRY'D:           (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:           (scopeNamesIncluded_stmtNextScope hincluded) with
--- SORRY'D:         ⟨tailIR, htail⟩
--- SORRY'D:       refine ⟨compiledIR ++ tailIR, ?_⟩
--- SORRY'D:       exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- SORRY'D:         hstep.compileOk htail
 
 theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     {runtimeContract : IRContract}
@@ -9198,17 +9175,6 @@ theorem compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR
     ∃ bodyIR,
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR := by sorry
--- SORRY'D:   induction hgeneric generalizing inScopeNames with
--- SORRY'D:   | nil =>
--- SORRY'D:       exact ⟨[], by simp [CompilationModel.compileStmtList]⟩
--- SORRY'D:   | @cons scope stmt compiledIR rest hstep hrest ih =>
--- SORRY'D:       rcases ih
--- SORRY'D:           (inScopeNames := collectStmtNames stmt ++ inScopeNames)
--- SORRY'D:           (scopeNamesIncluded_stmtNextScope hincluded) with
--- SORRY'D:         ⟨tailIR, htail⟩
--- SORRY'D:       refine ⟨compiledIR ++ tailIR, ?_⟩
--- SORRY'D:       exact FunctionBody.compileStmtList_cons_ok_of_compileStmt_ok
--- SORRY'D:         hstep.compileOk htail
 
 theorem stmtStepMatchesIRExec_of_included
     {fields : List Field}
@@ -9217,14 +9183,15 @@ theorem stmtStepMatchesIRExec_of_included
     {irExec : IRExecResult}
     (hmatch : stmtStepMatchesIRExec fields largerScope sourceResult irExec)
     (hincluded : FunctionBody.scopeNamesIncluded scope largerScope) :
-    stmtStepMatchesIRExec fields scope sourceResult irExec := by sorry
--- SORRY'D:   cases sourceResult <;> cases irExec <;> simp [stmtStepMatchesIRExec] at hmatch ⊢
--- SORRY'D:   case continue runtime state =>
--- SORRY'D:     rcases hmatch with ⟨hruntime, hexact, hbounded, hscope⟩
--- SORRY'D:     exact ⟨hruntime,
--- SORRY'D:       FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact hincluded,
--- SORRY'D:       hbounded,
--- SORRY'D:       FunctionBody.scopeNamesPresent_of_included hscope hincluded⟩
+    stmtStepMatchesIRExec fields scope sourceResult irExec := by
+  cases sourceResult <;> cases irExec <;> simp [stmtStepMatchesIRExec] at hmatch ⊢
+  rcases hmatch with ⟨hruntime, hexact, hbounded, hscope⟩
+  exact ⟨hruntime,
+    FunctionBody.bindingsExactlyMatchIRVarsOnScope_of_included hexact hincluded,
+    hbounded,
+    FunctionBody.scopeNamesPresent_of_included hscope hincluded⟩
+  · exact hmatch
+  · exact hmatch
 
 theorem stmtStepMatchesIRExecWithInternals_of_included
     {fields : List Field}

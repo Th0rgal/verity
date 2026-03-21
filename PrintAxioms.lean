@@ -1221,7 +1221,7 @@ import Compiler.Proofs.YulGeneration.Equivalence
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericCore  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericWithHelpers  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.compileStmtList_ok_of_stmtListGenericWithHelpersAndHelperIR  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_of_included  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_of_included
 #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_of_included
 #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExec_implies_stmtResultMatchesIRExec
 #print axioms Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithInternals
@@ -1751,4 +1751,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1617 theorems/lemmas (1149 public, 440 private, 28 sorry'd)
+-- Total: 1617 theorems/lemmas (1150 public, 440 private, 27 sorry'd)
