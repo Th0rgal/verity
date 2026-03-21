@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 111  # Reduced by closing yulStmtList_sizeOf_append_left_le in GenericInduction
+    expected_sorry = 109  # Reduced by closing two root-local GenericInduction scope/step lemmas
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
