@@ -6969,35 +6969,54 @@ private theorem stmtListCompileCore_of_requireLiteralGuardFamilyClauses
     {scope : List String}
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
     FunctionBody.StmtListCompileCore scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) := by sorry
--- SORRY'D:   induction clauses generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       simpa using FunctionBody.StmtListCompileCore.nil (scope := scope)
--- SORRY'D:   | cons clause rest ih =>
--- SORRY'D:       refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ ih
--- SORRY'D:       · cases clause with
--- SORRY'D:         | mk family n m p q message =>
--- SORRY'D:             cases family <;> repeat constructor
--- SORRY'D:       · intro name hmem
--- SORRY'D:         cases clause with
--- SORRY'D:         | mk family n m p q message =>
--- SORRY'D:             cases family <;> simp [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
--- SORRY'D:               FunctionBody.exprBoundNames] at hmem
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) := by
+  induction clauses generalizing scope with
+  | nil =>
+      simpa using FunctionBody.StmtListCompileCore.nil (scope := scope)
+  | cons clause rest ih =>
+      refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ ih
+      · cases clause with
+        | mk family n m p q message =>
+            cases family with
+            | binary guard =>
+                cases guard <;> repeat constructor
+            | andEqLt =>
+                exact .logicalAnd (.eq (.literal n) (.literal m)) (.lt (.literal p) (.literal q))
+            | orEqLt =>
+                exact .logicalOr (.eq (.literal n) (.literal m)) (.lt (.literal p) (.literal q))
+      · intro name hmem
+        cases clause with
+        | mk family n m p q message =>
+            cases family with
+            | binary guard =>
+                cases guard <;> simp [FunctionBody.exprBoundNames] at hmem
+            | andEqLt =>
+                simp [FunctionBody.exprBoundNames] at hmem
+            | orEqLt =>
+                simp [FunctionBody.exprBoundNames] at hmem
 
 private theorem foldl_stmtNextScope_requireLiteralGuardFamilyClauses
     {scope : List String}
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
     List.foldl stmtNextScope scope
-      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) = scope := by sorry
--- SORRY'D:   induction clauses generalizing scope with
--- SORRY'D:   | nil =>
--- SORRY'D:       rfl
--- SORRY'D:   | cons clause rest ih =>
--- SORRY'D:       cases clause with
--- SORRY'D:       | mk family n m p q message =>
--- SORRY'D:           cases family <;>
--- SORRY'D:             simp [stmtNextScope, Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
--- SORRY'D:               collectStmtNames, ih]
+      (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) = scope := by
+  induction clauses generalizing scope with
+  | nil =>
+      rfl
+  | cons clause rest ih =>
+      cases clause with
+      | mk family n m p q message =>
+          cases family with
+          | binary guard =>
+              cases guard <;>
+                simp [stmtNextScope, Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+                  collectStmtNames, collectExprNames, ih]
+          | andEqLt =>
+              simp [stmtNextScope, Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+                collectStmtNames, collectExprNames, ih]
+          | orEqLt =>
+              simp [stmtNextScope, Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
+                collectStmtNames, collectExprNames, ih]
 
 private theorem stmtListGenericCore_singleton_setStorage_singleSlot
     {fields : List Field}
@@ -7099,10 +7118,6 @@ private theorem stmtListGenericCore_of_requireClausesOnly
     (clauses : List Verity.Core.Free.RequireLiteralGuardFamilyClause) :
     StmtListGenericCore fields scope
       (clauses.map Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt) := by sorry
--- SORRY'D:   stmtListGenericCore_of_stmtListCompileCore
--- SORRY'D:     (fields := fields)
--- SORRY'D:     (scope := scope)
--- SORRY'D:     (stmtListCompileCore_of_requireLiteralGuardFamilyClauses (scope := scope) clauses)
 
 private theorem stmtListGenericCore_of_requireClausesThenSetStorageLiteral
     {fields : List Field}
@@ -7395,20 +7410,6 @@ private theorem stmtListGenericCore_singleton_requireLiteralGuardFamilyClause
     {scope : List String}
     (clause : Verity.Core.Free.RequireLiteralGuardFamilyClause) :
     StmtListGenericCore fields scope [clause.toStmt] := by sorry
--- SORRY'D:   exact stmtListGenericCore_of_stmtListCompileCore
--- SORRY'D:     (fields := fields)
--- SORRY'D:     (scope := scope)
--- SORRY'D:     (by
--- SORRY'D:       refine FunctionBody.StmtListCompileCore.require_ ?_ ?_ FunctionBody.StmtListCompileCore.nil
--- SORRY'D:       · cases clause with
--- SORRY'D:         | mk family n m p q message =>
--- SORRY'D:             cases family <;> repeat constructor
--- SORRY'D:       · intro name hmem
--- SORRY'D:         cases clause with
--- SORRY'D:         | mk family n m p q message =>
--- SORRY'D:             cases family <;>
--- SORRY'D:               simp [Verity.Core.Free.RequireLiteralGuardFamilyClause.toStmt,
--- SORRY'D:                 FunctionBody.exprBoundNames] at hmem)
 
 -- TYPESIG_SORRY: private theorem stmtListGenericCore_of_supportedStmtList_append_of_surface
 -- TYPESIG_SORRY:     {fields : List Field}
