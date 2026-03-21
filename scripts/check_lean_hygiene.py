@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 99  # Reduced by proving exprBoundNamesInScope_of_validateScopedExprIdentifiers_core in GenericInduction
+    expected_sorry = 98  # Reduced by proving fieldName_mem_fields_of_findFieldWithResolvedSlot_some in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
