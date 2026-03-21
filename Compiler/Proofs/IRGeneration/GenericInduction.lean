@@ -2915,39 +2915,31 @@ private theorem scopeNamesPresent_foldl_stmtNextScope_of_validateScopedStmtListI
 private theorem collectExprNames_mem_exprBoundNames_of_core
     {expr : Expr}
     (hcore : FunctionBody.ExprCompileCore expr) :
-    ∀ name, name ∈ collectExprNames expr → name ∈ FunctionBody.exprBoundNames expr := by sorry
--- SORRY'D:   induction hcore with
--- SORRY'D:   | literal value =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       simp at hmem
--- SORRY'D:   | param name0 =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       simpa [collectExprNames, FunctionBody.exprBoundNames] using hmem
--- SORRY'D:   | localVar name0 =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       simpa [collectExprNames, FunctionBody.exprBoundNames] using hmem
--- SORRY'D:   | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       simp at hmem
--- SORRY'D:   | add hL hR ihL ihR
--- SORRY'D:   | sub hL hR ihL ihR
--- SORRY'D:   | mul hL hR ihL ihR
--- SORRY'D:   | div hL hR ihL ihR
--- SORRY'D:   | mod hL hR ihL ihR
--- SORRY'D:   | eq hL hR ihL ihR
--- SORRY'D:   | lt hL hR ihL ihR
--- SORRY'D:   | gt hL hR ihL ihR
--- SORRY'D:   | ge hL hR ihL ihR
--- SORRY'D:   | le hL hR ihL ihR
--- SORRY'D:   | logicalAnd hL hR ihL ihR
--- SORRY'D:   | logicalOr hL hR ihL ihR =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       rcases List.mem_append.mp hmem with hmem | hmem
--- SORRY'D:       · exact List.mem_append.mpr <| Or.inl <| ihL _ hmem
--- SORRY'D:       · exact List.mem_append.mpr <| Or.inr <| ihR _ hmem
--- SORRY'D:   | logicalNot h ih =>
--- SORRY'D:       intro name hmem
--- SORRY'D:       simpa [collectExprNames, FunctionBody.exprBoundNames] using ih _ hmem
+    ∀ name, name ∈ collectExprNames expr → name ∈ FunctionBody.exprBoundNames expr := by
+  induction hcore with
+  | literal _ | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid =>
+      intro name hmem; simp [collectExprNames] at hmem
+  | param _ | localVar _ =>
+      intro name hmem; simpa [collectExprNames, FunctionBody.exprBoundNames] using hmem
+  | add hL hR ihL ihR
+  | sub hL hR ihL ihR
+  | mul hL hR ihL ihR
+  | div hL hR ihL ihR
+  | mod hL hR ihL ihR
+  | eq hL hR ihL ihR
+  | lt hL hR ihL ihR
+  | gt hL hR ihL ihR
+  | ge hL hR ihL ihR
+  | le hL hR ihL ihR
+  | logicalAnd hL hR ihL ihR
+  | logicalOr hL hR ihL ihR =>
+      intro name hmem
+      simp [collectExprNames, FunctionBody.exprBoundNames] at hmem ⊢
+      rcases hmem with hmem | hmem
+      · exact Or.inl (ihL _ hmem)
+      · exact Or.inr (ihR _ hmem)
+  | logicalNot h ih =>
+      intro name hmem; simpa [collectExprNames, FunctionBody.exprBoundNames] using ih _ hmem
 
 private theorem stmtListScopeDiscipline_scope_names
     {fieldNames : List String}
@@ -11972,11 +11964,11 @@ theorem directInternalHelperPerCalleeCallCompileCatalog_of_supportedBody
     {fields : List Field}
     {fn : FunctionSpec}
     (hbody : SupportedBodyInterface spec fn) :
-    DirectInternalHelperPerCalleeCallCompileCatalog spec fields fn := by sorry
--- SORRY'D:   refine ⟨?_⟩
--- SORRY'D:   intro calleeName hmem
--- SORRY'D:   exfalso
--- SORRY'D:   simpa [hbody.helperCallNames_nil] using hmem
+    DirectInternalHelperPerCalleeCallCompileCatalog spec fields fn := by
+  refine ⟨?_⟩
+  intro calleeName hmem
+  exfalso
+  simpa [hbody.helperCallNames_nil] using hmem
 
 -- SORRY'D: /-- Split compile-side Tier 4 inventory. This isolates the purely compilation
 -- SORRY'D: obligations from the semantic bridge obligations so future fragment widening can
