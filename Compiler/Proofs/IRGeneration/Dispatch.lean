@@ -43,32 +43,32 @@ theorem runtimeContractOfFunctions_disjoint
 
 private theorem decodeSupportedParamWord_some_of_supported
     (ty : ParamType) (word : Nat) (hsupported : SupportedExternalParamType ty) :
-    ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by sorry
--- SORRY'D:   cases ty with
--- SORRY'D:   | uint256 =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word, by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | uint8 =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word &&& (SourceSemantics.uint8Modulus - 1), by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | address =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word &&& Compiler.Constants.addressMask, by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | bool =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | bytes32 =>
--- SORRY'D:       exact ⟨SourceSemantics.wordNormalize word, by
--- SORRY'D:         simp [SourceSemantics.decodeSupportedParamWord]⟩
--- SORRY'D:   | string =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | tuple _ =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | array _ =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | fixedArray _ _ =>
--- SORRY'D:       cases hsupported
--- SORRY'D:   | bytes =>
--- SORRY'D:       cases hsupported
+    ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by
+  cases ty with
+  | uint256 =>
+      exact ⟨SourceSemantics.wordNormalize word, by
+        simp [SourceSemantics.decodeSupportedParamWord]⟩
+  | uint8 =>
+      exact ⟨SourceSemantics.wordNormalize word &&& (SourceSemantics.uint8Modulus - 1), by
+        simp [SourceSemantics.decodeSupportedParamWord]⟩
+  | address =>
+      exact ⟨SourceSemantics.wordNormalize word &&& Compiler.Constants.addressMask, by
+        simp [SourceSemantics.decodeSupportedParamWord]⟩
+  | bool =>
+      cases hsupported
+  | bytes32 =>
+      exact ⟨SourceSemantics.wordNormalize word, by
+        simp [SourceSemantics.decodeSupportedParamWord]⟩
+  | string =>
+      cases hsupported
+  | tuple _ =>
+      cases hsupported
+  | array _ =>
+      cases hsupported
+  | fixedArray _ _ =>
+      cases hsupported
+  | bytes =>
+      cases hsupported
 
 private theorem bindSupportedParams_some_of_supported
     (params : List Param) (args : List Nat)
@@ -432,25 +432,25 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   have hlegacy :=
--- SORRY'D:     interpretContract_correct_of_compiled_functions_with_helper_proofs
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (hHelperProofs := hHelperProofs)
--- SORRY'D:       (irFns := irFns)
--- SORRY'D:       (tx := tx)
--- SORRY'D:       (initialWorld := initialWorld)
--- SORRY'D:       (hcompiled := hcompiled)
--- SORRY'D:       (hparamsSupported := hparamsSupported)
--- SORRY'D:       (hfunction := hfunction)
--- SORRY'D:   simpa [hhelperIR] using hlegacy
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hlegacy :=
+    interpretContract_correct_of_compiled_functions_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (irFns := irFns)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (hcompiled := hcompiled)
+      (hparamsSupported := hparamsSupported)
+      (hfunction := hfunction)
+  simpa [hhelperIR] using hlegacy
 
--- SORRY'D: /-- Structured helper-aware dispatch wrapper.
--- SORRY'D: This consumes the named compiled-side conservative-extension goal together with
--- SORRY'D: the runtime-contract compatibility witness, instead of requiring callers to
--- SORRY'D: restate the resulting equality manually. -/
+/-- Structured helper-aware dispatch wrapper.
+This consumes the named compiled-side conservative-extension goal together with
+the runtime-contract compatibility witness, instead of requiring callers to
+restate the resulting equality manually. -/
 theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_goal
     (model : CompilationModel)
     (selectors : List Nat)
@@ -536,24 +536,24 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (interpretIRWithInternals (runtimeContractOfFunctions model.name irFns) 0 tx
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (hSupported := hSupported)
--- SORRY'D:     (hHelperProofs := hHelperProofs)
--- SORRY'D:     (irFns := irFns)
--- SORRY'D:     (tx := tx)
--- SORRY'D:     (initialWorld := initialWorld)
--- SORRY'D:     (hcompiled := hcompiled)
--- SORRY'D:     (hparamsSupported := hparamsSupported)
--- SORRY'D:     (hfunction := hfunction)
--- SORRY'D:     (hhelperIR :=
--- SORRY'D:       interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
--- SORRY'D:         (runtimeContractOfFunctions model.name irFns)
--- SORRY'D:         hdisjointIR
--- SORRY'D:         tx
--- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld))
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (irFns := irFns)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := hfunction)
+    (hhelperIR :=
+      interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
+        (runtimeContractOfFunctions model.name irFns)
+        hdisjointIR
+        tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld))
 
 -- SORRY'D: /-- Narrow direct-helper-aware dispatch wrapper aligned with the current Tier 4
 -- SORRY'D: function theorem seam. Callers stay on `execIRFunctionWithInternals` for each
@@ -2028,10 +2028,10 @@ theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_h
 -- SORRY'D:       (hdisjoint := hdisjoint)
 -- SORRY'D:       (hbodyDisjoint := hbodyDisjoint)
 
--- SORRY'D: /-- Direct helper-aware dispatch theorem on the current legacy-compatible
--- SORRY'D: runtime-contract boundary. The compiled-side conservative-extension theorem is
--- SORRY'D: now closed in `IRInterpreter.lean`, so callers no longer need to supply it as
--- SORRY'D: an extra premise. -/
+/-- Direct helper-aware dispatch theorem on the current legacy-compatible
+runtime-contract boundary. The compiled-side conservative-extension theorem is
+now closed in `IRInterpreter.lean`, so callers no longer need to supply it as
+an extra premise. -/
 theorem interpretContract_correct_of_compiled_functions_with_helper_proofs_and_helper_ir_closed
     (model : CompilationModel)
     (selectors : List Nat)

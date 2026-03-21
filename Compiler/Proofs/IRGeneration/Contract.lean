@@ -112,18 +112,18 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
     {f : Field}
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    f ∈ fields := by sorry
--- SORRY'D:   induction fields with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind
--- SORRY'D:   | cons field rest ih =>
--- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind ⊢
--- SORRY'D:       by_cases hname : field.name == fieldName
--- SORRY'D:       · injection hfind with hfield _
--- SORRY'D:         subst hfield
--- SORRY'D:         simp [hname]
--- SORRY'D:       · simp [hname] at hfind
--- SORRY'D:         exact Or.inr (ih hfind)
+    f ∈ fields := by
+  induction fields with
+  | nil =>
+      simp [findFieldWithResolvedSlot] at hfind
+  | cons field rest ih =>
+      simp [findFieldWithResolvedSlot] at hfind ⊢
+      by_cases hname : field.name == fieldName
+      · injection hfind with hfield _
+        subst hfield
+        simp [hname]
+      · simp [hname] at hfind
+        exact Or.inr (ih hfind)
 
 -- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_append
 -- TYPESIG_SORRY:     (prefix suffix : List YulStmt)
@@ -160,29 +160,29 @@ private theorem field_mem_of_findFieldWithResolvedSlot_some
 
 private theorem legacyCompatibleExternalStmtList_revertWithMessage
     (message : String) :
-    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by sorry
--- SORRY'D:   unfold CompilationModel.revertWithMessage
--- SORRY'D:   apply legacyCompatibleExternalStmtList_append
--- SORRY'D:   · exact legacyCompatibleExternalStmtList_of_exprStmtExprs
--- SORRY'D:       [ YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex errorStringSelectorWord]
--- SORRY'D:       , YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]
--- SORRY'D:       , YulExpr.call "mstore" [YulExpr.lit 36, YulExpr.lit (CompilationModel.bytesFromString message).length]
--- SORRY'D:       ]
--- SORRY'D:   · apply legacyCompatibleExternalStmtList_append
--- SORRY'D:     · exact legacyCompatibleExternalStmtList_of_exprStmtExprs
--- SORRY'D:         (((CompilationModel.chunkBytes32 (CompilationModel.bytesFromString message)).zipIdx).map
--- SORRY'D:           (fun (chunk, idx) =>
--- SORRY'D:             let offset := 68 + idx * 32
--- SORRY'D:             let word := CompilationModel.wordFromBytes chunk
--- SORRY'D:             YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex word]))
--- SORRY'D:     · exact LegacyCompatibleExternalStmtList.expr
--- SORRY'D:         (YulExpr.call "revert"
--- SORRY'D:           [ YulExpr.lit 0
--- SORRY'D:           , YulExpr.lit
--- SORRY'D:               (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
--- SORRY'D:           ])
--- SORRY'D:         []
--- SORRY'D:         LegacyCompatibleExternalStmtList.nil
+    LegacyCompatibleExternalStmtList (CompilationModel.revertWithMessage message) := by
+  unfold CompilationModel.revertWithMessage
+  apply legacyCompatibleExternalStmtList_append
+  · exact legacyCompatibleExternalStmtList_of_exprStmtExprs
+      [ YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex errorStringSelectorWord]
+      , YulExpr.call "mstore" [YulExpr.lit 4, YulExpr.lit 32]
+      , YulExpr.call "mstore" [YulExpr.lit 36, YulExpr.lit (CompilationModel.bytesFromString message).length]
+      ]
+  · apply legacyCompatibleExternalStmtList_append
+    · exact legacyCompatibleExternalStmtList_of_exprStmtExprs
+        (((CompilationModel.chunkBytes32 (CompilationModel.bytesFromString message)).zipIdx).map
+          (fun (chunk, idx) =>
+            let offset := 68 + idx * 32
+            let word := CompilationModel.wordFromBytes chunk
+            YulExpr.call "mstore" [YulExpr.lit offset, YulExpr.hex word]))
+    · exact LegacyCompatibleExternalStmtList.expr
+        (YulExpr.call "revert"
+          [ YulExpr.lit 0
+          , YulExpr.lit
+              (68 + (((CompilationModel.bytesFromString message).length + 31) / 32) * 32)
+          ])
+        []
+        LegacyCompatibleExternalStmtList.nil
 
 -- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_of_compileSetStorage_ok_of_noPackedFields
 -- TYPESIG_SORRY:     {fields : List Field}
@@ -435,21 +435,21 @@ private theorem legacyCompatibleExternalStmtList_revertWithMessage
 private theorem legacyCompatibleExternalStmtList_genParamLoads_of_supported
     (params : List Param)
     (hparams : ∀ param ∈ params, SupportedExternalParamType param.ty) :
-    LegacyCompatibleExternalStmtList (CompilationModel.genParamLoads params) := by sorry
--- SORRY'D:   unfold CompilationModel.genParamLoads CompilationModel.genParamLoadsFrom
--- SORRY'D:   apply LegacyCompatibleExternalStmtList.if_
--- SORRY'D:   · exact LegacyCompatibleExternalStmtList.expr
--- SORRY'D:       (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
--- SORRY'D:       []
--- SORRY'D:       LegacyCompatibleExternalStmtList.nil
--- SORRY'D:   · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
--- SORRY'D:       (loadWord := fun pos => YulExpr.call "calldataload" [pos])
--- SORRY'D:       (sizeExpr := YulExpr.call "calldatasize" [])
--- SORRY'D:       (headSize := (params.map (fun p => paramHeadSize p.ty)).foldl (· + ·) 0)
--- SORRY'D:       (baseOffset := 4)
--- SORRY'D:       (params := params)
--- SORRY'D:       (headOffset := 4)
--- SORRY'D:       hparams
+    LegacyCompatibleExternalStmtList (CompilationModel.genParamLoads params) := by
+  unfold CompilationModel.genParamLoads CompilationModel.genParamLoadsFrom
+  apply LegacyCompatibleExternalStmtList.if_
+  · exact LegacyCompatibleExternalStmtList.expr
+      (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      []
+      LegacyCompatibleExternalStmtList.nil
+  · exact legacyCompatibleExternalStmtList_genParamLoadBodyFrom_of_supported
+      (loadWord := fun pos => YulExpr.call "calldataload" [pos])
+      (sizeExpr := YulExpr.call "calldatasize" [])
+      (headSize := (params.map (fun p => paramHeadSize p.ty)).foldl (· + ·) 0)
+      (baseOffset := 4)
+      (params := params)
+      (headOffset := 4)
+      hparams
 
 -- TYPESIG_SORRY: private theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
 -- TYPESIG_SORRY:     {fields : List Field}
@@ -615,36 +615,36 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
     (hSupported : SupportedSpec model selectors)
     (ir : IRContract)
     (hcore : compileValidatedCore model selectors = Except.ok ir) :
-    ir.internalFunctions = [] := by sorry
--- SORRY'D:   have hfallback :
--- SORRY'D:       pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
--- SORRY'D:     pickUniqueFunctionByName_eq_ok_none_of_absent
--- SORRY'D:       "fallback" model.functions hSupported.noFallback
--- SORRY'D:   have hreceive :
--- SORRY'D:       pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
--- SORRY'D:     pickUniqueFunctionByName_eq_ok_none_of_absent
--- SORRY'D:       "receive" model.functions hSupported.noReceive
--- SORRY'D:   have hnoInternalFns :
--- SORRY'D:       model.functions.filter (·.isInternal) = [] :=
--- SORRY'D:     filterInternalFunctions_eq_nil_of_supported model selectors hSupported
--- SORRY'D:   have harray : contractUsesArrayElement model = false :=
--- SORRY'D:     hSupported.contractUsesArrayElement_eq_false
--- SORRY'D:   have hstorageArray : contractUsesStorageArrayElement model = false :=
--- SORRY'D:     hSupported.contractUsesStorageArrayElement_eq_false
--- SORRY'D:   have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
--- SORRY'D:     hSupported.contractUsesDynamicBytesEq_eq_false
--- SORRY'D:   unfold compileValidatedCore at hcore
--- SORRY'D:   rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
--- SORRY'D:     hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
--- SORRY'D:   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
--- SORRY'D:   rcases hmap :
--- SORRY'D:       ((model.functions.filter
--- SORRY'D:           (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
--- SORRY'D:         (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
--- SORRY'D:   · simp [hmap] at hcore
--- SORRY'D:   · simp [hmap] at hcore
--- SORRY'D:     injection hcore with _ _ _ _ _ _ _ hinternal
--- SORRY'D:     exact hinternal
+    ir.internalFunctions = [] := by
+  have hfallback :
+      pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "fallback" model.functions hSupported.noFallback
+  have hreceive :
+      pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "receive" model.functions hSupported.noReceive
+  have hnoInternalFns :
+      model.functions.filter (·.isInternal) = [] :=
+    filterInternalFunctions_eq_nil_of_supported model selectors hSupported
+  have harray : contractUsesArrayElement model = false :=
+    hSupported.contractUsesArrayElement_eq_false
+  have hstorageArray : contractUsesStorageArrayElement model = false :=
+    hSupported.contractUsesStorageArrayElement_eq_false
+  have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
+    hSupported.contractUsesDynamicBytesEq_eq_false
+  unfold compileValidatedCore at hcore
+  rw [hSupported.normalizedFields, hfallback, hreceive, harray, hstorageArray,
+    hdynamicBytesEq, hnoInternalFns, hSupported.noConstructor] at hcore
+  simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
+  rcases hmap :
+      ((model.functions.filter
+          (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
+        (fun x => compileFunctionSpec model.fields model.events model.errors x.2 x.1) with _ | irFns
+  · simp [hmap] at hcore
+  · simp [hmap] at hcore
+    injection hcore with _ _ _ _ _ _ _ hinternal
+    exact hinternal
 
 theorem supported_params_of_supportedSpec
     (model : CompilationModel)
@@ -924,8 +924,8 @@ theorem compile_ok_yields_internalFunctions_nil
 -- SORRY'D:       (ir := ir)
 -- SORRY'D:       (hcore := hcompile)
 
--- SORRY'D: /-- On the current `SupportedSpec` fragment, successful external-function
--- SORRY'D: compilation already yields legacy-compatible helper-free IR bodies. -/
+/-- On the current `SupportedSpec` fragment, successful external-function
+compilation already yields legacy-compatible helper-free IR bodies. -/
 theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
     (model : CompilationModel)
     (selectors : List Nat)
@@ -936,22 +936,22 @@ theorem compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
     (hfn : fn ∈ selectorDispatchedFunctions model)
     (hcompileFn :
       compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn) :
-    LegacyCompatibleExternalStmtList irFn.body := by sorry
--- SORRY'D:   rcases Function.compileFunctionSpec_ok_components
--- SORRY'D:       model.fields model.events model.errors sel fn irFn hcompileFn with
--- SORRY'D:     ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
--- SORRY'D:   subst hirFn
--- SORRY'D:   have hparams :=
--- SORRY'D:     legacyCompatibleExternalStmtList_genParamLoads_of_supported
--- SORRY'D:       fn.params
--- SORRY'D:       (hSupported.selectorFunctionParamsSupported hfn)
--- SORRY'D:   have hbody :=
--- SORRY'D:     legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
--- SORRY'D:       (hnoPacked := hSupported.noPackedFields)
--- SORRY'D:       (hsurface := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.surfaceClosed)
--- SORRY'D:       (hcompile := by
--- SORRY'D:         simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
--- SORRY'D:   exact legacyCompatibleExternalStmtList_append hparams hbody
+    LegacyCompatibleExternalStmtList irFn.body := by
+  rcases Function.compileFunctionSpec_ok_components
+      model.fields model.events model.errors sel fn irFn hcompileFn with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbodyCompile, hirFn⟩
+  subst hirFn
+  have hparams :=
+    legacyCompatibleExternalStmtList_genParamLoads_of_supported
+      fn.params
+      (hSupported.selectorFunctionParamsSupported hfn)
+  have hbody :=
+    legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContractSurface
+      (hnoPacked := hSupported.noPackedFields)
+      (hsurface := (hSupported.supportedFunctionOfSelectorDispatched hfn).body.surfaceClosed)
+      (hcompile := by
+        simpa [hSupported.noEvents, hSupported.noErrors] using hbodyCompile)
+  exact legacyCompatibleExternalStmtList_append hparams hbody
 
 -- TYPESIG_SORRY: private theorem compiled_functions_legacyCompatibleExternalBodies
 -- TYPESIG_SORRY:     (model : CompilationModel)
@@ -997,31 +997,31 @@ theorem compile_ok_yields_legacyCompatibleExternalBodies
     (hSupported : SupportedSpec model selectors)
     (ir : IRContract)
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
-    LegacyCompatibleExternalBodies ir := by sorry
--- SORRY'D:   have hcompiled :
--- SORRY'D:       List.Forall₂
--- SORRY'D:         (fun entry irFn =>
--- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
--- SORRY'D:         ir.functions :=
--- SORRY'D:     compile_ok_yields_compiled_functions
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (ir := ir)
--- SORRY'D:       (hcompile := hcompile)
--- SORRY'D:   intro irFn hmem
--- SORRY'D:   exact compiled_functions_legacyCompatibleExternalBodies
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (hSupported := hSupported)
--- SORRY'D:     hcompiled
--- SORRY'D:     (by
--- SORRY'D:       intro entry hentry
--- SORRY'D:       simpa [SourceSemantics.selectorFunctionPairs] using
--- SORRY'D:         (List.mem_of_mem_zipLeft hentry : entry.1 ∈ selectorDispatchedFunctions model))
--- SORRY'D:     irFn
--- SORRY'D:     hmem
+    LegacyCompatibleExternalBodies ir := by
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  intro irFn hmem
+  exact compiled_functions_legacyCompatibleExternalBodies
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    hcompiled
+    (by
+      intro entry hentry
+      simpa [SourceSemantics.selectorFunctionPairs] using
+        (List.mem_of_mem_zipLeft hentry : entry.1 ∈ selectorDispatchedFunctions model))
+    irFn
+    hmem
 
 theorem compile_ok_yields_legacyCompatibleRuntimeContract
     (model : CompilationModel)
@@ -1144,11 +1144,11 @@ surface as the ordinary supported-function wrapper. -/
 -- SORRY'D:   simpa [supportedSourceFunctionSemanticsExceptMappingWrites_eq_interpretFunction_of_selectorDispatched
 -- SORRY'D:     (hSupported := hSupported) hfn tx initialWorld] using hcorrect
 
--- SORRY'D: /-- Helper-proof-carrying function-level generic theorem.
--- SORRY'D: This is the proof-ready theorem surface for the next helper-composition step.
--- SORRY'D: Today the additional helper-proof argument is compatibility-redundant because
--- SORRY'D: the body proof still closes helpers through the helper-excluding
--- SORRY'D: `SupportedStmtList` fragment. -/
+/-- Helper-proof-carrying function-level generic theorem.
+This is the proof-ready theorem surface for the next helper-composition step.
+Today the additional helper-proof argument is compatibility-redundant because
+the body proof still closes helpers through the helper-excluding
+`SupportedStmtList` fragment. -/
 theorem compileFunctionSpec_correct_generic_with_helper_proofs
     (model : CompilationModel)
     (selectors : List Nat)
@@ -1277,32 +1277,32 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
       (execIRFunctionWithInternals runtimeContract 0 irFn tx.args
-        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (hSupported := hSupported)
--- SORRY'D:     (hHelperProofs := hHelperProofs)
--- SORRY'D:     (hvalidateInputs := hvalidateInputs)
--- SORRY'D:     (runtimeContract := runtimeContract)
--- SORRY'D:     (fn := fn)
--- SORRY'D:     (sel := sel)
--- SORRY'D:     (irFn := irFn)
--- SORRY'D:     (tx := tx)
--- SORRY'D:     (initialWorld := initialWorld)
--- SORRY'D:     (htxNormalized := htxNormalized)
--- SORRY'D:     (bindings := bindings)
--- SORRY'D:     (hcalldataSizeFits := hcalldataSizeFits)
--- SORRY'D:     (hfn := hfn)
--- SORRY'D:     (hcompileFn := hcompileFn)
--- SORRY'D:     (hbind := hbind)
--- SORRY'D:     (hhelperIR :=
--- SORRY'D:       execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
--- SORRY'D:         runtimeContract
--- SORRY'D:         irFn
--- SORRY'D:         tx.args
--- SORRY'D:         (FunctionBody.initialIRStateForTx model tx initialWorld)
--- SORRY'D:         hbodyDisjoint)
+        (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  exact compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir
+    (model := model)
+    (selectors := selectors)
+    (hSupported := hSupported)
+    (hHelperProofs := hHelperProofs)
+    (hvalidateInputs := hvalidateInputs)
+    (runtimeContract := runtimeContract)
+    (fn := fn)
+    (sel := sel)
+    (irFn := irFn)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (htxNormalized := htxNormalized)
+    (bindings := bindings)
+    (hcalldataSizeFits := hcalldataSizeFits)
+    (hfn := hfn)
+    (hcompileFn := hcompileFn)
+    (hbind := hbind)
+    (hhelperIR :=
+      execIRFunctionWithInternals_eq_execIRFunction_of_bodyCallsDisjoint
+        runtimeContract
+        irFn
+        tx.args
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        hbodyDisjoint)
 
 -- SORRY'D: /-- Narrow helper-aware compileFunctionSpec wrapper aligned with the current
 -- SORRY'D: Tier 4 direct-helper seam. This keeps the public compile theorem on the exact
@@ -2453,10 +2453,10 @@ theorem compileFunctionSpec_correct_generic_with_helper_proofs_and_helper_ir_of_
 -- SORRY'D:       (hdisjoint := hdisjoint)
 -- SORRY'D:       (hfnBodyDisjoint := hfnBodyDisjoint)
 
--- SORRY'D: /-- Primary whole-contract Layer 2 theorem: compilation preserves semantics
--- SORRY'D: for any supported `CompilationModel`. No contract-specific bridge premise.
--- SORRY'D: Layer 2 itself is axiom-free; the remaining documented project axiom is the
--- SORRY'D: selector-level `keccak256_first_4_bytes` assumption tracked in `AXIOMS.md`. -/
+/-- Primary whole-contract Layer 2 theorem: compilation preserves semantics
+for any supported `CompilationModel`. No contract-specific bridge premise.
+Layer 2 itself is axiom-free; the remaining documented project axiom is the
+selector-level `keccak256_first_4_bytes` assumption tracked in `AXIOMS.md`. -/
 theorem compile_preserves_semantics
     (model : CompilationModel)
     (selectors : List Nat)
@@ -2469,67 +2469,67 @@ theorem compile_preserves_semantics
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
--- SORRY'D:     unfold CompilationModel.compile at hcompile
--- SORRY'D:     simp only [bind, Except.bind] at hcompile
--- SORRY'D:     rcases hvalidate : validateCompileInputs model selectors with _ | validated
--- SORRY'D:     · simp [hvalidate] at hcompile
--- SORRY'D:     · simpa using hvalidate
--- SORRY'D:   have hcompiled :
--- SORRY'D:       List.Forall₂
--- SORRY'D:         (fun entry irFn =>
--- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
--- SORRY'D:         ir.functions :=
--- SORRY'D:     compile_ok_yields_compiled_functions
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (ir := ir)
--- SORRY'D:       (hcompile := hcompile)
--- SORRY'D:   have hparamsSupported :
--- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
--- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
--- SORRY'D:     supported_params_of_supportedSpec model selectors hSupported
--- SORRY'D:   have hfunction :
--- SORRY'D:       ∀ fn sel irFn bindings,
--- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
--- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
--- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
--- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
--- SORRY'D:           (SourceSemantics.interpretFunction model fn tx initialWorld)
--- SORRY'D:           (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
--- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
--- SORRY'D:     exact compileFunctionSpec_correct_generic
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (hvalidateInputs := hvalidateInputs)
--- SORRY'D:       (fn := fn)
--- SORRY'D:       (sel := sel)
--- SORRY'D:       (irFn := irFn)
--- SORRY'D:       (tx := tx)
--- SORRY'D:       (initialWorld := initialWorld)
--- SORRY'D:       (htxNormalized := htxNormalized)
--- SORRY'D:       (bindings := bindings)
--- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
--- SORRY'D:       (hfn := hfn)
--- SORRY'D:       (hcompileFn := hcompileFn)
--- SORRY'D:       (hbind := hbind)
--- SORRY'D:   have hcontract :=
--- SORRY'D:     compile_preserves_semantics_of_compiled_functions
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (ir := ir)
--- SORRY'D:     (tx := tx)
--- SORRY'D:     (initialWorld := initialWorld)
--- SORRY'D:     (_hcompile := hcompile)
--- SORRY'D:     (hcompiled := hcompiled)
--- SORRY'D:     (hparamsSupported := hparamsSupported)
--- SORRY'D:     (hfunction := hfunction)
--- SORRY'D:   simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
--- SORRY'D:     (hSupported := hSupported) tx initialWorld] using hcontract
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (SourceSemantics.interpretFunction model fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    exact compileFunctionSpec_correct_generic
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hvalidateInputs := hvalidateInputs)
+      (fn := fn)
+      (sel := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
+      (bindings := bindings)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+  have hcontract :=
+    compile_preserves_semantics_of_compiled_functions
+    (model := model)
+    (selectors := selectors)
+    (ir := ir)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (_hcompile := hcompile)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := hfunction)
+  simpa [supportedSourceContractSemantics_eq_sourceContractSemantics
+    (hSupported := hSupported) tx initialWorld] using hcontract
 
 -- SORRY'D: /-- Whole-contract Tier 2 bridge for specs whose selector-dispatched bodies use
 -- SORRY'D: the alternate singleton-storage-write state interface. This keeps the contract
@@ -2623,75 +2623,75 @@ theorem compile_preserves_semantics_with_helper_proofs
     (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
     FunctionBody.sourceResultMatchesIRResult
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by sorry
--- SORRY'D:   have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
--- SORRY'D:     unfold CompilationModel.compile at hcompile
--- SORRY'D:     simp only [bind, Except.bind] at hcompile
--- SORRY'D:     rcases hvalidate : validateCompileInputs model selectors with _ | validated
--- SORRY'D:     · simp [hvalidate] at hcompile
--- SORRY'D:     · simpa using hvalidate
--- SORRY'D:   have hcompiled :
--- SORRY'D:       List.Forall₂
--- SORRY'D:         (fun entry irFn =>
--- SORRY'D:           compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
--- SORRY'D:         (SourceSemantics.selectorFunctionPairs model selectors)
--- SORRY'D:         ir.functions :=
--- SORRY'D:     compile_ok_yields_compiled_functions
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (ir := ir)
--- SORRY'D:       (hcompile := hcompile)
--- SORRY'D:   have hparamsSupported :
--- SORRY'D:       ∀ fn ∈ selectorDispatchedFunctions model,
--- SORRY'D:         ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
--- SORRY'D:     supported_params_of_supportedSpec model selectors hSupported
--- SORRY'D:   have hfunction :
--- SORRY'D:       ∀ fn sel irFn bindings,
--- SORRY'D:         fn ∈ selectorDispatchedFunctions model →
--- SORRY'D:         compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
--- SORRY'D:         SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
--- SORRY'D:         FunctionBody.sourceResultMatchesIRResult
--- SORRY'D:           (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
--- SORRY'D:           (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
--- SORRY'D:     intro fn sel irFn bindings hfn hcompileFn hbind
--- SORRY'D:     exact compileFunctionSpec_correct_generic_with_helper_proofs
--- SORRY'D:       (model := model)
--- SORRY'D:       (selectors := selectors)
--- SORRY'D:       (hSupported := hSupported)
--- SORRY'D:       (hHelperProofs := hHelperProofs)
--- SORRY'D:       (hvalidateInputs := hvalidateInputs)
--- SORRY'D:       (fn := fn)
--- SORRY'D:       (sel := sel)
--- SORRY'D:       (irFn := irFn)
--- SORRY'D:       (tx := tx)
--- SORRY'D:       (initialWorld := initialWorld)
--- SORRY'D:       (htxNormalized := htxNormalized)
--- SORRY'D:       (bindings := bindings)
--- SORRY'D:       (hcalldataSizeFits := hcalldataSizeFits)
--- SORRY'D:       (hfn := hfn)
--- SORRY'D:       (hcompileFn := hcompileFn)
--- SORRY'D:       (hbind := hbind)
--- SORRY'D:   exact compile_preserves_semantics_of_compiled_functions
--- SORRY'D:     (model := model)
--- SORRY'D:     (selectors := selectors)
--- SORRY'D:     (ir := ir)
--- SORRY'D:     (tx := tx)
--- SORRY'D:     (initialWorld := initialWorld)
--- SORRY'D:     (_hcompile := hcompile)
--- SORRY'D:     (hcompiled := hcompiled)
--- SORRY'D:     (hparamsSupported := hparamsSupported)
--- SORRY'D:     (hfunction := by
--- SORRY'D:       intro fn sel irFn bindings hfn hcompileFn hbind
--- SORRY'D:       simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
--- SORRY'D:         (hSupported := hSupported) hfn tx initialWorld] using
--- SORRY'D:         hfunction fn sel irFn bindings hfn hcompileFn hbind)
+      (interpretIR ir tx (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+  have hvalidateInputs : validateCompileInputs model selectors = Except.ok () := by
+    unfold CompilationModel.compile at hcompile
+    simp only [bind, Except.bind] at hcompile
+    rcases hvalidate : validateCompileInputs model selectors with _ | validated
+    · simp [hvalidate] at hcompile
+    · simpa using hvalidate
+  have hcompiled :
+      List.Forall₂
+        (fun entry irFn =>
+          compileFunctionSpec model.fields model.events model.errors entry.2 entry.1 = Except.ok irFn)
+        (SourceSemantics.selectorFunctionPairs model selectors)
+        ir.functions :=
+    compile_ok_yields_compiled_functions
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcompile := hcompile)
+  have hparamsSupported :
+      ∀ fn ∈ selectorDispatchedFunctions model,
+        ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
+    supported_params_of_supportedSpec model selectors hSupported
+  have hfunction :
+      ∀ fn sel irFn bindings,
+        fn ∈ selectorDispatchedFunctions model →
+        compileFunctionSpec model.fields model.events model.errors sel fn = Except.ok irFn →
+        SourceSemantics.bindSupportedParams fn.params tx.args = some bindings →
+        FunctionBody.sourceResultMatchesIRResult
+          (supportedSourceFunctionSemantics model selectors hSupported fn tx initialWorld)
+          (execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)) := by
+    intro fn sel irFn bindings hfn hcompileFn hbind
+    exact compileFunctionSpec_correct_generic_with_helper_proofs
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (hHelperProofs := hHelperProofs)
+      (hvalidateInputs := hvalidateInputs)
+      (fn := fn)
+      (sel := sel)
+      (irFn := irFn)
+      (tx := tx)
+      (initialWorld := initialWorld)
+      (htxNormalized := htxNormalized)
+      (bindings := bindings)
+      (hcalldataSizeFits := hcalldataSizeFits)
+      (hfn := hfn)
+      (hcompileFn := hcompileFn)
+      (hbind := hbind)
+  exact compile_preserves_semantics_of_compiled_functions
+    (model := model)
+    (selectors := selectors)
+    (ir := ir)
+    (tx := tx)
+    (initialWorld := initialWorld)
+    (_hcompile := hcompile)
+    (hcompiled := hcompiled)
+    (hparamsSupported := hparamsSupported)
+    (hfunction := by
+      intro fn sel irFn bindings hfn hcompileFn hbind
+      simpa [supportedSourceFunctionSemantics_eq_interpretFunction_of_selectorDispatched
+        (hSupported := hSupported) hfn tx initialWorld] using
+        hfunction fn sel irFn bindings hfn hcompileFn hbind)
 
--- SORRY'D: /-- Helper-aware compiled-side wrapper for the whole-contract theorem.
--- SORRY'D: The remaining compiled-side blocker is exactly the conservative-extension proof
--- SORRY'D: that supplies `hhelperIR`; once that theorem is available, the public Layer 2
--- SORRY'D: contract theorem can retarget to `interpretIRWithInternals` without another
--- SORRY'D: interface change in `Contract.lean`. -/
+/-- Helper-aware compiled-side wrapper for the whole-contract theorem.
+The remaining compiled-side blocker is exactly the conservative-extension proof
+that supplies `hhelperIR`; once that theorem is available, the public Layer 2
+contract theorem can retarget to `interpretIRWithInternals` without another
+interface change in `Contract.lean`. -/
 theorem compile_preserves_semantics_with_helper_proofs_and_helper_ir
     (model : CompilationModel)
     (selectors : List Nat)

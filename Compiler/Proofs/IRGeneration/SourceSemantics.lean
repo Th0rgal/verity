@@ -1407,8 +1407,11 @@ theorem execStmtWithHelpers_internalCallAssign_of_witness
         else
           .revert
     | none => .revert := by
-  -- TODO(#1645): unfold execStmtWithHelpers broken after mutual-block termination refactor
-  sorry
+  have hfind := findUniqueInternalFunction?_of_witness witness hnodup
+  unfold execStmtWithHelpers
+  rw [hfind]
+  dsimp only []
+  cases evalExprListWithHelpers spec fields (fuel + 1) state args <;> rfl
 
 /-- Version of `execStmtWithHelpers_internalCallAssign_obeys_summary` that takes
 a `SupportedInternalHelperWitness` instead of the private `findUniqueInternalFunction?`
@@ -1456,8 +1459,11 @@ theorem execStmtWithHelpers_internalCall_of_witness
         else
           .revert
     | none => .revert := by
-  -- TODO(#1645): unfold execStmtWithHelpers broken after mutual-block termination refactor
-  sorry
+  have hfind := findUniqueInternalFunction?_of_witness witness hnodup
+  unfold execStmtWithHelpers
+  rw [hfind]
+  dsimp only []
+  cases evalExprListWithHelpers spec fields (fuel + 1) state args <;> rfl
 
 /-- Public characterization of `evalExprWithHelpers` for `Expr.internalCall`
 (expression-position helper call) via a `SupportedInternalHelperWitness` and
@@ -1476,8 +1482,11 @@ theorem evalExprWithHelpers_internalCall_of_witness
     (do let argVals ← evalExprListWithHelpers spec fields (fuel + 1) state args
         let hresult := interpretInternalFunctionFuel spec fuel witness.callee state.world argVals
         if hresult.success then hresult.returnValue else none) := by
-  -- TODO(#1645): unfold evalExprWithHelpers broken after mutual-block termination refactor
-  sorry
+  have hfind := findUniqueInternalFunction?_of_witness witness hnodup
+  unfold evalExprWithHelpers
+  rw [hfind]
+  dsimp only []
+  cases evalExprListWithHelpers spec fields (fuel + 1) state args <;> rfl
 
 theorem SupportedBodyHelperInterface.summarySoundOfCall
     {spec : CompilationModel}
@@ -1570,6 +1579,8 @@ theorem SupportedSpecHelperProofs.functionSummariesSound
       (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers :=
   (SupportedSpecHelperProofs.functionProofs hSupported hProofs fn hfn).summariesSound
 
+set_option maxHeartbeats 800000
+
 mutual
   theorem evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1579,9 +1590,114 @@ mutual
       (expr : Expr)
       (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
       evalExprWithHelpers spec fields fuel state expr = evalExpr fields state expr := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; tactic scripts
-    -- need per-constructor unfold/rfl for catchall cases and heartbeat budget tuning.
-    sorry
+    cases expr with
+    | literal n
+    | param name
+    | storage fieldName
+    | storageAddr fieldName
+    | storageArrayLength fieldName
+    | caller
+    | contractAddress
+    | chainid
+    | msgValue
+    | blockTimestamp
+    | blockNumber
+    | localVar name
+    | constructorArg idx
+    | blobbasefee
+    | calldatasize
+    | returndataSize
+    | arrayLength name =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        rfl
+    | storageArrayElement fieldName index ih =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ih hsurface]
+    | add a b ihA ihB
+    | sub a b ihA ihB
+    | mul a b ihA ihB
+    | div a b ihA ihB
+    | mod a b ihA ihB
+    | bitAnd a b ihA ihB
+    | bitOr a b ihA ihB
+    | bitXor a b ihA ihB
+    | eq a b ihA ihB
+    | ge a b ihA ihB
+    | gt a b ihA ihB
+    | lt a b ihA ihB
+    | le a b ihA ihB
+    | logicalAnd a b ihA ihB
+    | logicalOr a b ihA ihB
+    | min a b ihA ihB
+    | max a b ihA ihB
+    | wMulDown a b ihA ihB
+    | wDivUp a b ihA ihB
+    | shl a b ihA ihB
+    | shr a b ihA ihB =>
+        have hA := (Bool.or_eq_false_iff.mp hsurface).1
+        have hB := (Bool.or_eq_false_iff.mp hsurface).2
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ihA hA, ihB hB]
+    | bitNot a ih
+    | logicalNot a ih =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ih hsurface]
+    | mulDivDown a b c ihA ihB ihC
+    | mulDivUp a b c ihA ihB ihC =>
+        have hAB := (Bool.or_eq_false_iff.mp hsurface).1
+        have hC := (Bool.or_eq_false_iff.mp hsurface).2
+        have hA := (Bool.or_eq_false_iff.mp hAB).1
+        have hB := (Bool.or_eq_false_iff.mp hAB).2
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ihA hA, ihB hB, ihC hC]
+    | ite cond thenVal elseVal ihCond ihThen ihElse =>
+        have hCondRest := (Bool.or_eq_false_iff.mp hsurface).1
+        have hElse := (Bool.or_eq_false_iff.mp hsurface).2
+        have hCond := (Bool.or_eq_false_iff.mp hCondRest).1
+        have hThen := (Bool.or_eq_false_iff.mp hCondRest).2
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ihCond hCond, ihThen hThen, ihElse hElse]
+    | mapping field key ih
+    | mappingUint field key ih
+    | arrayElement field key ih =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ih hsurface]
+    | mappingChain field keys ih =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+    | mappingWord field key offset ih
+    | mappingPackedWord field key offset packed ih
+    | structMember field key memberName ih =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ih hsurface]
+    | mapping2 field key1 key2 ih1 ih2
+    | mapping2Word field key1 key2 offset ih1 ih2
+    | structMember2 field key1 key2 memberName ih1 ih2 =>
+        have h1 := (Bool.or_eq_false_iff.mp hsurface).1
+        have h2 := (Bool.or_eq_false_iff.mp hsurface).2
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+        simp [ih1 h1, ih2 h2]
+    | internalCall calleeName args ih =>
+        cases hsurface
+    | externalCall calleeName args ih =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+    | dynamicBytesEq lhsName rhsName =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
+    | sdiv a b ihA ihB
+    | smod a b ihA ihB
+    | sgt a b ihA ihB
+    | slt a b ihA ihB
+    | sar a b ihA ihB
+    | signextend a b ihA ihB
+    | staticcall a b c d e f ihA ihB ihC ihD ihE ihF
+    | delegatecall a b c d e f ihA ihB ihC ihD ihE ihF
+    | call a b c d e f g ihA ihB ihC ihD ihE ihF ihG
+    | extcodesize a ihA
+    | returndataOptionalBoolAt a ihA
+    | mload a ihA
+    | tload a ihA
+    | calldataload a ihA
+    | keccak256 a b ihA ihB =>
+        unfold evalExprWithHelpers evalExpr exprTouchesUnsupportedHelperSurface at *
 
   theorem evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1592,8 +1708,18 @@ mutual
       (hsurface : exprs.all (fun expr => exprTouchesUnsupportedHelperSurface expr == false) = true) :
       evalExprListWithHelpers spec fields fuel state exprs =
         exprs.mapM (evalExpr fields state) := by
-    -- TODO(#1645): depends on evalExprWithHelpers_eq_evalExpr fix above
-    sorry
+    induction exprs with
+    | nil =>
+        unfold evalExprListWithHelpers
+        rfl
+    | cons expr rest ih =>
+        simp only [List.all_cons, Bool.and_eq_true] at hsurface
+        rcases hsurface with ⟨hexpr, hrest⟩
+        unfold evalExprListWithHelpers
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+            (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+            (expr := expr) (by simpa using hexpr),
+          ih hrest]
 
   theorem execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
       (spec : CompilationModel)
@@ -1603,11 +1729,133 @@ mutual
       (stmt : Stmt)
       (hsurface : stmtTouchesUnsupportedHelperSurface stmt = false) :
       execStmtWithHelpers spec fields fuel state stmt = execStmt fields state stmt := by
-    -- TODO(#1645): proof broken by mutual-block termination refactor; needs per-constructor
-    -- proofs with targeted unfold instead of blanket simp.
-    sorry
+    cases stmt with
+    | letVar name value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+          (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+          (expr := value) hsurface]
+    | assignVar name value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+          (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+          (expr := value) hsurface]
+    | setStorage fieldName value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+          (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+          (expr := value) hsurface]
+    | require cond message =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+          (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+          (expr := cond) hsurface]
+    | return value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+          (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+          (expr := value) hsurface]
+    | internalCall functionName args =>
+        unfold stmtTouchesUnsupportedHelperSurface at hsurface
+        cases hsurface
+    | internalCallAssign names functionName args =>
+        unfold stmtTouchesUnsupportedHelperSurface at hsurface
+        cases hsurface
+    | ite cond thenBranch elseBranch =>
+        unfold stmtTouchesUnsupportedHelperSurface at hsurface
+        have hCondRest := (Bool.or_eq_false_iff.mp hsurface).1
+        have hElse := (Bool.or_eq_false_iff.mp hsurface).2
+        have hCond := (Bool.or_eq_false_iff.mp hCondRest).1
+        have hThen := (Bool.or_eq_false_iff.mp hCondRest).2
+        unfold execStmtWithHelpers execStmt
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+            (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+            (expr := cond) hCond,
+          execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+            (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+            (stmts := thenBranch) hThen,
+          execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+            (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+            (stmts := elseBranch) hElse]
+    | forEach varName count body =>
+        unfold stmtTouchesUnsupportedHelperSurface at hsurface
+        have hCount := (Bool.or_eq_false_iff.mp hsurface).1
+        have hBody := (Bool.or_eq_false_iff.mp hsurface).2
+        unfold execStmtWithHelpers execStmt
+        simp [evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed
+            (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+            (expr := count) hCount]
+        split
+        · rename_i n
+          induction n generalizing state with
+          | zero => rfl
+          | succ n ih =>
+              simp
+              split
+              · rename_i newState
+                exact ih newState
+              · rfl
+        · rfl
+    | stop =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setStorageAddr fieldName value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | mstore offset value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | tstore offset value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | calldatacopy destOffset sourceOffset size =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | returndataCopy destOffset sourceOffset size =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | revertReturndata =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | externalCallBind resultVars externalName args =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | ecm mod args =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMapping field key value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMappingWord field key wordOffset value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMappingPackedWord field key wordOffset packed value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMapping2 field key1 key2 value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMapping2Word field key1 key2 wordOffset value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMappingUint field key value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setMappingChain field keys value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setStructMember field key memberName value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setStructMember2 field key1 key2 memberName value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | storageArrayPush field value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | storageArrayPop field =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | setStorageArrayElement field index value =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | requireError cond errorName args =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | revertError errorName args =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | returnValues values =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | returnArray name =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | returnBytes name =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | returnStorageWords name =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | emit eventName args =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
+    | rawLog topics dataOffset dataSize =>
+        unfold execStmtWithHelpers execStmt stmtTouchesUnsupportedHelperSurface at *
 
-theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+  theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (spec : CompilationModel)
       (fields : List Field)
       (fuel : Nat)
@@ -1615,8 +1863,22 @@ theorem execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
       (stmts : List Stmt)
       (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
       execStmtListWithHelpers spec fields fuel state stmts = execStmtList fields state stmts := by
-    -- TODO(#1645): depends on execStmtWithHelpers_eq_execStmt fix above
-    sorry
+    induction stmts generalizing state with
+    | nil =>
+        unfold execStmtListWithHelpers execStmtList stmtListTouchesUnsupportedHelperSurface at *
+    | cons stmt rest ih =>
+        have hStmt := (Bool.or_eq_false_iff.mp hsurface).1
+        have hRest := (Bool.or_eq_false_iff.mp hsurface).2
+        unfold execStmtListWithHelpers execStmtList
+        simp [execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed
+            (spec := spec) (fields := fields) (fuel := fuel) (state := state)
+            (stmt := stmt) hStmt]
+        cases hstep : execStmt fields state stmt <;> simp [hstep, ih hRest]
+  termination_by
+    evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed _ _ fuel _ expr _ => (fuel, sizeOf expr)
+    evalExprListWithHelpers_eq_evalExprList_of_helperSurfaceClosed _ _ fuel _ exprs _ => (fuel, sizeOf exprs)
+    execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed _ _ fuel _ stmt _ => (fuel, sizeOf stmt)
+    execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed _ _ fuel _ stmts _ => (fuel, sizeOf stmts)
 end
 
 /-- Exact source-side helper-composition target for a statement list: the
@@ -1658,9 +1920,16 @@ theorem interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
     (hsurface : stmtListTouchesUnsupportedHelperSurface fn.body = false) :
     interpretFunctionWithHelpers spec fuel fn tx initialWorld =
       interpretFunction spec fn tx initialWorld := by
-  -- TODO(#1645): simp [interpretFunctionWithHelpers, interpretFunction] no longer makes progress
-  -- after mutual-block termination refactor; needs unfold or simp_only approach.
-  sorry
+  unfold interpretFunctionWithHelpers interpretFunction
+  split <;> simp
+  rename_i bindings hbind
+  exact execStmtListWithHelpers_eq_execStmtList_of_helperSurfaceClosed
+    (spec := spec)
+    (fields := effectiveFields spec)
+    (fuel := fuel)
+    (state := { world := withTransactionContext initialWorld tx, bindings := bindings })
+    (stmts := fn.body)
+    hsurface
 
 private theorem mem_of_find?_some_local
     {α : Type} (p : α → Bool) :

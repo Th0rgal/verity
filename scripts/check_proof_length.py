@@ -482,6 +482,10 @@ ALLOWLIST: set[str] = {
     "compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList",
     "field_mem_of_findFieldWithResolvedSlot_some",
     "legacyCompatibleExternalStmtList_genParamLoads_of_supported",
+    # IRGeneration conservative-extension bridge (sorry elimination):
+    # long because it case-splits over all Stmt constructors, each requiring
+    # explicit unfold+simp for the WF-recursive helpers-vs-plain equivalence.
+    "execStmtWithHelpers_eq_execStmt_of_helperSurfaceClosed",
 }
 
 # Directories containing proof files to scan.
