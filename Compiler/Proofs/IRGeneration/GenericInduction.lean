@@ -2028,15 +2028,6 @@ private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
     fieldName ∈ fields.map (·.name) := by sorry
--- SORRY'D:   induction fields with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind
--- SORRY'D:   | cons field rest ih =>
--- SORRY'D:       simp [findFieldWithResolvedSlot] at hfind ⊢
--- SORRY'D:       by_cases hname : field.name == fieldName
--- SORRY'D:       · simp [hname]
--- SORRY'D:       · simp [hname] at hfind
--- SORRY'D:         exact Or.inr (ih hfind)
 
 private theorem fieldName_mem_fields_of_compileSetStorage_ok
     {fields : List Field}
@@ -2076,27 +2067,30 @@ private theorem compileStmt_ite_ok_inv
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false scope thenBranch = Except.ok thenIR ∧
       CompilationModel.compileStmtList
-        fields [] [] .calldata [] false scope elseBranch = Except.ok elseIR := by sorry
--- SORRY'D:   unfold CompilationModel.compileStmt at hcompile
--- SORRY'D:   cases hcond : CompilationModel.compileExpr fields .calldata cond with
--- SORRY'D:   | error err =>
--- SORRY'D:       simp [hcond] at hcompile
--- SORRY'D:   | ok condIR =>
--- SORRY'D:       cases hthen :
--- SORRY'D:           CompilationModel.compileStmtList fields [] [] .calldata [] false scope thenBranch with
--- SORRY'D:       | error err =>
--- SORRY'D:           simp [hcond, hthen] at hcompile
--- SORRY'D:       | ok thenIR =>
--- SORRY'D:           cases helse :
--- SORRY'D:               CompilationModel.compileStmtList fields [] [] .calldata [] false scope elseBranch with
--- SORRY'D:           | error err =>
--- SORRY'D:               simp [hcond, hthen, helse] at hcompile
--- SORRY'D:           | ok elseIR =>
--- SORRY'D:               by_cases helseEmpty : elseBranch.isEmpty
--- SORRY'D:               · simp [hcond, hthen, helse, helseEmpty] at hcompile
--- SORRY'D:                 exact ⟨condIR, thenIR, elseIR, hcond, hthen, helse⟩
--- SORRY'D:               · simp [hcond, hthen, helse, helseEmpty] at hcompile
--- SORRY'D:                 exact ⟨condIR, thenIR, elseIR, hcond, hthen, helse⟩
+        fields [] [] .calldata [] false scope elseBranch = Except.ok elseIR := by
+  unfold CompilationModel.compileStmt at hcompile
+  cases hcond : CompilationModel.compileExpr fields .calldata cond with
+  | error err =>
+      simp [hcond] at hcompile
+      cases hcompile
+  | ok condIR =>
+      cases hthen :
+          CompilationModel.compileStmtList fields [] [] .calldata [] false scope thenBranch with
+      | error err =>
+          simp [hcond, hthen] at hcompile
+          cases hcompile
+      | ok thenIR =>
+          cases helse :
+              CompilationModel.compileStmtList fields [] [] .calldata [] false scope elseBranch with
+          | error err =>
+              simp [hcond, hthen, helse] at hcompile
+              cases hcompile
+          | ok elseIR =>
+              by_cases helseEmpty : elseBranch.isEmpty
+              · simp [hcond, hthen, helse, helseEmpty] at hcompile
+                exact ⟨condIR, thenIR, elseIR, rfl, rfl, rfl⟩
+              · simp [hcond, hthen, helse, helseEmpty] at hcompile
+                exact ⟨condIR, thenIR, elseIR, rfl, rfl, rfl⟩
 
 -- TYPESIG_SORRY: theorem stmtListScopeCore_prefix_of_compileStmtList_ok_of_stmtListTouchesUnsupportedContractSurface
 -- TYPESIG_SORRY:     {fields : List Field}
