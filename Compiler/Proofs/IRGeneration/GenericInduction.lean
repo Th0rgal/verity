@@ -7650,7 +7650,32 @@ private theorem evalIRExpr_mappingSlotChain
       (keyIRs.foldl
         (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
         (YulExpr.lit baseSlot)) =
-      some (SourceSemantics.mappingSlotChain baseSlot keyVals) := by sorry
+      some (SourceSemantics.mappingSlotChain baseSlot keyVals) := by
+  have hgeneral :
+      ∀ {startExpr : YulExpr} {startSlot : Nat},
+        evalIRExpr state startExpr = some startSlot →
+        evalIRExpr state
+            (keyIRs.foldl
+              (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+              startExpr) =
+          some (List.foldl Compiler.Proofs.abstractMappingSlot startSlot keyVals) := by
+    induction hkeys with
+    | nil =>
+        intro startExpr startSlot hstart
+        simpa using hstart
+    | @cons exprIR value keyIRs keyVals hexpr hrest ih =>
+        intro startExpr startSlot hstart
+        have hnext :
+            evalIRExpr state (YulExpr.call "mappingSlot" [startExpr, exprIR]) =
+              some (Compiler.Proofs.abstractMappingSlot startSlot value) := by
+          simp [evalIRExpr, evalIRCall, evalIRExprs, hstart, hexpr,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+        simpa [List.foldl] using
+          ih (startExpr := YulExpr.call "mappingSlot" [startExpr, exprIR])
+            (startSlot := Compiler.Proofs.abstractMappingSlot startSlot value) hnext
+  simpa [SourceSemantics.mappingSlotChain] using
+    hgeneral (startExpr := YulExpr.lit baseSlot) (startSlot := baseSlot) (by simp [evalIRExpr])
 
 -- SORRY'D: /-- Extra Tier 2 assumptions needed to turn the singleton mapping-write
 -- SORRY'D: constructors in `SupportedStmtList` into real compiled-step proofs. These are
