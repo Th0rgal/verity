@@ -3794,9 +3794,9 @@ private theorem encodeStorageAt_eq_copy
     {world : Verity.ContractState}
     {slot : Nat} :
     SourceSemantics.encodeStorageAt fields world slot =
-      encodeStorageAtCopy fields world slot := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, encodeStorageAtCopy,
--- SORRY'D:     findResolvedFieldAtSlotCopy, findDynamicArrayElementAtSlotCopy]
+      encodeStorageAtCopy fields world slot := by
+  simp [SourceSemantics.encodeStorageAt, encodeStorageAtCopy,
+    findResolvedFieldAtSlotCopy, findDynamicArrayElementAtSlotCopy]
 
 private theorem encodeStorageAt_eq_storage_of_resolvedSlot
     {fields : List Field}
