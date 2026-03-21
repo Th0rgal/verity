@@ -3398,8 +3398,8 @@ private theorem encodeStorageAt_writeUintSlots_singleton_other
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeUintSlots world [slot] value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintSlots, hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintSlots, hneq]
 
 private theorem encodeStorageAt_writeUintSlots_other
     {fields : List Field}
@@ -3410,9 +3410,9 @@ private theorem encodeStorageAt_writeUintSlots_other
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeUintSlots world slots value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintSlots,
--- SORRY'D:     List.contains_eq_false.mpr hnotMem]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintSlots,
+    List.contains_eq_false.mpr hnotMem]
 
 private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_other
     {fields : List Field}
@@ -3422,10 +3422,10 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_other
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintKeyedMappingSlots,
--- SORRY'D:     Compiler.Proofs.abstractStoreMappingEntry_eq, Compiler.Proofs.abstractMappingSlot_eq_solidity,
--- SORRY'D:     hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeUintKeyedMappingSlots,
+    Compiler.Proofs.abstractStoreMappingEntry_eq, Compiler.Proofs.abstractMappingSlot_eq_solidity,
+    hneq]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_other
     {fields : List Field}
@@ -3437,9 +3437,9 @@ private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_oth
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMappingChainSlots,
--- SORRY'D:     SourceSemantics.mappingSlotChain, hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMappingChainSlots,
+    SourceSemantics.mappingSlotChain, hneq]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_other
     {fields : List Field}
@@ -3449,9 +3449,9 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_othe
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMappingWordSlots,
--- SORRY'D:     List.contains_eq_true, hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMappingWordSlots,
+    List.contains_eq_true, hneq]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_other
     {fields : List Field}
@@ -3463,10 +3463,10 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
       (SourceSemantics.writeAddressKeyedMappingPackedWordSlots
         world [slot] key wordOffset packed value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt,
--- SORRY'D:     SourceSemantics.writeAddressKeyedMappingPackedWordSlots,
--- SORRY'D:     List.contains_eq_true, hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt,
+    SourceSemantics.writeAddressKeyedMappingPackedWordSlots,
+    List.contains_eq_true, hneq]
 
 private def findResolvedFieldAtSlotCopy (fields : List Field) (slot : Nat) : Option Field :=
   let rec go (remaining : List Field) (idx : Nat) : Option Field :=
