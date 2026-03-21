@@ -3511,6 +3511,52 @@ private def findResolvedFieldAtSlotCopyFrom
       else
         findResolvedFieldAtSlotCopyFrom rest (idx + 1) slot
 
+private def findDynamicArrayElementAtSlotCopy
+    (fields : List Field) (world : Verity.ContractState) (targetSlot : Nat) : Option Nat :=
+  let rec scanElements (baseSlot : Nat) : List Verity.Core.Uint256 → Nat → Option Nat
+    | [], _ => none
+    | value :: rest, idx =>
+        if Compiler.Proofs.solidityMappingSlot baseSlot idx = targetSlot then
+          some value.val
+        else
+          scanElements baseSlot rest (idx + 1)
+  let rec go (remaining : List Field) (idx : Nat) : Option Nat :=
+    match remaining with
+    | [] => none
+    | field :: rest =>
+        let resolvedSlot := field.slot.getD idx
+        match field.ty with
+        | .dynamicArray _ =>
+            match scanElements resolvedSlot (world.storageArray resolvedSlot) 0 with
+            | some value => some value
+            | none => go rest (idx + 1)
+        | _ => go rest (idx + 1)
+  go fields 0
+
+private def encodeStorageAtCopy
+    (fields : List Field) (world : Verity.ContractState) (slot : Nat) : Nat :=
+  match findResolvedFieldAtSlotCopy fields slot with
+  | some field =>
+      if SourceSemantics.fieldUsesAddressStorage field then
+        (world.storageAddr slot).val
+      else if SourceSemantics.fieldUsesDynamicArrayStorage field then
+        (world.storageArray slot).length
+      else
+        (world.storage slot).val
+  | none =>
+      match findDynamicArrayElementAtSlotCopy fields world slot with
+      | some value => value
+      | none => (world.storage slot).val
+
+private theorem encodeStorageAt_eq_copy
+    {fields : List Field}
+    {world : Verity.ContractState}
+    {slot : Nat} :
+    SourceSemantics.encodeStorageAt fields world slot =
+      encodeStorageAtCopy fields world slot := by
+  simp [SourceSemantics.encodeStorageAt, encodeStorageAtCopy,
+    findResolvedFieldAtSlotCopy, findDynamicArrayElementAtSlotCopy]
+
 private def fieldWriteEntriesAt
     (idx : Nat) (field : Field) : List (Nat × String × Option PackedBits) :=
   (field.slot.getD idx, field.name, field.packedBits) ::
@@ -3752,52 +3798,6 @@ private theorem findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_singlet
     findResolvedFieldAtSlotCopy_of_findFieldWithResolvedSlot_member
       hnoConflict hfind hwrite (by simp) hunpacked
 
-private def findDynamicArrayElementAtSlotCopy
-    (fields : List Field) (world : Verity.ContractState) (targetSlot : Nat) : Option Nat :=
-  let rec scanElements (baseSlot : Nat) : List Verity.Core.Uint256 → Nat → Option Nat
-    | [], _ => none
-    | value :: rest, idx =>
-        if Compiler.Proofs.solidityMappingSlot baseSlot idx = targetSlot then
-          some value.val
-        else
-          scanElements baseSlot rest (idx + 1)
-  let rec go (remaining : List Field) (idx : Nat) : Option Nat :=
-    match remaining with
-    | [] => none
-    | field :: rest =>
-        let resolvedSlot := field.slot.getD idx
-        match field.ty with
-        | .dynamicArray _ =>
-            match scanElements resolvedSlot (world.storageArray resolvedSlot) 0 with
-            | some value => some value
-            | none => go rest (idx + 1)
-        | _ => go rest (idx + 1)
-  go fields 0
-
-private def encodeStorageAtCopy
-    (fields : List Field) (world : Verity.ContractState) (slot : Nat) : Nat :=
-  match findResolvedFieldAtSlotCopy fields slot with
-  | some field =>
-      if SourceSemantics.fieldUsesAddressStorage field then
-        (world.storageAddr slot).val
-      else if SourceSemantics.fieldUsesDynamicArrayStorage field then
-        (world.storageArray slot).length
-      else
-        (world.storage slot).val
-  | none =>
-      match findDynamicArrayElementAtSlotCopy fields world slot with
-      | some value => value
-      | none => (world.storage slot).val
-
-private theorem encodeStorageAt_eq_copy
-    {fields : List Field}
-    {world : Verity.ContractState}
-    {slot : Nat} :
-    SourceSemantics.encodeStorageAt fields world slot =
-      encodeStorageAtCopy fields world slot := by
-  simp [SourceSemantics.encodeStorageAt, encodeStorageAtCopy,
-    findResolvedFieldAtSlotCopy, findDynamicArrayElementAtSlotCopy]
-
 private theorem encodeStorageAt_eq_storage_of_resolvedSlot
     {fields : List Field}
     {world : Verity.ContractState}
@@ -3807,7 +3807,7 @@ private theorem encodeStorageAt_eq_storage_of_resolvedSlot
     (hnotAddr : SourceSemantics.fieldUsesAddressStorage f = false)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
     SourceSemantics.encodeStorageAt fields world slot = (world.storage slot).val := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hnotAddr, hnotDyn]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hnotAddr, hnotDyn]
 
 private theorem encodeStorageAt_eq_storageAddr_of_resolvedSlot
     {fields : List Field}
@@ -3818,7 +3818,7 @@ private theorem encodeStorageAt_eq_storageAddr_of_resolvedSlot
     (haddr : SourceSemantics.fieldUsesAddressStorage f = true)
     (hnotDyn : SourceSemantics.fieldUsesDynamicArrayStorage f = false) :
     SourceSemantics.encodeStorageAt fields world slot = (world.storageAddr slot).val := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr, hnotDyn]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, haddr, hnotDyn]
 
 private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
     {fields : List Field}
@@ -3833,8 +3833,8 @@ private theorem encodeStorageAt_writeUintKeyedMappingSlots_singleton_eq_written
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeUintKeyedMappingSlots world [slot] key value)
       (Compiler.Proofs.abstractMappingSlot slot key) = value := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
-  simp [SourceSemantics.writeUintKeyedMappingSlots, Compiler.Proofs.abstractStoreMappingEntry_eq,
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn,
+    SourceSemantics.writeUintKeyedMappingSlots, Compiler.Proofs.abstractStoreMappingEntry_eq,
     Compiler.Proofs.abstractMappingSlot_eq_solidity]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_written
@@ -3852,8 +3852,8 @@ private theorem encodeStorageAt_writeAddressKeyedMappingChainSlots_singleton_eq_
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingChainSlots world [slot] keys value)
       (SourceSemantics.mappingSlotChain slot keys) = value := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
-  simp [SourceSemantics.writeAddressKeyedMappingChainSlots, SourceSemantics.mappingSlotChain]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn,
+    SourceSemantics.writeAddressKeyedMappingChainSlots, SourceSemantics.mappingSlotChain]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_written
     {fields : List Field}
@@ -3868,8 +3868,8 @@ private theorem encodeStorageAt_writeAddressKeyedMappingWordSlots_singleton_eq_w
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMappingWordSlots world [slot] key wordOffset value)
       (Compiler.Proofs.abstractMappingSlot slot key + wordOffset) = value := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
-  simp [SourceSemantics.writeAddressKeyedMappingWordSlots]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn,
+    SourceSemantics.writeAddressKeyedMappingWordSlots]
 
 private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleton_eq_written
     {fields : List Field}
@@ -3890,8 +3890,8 @@ private theorem encodeStorageAt_writeAddressKeyedMappingPackedWordSlots_singleto
         (world.storage (Compiler.Proofs.abstractMappingSlot slot key + wordOffset)).val
         value
         packed := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
-  simp [SourceSemantics.writeAddressKeyedMappingPackedWordSlots,
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn,
+    SourceSemantics.writeAddressKeyedMappingPackedWordSlots,
     SourceSemantics.packedWordWrite]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
@@ -3929,8 +3929,8 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_writ
       (Compiler.Proofs.abstractMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key1)
         key2) = value := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
-  simp [SourceSemantics.writeAddressKeyedMapping2Slots, Compiler.Proofs.abstractStoreMappingEntry_eq,
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn,
+    SourceSemantics.writeAddressKeyedMapping2Slots, Compiler.Proofs.abstractStoreMappingEntry_eq,
     Compiler.Proofs.abstractMappingSlot_eq_solidity]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
@@ -3966,8 +3966,8 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_
       (Compiler.Proofs.abstractMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key1)
         key2 + wordOffset) = value := by
-  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
-  simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
+  simpa [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn,
+    SourceSemantics.writeAddressKeyedMapping2WordSlots]
 
 private def abstractStoreStorageOrMappingMany
     (storage : Nat → Nat) (slots : List Nat) (value : Nat) : Nat → Nat :=
@@ -3984,7 +3984,17 @@ private theorem abstractStoreStorageOrMappingMany_eq
     {slots : List Nat}
     {value query : Nat} :
     abstractStoreStorageOrMappingMany storage slots value query =
-      if slots.contains query then value else storage query := by sorry
+      if slots.contains query then value else storage query := by
+  induction slots generalizing storage with
+  | nil =>
+      simp [abstractStoreStorageOrMappingMany]
+  | cons slot rest ih =>
+      by_cases hEq : query = slot
+      · subst hEq
+        simpa [abstractStoreStorageOrMappingMany, Compiler.Proofs.abstractStoreStorageOrMapping_eq] using
+          (ih (storage := fun s => if s = query then value else storage s))
+      · simp [abstractStoreStorageOrMappingMany, ih,
+          Compiler.Proofs.abstractStoreStorageOrMapping_eq, hEq]
 -- SORRY'D:   induction slots generalizing storage with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp [abstractStoreStorageOrMappingMany]
