@@ -2261,7 +2261,16 @@ private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {f : Field}
     {slot : Nat}
     (hfind : findFieldWithResolvedSlot fields fieldName = some (f, slot)) :
-    fieldName ∈ fields.map (·.name) := by sorry
+    fieldName ∈ fields.map (·.name) := by
+  induction fields with
+  | nil =>
+      simp [findFieldWithResolvedSlot] at hfind
+  | cons head tail ih =>
+      simp [findFieldWithResolvedSlot] at hfind ⊢
+      split at hfind
+      · simpa using hfind
+      · right
+        exact ih hfind
 
 private theorem fieldName_mem_fields_of_compileSetStorage_ok
     {fields : List Field}
