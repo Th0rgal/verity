@@ -1262,7 +1262,15 @@ theorem stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
     {stmts : List Stmt}
     (hgeneric : StmtListGenericCore fields scope stmts)
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListGenericWithHelpers spec fields scope stmts := by sorry
+    StmtListGenericWithHelpers spec fields scope stmts := by
+  induction hgeneric with
+  | nil =>
+      exact .nil
+  | @cons scope stmt compiledIR rest hstep hrest ih =>
+      simp only [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      exact .cons
+        (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
+        (ih hsurface.2)
 -- SORRY'D:   induction hgeneric generalizing hsurface with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       exact .nil
@@ -1283,7 +1291,16 @@ theorem stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceC
     {stmts : List Stmt}
     (hhelperFree : StmtListHelperFreeStepInterface fields scope stmts)
     (hsurface : stmtListTouchesUnsupportedHelperSurface stmts = false) :
-    StmtListGenericWithHelpers spec fields scope stmts := by sorry
+    StmtListGenericWithHelpers spec fields scope stmts := by
+  induction hhelperFree with
+  | nil =>
+      exact .nil
+  | @cons scope stmt rest hhead htail ih =>
+      simp only [stmtListTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
+      rcases hhead hsurface.1 with ⟨compiledIR, hstep⟩
+      exact .cons
+        (hstep.withHelpers_of_helperSurfaceClosed hsurface.1)
+        (ih hsurface.2)
 -- SORRY'D:   induction hhelperFree generalizing hsurface with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       exact .nil

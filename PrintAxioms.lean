@@ -1069,8 +1069,8 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.IRGeneration.stmtListInternalHelperSurfaceStepInterface_of_directInternalHelperStepInterface_and_exprInternalHelperStepInterface_and_structuralInternalHelperStepInterface
 #print axioms Compiler.Proofs.IRGeneration.stmtListResidualHelperSurfaceStepInterface_of_helperSurfaceClosed
 #print axioms Compiler.Proofs.IRGeneration.stmtListHelperSurfaceStepInterface_of_internalHelperSurfaceStepInterface_and_residualHelperSurfaceStepInterface
--- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed  -- sorry'd
--- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed  -- sorry'd
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_core_and_helperSurfaceClosed
+#print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpers_of_helperFreeStepInterface_and_helperSurfaceClosed
 -- #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStepWithHelpers.withHelperIR_of_legacyCompatible  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.CompiledStmtStepWithHelpers.withHelperIR_of_callsDisjoint  -- sorry'd
 -- #print axioms Compiler.Proofs.IRGeneration.stmtListGenericWithHelpersAndHelperIR_of_withHelpers_and_compiledLegacyCompatible  -- sorry'd
@@ -1745,4 +1745,4 @@ import Compiler.Proofs.YulGeneration.Equivalence
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
 #print axioms Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
--- Total: 1614 theorems/lemmas (1138 public, 437 private, 39 sorry'd)
+-- Total: 1614 theorems/lemmas (1140 public, 437 private, 37 sorry'd)
