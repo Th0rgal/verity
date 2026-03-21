@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 91  # Reduced by proving six storage-copy rewrite lemmas in GenericInduction
+    expected_sorry = 87  # Reduced by proving four nested-mapping storage rewrite lemmas in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

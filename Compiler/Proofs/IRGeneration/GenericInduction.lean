@@ -3905,10 +3905,10 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_other
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMapping2Slots world [slot] key1 key2 value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMapping2Slots,
--- SORRY'D:     Compiler.Proofs.abstractStoreMappingEntry_eq, Compiler.Proofs.abstractMappingSlot_eq_solidity,
--- SORRY'D:     hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMapping2Slots,
+    Compiler.Proofs.abstractStoreMappingEntry_eq, Compiler.Proofs.abstractMappingSlot_eq_solidity,
+    hneq]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_written
     {fields : List Field}
@@ -3928,10 +3928,10 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2Slots_singleton_eq_writ
       (SourceSemantics.writeAddressKeyedMapping2Slots world [slot] key1 key2 value)
       (Compiler.Proofs.abstractMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2) = value := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
--- SORRY'D:   simp [SourceSemantics.writeAddressKeyedMapping2Slots, Compiler.Proofs.abstractStoreMappingEntry_eq,
--- SORRY'D:     Compiler.Proofs.abstractMappingSlot_eq_solidity]
+        key2) = value := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
+  simp [SourceSemantics.writeAddressKeyedMapping2Slots, Compiler.Proofs.abstractStoreMappingEntry_eq,
+    Compiler.Proofs.abstractMappingSlot_eq_solidity]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_other
     {fields : List Field}
@@ -3944,8 +3944,8 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_oth
     SourceSemantics.encodeStorageAt fields
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
       query =
-      SourceSemantics.encodeStorageAt fields world query := by sorry
--- SORRY'D:   simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMapping2WordSlots, hneq]
+      SourceSemantics.encodeStorageAt fields world query := by
+  simp [SourceSemantics.encodeStorageAt, SourceSemantics.writeAddressKeyedMapping2WordSlots, hneq]
 
 private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_written
     {fields : List Field}
@@ -3965,9 +3965,9 @@ private theorem encodeStorageAt_writeAddressKeyedMapping2WordSlots_singleton_eq_
       (SourceSemantics.writeAddressKeyedMapping2WordSlots world [slot] key1 key2 wordOffset value)
       (Compiler.Proofs.abstractMappingSlot
         (Compiler.Proofs.abstractMappingSlot slot key1)
-        key2 + wordOffset) = value := by sorry
--- SORRY'D:   rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
--- SORRY'D:   simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
+        key2 + wordOffset) = value := by
+  rw [encodeStorageAt_eq_copy, encodeStorageAtCopy, hresolved, hdyn]
+  simp [SourceSemantics.writeAddressKeyedMapping2WordSlots]
 
 private def abstractStoreStorageOrMappingMany
     (storage : Nat → Nat) (slots : List Nat) (value : Nat) : Nat → Nat :=
