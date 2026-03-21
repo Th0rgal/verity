@@ -6697,10 +6697,12 @@ private theorem terminal_stmtResultMatchesIRExec_implies_stmtStepMatchesIRExec
     {irExec : IRExecResult}
     (hmatch : FunctionBody.stmtResultMatchesIRExec fields sourceResult irExec)
     (hnotContinue : ∀ next, sourceResult ≠ .continue next) :
-    stmtStepMatchesIRExec fields scope sourceResult irExec := by sorry
--- SORRY'D:   cases sourceResult <;> cases irExec <;> simp [stmtStepMatchesIRExec] at hmatch ⊢
--- SORRY'D:   case continue runtime =>
--- SORRY'D:     exact False.elim (hnotContinue runtime rfl)
+    stmtStepMatchesIRExec fields scope sourceResult irExec := by
+  cases sourceResult <;> cases irExec <;>
+    simp [stmtStepMatchesIRExec, FunctionBody.stmtResultMatchesIRExec] at hmatch ⊢
+  · exact False.elim (hnotContinue _ rfl)
+  · exact hmatch
+  · exact hmatch
 
 theorem compiledStmtStep_ite
     {fields : List Field}
@@ -7637,38 +7639,6 @@ private theorem eval_compileExprList_core_of_scope
     ∃ values,
       SourceSemantics.evalExprList fields runtime exprs = some values ∧
       List.Forall₂ (fun exprIR value => evalIRExpr state exprIR = some value) exprIRs values := by sorry
--- SORRY'D:   induction exprs generalizing exprIRs with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp [CompilationModel.compileExprList, SourceSemantics.evalExprList] at hcompiled
--- SORRY'D:       subst exprIRs
--- SORRY'D:       exact ⟨[], by simp [SourceSemantics.evalExprList], List.Forall₂.nil⟩
--- SORRY'D:   | cons expr rest ih =>
--- SORRY'D:       have hheadCore : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
--- SORRY'D:       have htailCore : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
--- SORRY'D:         intro e he
--- SORRY'D:         exact hcore e (by simp [he])
--- SORRY'D:       have hheadScope : FunctionBody.exprBoundNamesInScope expr scope := hinScope expr (by simp)
--- SORRY'D:       have htailScope : ∀ e ∈ rest, FunctionBody.exprBoundNamesInScope e scope := by
--- SORRY'D:         intro e he
--- SORRY'D:         exact hinScope e (by simp [he])
--- SORRY'D:       cases hheadCompile : CompilationModel.compileExpr fields .calldata expr <;>
--- SORRY'D:         simp [CompilationModel.compileExprList, hheadCompile] at hcompiled
--- SORRY'D:       rename_i exprIR
--- SORRY'D:       cases htailCompile : CompilationModel.compileExprList fields .calldata rest <;>
--- SORRY'D:         simp [CompilationModel.compileExprList, hheadCompile, htailCompile] at hcompiled
--- SORRY'D:       rename_i restIRs
--- SORRY'D:       cases hcompiled
--- SORRY'D:       have hheadIR :=
--- SORRY'D:         FunctionBody.eval_compileExpr_core_of_scope
--- SORRY'D:           hheadCore hexact hheadScope hbounded
--- SORRY'D:           (FunctionBody.exprBoundNamesPresent_of_scope hscope hheadScope)
--- SORRY'D:           hruntime
--- SORRY'D:       rw [hheadCompile] at hheadIR
--- SORRY'D:       rcases ih htailCore hexact htailScope hbounded hscope hruntime htailCompile with
--- SORRY'D:         ⟨restVals, htailEval, htailIR⟩
--- SORRY'D:       refine ⟨Option.getD (SourceSemantics.evalExpr fields runtime expr) 0 :: restVals, ?_, ?_⟩
--- SORRY'D:       · simpa [SourceSemantics.evalExprList, htailEval] using hheadIR
--- SORRY'D:       · simpa using List.Forall₂.cons hheadIR htailIR
 
 private theorem evalIRExpr_mappingSlotChain
     {state : IRState}
@@ -7681,12 +7651,6 @@ private theorem evalIRExpr_mappingSlotChain
         (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr])
         (YulExpr.lit baseSlot)) =
       some (SourceSemantics.mappingSlotChain baseSlot keyVals) := by sorry
--- SORRY'D:   induction hkeys generalizing baseSlot with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp [SourceSemantics.mappingSlotChain, evalIRExpr]
--- SORRY'D:   | @cons exprIR value restIRs restVals hhead htail ih =>
--- SORRY'D:       simp [List.foldl_cons, SourceSemantics.mappingSlotChain, evalIRExpr,
--- SORRY'D:         hhead, Compiler.Proofs.abstractMappingSlot_eq_solidity, ih]
 
 -- SORRY'D: /-- Extra Tier 2 assumptions needed to turn the singleton mapping-write
 -- SORRY'D: constructors in `SupportedStmtList` into real compiled-step proofs. These are
