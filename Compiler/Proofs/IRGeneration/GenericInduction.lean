@@ -7606,7 +7606,7 @@ private theorem compileExprList_core_ok
       rcases ih htail with ⟨restIR, hrestIR⟩
       exact ⟨exprIR :: restIR, by
         rw [CompilationModel.compileExprList, hexprIR, hrestIR]
-        simp
+        rfl
       ⟩
 -- SORRY'D:   induction exprs with
 -- SORRY'D:   | nil =>
