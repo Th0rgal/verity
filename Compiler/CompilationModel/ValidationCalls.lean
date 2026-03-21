@@ -653,9 +653,9 @@ private theorem validateFieldIdentifiers_ok_of_mem
                 simp at hmem
                 rcases hmem with rfl | hmem
                 · intro hbad
-                  have hbadReserved : (head.name.startsWith "__") = true := by
-                    simpa [himm] using hbad
-                  exact ensureNonReservedYulIdentifier_ok hreserved hbadReserved
+                  have hbadReserved := hbad
+                  simp [himm] at hbadReserved
+                  exact (ensureNonReservedYulIdentifier_ok hreserved) hbadReserved
                 · exact ih htail hmem
 
 private theorem validateFunctionYulIdentifiers_params_ok_of_mem
