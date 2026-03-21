@@ -7593,7 +7593,21 @@ private theorem compileExprList_core_ok
     {fields : List Field}
     {exprs : List Expr}
     (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
-    ∃ exprIRs, CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs := by sorry
+    ∃ exprIRs, CompilationModel.compileExprList fields .calldata exprs = Except.ok exprIRs := by
+  induction exprs with
+  | nil =>
+      exact ⟨[], rfl⟩
+  | cons expr rest ih =>
+      have hhead : FunctionBody.ExprCompileCore expr := hcore expr (by simp)
+      have htail : ∀ e ∈ rest, FunctionBody.ExprCompileCore e := by
+        intro e he
+        exact hcore e (by simp [he])
+      rcases FunctionBody.compileExpr_core_ok (fields := fields) hhead with ⟨exprIR, hexprIR⟩
+      rcases ih htail with ⟨restIR, hrestIR⟩
+      exact ⟨exprIR :: restIR, by
+        rw [CompilationModel.compileExprList, hexprIR, hrestIR]
+        simp
+      ⟩
 -- SORRY'D:   induction exprs with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       exact ⟨[], by simp [CompilationModel.compileExprList]⟩

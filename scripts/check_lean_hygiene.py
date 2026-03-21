@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 113  # Reduced by closing two helper-aware stmt/IR execution bridge lemmas in GenericInduction
+    expected_sorry = 112  # Reduced by closing compileExprList_core_ok in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):
