@@ -4329,7 +4329,9 @@ private theorem execIRStmts_single_block_of_continue
 private theorem compatValue_not_mem_scope_of_reservedPrefix
     {scope : List String}
     (hscopeReserved : scopeAvoidsReservedCompilerPrefix scope) :
-    "__compat_value" ∉ scope := by sorry
+    "__compat_value" ∉ scope := by
+  intro hmem
+  exact hscopeReserved "__compat_value" hmem (by decide)
 
 private theorem validateIdentifierShapes_fieldName_avoidReservedCompilerPrefix
     {spec : CompilationModel}
