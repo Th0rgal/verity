@@ -65,7 +65,7 @@ def main() -> None:
 
     # Check 3: Zero sorry after scrubbing comments and string literals.
     # CI requires fully completed proofs in-tree.
-    expected_sorry = 100  # Reduced by proving eval_compileExprList_core_of_scope in GenericInduction
+    expected_sorry = 99  # Reduced by proving exprBoundNamesInScope_of_validateScopedExprIdentifiers_core in GenericInduction
     sorry_count = 0
     sorry_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

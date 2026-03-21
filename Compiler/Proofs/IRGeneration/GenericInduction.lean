@@ -2508,6 +2508,58 @@ private theorem mem_stmtNextScopeList_of_mem_scope
   | cons stmt rest ih =>
       exact ih (mem_stmtNextScope_of_mem_scope hmem)
 
+private theorem validateScopedExprIdentifiers_pair_ok_left
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {lhs rhs : Expr}
+    (hvalidate :
+      (do
+        validateScopedExprIdentifiers
+          context params paramScope dynamicParams localScope constructorArgCount lhs
+        validateScopedExprIdentifiers
+          context params paramScope dynamicParams localScope constructorArgCount rhs) =
+        Except.ok ()) :
+    validateScopedExprIdentifiers
+      context params paramScope dynamicParams localScope constructorArgCount lhs =
+        Except.ok () := by
+  cases hlhs :
+      validateScopedExprIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount lhs with
+  | error err =>
+      simp [hlhs] at hvalidate
+      cases hvalidate
+  | ok val =>
+      cases val
+      simpa using hlhs
+
+private theorem validateScopedExprIdentifiers_pair_ok_right
+    {context : String}
+    {params : List Param}
+    {paramScope dynamicParams localScope : List String}
+    {constructorArgCount : Option Nat}
+    {lhs rhs : Expr}
+    (hvalidate :
+      (do
+        validateScopedExprIdentifiers
+          context params paramScope dynamicParams localScope constructorArgCount lhs
+        validateScopedExprIdentifiers
+          context params paramScope dynamicParams localScope constructorArgCount rhs) =
+        Except.ok ()) :
+    validateScopedExprIdentifiers
+      context params paramScope dynamicParams localScope constructorArgCount rhs =
+        Except.ok () := by
+  cases hlhs :
+      validateScopedExprIdentifiers
+        context params paramScope dynamicParams localScope constructorArgCount lhs with
+  | error err =>
+      simp [hlhs] at hvalidate
+      cases hvalidate
+  | ok val =>
+      cases val
+      simpa [hlhs] using hvalidate
+
 private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
     {context : String}
     {params : List Param}
@@ -2521,7 +2573,82 @@ private theorem exprBoundNamesInScope_of_validateScopedExprIdentifiers_core
           Except.ok ())
     (hparamsInScope : ∀ name, name ∈ paramScope → name ∈ scope)
     (hlocalsInScope : ∀ name, name ∈ localScope → name ∈ scope) :
-    FunctionBody.exprBoundNamesInScope expr scope := by sorry
+    FunctionBody.exprBoundNamesInScope expr scope := by
+  induction hcore with
+  | literal =>
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+  | param name0 =>
+      intro name hmem
+      have hparam : name0 ∈ paramScope := by
+        by_cases hname : name0 ∈ paramScope
+        · exact hname
+        · simp [validateScopedExprIdentifiers, hname] at hvalidate
+      simp [FunctionBody.exprBoundNames] at hmem
+      subst name
+      exact hparamsInScope name0 hparam
+  | localVar name0 =>
+      intro name hmem
+      have hlocal : name0 ∈ localScope := by
+        by_cases hname : name0 ∈ localScope
+        · exact hname
+        · simp [validateScopedExprIdentifiers, hname] at hvalidate
+      simp [FunctionBody.exprBoundNames] at hmem
+      subst name
+      exact hlocalsInScope name0 hlocal
+  | caller | contractAddress | msgValue | blockTimestamp | blockNumber | chainid =>
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+  | add hL hR ihL ihR
+  | sub hL hR ihL ihR
+  | mul hL hR ihL ihR
+  | div hL hR ihL ihR
+  | mod hL hR ihL ihR
+  | eq hL hR ihL ihR
+  | lt hL hR ihL ihR
+  | gt hL hR ihL ihR
+  | ge hL hR ihL ihR
+  | le hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        simpa [validateScopedExprIdentifiers] using hvalidate
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
+  | logicalNot h ih =>
+      intro name hmem
+      simpa [FunctionBody.exprBoundNames] using
+        ih
+          (by simpa [validateScopedExprIdentifiers] using hvalidate)
+          name
+          (by simpa [FunctionBody.exprBoundNames] using hmem)
+  | logicalAnd hL hR ihL ihR
+  | logicalOr hL hR ihL ihR =>
+      rename_i lhs rhs
+      have hpair :
+          (do
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount lhs
+            validateScopedExprIdentifiers
+              context params paramScope dynamicParams localScope constructorArgCount rhs) =
+            Except.ok () := by
+        by_cases hcall : exprContainsCallLike lhs = true ∨ exprContainsCallLike rhs = true
+        · simp [validateScopedExprIdentifiers, validateLogicalOperandPurity, hcall] at hvalidate
+          cases hvalidate
+        · simpa [validateScopedExprIdentifiers, validateLogicalOperandPurity, hcall] using hvalidate
+      intro name hmem
+      simp [FunctionBody.exprBoundNames] at hmem
+      rcases hmem with hmem | hmem
+      · exact ihL (validateScopedExprIdentifiers_pair_ok_left hpair) name hmem
+      · exact ihR (validateScopedExprIdentifiers_pair_ok_right hpair) name hmem
 -- SORRY'D:   induction hcore with
 -- SORRY'D:   | literal =>
 -- SORRY'D:       intro name hmem
