@@ -9269,21 +9269,27 @@ private theorem execIRStmts_append_of_continue
     (head tail : List YulStmt)
     (hhead : execIRStmts fuel state head = .continue next) :
     execIRStmts fuel state (head ++ tail) =
-      execIRStmts (fuel - head.length) next tail := by sorry
--- SORRY'D:   induction head generalizing fuel state with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp at hhead
--- SORRY'D:       subst hhead
--- SORRY'D:       simp
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       cases fuel with
--- SORRY'D:       | zero =>
--- SORRY'D:           simp [execIRStmts] at hhead
--- SORRY'D:       | succ fuel =>
--- SORRY'D:           simp [execIRStmts] at hhead ⊢
--- SORRY'D:           cases hstmt : execIRStmt fuel state stmt <;> simp [hstmt] at hhead
--- SORRY'D:           case continue next' =>
--- SORRY'D:             simpa using ih fuel next' hhead
+      execIRStmts (fuel - head.length) next tail := by
+  induction head generalizing fuel state with
+  | nil =>
+      simp [execIRStmts] at hhead
+      cases hhead
+      simp
+  | cons stmt rest ih =>
+      cases fuel with
+      | zero =>
+          simpa [execIRStmts] using hhead
+      | succ fuel =>
+          match hstmt : execIRStmt fuel state stmt with
+          | .continue next' =>
+              simp [execIRStmts, hstmt] at hhead ⊢
+              simpa using ih fuel next' hhead
+          | .return value state' =>
+              simp [execIRStmts, hstmt] at hhead
+          | .stop state' =>
+              simp [execIRStmts, hstmt] at hhead
+          | .revert state' =>
+              simp [execIRStmts, hstmt] at hhead
 
 private theorem execIRStmts_append_of_not_continue
     (fuel : Nat)
@@ -9292,24 +9298,27 @@ private theorem execIRStmts_append_of_not_continue
     (irExec : IRExecResult)
     (hhead : execIRStmts fuel state head = irExec)
     (hnot : ∀ next, irExec ≠ .continue next) :
-    execIRStmts fuel state (head ++ tail) = irExec := by sorry
--- SORRY'D:   induction head generalizing fuel state with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp at hhead
--- SORRY'D:       subst hhead
--- SORRY'D:       exact False.elim (hnot state rfl)
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       cases fuel with
--- SORRY'D:       | zero =>
--- SORRY'D:           simp [execIRStmts] at hhead ⊢
--- SORRY'D:       | succ fuel =>
--- SORRY'D:           simp [execIRStmts] at hhead ⊢
--- SORRY'D:           cases hstmt : execIRStmt fuel state stmt <;> simp [hstmt] at hhead ⊢
--- SORRY'D:           case continue next' =>
--- SORRY'D:             exact ih fuel next' hhead hnot
--- SORRY'D:           case return value state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmts, hstmt]
+    execIRStmts fuel state (head ++ tail) = irExec := by
+  induction head generalizing fuel state with
+  | nil =>
+      simp [execIRStmts] at hhead
+      cases hhead
+      exact False.elim (hnot state rfl)
+  | cons stmt rest ih =>
+      cases fuel with
+      | zero =>
+          simpa [execIRStmts] using hhead
+      | succ fuel =>
+          match hstmt : execIRStmt fuel state stmt with
+          | .continue next' =>
+              simp [execIRStmts, hstmt] at hhead ⊢
+              exact ih fuel next' hhead
+          | .return value state' =>
+              simpa [execIRStmts, hstmt] using hhead
+          | .stop state' =>
+              simpa [execIRStmts, hstmt] using hhead
+          | .revert state' =>
+              simpa [execIRStmts, hstmt] using hhead
 
 private theorem execIRStmtsWithInternals_append_of_continue
     (runtimeContract : IRContract)
@@ -9319,22 +9328,29 @@ private theorem execIRStmtsWithInternals_append_of_continue
     (hhead :
       execIRStmtsWithInternals runtimeContract fuel state head = .continue next) :
     execIRStmtsWithInternals runtimeContract fuel state (head ++ tail) =
-      execIRStmtsWithInternals runtimeContract (fuel - head.length) next tail := by sorry
--- SORRY'D:   induction head generalizing fuel state with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp at hhead
--- SORRY'D:       subst hhead
--- SORRY'D:       simp
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       cases fuel with
--- SORRY'D:       | zero =>
--- SORRY'D:           simp [execIRStmtsWithInternals] at hhead
--- SORRY'D:       | succ fuel =>
--- SORRY'D:           simp [execIRStmtsWithInternals] at hhead ⊢
--- SORRY'D:           cases hstmt : execIRStmtWithInternals runtimeContract fuel state stmt <;>
--- SORRY'D:             simp [hstmt] at hhead
--- SORRY'D:           case continue next' =>
--- SORRY'D:             simpa using ih fuel next' hhead
+      execIRStmtsWithInternals runtimeContract (fuel - head.length) next tail := by
+  induction head generalizing fuel state with
+  | nil =>
+      simp [execIRStmtsWithInternals] at hhead
+      cases hhead
+      simp
+  | cons stmt rest ih =>
+      cases fuel with
+      | zero =>
+          simpa [execIRStmtsWithInternals] using hhead
+      | succ fuel =>
+          match hstmt : execIRStmtWithInternals runtimeContract fuel state stmt with
+          | .continue next' =>
+              simp [execIRStmtsWithInternals, hstmt] at hhead ⊢
+              simpa using ih fuel next' hhead
+          | .return value state' =>
+              simp [execIRStmtsWithInternals, hstmt] at hhead
+          | .stop state' =>
+              simp [execIRStmtsWithInternals, hstmt] at hhead
+          | .revert state' =>
+              simp [execIRStmtsWithInternals, hstmt] at hhead
+          | .leave state' =>
+              simp [execIRStmtsWithInternals, hstmt] at hhead
 
 private theorem execIRStmtsWithInternals_append_of_not_continue
     (runtimeContract : IRContract)
@@ -9345,40 +9361,29 @@ private theorem execIRStmtsWithInternals_append_of_not_continue
     (hhead :
       execIRStmtsWithInternals runtimeContract fuel state head = irExec)
     (hnot : ∀ next, irExec ≠ .continue next) :
-    execIRStmtsWithInternals runtimeContract fuel state (head ++ tail) = irExec := by sorry
--- SORRY'D:   induction head generalizing fuel state with
--- SORRY'D:   | nil =>
--- SORRY'D:       simp at hhead
--- SORRY'D:       subst hhead
--- SORRY'D:       exact False.elim (hnot state rfl)
--- SORRY'D:   | cons stmt rest ih =>
--- SORRY'D:       cases fuel with
--- SORRY'D:       | zero =>
--- SORRY'D:           simp [execIRStmtsWithInternals] at hhead ⊢
--- SORRY'D:       | succ fuel =>
--- SORRY'D:           simp [execIRStmtsWithInternals] at hhead ⊢
--- SORRY'D:           cases hstmt : execIRStmtWithInternals runtimeContract fuel state stmt <;>
--- SORRY'D:             simp [hstmt] at hhead ⊢
--- SORRY'D:           case continue next' =>
--- SORRY'D:             exact ih fuel next' hhead hnot
--- SORRY'D:           case return value state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmtsWithInternals, hstmt]
--- SORRY'D:           case stop state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmtsWithInternals, hstmt]
--- SORRY'D:           case revert state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmtsWithInternals, hstmt]
--- SORRY'D:           case leave state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmtsWithInternals, hstmt]
--- SORRY'D:           case stop state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmts, hstmt]
--- SORRY'D:           case revert state' =>
--- SORRY'D:             cases hhead
--- SORRY'D:             simp [execIRStmts, hstmt]
+    execIRStmtsWithInternals runtimeContract fuel state (head ++ tail) = irExec := by
+  induction head generalizing fuel state with
+  | nil =>
+      simp [execIRStmtsWithInternals] at hhead
+      cases hhead
+      exact False.elim (hnot state rfl)
+  | cons stmt rest ih =>
+      cases fuel with
+      | zero =>
+          simpa [execIRStmtsWithInternals] using hhead
+      | succ fuel =>
+          match hstmt : execIRStmtWithInternals runtimeContract fuel state stmt with
+          | .continue next' =>
+              simp [execIRStmtsWithInternals, hstmt] at hhead ⊢
+              exact ih fuel next' hhead
+          | .return value state' =>
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
+          | .stop state' =>
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
+          | .revert state' =>
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
+          | .leave state' =>
+              simpa [execIRStmtsWithInternals, hstmt] using hhead
 
 theorem exec_compileStmtList_generic_sizeOf_extraFuel_step
     {fields : List Field}
