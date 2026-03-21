@@ -9270,7 +9270,13 @@ theorem stmtStepMatchesIRExecWithInternals_implies_stmtResultMatchesIRExecWithIn
 
 private theorem yulStmtList_sizeOf_append_left_le
     (head tail : List YulStmt) :
-    sizeOf head ≤ sizeOf (head ++ tail) := by sorry
+    sizeOf head ≤ sizeOf (head ++ tail) := by
+  induction head with
+  | nil =>
+      cases tail <;> simp <;> omega
+  | cons stmt rest ih =>
+      simp [List.cons_append]
+      omega
 -- SORRY'D:   induction head with
 -- SORRY'D:   | nil =>
 -- SORRY'D:       simp
