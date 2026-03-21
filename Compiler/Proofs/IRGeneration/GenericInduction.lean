@@ -686,7 +686,24 @@ theorem legacyCompatibleExternalStmtList_of_compileStmtList_ok_on_supportedContr
     (hcompile :
       CompilationModel.compileStmtList
         fields [] [] .calldata [] false inScopeNames stmts = Except.ok bodyIR) :
-    LegacyCompatibleExternalStmtList bodyIR := by sorry
+    LegacyCompatibleExternalStmtList bodyIR := by
+  induction stmts generalizing inScopeNames bodyIR with
+  | nil =>
+      simp [CompilationModel.compileStmtList] at hcompile
+      cases hcompile
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp hsurface
+      have hstmtSurface : stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.1
+      have hrestSurface : stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.2
+      rcases FunctionBody.compileStmtList_cons_ok_inv hcompile with
+        ⟨headIR, tailIR, hhead, htail, rfl⟩
+      exact legacyCompatibleExternalStmtList_append
+        (legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+          hnoPacked hstmtSurface hhead)
+        (ih hrestSurface htail)
 
 -- SORRY'D: /-- Derive the compiled-side legacy-compatibility witness needed by the exact
 -- SORRY'D: helper-aware induction seam from the existing supported contract-surface scan. -/
@@ -696,7 +713,20 @@ theorem stmtListCompiledLegacyCompatible_of_supportedContractSurface
     {stmts : List Stmt}
     (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false) :
-    StmtListCompiledLegacyCompatible fields scope stmts := by sorry
+    StmtListCompiledLegacyCompatible fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp hsurface
+      have hstmtSurface : stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.1
+      have hrestSurface : stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro compiledIR hcompile
+      exact legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+        hnoPacked hstmtSurface hcompile
 
 -- SORRY'D: /-- Any list-level compiled witness for full legacy compatibility also suffices
 -- SORRY'D: for the weaker exact-seam witness that only constrains helper-free heads. -/
@@ -727,7 +757,26 @@ theorem stmtListHelperFreeCompiledCallsDisjoint_of_supportedContractSurface
     (hnoPacked : ∀ field ∈ fields, field.packedBits = none)
     (hsurface : stmtListTouchesUnsupportedContractSurface stmts = false)
     (hinternal : runtimeContract.internalFunctions = []) :
-    StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts := by sorry
+    StmtListHelperFreeCompiledCallsDisjoint runtimeContract fields scope stmts := by
+  induction stmts generalizing scope with
+  | nil =>
+      exact .nil
+  | cons stmt rest ih =>
+      have hsplit := Bool.or_eq_false_iff.mp hsurface
+      have hstmtSurface : stmtTouchesUnsupportedContractSurface stmt = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.1
+      have hrestSurface : stmtListTouchesUnsupportedContractSurface rest = false := by
+        simpa [stmtListTouchesUnsupportedContractSurface] using hsplit.2
+      refine .cons ?_ (ih hrestSurface)
+      intro _ compiledIR hcompile
+      exact YulStmtListCallsDisjointFromInternalTable_of_internalFunctions_nil
+        runtimeContract
+        hinternal
+        compiledIR
+        (legacyCompatibleExternalStmtList_of_compileStmt_ok_on_supportedContractSurface
+          hnoPacked
+          hstmtSurface
+          hcompile)
 
 private theorem legacyCompatibleExternalStmtList_of_exprMap
     (exprs : List YulExpr) :
