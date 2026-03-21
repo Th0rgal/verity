@@ -626,7 +626,7 @@ private theorem validateFieldIdentifiers_ok_of_mem
     {field : Field}
     (hvalidate : validateFieldIdentifiers fields = Except.ok ())
     (hmem : field ∈ fields) :
-    ¬ field.name.startsWith "__" := by
+    ¬ (field.name.startsWith "__" && !isInternalImmutableStorageName field.name) := by
   induction fields with
   | nil =>
       cases hmem
@@ -636,17 +636,25 @@ private theorem validateFieldIdentifiers_ok_of_mem
           simp [validateFieldIdentifiers, hcontract] at hvalidate
           cases hvalidate
       | ok _ =>
-          cases hreserved : ensureNonReservedYulIdentifier "field" head.name with
-          | error err =>
-              simp [validateFieldIdentifiers, hcontract, hreserved] at hvalidate
-              cases hvalidate
-          | ok _ =>
-              have htail : validateFieldIdentifiers tail = Except.ok () := by
-                simpa [validateFieldIdentifiers, hcontract, hreserved] using hvalidate
-              simp at hmem
-              rcases hmem with rfl | hmem
-              · exact ensureNonReservedYulIdentifier_ok hreserved
-              · exact ih htail hmem
+          by_cases himm : isInternalImmutableStorageName head.name
+          · have htail : validateFieldIdentifiers tail = Except.ok () := by
+              simpa [validateFieldIdentifiers, hcontract, himm] using hvalidate
+            simp at hmem
+            rcases hmem with rfl | hmem
+            · simp [himm]
+            · exact ih htail hmem
+          · cases hreserved : ensureNonReservedYulIdentifier "field" head.name with
+            | error err =>
+                simp [validateFieldIdentifiers, hcontract, himm, hreserved] at hvalidate
+                cases hvalidate
+            | ok _ =>
+                have htail : validateFieldIdentifiers tail = Except.ok () := by
+                  simpa [validateFieldIdentifiers, hcontract, himm, hreserved] using hvalidate
+                simp at hmem
+                rcases hmem with rfl | hmem
+                · intro hbad
+                  exact ensureNonReservedYulIdentifier_ok hreserved hbad.1
+                · exact ih htail hmem
 
 private theorem validateFunctionYulIdentifiers_params_ok_of_mem
     {fn : FunctionSpec}
@@ -804,7 +812,7 @@ theorem validateIdentifierShapes_field_avoidReservedCompilerPrefix
     {field : Field}
     (hvalidate : validateIdentifierShapes spec = Except.ok ())
     (hmem : field ∈ spec.fields) :
-    ¬ field.name.startsWith "__" := by
+    ¬ (field.name.startsWith "__" && !isInternalImmutableStorageName field.name) := by
   have hreserved :
       validateReservedCompilerIdentifiers spec = Except.ok () := by
     unfold validateIdentifierShapes at hvalidate
