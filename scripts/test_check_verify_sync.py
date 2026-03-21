@@ -441,7 +441,7 @@ class VerifySyncTests(unittest.TestCase):
             workflow,
             check_only_paths=[],
             compiler_paths=["src/**"],
-            expected_trigger_keys=["push", "pull_request", "workflow_dispatch"],
+            expected_trigger_keys=["schedule", "push", "pull_request", "workflow_dispatch"],
             expected_push_branches=["main"],
             require_workflow_dispatch=True,
         )
@@ -456,6 +456,8 @@ class VerifySyncTests(unittest.TestCase):
             """
             name: verify
             on:
+              schedule:
+                - cron: '0 0 * * *'
               push:
                 branches: [main]
                 paths:
@@ -464,8 +466,7 @@ class VerifySyncTests(unittest.TestCase):
                 paths:
                   - 'src/**'
               workflow_dispatch:
-              schedule:
-                - cron: '0 0 * * *'
+              repository_dispatch:
             jobs:
               changes:
                 runs-on: ubuntu-latest
@@ -485,19 +486,21 @@ class VerifySyncTests(unittest.TestCase):
             workflow,
             check_only_paths=[],
             compiler_paths=["src/**"],
-            expected_trigger_keys=["push", "pull_request", "workflow_dispatch"],
+            expected_trigger_keys=["schedule", "push", "pull_request", "workflow_dispatch"],
             expected_push_branches=["main"],
             require_workflow_dispatch=True,
         )
         self.assertEqual(rc, 1)
         self.assertIn("workflow triggers does not match spec workflow triggers.", err)
-        self.assertIn("idx 3: workflow triggers='schedule', spec workflow triggers='<missing>'", err)
+        self.assertIn("idx 4: workflow triggers='repository_dispatch', spec workflow triggers='<missing>'", err)
 
     def test_paths_check_passes_when_trigger_contracts_match_spec(self) -> None:
         workflow = textwrap.dedent(
             """
             name: verify
             on:
+              schedule:
+                - cron: '0 0 * * *'
               push:
                 branches: [main]
                 paths:
@@ -525,7 +528,7 @@ class VerifySyncTests(unittest.TestCase):
             workflow,
             check_only_paths=[],
             compiler_paths=["src/**"],
-            expected_trigger_keys=["push", "pull_request", "workflow_dispatch"],
+            expected_trigger_keys=["schedule", "push", "pull_request", "workflow_dispatch"],
             expected_push_branches=["main"],
             require_workflow_dispatch=True,
         )
@@ -700,7 +703,7 @@ class VerifySyncTests(unittest.TestCase):
             expected_workflow_permissions={"contents": "read"},
             expected_workflow_concurrency={
                 "group": "${{ github.workflow }}-${{ github.ref }}",
-                "cancel-in-progress": "true",
+                "cancel-in-progress": "${{ github.event_name != 'schedule' }}",
             },
             expected_workflow_env={"SOLC_VERSION": "0.8.33"},
         )
@@ -756,7 +759,7 @@ class VerifySyncTests(unittest.TestCase):
               contents: read
             concurrency:
               group: ${{ github.workflow }}-${{ github.ref }}
-              cancel-in-progress: true
+              cancel-in-progress: ${{ github.event_name != 'schedule' }}
             env:
               SOLC_VERSION: "0.8.33"
               SOLC_URL: "https://example.invalid/solc"
@@ -800,7 +803,7 @@ class VerifySyncTests(unittest.TestCase):
             expected_workflow_permissions={"contents": "read"},
             expected_workflow_concurrency={
                 "group": "${{ github.workflow }}-${{ github.ref }}",
-                "cancel-in-progress": "true",
+                "cancel-in-progress": "${{ github.event_name != 'schedule' }}",
             },
             expected_workflow_env={
                 "SOLC_VERSION": "0.8.33",

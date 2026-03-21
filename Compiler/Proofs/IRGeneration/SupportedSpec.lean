@@ -13,7 +13,7 @@ open Compiler.CompilationModel
 /-- ABI parameter types admitted by the first whole-contract Layer 2 fragment.
 Only single-head-word scalars are included for the initial generic theorem. -/
 def SupportedExternalParamType : ParamType → Prop
-  | .uint256 | .uint8 | .address | .bytes32 => True
+  | .uint256 | .int256 | .uint8 | .address | .bytes32 => True
   | _ => False
 
 /-- Return profiles admitted by the first whole-contract Layer 2 fragment.

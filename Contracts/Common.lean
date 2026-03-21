@@ -77,15 +77,10 @@ def bitAnd (a b : Uint256) : Uint256 := Verity.Core.Uint256.and a b
 def bitOr (a b : Uint256) : Uint256 := Verity.Core.Uint256.or a b
 def bitXor (a b : Uint256) : Uint256 := Verity.Core.Uint256.xor a b
 
-structure Int256 where
-  word : Uint256
-  deriving Repr, BEq, DecidableEq, Inhabited
+abbrev Int256 := Verity.Core.Int256
 
-def toInt256 (value : Uint256) : Int256 := ⟨value⟩
-def toUint256 (value : Int256) : Uint256 := value.word
-
-instance : Coe Int256 Uint256 := ⟨Int256.word⟩
-instance : OfNat Int256 n := ⟨toInt256 (n : Uint256)⟩
+abbrev toInt256 := Verity.toInt256
+abbrev toUint256 := Verity.toUint256
 
 class CustomErrorArg (α : Type) where
   encode : α → String
@@ -123,51 +118,22 @@ def revertCustomError (name : String) (args : List String) : Contract Unit :=
 def requireCustomError (condition : Bool) (name : String) (args : List String) : Contract Unit :=
   if condition then pure () else revertCustomError name args
 
-private def signedWordLimit : Nat := Verity.Core.Uint256.modulus / 2
-
 private def wordToSigned (value : Uint256) : Int :=
-  let raw : Nat := value
-  if raw < signedWordLimit then
-    Int.ofNat raw
-  else
-    Int.ofNat raw - Int.ofNat Verity.Core.Uint256.modulus
+  (toInt256 value : Int)
 
 private def signedToWord (value : Int) : Uint256 :=
-  let reduced := Int.emod value (Int.ofNat Verity.Core.Uint256.modulus)
-  (reduced.toNat : Uint256)
-
-private def signedAbsNat (value : Int) : Nat :=
-  Int.natAbs value
+  toUint256 (Verity.Core.Int256.ofInt value)
 
 instance : CustomErrorArg Int256 where
-  encode value := toString (wordToSigned value.word)
+  encode value := toString (value : Int)
 
 private def pow2 (n : Nat) : Nat := 2 ^ n
 
 def sdiv (a b : Uint256) : Uint256 :=
-  let lhs := wordToSigned a
-  let rhs := wordToSigned b
-  if rhs == 0 then
-    0
-  else
-    let quotient := signedAbsNat lhs / signedAbsNat rhs
-    let sameSign := (lhs < 0) == (rhs < 0)
-    if sameSign then
-      signedToWord (Int.ofNat quotient)
-    else
-      signedToWord (- Int.ofNat quotient)
+  toUint256 (toInt256 a / toInt256 b)
 
 def smod (a b : Uint256) : Uint256 :=
-  let lhs := wordToSigned a
-  let rhs := wordToSigned b
-  if rhs == 0 then
-    0
-  else
-    let modulus := signedAbsNat lhs % signedAbsNat rhs
-    if lhs < 0 then
-      signedToWord (- Int.ofNat modulus)
-    else
-      signedToWord (Int.ofNat modulus)
+  toUint256 (toInt256 a % toInt256 b)
 
 def slt (a b : Uint256) : Bool := wordToSigned a < wordToSigned b
 def sgt (a b : Uint256) : Bool := wordToSigned a > wordToSigned b
@@ -197,14 +163,6 @@ def signextend (byteIndex value : Uint256) : Uint256 :=
       ((lowBits + (Verity.Core.Uint256.modulus - lowMask - 1)) : Uint256)
     else
       (lowBits : Uint256)
-
-instance : Add Int256 := ⟨fun a b => toInt256 (a.word + b.word)⟩
-instance : Sub Int256 := ⟨fun a b => toInt256 (a.word - b.word)⟩
-instance : Mul Int256 := ⟨fun a b => toInt256 (a.word * b.word)⟩
-instance : Div Int256 := ⟨fun a b => toInt256 (sdiv a.word b.word)⟩
-instance : Mod Int256 := ⟨fun a b => toInt256 (smod a.word b.word)⟩
-instance : LT Int256 := ⟨fun a b => wordToSigned a.word < wordToSigned b.word⟩
-instance : LE Int256 := ⟨fun a b => wordToSigned a.word ≤ wordToSigned b.word⟩
 
 abbrev mulDivDown := Verity.Stdlib.Math.mulDivDown
 abbrev mulDivUp := Verity.Stdlib.Math.mulDivUp

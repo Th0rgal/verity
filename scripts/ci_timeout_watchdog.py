@@ -46,6 +46,22 @@ def _extract_top_level_job_value(job_body: str, key: str) -> str | None:
     return None
 
 
+def _parse_timeout_minutes(raw: str) -> int:
+    stripped = raw.strip()
+    if stripped.isdigit():
+        return int(stripped)
+
+    # `timeout-minutes` can be a GitHub expression. The watchdog does not have
+    # enough event context to fully evaluate it, so fall back to the last numeric
+    # literal in the expression, which matches the default branch/push path used
+    # by patterns like `cond && '60' || '35'`.
+    numeric_literals = re.findall(r"\d+", stripped)
+    if numeric_literals:
+        return int(numeric_literals[-1])
+
+    raise ValueError(f"Could not parse timeout-minutes value: {raw}")
+
+
 def load_timeouts(workflow_path: Path = VERIFY_YML) -> dict[str, int]:
     workflow_text = workflow_path.read_text(encoding="utf-8")
     return load_timeouts_from_text(workflow_text, workflow_path)
@@ -57,7 +73,7 @@ def load_timeouts_from_text(workflow_text: str, workflow_path: Path = VERIFY_YML
         raw = _extract_top_level_job_value(extract_job_body(workflow_text, job, workflow_path), "timeout-minutes")
         if raw is None:
             continue
-        timeouts[job] = int(raw)
+        timeouts[job] = _parse_timeout_minutes(raw)
     return timeouts
 
 

@@ -703,29 +703,90 @@ theorem lookupValue_bindValue_ne
   rw [ParamLoading.wordNormalize_eq_mod]
   exact Nat.mod_lt _ (by simp [Compiler.Constants.evmModulus])
 
+private theorem maskedWordNormalize_lt_evmModulus (word mask : Nat) :
+    SourceSemantics.wordNormalize word &&& mask < Compiler.Constants.evmModulus := by
+  have hle : SourceSemantics.wordNormalize word &&& mask ≤ SourceSemantics.wordNormalize word := Nat.and_le_left
+  exact Nat.lt_of_le_of_lt hle (wordNormalize_lt_evmModulus word)
+
+private theorem decodeSupportedParamWord_passthrough_lt_evmModulus
+    {ty : ParamType}
+    {word value : Nat}
+    (hpassthrough : ty = .uint256 ∨ ty = .int256 ∨ ty = .bytes32)
+    (hdecode : SourceSemantics.decodeSupportedParamWord ty word = some value) :
+    value < Compiler.Constants.evmModulus := by
+  rcases hpassthrough with rfl | rfl | rfl
+  · have hvalue : value = SourceSemantics.wordNormalize word := by
+      simpa [SourceSemantics.decodeSupportedParamWord] using hdecode.symm
+    cases hvalue
+    exact wordNormalize_lt_evmModulus word
+  · have hvalue : value = SourceSemantics.wordNormalize word := by
+      simpa [SourceSemantics.decodeSupportedParamWord] using hdecode.symm
+    cases hvalue
+    exact wordNormalize_lt_evmModulus word
+  · have hvalue : value = SourceSemantics.wordNormalize word := by
+      simpa [SourceSemantics.decodeSupportedParamWord] using hdecode.symm
+    cases hvalue
+    exact wordNormalize_lt_evmModulus word
+
+private theorem decodeSupportedParamWord_masked_lt_evmModulus
+    {ty : ParamType}
+    {word value : Nat}
+    (hmasked : ty = .uint8 ∨ ty = .address)
+    (hdecode : SourceSemantics.decodeSupportedParamWord ty word = some value) :
+    value < Compiler.Constants.evmModulus := by
+  rcases hmasked with rfl | rfl
+  · have hvalue : value = SourceSemantics.wordNormalize word &&& (SourceSemantics.uint8Modulus - 1) := by
+      simpa [SourceSemantics.decodeSupportedParamWord] using hdecode.symm
+    cases hvalue
+    exact maskedWordNormalize_lt_evmModulus word (SourceSemantics.uint8Modulus - 1)
+  · have hvalue : value = SourceSemantics.wordNormalize word &&& Compiler.Constants.addressMask := by
+      simpa [SourceSemantics.decodeSupportedParamWord] using hdecode.symm
+    cases hvalue
+    exact maskedWordNormalize_lt_evmModulus word Compiler.Constants.addressMask
+
+private theorem decodeSupportedParamWord_bool_lt_evmModulus
+    {word value : Nat}
+    (hdecode : SourceSemantics.decodeSupportedParamWord .bool word = some value) :
+    value < Compiler.Constants.evmModulus := by
+  by_cases hzero : word % Compiler.Constants.evmModulus = 0
+  · simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero] at hdecode
+    cases hdecode
+    simp [Compiler.Constants.evmModulus]
+  · by_cases hone : word % Compiler.Constants.evmModulus = 1
+    · simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero, hone] at hdecode
+      cases hdecode
+      simp [Compiler.Constants.evmModulus]
+    · exfalso
+      simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize, hzero, hone] at hdecode
+
 theorem decodeSupportedParamWord_lt_evmModulus
     {ty : ParamType}
     {word value : Nat}
     (hdecode : SourceSemantics.decodeSupportedParamWord ty word = some value) :
     value < Compiler.Constants.evmModulus := by
-  cases ty <;> simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.uint8Modulus] at hdecode ⊢
-  · subst value
-    exact wordNormalize_lt_evmModulus word
-  · subst value
-    exact Nat.lt_of_le_of_lt Nat.and_le_left (wordNormalize_lt_evmModulus word)
-  · subst value
-    exact Nat.lt_of_le_of_lt Nat.and_le_left (wordNormalize_lt_evmModulus word)
-  · split at hdecode
-    · injection hdecode with hvalue
-      subst hvalue
-      simp [Compiler.Constants.evmModulus]
-    · split at hdecode
-      · injection hdecode with hvalue
-        subst hvalue
-        simp [Compiler.Constants.evmModulus]
-      · contradiction
-  · subst value
-    exact wordNormalize_lt_evmModulus word
+  cases ty with
+  | uint256 =>
+      exact decodeSupportedParamWord_passthrough_lt_evmModulus (hpassthrough := .inl rfl) hdecode
+  | int256 =>
+      exact decodeSupportedParamWord_passthrough_lt_evmModulus (hpassthrough := .inr (.inl rfl)) hdecode
+  | uint8 =>
+      exact decodeSupportedParamWord_masked_lt_evmModulus (hmasked := .inl rfl) hdecode
+  | address =>
+      exact decodeSupportedParamWord_masked_lt_evmModulus (hmasked := .inr rfl) hdecode
+  | bool =>
+      exact decodeSupportedParamWord_bool_lt_evmModulus hdecode
+  | bytes32 =>
+      exact decodeSupportedParamWord_passthrough_lt_evmModulus (hpassthrough := .inr (.inr rfl)) hdecode
+  | string =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | tuple _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | array _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | fixedArray _ _ =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
+  | bytes =>
+      simp [SourceSemantics.decodeSupportedParamWord] at hdecode
 
 theorem bindingsBounded_bindValue
     {bindings : List (String × Nat)}

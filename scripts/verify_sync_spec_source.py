@@ -39,13 +39,14 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                     'scripts/check_yul.py',
                     'scripts/generate_yul_identity_diff_report.py',
                     'scripts/keccak256.py',
+                    'scripts/lean_cc_ccache_clang.sh',
                     'scripts/property_utils.py',
                     'lakefile.lean',
                     'lake-manifest.json',
                     'lean-toolchain',
                     'foundry.toml'],
  'expected_push_branches': ['main'],
- 'expected_trigger_keys': ['push', 'pull_request', 'workflow_dispatch'],
+ 'expected_trigger_keys': ['schedule', 'push', 'pull_request', 'workflow_dispatch'],
  'require_workflow_dispatch': True,
  'expected_jobs': ['changes',
                    'checks',
@@ -225,28 +226,55 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                            'foundry-patched': 15,
                            'foundry-multi-seed': 25},
  'expected_job_strategy_fail_fast': {'macro-fuzz': False, 'foundry': False, 'foundry-multi-seed': False},
- 'expected_job_outputs': {'changes': {'code': '${{ steps.filter.outputs.code }}',
-                                      'build': '${{ steps.filter.outputs.build }}',
-                                      'compiler': '${{ steps.filter.outputs.compiler }}',
-                                      'macro_fuzz': '${{ steps.filter.outputs.macro_fuzz }}'}},
+ 'expected_job_outputs': {'changes': {'code': '${{ steps.effective.outputs.code }}',
+                                      'build': '${{ steps.effective.outputs.build }}',
+                                      'compiler': '${{ steps.effective.outputs.compiler }}',
+                                      'macro_fuzz': '${{ steps.effective.outputs.macro_fuzz }}'}},
  'expected_job_permissions': {'timeout-watchdog': {'actions': 'read', 'contents': 'read'},
                               'failure-hints': {'contents': 'read', 'pull-requests': 'write'}},
  'expected_workflow_permissions': {'contents': 'read'},
  'expected_workflow_concurrency': {'group': '${{ github.workflow }}-${{ github.ref }}',
-                                   'cancel-in-progress': 'true'},
+                                   'cancel-in-progress': "${{ github.event_name != 'schedule' }}"},
  'expected_workflow_env': {'SOLC_VERSION': '0.8.33',
                            'SOLC_URL': 'https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21',
                            'SOLC_SHA256': '1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468',
                            'VERIFY_CLEAN_BUILD': "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}",
+                           'VERIFY_FORCE_FULL_RUN': "${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_full_run)) && 'true' || 'false' }}",
                            'VERIFY_USE_STICKY_DISKS': "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'false' || 'true' }}",
                            'VERIFY_DISABLE_LAKE_CACHE_RESTORE': "${{ github.event_name == 'workflow_dispatch' && inputs.clean_build && 'true' || 'false' }}",
-                           'VERIFY_CACHE_BUCKET': "${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}"},
+                           'VERIFY_CACHE_BUCKET': "${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref_name) }}",
+                           'VERIFY_MAIN_CACHE_BUCKET': 'ref-main'},
  'build_compiler_job_names': ['build-compiler-binaries',
                               'generate-yul',
                               'generate-yul-patched',
                               'gas-report'],
  'expected_step_contracts': {'changes': [{'uses': 'actions/checkout@v4'},
-                                         {'id': 'filter', 'uses': 'dorny/paths-filter@v3'}],
+                                         {'id': 'filter', 'uses': 'dorny/paths-filter@v3'},
+                                         {'id': 'effective',
+                                          'name': 'Resolve effective change flags',
+                                          'run': 'if [ "$FORCE_FULL_RUN" = "true" ]; then\n'
+                                                 '  code=true\n'
+                                                 '  build=true\n'
+                                                 '  compiler=true\n'
+                                                 '  macro_fuzz=true\n'
+                                                 'else\n'
+                                                 '  code="$CODE_CHANGED"\n'
+                                                 '  build="$BUILD_CHANGED"\n'
+                                                 '  compiler="$COMPILER_CHANGED"\n'
+                                                 '  macro_fuzz="$MACRO_FUZZ_CHANGED"\n'
+                                                 'fi\n'
+                                                 '\n'
+                                                 '{\n'
+                                                 '  echo "code=$code"\n'
+                                                 '  echo "build=$build"\n'
+                                                 '  echo "compiler=$compiler"\n'
+                                                 '  echo "macro_fuzz=$macro_fuzz"\n'
+                                                 '} >> "$GITHUB_OUTPUT"',
+                                          'env': {'FORCE_FULL_RUN': '${{ env.VERIFY_FORCE_FULL_RUN }}',
+                                                  'CODE_CHANGED': '${{ steps.filter.outputs.code }}',
+                                                  'BUILD_CHANGED': '${{ steps.filter.outputs.build }}',
+                                                  'COMPILER_CHANGED': '${{ steps.filter.outputs.compiler }}',
+                                                  'MACRO_FUZZ_CHANGED': '${{ steps.filter.outputs.macro_fuzz }}'}}],
                              'checks': [{'uses': 'actions/checkout@v4'},
                                         {'name': 'Run all checks', 'run': 'make check'}],
                              'timeout-watchdog': [{'name': 'Warn on timeout-risk trend',
