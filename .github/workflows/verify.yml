@@ -298,7 +298,7 @@ jobs:
 
   prepare-macro-fuzz:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '240' || '180') }}
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     env:
@@ -479,7 +479,7 @@ jobs:
 
   build-compiler-binaries:
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '180' || '75') }}
+    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '240' || '180') }}
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
