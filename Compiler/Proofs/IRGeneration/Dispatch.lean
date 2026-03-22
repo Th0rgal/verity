@@ -44,12 +44,7 @@ theorem runtimeContractOfFunctions_disjoint
 private theorem decodeSupportedParamWord_some_of_supported
     (ty : ParamType) (word : Nat) (hsupported : SupportedExternalParamType ty) :
     ∃ value, SourceSemantics.decodeSupportedParamWord ty word = some value := by
-  -- TEMPORARY SORRY: this witness lemma needs to be updated for the current
-  -- supported external parameter surface, which now includes additional cases
-  -- such as `int256`. The clean fix should construct explicit witnesses for
-  -- every supported constructor instead of discharging new branches by
-  -- contradiction.
-  sorry
+  cases ty <;> simp [SupportedExternalParamType, SourceSemantics.decodeSupportedParamWord] at hsupported ⊢
 
 private theorem bindSupportedParams_some_of_supported
     (params : List Param) (args : List Nat)
