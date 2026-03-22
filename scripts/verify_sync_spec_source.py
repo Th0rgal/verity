@@ -222,7 +222,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                            'lean-profile': 45,
                            'foundry-gas-calibration': 15,
                            'foundry': 15,
-                           'foundry-patched': 15,
+                           'foundry-patched': 25,
                            'foundry-multi-seed': 25},
  'expected_job_strategy_fail_fast': {'macro-fuzz': False, 'foundry': False, 'foundry-multi-seed': False},
  'expected_job_outputs': {'changes': {'code': '${{ steps.effective.outputs.code }}',
@@ -597,6 +597,38 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                       'path': 'gas-report-static-patched.tsv'}}],
                              'compiler-audits': [{'uses': 'actions/checkout@v4',
                                                   'with': {'submodules': 'recursive'}},
+                                                 {'name': 'Setup Lean',
+                                                  'uses': './.github/actions/setup-lean',
+                                                  'with': {'cache-key-prefix': 'lake-compiler',
+                                                           'use-sticky-disks': '${{ env.VERIFY_USE_STICKY_DISKS }}',
+                                                           'sticky-disk-key-prefix': 'verify-compiler',
+                                                           'disable-lake-cache-restore': '${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}',
+                                                           'cache-primary-key': 'lake-compiler-${{ '
+                                                                                'runner.os }}-${{ '
+                                                                                "hashFiles('lean-toolchain') "
+                                                                                '}}-${{ '
+                                                                                "hashFiles('lakefile.lean') "
+                                                                                '}}-${{ '
+                                                                                "hashFiles('lake-manifest.json') "
+                                                                                '}}-${{ github.run_id '
+                                                                                '}}',
+                                                           'cache-extra-restore-keys': 'lake-${{ '
+                                                                                       'runner.os '
+                                                                                       '}}-${{ '
+                                                                                       "hashFiles('lean-toolchain') "
+                                                                                       '}}-${{ '
+                                                                                       "hashFiles('lakefile.lean') "
+                                                                                       '}}-${{ '
+                                                                                       "hashFiles('lake-manifest.json') "
+                                                                                       '}}-${{ '
+                                                                                       'github.run_id '
+                                                                                       '}}'}},
+                                                 {'name': 'Download prepared Lean workspace build',
+                                                  'uses': 'actions/download-artifact@v4',
+                                                  'with': {'name': 'lean-workspace-build'}},
+                                                 {'name': 'Download compiler workspace build',
+                                                  'uses': 'actions/download-artifact@v4',
+                                                  'with': {'name': 'lean-workspace-compiler-build'}},
                                                  {'name': 'Setup solc',
                                                   'uses': './.github/actions/setup-solc'},
                                                  {'name': 'Upload parity-pack identity report',
@@ -640,8 +672,8 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                        'uses': 'actions/download-artifact@v4',
                                                        'with': {'name': 'lean-workspace-compiler-build'}},
                                          {'name': 'Run compiler CLI regression module',
-                                          'run': 'stdbuf -oL -eL lake exe '
-                                                 'compiler-main-test'},
+                                          'run': 'chmod +x ./.lake/build/bin/compiler-main-test\n'
+                                                 'stdbuf -oL -eL ./.lake/build/bin/compiler-main-test'},
                                                       {'name': 'Run CompilationModel feature '
                                                                'regression module',
                                                                'run': 'lake build '
@@ -662,6 +694,12 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                           'uses': './.github/actions/setup-foundry'}],
                              'foundry-patched': [{'uses': 'actions/checkout@v4',
                                                   'with': {'submodules': 'recursive'}},
+                                                 {'name': 'Download prepared Lean workspace build',
+                                                  'uses': 'actions/download-artifact@v4',
+                                                  'with': {'name': 'lean-workspace-build'}},
+                                                 {'name': 'Download compiler workspace build',
+                                                  'uses': 'actions/download-artifact@v4',
+                                                  'with': {'name': 'lean-workspace-compiler-build'}},
                                                  {'name': 'Setup Foundry environment',
                                                   'uses': './.github/actions/setup-foundry',
                                                   'with': {'yul-artifact-name': 'generated-yul-patched',
@@ -887,7 +925,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                             'verity-compiler-binaries'],
                                    'gas-report': ['lean-workspace-build',
                                                   'lean-workspace-compiler-build'],
-                                   'compiler-audits': ['generated-yul',
+                                   'compiler-audits': ['lean-workspace-build',
+                                                       'lean-workspace-compiler-build',
+                                                       'generated-yul',
                                                        'generated-yul-patched',
                                                        'static-gas-report',
                                                        'static-gas-report-patched',
@@ -895,7 +935,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                        'verity-compiler-binaries'],
                                    'compiler-regressions': ['lean-workspace-build',
                                                             'lean-workspace-compiler-build'],
-                                   'foundry-gas-calibration': ['static-gas-report']},
+                                   'foundry-gas-calibration': ['static-gas-report'],
+                                   'foundry-patched': ['lean-workspace-build',
+                                                       'lean-workspace-compiler-build']},
  'expected_downloaded_artifact_paths': {'prepare-macro-fuzz': [None],
                                         'build-audits': [None],
                                         'macro-fuzz': [None],
@@ -904,7 +946,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                         'generate-yul-patched': [None, None, 'compiler/bin'],
                                         'gas-report': [None,
                                                        None],
-                                        'compiler-audits': ['compiler/yul',
+                                        'compiler-audits': [None,
+                                                            None,
+                                                            'compiler/yul',
                                                             'compiler/yul-patched',
                                                             None,
                                                             None,
@@ -912,7 +956,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                             'compiler/bin'],
                                         'compiler-regressions': [None,
                                                                  None],
-                                        'foundry-gas-calibration': [None]}}
+                                        'foundry-gas-calibration': [None],
+                                        'foundry-patched': [None,
+                                                            None]}}
 
 
 def build_spec() -> dict:
