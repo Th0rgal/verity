@@ -51,7 +51,7 @@ lean_lib «PrintAxioms» where
   globs := #[.one `PrintAxioms]
 
 lean_exe «verity-compiler» where
-  root := `Compiler.Main
+  root := `Compiler.MainEntry
 
 lean_exe «verity-compiler-patched» where
   root := `Compiler.MainPatched
